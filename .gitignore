@@ -1,0 +1,12 @@
+*.pyc
+*.pyo
+*~
+*.so
+*.swp
+*.egg-info
+.idea/
+tests/extra-schemas/
+tests/__pycache__/
+xmlschema/__pycache__/
+dist/
+build/

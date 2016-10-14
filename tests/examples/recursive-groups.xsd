@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+ xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
+    <xs:element name="tagA" type="xs:string"/>
+    <xs:element name="tagB" type="xs:string"/>
+
+    <xs:group name="groupA">
+        <xs:sequence>
+            <xs:element ref="tagA"/>
+            <xs:group ref="groupB"/>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:group name="groupB">
+        <xs:sequence>
+            <xs:element ref="tagB"/>
+            <xs:group ref="groupA"/>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:group name="groupC">
+        <xs:sequence>
+            <xs:element ref="tagA"/>
+            <xs:group ref="groupC"/>
+        </xs:sequence>
+    </xs:group>
+
+</xs:schema>
