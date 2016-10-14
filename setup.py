@@ -15,8 +15,11 @@ with open("README.rst") as readme:
 
 setup (
     name='xmlschema',
-    version='0.8a',
+    version='0.8a4',
     packages=find_packages(),
+    package_data={
+        'xmlschema': ['schemas/*/*.xsd', 'tests/examples/*']
+    },
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',

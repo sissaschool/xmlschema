@@ -5,8 +5,8 @@
 *.swp
 *.egg-info
 .idea/
-tests/extra-schemas/
-tests/__pycache__/
+xmlschema/tests/extra-schemas/
 xmlschema/__pycache__/
+xmlschema/tests/__pycache__/
 dist/
 build/

@@ -13,6 +13,14 @@ Common imports and methods for unittest scripts of 'xmlschema' package.
 """
 import unittest
 import re
+import sys
+import os
+
+# Move into the test directory and adds the path of the package that contains the test.
+os.chdir(os.path.dirname(__file__))
+pkg_search_path = os.path.abspath('../..')
+if sys.path[0] != pkg_search_path:
+    sys.path.insert(0, pkg_search_path)
 
 
 class XMLSchemaTestCase(unittest.TestCase):

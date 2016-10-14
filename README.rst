@@ -65,7 +65,30 @@ You can also converts the entire XML document to a nested dictionary with data c
 
 Running Tests
 -------------
-The package use the Python's unitest library. The tests are located in tests directory
+The package uses the Python's *unitest* library. The tests are located in ``tests/`` directory.
+There are three scripts to test the package:
+
+  tests/test_schemas.py
+    Tests about parsing of XSD Schemas
+
+  tests/test_validation.py
+    Tests about XML validation
+
+  tests/test_decoding.py
+    Tests regarding XML data decoding
+
+There are some basic tests published on xmlschema's GitHub repository, but you can add your
+own tests in a subdirectory as a Git module::
+
+    mkdir tests/my_schemas
+    cd tests/my_schemas
+    git init
+    touch testfiles
+
+Add to this file the relative or absolute paths of files to be tested, one per line.
+The file path maybe followed by the number of errors that have to be found in the XML
+to pass the test.
+
 
 Release Notes
 -------------
