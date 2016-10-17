@@ -26,6 +26,7 @@ from .parse import (
     XMLSchemaParseError, lookup_attribute, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG
 )
 
+
 class XMLSchemaValidatorError(XMLSchemaException, ValueError):
     """Raised when the XML data string is not validated with the XSD schema."""
 
@@ -306,7 +307,6 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
     def validate(self, attributes, elem=None):
-        import pdb
         if not attributes: return
         any_attribute = self.get(None)  # 'None' is the key for the anyAttribute declaration.
         required_attributes = set(
@@ -334,13 +334,11 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 try:
                     xsd_attribute.decode(value)
                 except (XMLSchemaValidationError, XMLSchemaDecodeError) as err:
-                    pdb.set_trace()
                     yield XMLSchemaValidationError(
                         xsd_attribute, err.value, err.reason, elem, xsd_attribute.elem
                     )
 
         if required_attributes:
-            pdb.set_trace()
             yield XMLSchemaValidationError(
                 self,
                 elem.attrib,
@@ -423,7 +421,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                 yield gen_cls([item.model_generator() for item in self])
 
     def validate_content(self, elem):
-        import pdb
         # Validate character data between tags
         if not self.mixed and (elem.text.strip() or any([child.tail.strip() for child in elem])):
             yield XMLSchemaValidationError(
@@ -443,7 +440,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         validation_group.extend([t for t in nested_next(g, c)])
             except StopIteration:
                 for child in elem_iterator:
-                    pdb.set_trace()
                     yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                 return
 
@@ -453,15 +449,12 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                 print(validation_group)
                 raise
 
-            # print("validation_group: %r" % validation_group)
-            # print("missing_tags: %r" % missing_tags)
             while validation_group:
                 if consumed_child:
                     try:
                         child = next(elem_iterator)
                     except StopIteration:
                         if missing_tags:
-                            pdb.set_trace()
                             yield XMLSchemaValidationError(
                                 self, elem, "tag expected: %r" % tuple(missing_tags), elem, self.elem
                             )
@@ -489,7 +482,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         break
                 else:
                     if missing_tags:
-                        pdb.set_trace()
                         yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                         consumed_child = True
                     break
@@ -623,14 +615,11 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
         pass
 
     def validate(self, value):
-        # print(self.base_type.name, type(self.base_type), type(value), value)
         self.base_type.validate(value)
         try:
             if not all([validator(value) for validator in self.validators]):
                 raise XMLSchemaValidationError(self, value)
         except TypeError:
-            print("ERRORRE TYPE: %s" % etree_tostring(self.elem))
-            print("VALORRE: ", value, type(value))
             raise
         if self.enumeration and value not in self.enumeration:
             raise XMLSchemaValidationError(

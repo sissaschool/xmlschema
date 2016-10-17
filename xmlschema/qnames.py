@@ -104,7 +104,6 @@ def split_path(path):
 
 def uri_to_prefixes(text, namespaces):
     """Replace namespace "{uri}" with "prefix:". """
-    print(namespaces)
     for prefix, uri in namespaces.items():
         if not uri or not prefix:
             continue
