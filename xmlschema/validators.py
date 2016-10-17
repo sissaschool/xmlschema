@@ -353,7 +353,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
 class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
     """
     A group can have a model, that indicate the elements that compose the content
-    type associated with the group in which mode the group's items are composed.
+    type associated with it.
     """
     def __init__(self, name=None, elem=None, schema=None, model=None, mixed=False, initlist=None):
         XsdBase.__init__(self, name, elem, schema)
