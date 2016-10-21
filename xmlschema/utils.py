@@ -9,16 +9,26 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import datetime
+import re
 
 
-def is_datetime(date_string, date_format='%Y-%m-%d'):
+RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
+
+
+def is_datetime_iso8601(date_string, date_format='%Y-%m-%d'):
     """
-    Check if the string represents a valid datetime according to the specified formatting.
+    Check if the string represents a valid datetime ISO 8601 like, according to the
+    specified formatting, plus optional timezone specification as suffix.
 
     :param date_string: The string containing the datetime
     :param date_format: The reference formatting for datetime
     :return: True if the string is a valid datetime, False if not.
     """
+    try:
+        date_string, time_zone, _ = RE_ISO_TIMEZONE.split(date_string)
+    except ValueError:
+        pass
+
     try:
         datetime.datetime.strptime(date_string, date_format)
     except ValueError:

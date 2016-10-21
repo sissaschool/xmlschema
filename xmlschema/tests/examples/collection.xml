@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<col:collection xmlns:col="http://example.com/ns/collection"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="collection.xsd">
+	<object id="b0836217462" available="true">
+		<position>1</position>
+		<title>The Umbrellas</title>
+		<author id="CMS">
+			<name>Pierre-Auguste Renoir</name>
+			<born>1841-02-25</born>
+			<dead>1919-12-03</dead>
+            <qualification>painter</qualification>
+		</author>
+        <estimation>10000.00</estimation>
+	</object>
+</col:collection>
