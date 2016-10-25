@@ -85,8 +85,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
         if opt in options:
             validator_options[opt] = options[opt]
 
-    include_schemas = validator_options['inclusion_method']
-
     class XMLSchemaValidator(object):
         """
         Class to wrap an XML Schema for components lookups and conversion.
@@ -95,6 +93,8 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
         META_SCHEMA = None
         BASE_SCHEMAS = URIDict(base_schemas or ())
         OPTIONS = validator_options
+
+        include_schemas = OPTIONS.pop('inclusion_method')
 
         def __init__(self, schema, builtin_types=None):
             """
@@ -105,6 +105,8 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             the schema or a file-like object containing the schema.
             """
             self.text, self._root, self.uri = load_xml(schema)
+
+            # print(self.uri)
 
             check_tag(self._root, XSD_SCHEMA_TAG)
             self.target_namespace = self._root.attrib.get('targetNamespace', '')
@@ -119,7 +121,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                 self.lookup_table = self.BASE_SCHEMAS
 
             self.lookup_table[self.target_namespace] = self
-            self._included_schemas = URIDict()
+            self._included_schemas = URIDict() # {self.uri: self._root})
             self._redefined_schemas = URIDict()
 
             self.types = builtin_types or {}
@@ -132,6 +134,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             self.namespaces = {'xml': XML_NAMESPACE_PATH}  # The namespace 'xml 'is implicitly included
             namespaces = etree_get_namespaces(self.text)
             self.namespaces.update(namespaces)
+            self.include_schemas(self._root)
             self.import_schemas(self._root)  # Imported schemas could override namespaces imports
 
             if '' not in self.namespaces:
@@ -148,6 +151,9 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                     self.import_namespace(uri, self._schema_location)
 
             self.update_schema(self._root)
+
+        def __repr__(self):
+            return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
 
         @property
         def target_prefix(self):
@@ -176,9 +182,10 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             except KeyError:
                 try:
                     schema, schema_uri = load_resource(locations, self.uri)
-                except (OSError, IOError, ValueError):
-                    logger.error("Not accessible schema locations '%s'", locations)
-                    raise XMLSchemaValueError("cannot import namespace '{}'!".format(uri))
+                except (OSError, IOError, ValueError) as err:
+                    raise XMLSchemaValueError(
+                        "%r: cannot import namespace %r from locations %r: %s" % (self, uri, locations, err)
+                    )
                 else:
                     self.lookup_table[uri] = self.create_schema(schema_uri)
 
@@ -189,13 +196,9 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                 if locations is not None:
                     self.import_namespace(uri, locations)
 
-        def include_schemas(self, elements):
-            include_schemas(elements, self._included_schemas, self.uri, self.namespaces)
-
         def update_schema(self, elements, path=None):
             kwargs = self.OPTIONS.copy()
-            kwargs.update({'xsd_types': self.types,})
-            self.include_schemas(elements)
+            kwargs.update({'xsd_types': self.types})
 
             # Parse global declarations
             update_xsd_simple_types(self, self.types, elements, path=path, **kwargs)
@@ -268,7 +271,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             def _iter_errors(elem, path, schema_elem):
                 try:
                     xsd_element = schema.get_element(path)
-                except XMLSchemaLookupError as err:
+                except XMLSchemaLookupError:
                     yield XMLSchemaValidationError(
                         validator=self,
                         value=elem.tag,

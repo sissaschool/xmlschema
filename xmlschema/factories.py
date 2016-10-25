@@ -18,6 +18,7 @@ from .core import XMLSchemaOSError, etree_fromstring
 from .qnames import split_reference
 from .resources import load_uri_or_file, load_resource
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
+from .etree import etree_get_namespaces
 from .validators import (
     XsdAttributeGroup, XsdGroup, XsdComplexType, XsdRestriction, XsdList,
     XsdUnion, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
@@ -51,33 +52,44 @@ def check_factory(*args):
     return make_factory_checker
 
 
-def xsd_include_schemas(elements, included_schemas, base_uri, namespaces):
+def xsd_include_schemas(schema, elements):
+    """
+    Append elements of included schemas to element list itself.
+    Ignore locations already loaded in the schema.
 
-    def _include_schemas(_elements, _base_uri):
+    :param schema: The schema instance.
+    :param elements: XSD declarations as an Element Tree structure.
+    """
+    included_schemas = schema._included_schemas
+    namespaces = schema.namespaces
+
+    def _include_schemas(_elements, base_uri):
         for elem in iterfind_xsd_inclusions(_elements, namespaces=namespaces):
             locations = get_xsd_attribute(elem, 'schemaLocation')
             try:
-                schema, schema_uri = load_resource(locations, _base_uri)
+                _schema, schema_uri = load_resource(locations, base_uri)
             except (OSError, IOError):
                 raise XMLSchemaOSError("Not accessible schema locations '{}'".format(locations))
 
             if schema_uri not in included_schemas and schema_uri not in new_inclusions:
-                _schema = etree_fromstring(schema)
-                check_tag(_schema, XSD_SCHEMA_TAG)
-                new_inclusions[schema_uri] = _schema
-                _include_schemas(_schema, schema_uri)
+                schema_tree = etree_fromstring(_schema)
+                check_tag(schema_tree, XSD_SCHEMA_TAG)
+                new_inclusions[schema_uri] = schema_tree
+                namespaces.update(etree_get_namespaces(_schema))
+                _include_schemas(schema_tree, schema_uri)
 
         for elem in iterfind_xsd_redefinitions(_elements, namespaces=namespaces):
             for location in get_xsd_attribute(elem, 'schemaLocation').split():
-                schema, schema_uri = load_uri_or_file(location, _base_uri)
+                _schema, schema_uri = load_uri_or_file(location, base_uri)
                 if schema_uri not in included_schemas and schema_uri not in new_inclusions:
-                    _schema = etree_fromstring(schema)
+                    namespaces.update(etree_get_namespaces(_schema))
+                    schema_tree = etree_fromstring(_schema)
                     for child in elem:
-                        _schema.append(child)
-                    new_inclusions[schema_uri] = _schema
+                        schema_tree.append(child)
+                    new_inclusions[schema_uri] = schema_tree
 
     new_inclusions = {}
-    _include_schemas(elements, base_uri)
+    _include_schemas(elements, schema.uri)
     if new_inclusions:
         included_schemas.update(new_inclusions)
         for schema_element in new_inclusions.values():
@@ -209,7 +221,7 @@ def xsd_restriction_factory(elem, schema, **kwargs):
     return xsd_restriction_class(
         base_type,
         elem=elem,
-        schema=schema,
+        schema=base_type.schema,
         length=length,
         validators=validators,
         enumeration=enumeration
@@ -247,7 +259,7 @@ def xsd_list_factory(elem, schema, **kwargs):
     else:
         raise XMLSchemaParseError("missing list type declaration", elem)
 
-    return xsd_list_class(item_type, elem=elem, schema=schema)
+    return xsd_list_class(item_type, elem=elem, schema=item_type.schema)
 
 
 @check_factory(XSD_UNION_TAG)
@@ -321,7 +333,12 @@ def xsd_attribute_factory(elem, schema, **kwargs):
 
     declarations = get_xsd_declarations(elem, max_occurs=1)
     try:
-        type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
+        try:
+            type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
+        except XMLSchemaValueError:
+            import pdb
+            pdb.set_trace()
+            raise
         xsd_type = lookup_type(type_qname, namespace, schema.lookup_table)
     except KeyError:
         if declarations:
@@ -337,7 +354,7 @@ def xsd_attribute_factory(elem, schema, **kwargs):
         elif declarations:
             raise XMLSchemaParseError(
                 "not allowed element in XSD attribute declaration: {}".format(declarations[0]), elem)
-        return attribute_name, xsd_attribute_class(xsd_type, attribute_name, elem, schema, qualified)
+        return attribute_name, xsd_attribute_class(xsd_type, attribute_name, elem, xsd_type.schema, qualified)
 
 
 @check_factory(XSD_COMPLEX_TYPE_TAG)
@@ -432,12 +449,11 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
 
         content_type.elem = content_spec
         derivation = content_spec.tag == XSD_EXTENSION_TAG
-        content_declaration = get_xsd_declarations(content_spec)[0]
         if parse_content_type and not content_type:
             # Build type's content model only when a parent path is provided
             try:
                 if base_type.content_type.model is None:
-                    complex_type_factory(base_type.elem, schema, **kwargs)
+                    complex_type_factory(base_type.elem, base_type.schema, **kwargs)
             except AttributeError:
                 pass
             else:
@@ -446,13 +462,18 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
                 content_type.model = base_type.content_type.model
                 content_type.mixed = base_type.content_type.mixed
 
-            if content_declaration.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
-                xsd_group = group_factory(content_declaration, schema, **kwargs)[1]
-                if content_spec.tag == XSD_RESTRICTION_TAG:
-                    pass  # TODO: Checks that restrictions are effective.
-                content_type.extend(xsd_group)
-                content_type.model = xsd_group.model
-                content_type.mixed = xsd_group.mixed
+            try:
+                content_declaration = get_xsd_declarations(content_spec)[0]
+            except IndexError:
+                pass  # Empty extension or restriction declaration.
+            else:
+                if content_declaration.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
+                    xsd_group = group_factory(content_declaration, schema, **kwargs)[1]
+                    if content_spec.tag == XSD_RESTRICTION_TAG:
+                        pass  # TODO: Checks if restrictions are effective.
+                    content_type.extend(xsd_group)
+                    content_type.model = xsd_group.model
+                    content_type.mixed = xsd_group.mixed
 
         if xsd_type is not None:
             return type_name, xsd_type
@@ -655,7 +676,7 @@ def xsd_element_factory(elem, schema, **kwargs):
             name=xsd_element.name,
             xsd_type=xsd_element.type,
             elem=xsd_element.elem,
-            schema=schema,
+            schema=xsd_element.schema,
             qualified=qualified,
             ref=True
         )
@@ -664,7 +685,11 @@ def xsd_element_factory(elem, schema, **kwargs):
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         element_type = lookup_type(type_qname, namespace, schema.lookup_table)
         if isinstance(element_type, XsdComplexType):
-            _, element_type = complex_type_factory(element_type.elem, schema, **kwargs)
+            try:
+                _, element_type = complex_type_factory(element_type.elem, element_type.schema, **kwargs)
+            except AttributeError:
+                # The complexType is a builtin type.
+                pass
     else:
         declarations = get_xsd_declarations(elem)
         if declarations:

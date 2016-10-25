@@ -11,11 +11,7 @@
 """
 This module contains classes for elements of the XML Schema.
 """
-try:
-    from collections.abc import MutableMapping, MutableSequence
-except ImportError:
-    from collections import MutableMapping, MutableSequence
-
+from collections import MutableMapping, MutableSequence
 from .utils import linked_flatten, nested_next
 from .core import (
     PY3, etree_tostring, XSI_NAMESPACE_PATH,
@@ -306,7 +302,6 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
     def validate(self, attributes, elem=None):
-        import pdb
         if not attributes: return
         any_attribute = self.get(None)  # 'None' is the key for the anyAttribute declaration.
         required_attributes = set(
@@ -334,13 +329,11 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 try:
                     xsd_attribute.decode(value)
                 except (XMLSchemaValidationError, XMLSchemaDecodeError) as err:
-                    pdb.set_trace()
                     yield XMLSchemaValidationError(
                         xsd_attribute, err.value, err.reason, elem, xsd_attribute.elem
                     )
 
         if required_attributes:
-            pdb.set_trace()
             yield XMLSchemaValidationError(
                 self,
                 elem.attrib,
@@ -423,7 +416,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                 yield gen_cls([item.model_generator() for item in self])
 
     def validate_content(self, elem):
-        import pdb
         # Validate character data between tags
         if not self.mixed and (elem.text.strip() or any([child.tail.strip() for child in elem])):
             yield XMLSchemaValidationError(
@@ -443,25 +435,20 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         validation_group.extend([t for t in nested_next(g, c)])
             except StopIteration:
                 for child in elem_iterator:
-                    pdb.set_trace()
                     yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                 return
 
             try:
                 missing_tags = set([e[0].name for e in validation_group if not e[0].is_optional()])
             except (AttributeError, TypeError):
-                print(validation_group)
                 raise
 
-            # print("validation_group: %r" % validation_group)
-            # print("missing_tags: %r" % missing_tags)
             while validation_group:
                 if consumed_child:
                     try:
                         child = next(elem_iterator)
                     except StopIteration:
                         if missing_tags:
-                            pdb.set_trace()
                             yield XMLSchemaValidationError(
                                 self, elem, "tag expected: %r" % tuple(missing_tags), elem, self.elem
                             )
@@ -489,7 +476,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         break
                 else:
                     if missing_tags:
-                        pdb.set_trace()
                         yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                         consumed_child = True
                     break
@@ -623,14 +609,11 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
         pass
 
     def validate(self, value):
-        # print(self.base_type.name, type(self.base_type), type(value), value)
         self.base_type.validate(value)
         try:
             if not all([validator(value) for validator in self.validators]):
                 raise XMLSchemaValidationError(self, value)
         except TypeError:
-            print("ERRORRE TYPE: %s" % etree_tostring(self.elem))
-            print("VALORRE: ", value, type(value))
             raise
         if self.enumeration and value not in self.enumeration:
             raise XMLSchemaValidationError(
@@ -836,7 +819,7 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
     Support structure to associate an element and its attributes with XSD simple types.
     """
     def __init__(self, name, xsd_type, elem=None, schema=None, ref=False, qualified=False):
-        super(XsdElement, self).__init__(name, elem)
+        super(XsdElement, self).__init__(name, elem, schema)
         self.type = xsd_type
         self.ref = ref
         self.qualified = qualified
@@ -860,6 +843,8 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         self.type.encode(obj)
 
     def get_attribute(self, name):
+        if name[0] != '{':
+            return self.type.attributes[get_qname(self.type.schema.target_namespace, name)]
         return self.type.attributes[name]
 
     @property

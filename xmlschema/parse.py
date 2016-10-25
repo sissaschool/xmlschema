@@ -250,7 +250,7 @@ def _create_lookup_function(lookup_table):
                 # Try the empty namespace for imported schemas without namespace attribute
                 return getattr(lookup_schemas[''], lookup_table)[qname_or_path]
             except KeyError:
-                raise XMLSchemaLookupError("Missing XSD reference '{}'!".format(err))
+                raise XMLSchemaLookupError("Missing XSD reference %s!" % err)
 
     return lookup_function
 
