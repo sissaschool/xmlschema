@@ -78,7 +78,7 @@ def split_reference(ref, namespaces):
         try:
             uri = namespaces[prefix]
         except KeyError as err:
-            raise XMLSchemaValueError("unknown namespace prefix {}".format(err))
+            raise XMLSchemaValueError("unknown namespace prefix %s for reference %r" % (err, ref))
         else:
             return u"{%s}%s" % (uri, tag) if uri else tag, uri
 

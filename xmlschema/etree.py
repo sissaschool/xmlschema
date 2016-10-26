@@ -76,7 +76,10 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
             attr_dict = dict_class()
             for name, value_string in node.attrib.items():
                 try:
-                    xsd_attribute = schema.get_attribute(name, node_path)
+                    try:
+                        xsd_attribute = schema.get_attribute(name, node_path)
+                    except KeyError:
+                        xsd_attribute = xsd_element.get_attribute(name)
                 except KeyError as err:
                     errors.append(XMLSchemaValidationError(
                         validator=xsd_element,
@@ -137,10 +140,10 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
                 text = xsd_element.default or ''
             else:
                 text = ''
-        elif spaces_for_tab is None:
-            text = node.text.strip()
         else:
-            text = node.text.strip().replace('\t', ' ' * spaces_for_tab)
+            text = node.text.strip() if list(node) else node.text
+            if spaces_for_tab is not None:
+                text = text.replace('\t', ' ' * spaces_for_tab)
 
         try:
             value = xsd_element.decode(text)

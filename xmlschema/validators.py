@@ -11,11 +11,7 @@
 """
 This module contains classes for elements of the XML Schema.
 """
-try:
-    from collections.abc import MutableMapping, MutableSequence
-except ImportError:
-    from collections import MutableMapping, MutableSequence
-
+from collections import MutableMapping, MutableSequence
 from .utils import linked_flatten, nested_next
 from .core import (
     PY3, etree_tostring, XSI_NAMESPACE_PATH,
@@ -446,7 +442,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
             try:
                 missing_tags = set([e[0].name for e in validation_group if not e[0].is_optional()])
             except (AttributeError, TypeError):
-                print(validation_group)
                 raise
 
             while validation_group:
@@ -825,7 +820,7 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
     Support structure to associate an element and its attributes with XSD simple types.
     """
     def __init__(self, name, xsd_type, elem=None, schema=None, ref=False, qualified=False):
-        super(XsdElement, self).__init__(name, elem)
+        super(XsdElement, self).__init__(name, elem, schema)
         self.type = xsd_type
         self.ref = ref
         self.qualified = qualified
@@ -849,6 +844,8 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         self.type.encode(obj)
 
     def get_attribute(self, name):
+        if name[0] != '{':
+            return self.type.attributes[get_qname(self.type.schema.target_namespace, name)]
         return self.type.attributes[name]
 
     @property

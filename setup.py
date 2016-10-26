@@ -8,15 +8,15 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from setuptools import setup, find_packages
+from setuptools import setup
 
 with open("README.rst") as readme:
     long_description = readme.read()
 
-setup (
+setup(
     name='xmlschema',
-    version='0.8a5',
-    packages=find_packages(),
+    version='0.8a6',
+    packages=['xmlschema', 'xmlschema.tests'],
     package_data={
         'xmlschema': ['schemas/*/*.xsd', 'tests/examples/*']
     },
