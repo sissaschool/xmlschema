@@ -120,8 +120,9 @@ def camel_case_split(s):
     from re import findall
     return findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
 
+
 #
-# Check's functions for detecting inconsistencies
+# Check functions for detecting inconsistencies
 def check_tag(elem, *args):
     if elem.tag not in args:
         tags = (split_qname(tag)[1] for tag in args)
@@ -266,7 +267,7 @@ def _create_update_function(factory_key, filter_function):
     def update_xsd_map(schema, target, elements, **kwargs):
         elements = filter_function(elements)
         _logger.debug(u"Update <%s at %#x> with filter_function %r",
-                     target.__class__.__name__, id(target), filter_function.__name__)
+                      target.__class__.__name__, id(target), filter_function.__name__)
         factory_function = kwargs.get(factory_key)
         missing_counter = 0
         while True:

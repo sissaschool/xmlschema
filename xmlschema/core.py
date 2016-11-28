@@ -55,7 +55,6 @@ class XMLSchemaKeyError(XMLSchemaLookupError, KeyError):
     pass
 
 
-
 # Namespaces for standards
 XSD_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"

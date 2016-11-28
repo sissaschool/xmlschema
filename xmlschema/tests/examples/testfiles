@@ -1,7 +1,7 @@
-vehicles.xsd
-vehicles.xml
-vehicles-1_error.xml 1
-vehicles-2_errors.xml 2
-vehicles-3_errors.xml 3
-collection.xsd
-collection.xml
+collection/collection.xsd
+collection/collection.xml
+vehicles/vehicles.xsd
+vehicles/vehicles.xml
+vehicles/vehicles-1_error.xml 1
+vehicles/vehicles-2_errors.xml 2
+vehicles/vehicles-3_errors.xml 3
