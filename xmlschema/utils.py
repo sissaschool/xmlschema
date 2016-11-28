@@ -82,3 +82,13 @@ def nested_next(iterator, container=None):
             yield obj, iterator, container
     except TypeError:
         yield iterator, None, container
+
+
+def str_to_number(s):
+    """
+    Convert a string to a number format, trying first the integer class.
+    """
+    try:
+        return int(s)
+    except ValueError:
+        return float(s)

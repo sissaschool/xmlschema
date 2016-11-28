@@ -121,7 +121,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                 self.lookup_table = self.BASE_SCHEMAS
 
             self.lookup_table[self.target_namespace] = self
-            self._included_schemas = URIDict() # {self.uri: self._root})
+            self._included_schemas = URIDict()
             self._redefined_schemas = URIDict()
 
             self.types = builtin_types or {}
@@ -266,7 +266,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             return error is None
 
         def iter_errors(self, xml_document, schema=None):
-            from .validators import XsdGroup
+            from .components import XsdGroup
 
             def _iter_errors(elem, path, schema_elem):
                 try:

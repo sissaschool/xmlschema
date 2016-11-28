@@ -19,9 +19,15 @@ from .qnames import split_reference
 from .resources import load_uri_or_file, load_resource
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
 from .etree import etree_get_namespaces
-from .validators import (
+from .components import (
     XsdAttributeGroup, XsdGroup, XsdComplexType, XsdRestriction, XsdList,
     XsdUnion, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
+)
+from .validators import (
+    create_length_validator, create_min_length_validator, create_max_length_validator,
+    create_min_inclusive_validator, create_min_exclusive_validator,
+    create_max_inclusive_validator, create_max_exclusive_validator,
+    create_total_digits_validator
 )
 from .parse import *
 
@@ -181,17 +187,29 @@ def xsd_restriction_factory(elem, schema, **kwargs):
             enumeration.append(child.attrib['value'])
             logger.debug("Added enumeration: %s", child.attrib['value'])
         elif child.tag == XSD_LENGTH_TAG:
-            length = int(child.attrib['value'])
-            validators.append(eval('lambda x: len(x) == %s' % length))
-            logger.debug("Added a 'length == %s' restriction", length)
+            validators.append(create_length_validator(child.attrib['value']))
+            logger.debug("Added a 'length == %s' restriction", child.attrib['value'])
         elif child.tag == XSD_MIN_LENGTH_TAG:
-            min_length = int(child.attrib['value'])
-            validators.append(eval('lambda x: len(x) >= %s' % min_length))
-            logger.debug("Added a 'minLength == %s' restriction", min_length)
+            validators.append(create_min_length_validator(child.attrib['value']))
+            logger.debug("Added a 'minLength == %s' restriction", child.attrib['value'])
         elif child.tag == XSD_MAX_LENGTH_TAG:
-            max_length = int(child.attrib['value'])
-            validators.append(eval('lambda x: len(x) <= %s' % max_length))
-            logger.debug("Added a 'maxLength == %s' restriction", max_length)
+            validators.append(create_max_length_validator(child.attrib['value']))
+            logger.debug("Added a 'maxLength == %s' restriction", child.attrib['value'])
+        elif child.tag == XSD_MAX_INCLUSIVE_TAG:
+            validators.append(create_max_inclusive_validator(child.attrib['value']))
+            logger.debug("Added a 'maxInclusive == %s' restriction", child.attrib['value'])
+        elif child.tag == XSD_MAX_EXCLUSIVE_TAG:
+            validators.append(create_max_exclusive_validator(child.attrib['value']))
+            logger.debug("Added a 'maxExclusive == %s' restriction", child.attrib['value'])
+        elif child.tag == XSD_MIN_INCLUSIVE_TAG:
+            validators.append(create_min_inclusive_validator(child.attrib['value']))
+            logger.debug("Added a 'minInclusive == %s' restriction", child.attrib['value'])
+        elif child.tag == XSD_MIN_EXCLUSIVE_TAG:
+            validators.append(create_min_exclusive_validator(child.attrib['value']))
+            logger.debug("Added a 'minExclusive == %s' restriction", child.attrib['value'])
+        elif child.tag == XSD_TOTAL_DIGITS_TAG:
+            validators.append(create_total_digits_validator(child.attrib['value']))
+            logger.debug("Added a 'totalDigits == %s' restriction", child.attrib['value'])
         else:
             # TODO: other restriction types --> validators[] as the previous
             # TODO: Skip optionally attribute declarations

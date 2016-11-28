@@ -14,7 +14,7 @@ This module contains XSD types builtins.
 from decimal import Decimal
 from .utils import is_datetime_iso8601
 from .parse import xsd_qname
-from .validators import (
+from .components import (
     XsdAttributeGroup, XsdGroup, XsdSimpleType, XsdAtomicType, XsdList,
     XsdComplexType, XsdAnyAttribute, XsdAnyElement
 )
@@ -70,7 +70,7 @@ _XSD_BUILTIN_ATOMIC_TYPES = (
      lambda x: True if x.strip() in ('true', '1') else False if x.strip() in ('false', '0') else None,
      lambda x: str(x).lower()),  # true/false or 1/0
     ('base64Binary', str),  # base64 encoded binary value
-    ('hexBinary', str)           # hexadecimal encoded binary value
+    ('hexBinary', str)  # hexadecimal encoded binary value
 )
 
 _XSD_BUILTIN_LIST_TYPES = (
