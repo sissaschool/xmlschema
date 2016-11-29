@@ -369,5 +369,12 @@ XMLSchema = XMLSchema_v1_0
 def validate(xml_document, schema, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    # TODO: cls.check_schema(schema)
+    #cls.check_schema(schema)
     cls(schema, *args, **kwargs).validate(xml_document)
+
+
+def xmltodict(xml_document, schema, cls=None, validate=False, *args, **kwargs):
+    if cls is None:
+        cls = XMLSchema
+    if validate:
+        return
