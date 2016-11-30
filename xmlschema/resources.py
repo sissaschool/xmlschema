@@ -89,18 +89,18 @@ def load_xml(source):
     This function is usable for loading XML data files of small or medium size.
     Returns a tuple with the XML source, the XML e-tree and the URI.
 
-    :param source: A string with XML data, or the name of the file containing
-    the XML data or an URI that refers to the schema or a file-like object.
+    :param source: A string with XML data or the name of the file containing
+    the XML data or an URI that refers to the xml resource or a file-like object.
     :return: a tuple with three items: XML text, root Element and XML URI
     """
     try:
-        # The source is a string containing XML data
+        # Try il the source is a string containing XML data
         return source, etree_fromstring(source), None
     except TypeError:
         # The source is a file-like object containing XML data
-        schema = source.read()
+        xml_data = source.read()
         source.close()
-        return schema, etree_fromstring(schema), getattr(source, 'name', None)
+        return xml_data, etree_fromstring(xml_data), getattr(source, 'name', None)
     except etree_parse_error:
-        schema, uri = load_uri_or_file(source)
-        return schema, etree_fromstring(schema), uri
+        xml_data, uri = load_uri_or_file(source)
+        return xml_data, etree_fromstring(xml_data), uri

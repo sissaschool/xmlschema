@@ -115,7 +115,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             self._schema_location = self._root.attrib.get(XSI_SCHEMA_LOCATION)
 
             if self.META_SCHEMA is not None:
-                # self.META_SCHEMA.check_schema(schema)
                 self.lookup_table = URIDict(self.BASE_SCHEMAS)
             else:
                 self.lookup_table = self.BASE_SCHEMAS
@@ -338,6 +337,11 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             root_path = get_qname(self.target_namespace, xml_root.tag)
             return _iter_errors(xml_root, root_path, schema._root)
 
+        def to_dict(self, xml_document, schema=None):
+            xml_text, xml_root, xml_uri = load_xml(xml_document)
+            from .etree import element_to_dict
+            return element_to_dict(xml_root, schema or self)
+
     # Create the meta schema
     if meta_schema is not None:
         meta_schema = XMLSchemaValidator(meta_schema, XSD_BUILTIN_TYPES)
@@ -356,12 +360,14 @@ XMLSchema_v1_0 = create_validator(
     base_schemas=BASE_SCHEMAS
 )
 
-
-#XMLSchema_v1_1 = create_validator(
+#
+# TODO: Extending to XSD 1.1
+#
+# XMLSchema_v1_1 = create_validator(
 #    version='1.1',
 #    meta_schema='schemas/XSD_1.1/XMLSchema.xsd',
 #    base_schemas=BASE_SCHEMAS
-#)
+# )
 
 XMLSchema = XMLSchema_v1_0
 
@@ -369,12 +375,12 @@ XMLSchema = XMLSchema_v1_0
 def validate(xml_document, schema, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    #cls.check_schema(schema)
+    cls.check_schema(schema)
     cls(schema, *args, **kwargs).validate(xml_document)
 
 
-def xmltodict(xml_document, schema, cls=None, validate=False, *args, **kwargs):
+def to_dict(xml_document, schema, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    if validate:
-        return
+    cls(schema, *args, **kwargs).validate(xml_document)
+    return cls(schema, *args, **kwargs).to_dict(xml_document)

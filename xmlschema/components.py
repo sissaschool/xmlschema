@@ -772,13 +772,13 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         super(XsdElement, self).__setattr__(name, value)
 
     def validate(self, value):
-        self.type.validate(value or self.default)
+        self.type.validate(value)
 
     def decode(self, text):
-        self.type.decode(text or self.default)
+        return self.type.decode(text or self.default)
 
     def encode(self, obj):
-        self.type.encode(obj)
+        return self.type.encode(obj)
 
     def get_attribute(self, name):
         if name[0] != '{':

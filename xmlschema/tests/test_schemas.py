@@ -26,20 +26,15 @@ if __name__ == '__main__':
     import os
     import sys
 
-    if os.path.dirname(__file__):
-        rel_path = os.path.dirname(os.path.dirname(__file__))
-        pkg_folder = os.path.realpath(rel_path)
-    else:
-        rel_path = ".."
-        pkg_folder = os.path.realpath(rel_path)
-
+    pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
+
     import xmlschema
     if len(sys.argv) > 1:
         LOG_LEVEL = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=LOG_LEVEL)
 
-    test_files = glob.iglob(os.path.join(rel_path, "tests/*/testfiles"))
+    test_files = glob.iglob(os.path.join(pkg_folder, "tests/*/testfiles"))
     for line in fileinput.input(test_files):
         line = line.strip()
         if not line or line[0] == '#':
