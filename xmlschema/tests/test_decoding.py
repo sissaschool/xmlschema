@@ -15,18 +15,18 @@ import fileinput
 from _test_common import *
 
 
-def make_test_decoding_function(xml_root, schema, num_errors):
+def make_test_decoding_function(xml_root, schema, expected_errors):
     def test_decoding(self):
         xs = xmlschema.XMLSchema(schema)
         try:
             xmlschema.element_to_dict(xml_root, xs)
         except XMLSchemaMultipleValidatorErrors as err:
-            if len(getattr(err, 'errors', [])) != num_errors:
+            if len(getattr(err, 'errors', [])) != expected_errors:
                 raise
         else:
-            if num_errors > 0:
+            if expected_errors > 0:
                 raise ValueError(
-                    "No errors when {} expected!".format(num_errors)
+                    "No errors when {} expected!".format(expected_errors)
                 )
         self.assertTrue(True, "Successfully test decoding for {}".format(xml_root))
     return test_decoding
@@ -37,12 +37,8 @@ if __name__ == '__main__':
     import os
     import sys
 
-    if os.path.dirname(__file__):
-        rel_path = os.path.dirname(os.path.dirname(__file__))
-        pkg_folder = os.path.realpath(rel_path)
-    else:
-        rel_path = ".."
-        pkg_folder = os.path.realpath(rel_path)
+    pkg_folder = os.path.dirname(os.getcwd())
+    sys.path.insert(0, pkg_folder)
 
     sys.path.insert(0, pkg_folder)
     import xmlschema
@@ -54,7 +50,7 @@ if __name__ == '__main__':
         LOG_LEVEL = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=LOG_LEVEL)
 
-    test_files = glob.iglob(os.path.join(rel_path, "tests/*/testfiles"))
+    test_files = glob.iglob(os.path.join(pkg_folder, "tests/*/testfiles"))
     for line in fileinput.input(test_files):
         line = line.strip()
         if not line or line[0] == '#':

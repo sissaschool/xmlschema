@@ -366,6 +366,8 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         validation_group.extend([t for t in nested_next(g, c)])
             except StopIteration:
                 for child in elem_iterator:
+                    import pdb
+                    pdb.set_trace()
                     yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                 return
 
@@ -716,9 +718,9 @@ class XsdAttribute(XsdBase, ValidatorMixin, ParseElementMixin):
         super(XsdAttribute, self).__init__(name, elem, schema)
         self.type = xsd_type
         self.qualified = qualified
-        self.default = self._attrib.get('default')
-        self.fixed = self._attrib.get('fixed')
-        if self.default is not None and self.fixed is not None:
+        self.default = self._attrib.get('default', '')
+        self.fixed = self._attrib.get('fixed', '')
+        if self.default and self.fixed:
             raise XMLSchemaParseError("'default' and 'fixed' attributes are mutually exclusive", self.elem)
 
     def __setattr__(self, name, value):
@@ -759,9 +761,9 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         self.type = xsd_type
         self.ref = ref
         self.qualified = qualified
-        self.default = self._attrib.get('default')
-        self.fixed = self._attrib.get('fixed')
-        if self.default is not None and self.fixed is not None:
+        self.default = self._attrib.get('default', '')
+        self.fixed = self._attrib.get('fixed', '')
+        if self.default and self.fixed:
             raise XMLSchemaParseError("'default' and 'fixed' attributes are mutually exclusive", self.elem)
 
     def __setattr__(self, name, value):
@@ -773,10 +775,10 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         self.type.validate(value)
 
     def decode(self, text):
-        self.type.decode(text)
+        return self.type.decode(text or self.default)
 
     def encode(self, obj):
-        self.type.encode(obj)
+        return self.type.encode(obj)
 
     def get_attribute(self, name):
         if name[0] != '{':

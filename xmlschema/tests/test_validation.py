@@ -15,20 +15,20 @@ from _test_common import *
 import fileinput
 
 
-def make_test_validation_function(xml_file, schema, num_errors):
+def make_test_validation_function(xml_file, schema, expected_errors):
     def test_validation(self):
         xs = xmlschema.XMLSchema(schema)
         errors = [str(e) for e in xs.iter_errors(xml_file)]
-        if len(errors) != num_errors:
+        if len(errors) != expected_errors:
             raise ValueError(
-                "n.%d errors expected, found %d: %s" % (num_errors, len(errors), '\n++++++\n'.join(errors[:3]))
+                "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
             )
-        if num_errors == 0:
+        if expected_errors == 0:
             self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))
         else:
             self.assertTrue(
                 True,
-                "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, num_errors)
+                "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, expected_errors)
             )
     return test_validation
 
@@ -38,14 +38,9 @@ if __name__ == '__main__':
     import os
     import sys
 
-    if os.path.dirname(__file__):
-        rel_path = os.path.dirname(os.path.dirname(__file__))
-        pkg_folder = os.path.realpath(rel_path)
-    else:
-        rel_path = ".."
-        pkg_folder = os.path.realpath(rel_path)
-
+    pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
+
     import xmlschema
     from xmlschema.resources import load_xml
     from xmlschema.core import XSI_NAMESPACE_PATH
@@ -54,7 +49,7 @@ if __name__ == '__main__':
         LOG_LEVEL = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=LOG_LEVEL)
 
-    test_files = glob.iglob(os.path.join(rel_path, "tests/*/testfiles"))
+    test_files = glob.iglob(os.path.join(pkg_folder, "tests/*/testfiles"))
     for line in fileinput.input(test_files):
         line = line.strip()
         if not line or line[0] == '#':
