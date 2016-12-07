@@ -65,19 +65,25 @@ def linked_flatten(obj):
         yield obj, None
 
 
-def nested_next(iterator, container=None):
+def meta_next_gen(iterator, container=None):
     """
-    Produce 3-tuples of items from a structure of nested iterators.
+    Generate a 3-tuples of items from an iterator. The iterator's
+    elements are expanded in case of list, tuple or set.
+
+    :param iterator: the root iterator that generates the sequence.
+    :param container: parent container of the iterator.
+    :return: 3-tuple with: an object, a related iterator and the parent
+    container. Returned iterator is None if the argument is not an iterable.
     """
     try:
         obj = next(iterator)
         if isinstance(obj, (list, tuple, set)):
             for item in obj:
-                for o, i, c in nested_next(item, container):
-                    if i is None:
-                        yield o, iterator, c
+                for _obj, _iterator, _container in meta_next_gen(item, obj):
+                    if _iterator is None:
+                        yield _obj, iterator, _container
                     else:
-                        yield o, i, c
+                        yield _obj, _iterator, _container
         else:
             yield obj, iterator, container
     except TypeError:

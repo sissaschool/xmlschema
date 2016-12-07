@@ -112,18 +112,25 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
         # Adds the subelements recursively
         for child in node:
             new_item = _element_to_dict(child, node_path='%s/%s' % (node_path, child.tag))
-            if child.tag in node_dict:
-                # found duplicate tag, force a list
-                if isinstance(node_dict[child.tag], list):
-                    # append to existing list
+            try:
+                node_item = node_dict[child.tag]
+            except KeyError:
+                node_dict[child.tag] = new_item
+            else:
+                # found duplicate child tag, force a list
+                if not isinstance(node_item, list):
+                    # Create a list with two items
+                    node_dict[child.tag] = [node_item, new_item]
+                elif all(not isinstance(i, list) for i in node_item):
+                    # Create a list of lists
+                    if isinstance(new_item, list):
+                        node_dict[child.tag] = [node_item, new_item]
+                    else:
+                        node_dict[child.tag] = [node_item, [new_item]]
+                elif isinstance(new_item, list):
                     node_dict[child.tag].append(new_item)
                 else:
-                    # convert to list
-                    node_dict[child.tag] = [node_dict[child.tag], new_item]
-            else:
-                # only one, directly set the dictionary
-                # TODO: option to make a list as for one child cases...
-                node_dict[child.tag] = new_item
+                    node_dict[child.tag].append([new_item])
 
             tail = child.tail.strip()
             if tail:

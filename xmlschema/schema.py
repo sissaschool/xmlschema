@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains XMLSchema class creator for xmlschema package
+This module contains XMLSchema class creator for xmlschema package.
 """
 import logging
 from collections import MutableMapping
@@ -23,6 +23,7 @@ from .parse import (
     update_xsd_simple_types, update_xsd_attributes, update_xsd_attribute_groups,
     update_xsd_complex_types, update_xsd_groups, update_xsd_elements, iterfind_xsd_imports
 )
+from .components import XsdGroup
 from .validators import XMLSchemaValidationError, XMLSchemaDecodeError
 from .factories import (
     xsd_include_schemas, xsd_simple_type_factory, xsd_restriction_factory,
@@ -106,8 +107,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             """
             self.text, self._root, self.uri = load_xml(schema)
 
-            # print(self.uri)
-
             check_tag(self._root, XSD_SCHEMA_TAG)
             self.target_namespace = self._root.attrib.get('targetNamespace', '')
             self.element_form = self._root.attrib.get('elementFormDefault', 'unqualified')
@@ -167,7 +166,9 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
 
         @classmethod
         def check_schema(cls, schema):
-            for error in cls(cls.META_SCHEMA).iter_errors(schema):
+            print(cls.META_SCHEMA.uri)
+            print(schema)
+            for error in cls(cls.META_SCHEMA.text, XSD_BUILTIN_TYPES).iter_errors(schema):
                 raise error
 
         def import_namespace(self, uri, locations=None):
@@ -265,8 +266,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
             return error is None
 
         def iter_errors(self, xml_document, schema=None):
-            from .components import XsdGroup
-
             def _iter_errors(elem, path, schema_elem):
                 try:
                     xsd_element = schema.get_element(path)
@@ -325,7 +324,11 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                     else:
                         # Verify the element content
                         for error in content_type.validate_content(elem):
+                            # print(elem, list(content_type))
                             yield error
+                            # import pdb
+                            # pdb.set_trace()
+
 
                         # Validate each subtree
                         for child in elem:

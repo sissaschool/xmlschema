@@ -94,13 +94,18 @@ def load_xml(source):
     :return: a tuple with three items: XML text, root Element and XML URI
     """
     try:
-        # Try il the source is a string containing XML data
-        return source, etree_fromstring(source), None
-    except TypeError:
         # The source is a file-like object containing XML data
         xml_data = source.read()
         source.close()
         return xml_data, etree_fromstring(xml_data), getattr(source, 'name', None)
-    except etree_parse_error:
-        xml_data, uri = load_uri_or_file(source)
-        return xml_data, etree_fromstring(xml_data), uri
+    except AttributeError:
+        try:
+            # Try il the source is a string containing XML data
+            return source, etree_fromstring(source), None
+        except TypeError:
+            raise TypeError(
+                "a file-like or a bytes-like object is required, not %r" % source.__class__.__name__
+            )
+        except etree_parse_error:
+            xml_data, uri = load_uri_or_file(source)
+            return xml_data, etree_fromstring(xml_data), uri
