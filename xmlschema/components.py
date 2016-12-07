@@ -12,7 +12,7 @@
 This module contains classes for the components of the XML Schema.
 """
 from collections import MutableMapping, MutableSequence
-from .utils import linked_flatten, nested_next
+from .utils import linked_flatten, meta_next_gen
 from .core import (
     PY3,  XSI_NAMESPACE_PATH, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaLookupError
 )
@@ -342,9 +342,9 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                 for item in self:
                     yield gen_cls([item.model_generator()])
             elif self.model == XSD_ALL_TAG:
-                yield gen_cls([item.model_generator() for item in self])
+                yield gen_cls([item.model_generator() for item in self._group])
             elif self.model == XSD_CHOICE_TAG:
-                yield gen_cls([item.model_generator() for item in self])
+                yield gen_cls([item.model_generator() for item in self._group])
 
     def validate_content(self, elem):
         # Validate character data between tags
@@ -363,11 +363,9 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                 content_model = next(model_generator)
                 validation_group = []
                 for g, c in linked_flatten(content_model):
-                        validation_group.extend([t for t in nested_next(g, c)])
+                    validation_group.extend([t for t in meta_next_gen(g, c)])
             except StopIteration:
                 for child in elem_iterator:
-                    import pdb
-                    pdb.set_trace()
                     yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                 return
 
@@ -543,16 +541,8 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
 
     def validate(self, value):
         self.base_type.validate(value)
-        try:
-            if not all([validator(value) for validator in self.validators]):
-                raise XMLSchemaValidationError(self, value)
-        except TypeError:
-            import inspect
-            print(self.validators)
-            print(self)
-            print(value, type(value))
-            print(type(self.validators[0]))
-            raise
+        if not all([validator(value) for validator in self.validators]):
+            raise XMLSchemaValidationError(self, value)
         if self.enumeration and value not in self.enumeration:
             raise XMLSchemaValidationError(
                 self, value, reason="invalid value, it must be one of %r" % self.enumeration
