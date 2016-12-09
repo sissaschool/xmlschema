@@ -11,8 +11,9 @@
 """
 This module contains exception classes and functions for data validation.
 """
-from .core import PY3, etree_tostring, XMLSchemaException
 from .utils import str_to_number
+from .core import PY3, etree_tostring, XMLSchemaException
+from .parse import XMLSchemaParseError
 
 
 class XMLSchemaValidatorError(XMLSchemaException, ValueError):
@@ -162,7 +163,13 @@ def create_max_exclusive_validator(value):
 
 def create_total_digits_validator(value):
     def total_digits_validator(x):
-        return len([d for d in str(x) if d.isdigit()]) <= total_digits
+        return len([d for d in str(x) if d.isdigit()]) <= value
 
-    total_digits = int(value)
     return total_digits_validator
+
+
+def create_fraction_digits_validator(value):
+    def fraction_digits_validator(x):
+        return len(str(x).partition('.')[2]) <= value
+
+    return fraction_digits_validator

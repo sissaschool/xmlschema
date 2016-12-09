@@ -203,6 +203,27 @@ def get_xsd_attribute(elem, attribute, required=True):
             return None
 
 
+def get_xsd_int_attribute(elem, attribute, required=True):
+    """
+    Get an element's attribute converting it to an int(). Throws a schema
+    error if the attribute is required or return None if it's optional.
+
+    :param elem:
+    :param attribute:
+    :param required:
+    :return: Integer containing the attribute value.
+    """
+    try:
+        return int(elem.attrib[attribute])
+    except KeyError as err:
+        if required:
+            raise XMLSchemaParseError("attribute {} expected".format(err), elem)
+        else:
+            return None
+    except (TypeError, ValueError) as err:
+        raise XMLSchemaParseError("attribute {} error: {}".format(attribute, str(err)), elem)
+
+
 def _create_iterfind_by_tag(tag):
     """
     Defines a generator that produce all subelements that have a specific tag.
