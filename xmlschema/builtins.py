@@ -13,10 +13,10 @@ This module contains XSD types builtins.
 """
 from decimal import Decimal
 from .utils import is_datetime_iso8601
-from .parse import xsd_qname
-from .components import (
-    XsdAttributeGroup, XsdGroup, XsdSimpleType, XsdAtomicType, XsdList,
-    XsdComplexType, XsdAnyAttribute, XsdAnyElement
+from .qnames import xsd_qname
+from .validators import (
+    XsdAttributeGroup, XsdGroup, XsdSimpleType, XsdAtomicType,
+    XsdList, XsdComplexType, XsdAnyAttribute, XsdAnyElement
 )
 
 #

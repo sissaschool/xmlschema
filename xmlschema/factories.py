@@ -13,23 +13,18 @@ This module contains factories for parsing XML Schema declarations for the 'xmls
 """
 
 import logging
+import re
 
-from .core import XMLSchemaOSError, etree_fromstring
-from .qnames import split_reference
-from .resources import load_uri_or_file, load_resource
-from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE, XSD_BUILTIN_TYPES
-from .etree import etree_get_namespaces
-from .components import (
-    XsdAttributeGroup, XsdGroup, XsdComplexType, XsdRestriction, XsdList,
-    XsdUnion, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
+from .core import XSD_NAMESPACE_PATH
+from .exceptions import XMLSchemaParseError, XMLSchemaValueError
+from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
+from .validators import *
+from .parse import (
+    check_tag, get_xsd_attribute, get_xsd_declarations, get_xsd_declaration, get_xsd_int_attribute,
+    lookup_attribute, lookup_type, lookup_element, lookup_group, lookup_attribute_group,
 )
-from .validators import (
-    create_length_validator, create_min_length_validator, create_max_length_validator,
-    create_min_inclusive_validator, create_min_exclusive_validator,
-    create_max_inclusive_validator, create_max_exclusive_validator,
-    create_total_digits_validator, create_fraction_digits_validator
-)
-from .parse import *
+from .qnames import *
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,50 +51,6 @@ def check_factory(*args):
 
         return factory_checker
     return make_factory_checker
-
-
-def xsd_include_schemas(schema, elements):
-    """
-    Append elements of included schemas to element list itself.
-    Ignore locations already loaded in the schema.
-
-    :param schema: The schema instance.
-    :param elements: XSD declarations as an Element Tree structure.
-    """
-    included_schemas = schema._included_schemas
-    namespaces = schema.namespaces
-
-    def _include_schemas(_elements, base_uri):
-        for elem in iterfind_xsd_inclusions(_elements, namespaces=namespaces):
-            locations = get_xsd_attribute(elem, 'schemaLocation')
-            try:
-                _schema, schema_uri = load_resource(locations, base_uri)
-            except (OSError, IOError):
-                raise XMLSchemaOSError("Not accessible schema locations '{}'".format(locations))
-
-            if schema_uri not in included_schemas and schema_uri not in new_inclusions:
-                schema_tree = etree_fromstring(_schema)
-                check_tag(schema_tree, XSD_SCHEMA_TAG)
-                new_inclusions[schema_uri] = schema_tree
-                namespaces.update(etree_get_namespaces(_schema))
-                _include_schemas(schema_tree, schema_uri)
-
-        for elem in iterfind_xsd_redefinitions(_elements, namespaces=namespaces):
-            for location in get_xsd_attribute(elem, 'schemaLocation').split():
-                _schema, schema_uri = load_uri_or_file(location, base_uri)
-                if schema_uri not in included_schemas and schema_uri not in new_inclusions:
-                    namespaces.update(etree_get_namespaces(_schema))
-                    schema_tree = etree_fromstring(_schema)
-                    for child in elem:
-                        schema_tree.append(child)
-                    new_inclusions[schema_uri] = schema_tree
-
-    new_inclusions = {}
-    _include_schemas(elements, schema.uri)
-    if new_inclusions:
-        included_schemas.update(new_inclusions)
-        for schema_element in new_inclusions.values():
-            elements.extend(list(schema_element))
 
 
 @check_factory(XSD_SIMPLE_TYPE_TAG)
@@ -161,12 +112,17 @@ def xsd_restriction_factory(elem, schema, **kwargs):
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
     xsd_restriction_class = kwargs.get('xsd_restriction_class', XsdRestriction)
+    xsd_costraint_class = kwargs.get('xsd_constraint_class', XsdConstraint)
 
     length = None
     min_length = None
     max_length = None
     validators = []
     enumeration = []
+    patterns = []
+    white_space = None
+    has_attributes = False
+    has_simple_type = False
 
     try:
         base_qname, namespace = split_reference(elem.attrib['base'], schema.namespaces)
@@ -177,83 +133,86 @@ def xsd_restriction_factory(elem, schema, **kwargs):
         logger.debug("Associated to base type '%r': %s", base_type, base_type)
 
     for child in get_xsd_declarations(elem):
-        if child.tag == XSD_SIMPLE_TYPE_TAG:
+        if child.tag in (XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG):
+            has_attributes = True
+        elif has_attributes:
+            raise XMLSchemaParseError("unexpected tag after attribute declarations", child)
+        elif child.tag == XSD_SIMPLE_TYPE_TAG:
             # Case of simpleType declaration inside a restriction
-            if base_type is not None:
+            if has_simple_type:
+                raise XMLSchemaParseError("duplicated simpleType declaration", child)
+            elif base_type is not None:
                 # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                 raise XMLSchemaParseError("base attribute and simpleType child are mutually exclusive", elem)
             _, base_type = simple_type_factory(child, schema, **kwargs)
-        elif child.tag == XSD_LENGTH_TAG:
-            validators.append(create_length_validator(child.attrib['value']))
-            logger.debug("Added a 'length == %s' restriction", child.attrib['value'])
-        elif child.tag == XSD_MIN_LENGTH_TAG:
-            validators.append(create_min_length_validator(child.attrib['value']))
-            logger.debug("Added a 'minLength == %s' restriction", child.attrib['value'])
-        elif child.tag == XSD_MAX_LENGTH_TAG:
-            validators.append(create_max_length_validator(child.attrib['value']))
-            logger.debug("Added a 'maxLength == %s' restriction", child.attrib['value'])
+            has_simple_type = True
         elif child.tag == XSD_ENUMERATION_TAG:
-            enumeration.append(child.attrib['value'])
-            logger.debug("Added enumeration: %s", child.attrib['value'])
+            enumeration.append(base_type.decode(get_xsd_attribute(child, 'value')))
+        elif child.tag == XSD_PATTERN_TAG:
+            patterns.append(re.compile(re.escape(get_xsd_attribute(child, 'value'))))
+        elif child.tag == XSD_WHITE_SPACE_TAG:
+            if white_space:
+                XMLSchemaParseError("multiple 'whiteSpace' constraint facet", elem)
+            white_space = get_xsd_attribute(child, 'value')
+        elif child.tag == XSD_LENGTH_TAG:
+            if length is not None:
+                XMLSchemaParseError("multiple 'length' constraint facet", elem)
+            length = get_xsd_int_attribute(child, 'value')
+            validators.append(create_length_validator(length))
+        elif child.tag == XSD_MIN_LENGTH_TAG:
+            if min_length is not None:
+                XMLSchemaParseError("multiple 'min_length' constraint facet", elem)
+            min_length = get_xsd_int_attribute(child, 'value')
+            validators.append(create_min_length_validator(min_length))
+        elif child.tag == XSD_MAX_LENGTH_TAG:
+            if max_length is not None:
+                XMLSchemaParseError("multiple 'max_length' constraint facet", elem)
+            max_length = get_xsd_int_attribute(child, 'value')
+            validators.append(create_max_length_validator(max_length))
         elif child.tag == XSD_MAX_INCLUSIVE_TAG:
-            validators.append(create_max_inclusive_validator(child.attrib['value']))
-            logger.debug("Added a 'maxInclusive == %s' restriction", child.attrib['value'])
+            value = base_type.decode(get_xsd_attribute(child, 'value'))
+            validators.append(create_max_inclusive_validator(value))
         elif child.tag == XSD_MAX_EXCLUSIVE_TAG:
-            validators.append(create_max_exclusive_validator(child.attrib['value']))
-            logger.debug("Added a 'maxExclusive == %s' restriction", child.attrib['value'])
-        elif child.tag == XSD_MIN_EXCLUSIVE_TAG:
-            validators.append(create_min_exclusive_validator(child.attrib['value']))
-            logger.debug("Added a 'minExclusive == %s' restriction", child.attrib['value'])
+            value = base_type.decode(get_xsd_attribute(child, 'value'))
+            validators.append(create_max_exclusive_validator(value))
         elif child.tag == XSD_MIN_INCLUSIVE_TAG:
-            validators.append(create_min_inclusive_validator(child.attrib['value']))
-            logger.debug("Added a 'minInclusive == %s' restriction", child.attrib['value'])
+            value = base_type.decode(get_xsd_attribute(child, 'value'))
+            validators.append(create_min_inclusive_validator(value))
+        elif child.tag == XSD_MIN_EXCLUSIVE_TAG:
+            value = base_type.decode(get_xsd_attribute(child, 'value'))
+            validators.append(create_min_exclusive_validator(value))
         elif child.tag == XSD_TOTAL_DIGITS_TAG:
-            value = get_xsd_int_attribute(child, 'value')
-            if value <= 0:
-                raise XMLSchemaParseError("attribute 'value' must be a positive integer.", child)
+            value = get_xsd_int_attribute(child, 'value', minimum=1)
             validators.append(create_total_digits_validator(value))
-            logger.debug("Added a 'totalDigits == %d' restriction", value)
         elif child.tag == XSD_FRACTION_DIGITS_TAG:
             if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
                 raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
-            value = get_xsd_int_attribute(child, 'value')
-            if value < 0:
-                raise XMLSchemaParseError("attribute 'value' must be a non negative integer.", child)
+            value = get_xsd_int_attribute(child, 'value', minimum=0)
             validators.append(create_fraction_digits_validator(value))
-            logger.debug("Added a 'fractionDigits == %d' restriction", value)
         else:
-            # TODO: other restriction types --> validators[] as the previous
-            # TODO: Skip optionally attribute declarations
-            logger.debug("Skipped '%s' restriction", child.tag)
+            raise XMLSchemaParseError("unexpected tag in restriction", child)
 
     if base_type is None:
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)
 
-    if length is not None and (min_length is not None or max_length is not None):
-        raise XMLSchemaParseError(
-            "It is an error for both 'length' and either of 'minLength' or 'maxLength' "
-            "to be specified on the same type definition", elem
-        )
+    if length is None:
+        lengths = (min_length, max_length)
     elif min_length is not None or max_length is not None:
-        try:
-            if int(min_length) > int(max_length):
-                raise XMLSchemaParseError(
-                    "'minLength' must be less or equal of 'maxLength': {0}".format(elem)
-                )
-            elif int(min_length) == int(max_length):
-                length = min_length
-            else:
-                length = tuple([min_length, max_length])
-        except TypeError:
-            length = tuple([min_length, max_length])
+            raise XMLSchemaParseError(
+                "both 'length' and either of 'minLength' or 'maxLength' constraint facets", elem
+            )
+    else:
+        lengths = (length, length)
 
     return xsd_restriction_class(
         base_type,
         elem=elem,
         schema=base_type.schema,
-        length=length,
+        lengths=lengths,
+        enumeration=enumeration,
+        patterns=patterns,
         validators=validators,
-        enumeration=enumeration
+        white_space=white_space
     )
 
 

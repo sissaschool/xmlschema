@@ -14,23 +14,26 @@ This module contains XMLSchema class creator for xmlschema package.
 import logging
 from collections import MutableMapping
 
-from .core import XMLSchemaValueError, XMLSchemaLookupError, XML_NAMESPACE_PATH, BASE_SCHEMAS, urlsplit
-from .qnames import get_namespace, split_path, get_qualified_path, get_qname, uri_to_prefixes
+from .core import XML_NAMESPACE_PATH, BASE_SCHEMAS, urlsplit, etree_get_namespaces
+from .exceptions import (
+    XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaValidationError, XMLSchemaDecodeError
+)
+from .qnames import (
+    get_namespace, split_path, get_qualified_path, get_qname,
+    uri_to_prefixes, XSD_SCHEMA_TAG, XSI_SCHEMA_LOCATION
+)
 from .resources import load_resource, load_xml
 from .builtins import XSD_BUILTIN_TYPES
 from .parse import (
-    XSD_SCHEMA_TAG, XSI_SCHEMA_LOCATION, lookup_attribute, check_tag,
+    lookup_attribute, check_tag, xsd_include_schemas,
     update_xsd_simple_types, update_xsd_attributes, update_xsd_attribute_groups,
     update_xsd_complex_types, update_xsd_groups, update_xsd_elements, iterfind_xsd_imports
 )
-from .components import XsdGroup
-from .validators import XMLSchemaValidationError, XMLSchemaDecodeError
+from .validators import XsdGroup
 from .factories import (
-    xsd_include_schemas, xsd_simple_type_factory, xsd_restriction_factory,
-    xsd_attribute_factory, xsd_attribute_group_factory, xsd_complex_type_factory,
-    xsd_element_factory,  xsd_group_factory
+    xsd_simple_type_factory, xsd_restriction_factory, xsd_attribute_factory,
+    xsd_attribute_group_factory, xsd_complex_type_factory, xsd_element_factory,  xsd_group_factory
 )
-from .etree import etree_get_namespaces
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +122,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                 self.lookup_table = self.BASE_SCHEMAS
 
             self.lookup_table[self.target_namespace] = self
-            self._included_schemas = URIDict()
-            self._redefined_schemas = URIDict()
+            self.included_schemas = URIDict()
 
             self.types = builtin_types or {}
             self.attributes = {}
@@ -166,8 +168,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
 
         @classmethod
         def check_schema(cls, schema):
-            print(cls.META_SCHEMA.uri)
-            print(schema)
             for error in cls(cls.META_SCHEMA.text, XSD_BUILTIN_TYPES).iter_errors(schema):
                 raise error
 
@@ -324,11 +324,9 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                     else:
                         # Verify the element content
                         for error in content_type.validate_content(elem):
-                            # print(elem, list(content_type))
                             yield error
                             # import pdb
                             # pdb.set_trace()
-
 
                         # Validate each subtree
                         for child in elem:

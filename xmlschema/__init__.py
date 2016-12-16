@@ -8,7 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .core import set_logger, XMLSchemaException
+from .core import set_logger
+from .exceptions import XMLSchemaException
 from .etree import etree_to_dict, element_to_dict
 from .schema import validate, to_dict, XMLSchema, XMLSchema_v1_0
 

@@ -8,6 +8,9 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+This module contains general-purpose utility functions.
+"""
 import datetime
 import re
 
@@ -49,6 +52,13 @@ def dump_args(func):
     return dump_func
 
 
+def camel_case_split(s):
+    """
+    Split words of a camel case string
+    """
+    return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
+
+
 def linked_flatten(obj):
     """
     Generate a sequence of 2-tuples from a nested structure of lists/tuples/sets.
@@ -88,13 +98,3 @@ def meta_next_gen(iterator, container=None):
             yield obj, iterator, container
     except TypeError:
         yield iterator, None, container
-
-
-def str_to_number(s):
-    """
-    Convert a string to a number format, trying first the integer class.
-    """
-    try:
-        return int(s)
-    except ValueError:
-        return float(s)
