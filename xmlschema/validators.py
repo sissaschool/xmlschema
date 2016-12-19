@@ -11,88 +11,22 @@
 """
 This module contains classes and functions for XML Schema validation.
 """
+import re
 from collections import MutableMapping, MutableSequence
+
 from .utils import linked_flatten, meta_next_gen
-from .core import PY3, XSI_NAMESPACE_PATH
+from .core import PY3, XSI_NAMESPACE_PATH, XSD_NAMESPACE_PATH
 from .exceptions import *
-from .qnames import split_reference, get_qname, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG
+from .qnames import (
+    split_reference, get_qname, split_qname, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG,
+    XSD_WHITE_SPACE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG,
+    XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
+    XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG
+)
 from .parse import (
     lookup_attribute, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
 )
-
-
-#
-# Validator builders for facet constraints.
-def create_length_validator(length):
-    def length_validator(x):
-        return len(x) == length
-
-    length_validator.__qualname__ = "_%s_%s" % (length, length_validator.__name__)
-    return length_validator
-
-
-def create_min_length_validator(min_length):
-    def min_length_validator(x):
-        return len(x) >= min_length
-
-    min_length_validator.__qualname__ = "_%s_%s" % (min_length, min_length_validator.__name__)
-    return min_length_validator
-
-
-def create_max_length_validator(max_length):
-    def max_length_validator(x):
-        return len(x) <= max_length
-
-    max_length_validator.__qualname__ = "_%s_%s" % (max_length, max_length_validator.__name__)
-    return max_length_validator
-
-
-def create_min_inclusive_validator(min_value):
-    def min_inclusive_validator(x):
-        return x >= min_value
-
-    min_inclusive_validator.__qualname__ = "_%s_%s" % (min_value, min_inclusive_validator.__name__)
-    return min_inclusive_validator
-
-
-def create_min_exclusive_validator(min_value):
-    def min_exclusive_validator(x):
-        return x > min_value
-
-    min_exclusive_validator.__qualname__ = "_%s_%s" % (min_value, min_exclusive_validator.__name__)
-    return min_exclusive_validator
-
-
-def create_max_inclusive_validator(max_value):
-    def max_inclusive_validator(x):
-        return x <= max_value
-
-    max_inclusive_validator.__qualname__ = "_%s_%s" % (max_value, max_inclusive_validator.__name__)
-    return max_inclusive_validator
-
-
-def create_max_exclusive_validator(max_value):
-    def max_exclusive_validator(x):
-        return x < max_value
-
-    max_exclusive_validator.__qualname__ = "_%s_%s" % (max_value, max_exclusive_validator.__name__)
-    return max_exclusive_validator
-
-
-def create_total_digits_validator(total_digits):
-    def total_digits_validator(x):
-        return len([d for d in str(x) if d.isdigit()]) <= total_digits
-
-    total_digits_validator.__qualname__ = "_%s_%s" % (total_digits, total_digits_validator.__name__)
-    return total_digits_validator
-
-
-def create_fraction_digits_validator(fraction_digits):
-    def fraction_digits_validator(x):
-        return len(str(x).partition('.')[2]) <= fraction_digits
-
-    fraction_digits_validator.__qualname__ = "_%s_%s" % (fraction_digits, fraction_digits_validator.__name__)
-    return fraction_digits_validator
 
 
 #
@@ -188,12 +122,159 @@ class XsdBase(object):
         return self._attrib.get('id')
 
 
-class XsdConstraint(XsdBase):
+class XsdFacet(XsdBase):
 
-    def __init__(self, value, name=None, elem=None, schema=None):
-        XsdBase.__init__(self, name, elem, schema)
-        self.value = value
+    def __init__(self, base_type, elem=None, schema=None):
+        XsdBase.__init__(self, elem=elem, schema=schema)
+        self.base_type = base_type
+
+
+class XsdUniqueFacet(XsdFacet):
+
+    def __init__(self, base_type, elem=None, schema=None):
+        super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
+        self.name = '%s(value=%r)' % (split_qname(elem.tag)[1], elem.attrib['value'])
         self.fixed = self._attrib.get('fixed', 'false')
+
+        if elem.tag == XSD_WHITE_SPACE_TAG:
+            self.value = get_xsd_attribute(elem, 'value', enumeration=('preserve', 'replace', 'collapse'))
+        elif elem.tag in (XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG):
+            self.value = get_xsd_int_attribute(elem, 'value')
+            if elem.tag == XSD_LENGTH_TAG:
+                self.__call__ = self.length_validator
+            elif elem.tag in XSD_MIN_LENGTH_TAG:
+                self.__call__ = self.min_length_validator
+            elif elem.tag == XSD_MAX_LENGTH_TAG:
+                self.__call__ = self.max_length_validator
+        elif elem.tag in (
+                XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG
+                ):
+            self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
+            if elem.tag == XSD_MIN_INCLUSIVE_TAG:
+                self.__call__ = self.min_inclusive_validator
+            elif elem.tag == XSD_MIN_EXCLUSIVE_TAG:
+                self.__call__ = self.min_exclusive_validator
+            elif elem.tag == XSD_MAX_INCLUSIVE_TAG:
+                self.__call__ = self.max_inclusive_validator
+            elif elem.tag == XSD_MAX_EXCLUSIVE_TAG:
+                self.__call__ = self.max_exclusive_validator
+        elif elem.tag == XSD_TOTAL_DIGITS_TAG:
+            self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
+            self.__call__ = self.total_digits_validator
+        elif elem.tag == XSD_FRACTION_DIGITS_TAG:
+            if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
+                raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
+            self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
+            self.__call__ = self.fraction_digits_validator
+
+    def length_validator(self, x):
+        if len(x) != self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def min_length_validator(self, x):
+        if len(x) < self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def max_length_validator(self, x):
+        if len(x) > self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def min_inclusive_validator(self, x):
+        if x < self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def min_exclusive_validator(self, x):
+        if x <= self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def max_inclusive_validator(self, x):
+        if x > self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def max_exclusive_validator(self, x):
+        if x >= self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def total_digits_validator(self, x):
+        if len([d for d in str(x) if d.isdigit()]) > self.value:
+            raise XMLSchemaValidationError(self, x)
+
+    def fraction_digits_validator(self, x):
+        if len(str(x).partition('.')[2]) > self.value:
+            raise XMLSchemaValidationError(self, x)
+
+
+class XsdEnumerationFacet(MutableSequence, XsdFacet):
+
+    def __init__(self, base_type, elem, schema=None):
+        XsdFacet.__init__(self, base_type, schema=schema)
+        self.name = '{}(values=%r)'.format(split_qname(elem.tag)[1])
+        self._elements = [elem]
+        self.enumeration = [base_type.decode(get_xsd_attribute(elem, 'value'))]
+
+    # Implements the abstract methods of MutableSequence
+    def __getitem__(self, i):
+        return self._elements[i]
+
+    def __setitem__(self, i, item):
+        self._elements[i] = item
+        self.enumeration[i] = self.base_type.decode(get_xsd_attribute(item, 'value'))
+
+    def __delitem__(self, i):
+        del self._elements[i]
+        del self.enumeration[i]
+
+    def __len__(self):
+        return len(self._elements)
+
+    def insert(self, i, item):
+        self._elements.insert(i, item)
+        self.enumeration.insert(i, self.base_type.decode(get_xsd_attribute(item, 'value')))
+
+    def __repr__(self):
+        return u"<%s %r at %#x>" % (self.__class__.__name__, self.enumeration, id(self))
+
+    def __call__(self, value):
+        if value not in self.enumeration:
+            raise XMLSchemaValidationError(
+                self, value, reason="invalid value, it must be one of %r" % self.enumeration
+            )
+
+
+class XsdPatternsFacet(MutableSequence, XsdFacet):
+
+    def __init__(self, base_type, elem, schema=None):
+        XsdFacet.__init__(self, base_type, schema=schema)
+        self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
+        self._elements = [elem]
+        self.patterns = [re.compile(re.escape(get_xsd_attribute(elem, 'value')))]
+
+    # Implements the abstract methods of MutableSequence
+    def __getitem__(self, i):
+        return self._elements[i]
+
+    def __setitem__(self, i, item):
+        self._elements[i] = item
+        self.patterns[i] = re.compile(re.escape(get_xsd_attribute(item, 'value')))
+
+    def __delitem__(self, i):
+        del self._elements[i]
+        del self.patterns[i]
+
+    def __len__(self):
+        return len(self._elements)
+
+    def insert(self, i, item):
+        self._elements.insert(i, item)
+        self.patterns.insert(i, re.compile(re.escape(get_xsd_attribute(item, 'value'))))
+
+    def __repr__(self):
+        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name % self.patterns, id(self))
+
+    def __call__(self, value):
+        if all(pattern.search(value) is None for pattern in self.patterns):
+            msg = "value don't match any of patterns %r"
+            raise XMLSchemaValidationError(self, value, reason= msg % [p.pattern for p in self.patterns])
 
 
 class OccursMixin(object):
@@ -571,15 +652,17 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
     """
     A class for representing a user defined atomic simpleType (restriction).
     """
-    def __init__(self, base_type, name=None, elem=None, schema=None, enumeration=None,
-                 patterns=None, validators=None, white_space='preserve', lengths=(0, None)):
+    def __init__(self, base_type, name=None, elem=None, schema=None, validators=None,
+                 facets=None, lengths=(0, None)):
         super(XsdRestriction, self).__init__(name, elem, schema)
         self.base_type = base_type
-        self.validators = validators or []
-        self.enumeration = enumeration or []
-        self.patterns = patterns or []
-        self.white_space = white_space
         self.lengths = lengths
+        self.facets = facets or {}
+        self.white_spaces = facets.get(XSD_WHITE_SPACE_TAG)
+        self.patterns = facets.get(XSD_PATTERN_TAG)
+        self.validators = [
+            v for k, v in facets.items() if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG)
+            ]
 
     def __setattr__(self, name, value):
         if name == "base_type":
@@ -591,12 +674,13 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
 
     def validate(self, value):
         self.base_type.validate(value)
-        if not all([validator(value) for validator in self.validators]):
-            raise XMLSchemaValidationError(self, value)
-        if self.enumeration and value not in self.enumeration:
-            raise XMLSchemaValidationError(
-                self, value, reason="invalid value, it must be one of %r" % self.enumeration
-            )
+        if self.validators:
+            try:
+                self.validators[0](value)
+            except TypeError:
+                print("ERRORE!: ", self, self.validators[0], dir(self.validators[0]))
+                raise
+            # all([validator(value) for validator in self.validators])
 
     def decode(self, text):
         value = self.base_type.decode(text)
@@ -905,13 +989,8 @@ class XsdAnyElement(XsdBase, ValidatorMixin, OccursMixin):
 
 
 __all__ = (
-    'create_length_validator', 'create_min_length_validator',
-    'create_max_length_validator', 'create_min_inclusive_validator',
-    'create_min_exclusive_validator', 'create_max_inclusive_validator',
-    'create_max_exclusive_validator', 'create_total_digits_validator',
-    'create_fraction_digits_validator',
-    'XsdBase', 'XsdConstraint', 'XsdGroup', 'XsdSimpleType',
-    'XsdAtomicType', 'XsdRestriction', 'XsdList', 'XsdUnion',
-    'XsdComplexType', 'XsdAttributeGroup', 'XsdAttribute',
-    'XsdElement', 'XsdAnyAttribute', 'XsdAnyElement'
+    'XsdBase', 'XsdUniqueFacet', 'XsdEnumerationFacet', 'XsdPatternsFacet',
+    'XsdGroup', 'XsdSimpleType', 'XsdAtomicType', 'XsdRestriction',
+    'XsdList', 'XsdUnion', 'XsdComplexType', 'XsdAttributeGroup',
+    'XsdAttribute', 'XsdElement', 'XsdAnyAttribute', 'XsdAnyElement'
 )

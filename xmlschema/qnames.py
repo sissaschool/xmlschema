@@ -171,14 +171,29 @@ XSD_ENUMERATION_TAG = xsd_qname('enumeration')
 XSD_LENGTH_TAG = xsd_qname('length')
 XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
 XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
-XSD_PATTERN_TAG = xsd_qname('pattern')
-XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')
+XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
+XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
 XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
 XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
 XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
 XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
 XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
 XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
+
+XSD_VALUE_BASED_FACETS = (
+    XSD_LENGTH_TAG,
+    XSD_MIN_LENGTH_TAG,
+    XSD_MAX_LENGTH_TAG,
+    XSD_ENUMERATION_TAG,
+    XSD_WHITE_SPACE_TAG,
+    XSD_PATTERN_TAG,
+    XSD_MAX_INCLUSIVE_TAG,
+    XSD_MAX_EXCLUSIVE_TAG,
+    XSD_MIN_INCLUSIVE_TAG,
+    XSD_MIN_EXCLUSIVE_TAG,
+    XSD_TOTAL_DIGITS_TAG,
+    XSD_FRACTION_DIGITS_TAG
+)
 
 # ----------------------------------
 #  Useful names of other namespaces
@@ -187,7 +202,9 @@ XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
 XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
 
 __all__ = (
-    'get_qname', 'xsd_qname', 'split_reference', 'XSD_SCHEMA_TAG',
+    'get_qname', 'xsd_qname', 'split_qname', 'split_path',
+    'split_reference', 'get_namespace', 'get_qualified_path',
+    'uri_to_prefixes', 'strip_namespace', 'XSD_SCHEMA_TAG',
     'XSD_INCLUDE_TAG', 'XSD_IMPORT_TAG', 'XSD_REDEFINE_TAG',
     'XSD_SIMPLE_TYPE_TAG', 'XSD_COMPLEX_TYPE_TAG',
     'XSD_ATTRIBUTE_TAG', 'XSD_ELEMENT_TAG',
@@ -197,8 +214,9 @@ __all__ = (
     'XSD_LIST_TAG', 'XSD_UNION_TAG', 'XSD_SEQUENCE_TAG',
     'XSD_CHOICE_TAG', 'XSD_ALL_TAG', 'XSD_ANY_TAG',
     'XSD_SIMPLE_CONTENT_TAG', 'XSD_COMPLEX_CONTENT_TAG',
-    'XSD_ANY_ATTRIBUTE_TAG', 'XSD_ENUMERATION_TAG',
-    'XSD_LENGTH_TAG', 'XSD_MIN_LENGTH_TAG', 'XSD_MAX_LENGTH_TAG',
+    'XSD_ANY_ATTRIBUTE_TAG', 'XSD_VALUE_BASED_FACETS',
+    'XSD_ENUMERATION_TAG', 'XSD_LENGTH_TAG',
+    'XSD_MIN_LENGTH_TAG', 'XSD_MAX_LENGTH_TAG',
     'XSD_PATTERN_TAG', 'XSD_WHITE_SPACE_TAG',
     'XSD_MAX_INCLUSIVE_TAG', 'XSD_MAX_EXCLUSIVE_TAG',
     'XSD_MIN_INCLUSIVE_TAG', 'XSD_MIN_EXCLUSIVE_TAG',
