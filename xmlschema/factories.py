@@ -14,7 +14,7 @@ This module contains factories for parsing XML Schema declarations for the 'xmls
 
 import logging
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValueError
+from .exceptions import XMLSchemaParseError
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
 from .validators import *
 from .parse import (
@@ -114,8 +114,6 @@ def xsd_restriction_factory(elem, schema, **kwargs):
     length = None
     min_length = None
     max_length = None
-    enumeration = []
-    patterns = []
     facets = {}
     has_attributes = False
     has_simple_type = False
@@ -155,8 +153,7 @@ def xsd_restriction_factory(elem, schema, **kwargs):
                 else:
                     facets[child.tag] = XsdPatternsFacet(base_type, child, schema)
         elif child.tag not in facets:
-            pass
-            #facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
+            facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
         else:
             XMLSchemaParseError("multiple %r constraint facet" % split_qname(child.tag)[1], elem)
 
@@ -280,12 +277,7 @@ def xsd_attribute_factory(elem, schema, **kwargs):
 
     declarations = get_xsd_declarations(elem, max_occurs=1)
     try:
-        try:
-            type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
-        except XMLSchemaValueError:
-            import pdb
-            pdb.set_trace()
-            raise
+        type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         xsd_type = lookup_type(type_qname, namespace, schema.lookup_table)
     except KeyError:
         if declarations:

@@ -19,10 +19,9 @@ from .core import PY3, XSI_NAMESPACE_PATH, XSD_NAMESPACE_PATH
 from .exceptions import *
 from .qnames import (
     split_reference, get_qname, split_qname, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG,
-    XSD_WHITE_SPACE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
-    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG,
-    XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
-    XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG
+    XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG,
+    XSD_MAX_LENGTH_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
+    XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_STRING_TYPES
 )
 from .parse import (
     lookup_attribute, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
@@ -40,6 +39,8 @@ class XsdBase(object):
     :param elem: ElementTree's node containing the definition
     """
     EMPTY_DICT = {}
+    _REGEX_SPACE = re.compile(r'\s')
+    _REGEX_SPACES = re.compile(r'\s+')
 
     def __init__(self, name=None, elem=None, schema=None):
         self.name = name
@@ -136,36 +137,47 @@ class XsdUniqueFacet(XsdFacet):
         self.name = '%s(value=%r)' % (split_qname(elem.tag)[1], elem.attrib['value'])
         self.fixed = self._attrib.get('fixed', 'false')
 
+        # TODO: Add checks with base_type's constraints.
         if elem.tag == XSD_WHITE_SPACE_TAG:
             self.value = get_xsd_attribute(elem, 'value', enumeration=('preserve', 'replace', 'collapse'))
+            white_space = getattr(base_type, 'white_space', None)
+            if getattr(base_type, 'fixed_white_space', None) and white_space != self.value:
+                XMLSchemaParseError("whiteSpace can be only %r." % base_type.white_space, elem)
+            elif white_space == 'collapse' and self.value in ('preserve', 'replace'):
+                XMLSchemaParseError("whiteSpace can be only 'collapse', so cannot change.", elem)
+            elif white_space == 'replace' and self.value == 'preserve':
+                XMLSchemaParseError("whiteSpace can be only 'replace' or 'collapse'.", elem)
         elif elem.tag in (XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG):
             self.value = get_xsd_int_attribute(elem, 'value')
             if elem.tag == XSD_LENGTH_TAG:
-                self.__call__ = self.length_validator
+                self.validator = self.length_validator
             elif elem.tag in XSD_MIN_LENGTH_TAG:
-                self.__call__ = self.min_length_validator
+                self.validator = self.min_length_validator
             elif elem.tag == XSD_MAX_LENGTH_TAG:
-                self.__call__ = self.max_length_validator
+                self.validator = self.max_length_validator
         elif elem.tag in (
                 XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG
                 ):
             self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
             if elem.tag == XSD_MIN_INCLUSIVE_TAG:
-                self.__call__ = self.min_inclusive_validator
+                self.validator = self.min_inclusive_validator
             elif elem.tag == XSD_MIN_EXCLUSIVE_TAG:
-                self.__call__ = self.min_exclusive_validator
+                self.validator = self.min_exclusive_validator
             elif elem.tag == XSD_MAX_INCLUSIVE_TAG:
-                self.__call__ = self.max_inclusive_validator
+                self.validator = self.max_inclusive_validator
             elif elem.tag == XSD_MAX_EXCLUSIVE_TAG:
-                self.__call__ = self.max_exclusive_validator
+                self.validator = self.max_exclusive_validator
         elif elem.tag == XSD_TOTAL_DIGITS_TAG:
             self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
-            self.__call__ = self.total_digits_validator
+            self.validator = self.total_digits_validator
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
             if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
                 raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
-            self.__call__ = self.fraction_digits_validator
+            self.validator = self.fraction_digits_validator
+
+    def __call__(self, *args, **kwargs):
+        self.validator(*args, **kwargs)
 
     def length_validator(self, x):
         if len(x) != self.value:
@@ -306,7 +318,7 @@ class OccursMixin(object):
 
 class ValidatorMixin(object):
 
-    def validate(self, value):
+    def validate(self, text_or_obj):
         raise NotImplementedError("%r: you must provide a concrete validate() method" % self.__class__)
 
     def decode(self, text):
@@ -354,7 +366,11 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 self._check_type(name, dict, v, (XsdAnyAttribute,))
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
-    def validate(self, attributes, elem=None):
+    def validate(self, *args, **kwargs):
+        for error in self.iter_errors(*args, **kwargs):
+            raise error
+
+    def iter_errors(self, attributes, elem=None):
         if not attributes:
             return
         any_attribute = self.get(None)  # 'None' is the key for the anyAttribute declaration.
@@ -477,7 +493,15 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
             elif self.model == XSD_CHOICE_TAG:
                 yield gen_cls([item.model_generator() for item in self._group])
 
-    def validate_content(self, elem):
+    def validate(self, value):
+        if not isinstance(value, str):
+            raise XMLSchemaValidationError(self, value, reason="value must be a string!")
+        if not self.mixed and value:
+            raise XMLSchemaValidationError(
+                self, value, reason="character data not allowed for this content type (mixed=False)."
+            )
+
+    def iter_errors(self, elem):
         # Validate character data between tags
         if not self.mixed and (elem.text.strip() or any([child.tail.strip() for child in elem])):
             yield XMLSchemaValidationError(
@@ -542,14 +566,6 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
                         consumed_child = True
                     break
 
-    def validate(self, value):
-        if not isinstance(value, str):
-            raise XMLSchemaValidationError(self, value, reason="value must be a string!")
-        if not self.mixed and value:
-            raise XMLSchemaValidationError(
-                self, value, reason="character data not allowed for this content type (mixed=False)."
-            )
-
     def decode(self, text):
         if not isinstance(text, str):
             raise XMLSchemaTypeError("argument must be a string!")
@@ -566,9 +582,9 @@ class XsdSimpleType(XsdBase, ValidatorMixin):
     def final(self):
         return self._get_derivation_attribute('final', ('list', 'union', 'restriction'))
 
-    def validate(self, value):
-        if not isinstance(value, str):
-            raise XMLSchemaValidationError(self, value, reason="value must be a string!")
+    def validate(self, obj):
+        if not isinstance(obj, str):
+            raise XMLSchemaValidationError(self, obj, reason="value must be a string!")
 
     def decode(self, text):
         if not isinstance(text, str):
@@ -584,8 +600,8 @@ class XsdSimpleType(XsdBase, ValidatorMixin):
 
 class XsdAtomicType(XsdSimpleType, ValidatorMixin):
     """
-    Class for defining XML Schema simpleType atomic datatypes. An instance contains
-    a Python's type transformation and a list of validator functions.
+    Class for defining XML Schema built-in simpleType atomic datatypes. An instance
+    contains a Python's type transformation and a list of validator functions.
 
     Type conversion methods:
       - to_python(value): Decoding from XML:
@@ -605,21 +621,21 @@ class XsdAtomicType(XsdSimpleType, ValidatorMixin):
         self.validators = validators or []
         self.to_python = to_python or python_type
         self.from_python = from_python or str
+        self.white_space = 'preserve' if name in XSD_STRING_TYPES else 'collapse'
+        self.fixed_white_space = False
 
-    def check(self):
-        pass
-
-    def validate(self, value):
-        """
-        Validator for decoded values.
-        :param value: The Python's object that has to be validated
-        """
-        if not isinstance(value, self.python_type):
+    def validate(self, obj):
+        if not isinstance(obj, self.python_type):
             raise XMLSchemaValidationError(
-                self, value, "value type is {} instead of {}".format(type(value), repr(self.python_type))
+                self, obj, "value type is {} instead of {}".format(type(obj), repr(self.python_type))
             )
-        if not all([validator(value) for validator in self.validators]):
-            raise XMLSchemaValidationError(self, value)
+        if isinstance(obj, str):
+            if self.white_space == 'replace':
+                obj = self._REGEX_SPACE.sub(u" ", obj)
+            elif self.white_space == 'collapse':
+                obj = self._REGEX_SPACES.sub(u" ", obj)
+        for validator in self.validators:
+            validator(obj)
 
     def decode(self, text):
         """
@@ -658,7 +674,13 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
         self.base_type = base_type
         self.lengths = lengths
         self.facets = facets or {}
-        self.white_spaces = facets.get(XSD_WHITE_SPACE_TAG)
+
+        try:
+            self.white_space = facets[XSD_WHITE_SPACE_TAG].value
+            self.fixed_white_space = facets[XSD_WHITE_SPACE_TAG].fixed
+        except KeyError:
+            self.white_space = self.fixed_white_space = None
+
         self.patterns = facets.get(XSD_PATTERN_TAG)
         self.validators = [
             v for k, v in facets.items() if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG)
@@ -669,20 +691,16 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
             self._check_type(name, None, value, (XsdSimpleType, XsdComplexType))
         super(XsdRestriction, self).__setattr__(name, value)
 
-    def check(self):
-        pass
-
-    def validate(self, value):
-        self.base_type.validate(value)
-        if self.validators:
-            try:
-                self.validators[0](value)
-            except TypeError:
-                print("ERRORE!: ", self, self.validators[0], dir(self.validators[0]))
-                raise
-            # all([validator(value) for validator in self.validators])
+    def validate(self, obj):
+        self.base_type.validate(obj)
+        for validator in self.validators:
+            validator(obj)
 
     def decode(self, text):
+        if self.white_space == 'replace':
+            text = self._REGEX_SPACE.sub(u" ", text)
+        elif self.white_space == 'collapse':
+            text = self._REGEX_SPACES.sub(u" ", text)
         value = self.base_type.decode(text)
         self.validate(value)
         return value
@@ -702,12 +720,9 @@ class XsdList(XsdSimpleType, ValidatorMixin):
             self._check_type(name, None, value, (XsdSimpleType,))
         super(XsdList, self).__setattr__(name, value)
 
-    def check(self):
-        pass
-
-    def validate(self, value):
+    def validate(self, obj):
         _validate = self.item_type.validate
-        for item in value:
+        for item in obj:
             if isinstance(item, (list, tuple)):
                 map(_validate, item)
             else:
@@ -741,32 +756,22 @@ class XsdUnion(XsdSimpleType):
                 self._check_type(name, list, member_type, (XsdSimpleType,))
         super(XsdUnion, self).__setattr__(name, value)
 
-    def check(self):
-        pass
-
-    def validate(self, value):
+    def validate(self, obj):
         for _type in self.member_types:
             try:
-                _type.validate(value)
+                return _type.validate(obj)
             except XMLSchemaValidationError:
                 pass
-            else:
-                return
-        raise XMLSchemaValidationError(self, value, reason="No type suitable for validating the value.")
+        raise XMLSchemaValidationError(self, obj, reason="no type suitable for validating the value.")
 
     def decode(self, text):
-        _decoded_type = None
         for _type in self.member_types:
             try:
                 return _type.decode(text)
-            except XMLSchemaDecodeError:
+            except (XMLSchemaValidationError, XMLSchemaDecodeError):
                 pass
-            except XMLSchemaValidationError:
-                _decoded_type = _type
-        if _decoded_type is not None:
-            return _decoded_type.decode(text)
         raise XMLSchemaDecodeError(
-            self, text, self.member_types, reason="No type suitable for decoding the text."
+            self, text, self.member_types, reason="no type suitable for decoding the text."
         )
 
     def encode(self, obj):
@@ -817,11 +822,8 @@ class XsdComplexType(XsdBase, ValidatorMixin):
     def has_extension(self):
         return self.derivation is True
 
-    def check(self):
-        self.content_type.check()
-
-    def validate(self, value):
-        self.content_type.validate(value)
+    def validate(self, obj):
+        self.content_type.validate(obj)
 
     def decode(self, text):
         if not isinstance(text, str):
@@ -863,11 +865,8 @@ class XsdAttribute(XsdBase, ValidatorMixin):
     def is_optional(self):
         return self.use == 'optional'
 
-    def check(self):
-        pass
-
-    def validate(self, value):
-        return self.type.validate(value)
+    def validate(self, obj):
+        return self.type.validate(obj)
 
     def decode(self, text):
         return self.type.decode(text)
@@ -895,8 +894,8 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
             self._check_type(name, None, value, (XsdSimpleType, XsdComplexType))
         super(XsdElement, self).__setattr__(name, value)
 
-    def validate(self, value):
-        self.type.validate(value)
+    def validate(self, obj):
+        self.type.validate(obj)
 
     def decode(self, text):
         return self.type.decode(text or self.default)
@@ -950,9 +949,17 @@ class XsdAnyAttribute(XsdBase, ValidatorMixin):
     def process_contents(self):
         return get_xsd_attribute(self.elem, 'processContents', 'strict', ('lax', 'skip', 'strict'))
 
-    def validate(self, attributes, elem=None):
+    def validate(self, obj):
         if self.process_contents == 'skip':
             return
+
+        if isinstance(obj, dict):
+            attributes = obj
+        elif isinstance(obj, str):
+            attributes = dict([attr.split('=') for attr in obj.split('')])
+        else:
+            attributes = obj.attrib
+
         any_namespace = self.namespace
         for name, value in attributes.items():
             qname, namespace = split_reference(name, namespaces=self._namespaces)
@@ -961,14 +968,14 @@ class XsdAnyAttribute(XsdBase, ValidatorMixin):
                     namespace == self._target_namespace and
                     any([x in any_namespace for x in ("##any", "##targetNamespace", "##local", namespace)])):
                 yield XMLSchemaValidationError(
-                    self, name, "attribute not allowed for this element", elem, self.elem
+                    self, name, "attribute not allowed for this element", obj, self.elem
                 )
             try:
                 xsd_attribute = lookup_attribute(qname, namespace, self._lookup_table)
             except XMLSchemaLookupError:
                 if self.process_contents == 'strict':
                     yield XMLSchemaValidationError(
-                        self, name, "attribute not found", elem, self.elem
+                        self, name, "attribute not found", obj, self.elem
                     )
             else:
                 xsd_attribute.validate(value)

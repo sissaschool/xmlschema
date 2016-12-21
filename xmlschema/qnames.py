@@ -195,6 +195,29 @@ XSD_VALUE_BASED_FACETS = (
     XSD_FRACTION_DIGITS_TAG
 )
 
+# ------------------------------------
+#  XSD built-in types qualified names
+# ------------------------------------
+XSD_STRING_TAG = xsd_qname('string')
+XSD_QNAME_TAG = xsd_qname('QName')
+XSD_ANYURI_TAG = xsd_qname('anyURI')
+XSD_HEXBINARY_TAG = xsd_qname('hexBinary')
+XSD_BASE64BINARY_TAG = xsd_qname('base64Binary')
+
+XSD_STRING_TYPES = (
+    xsd_qname('string'),  # character string
+    xsd_qname('normalizedString'),  # line breaks are normalized
+    xsd_qname('token'),  # whitespace is normalized
+    xsd_qname('NMTOKEN'),  # should not contain whitespace (attribute only)
+    xsd_qname('Name'),  # not starting with a digit
+    xsd_qname('NCName'),  # cannot contain colons
+    xsd_qname('ID'),  # unique identification in document (attribute only)
+    xsd_qname('IDREF'),  # reference to ID field in document (attribute only)
+    xsd_qname('ENTITY'),  # reference to entity (attribute only)
+    xsd_qname('language')  # language codes
+)
+
+
 # ----------------------------------
 #  Useful names of other namespaces
 # ----------------------------------

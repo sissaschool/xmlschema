@@ -290,7 +290,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
 
                     # Verify element's attributes
                     try:
-                        for error in xsd_element.type.attributes.validate(elem.attrib, elem):
+                        for error in xsd_element.type.attributes.iter_errors(elem.attrib, elem):
                             yield error
                     except AttributeError:
                         # The element has simple content type.
@@ -323,10 +323,8 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
                             )
                     else:
                         # Verify the element content
-                        for error in content_type.validate_content(elem):
+                        for error in content_type.iter_errors(elem):
                             yield error
-                            # import pdb
-                            # pdb.set_trace()
 
                         # Validate each subtree
                         for child in elem:
