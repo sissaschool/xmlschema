@@ -8,8 +8,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+This module contains base functions and constants for the package.
+"""
 import logging
 import sys
+from io import StringIO
 from xml.etree import ElementTree
 
 try:
@@ -23,36 +27,6 @@ except ImportError:
     from urlparse import urlsplit, urljoin, uses_relative, urlparse
 
 PY3 = sys.version_info[0] >= 3
-
-
-# Core Exceptions
-class XMLSchemaException(Exception):
-    """Package's base exception class"""
-    pass
-
-
-class XMLSchemaTypeError(XMLSchemaException, TypeError):
-    pass
-
-
-class XMLSchemaValueError(XMLSchemaException, ValueError):
-    pass
-
-
-class XMLSchemaOSError(XMLSchemaException, OSError):
-    pass
-
-
-class XMLSchemaLookupError(XMLSchemaException, LookupError):
-    pass
-
-
-class XMLSchemaIndexError(XMLSchemaLookupError, IndexError):
-    pass
-
-
-class XMLSchemaKeyError(XMLSchemaLookupError, KeyError):
-    pass
 
 
 # Namespaces for standards
@@ -166,3 +140,17 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     if spaces_for_tab:
         xml_text.replace('\t', ' ' * spaces_for_tab)
     return xml_text
+
+
+def etree_get_namespaces(source):
+    """
+    Extract namespaces with related prefixes from schema source.
+
+    Note: cannot use the schema tree because the ElementTree library can modify
+    the mapping of namespace's prefixes without updating the references (cannot
+    change them because ElementTree doesn't parse XSD).
+    """
+    try:
+        return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
+    except TypeError:
+        return [node for _, node in etree_iterparse(source, events=['start-ns'])]

@@ -11,10 +11,11 @@
 import logging
 import errno
 import os.path
+
 from .core import (
-    XMLSchemaOSError, etree_fromstring, etree_parse_error,
-    urlsplit, urljoin, urlopen, uses_relative, URLError
+    etree_fromstring, etree_parse_error, urlsplit, urljoin, urlopen, uses_relative, URLError
 )
+from .exceptions import XMLSchemaOSError
 
 logger = logging.getLogger(__name__)
 

@@ -12,23 +12,7 @@
 This module contains functions to convert ElementTree's trees based on a schema
 to or from other data formats (eg. dictionaries, json).
 """
-from io import StringIO
-from .core import etree_iterparse
-from .validators import XMLSchemaDecodeError, XMLSchemaValidationError, XMLSchemaMultipleValidatorErrors
-
-
-def etree_get_namespaces(source):
-    """
-    Extract namespaces with related prefixes from schema source.
-
-    Note: cannot use the schema tree because the ElementTree library can modify
-    the mapping of namespace's prefixes without updating the references (cannot
-    change them because ElementTree doesn't parse XSD).
-    """
-    try:
-        return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
-    except TypeError:
-        return [node for _, node in etree_iterparse(source, events=['start-ns'])]
+from .exceptions import XMLSchemaDecodeError, XMLSchemaValidationError, XMLSchemaMultipleValidatorErrors
 
 
 def etree_iterpath(elem, tag=None, path='.'):
@@ -137,9 +121,9 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
                 try:
                     xsd_element.validate(tail)
                 except XMLSchemaValidationError as err:
-                    errors.append(XMLSchemaValidationError(
-                        xsd_element, err.value, err.reason, xsd_element.elem, node
-                    ))
+                    errors.append(
+                        XMLSchemaValidationError(xsd_element, err.value, err.reason, xsd_element.elem, node)
+                    )
 
         # Add the element's content
         if node.text is None:
@@ -156,13 +140,13 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
             value = xsd_element.decode(text)
         except XMLSchemaValidationError as err:
             value = err.value
-            errors.append(XMLSchemaValidationError(
-                xsd_element, err.value, err.reason, node, xsd_element.elem)
+            errors.append(
+                XMLSchemaValidationError(xsd_element, err.value, err.reason, node, xsd_element.elem)
             )
         except XMLSchemaDecodeError as err:
             value = text
-            errors.append(XMLSchemaDecodeError(
-                xsd_element, err.text, err.decoder, err.reason, node, xsd_element.elem)
+            errors.append(
+                XMLSchemaDecodeError(xsd_element, err.text, err.decoder, err.reason, node, xsd_element.elem)
             )
 
         if node_dict:

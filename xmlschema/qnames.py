@@ -9,10 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for manipulating fully qualified names.
+This module contains functions for manipulating fully qualified names and XSD qname constants.
 """
 import re
-from .core import XMLSchemaValueError
+from .core import XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
+from .exceptions import XMLSchemaValueError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')
 _RE_STRIP_NAMESPACE = re.compile(r'\{[^}]*\}')
@@ -111,3 +112,136 @@ def uri_to_prefixes(text, namespaces):
         if text.find(uri) >= 0:
             text = text.replace(uri, '%s:' % prefix)
     return text
+
+
+def xsd_qname(name):
+    """
+    Build a QName for XSD namespace from a local name.
+
+    :param name: local name/tag
+    :return: fully qualified name for XSD namespace
+    """
+    if name[0] != '{':
+        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
+    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
+        raise XMLSchemaValueError("'%s' is not a name of the XSD namespace" % name)
+    else:
+        return name
+
+
+# ------------------------
+#  XSD/XS Qualified Names
+# ------------------------
+XSD_SCHEMA_TAG = xsd_qname('schema')
+
+# Composing schemas
+XSD_INCLUDE_TAG = xsd_qname('include')
+XSD_IMPORT_TAG = xsd_qname('import')
+XSD_REDEFINE_TAG = xsd_qname('redefine')
+
+# Structures
+XSD_SIMPLE_TYPE_TAG = xsd_qname('simpleType')
+XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
+XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
+XSD_ELEMENT_TAG = xsd_qname('element')
+XSD_NOTATION_TAG = xsd_qname('notation')
+XSD_ANNOTATION_TAG = xsd_qname('annotation')
+
+# Grouping
+XSD_GROUP_TAG = xsd_qname('group')
+XSD_ATTRIBUTE_GROUP_TAG = xsd_qname('attributeGroup')
+
+# simpleType declaration elements
+XSD_RESTRICTION_TAG = xsd_qname('restriction')
+XSD_LIST_TAG = xsd_qname('list')
+XSD_UNION_TAG = xsd_qname('union')
+
+# complexType content
+XSD_EXTENSION_TAG = xsd_qname('extension')
+XSD_SEQUENCE_TAG = xsd_qname('sequence')
+XSD_CHOICE_TAG = xsd_qname('choice')
+XSD_ALL_TAG = xsd_qname('all')
+XSD_ANY_TAG = xsd_qname('any')
+XSD_SIMPLE_CONTENT_TAG = xsd_qname('simpleContent')
+XSD_COMPLEX_CONTENT_TAG = xsd_qname('complexContent')
+XSD_ANY_ATTRIBUTE_TAG = xsd_qname('anyAttribute')
+
+# Facets
+XSD_ENUMERATION_TAG = xsd_qname('enumeration')
+XSD_LENGTH_TAG = xsd_qname('length')
+XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
+XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
+XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
+XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
+XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
+XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
+XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
+XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
+XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
+XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
+
+XSD_VALUE_BASED_FACETS = (
+    XSD_LENGTH_TAG,
+    XSD_MIN_LENGTH_TAG,
+    XSD_MAX_LENGTH_TAG,
+    XSD_ENUMERATION_TAG,
+    XSD_WHITE_SPACE_TAG,
+    XSD_PATTERN_TAG,
+    XSD_MAX_INCLUSIVE_TAG,
+    XSD_MAX_EXCLUSIVE_TAG,
+    XSD_MIN_INCLUSIVE_TAG,
+    XSD_MIN_EXCLUSIVE_TAG,
+    XSD_TOTAL_DIGITS_TAG,
+    XSD_FRACTION_DIGITS_TAG
+)
+
+# ------------------------------------
+#  XSD built-in types qualified names
+# ------------------------------------
+XSD_STRING_TAG = xsd_qname('string')
+XSD_QNAME_TAG = xsd_qname('QName')
+XSD_ANYURI_TAG = xsd_qname('anyURI')
+XSD_HEXBINARY_TAG = xsd_qname('hexBinary')
+XSD_BASE64BINARY_TAG = xsd_qname('base64Binary')
+
+XSD_STRING_TYPES = (
+    xsd_qname('string'),  # character string
+    xsd_qname('normalizedString'),  # line breaks are normalized
+    xsd_qname('token'),  # whitespace is normalized
+    xsd_qname('NMTOKEN'),  # should not contain whitespace (attribute only)
+    xsd_qname('Name'),  # not starting with a digit
+    xsd_qname('NCName'),  # cannot contain colons
+    xsd_qname('ID'),  # unique identification in document (attribute only)
+    xsd_qname('IDREF'),  # reference to ID field in document (attribute only)
+    xsd_qname('ENTITY'),  # reference to entity (attribute only)
+    xsd_qname('language')  # language codes
+)
+
+
+# ----------------------------------
+#  Useful names of other namespaces
+# ----------------------------------
+XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
+XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
+
+__all__ = (
+    'get_qname', 'xsd_qname', 'split_qname', 'split_path',
+    'split_reference', 'get_namespace', 'get_qualified_path',
+    'uri_to_prefixes', 'strip_namespace', 'XSD_SCHEMA_TAG',
+    'XSD_INCLUDE_TAG', 'XSD_IMPORT_TAG', 'XSD_REDEFINE_TAG',
+    'XSD_SIMPLE_TYPE_TAG', 'XSD_COMPLEX_TYPE_TAG',
+    'XSD_ATTRIBUTE_TAG', 'XSD_ELEMENT_TAG',
+    'XSD_NOTATION_TAG', 'XSD_ANNOTATION_TAG',
+    'XSD_GROUP_TAG', 'XSD_ATTRIBUTE_GROUP_TAG',
+    'XSD_RESTRICTION_TAG', 'XSD_EXTENSION_TAG',
+    'XSD_LIST_TAG', 'XSD_UNION_TAG', 'XSD_SEQUENCE_TAG',
+    'XSD_CHOICE_TAG', 'XSD_ALL_TAG', 'XSD_ANY_TAG',
+    'XSD_SIMPLE_CONTENT_TAG', 'XSD_COMPLEX_CONTENT_TAG',
+    'XSD_ANY_ATTRIBUTE_TAG', 'XSD_VALUE_BASED_FACETS',
+    'XSD_ENUMERATION_TAG', 'XSD_LENGTH_TAG',
+    'XSD_MIN_LENGTH_TAG', 'XSD_MAX_LENGTH_TAG',
+    'XSD_PATTERN_TAG', 'XSD_WHITE_SPACE_TAG',
+    'XSD_MAX_INCLUSIVE_TAG', 'XSD_MAX_EXCLUSIVE_TAG',
+    'XSD_MIN_INCLUSIVE_TAG', 'XSD_MIN_EXCLUSIVE_TAG',
+    'XSD_TOTAL_DIGITS_TAG', 'XSD_FRACTION_DIGITS_TAG'
+)

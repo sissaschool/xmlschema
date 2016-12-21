@@ -8,33 +8,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import datetime
+"""
+This module contains general-purpose utility functions.
+"""
 import re
-
-
-RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
-
-
-def is_datetime_iso8601(date_string, date_format='%Y-%m-%d'):
-    """
-    Check if the string represents a valid datetime ISO 8601 like, according to the
-    specified formatting, plus optional timezone specification as suffix.
-
-    :param date_string: The string containing the datetime
-    :param date_format: The reference formatting for datetime
-    :return: True if the string is a valid datetime, False if not.
-    """
-    try:
-        date_string, time_zone, _ = RE_ISO_TIMEZONE.split(date_string)
-    except ValueError:
-        pass
-
-    try:
-        datetime.datetime.strptime(date_string, date_format)
-    except ValueError:
-        return False
-    else:
-        return True
 
 
 def dump_args(func):
@@ -47,6 +24,13 @@ def dump_args(func):
         ))
         return func(*args, **kwargs)
     return dump_func
+
+
+def camel_case_split(s):
+    """
+    Split words of a camel case string
+    """
+    return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
 
 
 def linked_flatten(obj):
@@ -88,13 +72,3 @@ def meta_next_gen(iterator, container=None):
             yield obj, iterator, container
     except TypeError:
         yield iterator, None, container
-
-
-def str_to_number(s):
-    """
-    Convert a string to a number format, trying first the integer class.
-    """
-    try:
-        return int(s)
-    except ValueError:
-        return float(s)

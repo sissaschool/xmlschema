@@ -9,144 +9,31 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains names and methods for parsing XSD schemas.
+This module contains functions for parsing XSD schemas loaded into ElementTree structures.
 """
 import logging as _logging
-from .core import (
-    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaLookupError, XMLSchemaException,
-    PY3, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH, etree_tostring
+
+from .utils import camel_case_split
+from .core import etree_fromstring, etree_get_namespaces
+from .exceptions import (
+    XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaParseError,
+    XMLSchemaOSError,
 )
-from .qnames import get_qname, split_qname, split_path
+from .qnames import (
+    split_qname, XSD_SCHEMA_TAG, XSD_ANNOTATION_TAG, XSD_IMPORT_TAG, XSD_INCLUDE_TAG,
+    XSD_REDEFINE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ATTRIBUTE_TAG,
+    XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG
+)
+from .resources import load_uri_or_file, load_resource
+
 
 _logger = _logging.getLogger(__name__)
 
 
-class XMLSchemaParseError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XML Schema."""
-    def __init__(self, message, elem=None):
-        self.message = message
-        self.elem = elem
-
-    def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return u''.join([
-            self.message,
-            u"\n\nSyntax error:\n\n  %s" % etree_tostring(self.elem) if self.elem is not None else ''
-        ])
-
-    if PY3:
-        __str__ = __unicode__
-
-
-def xsd_qname(name):
-    """
-    Build a QName for XSD namespace from a local name.
-
-    :param name: local name/tag
-    :return: fully qualified name for XSD namespace
-    """
-    if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
-        raise XMLSchemaValueError("'%s' is not a name of the XSD namespace" % name)
-    else:
-        return name
-
-
-# ------------------------
-#  XSD/XS Qualified Names
-# ------------------------
-XSD_SCHEMA_TAG = xsd_qname('schema')
-
-# Composing schemas
-XSD_INCLUDE_TAG = xsd_qname('include')
-XSD_IMPORT_TAG = xsd_qname('import')
-XSD_REDEFINE_TAG = xsd_qname('redefine')
-
-# Structures
-XSD_SIMPLE_TYPE_TAG = xsd_qname('simpleType')
-XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
-XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
-XSD_ELEMENT_TAG = xsd_qname('element')
-XSD_NOTATION_TAG = xsd_qname('notation')
-XSD_ANNOTATION_TAG = xsd_qname('annotation')
-
-# Grouping
-XSD_GROUP_TAG = xsd_qname('group')
-XSD_ATTRIBUTE_GROUP_TAG = xsd_qname('attributeGroup')
-
-# simpleType declaration elements
-XSD_RESTRICTION_TAG = xsd_qname('restriction')
-XSD_LIST_TAG = xsd_qname('list')
-XSD_UNION_TAG = xsd_qname('union')
-
-# complexType content
-XSD_EXTENSION_TAG = xsd_qname('extension')
-XSD_SEQUENCE_TAG = xsd_qname('sequence')
-XSD_CHOICE_TAG = xsd_qname('choice')
-XSD_ALL_TAG = xsd_qname('all')
-XSD_ANY_TAG = xsd_qname('any')
-XSD_SIMPLE_CONTENT_TAG = xsd_qname('simpleContent')
-XSD_COMPLEX_CONTENT_TAG = xsd_qname('complexContent')
-XSD_ANY_ATTRIBUTE_TAG = xsd_qname('anyAttribute')
-
-# Facets
-XSD_ENUMERATION_TAG = xsd_qname('enumeration')
-XSD_LENGTH_TAG = xsd_qname('length')
-XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
-XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
-XSD_PATTERN_TAG = xsd_qname('pattern')
-XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')
-XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
-XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
-XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
-XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
-XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
-XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
-
-# ----------------------------------
-#  Useful names of other namespaces
-# ----------------------------------
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
-
-
-def camel_case_split(s):
-    """
-    Split words of a camel case string
-    """
-    from re import findall
-    return findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
-
-
-#
-# Check functions for detecting inconsistencies
 def check_tag(elem, *args):
     if elem.tag not in args:
         tags = (split_qname(tag)[1] for tag in args)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
-
-
-def check_type(name, value, *types):
-    """
-    Check the type of an attribute with a list of admitted types.
-    """
-    if not isinstance(value, types):
-        raise XMLSchemaTypeError(
-            "wrong type {} for '{}' attribute, it must be one of {}.".format(type(value), name, types)
-        )
-
-
-def check_value(name, value, *values):
-    """
-    Check the value of an attribute with a list of admitted values.
-    """
-    if value not in values:
-        raise XMLSchemaValueError(
-            "wrong value {} for '{}' attribute, it must be one of {}.".format(type(value), name, values)
-        )
 
 
 #
@@ -184,23 +71,65 @@ def get_xsd_declaration(elem, min_occurs=0):
         return None
 
 
-def get_xsd_attribute(elem, attribute, required=True):
+def get_xsd_attribute(elem, attribute, default=None, enumeration=None):
     """
     Get an element's attribute and throws a schema error if
     the attribute is required or return None if it's optional.
 
-    :param elem:
-    :param attribute:
-    :param required:
-    :return: String containing the attribute value.
+    :param elem: The Element instance.
+    :param attribute: The name of the XML attribute.
+    :param default: The default value. None means that the attribute is mandatory.
+    :param enumeration: A container of admitted values for the attribute. Optional.
+    :return: A string containing the attribute value.
     """
     try:
-        return elem.attrib[attribute]
+        value = elem.attrib[attribute]
     except KeyError as err:
-        if required:
-            raise XMLSchemaParseError("attribute {} expected".format(err), elem)
+        if default is not None:
+            value = default
         else:
-            return None
+            raise XMLSchemaParseError("attribute {} expected".format(err), elem)
+    if enumeration and value not in enumeration:
+        raise XMLSchemaParseError("wrong value %r for %r attribute" % (value, attribute), elem)
+    return value
+
+
+def get_xsd_bool_attribute(elem, attribute, default=None):
+    value = get_xsd_attribute(elem, attribute, default)
+    if isinstance(value, bool):
+        return value
+    elif value in ('true', '1'):
+        return True
+    elif value in ('false', '0'):
+        return False
+    else:
+        raise XMLSchemaParseError("an XML boolean value is required for attribute %r" % attribute, elem)
+
+
+def get_xsd_int_attribute(elem, attribute, default=None, minimum=None):
+    """
+    Get an element's attribute converting it to an int(). Throws an
+    error if the attribute is not found and the default is None.
+    Checks the value when a minimum is provided.
+
+    :param elem: The Element's instance.
+    :param attribute: The attribute name.
+    :param default: Optional default, if None raise a parse exception.
+    :param minimum: Optional minimum integer value for the attribute.
+    :return: Integer containing the attribute value.
+    """
+    value = get_xsd_attribute(elem, attribute, default)
+    try:
+        value = int(value)
+    except (TypeError, ValueError) as err:
+        raise XMLSchemaValueError("attribute {} error: {}".format(attribute, str(err)), elem)
+    else:
+        if minimum is None or value >= minimum:
+            return value
+        else:
+            raise XMLSchemaParseError(
+                "attribute %r value must be greater or equal to %r" % (attribute, minimum), elem
+            )
 
 
 def _create_iterfind_by_tag(tag):
@@ -222,6 +151,7 @@ def _create_iterfind_by_tag(tag):
     iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(split_qname(tag)[1])).lower()
 
     return iterfind_function
+
 
 iterfind_xsd_imports = _create_iterfind_by_tag(XSD_IMPORT_TAG)
 iterfind_xsd_inclusions = _create_iterfind_by_tag(XSD_INCLUDE_TAG)
@@ -303,14 +233,45 @@ update_xsd_elements = _create_update_function('element_factory', iterfind_xsd_el
 update_xsd_groups = _create_update_function('group_factory', iterfind_xsd_groups)
 
 
-def get_chain(target, path):
-    names = split_path(path)
-    parts = []
-    j = 0
-    for k in range(1, len(names)):
-        if names[k] in target:
-            parts.append(slice(j, k + 1))
-            j = k
-    if all(['/'.join(names[_slice]) in target for _slice in parts]):
-        return target['/'.join(names[j:])]
-    raise XMLSchemaLookupError
+def xsd_include_schemas(schema, elements):
+    """
+    Append elements of included schemas to element list itself.
+    Ignore locations already loaded in the schema.
+
+    :param schema: The schema instance.
+    :param elements: XSD declarations as an Element Tree structure.
+    """
+    included_schemas = schema.included_schemas
+    namespaces = schema.namespaces
+
+    def _include_schemas(_elements, base_uri):
+        for elem in iterfind_xsd_inclusions(_elements, namespaces=namespaces):
+            locations = get_xsd_attribute(elem, 'schemaLocation')
+            try:
+                _schema, schema_uri = load_resource(locations, base_uri)
+            except (OSError, IOError):
+                raise XMLSchemaOSError("Not accessible schema locations '{}'".format(locations))
+
+            if schema_uri not in included_schemas and schema_uri not in new_inclusions:
+                schema_tree = etree_fromstring(_schema)
+                check_tag(schema_tree, XSD_SCHEMA_TAG)
+                new_inclusions[schema_uri] = schema_tree
+                namespaces.update(etree_get_namespaces(_schema))
+                _include_schemas(schema_tree, schema_uri)
+
+        for elem in iterfind_xsd_redefinitions(_elements, namespaces=namespaces):
+            for location in get_xsd_attribute(elem, 'schemaLocation').split():
+                _schema, schema_uri = load_uri_or_file(location, base_uri)
+                if schema_uri not in included_schemas and schema_uri not in new_inclusions:
+                    namespaces.update(etree_get_namespaces(_schema))
+                    schema_tree = etree_fromstring(_schema)
+                    for child in elem:
+                        schema_tree.append(child)
+                    new_inclusions[schema_uri] = schema_tree
+
+    new_inclusions = {}
+    _include_schemas(elements, schema.uri)
+    if new_inclusions:
+        included_schemas.update(new_inclusions)
+        for schema_element in new_inclusions.values():
+            elements.extend(list(schema_element))
