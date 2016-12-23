@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains base functions and constants for the package.
+This module contains base classes, functions and constants for the package.
 """
 import logging
 import sys

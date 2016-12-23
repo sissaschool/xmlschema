@@ -9,22 +9,40 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains factories for parsing XML Schema declarations for the 'xmlschema' package.
+This module contains XSD factories for the 'xmlschema' package.
 """
-
 import logging
 
 from .exceptions import XMLSchemaParseError
-from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
-from .validators import *
-from .parse import (
-    check_tag, get_xsd_attribute, get_xsd_declarations, get_xsd_declaration,
-    lookup_attribute, lookup_type, lookup_element, lookup_group, lookup_attribute_group
+from .utils import get_qname, split_qname, split_reference
+from .xsdbase import (
+    XSD_SIMPLE_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_LIST_TAG,
+    XSD_UNION_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG,
+    XSD_GROUP_TAG, XSD_SIMPLE_CONTENT_TAG, XSD_EXTENSION_TAG,
+    XSD_COMPLEX_CONTENT_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG,
+    XSD_ANY_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_SEQUENCE_TAG,
+    check_tag, create_lookup_function, get_xsd_attribute, get_xsd_declaration,
+    get_xsd_declarations
 )
-from .qnames import *
+from .facets import (
+    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet,
+    XSD_v1_0_FACETS, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG
+)
+from .structures import (
+    XsdRestriction, XsdList, XsdUnion, XsdComplexType, XsdAttributeGroup,
+    XsdGroup, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
+)
+from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
 
 
 logger = logging.getLogger(__name__)
+
+# Define lookup functions for factories
+lookup_type = create_lookup_function("types")
+lookup_attribute = create_lookup_function("attributes")
+lookup_element = create_lookup_function("elements")
+lookup_group = create_lookup_function("groups")
+lookup_attribute_group = create_lookup_function("attribute_groups")
 
 
 def check_factory(*args):
@@ -111,9 +129,6 @@ def xsd_restriction_factory(elem, schema, **kwargs):
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
     xsd_restriction_class = kwargs.get('xsd_restriction_class', XsdRestriction)
 
-    length = None
-    min_length = None
-    max_length = None
     facets = {}
     has_attributes = False
     has_simple_type = False
@@ -142,7 +157,7 @@ def xsd_restriction_factory(elem, schema, **kwargs):
                 )
             _, base_type = simple_type_factory(child, schema, **kwargs)
             has_simple_type = True
-        elif child.tag not in XSD_VALUE_BASED_FACETS:
+        elif child.tag not in XSD_v1_0_FACETS:
             raise XMLSchemaParseError("unexpected tag in restriction", child)
         elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
             try:
@@ -159,15 +174,6 @@ def xsd_restriction_factory(elem, schema, **kwargs):
 
     if base_type is None:
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)
-
-    if length is None:
-        lengths = (min_length, max_length)
-    elif min_length is not None or max_length is not None:
-            raise XMLSchemaParseError(
-                "both 'length' and either of 'minLength' or 'maxLength' constraint facets", elem
-            )
-    else:
-        lengths = (length, length)
 
     return xsd_restriction_class(base_type, elem=elem, schema=base_type.schema, facets=facets)
 

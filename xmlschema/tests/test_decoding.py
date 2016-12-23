@@ -43,8 +43,8 @@ if __name__ == '__main__':
     sys.path.insert(0, pkg_folder)
     import xmlschema
     from xmlschema.exceptions import XMLSchemaMultipleValidatorErrors
-    from xmlschema.qnames import get_qname
     from xmlschema.core import XSI_NAMESPACE_PATH
+    from xmlschema.utils import get_qname
     from xmlschema.resources import load_xml
     if len(sys.argv) > 1:
         LOG_LEVEL = int(sys.argv.pop())

@@ -9,31 +9,109 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for parsing XSD schemas loaded into ElementTree structures.
+This module contains functions for manipulating fully qualified names and XSD qname constants.
 """
+import re
 import logging as _logging
 
-from .utils import camel_case_split
-from .core import etree_fromstring, etree_get_namespaces
+from .core import PY3, etree_fromstring, etree_get_namespaces
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaParseError,
-    XMLSchemaOSError,
+    XMLSchemaOSError, XMLSchemaComponentError
 )
-from .qnames import (
-    split_qname, XSD_SCHEMA_TAG, XSD_ANNOTATION_TAG, XSD_IMPORT_TAG, XSD_INCLUDE_TAG,
-    XSD_REDEFINE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ATTRIBUTE_TAG,
-    XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG
-)
+from .utils import camel_case_split, split_qname, xsd_qname
 from .resources import load_uri_or_file, load_resource
 
 
 _logger = _logging.getLogger(__name__)
 
 
+# ------------------------
+#  XSD/XS Qualified Names
+# ------------------------
+XSD_SCHEMA_TAG = xsd_qname('schema')
+
+# Composing schemas
+XSD_INCLUDE_TAG = xsd_qname('include')
+XSD_IMPORT_TAG = xsd_qname('import')
+XSD_REDEFINE_TAG = xsd_qname('redefine')
+
+# Structures
+XSD_SIMPLE_TYPE_TAG = xsd_qname('simpleType')
+XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
+XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
+XSD_ELEMENT_TAG = xsd_qname('element')
+XSD_NOTATION_TAG = xsd_qname('notation')
+XSD_ANNOTATION_TAG = xsd_qname('annotation')
+
+# Grouping
+XSD_GROUP_TAG = xsd_qname('group')
+XSD_ATTRIBUTE_GROUP_TAG = xsd_qname('attributeGroup')
+
+# simpleType declaration elements
+XSD_RESTRICTION_TAG = xsd_qname('restriction')
+XSD_LIST_TAG = xsd_qname('list')
+XSD_UNION_TAG = xsd_qname('union')
+
+# complexType content
+XSD_EXTENSION_TAG = xsd_qname('extension')
+XSD_SEQUENCE_TAG = xsd_qname('sequence')
+XSD_CHOICE_TAG = xsd_qname('choice')
+XSD_ALL_TAG = xsd_qname('all')
+XSD_ANY_TAG = xsd_qname('any')
+XSD_SIMPLE_CONTENT_TAG = xsd_qname('simpleContent')
+XSD_COMPLEX_CONTENT_TAG = xsd_qname('complexContent')
+XSD_ANY_ATTRIBUTE_TAG = xsd_qname('anyAttribute')
+
+# XSD 1.1 facets
+XSD_ASSERTIONS_TAG = xsd_qname('assertions')
+XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
+
+
+#
+# Check functions for XSD schema factories and components.
 def check_tag(elem, *args):
     if elem.tag not in args:
         tags = (split_qname(tag)[1] for tag in args)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
+
+
+def check_type(obj, name, ref, value, types):
+    """
+    Checks the type of 'value' argument to be in a tuple of types.
+
+    :param obj: The schema object.
+    :param name: The name of the attribute/key of the object.
+    :param ref: A reference to determine the type related to the name.
+    :param value: The value to be checked.
+    :param types: A tuple with admitted types.
+    """
+    if not isinstance(value, types):
+        raise XMLSchemaComponentError(
+            obj=obj,
+            name=name,
+            ref=ref,
+            message="wrong type %s, it must be one of %r." % (type(value), types)
+        )
+
+
+def check_value(obj, name, ref, value, values):
+    """
+    Checks the value of 'value' argument to be in a tuple of values.
+
+    :param obj: The schema object.
+    :param name: The name of the attribute/key of the object.
+    :param ref: A reference to determine the type related to the name.
+    :param value: The value to be checked.
+    :param values: A tuple with admitted values.
+    """
+    if value not in values:
+        raise XMLSchemaComponentError(
+            obj=obj,
+            name=name,
+            ref=ref,
+            message="wrong value %s, it must be one of %r." % (type(value), values)
+        )
 
 
 #
@@ -71,31 +149,34 @@ def get_xsd_declaration(elem, min_occurs=0):
         return None
 
 
-def get_xsd_attribute(elem, attribute, default=None, enumeration=None):
+def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
     """
-    Get an element's attribute and throws a schema error if
-    the attribute is required or return None if it's optional.
+    Get an element's attribute and throws a schema error if the attribute is absent
+    and a default is not provided in keyword arguments. The value of the attribute
+    can be checked with a list of admitted values.
 
     :param elem: The Element instance.
     :param attribute: The name of the XML attribute.
-    :param default: The default value. None means that the attribute is mandatory.
-    :param enumeration: A container of admitted values for the attribute. Optional.
-    :return: A string containing the attribute value.
+    :param enumeration: Container with the admitted values for the attribute.
+    :param kwargs: Optional keyword arguments for a default value or for
+    an enumeration with admitted values.
+    :return: The attribute value in a string or the default value.
     """
     try:
         value = elem.attrib[attribute]
     except KeyError as err:
-        if default is not None:
-            value = default
-        else:
+        try:
+            return kwargs['default']
+        except KeyError:
             raise XMLSchemaParseError("attribute {} expected".format(err), elem)
-    if enumeration and value not in enumeration:
-        raise XMLSchemaParseError("wrong value %r for %r attribute" % (value, attribute), elem)
-    return value
+    else:
+        if enumeration and value not in enumeration:
+            raise XMLSchemaParseError("wrong value %r for %r attribute" % (value, attribute), elem)
+        return value
 
 
-def get_xsd_bool_attribute(elem, attribute, default=None):
-    value = get_xsd_attribute(elem, attribute, default)
+def get_xsd_bool_attribute(elem, attribute, **kwargs):
+    value = get_xsd_attribute(elem, attribute, **kwargs)
     if isinstance(value, bool):
         return value
     elif value in ('true', '1'):
@@ -106,7 +187,7 @@ def get_xsd_bool_attribute(elem, attribute, default=None):
         raise XMLSchemaParseError("an XML boolean value is required for attribute %r" % attribute, elem)
 
 
-def get_xsd_int_attribute(elem, attribute, default=None, minimum=None):
+def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
     """
     Get an element's attribute converting it to an int(). Throws an
     error if the attribute is not found and the default is None.
@@ -114,11 +195,10 @@ def get_xsd_int_attribute(elem, attribute, default=None, minimum=None):
 
     :param elem: The Element's instance.
     :param attribute: The attribute name.
-    :param default: Optional default, if None raise a parse exception.
     :param minimum: Optional minimum integer value for the attribute.
     :return: Integer containing the attribute value.
     """
-    value = get_xsd_attribute(elem, attribute, default)
+    value = get_xsd_attribute(elem, attribute, **kwargs)
     try:
         value = int(value)
     except (TypeError, ValueError) as err:
@@ -164,7 +244,7 @@ iterfind_xsd_elements = _create_iterfind_by_tag(XSD_ELEMENT_TAG)
 iterfind_xsd_groups = _create_iterfind_by_tag(XSD_GROUP_TAG)
 
 
-def _create_lookup_function(lookup_table):
+def create_lookup_function(lookup_table):
     """
     Defines a lookup function for a specific map on multiple schema's instances.
     """
@@ -185,14 +265,10 @@ def _create_lookup_function(lookup_table):
 
     return lookup_function
 
-lookup_type = _create_lookup_function("types")
-lookup_attribute = _create_lookup_function("attributes")
-lookup_element = _create_lookup_function("elements")
-lookup_group = _create_lookup_function("groups")
-lookup_attribute_group = _create_lookup_function("attribute_groups")
+lookup_attribute = create_lookup_function("attributes")
 
 
-def _create_update_function(factory_key, filter_function):
+def create_update_function(factory_key, filter_function):
 
     def update_xsd_map(schema, target, elements, **kwargs):
         elements = filter_function(elements)
@@ -225,12 +301,12 @@ def _create_update_function(factory_key, filter_function):
 
     return update_xsd_map
 
-update_xsd_simple_types = _create_update_function('simple_type_factory', iterfind_xsd_simple_types)
-update_xsd_attributes = _create_update_function('attribute_factory', iterfind_xsd_attributes)
-update_xsd_attribute_groups = _create_update_function('attribute_group_factory', iterfind_xsd_attribute_groups)
-update_xsd_complex_types = _create_update_function('complex_type_factory', iterfind_xsd_complex_types)
-update_xsd_elements = _create_update_function('element_factory', iterfind_xsd_elements)
-update_xsd_groups = _create_update_function('group_factory', iterfind_xsd_groups)
+update_xsd_simple_types = create_update_function('simple_type_factory', iterfind_xsd_simple_types)
+update_xsd_attributes = create_update_function('attribute_factory', iterfind_xsd_attributes)
+update_xsd_attribute_groups = create_update_function('attribute_group_factory', iterfind_xsd_attribute_groups)
+update_xsd_complex_types = create_update_function('complex_type_factory', iterfind_xsd_complex_types)
+update_xsd_elements = create_update_function('element_factory', iterfind_xsd_elements)
+update_xsd_groups = create_update_function('group_factory', iterfind_xsd_groups)
 
 
 def xsd_include_schemas(schema, elements):
@@ -275,3 +351,62 @@ def xsd_include_schemas(schema, elements):
         included_schemas.update(new_inclusions)
         for schema_element in new_inclusions.values():
             elements.extend(list(schema_element))
+
+
+class XsdBase(object):
+    """
+    Abstract base class for representing generic XML Schema Definition object,
+    providing common API interface.
+
+    :param name: Name associated with the definition
+    :param elem: ElementTree's node containing the definition
+    """
+    EMPTY_DICT = {}
+    _REGEX_SPACE = re.compile(r'\s')
+    _REGEX_SPACES = re.compile(r'\s+')
+
+    def __init__(self, name=None, elem=None, schema=None):
+        self.name = name
+        self.elem = elem
+        self.schema = schema
+        self._attrib = dict(elem.attrib) if elem is not None else self.EMPTY_DICT
+
+    def __repr__(self):
+        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
+
+    def __str__(self):
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        if self.name and self.name[0] == '{':
+            return self.name
+        else:
+            return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
+    def _get_namespace_attribute(self):
+        """
+        Get the namespace attribute value for anyAttribute and anyElement declaration,
+        checking if the value is conforming to the specification.
+        """
+        value = get_xsd_attribute(self.elem, 'namespace', default='##all')
+        items = value.strip().split()
+        if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
+            return value
+        elif not all([s not in ('##all', '##other') for s in items]):
+            raise XMLSchemaValueError("wrong value %r for the 'namespace' attribute." % value, self)
+        return value
+
+    def _get_derivation_attribute(self, attribute, values):
+        value = get_xsd_attribute(self.elem, attribute, default='#all')
+        items = value.strip().split()
+        if len(items) == 1 and items[0] == "#all":
+            return
+        elif not all([s not in values for s in items]):
+            raise XMLSchemaValueError("wrong value %r for attribute %r" % (value, attribute), self)
+
+    @property
+    def id(self):
+        return self._attrib.get('id')

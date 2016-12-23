@@ -14,22 +14,19 @@ This module contains XMLSchema class creator for xmlschema package.
 import logging
 from collections import MutableMapping
 
-from .core import XML_NAMESPACE_PATH, BASE_SCHEMAS, urlsplit, etree_get_namespaces
+from .core import XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, BASE_SCHEMAS, urlsplit, etree_get_namespaces
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaValidationError, XMLSchemaDecodeError
 )
-from .qnames import (
-    get_namespace, split_path, get_qualified_path, get_qname,
-    uri_to_prefixes, XSD_SCHEMA_TAG, XSI_SCHEMA_LOCATION
+from .utils import get_namespace, split_path, get_qualified_path, get_qname, uri_to_prefixes
+from .xsdbase import (
+    check_tag, XSD_SCHEMA_TAG, xsd_include_schemas, iterfind_xsd_imports, lookup_attribute,
+    update_xsd_attributes, update_xsd_attribute_groups, update_xsd_simple_types,
+    update_xsd_complex_types, update_xsd_groups, update_xsd_elements
 )
 from .resources import load_resource, load_xml
 from .builtins import XSD_BUILTIN_TYPES
-from .parse import (
-    lookup_attribute, check_tag, xsd_include_schemas,
-    update_xsd_simple_types, update_xsd_attributes, update_xsd_attribute_groups,
-    update_xsd_complex_types, update_xsd_groups, update_xsd_elements, iterfind_xsd_imports
-)
-from .validators import XsdGroup
+from .structures import XsdGroup
 from .factories import (
     xsd_simple_type_factory, xsd_restriction_factory, xsd_attribute_factory,
     xsd_attribute_group_factory, xsd_complex_type_factory, xsd_element_factory,  xsd_group_factory
@@ -49,6 +46,10 @@ DEFAULT_OPTIONS = {
     'restriction_factory': xsd_restriction_factory
 }
 """Default options for building XSD schema elements."""
+
+
+XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
+XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
 
 
 class URIDict(MutableMapping):
@@ -84,7 +85,7 @@ class URIDict(MutableMapping):
 
 def create_validator(version=None, meta_schema=None, base_schemas=None, **options):
 
-    validator_options = dict(DEFAULT_OPTIONS)
+    validator_options = dict(DEFAULT_OPTIONS.items())
     for opt in validator_options:
         if opt in options:
             validator_options[opt] = options[opt]

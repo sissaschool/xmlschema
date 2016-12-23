@@ -11,309 +11,30 @@
 """
 This module contains classes and functions for XML Schema validation.
 """
-import re
 from collections import MutableMapping, MutableSequence
 
-from .utils import linked_flatten, meta_next_gen
-from .core import PY3, XSI_NAMESPACE_PATH, XSD_NAMESPACE_PATH
+from .core import XSI_NAMESPACE_PATH
 from .exceptions import *
-from .qnames import (
-    split_reference, get_qname, split_qname, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG,
-    XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG,
-    XSD_MAX_LENGTH_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
-    XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_STRING_TYPES
+from .utils import linked_flatten, meta_next_gen, split_reference, get_qname, xsd_qname
+from .xsdbase import (
+    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, lookup_attribute, XsdBase
 )
-from .parse import (
-    lookup_attribute, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
+from .facets import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
+
+
+XSD_STRING_TYPES = (
+    xsd_qname('string'),  # character string
+    xsd_qname('normalizedString'),  # line breaks are normalized
+    xsd_qname('token'),  # whitespace is normalized
+    xsd_qname('NMTOKEN'),  # should not contain whitespace (attribute only)
+    xsd_qname('Name'),  # not starting with a digit
+    xsd_qname('NCName'),  # cannot contain colons
+    xsd_qname('ID'),  # unique identification in document (attribute only)
+    xsd_qname('IDREF'),  # reference to ID field in document (attribute only)
+    xsd_qname('ENTITY'),  # reference to entity (attribute only)
+    xsd_qname('language')  # language codes
 )
-
-
-#
-# Class hierarchy for XSD types and other structures
-class XsdBase(object):
-    """
-    Abstract base class for representing generic XML Schema Definition object,
-    providing common API interface.
-
-    :param name: Name associated with the definition
-    :param elem: ElementTree's node containing the definition
-    """
-    EMPTY_DICT = {}
-    _REGEX_SPACE = re.compile(r'\s')
-    _REGEX_SPACES = re.compile(r'\s+')
-
-    def __init__(self, name=None, elem=None, schema=None):
-        self.name = name
-        self.elem = elem
-        self.schema = schema
-        self._attrib = dict(elem.attrib) if elem is not None else self.EMPTY_DICT
-
-    def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
-
-    def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        if self.name and self.name[0] == '{':
-            return self.name
-        else:
-            return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
-
-    def _check_type(self, name, ref, value, types):
-        """
-        Checks the type of 'value' argument to be in a tuple of types.
-
-        :param name: The name of the attribute/key of the object.
-        :param ref: A reference to determine the type related to the name.
-        :param value: The value to be checked.
-        :param types: A tuple with admitted types.
-        """
-        if not isinstance(value, types):
-            raise XMLSchemaComponentError(
-                obj=self,
-                name=name,
-                ref=ref,
-                message="wrong type %s, it must be one of %r." % (type(value), types)
-            )
-
-    def _check_value(self, name, ref, value, values):
-        """
-        Checks the value of 'value' argument to be in a tuple of values.
-
-        :param name: The name of the attribute/key of the object.
-        :param ref: A reference to determine the type related to the name.
-        :param value: The value to be checked.
-        :param values: A tuple with admitted values.
-        """
-        if value not in values:
-            raise XMLSchemaComponentError(
-                obj=self,
-                name=name,
-                ref=ref,
-                message="wrong value %s, it must be one of %r." % (type(value), values)
-            )
-
-    def _get_namespace_attribute(self):
-        """
-        Get the namespace attribute value for anyAttribute and anyElement declaration,
-        checking if the value is conforming to the specification.
-        """
-        value = get_xsd_attribute(self.elem, 'namespace', '##all')
-        items = value.strip().split()
-        if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
-            return value
-        elif not all([s not in ('##all', '##other') for s in items]):
-            raise XMLSchemaValueError("wrong value %r for the 'namespace' attribute." % value, self)
-        return value
-
-    def _get_derivation_attribute(self, attribute, values):
-        value = get_xsd_attribute(self.elem, attribute, '#all')
-        items = value.strip().split()
-        if len(items) == 1 and items[0] == "#all":
-            return
-        elif not all([s not in values for s in items]):
-            raise XMLSchemaValueError("wrong value %r for attribute %r" % (value, attribute), self)
-
-    @property
-    def id(self):
-        return self._attrib.get('id')
-
-
-class XsdFacet(XsdBase):
-
-    def __init__(self, base_type, elem=None, schema=None):
-        XsdBase.__init__(self, elem=elem, schema=schema)
-        self.base_type = base_type
-
-
-class XsdUniqueFacet(XsdFacet):
-
-    def __init__(self, base_type, elem=None, schema=None):
-        super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
-        self.name = '%s(value=%r)' % (split_qname(elem.tag)[1], elem.attrib['value'])
-        self.fixed = self._attrib.get('fixed', 'false')
-
-        # TODO: Add checks with base_type's constraints.
-        if elem.tag == XSD_WHITE_SPACE_TAG:
-            self.value = get_xsd_attribute(elem, 'value', enumeration=('preserve', 'replace', 'collapse'))
-            white_space = getattr(base_type, 'white_space', None)
-            if getattr(base_type, 'fixed_white_space', None) and white_space != self.value:
-                XMLSchemaParseError("whiteSpace can be only %r." % base_type.white_space, elem)
-            elif white_space == 'collapse' and self.value in ('preserve', 'replace'):
-                XMLSchemaParseError("whiteSpace can be only 'collapse', so cannot change.", elem)
-            elif white_space == 'replace' and self.value == 'preserve':
-                XMLSchemaParseError("whiteSpace can be only 'replace' or 'collapse'.", elem)
-        elif elem.tag in (XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG):
-            self.value = get_xsd_int_attribute(elem, 'value')
-            if elem.tag == XSD_LENGTH_TAG:
-                self.validator = self.length_validator
-            elif elem.tag in XSD_MIN_LENGTH_TAG:
-                self.validator = self.min_length_validator
-            elif elem.tag == XSD_MAX_LENGTH_TAG:
-                self.validator = self.max_length_validator
-        elif elem.tag in (
-                XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG
-                ):
-            self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
-            if elem.tag == XSD_MIN_INCLUSIVE_TAG:
-                self.validator = self.min_inclusive_validator
-            elif elem.tag == XSD_MIN_EXCLUSIVE_TAG:
-                self.validator = self.min_exclusive_validator
-            elif elem.tag == XSD_MAX_INCLUSIVE_TAG:
-                self.validator = self.max_inclusive_validator
-            elif elem.tag == XSD_MAX_EXCLUSIVE_TAG:
-                self.validator = self.max_exclusive_validator
-        elif elem.tag == XSD_TOTAL_DIGITS_TAG:
-            self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
-            self.validator = self.total_digits_validator
-        elif elem.tag == XSD_FRACTION_DIGITS_TAG:
-            if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
-                raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
-            self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
-            self.validator = self.fraction_digits_validator
-
-    def __call__(self, *args, **kwargs):
-        self.validator(*args, **kwargs)
-
-    def length_validator(self, x):
-        if len(x) != self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def min_length_validator(self, x):
-        if len(x) < self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def max_length_validator(self, x):
-        if len(x) > self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def min_inclusive_validator(self, x):
-        if x < self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def min_exclusive_validator(self, x):
-        if x <= self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def max_inclusive_validator(self, x):
-        if x > self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def max_exclusive_validator(self, x):
-        if x >= self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def total_digits_validator(self, x):
-        if len([d for d in str(x) if d.isdigit()]) > self.value:
-            raise XMLSchemaValidationError(self, x)
-
-    def fraction_digits_validator(self, x):
-        if len(str(x).partition('.')[2]) > self.value:
-            raise XMLSchemaValidationError(self, x)
-
-
-class XsdEnumerationFacet(MutableSequence, XsdFacet):
-
-    def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
-        self.name = '{}(values=%r)'.format(split_qname(elem.tag)[1])
-        self._elements = [elem]
-        self.enumeration = [base_type.decode(get_xsd_attribute(elem, 'value'))]
-
-    # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
-        return self._elements[i]
-
-    def __setitem__(self, i, item):
-        self._elements[i] = item
-        self.enumeration[i] = self.base_type.decode(get_xsd_attribute(item, 'value'))
-
-    def __delitem__(self, i):
-        del self._elements[i]
-        del self.enumeration[i]
-
-    def __len__(self):
-        return len(self._elements)
-
-    def insert(self, i, item):
-        self._elements.insert(i, item)
-        self.enumeration.insert(i, self.base_type.decode(get_xsd_attribute(item, 'value')))
-
-    def __repr__(self):
-        return u"<%s %r at %#x>" % (self.__class__.__name__, self.enumeration, id(self))
-
-    def __call__(self, value):
-        if value not in self.enumeration:
-            raise XMLSchemaValidationError(
-                self, value, reason="invalid value, it must be one of %r" % self.enumeration
-            )
-
-
-class XsdPatternsFacet(MutableSequence, XsdFacet):
-
-    def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
-        self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
-        self._elements = [elem]
-        self.patterns = [re.compile(re.escape(get_xsd_attribute(elem, 'value')))]
-
-    # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
-        return self._elements[i]
-
-    def __setitem__(self, i, item):
-        self._elements[i] = item
-        self.patterns[i] = re.compile(re.escape(get_xsd_attribute(item, 'value')))
-
-    def __delitem__(self, i):
-        del self._elements[i]
-        del self.patterns[i]
-
-    def __len__(self):
-        return len(self._elements)
-
-    def insert(self, i, item):
-        self._elements.insert(i, item)
-        self.patterns.insert(i, re.compile(re.escape(get_xsd_attribute(item, 'value'))))
-
-    def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name % self.patterns, id(self))
-
-    def __call__(self, value):
-        if all(pattern.search(value) is None for pattern in self.patterns):
-            msg = "value don't match any of patterns %r"
-            raise XMLSchemaValidationError(self, value, reason= msg % [p.pattern for p in self.patterns])
-
-
-class OccursMixin(object):
-
-    def is_optional(self):
-        return self._attrib.get('minOccurs', '').strip() == "0"
-
-    @property
-    def min_occurs(self):
-        return get_xsd_int_attribute(self.elem, 'minOccurs', default=1, minimum=0)
-
-    @property
-    def max_occurs(self):
-        try:
-            return get_xsd_int_attribute(self.elem, 'maxOccurs', default=1, minimum=0)
-        except (XMLSchemaTypeError, XMLSchemaValueError):
-            if self._attrib['maxOccurs'] == 'unbounded':
-                return None
-            raise
-
-    def model_generator(self):
-        try:
-            for i in range(self.max_occurs):
-                yield self
-        except TypeError:
-            while True:
-                yield self
 
 
 class ValidatorMixin(object):
@@ -326,6 +47,38 @@ class ValidatorMixin(object):
 
     def encode(self, obj):
         raise NotImplementedError("%r: you must provide a concrete encode() method" % self.__class__)
+
+
+class ParticleMixin(object):
+    """
+    Mixin for objects related to XSD Particle Schema Components:
+
+      https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
+      https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
+    """
+    def is_optional(self):
+        return getattr(self, '_attrib').get('minOccurs', '').strip() == "0"
+
+    @property
+    def min_occurs(self):
+        return get_xsd_int_attribute(getattr(self, 'elem'), 'minOccurs', default=1, minimum=0)
+
+    @property
+    def max_occurs(self):
+        try:
+            return get_xsd_int_attribute(getattr(self, 'elem'), 'maxOccurs', default=1, minimum=0)
+        except (XMLSchemaTypeError, XMLSchemaValueError):
+            if getattr(self, '_attrib')['maxOccurs'] == 'unbounded':
+                return None
+            raise
+
+    def model_generator(self):
+        try:
+            for i in range(self.max_occurs):
+                yield self
+        except TypeError:
+            while True:
+                yield self
 
 
 class XsdAttributeGroup(MutableMapping, XsdBase):
@@ -344,9 +97,9 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
 
     def __setitem__(self, key, value):
         if key is None:
-            self._check_type(key, self, value, (XsdAnyAttribute,))
+            check_type(self, key, self, value, (XsdAnyAttribute,))
         else:
-            self._check_type(key, self, value, (XsdAttribute,))
+            check_type(self, key, self, value, (XsdAttribute,))
         self._attribute_group[key] = value
 
     def __delitem__(self, key):
@@ -361,9 +114,9 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
     # Other methods
     def __setattr__(self, name, value):
         if name == '_attribute_group':
-            self._check_type(name, None, value, (dict,))
+            check_type(self, name, None, value, (dict,))
             for k, v in value.items():
-                self._check_type(name, dict, v, (XsdAnyAttribute,))
+                check_type(self, name, dict, v, (XsdAnyAttribute,))
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
     def validate(self, *args, **kwargs):
@@ -413,7 +166,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
             )
 
 
-class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
+class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
     """
     A group can have a model, that indicate the elements that compose the content
     type associated with it.
@@ -436,7 +189,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
         return self._group[i]
 
     def __setitem__(self, i, item):
-        self._check_type(i, list, item, (XsdGroup,))
+        check_type(self, i, list, item, (XsdGroup,))
         if self.model is None:
             raise XMLSchemaParseError(u"cannot add items when the group model is None.", self.elem)
         self._group[i] = item
@@ -455,13 +208,13 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
 
     def __setattr__(self, name, value):
         if name == 'model':
-            self._check_value(name, None, value, (None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
+            check_value(self, name, None, value, (None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
         elif name == 'mixed':
-            self._check_value(name, None, value, (True, False))
+            check_value(self, name, None, value, (True, False))
         elif name == '_group':
-            self._check_type(name, None, value, (list,))
+            check_type(self, name, None, value, (list,))
             for i in range(len(value)):
-                self._check_type(name, i, value[i], (XsdGroup, XsdElement, XsdAnyElement))
+                check_type(self, name, i, value[i], (XsdGroup, XsdElement, XsdAnyElement))
         super(XsdGroup, self).__setattr__(name, value)
 
     def iter_elements(self):
@@ -572,6 +325,9 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, OccursMixin):
         self.validate(text)
         return text
 
+    def encode(self, obj):
+        return
+
 
 class XsdSimpleType(XsdBase, ValidatorMixin):
     """
@@ -607,17 +363,21 @@ class XsdAtomicType(XsdSimpleType, ValidatorMixin):
       - to_python(value): Decoding from XML:
       - from_python(value): Encoding to XML
     """
-    def __init__(self, name, python_type, validators=None, to_python=None, from_python=None):
+    def __init__(self, name, python_type, primitive_type=None,
+                 validators=None, to_python=None, from_python=None):
         """
-        :param python_type: The correspondent Python's type
-        :param validators: The optional validator for value objects
-        :param to_python: The optional decode function
-        :param from_python: The optional encode function
+        :param python_type: The correspondent Python's type.
+        :param primitive_type: The reference primitive type, None means that
+        the instance is a primitive type.
+        :param validators: The optional validator for value objects.
+        :param to_python: The optional decode function.
+        :param from_python: The optional encode function.
         """
         if not callable(python_type):
             raise XMLSchemaTypeError("%s object is not callable" % python_type.__class__.__name__)
         super(XsdAtomicType, self).__init__(name)
         self.python_type = python_type
+        self.primitive_type = primitive_type
         self.validators = validators or []
         self.to_python = to_python or python_type
         self.from_python = from_python or str
@@ -668,27 +428,38 @@ class XsdRestriction(XsdSimpleType, ValidatorMixin):
     """
     A class for representing a user defined atomic simpleType (restriction).
     """
-    def __init__(self, base_type, name=None, elem=None, schema=None, validators=None,
-                 facets=None, lengths=(0, None)):
+    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None, lengths=(0, None)):
         super(XsdRestriction, self).__init__(name, elem, schema)
         self.base_type = base_type
         self.lengths = lengths
         self.facets = facets or {}
 
         try:
-            self.white_space = facets[XSD_WHITE_SPACE_TAG].value
-            self.fixed_white_space = facets[XSD_WHITE_SPACE_TAG].fixed
+            self.white_space = self.facets[XSD_WHITE_SPACE_TAG].value
+            self.fixed_white_space = self.facets[XSD_WHITE_SPACE_TAG].fixed
         except KeyError:
             self.white_space = self.fixed_white_space = None
 
-        self.patterns = facets.get(XSD_PATTERN_TAG)
+        self.patterns = self.facets.get(XSD_PATTERN_TAG)
         self.validators = [
-            v for k, v in facets.items() if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG)
-            ]
+            v for k, v in self.facets.items() if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG)
+        ]
+
+        length = None
+        min_length = None
+        max_length = None
+        if length is None:
+            lengths = (min_length, max_length)
+        elif min_length is not None or max_length is not None:
+                raise XMLSchemaParseError(
+                    "both 'length' and either of 'minLength' or 'maxLength' constraint facets", elem
+                )
+        else:
+            lengths = (length, length)
 
     def __setattr__(self, name, value):
         if name == "base_type":
-            self._check_type(name, None, value, (XsdSimpleType, XsdComplexType))
+            check_type(self, name, None, value, (XsdSimpleType, XsdComplexType))
         super(XsdRestriction, self).__setattr__(name, value)
 
     def validate(self, obj):
@@ -717,7 +488,7 @@ class XsdList(XsdSimpleType, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == "item_type":
-            self._check_type(name, None, value, (XsdSimpleType,))
+            check_type(self, name, None, value, (XsdSimpleType,))
         super(XsdList, self).__setattr__(name, value)
 
     def validate(self, obj):
@@ -753,7 +524,7 @@ class XsdUnion(XsdSimpleType):
     def __setattr__(self, name, value):
         if name == "member_types":
             for member_type in value:
-                self._check_type(name, list, member_type, (XsdSimpleType,))
+                check_type(self, name, list, member_type, (XsdSimpleType,))
         super(XsdUnion, self).__setattr__(name, value)
 
     def validate(self, obj):
@@ -787,7 +558,8 @@ class XsdComplexType(XsdBase, ValidatorMixin):
     """
     A class for representing a complexType definition for XML schemas.
     """
-    def __init__(self, content_type, name=None, elem=None, schema=None, attributes=None, derivation=None, mixed=None):
+    def __init__(self, content_type, name=None, elem=None, schema=None, attributes=None,
+                 derivation=None, mixed=None):
         super(XsdComplexType, self).__init__(name, elem, schema)
         self.content_type = content_type
         self.attributes = attributes or XsdAttributeGroup(schema=schema)
@@ -799,9 +571,9 @@ class XsdComplexType(XsdBase, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == "content_type":
-            self._check_type(name, None, value, (XsdSimpleType, XsdComplexType, XsdGroup))
+            check_type(self, name, None, value, (XsdSimpleType, XsdComplexType, XsdGroup))
         elif name == 'attributes':
-            self._check_type(name, None, value, (XsdAttributeGroup,))
+            check_type(self, name, None, value, (XsdAttributeGroup,))
         super(XsdComplexType, self).__setattr__(name, value)
 
     @property
@@ -851,16 +623,18 @@ class XsdAttribute(XsdBase, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == "type":
-            self._check_type(name, None, value, (XsdSimpleType,))
+            check_type(self, name, None, value, (XsdSimpleType,))
         super(XsdAttribute, self).__setattr__(name, value)
 
     @property
     def form(self):
-        return get_xsd_attribute(self.elem, 'form', enumeration=('qualified', 'unqualified'))
+        return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'))
 
     @property
     def use(self):
-        return get_xsd_attribute(self.elem, 'use', 'optional', ('optional', 'prohibited', 'required'))
+        return get_xsd_attribute(
+            self.elem, 'use', ('optional', 'prohibited', 'required'), default='optional'
+        )
 
     def is_optional(self):
         return self.use == 'optional'
@@ -875,7 +649,7 @@ class XsdAttribute(XsdBase, ValidatorMixin):
         return self.type.encode(obj)
 
 
-class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
+class XsdElement(XsdBase, ValidatorMixin, ParticleMixin):
     """
     Support structure to associate an element and its attributes with XSD simple types.
     """
@@ -891,7 +665,7 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
 
     def __setattr__(self, name, value):
         if name == "type":
-            self._check_type(name, None, value, (XsdSimpleType, XsdComplexType))
+            check_type(self, name, None, value, (XsdSimpleType, XsdComplexType))
         super(XsdElement, self).__setattr__(name, value)
 
     def validate(self, obj):
@@ -922,7 +696,7 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
 
     @property
     def form(self):
-        return get_xsd_attribute(self.elem, 'form', enumeration=('qualified', 'unqualified'))
+        return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'))
 
     @property
     def nillable(self):
@@ -933,7 +707,7 @@ class XsdElement(XsdBase, ValidatorMixin, OccursMixin):
         return self._attrib.get('substitutionGroup')
 
 
-class XsdAnyAttribute(XsdBase, ValidatorMixin):
+class XsdAnyAttribute(XsdBase):
 
     def __init__(self, elem=None, schema=None):
         super(XsdAnyAttribute, self).__init__(elem=elem, schema=schema)
@@ -947,7 +721,9 @@ class XsdAnyAttribute(XsdBase, ValidatorMixin):
 
     @property
     def process_contents(self):
-        return get_xsd_attribute(self.elem, 'processContents', 'strict', ('lax', 'skip', 'strict'))
+        return get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
+        )
 
     def validate(self, obj):
         if self.process_contents == 'skip':
@@ -956,7 +732,7 @@ class XsdAnyAttribute(XsdBase, ValidatorMixin):
         if isinstance(obj, dict):
             attributes = obj
         elif isinstance(obj, str):
-            attributes = dict([attr.split('=') for attr in obj.split('')])
+            attributes = dict((attr.split('=', maxsplit=1) for attr in obj.split('')))
         else:
             attributes = obj.attrib
 
@@ -981,7 +757,7 @@ class XsdAnyAttribute(XsdBase, ValidatorMixin):
                 xsd_attribute.validate(value)
 
 
-class XsdAnyElement(XsdBase, ValidatorMixin, OccursMixin):
+class XsdAnyElement(XsdBase, ParticleMixin):
 
     def __init__(self, elem=None, schema=None):
         super(XsdAnyElement, self).__init__(elem=elem, schema=schema)
@@ -992,12 +768,6 @@ class XsdAnyElement(XsdBase, ValidatorMixin, OccursMixin):
 
     @property
     def process_contents(self):
-        return get_xsd_attribute(self.elem, 'processContents', 'strict', ('lax', 'skip', 'strict'))
-
-
-__all__ = (
-    'XsdBase', 'XsdUniqueFacet', 'XsdEnumerationFacet', 'XsdPatternsFacet',
-    'XsdGroup', 'XsdSimpleType', 'XsdAtomicType', 'XsdRestriction',
-    'XsdList', 'XsdUnion', 'XsdComplexType', 'XsdAttributeGroup',
-    'XsdAttribute', 'XsdElement', 'XsdAnyAttribute', 'XsdAnyElement'
-)
+        return get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
+        )
