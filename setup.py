@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.8b3',
+    version='0.8b4',
     packages=['xmlschema', 'xmlschema.tests'],
     package_data={
         'xmlschema': ['schemas/*/*.xsd', 'tests/examples/*']

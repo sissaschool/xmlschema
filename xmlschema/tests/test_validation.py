@@ -44,7 +44,7 @@ if __name__ == '__main__':
     import xmlschema
     from xmlschema.resources import load_xml
     from xmlschema.core import XSI_NAMESPACE_PATH
-    from xmlschema.qnames import get_qname
+    from xmlschema.utils import get_qname
     if len(sys.argv) > 1:
         LOG_LEVEL = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=LOG_LEVEL)
