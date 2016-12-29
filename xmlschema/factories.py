@@ -13,7 +13,7 @@ This module contains XSD factories for the 'xmlschema' package.
 """
 import logging
 
-from .exceptions import XMLSchemaParseError
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .utils import get_qname, split_qname, split_reference
 from .xsdbase import (
     XSD_SIMPLE_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_LIST_TAG,
@@ -29,7 +29,7 @@ from .facets import (
     XSD_v1_0_FACETS, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG
 )
 from .structures import (
-    XsdRestriction, XsdList, XsdUnion, XsdComplexType, XsdAttributeGroup,
+    XsdAtomicRestriction, XsdList, XsdUnion, XsdComplexType, XsdAttributeGroup,
     XsdGroup, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
 )
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
@@ -63,8 +63,10 @@ def check_factory(*args):
                 logger.debug("%s: return %r", factory_function.__name__, factory_result)
                 return factory_result
             check_tag(elem, *args)
-            return factory_function(elem, schema, **kwargs)
-
+            try:
+                return factory_function(elem, schema, **kwargs)
+            except XMLSchemaValidationError as err:
+                raise XMLSchemaParseError(err.message, elem)
         return factory_checker
     return make_factory_checker
 
@@ -127,7 +129,7 @@ def xsd_restriction_factory(elem, schema, **kwargs):
     </restriction>
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
-    xsd_restriction_class = kwargs.get('xsd_restriction_class', XsdRestriction)
+    xsd_restriction_class = kwargs.get('xsd_restriction_class', XsdAtomicRestriction)
 
     facets = {}
     has_attributes = False
@@ -170,7 +172,7 @@ def xsd_restriction_factory(elem, schema, **kwargs):
         elif child.tag not in facets:
             facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
         else:
-            XMLSchemaParseError("multiple %r constraint facet" % split_qname(child.tag)[1], elem)
+            raise XMLSchemaParseError("multiple %r constraint facet" % split_qname(child.tag)[1], elem)
 
     if base_type is None:
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)

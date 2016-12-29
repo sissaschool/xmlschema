@@ -13,27 +13,17 @@ This module contains classes and functions for XML Schema validation.
 """
 from collections import MutableMapping, MutableSequence
 
-from .core import XSI_NAMESPACE_PATH
+from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
-from .utils import linked_flatten, meta_next_gen, split_reference, get_qname, xsd_qname
+from .utils import linked_flatten, meta_next_gen, split_reference, get_qname
 from .xsdbase import (
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, lookup_attribute, XsdBase
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
+    lookup_attribute, XsdBase
 )
-from .facets import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
-
-
-XSD_STRING_TYPES = (
-    xsd_qname('string'),  # character string
-    xsd_qname('normalizedString'),  # line breaks are normalized
-    xsd_qname('token'),  # whitespace is normalized
-    xsd_qname('NMTOKEN'),  # should not contain whitespace (attribute only)
-    xsd_qname('Name'),  # not starting with a digit
-    xsd_qname('NCName'),  # cannot contain colons
-    xsd_qname('ID'),  # unique identification in document (attribute only)
-    xsd_qname('IDREF'),  # reference to ID field in document (attribute only)
-    xsd_qname('ENTITY'),  # reference to entity (attribute only)
-    xsd_qname('language')  # language codes
+from .facets import (
+    XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_WHITE_SPACE_ENUM,
+    XSD_v1_1_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
 )
 
 
@@ -208,7 +198,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
 
     def __setattr__(self, name, value):
         if name == 'model':
-            check_value(self, name, None, value, (None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
+            check_value(self, name, None, value, (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
         elif name == 'mixed':
             check_value(self, name, None, value, (True, False))
         elif name == '_group':
@@ -333,86 +323,146 @@ class XsdSimpleType(XsdBase, ValidatorMixin):
     """
     Base class for simple types, used only for instances of xs:anySimpleType.
     """
+    def __init__(self, name=None, elem=None, schema=None, facets=None):
+        super(XsdSimpleType, self).__init__(name, elem, schema)
+        self.facets = facets or {}
+        self.white_space = getattr(self.facets.get(XSD_WHITE_SPACE_TAG), 'value', None)
+        self.patterns = self.facets.get(XSD_PATTERN_TAG)
+        self.validators = [
+            v for k, v in self.facets.items()
+            if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG) and callable(v)
+        ]
+        check_facets_group(self.facets, self.admitted_facets, elem)
 
     @property
     def final(self):
         return self._get_derivation_attribute('final', ('list', 'union', 'restriction'))
 
+    @property
+    def admitted_facets(self):
+        try:
+            return self.schema.FACETS
+        except AttributeError:
+            return XSD_v1_1_FACETS.union({None})
+
+    def normalize(self, text):
+        """
+        Normalize and restrict value-space with pre-lexical and lexical facets.
+        :param text: Text string.
+        :return: Normalized and restricted string.
+        """
+        try:
+            if self.white_space == 'replace':
+                text = self._REGEX_SPACE.sub(u" ", text)
+            elif self.white_space == 'collapse':
+                text = self._REGEX_SPACES.sub(u" ", text)
+            self.patterns(text)
+        except TypeError:
+            pass
+        return text
+
+    #
+    # ValidatorMixin methods: used only for builtin anySimpleType.
     def validate(self, obj):
-        if not isinstance(obj, str):
+        if not isinstance(obj, unicode_type):
             raise XMLSchemaValidationError(self, obj, reason="value must be a string!")
+        obj = self.normalize(obj)
+        for validator in self.validators:
+            validator(obj)
 
     def decode(self, text):
-        if not isinstance(text, str):
+        if not isinstance(text, unicode_type):
             raise XMLSchemaTypeError("argument must be a string!")
         self.validate(text)
-        return str(text)
+        return unicode_type(text)
 
     def encode(self, obj):
-        if not isinstance(obj, str):
-            raise XMLSchemaEncodeError(self, obj, str)
-        return str(obj)
+        if not isinstance(obj, unicode_type):
+            raise XMLSchemaEncodeError(self, obj, unicode_type)
+        return unicode_type(obj)
 
 
-class XsdAtomicType(XsdSimpleType, ValidatorMixin):
+class XsdAtomic(XsdSimpleType):
+
+    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
+        self.base_type = base_type
+        super(XsdAtomic, self).__init__(name, elem, schema, facets)
+        self.white_space = self.white_space or getattr(base_type, 'white_space', None)
+
+    @property
+    def primitive_type(self):
+        if self.base_type is None:
+            return self
+        else:
+            try:
+                return self.base_type.primitive_type
+            except AttributeError:
+                # List or Union base_type.
+                return self.base_type
+
+    @property
+    def admitted_facets(self):
+        primitive_type = self.primitive_type
+        if isinstance(primitive_type, (XsdList, XsdUnion)):
+            return primitive_type.admitted_facets
+        try:
+            return self.schema.FACETS.intersection(set(primitive_type.facets.keys()))
+        except AttributeError:
+            return set(primitive_type.facets.keys()).union({None})
+
+
+class XsdAtomicBuiltin(XsdAtomic):
     """
     Class for defining XML Schema built-in simpleType atomic datatypes. An instance
-    contains a Python's type transformation and a list of validator functions.
+    contains a Python's type transformation and a list of validator functions. The
+    'base_type' is not used for validation, but only for reference to the XML Schema
+    restriction hierarchy.
 
     Type conversion methods:
-      - to_python(value): Decoding from XML:
+      - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    def __init__(self, name, python_type, primitive_type=None,
-                 validators=None, to_python=None, from_python=None):
+    def __init__(self, name, python_type, base_type=None, facets=None, to_python=None, from_python=None):
         """
+        :param name: The XSD type's qualified name.
         :param python_type: The correspondent Python's type.
-        :param primitive_type: The reference primitive type, None means that
-        the instance is a primitive type.
-        :param validators: The optional validator for value objects.
+        :param base_type: The reference base type, None if it's a primitive type.
+        :param facets: Optional facets validators.
         :param to_python: The optional decode function.
         :param from_python: The optional encode function.
         """
         if not callable(python_type):
             raise XMLSchemaTypeError("%s object is not callable" % python_type.__class__.__name__)
-        super(XsdAtomicType, self).__init__(name)
+        super(XsdAtomicBuiltin, self).__init__(base_type, name, facets=facets)
         self.python_type = python_type
-        self.primitive_type = primitive_type
-        self.validators = validators or []
         self.to_python = to_python or python_type
-        self.from_python = from_python or str
-        self.white_space = 'preserve' if name in XSD_STRING_TYPES else 'collapse'
-        self.fixed_white_space = False
+        self.from_python = from_python or unicode_type
 
     def validate(self, obj):
         if not isinstance(obj, self.python_type):
             raise XMLSchemaValidationError(
                 self, obj, "value type is {} instead of {}".format(type(obj), repr(self.python_type))
             )
-        if isinstance(obj, str):
-            if self.white_space == 'replace':
-                obj = self._REGEX_SPACE.sub(u" ", obj)
-            elif self.white_space == 'collapse':
-                obj = self._REGEX_SPACES.sub(u" ", obj)
+        obj = self.normalize(obj)
         for validator in self.validators:
             validator(obj)
 
     def decode(self, text):
         """
-        Transform an XML text into a Python object.
+        Transform an XML text into a Python object, then validate.
         :param text: XML text
         """
-        if not isinstance(text, str):
-            raise XMLSchemaTypeError("argument must be a string!")
+        if not isinstance(text, (unicode_type, str)):
+            raise XMLSchemaTypeError("argument must be a string!: %s" % type(text))
+        text = self.normalize(text)
         try:
-            value = self.to_python(text)
-            if value is None:
-                raise ValueError
+            obj = self.to_python(text)
         except ValueError:
             raise XMLSchemaDecodeError(self, text, self.python_type)
         else:
-            self.validate(value)
-            return value
+            for validator in self.validators:
+                validator(obj)
+            return obj
 
     def encode(self, obj):
         """
@@ -424,82 +474,59 @@ class XsdAtomicType(XsdSimpleType, ValidatorMixin):
         return self.from_python(obj)
 
 
-class XsdRestriction(XsdSimpleType, ValidatorMixin):
+class XsdAtomicRestriction(XsdAtomic):
     """
     A class for representing a user defined atomic simpleType (restriction).
     """
-    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None, lengths=(0, None)):
-        super(XsdRestriction, self).__init__(name, elem, schema)
-        self.base_type = base_type
-        self.lengths = lengths
-        self.facets = facets or {}
-
-        try:
-            self.white_space = self.facets[XSD_WHITE_SPACE_TAG].value
-            self.fixed_white_space = self.facets[XSD_WHITE_SPACE_TAG].fixed
-        except KeyError:
-            self.white_space = self.fixed_white_space = None
-
-        self.patterns = self.facets.get(XSD_PATTERN_TAG)
-        self.validators = [
-            v for k, v in self.facets.items() if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG)
-        ]
-
-        length = None
-        min_length = None
-        max_length = None
-        if length is None:
-            lengths = (min_length, max_length)
-        elif min_length is not None or max_length is not None:
-                raise XMLSchemaParseError(
-                    "both 'length' and either of 'minLength' or 'maxLength' constraint facets", elem
-                )
-        else:
-            lengths = (length, length)
-
-    def __setattr__(self, name, value):
-        if name == "base_type":
-            check_type(self, name, None, value, (XsdSimpleType, XsdComplexType))
-        super(XsdRestriction, self).__setattr__(name, value)
+    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
+        super(XsdAtomicRestriction, self).__init__(base_type, name, elem, schema, facets)
 
     def validate(self, obj):
-        self.base_type.validate(obj)
         for validator in self.validators:
             validator(obj)
+        self.base_type.validate(obj)
 
     def decode(self, text):
-        if self.white_space == 'replace':
-            text = self._REGEX_SPACE.sub(u" ", text)
-        elif self.white_space == 'collapse':
-            text = self._REGEX_SPACES.sub(u" ", text)
+        text = self.normalize(text)
         value = self.base_type.decode(text)
-        self.validate(value)
+        for validator in self.validators:
+            validator(value)
         return value
 
     def encode(self, obj):
         return self.base_type.encode(obj)
 
 
-class XsdList(XsdSimpleType, ValidatorMixin):
+class XsdList(XsdSimpleType):
 
-    def __init__(self, item_type, name=None, elem=None, schema=None):
-        super(XsdList, self).__init__(name, elem, schema)
+    def __init__(self, item_type, name=None, elem=None, schema=None, facets=None):
+        super(XsdList, self).__init__(name, elem, schema, facets)
         self.item_type = item_type
+        self.white_space = self.white_space or 'collapse'
 
     def __setattr__(self, name, value):
         if name == "item_type":
             check_type(self, name, None, value, (XsdSimpleType,))
         super(XsdList, self).__setattr__(name, value)
 
+    @property
+    def admitted_facets(self):
+        try:
+            return self.schema.FACETS.intersection(LIST_FACETS)
+        except AttributeError:
+            return LIST_FACETS
+
     def validate(self, obj):
-        _validate = self.item_type.validate
+        for validator in self.validators:
+            validator(obj)
         for item in obj:
             if isinstance(item, (list, tuple)):
-                map(_validate, item)
+                map(self.item_type.validate, item)
             else:
-                _validate(item)
+                self.item_type.validate(item)
 
     def decode(self, text):
+        # text = self.normalize(text)
         matrix = [item.strip() for item in text.split('\n') if item.strip()]
         if len(matrix) == 1:
             # Only one data line --> decode to simple list
@@ -517,17 +544,29 @@ class XsdList(XsdSimpleType, ValidatorMixin):
 
 class XsdUnion(XsdSimpleType):
 
-    def __init__(self, member_types, name=None, elem=None, schema=None):
-        super(XsdUnion, self).__init__(name, elem, schema)
+    def __init__(self, member_types, name=None, elem=None, schema=None, facets=None):
+        super(XsdUnion, self).__init__(name, elem, schema, facets)
         self.member_types = member_types
+        self.white_space = self.white_space or 'collapse'
 
     def __setattr__(self, name, value):
         if name == "member_types":
             for member_type in value:
                 check_type(self, name, list, member_type, (XsdSimpleType,))
+        elif name == 'white_space':
+            check_value(self, name, "whiteSpace facet", value, ('collapse',))
         super(XsdUnion, self).__setattr__(name, value)
 
+    @property
+    def admitted_facets(self):
+        try:
+            return self.schema.FACETS.intersection(UNION_FACETS)
+        except AttributeError:
+            return UNION_FACETS
+
     def validate(self, obj):
+        for validator in self.validators:
+            validator(obj)
         for _type in self.member_types:
             try:
                 return _type.validate(obj)

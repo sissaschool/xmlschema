@@ -58,19 +58,34 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
     pass
 
 
+class XMLSchemaRegexError(XMLSchemaException, ValueError):
+    """Raised when an error is found when parsing an XML Schema."""
+    pass
+
+
 class XMLSchemaComponentError(XMLSchemaException, ValueError):
     """Raised when an error is found in a XML Schema component."""
     def __init__(self, obj, name, ref=None, message=None):
+        """
+        :param obj: The object that generate the exception.
+        :param name: The attribute/key name.
+        :param ref: An object or type that refer to the name.
+        :param message: Error text message.
+        """
         self.message = message
         self.obj = obj
-        if ref is None:
+        if not isinstance(ref, (int, str, type)):
             self.description = 'attribute %r' % name
         elif isinstance(ref, int):
             self.description = 'item %d of %r' % (ref, name)
+        elif isinstance(ref, str):
+            self.description = '%r: %s' % (name, ref)
         elif issubclass(ref, dict):
-            self.description = 'value of dictionary %r' % name
+                self.description = 'value of dictionary %r' % name
         elif issubclass(ref, list):
             self.description = 'item of list %r' % name
+        else:
+            self.description = 'instance %r of type %r' % (name, ref)
 
     def __str__(self):
         return unicode(self).encode("utf-8")

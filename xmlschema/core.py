@@ -15,6 +15,7 @@ import logging
 import sys
 from io import StringIO
 from xml.etree import ElementTree
+from collections import MutableMapping
 
 try:
     # Python 3 specific imports
@@ -27,6 +28,11 @@ except ImportError:
     from urlparse import urlsplit, urljoin, uses_relative, urlparse
 
 PY3 = sys.version_info[0] >= 3
+
+# Aliases for data types changed from version 2 to 3.
+long_type = int if PY3 else long
+unicode_type = str if PY3 else unicode
+unicode_chr = chr if PY3 else unichr
 
 
 # Namespaces for standards
@@ -122,6 +128,7 @@ def set_logger(name, loglevel=1, logfile=None):
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError
+etree_element = ElementTree.Element
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
@@ -154,3 +161,34 @@ def etree_get_namespaces(source):
         return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
     except TypeError:
         return [node for _, node in etree_iterparse(source, events=['start-ns'])]
+
+
+class URIDict(MutableMapping):
+    """
+    Dictionary which uses normalized URIs as keys.
+    """
+    @staticmethod
+    def normalize(uri):
+        return urlsplit(uri).geturl()
+
+    def __init__(self, *args, **kwargs):
+        self._store = dict()
+        self._store.update(*args, **kwargs)
+
+    def __getitem__(self, uri):
+        return self._store[self.normalize(uri)]
+
+    def __setitem__(self, uri, value):
+        self._store[self.normalize(uri)] = value
+
+    def __delitem__(self, uri):
+        del self._store[self.normalize(uri)]
+
+    def __iter__(self):
+        return iter(self._store)
+
+    def __len__(self):
+        return len(self._store)
+
+    def __repr__(self):
+        return repr(self._store)
