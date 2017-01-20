@@ -374,7 +374,8 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
 
     if content_node.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG):
         content_type = xsd_type.content_type if xsd_type is not None else xsd_group_class(elem=elem, schema=schema)
-        if parse_content_type and not content_type:
+        if parse_content_type and content_type.model is None:
+            content_type.model = content_node.tag
             # Build type's content model only when a parent path is provided
             xsd_group = group_factory(content_node, schema, **kwargs)[1]
             content_type.extend(xsd_group)
@@ -396,7 +397,7 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
 
         content_type.elem = content_spec
         derivation = content_spec.tag == XSD_EXTENSION_TAG
-        if parse_content_type and not content_type:
+        if parse_content_type and content_type.model is None:
             # Build type's content model only when a parent path is provided
             try:
                 if base_type.content_type.model is None:
@@ -415,6 +416,7 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
                 pass  # Empty extension or restriction declaration.
             else:
                 if content_declaration.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
+                    content_type.model = content_declaration.tag
                     xsd_group = group_factory(content_declaration, schema, **kwargs)[1]
                     if content_spec.tag == XSD_RESTRICTION_TAG:
                         pass  # TODO: Checks if restrictions are effective.

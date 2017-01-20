@@ -405,7 +405,7 @@ class XsdRegexCharGroup(MutableSet):
     A set subclass to represent XML Schema regex character groups.
     """
     _re_char_group = re.compile(r'(\\[sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
-    _re_unicode_ref = re.compile(r'\\([pP])\{(\w+)\}')
+    _re_unicode_ref = re.compile(r'\\([pP]){([a-zA-Z\-0-9]+)}')
 
     def __init__(self, *args):
         self.positive = UnicodeSubset()
@@ -493,7 +493,6 @@ class XsdRegexCharGroup(MutableSet):
                 self.positive |= get_unicode_subset('C')
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
-                    print(part)
                     self.positive |= get_unicode_subset(part[3:-1])
                 else:
                     self.negative |= get_unicode_subset(part[3:-1])

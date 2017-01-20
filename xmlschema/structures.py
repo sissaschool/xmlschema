@@ -17,9 +17,8 @@ from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
 from .utils import linked_flatten, meta_next_gen, split_reference, get_qname
 from .xsdbase import (
-    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
-    lookup_attribute, XsdBase
+    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, lookup_attribute, XsdBase
 )
 from .facets import (
     XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_WHITE_SPACE_ENUM,
@@ -198,7 +197,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
 
     def __setattr__(self, name, value):
         if name == 'model':
-            check_value(self, name, None, value, (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
+            check_value(self, name, None, value, (None, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG))
         elif name == 'mixed':
             check_value(self, name, None, value, (True, False))
         elif name == '_group':

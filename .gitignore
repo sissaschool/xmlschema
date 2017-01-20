@@ -5,7 +5,7 @@
 *.swp
 *.egg-info
 .idea/
-xmlschema/tests/extra-schemas/
+xmlschema/tests/extra-schemas
 doc/_*
 xmlschema/__pycache__/
 xmlschema/tests/__pycache__/
