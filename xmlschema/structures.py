@@ -406,9 +406,14 @@ class XsdAtomic(XsdSimpleType):
         if isinstance(primitive_type, (XsdList, XsdUnion)):
             return primitive_type.admitted_facets
         try:
-            return self.schema.FACETS.intersection(set(primitive_type.facets.keys()))
+            facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return set(primitive_type.facets.keys()).union({None})
+            return XSD_v1_1_FACETS.union({None})
+        else:
+            if self.schema:
+                return self.schema.FACETS.intersection(facets)
+            else:
+                return set(primitive_type.facets.keys()).union({None})
 
 
 class XsdAtomicBuiltin(XsdAtomic):

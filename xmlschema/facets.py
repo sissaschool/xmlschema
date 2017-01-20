@@ -18,6 +18,7 @@ from .core import XSD_NAMESPACE_PATH
 from .exceptions import *
 from .utils import get_qname, split_qname
 from .xsdbase import xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .regex import get_python_regex
 
 #
 #  Facets (lexical, pre-lexical and value-based facets)
@@ -274,37 +275,12 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
 class XsdPatternsFacet(MutableSequence, XsdFacet):
 
-    _I_SHORTCUT_REPLACE = (
-        r":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-        r"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-    )
-    _C_SHORTCUT_REPLACE = (
-        r"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-        r"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
-    )
-
-    @staticmethod
-    def filter_regex(regex):
-        """
-        Obtain a Python's compatible regex from an XML regex.
-        """
-        if r"\i" in regex:
-            regex = regex.replace(r'\i', r'[%s]' % XsdPatternsFacet._I_SHORTCUT_REPLACE)
-        if r"\I" in regex:
-            regex = regex.replace(r'\I', r'[^%s]' % XsdPatternsFacet._I_SHORTCUT_REPLACE)
-        if r"\c" in regex:
-            regex = regex.replace(r'\c', r'[%s]' % XsdPatternsFacet._C_SHORTCUT_REPLACE)
-        if r"\C" in regex:
-            return regex.replace(r'\C', r'[^%s]' % XsdPatternsFacet._C_SHORTCUT_REPLACE)
-        return regex
-
     def __init__(self, base_type, elem, schema=None):
         XsdFacet.__init__(self, base_type, schema=schema)
         self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
-        # self.patterns = [re.compile(self.filter_regex(value))]
-        self.patterns = [re.compile('')]
+        self.patterns = [re.compile(get_python_regex(value))]
         self.regexps = [value]
 
     # Implements the abstract methods of MutableSequence
@@ -314,7 +290,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
     def __setitem__(self, i, item):
         self._elements[i] = item
         value = get_xsd_attribute(item, 'value')
-        self.patterns[i] = re.compile(self.filter_regex(value))
+        self.patterns[i] = re.compile(get_python_regex(value))
         self.regexps.insert(i, value)
 
     def __delitem__(self, i):
@@ -328,7 +304,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
     def insert(self, i, item):
         self._elements.insert(i, item)
         value = get_xsd_attribute(item, 'value')
-        self.patterns.insert(i, re.compile(self.filter_regex(value)))
+        self.patterns.insert(i, re.compile(get_python_regex(value)))
         self.regexps.insert(i, value)
 
     def __repr__(self):
