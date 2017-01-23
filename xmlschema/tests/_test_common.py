@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Common imports and methods for unittest scripts of 'xmlschema' package.
+Common imports and methods for unittest scripts of the 'xmlschema' package.
 """
 import unittest
 import re

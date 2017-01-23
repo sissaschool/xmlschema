@@ -279,7 +279,13 @@ def xsd_attribute_factory(elem, schema, **kwargs):
         else:
             attribute_name = xsd_attribute.name
             logger.debug("Refer to the global attribute '%s'", attribute_name)
-            return attribute_name, xsd_attribute
+            return attribute_name, xsd_attribute_class(
+                xsd_type=xsd_attribute.type,
+                name=attribute_name,
+                elem=elem,
+                schema=xsd_attribute.schema,
+                qualified=xsd_attribute.qualified
+            )
     else:
         attribute_name = get_qname(schema.target_namespace, name)
 
@@ -457,14 +463,9 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
     else:
         raise ValueError(repr(content_node.tag))
 
-    # Add attribute wildcards if there is the anyAttribute declaration.
-    if declarations[-1].tag == XSD_ANY_ATTRIBUTE_TAG:
-        any_attribute = declarations[-1].attrib
-
     xsd_type = xsd_complex_type_class(
         content_type, type_name, elem, schema, attributes, derivation, mixed
     )
-
     logger.debug("Created %r", xsd_type)
     return type_name, xsd_type
 
@@ -547,7 +548,15 @@ def xsd_group_factory(elem, schema, **kwargs):
             raise XMLSchemaParseError("found both attributes 'name' and 'ref'", elem)
         elif ref:
             group_name, namespace = split_reference(ref, schema.namespaces)
-            return group_name, lookup_group(group_name, namespace, schema.lookup_table)
+            xsd_group = lookup_group(group_name, namespace, schema.lookup_table)
+            return group_name, xsd_group_class(
+                name=xsd_group.name,
+                elem=elem,
+                schema=schema,
+                model=xsd_group.model,
+                mixed=xsd_group.mixed,
+                initlist=list(xsd_group)
+            )
         else:
             group_name = get_qname(schema.target_namespace, name)
             content_model = get_xsd_declaration(elem, min_occurs=1)
@@ -624,7 +633,7 @@ def xsd_element_factory(elem, schema, **kwargs):
         return element_name, xsd_element_class(
             name=xsd_element.name,
             xsd_type=xsd_element.type,
-            elem=xsd_element.elem,
+            elem=elem,
             schema=xsd_element.schema,
             qualified=qualified,
             ref=True

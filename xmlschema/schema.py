@@ -350,7 +350,7 @@ XMLSchema = XMLSchema_v1_0
 def validate(xml_document, schema, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    cls.check_schema(schema)
+    # cls.check_schema(schema)
     cls(schema, *args, **kwargs).validate(xml_document)
 
 

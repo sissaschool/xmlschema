@@ -126,6 +126,17 @@ def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
         )
 
 #
+# XSD builtin decoding functions
+
+def boolean_to_python(s):
+    if s in ('true', '1'):
+        return True
+    elif s in ('false', '0'):
+        return False
+    else:
+        raise XMLSchemaValueError('not a boolean value: %r' % s)
+
+#
 # Element facets instances for builtin types.
 PRESERVE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'preserve'})
 COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'collapse'})
@@ -295,7 +306,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = (
         'name': xsd_qname('boolean'),
         'python_type': bool,
         'facets': (BOOLEAN_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'to_python': lambda x: True if x.strip() in ('true', '1') else False if x.strip() in ('false', '0') else None,
+        'to_python': boolean_to_python,
         'from_python': lambda x: unicode_type(x).lower()
     },  # true/false or 1/0
     {

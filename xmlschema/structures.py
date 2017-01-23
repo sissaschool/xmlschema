@@ -21,8 +21,8 @@ from .xsdbase import (
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, lookup_attribute, XsdBase
 )
 from .facets import (
-    XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_WHITE_SPACE_ENUM,
-    XSD_v1_1_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
+    XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_v1_1_FACETS,
+    LIST_FACETS, UNION_FACETS, check_facets_group
 )
 
 
@@ -236,7 +236,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
                 yield gen_cls([item.model_generator() for item in self._group])
 
     def validate(self, value):
-        if not isinstance(value, str):
+        if not isinstance(value, (str, unicode_type)):
             raise XMLSchemaValidationError(self, value, reason="value must be a string!")
         if not self.mixed and value:
             raise XMLSchemaValidationError(
@@ -304,12 +304,16 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
                         break
                 else:
                     if missing_tags:
-                        yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
+                        if len(missing_tags) == 1:
+                            msg = "element %r expected, found %r." % (missing_tags.pop(), child.tag)
+                        else:
+                            msg = "one element of %r expected, found %r." % (missing_tags, child.tag)
+                        yield XMLSchemaValidationError(self, child, msg, child, self.elem)
                         consumed_child = True
                     break
 
     def decode(self, text):
-        if not isinstance(text, str):
+        if not isinstance(text, (str, unicode_type)):
             raise XMLSchemaTypeError("argument must be a string!")
         self.validate(text)
         return text
@@ -363,14 +367,14 @@ class XsdSimpleType(XsdBase, ValidatorMixin):
     #
     # ValidatorMixin methods: used only for builtin anySimpleType.
     def validate(self, obj):
-        if not isinstance(obj, unicode_type):
+        if not isinstance(obj, (str, unicode_type)):
             raise XMLSchemaValidationError(self, obj, reason="value must be a string!")
         obj = self.normalize(obj)
         for validator in self.validators:
             validator(obj)
 
     def decode(self, text):
-        if not isinstance(text, unicode_type):
+        if not isinstance(text, (str, unicode_type)):
             raise XMLSchemaTypeError("argument must be a string!")
         self.validate(text)
         return unicode_type(text)
@@ -641,7 +645,7 @@ class XsdComplexType(XsdBase, ValidatorMixin):
         self.content_type.validate(obj)
 
     def decode(self, text):
-        if not isinstance(text, str):
+        if not isinstance(text, (str, unicode_type)):
             raise XMLSchemaTypeError("argument must be a string!")
         value = self.content_type.decode(text)
         self.content_type.validate(value)
@@ -775,7 +779,7 @@ class XsdAnyAttribute(XsdBase):
         if isinstance(obj, dict):
             attributes = obj
         elif isinstance(obj, str):
-            attributes = dict((attr.split('=', maxsplit=1) for attr in obj.split('')))
+            attributes = {(attr.split('=', maxsplit=1) for attr in obj.split(''))}
         else:
             attributes = obj.attrib
 

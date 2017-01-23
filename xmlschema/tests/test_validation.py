@@ -9,48 +9,43 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the schema's validation for XML files for xmlschema package.
+This module runs tests concerning the validation of XML files with the 'xmlschema' package.
 """
 from _test_common import *
+import glob
 import fileinput
 
 
-def make_test_validation_function(xml_file, schema, expected_errors):
-    def test_validation(self):
-        xs = xmlschema.XMLSchema(schema)
-        errors = [str(e) for e in xs.iter_errors(xml_file)]
-        if len(errors) != expected_errors:
-            raise ValueError(
-                "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
-            )
-        if expected_errors == 0:
-            self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))
-        else:
-            self.assertTrue(
-                True,
-                "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, expected_errors)
-            )
-    return test_validation
-
-
-if __name__ == '__main__':
-    import glob
-    import os
-    import sys
-
-    pkg_folder = os.path.dirname(os.getcwd())
-    sys.path.insert(0, pkg_folder)
-
+def get_tests(pathname):
     import xmlschema
     from xmlschema.resources import load_xml
     from xmlschema.core import XSI_NAMESPACE_PATH
     from xmlschema.utils import get_qname
-    if len(sys.argv) > 1:
-        LOG_LEVEL = int(sys.argv.pop())
-        xmlschema.set_logger('xmlschema', loglevel=LOG_LEVEL)
 
-    test_files = glob.iglob(os.path.join(pkg_folder, "tests/*/testfiles"))
-    for line in fileinput.input(test_files):
+    def make_test_validation_function(xml_file, schema, expected_errors):
+        def test_validation(self):
+            xs = xmlschema.XMLSchema(schema)
+            errors = [str(e) for e in xs.iter_errors(xml_file)]
+            if len(errors) != expected_errors:
+                raise ValueError(
+                    "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
+                )
+            if expected_errors == 0:
+                self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))
+            else:
+                self.assertTrue(
+                    True,
+                    "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, expected_errors)
+                )
+
+        return test_validation
+
+    if len(sys.argv) > 1:
+        log_level = int(sys.argv.pop())
+        xmlschema.set_logger('xmlschema', loglevel=log_level)
+
+    tests = {}
+    for line in fileinput.input(glob.iglob(pathname)):
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -67,8 +62,8 @@ if __name__ == '__main__':
             continue
 
         xml_text, xml_root, xml_uri = load_xml(test_file)
-        XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-        schema_locations = xml_root.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
+        xsi_schema_location = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
+        schema_locations = xml_root.find('.[@%s]' % xsi_schema_location).attrib.get(xsi_schema_location)
         for schema_location in schema_locations.strip().split():
             schema_file = os.path.join(os.path.dirname(test_file), schema_location)
             if os.path.isfile(schema_file):
@@ -79,8 +74,15 @@ if __name__ == '__main__':
         test_func = make_test_validation_function(test_file, schema_file, num_errors)
         test_name = os.path.basename(test_file)
         klassname = 'Test_validation_{0}'.format(test_name)
-        globals()[klassname] = type(
+        tests[klassname] = type(
             klassname, (XMLSchemaTestCase,),
             {'test_validation_{0}'.format(test_name): test_func}
         )
+    return tests
+
+
+if __name__ == '__main__':
+    pkg_folder = os.path.dirname(os.getcwd())
+    sys.path.insert(0, pkg_folder)
+    globals().update(get_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
     unittest.main()

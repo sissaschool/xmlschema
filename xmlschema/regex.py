@@ -339,7 +339,7 @@ def get_unicode_categories():
 
     unicode_categories = defaultdict(set)
     for cp in range(maxunicode + 1):
-        unicode_categories[category(chr(cp))].add(cp)
+        unicode_categories[category(unicode_chr(cp))].add(cp)
     return {k: UnicodeSubset(v) for k, v in unicode_categories.items()}
 
 
