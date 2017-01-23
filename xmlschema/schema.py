@@ -12,9 +12,10 @@
 This module contains XMLSchema class creator for xmlschema package.
 """
 import logging
-from collections import MutableMapping
 
-from .core import XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, BASE_SCHEMAS, urlsplit, etree_get_namespaces
+from .core import (
+    XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, BASE_SCHEMAS, etree_get_namespaces, URIDict
+)
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaValidationError, XMLSchemaDecodeError
 )
@@ -25,11 +26,13 @@ from .xsdbase import (
     update_xsd_complex_types, update_xsd_groups, update_xsd_elements
 )
 from .resources import load_resource, load_xml
+from .facets import XSD_v1_0_FACETS  # , XSD_v1_1_FACETS
 from .builtins import XSD_BUILTIN_TYPES
 from .structures import XsdGroup
 from .factories import (
     xsd_simple_type_factory, xsd_restriction_factory, xsd_attribute_factory,
-    xsd_attribute_group_factory, xsd_complex_type_factory, xsd_element_factory,  xsd_group_factory
+    xsd_attribute_group_factory, xsd_complex_type_factory,
+    xsd_element_factory, xsd_group_factory
 )
 
 logger = logging.getLogger(__name__)
@@ -52,38 +55,7 @@ XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
 XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
 
 
-class URIDict(MutableMapping):
-    """
-    Dictionary which uses normalized URIs as keys.
-    """
-    @staticmethod
-    def normalize(uri):
-        return urlsplit(uri).geturl()
-
-    def __init__(self, *args, **kwargs):
-        self._store = dict()
-        self._store.update(*args, **kwargs)
-
-    def __getitem__(self, uri):
-        return self._store[self.normalize(uri)]
-
-    def __setitem__(self, uri, value):
-        self._store[self.normalize(uri)] = value
-
-    def __delitem__(self, uri):
-        del self._store[self.normalize(uri)]
-
-    def __iter__(self):
-        return iter(self._store)
-
-    def __len__(self):
-        return len(self._store)
-
-    def __repr__(self):
-        return repr(self._store)
-
-
-def create_validator(version=None, meta_schema=None, base_schemas=None, **options):
+def create_validator(version=None, meta_schema=None, base_schemas=None, facets=None, **options):
 
     validator_options = dict(DEFAULT_OPTIONS.items())
     for opt in validator_options:
@@ -97,6 +69,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
         VERSION = version
         META_SCHEMA = None
         BASE_SCHEMAS = URIDict(base_schemas or ())
+        FACETS = facets or ()
         OPTIONS = validator_options
 
         include_schemas = OPTIONS.pop('inclusion_method')
@@ -357,7 +330,8 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, **option
 XMLSchema_v1_0 = create_validator(
     version='1.0',
     meta_schema='schemas/XSD_1.0/XMLSchema.xsd',
-    base_schemas=BASE_SCHEMAS
+    base_schemas=BASE_SCHEMAS,
+    facets=XSD_v1_0_FACETS
 )
 
 #
@@ -366,7 +340,8 @@ XMLSchema_v1_0 = create_validator(
 # XMLSchema_v1_1 = create_validator(
 #    version='1.1',
 #    meta_schema='schemas/XSD_1.1/XMLSchema.xsd',
-#    base_schemas=BASE_SCHEMAS
+#    base_schemas=BASE_SCHEMAS,
+#    facets=XSD_v1_1_FACETS
 # )
 
 XMLSchema = XMLSchema_v1_0
@@ -375,7 +350,7 @@ XMLSchema = XMLSchema_v1_0
 def validate(xml_document, schema, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    cls.check_schema(schema)
+    # cls.check_schema(schema)
     cls(schema, *args, **kwargs).validate(xml_document)
 
 

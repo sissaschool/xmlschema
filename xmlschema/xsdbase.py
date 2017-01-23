@@ -82,7 +82,7 @@ def check_type(obj, name, ref, value, types):
 
     :param obj: The schema object.
     :param name: The name of the attribute/key of the object.
-    :param ref: A reference to determine the type related to the name.
+    :param ref: An object or type that refer to the name.
     :param value: The value to be checked.
     :param types: A tuple with admitted types.
     """
@@ -95,23 +95,24 @@ def check_type(obj, name, ref, value, types):
         )
 
 
-def check_value(obj, name, ref, value, values):
+def check_value(obj, name, ref, value, values, nullable=True):
     """
     Checks the value of 'value' argument to be in a tuple of values.
 
     :param obj: The schema object.
     :param name: The name of the attribute/key of the object.
-    :param ref: A reference to determine the type related to the name.
+    :param ref: An object or type that refer to the name.
     :param value: The value to be checked.
     :param values: A tuple with admitted values.
+    :param nullable: None  admitted values.
     """
-    if value not in values:
-        raise XMLSchemaComponentError(
-            obj=obj,
-            name=name,
-            ref=ref,
-            message="wrong value %s, it must be one of %r." % (type(value), values)
-        )
+    if nullable:
+        if value is not None and value not in values:
+            message = "wrong value %s, it must be None or one of %r." % (type(value), values)
+            raise XMLSchemaComponentError(obj, name, ref, message)
+    elif value not in values:
+        message = "wrong value %r, it must be one of %r." % (type(value), values)
+        raise XMLSchemaComponentError(obj, name, ref, message)
 
 
 #

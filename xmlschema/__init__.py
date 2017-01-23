@@ -13,7 +13,7 @@ from .exceptions import XMLSchemaException
 from .etree import etree_to_dict, element_to_dict
 from .schema import validate, to_dict, XMLSchema, XMLSchema_v1_0
 
-__version__ = '0.8.1b4'
+__version__ = '0.8.1b5'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016, SISSA"

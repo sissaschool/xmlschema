@@ -12,7 +12,8 @@
 This module contains general-purpose utility functions.
 """
 import re
-from .core import XSD_NAMESPACE_PATH
+
+from .core import XSD_NAMESPACE_PATH, urlsplit
 from .exceptions import XMLSchemaValueError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')

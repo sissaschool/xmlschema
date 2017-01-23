@@ -17,16 +17,18 @@ from collections import MutableSequence
 from .core import XSD_NAMESPACE_PATH
 from .exceptions import *
 from .utils import get_qname, split_qname
-from .xsdbase import xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute
+from .xsdbase import xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .regex import get_python_regex
 
 #
-#  Facets
+#  Facets (lexical, pre-lexical and value-based facets)
 XSD_ENUMERATION_TAG = xsd_qname('enumeration')
 XSD_LENGTH_TAG = xsd_qname('length')
 XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
 XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
 XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
 XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
+XSD_WHITE_SPACE_ENUM = ('preserve', 'replace', 'collapse')
 XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
 XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
 XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
@@ -35,7 +37,6 @@ XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
 XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
 XSD_ASSERTIONS_TAG = xsd_qname('assertions')
 XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
-
 
 XSD_v1_0_FACETS = {
     XSD_LENGTH_TAG,
@@ -55,26 +56,40 @@ XSD_v1_0_FACETS = {
 XSD_v1_1_FACETS = XSD_v1_0_FACETS.copy()
 XSD_v1_1_FACETS.update({XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
 
-XSD_APPLICABLE_FACETS_SETS = {
-    'string': {
-        XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
-        XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
-    },
-    'boolean': {XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG},
-    'float': {
-        XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG,
-        XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_ASSERTIONS_TAG
-    },
-    'decimal': {
-        XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG,
-        XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
-        XSD_MIN_INCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_ASSERTIONS_TAG
-    },
-    'datetime': {
-        XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
-        XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
-        XSD_MAX_INCLUSIVE_TAG, XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG
-    }
+#
+# Admitted facets sets for Atomic Types, List Type and Union Type
+STRING_FACETS = {
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
+    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
+}
+
+BOOLEAN_FACETS = {XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG}
+
+FLOAT_FACETS = {
+    XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG,
+    XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTIONS_TAG
+}
+
+DECIMAL_FACETS = {
+    XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG,
+    XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
+    XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTIONS_TAG
+}
+
+DATETIME_FACETS = {
+    XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
+    XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
+    XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG
+}
+
+LIST_FACETS = {
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
+    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
+}
+
+UNION_FACETS = {
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
+    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
 }
 
 
@@ -92,38 +107,33 @@ class XsdUniqueFacet(XsdFacet):
     def __init__(self, base_type, elem=None, schema=None):
         super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
         self.name = '%s(value=%r)' % (split_qname(elem.tag)[1], elem.attrib['value'])
-        self.fixed = self._attrib.get('fixed', 'false')
+        self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
 
         # TODO: Add checks with base_type's constraints.
         if elem.tag == XSD_WHITE_SPACE_TAG:
-            self.value = get_xsd_attribute(elem, 'value', ('preserve', 'replace', 'collapse'))
-            white_space = getattr(base_type, 'white_space', None)
-            if getattr(base_type, 'fixed_white_space', None) and white_space != self.value:
-                XMLSchemaParseError("whiteSpace can be only %r." % base_type.white_space, elem)
-            elif white_space == 'collapse' and self.value in ('preserve', 'replace'):
-                XMLSchemaParseError("whiteSpace can be only 'collapse', so cannot change.", elem)
-            elif white_space == 'replace' and self.value == 'preserve':
-                XMLSchemaParseError("whiteSpace can be only 'replace' or 'collapse'.", elem)
-        elif elem.tag in (XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG):
+            self.value = get_xsd_attribute(elem, 'value', XSD_WHITE_SPACE_ENUM)
+            self.validator = self.white_space_validator
+        elif elem.tag == XSD_LENGTH_TAG:
             self.value = get_xsd_int_attribute(elem, 'value')
-            if elem.tag == XSD_LENGTH_TAG:
-                self.validator = self.length_validator
-            elif elem.tag in XSD_MIN_LENGTH_TAG:
-                self.validator = self.min_length_validator
-            elif elem.tag == XSD_MAX_LENGTH_TAG:
-                self.validator = self.max_length_validator
-        elif elem.tag in (
-                XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG
-                ):
+            self.validator = self.length_validator
+        elif elem.tag == XSD_MIN_LENGTH_TAG:
+            self.value = get_xsd_int_attribute(elem, 'value')
+            self.validator = self.min_length_validator
+        elif elem.tag == XSD_MAX_LENGTH_TAG:
+            self.value = get_xsd_int_attribute(elem, 'value')
+            self.validator = self.max_length_validator
+        elif elem.tag == XSD_MIN_INCLUSIVE_TAG:
             self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
-            if elem.tag == XSD_MIN_INCLUSIVE_TAG:
-                self.validator = self.min_inclusive_validator
-            elif elem.tag == XSD_MIN_EXCLUSIVE_TAG:
-                self.validator = self.min_exclusive_validator
-            elif elem.tag == XSD_MAX_INCLUSIVE_TAG:
-                self.validator = self.max_inclusive_validator
-            elif elem.tag == XSD_MAX_EXCLUSIVE_TAG:
-                self.validator = self.max_exclusive_validator
+            self.validator = self.min_inclusive_validator
+        elif elem.tag == XSD_MIN_EXCLUSIVE_TAG:
+            self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
+            self.validator = self.min_exclusive_validator
+        elif elem.tag == XSD_MAX_INCLUSIVE_TAG:
+            self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
+            self.validator = self.max_inclusive_validator
+        elif elem.tag == XSD_MAX_EXCLUSIVE_TAG:
+            self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
+            self.validator = self.max_exclusive_validator
         elif elem.tag == XSD_TOTAL_DIGITS_TAG:
             self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
             self.validator = self.total_digits_validator
@@ -135,6 +145,59 @@ class XsdUniqueFacet(XsdFacet):
 
     def __call__(self, *args, **kwargs):
         self.validator(*args, **kwargs)
+
+    def __setattr__(self, name, value):
+        if name == "value":
+            base_facet = self.get_base_facet(self.elem.tag)
+            if base_facet is not None:
+                if base_facet.fixed and value != base_facet.value:
+                    raise XMLSchemaParseError(
+                        "%r facet value is fixed to %r." % (self.elem.tag, base_facet.value), self.elem
+                    )
+                elif self.elem.tag == XSD_WHITE_SPACE_TAG:
+                    if base_facet.value == 'collapse' and value in ('preserve', 'replace'):
+                        XMLSchemaParseError("facet value can be only 'collapse'.", self.elem)
+                    elif base_facet.value == 'replace' and value == 'preserve':
+                        XMLSchemaParseError("facet value can be only 'replace' or 'collapse'.", self.elem)
+                elif self.elem.tag == XSD_LENGTH_TAG:
+                    if base_facet is not None and value != base_facet.value:
+                        raise XMLSchemaParseError(
+                            "base type has different 'length': %r" % base_facet.value, self.elem
+                        )
+                elif self.elem.tag == XSD_MIN_LENGTH_TAG:
+                    if value < base_facet.value:
+                        raise XMLSchemaParseError(
+                            "base type has greater 'minLength': %r" % base_facet.value, self.elem
+                        )
+                elif self.elem.tag == XSD_MAX_LENGTH_TAG:
+                    if value > base_facet.value:
+                        raise XMLSchemaParseError(
+                            "base type has lesser 'maxLength': %r" % base_facet.value, self.elem
+                        )
+        super(XsdUniqueFacet, self).__setattr__(name, value)
+
+    def get_base_facet(self, tag):
+        """
+        Retrieve the first base_type facet corresponding to the tag.
+
+        :return: XsdUniqueFacet instance or None.
+        """
+        base_type = self.base_type
+        while True:
+            try:
+                return base_type.facets[tag]
+            except (AttributeError, KeyError):
+                if hasattr(base_type, 'base_type'):
+                    base_type = base_type.base_type
+                else:
+                    return None
+
+    def white_space_validator(self, x):
+        if self.value in ('collapse', 'replace'):
+            if u'\t' in x or u'\n' in x:
+                raise XMLSchemaValidationError(self, x)
+            if self.value == 'collapse' and u'  ' in x:
+                raise XMLSchemaValidationError(self, x)
 
     def length_validator(self, x):
         if len(x) != self.value:
@@ -216,7 +279,9 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         XsdFacet.__init__(self, base_type, schema=schema)
         self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
         self._elements = [elem]
-        self.patterns = [re.compile(re.escape(get_xsd_attribute(elem, 'value')))]
+        value = get_xsd_attribute(elem, 'value')
+        self.patterns = [re.compile(get_python_regex(value))]
+        self.regexps = [value]
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -224,10 +289,13 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     def __setitem__(self, i, item):
         self._elements[i] = item
-        self.patterns[i] = re.compile(re.escape(get_xsd_attribute(item, 'value')))
+        value = get_xsd_attribute(item, 'value')
+        self.patterns[i] = re.compile(get_python_regex(value))
+        self.regexps.insert(i, value)
 
     def __delitem__(self, i):
         del self._elements[i]
+        del self.regexps[i]
         del self.patterns[i]
 
     def __len__(self):
@@ -235,12 +303,50 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     def insert(self, i, item):
         self._elements.insert(i, item)
-        self.patterns.insert(i, re.compile(re.escape(get_xsd_attribute(item, 'value'))))
+        value = get_xsd_attribute(item, 'value')
+        self.patterns.insert(i, re.compile(get_python_regex(value)))
+        self.regexps.insert(i, value)
 
     def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name % self.patterns, id(self))
+        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name % self.regexps, id(self))
 
-    def __call__(self, value):
-        if all(pattern.search(value) is None for pattern in self.patterns):
-            msg = "value don't match any of patterns %r"
-            raise XMLSchemaValidationError(self, value, reason=msg % [p.pattern for p in self.patterns])
+    def __call__(self, text):
+        if all(pattern.search(text) is None for pattern in self.patterns):
+            msg = "value don't match any pattern of %r."
+            raise XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+
+
+def check_facets_group(facets, admitted_facets, elem=None):
+    """
+    Verify the applicability and the mutual incompatibility of a group of facets.
+
+    :param facets: Dictionary of facets.
+    :param admitted_facets: A set including the qualified names
+    of admitted facets.
+    :param elem: Restriction element including the facets group.
+    """
+    # Checks the applicability of the facets
+    if not admitted_facets.issuperset(set(facets.keys())):
+        admitted_facets = {split_qname(e)[1] for e in admitted_facets if e}
+        msg = "one or more facets are not applicable, admitted set is %r:"
+        raise XMLSchemaParseError(msg % admitted_facets, elem)
+
+    # Checks length based facets
+    length = getattr(facets.get(XSD_LENGTH_TAG), 'value', None)
+    min_length = getattr(facets.get(XSD_MIN_LENGTH_TAG), 'value', 0)
+    max_length = getattr(facets.get(XSD_MAX_LENGTH_TAG), 'value', None)
+    if max_length is not None and min_length > max_length:
+        raise XMLSchemaParseError("value of 'minLength' is greater than 'maxLength'.", elem)
+
+    if length is not None:
+        if min_length > length:
+            raise XMLSchemaParseError("value of 'minLength' is greater than 'length'.", elem)
+
+        if max_length is not None and max_length < length:
+            raise XMLSchemaParseError("value of 'maxLength' is lesser than 'length'.", elem)
+
+        lengths = (0, max_length)
+    elif min_length is not None or max_length is not None:
+        pass
+    else:
+        lengths = (length, length)
