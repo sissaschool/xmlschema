@@ -16,19 +16,17 @@ import logging
 from .core import (
     XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, BASE_SCHEMAS, etree_get_namespaces, URIDict
 )
-from .exceptions import (
-    XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaValidationError, XMLSchemaDecodeError
-)
-from .utils import get_namespace, split_path, get_qualified_path, get_qname, uri_to_prefixes
+from .exceptions import XMLSchemaValueError, XMLSchemaLookupError
+from .utils import get_namespace, split_path, get_qualified_path, get_qname
 from .xsdbase import (
     check_tag, XSD_SCHEMA_TAG, xsd_include_schemas, iterfind_xsd_imports, lookup_attribute,
     update_xsd_attributes, update_xsd_attribute_groups, update_xsd_simple_types,
     update_xsd_complex_types, update_xsd_groups, update_xsd_elements
 )
+from .etree import etree_to_dict, etree_validate
 from .resources import load_resource, load_xml
 from .facets import XSD_v1_0_FACETS  # , XSD_v1_1_FACETS
 from .builtins import XSD_BUILTIN_TYPES
-from .structures import XsdGroup
 from .factories import (
     xsd_simple_type_factory, xsd_restriction_factory, xsd_attribute_factory,
     xsd_attribute_group_factory, xsd_complex_type_factory,
@@ -240,80 +238,12 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
             return error is None
 
         def iter_errors(self, xml_document, schema=None):
-            def _iter_errors(elem, path, schema_elem):
-                try:
-                    xsd_element = schema.get_element(path)
-                except XMLSchemaLookupError:
-                    yield XMLSchemaValidationError(
-                        validator=self,
-                        value=elem.tag,
-                        reason="element with path /%s not in schema!" % path,
-                        elem=elem,
-                        schema_elem=schema_elem
-                    )
-                else:
-                    # Verify tag format
-                    if xsd_element.qualified and not get_namespace(elem.tag):
-                        yield XMLSchemaValidationError(
-                            validator=self,
-                            value=elem.tag,
-                            reason="tag must be a fully qualified name!",
-                            elem=elem,
-                            schema_elem=schema_elem
-                        )
-
-                    # Verify element's attributes
-                    try:
-                        for error in xsd_element.type.attributes.iter_errors(elem.attrib, elem):
-                            yield error
-                    except AttributeError:
-                        # The element has simple content type.
-                        pass
-
-                    content_type = getattr(xsd_element.type, 'content_type', None)
-                    if not isinstance(content_type, XsdGroup):
-                        # Decode and validate
-                        try:
-                            xsd_element.decode(elem.text or '')
-                        except (XMLSchemaValidationError, XMLSchemaDecodeError) as err:
-                            value = getattr(err, 'value', None) or getattr(err, 'text', None)
-                            yield XMLSchemaValidationError(
-                                validator=xsd_element,
-                                value=value,
-                                reason=err.reason,
-                                elem=elem,
-                                schema_elem=xsd_element.elem
-                            )
-
-                        # simpleType or simpleContent: no subelements allowed!
-                        for child in elem:
-                            child_path = uri_to_prefixes('%s/%s' % (path, child.tag), self.namespaces)
-                            yield XMLSchemaValidationError(
-                                validator=xsd_element,
-                                value=child.tag,
-                                reason="element with path /%s not in schema!" % child_path,
-                                elem=child,
-                                schema_elem=xsd_element.elem
-                            )
-                    else:
-                        # Verify the element content
-                        for error in content_type.iter_errors(elem):
-                            yield error
-
-                        # Validate each subtree
-                        for child in elem:
-                            for error in _iter_errors(child, '%s/%s' % (path, child.tag), xsd_element.elem):
-                                yield error
-
-            schema = schema or self
             xml_text, xml_root, xml_uri = load_xml(xml_document)
-            root_path = get_qname(self.target_namespace, xml_root.tag)
-            return _iter_errors(xml_root, root_path, schema._root)
+            return etree_validate(xml_root, schema or self)
 
         def to_dict(self, xml_document, schema=None):
             xml_text, xml_root, xml_uri = load_xml(xml_document)
-            from .etree import element_to_dict
-            return element_to_dict(xml_root, schema or self)
+            return etree_to_dict(xml_root, schema or self)
 
     # Create the meta schema
     if meta_schema is not None:
