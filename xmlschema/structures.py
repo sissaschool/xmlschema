@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes and functions for XML Schema validation.
+This module contains classes for XML Schema components.
 """
 from collections import MutableMapping, MutableSequence
 
@@ -244,6 +244,8 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
             )
 
     def iter_errors(self, elem):
+        import pdb
+
         # Validate character data between tags
         if not self.mixed and (elem.text.strip() or any([child.tail.strip() for child in elem])):
             yield XMLSchemaValidationError(
@@ -266,11 +268,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
                     yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
                 return
 
-            try:
-                missing_tags = set([e[0].name for e in validation_group if not e[0].is_optional()])
-            except (AttributeError, TypeError):
-                raise
-
+            missing_tags = set([e[0].name for e in validation_group if not e[0].is_optional()])
             while validation_group:
                 if consumed_child:
                     try:
@@ -286,6 +284,7 @@ class XsdGroup(MutableSequence, XsdBase, ValidatorMixin, ParticleMixin):
                         consumed_child = False
 
                 for _index, (_element, _iterator, _container) in enumerate(validation_group):
+                    # pdb.set_trace()
                     if name == _element.name:
                         consumed_child = True
                         missing_tags.discard(name)

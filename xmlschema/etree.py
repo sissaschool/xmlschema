@@ -9,10 +9,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions to convert ElementTree's trees based on a schema
-to or from other data formats (eg. dictionaries, json).
+This module contains functions for ElementTree's structures.
 """
-from .exceptions import XMLSchemaDecodeError, XMLSchemaValidationError, XMLSchemaMultipleValidatorErrors
+from .exceptions import (
+    XMLSchemaDecodeError, XMLSchemaLookupError, XMLSchemaValidationError, XMLSchemaMultipleValidatorErrors
+)
+from .utils import get_namespace, get_qname, uri_to_prefixes
 
 
 def etree_iterpath(elem, tag=None, path='.'):
@@ -41,17 +43,21 @@ def etree_iterpath(elem, tag=None, path='.'):
             yield _child, _child_path
 
 
-def etree_to_dict(etree, xml_schema, dict_class=dict, spaces_for_tab=4, use_defaults=True):
-    root_node = etree.getroot()
-    ret_dict = element_to_dict(
-        root_node, xml_schema, dict_class=dict_class, spaces_for_tab=spaces_for_tab, use_defaults=use_defaults
-    )
-    return ret_dict
+def etree_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, use_defaults=True):
+    """
+    Converts a XML document loaded in an ElementTree structure into a dictionary.
 
+    :param elem: The starting element of the ElementTree structure, usually
+    the root element of the tree.
+    :param schema: The XMLSchema instance used for validation.
+    :param path: The base path of the starting element.
+    :param dict_class: The class used to build the dictionary.
+    :param spaces_for_tab: Number of spaces.
+    :param use_defaults: Fill the dictionary with the default values.
+    :return: A dictionary of type dict_class.
+    """
 
-def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, use_defaults=True):
-
-    def _element_to_dict(node, node_path):
+    def subtree_to_dict(node, node_path):
         node_dict = dict_class()
         xsd_element = schema.get_element(node_path)
 
@@ -95,7 +101,7 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
 
         # Adds the subelements recursively
         for child in node:
-            new_item = _element_to_dict(child, node_path='%s/%s' % (node_path, child.tag))
+            new_item = subtree_to_dict(child, node_path='%s/%s' % (node_path, child.tag))
             try:
                 node_item = node_dict[child.tag]
             except KeyError:
@@ -159,8 +165,102 @@ def element_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, 
         return node_dict
 
     errors = []
-    path = elem.tag if path is None else '%s/%s' % (path, elem.tag)
-    ret_dict = dict_class({elem.tag: _element_to_dict(elem, path)})
+    if path is None:
+        elem_path = get_qname(schema.target_namespace, elem.tag)
+    else:
+        elem_path = u'%s/%s' % (path, get_qname(schema.target_namespace, elem.tag))
+
+    ret_dict = dict_class({elem.tag: subtree_to_dict(elem, elem_path)})
     if errors:
         raise XMLSchemaMultipleValidatorErrors(errors, ret_dict)
     return ret_dict
+
+
+def etree_validate(elem, schema, path=None):
+    """
+    Generator function for validating an XML document loaded in an ElementTree structure.
+
+    :param elem: The starting element of the ElementTree structure, usually
+    the root element of the tree.
+    :param schema: The XMLSchema instance used for validation.
+    :param path: The base path of the starting element.
+    """
+
+    def subtree_validate(node, node_path, schema_elem):
+        try:
+            xsd_element = schema.get_element(node_path)
+        except XMLSchemaLookupError:
+            yield XMLSchemaValidationError(
+                validator=schema,
+                value=node.tag,
+                reason="element with path /%s not in schema!" % node_path,
+                elem=node,
+                schema_elem=schema_elem
+            )
+        else:
+            # Validate the tag format.
+            if xsd_element.qualified and not get_namespace(node.tag):
+                yield XMLSchemaValidationError(
+                    validator=schema,
+                    value=node.tag,
+                    reason="tag must be a fully qualified name!",
+                    elem=node,
+                    schema_elem=schema_elem
+                )
+
+            # Validate the attributes.
+            try:
+                for error in xsd_element.type.attributes.iter_errors(node.attrib, node):
+                    yield error
+            except AttributeError:
+                # The node hasn't attributes, then generate errors for each node attribute.
+                for key in node.attrib:
+                    yield XMLSchemaValidationError(
+                        validator=schema,
+                        value=key,
+                        reason="attribute not allowed for this element",
+                        elem=node,
+                        schema_elem=schema_elem
+                    )
+
+            # Validate the content of the node.
+            content_type = getattr(xsd_element.type, 'content_type', None)
+            try:
+                # complexContent (XsdGroup): validate the content tags.
+                for error in content_type.iter_errors(node):
+                    yield error
+            except AttributeError:
+                # simpleType or simpleContent
+                try:
+                    xsd_element.decode(node.text or '')
+                except (XMLSchemaValidationError, XMLSchemaDecodeError) as err:
+                    value = getattr(err, 'value', None) or getattr(err, 'text', None)
+                    yield XMLSchemaValidationError(
+                        validator=xsd_element,
+                        value=value,
+                        reason=err.reason,
+                        elem=node,
+                        schema_elem=xsd_element.elem
+                    )
+
+                # The node cannot have children, then generate an error for each child.
+                for child in node:
+                    child_path = uri_to_prefixes('%s/%s' % (node_path, child.tag), schema.namespaces)
+                    yield XMLSchemaValidationError(
+                        validator=xsd_element,
+                        value=child.tag,
+                        reason="element with path /%s not in schema!" % child_path,
+                        elem=child,
+                        schema_elem=xsd_element.elem
+                    )
+            else:
+                # Validate each subtree
+                for child in node:
+                    for error in subtree_validate(child, '%s/%s' % (node_path, child.tag), xsd_element.elem):
+                        yield error
+
+    if path is None:
+        elem_path = get_qname(schema.target_namespace, elem.tag)
+    else:
+        elem_path = u'%s/%s' % (path, get_qname(schema.target_namespace, elem.tag))
+    return subtree_validate(elem, elem_path, schema._root)

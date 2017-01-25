@@ -10,7 +10,7 @@
 #
 from .core import set_logger
 from .exceptions import XMLSchemaException
-from .etree import etree_to_dict, element_to_dict
+from .etree import etree_to_dict, etree_validate
 from .schema import validate, to_dict, XMLSchema, XMLSchema_v1_0
 
 __version__ = '0.8.1b5'

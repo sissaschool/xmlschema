@@ -27,7 +27,7 @@ def get_tests(pathname):
         def test_decoding(self):
             xs = xmlschema.XMLSchema(schema)
             try:
-                xmlschema.element_to_dict(xml_root, xs)
+                xmlschema.etree_to_dict(xml_root, xs)
             except XMLSchemaMultipleValidatorErrors as err:
                 if len(getattr(err, 'errors', [])) != expected_errors:
                     raise
