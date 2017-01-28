@@ -125,9 +125,9 @@ def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
             non_negative_int_validator, date_string, "invalid datetime for format %r." % date_format
         )
 
+
 #
 # XSD builtin decoding functions
-
 def boolean_to_python(s):
     if s in ('true', '1'):
         return True
@@ -356,7 +356,7 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     ),  # reference to entity (attribute only)
     (
         xsd_qname('NMTOKEN'), unicode_type, xsd_qname('token'),
-        #[etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
+        # [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
     ),  # should not contain whitespace (attribute only)
 
     # --- Numerical Types ---

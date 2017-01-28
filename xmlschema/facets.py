@@ -144,7 +144,8 @@ class XsdUniqueFacet(XsdFacet):
             self.validator = self.fraction_digits_validator
 
     def __call__(self, *args, **kwargs):
-        self.validator(*args, **kwargs)
+        for error in self.validator(*args, **kwargs):
+            yield error
 
     def __setattr__(self, name, value):
         if name == "value":

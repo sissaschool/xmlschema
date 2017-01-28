@@ -62,42 +62,11 @@ def etree_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, us
         xsd_element = schema.get_element(node_path)
 
         if node.attrib:
-            # if we have attributes, decode them
-            attr_dict = dict_class()
-            for name, value_string in node.attrib.items():
-                try:
-                    try:
-                        xsd_attribute = schema.get_attribute(name, node_path)
-                    except KeyError:
-                        xsd_attribute = xsd_element.get_attribute(name)
-                except KeyError as err:
-                    errors.append(XMLSchemaValidationError(
-                        validator=xsd_element,
-                        value=value_string,
-                        reason="attribute %s not in the schema" % err,
-                        elem=node,
-                        schema_elem=xsd_element.elem
-                    ))
-                    continue
-
-                try:
-                    attr_dict[name] = xsd_attribute.decode(value_string)
-                except XMLSchemaValidationError as err:
-                    attr_dict[name] = err.value
-                    errors.append(XMLSchemaValidationError(
-                        err.validator, err.value, err.reason, node, xsd_attribute.elem
-                    ))
-                except XMLSchemaDecodeError as err:
-                    attr_dict[name] = value_string
-                    errors.append(err)
-
-            if use_defaults:
-                # Set defaults for missing schema's attributes
-                for name in list(set(schema.get_attributes(node_path)) - set(node.keys())):
-                    default_value = schema.get_attribute(name, node_path).default
-                    if default_value is not None:
-                        attr_dict[name] = schema.get_attribute(name, node_path).decode(default_value)
-            node_dict.update(attr_dict)
+            try:
+                node_dict.update(xsd_element.attributes.decode(node))
+            except XMLSchemaMultipleValidatorErrors as obj:
+                node_dict.update(obj.result)
+                errors.extend(obj.errors)
 
         # Adds the subelements recursively
         for child in node:
@@ -122,45 +91,29 @@ def etree_to_dict(elem, schema, path=None, dict_class=dict, spaces_for_tab=4, us
                 else:
                     node_dict[child.tag].append([new_item])
 
-            tail = child.tail.strip()
-            if tail:
-                try:
-                    xsd_element.validate(tail)
-                except XMLSchemaValidationError as err:
-                    errors.append(
-                        XMLSchemaValidationError(xsd_element, err.value, err.reason, xsd_element.elem, node)
-                    )
-
         # Add the element's content
-        if node.text is None:
-            if use_defaults:
-                text = xsd_element.default or ''
-            else:
-                text = ''
-        else:
-            text = node.text.strip() if list(node) else node.text
-            if spaces_for_tab is not None:
-                text = text.replace('\t', ' ' * spaces_for_tab)
+        text = node.text or ''
 
+        # else:
+        #    text = node.text.strip() if list(node) else node.text
+        #    if spaces_for_tab is not None:
+        #        text = text.replace('\t', ' ' * spaces_for_tab)
         try:
             value = xsd_element.decode(text)
-        except XMLSchemaValidationError as err:
-            value = err.value
-            errors.append(
-                XMLSchemaValidationError(xsd_element, err.value, err.reason, node, xsd_element.elem)
-            )
-        except XMLSchemaDecodeError as err:
+        except XMLSchemaDecodeError:
             value = text
-            errors.append(
-                XMLSchemaDecodeError(xsd_element, err.text, err.decoder, err.reason, node, xsd_element.elem)
-            )
+
+        if len(node):
+            for error in xsd_element.iter_errors(node):
+                errors.append(error)
+        else:
+            for error in xsd_element.iter_errors(text):
+                errors.append(error)
 
         if node_dict:
-            # if we have a dictionary add the text as a dictionary value (if there is any)
-            if len(text) > 0:
+            if text:
                 node_dict['_text'] = value
         else:
-            # if we don't have child nodes or attributes, just set the text
             node_dict = value
         return node_dict
 
@@ -209,19 +162,8 @@ def etree_validate(elem, schema, path=None):
                 )
 
             # Validate the attributes.
-            try:
-                for error in xsd_element.type.attributes.iter_errors(node.attrib, node):
-                    yield error
-            except AttributeError:
-                # The node hasn't attributes, then generate errors for each node attribute.
-                for key in node.attrib:
-                    yield XMLSchemaValidationError(
-                        validator=schema,
-                        value=key,
-                        reason="attribute not allowed for this element",
-                        elem=node,
-                        schema_elem=schema_elem
-                    )
+            for error in xsd_element.attributes.iter_errors(node):
+                yield error
 
             # Validate the content of the node.
             content_type = getattr(xsd_element.type, 'content_type', None)
@@ -229,16 +171,14 @@ def etree_validate(elem, schema, path=None):
                 # complexContent (XsdGroup): validate the content tags.
                 for error in content_type.iter_errors(node):
                     yield error
-            except AttributeError:
+            except (AttributeError, TypeError):
                 # simpleType or simpleContent
-                try:
-                    xsd_element.decode(node.text or '')
-                except (XMLSchemaValidationError, XMLSchemaDecodeError) as err:
-                    value = getattr(err, 'value', None) or getattr(err, 'text', None)
+                for error in xsd_element.iter_errors(node.text or ''):
+                    value = getattr(error, 'value', None) or getattr(error, 'text', None)
                     yield XMLSchemaValidationError(
                         validator=xsd_element,
                         value=value,
-                        reason=err.reason,
+                        reason=error.reason,
                         elem=node,
                         schema_elem=xsd_element.elem
                     )
