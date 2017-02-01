@@ -18,13 +18,14 @@ from decimal import Decimal
 from .core import long_type, unicode_type, etree_element
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
 from .xsdbase import xsd_qname
-from .structures import (
-    XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdAttributeGroup,
-    XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
+from .components import (
+    XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList,
+    XsdAttributeGroup, XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
 )
 from .facets import (
     XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XsdUniqueFacet, XsdPatternsFacet,
-    XSD_v1_1_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
+    XSD_v1_1_FACETS, STRING_FACETS, BOOLEAN_FACETS,
+    FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
@@ -46,62 +47,62 @@ ANY_ATOMIC_TYPE = XsdAtomicRestriction(base_type=ANY_SIMPLE_TYPE, name=xsd_qname
 # XSD builtin validator functions
 def byte_validator(x):
     if not (-2**7 <= x < 2**7):
-        raise XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
+        yield XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
 
 
 def short_validator(x):
     if not (-2**16 <= x < 2**16):
-        raise XMLSchemaValidationError(short_validator, x, "value must be -2^16 <= x < 2^16.")
+        yield XMLSchemaValidationError(short_validator, x, "value must be -2^16 <= x < 2^16.")
 
 
 def int_validator(x):
     if not (-2**63 <= x < 2**63):
-        raise XMLSchemaValidationError(int_validator, x, "value must be -2^63 <= x < 2^63.")
+        yield XMLSchemaValidationError(int_validator, x, "value must be -2^63 <= x < 2^63.")
 
 
 def long_validator(x):
     if not (-2**127 <= x < 2**127):
-        raise XMLSchemaValidationError(long_validator, x, "value must be -2^127 <= x < 2^127.")
+        yield XMLSchemaValidationError(long_validator, x, "value must be -2^127 <= x < 2^127.")
 
 
 def unsigned_byte_validator(x):
     if not (0 <= x < 2**8):
-        raise XMLSchemaValidationError(unsigned_byte_validator, x, "value must be 0 <= x < 256.")
+        yield XMLSchemaValidationError(unsigned_byte_validator, x, "value must be 0 <= x < 256.")
 
 
 def unsigned_short_validator(x):
     if not (0 <= x < 2**32):
-        raise XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^32.")
+        yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^32.")
 
 
 def unsigned_int_validator(x):
     if not (0 <= x < 2**64):
-        raise XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^64.")
+        yield XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^64.")
 
 
 def unsigned_long_validator(x):
     if not (0 <= x < 2**128):
-        raise XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^128.")
+        yield XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^128.")
 
 
 def negative_int_validator(x):
     if x >= 0:
-        raise XMLSchemaValidationError(negative_int_validator, x, reason="value must be negative.")
+        yield XMLSchemaValidationError(negative_int_validator, x, reason="value must be negative.")
 
 
 def positive_int_validator(x):
     if x <= 0:
-        raise XMLSchemaValidationError(positive_int_validator, x, "value must be positive.")
+        yield XMLSchemaValidationError(positive_int_validator, x, "value must be positive.")
 
 
 def non_positive_int_validator(x):
     if x > 0:
-        raise XMLSchemaValidationError(non_positive_int_validator, x, "value must be non positive.")
+        yield XMLSchemaValidationError(non_positive_int_validator, x, "value must be non positive.")
 
 
 def non_negative_int_validator(x):
     if x < 0:
-        raise XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
+        yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
 
 
 def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
@@ -121,7 +122,7 @@ def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
     try:
         datetime.datetime.strptime(date_string, date_format)
     except ValueError:
-        raise XMLSchemaValidationError(
+        yield XMLSchemaValidationError(
             non_negative_int_validator, date_string, "invalid datetime for format %r." % date_format
         )
 
@@ -159,7 +160,7 @@ def update_xsd_builtins(builtin_dict, declarations, xsd_class=None):
                 _facets[_item.name] = _item
             elif callable(_item):
                 if None in _facets:
-                    raise XMLSchemaValueError("Almost one callable!!")
+                    raise XMLSchemaValueError("Almost one callable required!!")
                 _facets[None] = _item
         return _facets
 
@@ -192,7 +193,7 @@ def update_xsd_builtins(builtin_dict, declarations, xsd_class=None):
                 item.update(facets=create_facets(item['facets']))
             builtin_dict[item['name']] = xsd_class(**item)
         else:
-            raise ValueError("Require a sequence of list/tuples or dictionaries")
+            raise XMLSchemaValueError("Require a sequence of list/tuples or dictionaries")
 
 
 XSD_BUILTIN_PRIMITIVE_TYPES = (

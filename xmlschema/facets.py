@@ -101,6 +101,12 @@ class XsdFacet(XsdBase):
         XsdBase.__init__(self, elem=elem, schema=schema)
         self.base_type = base_type
 
+    def iter_decode(self, text, validate=True, **kwargs):
+        return self.base_type.iter_decode(text, validate, **kwargs)
+
+    def iter_encode(self, text, validate=True, **kwargs):
+        return self.base_type.iter_encode(text, validate, **kwargs)
+
 
 class XsdUniqueFacet(XsdFacet):
 
@@ -196,45 +202,45 @@ class XsdUniqueFacet(XsdFacet):
     def white_space_validator(self, x):
         if self.value in ('collapse', 'replace'):
             if u'\t' in x or u'\n' in x:
-                raise XMLSchemaValidationError(self, x)
+                yield XMLSchemaValidationError(self, x)
             if self.value == 'collapse' and u'  ' in x:
-                raise XMLSchemaValidationError(self, x)
+                yield XMLSchemaValidationError(self, x)
 
     def length_validator(self, x):
         if len(x) != self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def min_length_validator(self, x):
         if len(x) < self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def max_length_validator(self, x):
         if len(x) > self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def min_inclusive_validator(self, x):
         if x < self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def min_exclusive_validator(self, x):
         if x <= self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def max_inclusive_validator(self, x):
         if x > self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def max_exclusive_validator(self, x):
         if x >= self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def total_digits_validator(self, x):
         if len([d for d in str(x) if d.isdigit()]) > self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
     def fraction_digits_validator(self, x):
         if len(str(x).partition('.')[2]) > self.value:
-            raise XMLSchemaValidationError(self, x)
+            yield XMLSchemaValidationError(self, x)
 
 
 class XsdEnumerationFacet(MutableSequence, XsdFacet):
@@ -269,7 +275,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __call__(self, value):
         if value not in self.enumeration:
-            raise XMLSchemaValidationError(
+            yield XMLSchemaValidationError(
                 self, value, reason="invalid value, it must be one of %r" % self.enumeration
             )
 
@@ -314,7 +320,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
     def __call__(self, text):
         if all(pattern.search(text) is None for pattern in self.patterns):
             msg = "value don't match any pattern of %r."
-            raise XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+            yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
 
 
 def check_facets_group(facets, admitted_facets, elem=None):
@@ -339,6 +345,7 @@ def check_facets_group(facets, admitted_facets, elem=None):
     if max_length is not None and min_length > max_length:
         raise XMLSchemaParseError("value of 'minLength' is greater than 'maxLength'.", elem)
 
+    # TODO: complete the checks on facets
     if length is not None:
         if min_length > length:
             raise XMLSchemaParseError("value of 'minLength' is greater than 'length'.", elem)

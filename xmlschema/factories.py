@@ -13,7 +13,7 @@ This module contains XSD factories for the 'xmlschema' package.
 """
 import logging
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaLookupError
 from .utils import get_qname, split_qname, split_reference
 from .xsdbase import (
     XSD_SIMPLE_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_LIST_TAG,
@@ -28,9 +28,10 @@ from .facets import (
     XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet,
     XSD_v1_0_FACETS, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG
 )
-from .structures import (
-    XsdAtomicRestriction, XsdList, XsdUnion, XsdComplexType, XsdAttributeGroup,
-    XsdGroup, XsdAttribute, XsdElement, XsdAnyAttribute, XsdAnyElement
+from .components import (
+    XsdElement, XsdAnyAttribute, XsdAnyElement,
+    XsdComplexType, XsdAttributeGroup, XsdGroup, XsdAttribute,
+    XsdAtomicRestriction, XsdList, XsdUnion
 )
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
 
@@ -371,7 +372,7 @@ def xsd_complex_type_factory(elem, schema, **kwargs):
     try:
         xsd_type = xsd_types[type_name]
     except KeyError:
-        xsd_type = None
+        xsd_type = kwargs.pop('xsd_type', None)
     else:
         logger.debug("complexType %r already exists ...", type_name)
         if content_node.tag not in \
@@ -620,7 +621,7 @@ def xsd_element_factory(elem, schema, **kwargs):
         try:
             element_name = get_qname(schema.target_namespace, elem.attrib['name'])
         except KeyError:
-            # Missing also the 'ref' attribute
+            # Missing both 'ref' and 'name' attributes
             raise XMLSchemaParseError("invalid element declaration in XSD schema", elem)
     else:
         # Reference to a global element
@@ -638,6 +639,12 @@ def xsd_element_factory(elem, schema, **kwargs):
             qualified=qualified,
             ref=True
         )
+
+    try:
+        xsd_element = lookup_element(element_name, schema.target_namespace, schema.lookup_table)
+        kwargs.update(xsd_type=xsd_element.type)
+    except XMLSchemaLookupError:
+        xsd_element = None
 
     if 'type' in elem.attrib:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
@@ -659,5 +666,9 @@ def xsd_element_factory(elem, schema, **kwargs):
         else:
             element_type = ANY_TYPE
 
+    if xsd_element is not None:
+        logger.debug("Update element '%s' of type %r", element_name, element_type)
+        xsd_element.type = element_type
+        return element_name, xsd_element
     logger.debug("Add element '%s' of type %r", element_name, element_type)
     return element_name, xsd_element_class(element_name, element_type, elem, schema, qualified=qualified)

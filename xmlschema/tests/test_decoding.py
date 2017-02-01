@@ -18,25 +18,36 @@ import fileinput
 
 def get_tests(pathname):
     import xmlschema
-    from xmlschema.exceptions import XMLSchemaMultipleValidatorErrors
+    from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaValidationError
     from xmlschema.core import XSI_NAMESPACE_PATH
     from xmlschema.utils import get_qname
     from xmlschema.resources import load_xml
 
-    def make_test_decoding_function(xml_root, schema, expected_errors):
+    def make_test_decoding_function(xml_file, schema, expected_errors):
         def test_decoding(self):
             xs = xmlschema.XMLSchema(schema)
-            try:
-                xmlschema.etree_to_dict(xml_root, xs)
-            except XMLSchemaMultipleValidatorErrors as err:
-                if len(getattr(err, 'errors', [])) != expected_errors:
-                    raise
-            else:
-                if expected_errors > 0:
-                    raise ValueError(
-                        "No errors when {} expected!".format(expected_errors)
+            errors = []
+            chunks = []
+            for obj in xs.iter_decode(xml_file):
+                if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                    errors.append(obj)
+                else:
+                    chunks.append(obj)
+
+            if len(errors) != expected_errors:
+                raise ValueError(
+                    "n.%d errors expected, found %d: %s" % (
+                        expected_errors, len(errors), '\n++++++\n'.join(errors[:3])
                     )
-            self.assertTrue(True, "Successfully test decoding for {}".format(xml_root))
+                )
+            if not chunks:
+                raise ValueError("No decoded object returned!!")
+            elif len(chunks) > 1:
+                raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
+            elif not isinstance(chunks[0], dict):
+                raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
+            else:
+                self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
         return test_decoding
 
@@ -71,7 +82,7 @@ def get_tests(pathname):
         else:
             raise ValueError("Not schema for the document!")
 
-        test_func = make_test_decoding_function(xml_root, schema_file, num_errors)
+        test_func = make_test_decoding_function(test_file, schema_file, num_errors)
         test_name = os.path.basename(test_file)
         klassname = 'Test_decoding_{0}'.format(test_name)
         tests[klassname] = type(

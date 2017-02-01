@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <col:collection xmlns:col="http://example.com/ns/collection"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-            xsi:schemaLocation="/home/brunato/Development/projects/xmlschema/xmlschema/tests/examples/collection/collection.xsd">
+            xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
 	<object id="b0836217462" available="true">
 		<position>1</position>
 		<title>The Umbrellas</title>
