@@ -133,20 +133,28 @@ etree_element = ElementTree.Element
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     if PY3:
-        xml_text = ElementTree.tostring(elem, encoding="unicode")
+        lines = ElementTree.tostring(elem, encoding="unicode").splitlines()
     else:
-        xml_text = unicode(ElementTree.tostring(elem))
+        lines = unicode(ElementTree.tostring(elem)).splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop(-1)
+    lines[-1] = '  %s' % lines[-1].strip()
 
-    if max_lines is not None and indent:
-        xml_text = '\n'.join([indent + line for line in xml_text.splitlines()[:max_lines]])
-    elif max_lines is not None:
-        xml_text = '\n'.join(xml_text.splitlines()[:max_lines])
+    if max_lines is not None:
+        if indent:
+            xml_text = '\n'.join([indent + line for line in lines[:max_lines]])
+        else:
+            xml_text = '\n'.join(lines[:max_lines])
+        if len(lines) > max_lines + 2:
+            xml_text += '\n%s    ...\n%s%s' % (indent, indent, lines[-1])
+        elif len(lines) > max_lines:
+            xml_text += '\n%s%s\n%s%s' % (indent, lines[-2], indent, lines[-1])
     elif indent:
-        xml_text = '\n'.join([indent + line for line in xml_text.splitlines()])
+        xml_text = '\n'.join([indent + line for line in lines])
+    else:
+        xml_text = '\n'.join(lines)
 
-    if spaces_for_tab:
-        xml_text.replace('\t', ' ' * spaces_for_tab)
-    return xml_text
+    return xml_text.replace('\t', ' ' * spaces_for_tab) if spaces_for_tab else xml_text
 
 
 def etree_get_namespaces(source):
@@ -161,6 +169,32 @@ def etree_get_namespaces(source):
         return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
     except TypeError:
         return [node for _, node in etree_iterparse(source, events=['start-ns'])]
+
+
+def etree_iterpath(elem, tag=None, path='.'):
+    """
+    A version of ElementTree node's iter function that return a couple
+    with node and its relative path.
+
+    :param elem:
+    :param tag:
+    :param path:
+    :return:
+    """
+    if tag == "*":
+        tag = None
+    if tag is None or elem.tag == tag:
+        yield elem, path
+    for child in elem:
+        if path == '/':
+            child_path = '/%s' % child.tag
+        elif path:
+            child_path = '/'.join((path, child.tag))
+        else:
+            child_path = child.tag
+
+        for _child, _child_path in etree_iterpath(child, tag, path=child_path):
+            yield _child, _child_path
 
 
 class URIDict(MutableMapping):

@@ -13,8 +13,8 @@ This module contains general-purpose utility functions.
 """
 import re
 
-from .core import XSD_NAMESPACE_PATH, urlsplit
-from .exceptions import XMLSchemaValueError
+from .core import XSD_NAMESPACE_PATH
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')
 _RE_STRIP_NAMESPACE = re.compile(r'\{[^}]*\}')
@@ -192,3 +192,44 @@ def meta_next_gen(iterator, container=None):
             yield obj, iterator, container
     except TypeError:
         yield iterator, None, container
+
+
+def listify_update(obj, *args, **kwargs):
+    """
+    Update a dictionary forcing a list of values when the key already exists.
+
+    :param obj: the dictionary-like instance.
+    :param args: couple (key, value) or dictionary.
+    :param kwargs: keyword arguments dictionary.
+    :return:
+    """
+    def _update(k, v):
+        if k not in obj:
+            obj[k] = v
+        elif not isinstance(obj[k], list):
+            obj[k] = [obj[k], v]
+        elif all(not isinstance(i, list) for i in obj[k]):
+            if isinstance(v, list):
+                obj[k] = [obj[k], v]
+            else:
+                obj[k] = [obj[k], [v]]
+        elif isinstance(v, list):
+            obj[k].append(v)
+        else:
+            obj[k].append([v])
+
+    if len(args) > 1:
+        raise XMLSchemaTypeError('listify_update expected at most 1 arguments, got %d' % len(args))
+
+    if args:
+        other = args[0]
+        if hasattr(other, 'items'):
+            for key, value in other.items():
+                _update(key, value)
+        elif isinstance(other, (list, tuple)) and len(other) == 2:
+                _update(other[0], other[1])
+        else:
+            XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
+
+    for key, value in kwargs.items():
+        _update(key, value)

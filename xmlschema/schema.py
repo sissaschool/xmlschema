@@ -23,7 +23,6 @@ from .xsdbase import (
     update_xsd_attributes, update_xsd_attribute_groups, update_xsd_simple_types,
     update_xsd_complex_types, update_xsd_groups, update_xsd_elements
 )
-from .etree import etree_to_dict, etree_validate
 from .resources import load_resource, load_xml
 from .facets import XSD_v1_0_FACETS  # , XSD_v1_1_FACETS
 from .builtins import XSD_BUILTIN_TYPES
@@ -198,7 +197,6 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
 
             for name in elements[1:]:
                 try:
-
                     for xsd_element in target_element.type.content_type.iter_elements():
                         if xsd_element.name == name:
                             if xsd_element.ref:
@@ -239,11 +237,26 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
 
         def iter_errors(self, xml_document, schema=None):
             xml_text, xml_root, xml_uri = load_xml(xml_document)
-            return etree_validate(xml_root, schema or self)
+            schema = schema or self
+            root_path = get_qname(schema.target_namespace, xml_root.tag)
+            xsd_element = schema.get_element(root_path)
+            for error in xsd_element.iter_errors(xml_root):
+                yield error
+
+        def iter_decode(self, xml_document, schema=None):
+            xml_text, xml_root, xml_uri = load_xml(xml_document)
+            schema = schema or self
+            root_path = get_qname(schema.target_namespace, xml_root.tag)
+            xsd_element = schema.get_element(root_path)
+            for obj in xsd_element.iter_decode(xml_root):
+                yield obj
 
         def to_dict(self, xml_document, schema=None):
             xml_text, xml_root, xml_uri = load_xml(xml_document)
-            return etree_to_dict(xml_root, schema or self)
+            schema = schema or self
+            root_path = get_qname(schema.target_namespace, xml_root.tag)
+            xsd_element = schema.get_element(root_path)
+            return xsd_element.decode(xml_root)
 
     # Create the meta schema
     if meta_schema is not None:

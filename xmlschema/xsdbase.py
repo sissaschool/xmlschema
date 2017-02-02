@@ -17,7 +17,8 @@ import logging as _logging
 from .core import PY3, etree_fromstring, etree_get_namespaces
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaParseError,
-    XMLSchemaOSError, XMLSchemaComponentError
+    XMLSchemaOSError, XMLSchemaComponentError, XMLSchemaValidationError,
+    XMLSchemaEncodeError, XMLSchemaDecodeError
 )
 from .utils import camel_case_split, split_qname, xsd_qname
 from .resources import load_uri_or_file, load_resource
@@ -411,3 +412,37 @@ class XsdBase(object):
     @property
     def id(self):
         return self._attrib.get('id')
+
+    def validate(self, obj):
+        for error in self.iter_errors(obj):
+            raise error
+
+    def iter_errors(self, obj):
+        for chunk in self.iter_decode(obj):
+            if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                yield chunk
+
+    def decode(self, obj, validate=True, **kwargs):
+        for obj in self.iter_decode(obj, validate, **kwargs):
+            if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                raise obj
+            return obj
+
+    def encode(self, obj, validate=True, **kwargs):
+        for obj in self.iter_encode(obj, validate, **kwargs):
+            if isinstance(obj, (XMLSchemaEncodeError, XMLSchemaValidationError)):
+                raise obj
+            return obj
+
+    def iter_decode(self, obj, validate=True, **kwargs):
+        """
+        Decode generator method. It generates the object that represents the
+        decoded value or, if there are decoding or validation errors, a sequence
+        of exceptions XMLSchemaValidationError followed by the decoded value. If
+        there is a decoding error the last generated value is the original value
+        or a partial decoded object (eg. in case of a list).
+        """
+        raise NotImplementedError
+
+    def iter_encode(self, obj, validate=True, **kwargs):
+        raise NotImplementedError
