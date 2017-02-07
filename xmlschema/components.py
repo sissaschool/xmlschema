@@ -15,10 +15,11 @@ from collections import MutableMapping, MutableSequence
 
 from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
-from .utils import linked_flatten, meta_next_gen, split_reference, get_qname, listify_update
+from .utils import split_reference, get_qname, listify_update
 from .xsdbase import (
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, lookup_attribute, XsdBase
+    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type,
+    check_value, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
+    lookup_attribute, lookup_element, XsdBase
 )
 from .facets import (
     XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_v1_1_FACETS,
@@ -49,13 +50,8 @@ class ParticleMixin(object):
                 return None
             raise
 
-    def iter_model(self):
-        try:
-            for i in range(self.max_occurs):
-                yield self
-        except TypeError:
-            while True:
-                yield self
+    def is_emptiable(self):
+        return self.min_occurs == 0
 
 
 class XsdAttribute(XsdBase):
@@ -142,24 +138,33 @@ class XsdElement(XsdBase, ParticleMixin):
                 else:
                     if not isinstance(result, dict):
                         raise XMLSchemaTypeError("expected a %r, found %r." % (dict, type(result)))
-                    elif not result:
-                        raise XMLSchemaTypeError("the content dictionary of an element cannot be empty!")
-                    listify_update(result_dict, result)
-        else:
+                    else:
+                        listify_update(result_dict, result)
+            if not result_dict:
+                print(elem.attrib)
+                # raise XMLSchemaTypeError("the content dictionary of an element cannot be empty!")
+        elif elem.text is not None:
             if use_defaults:
                 text = elem.text or self.default
             else:
-                text = elem.text or ''
+                text = elem.text
 
-            for result in self.type.iter_decode(text, validate, **kwargs):
-                if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    yield result
-                elif not result_dict:
-                    yield result
-                    return
-                elif text:
-                    result_dict['_text'] = result
-                    break
+            if hasattr(self.type, 'content_type'):
+                result = unicode_type(text)
+            else:
+                for result in self.type.iter_decode(text, validate, **kwargs):
+                    if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                        yield result
+                    else:
+                        break
+                else:
+                    result = unicode_type(text)
+
+            if not result_dict:
+                yield result
+                return
+            elif text:
+                result_dict['_text'] = result
 
         yield result_dict
 
@@ -167,6 +172,30 @@ class XsdElement(XsdBase, ParticleMixin):
         for result in self.type.iter_encode(obj, validate, **kwargs):
             yield result
             if isinstance(result, XMLSchemaEncodeError):
+                return
+
+    def iter_model(self, elem, index):
+        model_occurs = 0
+        while True:
+            try:
+                qname = get_qname(self._target_namespace, elem[index].tag)
+            except IndexError:
+                if model_occurs == 0 and self.min_occurs > 0:
+                    yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
+                yield index
+                return
+            else:
+                if qname != self.name:
+                    if model_occurs == 0 and self.min_occurs > 0:
+                        yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
+                    else:
+                        yield index
+                    return
+
+            index += 1
+            model_occurs += 1
+            if self.max_occurs is not None and model_occurs >= self.max_occurs:
+                yield index
                 return
 
     def get_attribute(self, name):
@@ -253,7 +282,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
     def __init__(self, name=None, elem=None, schema=None, initdict=None):
         XsdBase.__init__(self, name, elem, schema)
         self._namespaces = schema.namespaces if schema else {}
-        self._lookup_table = schema.lookup_table if schema else {}
+        self._imported_schemas = schema.imported_schemas if schema else {}
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
@@ -288,18 +317,18 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
 
     def iter_decode(self, elem, validate=True, **kwargs):
         required_attributes = {
-            k for k, v in self.items() if k is not None and not v.is_optional()
+            k for k, v in self.items() if k is not None and v.use == 'required'
         }
         result_dict = {}
         for name, value in elem.items():
-            qname = get_qname(self.schema.target_namespace, name)
+            qname = get_qname(self._target_namespace, name)
             try:
                 xsd_attribute = self[qname]
             except KeyError:
                 qname, namespace = split_reference(name, self._namespaces)
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = lookup_attribute(qname, namespace, self._lookup_table)
+                        xsd_attribute = lookup_attribute(qname, namespace, self._imported_schemas)
                     except XMLSchemaLookupError:
                         yield XMLSchemaValidationError(
                             self, name, "not an attribute of the XSI namespace!", elem, self.elem
@@ -386,124 +415,128 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                 check_type(self, name, i, value[i], (XsdGroup, XsdElement, XsdAnyElement))
         super(XsdGroup, self).__setattr__(name, value)
 
+    def clear(self):
+        del self._group[:]
+
+    def is_emptiable(self):
+        return all([item.is_emptiable() for item in self])
+
     def iter_elements(self):
         for item in self:
-            if isinstance(item, XsdElement):
+            if isinstance(item, (XsdElement, XsdAnyElement)):
                 yield item
             elif isinstance(item, XsdGroup):
                 for xsd_element in item.iter_elements():
                     yield xsd_element
 
-    def iter_model(self):
-        try:
-            occurs_iterator = range(self.max_occurs)
-        except TypeError:
-            occurs_iterator = iter(int, 1)
-        gen_cls = type(
-            'XsdGroupGenerator', (list,), {
-                'name': self.name,
-                'model': self.model,
-                'mixed': self.mixed,
-                'is_optional': lambda x: self.is_optional()
-            })
-        for _ in occurs_iterator:
-            if self.model == XSD_SEQUENCE_TAG:
-                for item in self:
-                    yield gen_cls([item.iter_model()])
-            elif self.model == XSD_ALL_TAG:
-                yield gen_cls([item.iter_model() for item in self._group])
-            elif self.model == XSD_CHOICE_TAG:
-                yield gen_cls([item.iter_model() for item in self._group])
-
     def iter_decode(self, elem, validate=True, **kwargs):
+        def not_whitespace(s):
+            return s is not None and s.strip()
+
         # Validate character data between tags
-        if validate and not self.mixed and \
-                (elem.text.strip() or any([child.tail.strip() for child in elem])):
-            yield XMLSchemaValidationError(
-                self, elem, "character data between child elements not allowed!", elem, self.elem
-            )
+        if validate and not self.mixed:
+            if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
+                if len(self) == 1 and isinstance(self[0], XsdAnyElement):
+                    pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
+                else:
+                    yield XMLSchemaValidationError(
+                        self, elem, "character data between child elements not allowed!", elem, self.elem
+                    )
 
         # Decode elements
         group_elements = {e.name: e for e in self.iter_elements()}
         result_dict = {}
-        target_namespace = self.schema.target_namespace
+        target_namespace = self._target_namespace
         for child in elem:
             try:
                 xsd_element = group_elements[get_qname(target_namespace, child.tag)]
             except KeyError:
-                yield XMLSchemaValidationError(
-                    self, child.tag, "element not in schema!", child, self.elem
-                )
-            else:
-                for result in xsd_element.iter_decode(child, validate, **kwargs):
-                    if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                        yield result
-                    else:
-                        listify_update(result_dict, (child.tag, result))
-
-        # Validate child elements
-        model_iterator = self.iter_model()
-        elem_iterator = iter(elem)
-        consumed_child = True
-        while validate:
-            try:
-                content_model = next(model_iterator)
-                validation_group = []
-                for g, c in linked_flatten(content_model):
-                    validation_group.extend([t for t in meta_next_gen(g, c)])
-            except StopIteration:
-                for child in elem_iterator:
-                    yield XMLSchemaValidationError(self, child, "invalid tag", child, self.elem)
-                break
-
-            missing_tags = set([e[0].name for e in validation_group if not e[0].is_optional()])
-            while validation_group:
-                if consumed_child:
-                    try:
-                        child = next(elem_iterator)
-                    except StopIteration:
-                        if missing_tags:
-                            yield XMLSchemaValidationError(
-                                validator=self,
-                                value=elem,
-                                reason="tag expected: {}".format(missing_tags),
-                                elem=elem,
-                                schema_elem=self.elem
-                            )
-                        yield result_dict
-                        return
-                    else:
-                        name = get_qname(target_namespace, child.tag)
-                        consumed_child = False
-
-                for _index, (_element, _iterator, _container) in enumerate(validation_group):
-                    if name == _element.name:
-                        consumed_child = True
-                        missing_tags.discard(name)
-                        try:
-                            validation_group[_index] = (next(_iterator), _iterator, _container)
-                        except StopIteration:
-                            validation_group = []
-                            break
-                        if _container.model == XSD_CHOICE_TAG:
-                            # With choice model reduce the validation_group
-                            # in order to match only the first matched tag.
-                            validation_group = [
-                                (e, g, c) for e, g, c in validation_group if c != _container or g == _iterator
-                            ]
-                            missing_tags.intersection_update({e[0].name for e in validation_group})
+                for xsd_element in self:
+                    if isinstance(xsd_element, XsdAnyElement):
                         break
                 else:
-                    if missing_tags:
-                        if len(missing_tags) == 1:
-                            msg = "element %r expected, found %r." % (missing_tags.pop(), child.tag)
-                        else:
-                            msg = "one element of %r expected, found %r." % (missing_tags, child.tag)
-                        yield XMLSchemaValidationError(self, child, msg, child, self.elem)
-                        consumed_child = True
-                    break
+                    yield XMLSchemaValidationError(
+                        self, child.tag, "element not in schema!", child, self.elem
+                    )
+                    continue
+
+            for result in xsd_element.iter_decode(child, validate, **kwargs):
+                if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                    yield result
+                else:
+                    listify_update(result_dict, (child.tag, result))
+
+        # Validate child elements
+        if validate:
+            for obj in self.iter_model(elem):
+                if isinstance(obj, XMLSchemaValidationError):
+                    yield obj
 
         yield result_dict
+
+    def iter_model(self, elem, index=0):
+        model_occurs = 0
+        reason = "found tag %r when one of %r expected."
+        while index < len(elem):
+            model_index = index
+            if self.model == XSD_SEQUENCE_TAG:
+                for item in self:
+                    for obj in item.iter_model(elem, model_index):
+                        if isinstance(obj, XMLSchemaValidationError):
+                            if model_occurs == 0 and self.min_occurs > 0:
+                                yield obj
+                            else:
+                                yield index
+                            return
+                        else:
+                            model_index = obj
+
+            elif self.model == XSD_ALL_TAG:
+                group = [e for e in self]
+                while group:
+                    for item in group:
+                        for obj in item.iter_model(elem, model_index):
+                            if isinstance(obj, int):
+                                model_index = obj
+                                break
+                        else:
+                            if model_occurs == 0 and self.min_occurs > 0:
+                                yield XMLSchemaValidationError(
+                                    self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
+                                    elem, self.elem
+                                )
+                            else:
+                                yield index
+                            return
+
+                        group.remove(item)
+
+            elif self.model == XSD_CHOICE_TAG:
+                validated = False
+                for item in self:
+                    for obj in item.iter_model(elem, model_index):
+                        if not isinstance(obj, XMLSchemaValidationError):
+                            validated = True
+                            model_index = obj
+                        break
+                    if validated:
+                        break
+                else:
+                    if model_occurs == 0 and self.min_occurs > 0:
+                        group = [e for e in self.iter_elements()]
+                        yield XMLSchemaValidationError(
+                            self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
+                            elem, self.elem
+                        )
+                    else:
+                        yield index
+                    return
+
+            model_occurs += 1
+            index = model_index
+            if self.max_occurs is not None and model_occurs >= self.max_occurs:
+                yield index
+                return
 
     def iter_encode(self, obj, validate=True, **kwargs):
         return
@@ -515,7 +548,7 @@ class XsdAnyAttribute(XsdBase):
         super(XsdAnyAttribute, self).__init__(elem=elem, schema=schema)
         self._target_namespace = schema.target_namespace if schema else ''
         self._namespaces = schema.namespaces if schema else {}
-        self._lookup_table = schema.lookup_table if schema else {}
+        self._imported_schemas = schema.imported_schemas if schema else {}
 
     @property
     def namespace(self):
@@ -538,26 +571,23 @@ class XsdAnyAttribute(XsdBase):
         else:
             attributes = obj.attrib
 
-        any_namespace = self.namespace
         for name, value in attributes.items():
             qname, namespace = split_reference(name, namespaces=self._namespaces)
-            if not (namespace == XSI_NAMESPACE_PATH or namespace != self._target_namespace and
-                    any([x in any_namespace for x in ("##any", "##other", "##local", namespace)]) or
-                    namespace == self._target_namespace and
-                    any([x in any_namespace for x in ("##any", "##targetNamespace", "##local", namespace)])):
+            if self._is_namespace_allowed(namespace, self.namespace):
+                try:
+                    xsd_attribute = lookup_attribute(qname, namespace, self._imported_schemas)
+                except XMLSchemaLookupError:
+                    if self.process_contents == 'strict':
+                        yield XMLSchemaValidationError(
+                            self, name, "attribute not found", obj, self.elem
+                        )
+                else:
+                    for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+                        yield result
+            else:
                 yield XMLSchemaValidationError(
                     self, name, "attribute not allowed for this element", obj, self.elem
                 )
-            try:
-                xsd_attribute = lookup_attribute(qname, namespace, self._lookup_table)
-            except XMLSchemaLookupError:
-                if self.process_contents == 'strict':
-                    yield XMLSchemaValidationError(
-                        self, name, "attribute not found", obj, self.elem
-                    )
-            else:
-                for result in xsd_attribute.iter_decode(value, validate, **kwargs):
-                    yield result
 
 
 class XsdAnyElement(XsdBase, ParticleMixin):
@@ -574,6 +604,40 @@ class XsdAnyElement(XsdBase, ParticleMixin):
         return get_xsd_attribute(
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
+
+    def iter_decode(self, elem, validate=True, **kwargs):
+        if self.process_contents == 'skip':
+            return
+
+        qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
+        if self._is_namespace_allowed(namespace, self.namespace):
+            try:
+                xsd_element = lookup_element(qname, namespace, self._imported_schemas)
+            except XMLSchemaLookupError:
+                if self.process_contents == 'strict' and validate:
+                    yield XMLSchemaValidationError(
+                        self, elem.tag, "element not found", elem, self.elem
+                    )
+            else:
+                for result in xsd_element.iter_decode(elem, validate, **kwargs):
+                    yield result
+        elif validate:
+            yield XMLSchemaValidationError(
+                self, elem.tag, "element not allowed", elem, self.elem
+            )
+
+    def iter_model(self, elem, index):
+        qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
+        if not self._is_namespace_allowed(namespace, self.namespace):
+            return
+
+        try:
+            xsd_element = lookup_element(qname, namespace, self._imported_schemas)
+        except XMLSchemaLookupError:
+            return
+        else:
+            for obj in xsd_element.iter_model(elem, index):
+                yield obj
 
 
 class XsdSimpleType(XsdBase):
@@ -601,6 +665,9 @@ class XsdSimpleType(XsdBase):
             return self.schema.FACETS
         except AttributeError:
             return XSD_v1_1_FACETS.union({None})
+
+    def is_emptiable(self):
+        return None
 
     def normalize(self, obj):
         """

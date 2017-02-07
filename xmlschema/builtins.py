@@ -10,6 +10,8 @@
 #
 """
 This module contains definitions and functions for XSD builtin datatypes.
+Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
+'ENTITIES', 'IDREFS') are created using the XSD meta-schema.
 """
 import datetime
 import re
@@ -17,10 +19,10 @@ from decimal import Decimal
 
 from .core import long_type, unicode_type, etree_element
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
-from .xsdbase import xsd_qname
+from .xsdbase import xsd_qname, XSD_GROUP_TAG
 from .components import (
-    XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList,
-    XsdAttributeGroup, XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
+    XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdAttributeGroup,
+    XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
 )
 from .facets import (
     XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XsdUniqueFacet, XsdPatternsFacet,
@@ -34,7 +36,10 @@ _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 #
 # Special builtin types
 ANY_TYPE = XsdComplexType(
-    content_type=XsdGroup(initlist=[XsdAnyElement()]),
+    content_type=XsdGroup(
+        elem=etree_element(XSD_GROUP_TAG, attrib={'min_occurs': '0'}),
+        initlist=[XsdAnyElement()]
+    ),
     name=xsd_qname('anyType'),
     attributes=XsdAttributeGroup(initdict={None: XsdAnyAttribute()}),
     mixed=True
@@ -402,11 +407,6 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     )   # only negative value allowed [< 0]
 ]
 
-XSD_BUILTIN_LIST_TYPES = (
-    {'name': xsd_qname('NMTOKENS'), 'item_type': xsd_qname('NMTOKEN')},
-    {'name': xsd_qname('ENTITIES'), 'item_type': xsd_qname('ENTITY')},
-    {'name': xsd_qname('IDREFS'), 'item_type': xsd_qname('IDREF')}
-)
 
 #
 # Build XSD built-in types dictionary
@@ -418,7 +418,6 @@ _builtin_types = {
 
 update_xsd_builtins(_builtin_types, XSD_BUILTIN_PRIMITIVE_TYPES)
 update_xsd_builtins(_builtin_types, XSD_BUILTIN_OTHER_ATOMIC_TYPES)
-update_xsd_builtins(_builtin_types, XSD_BUILTIN_LIST_TYPES, xsd_class=XsdList)
 
 XSD_BUILTIN_TYPES = _builtin_types
 """Dictionary for XML Schema built-in types mapping. The values are XSDType instances"""

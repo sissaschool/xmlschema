@@ -12,6 +12,7 @@
 This module contains general-purpose utility functions.
 """
 import re
+from collections import Mapping
 
 from .core import XSD_NAMESPACE_PATH
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
@@ -153,47 +154,6 @@ def camel_case_split(s):
     return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
 
 
-def linked_flatten(obj):
-    """
-    Generate a sequence of 2-tuples from a nested structure of lists/tuples/sets.
-    Each tuple is a couple with an item and the correspondent inner container.
-    """
-    if isinstance(obj, (list, tuple, set)):
-        for item in obj:
-            for _item, _container in linked_flatten(item):
-                if _container is None:
-                    yield _item, obj
-                else:
-                    yield _item, _container
-    else:
-        yield obj, None
-
-
-def meta_next_gen(iterator, container=None):
-    """
-    Generate a 3-tuples of items from an iterator. The iterator's
-    elements are expanded in case of list, tuple or set.
-
-    :param iterator: the root iterator that generates the sequence.
-    :param container: parent container of the iterator.
-    :return: 3-tuple with: an object, a related iterator and the parent
-    container. Returned iterator is None if the argument is not an iterable.
-    """
-    try:
-        obj = next(iterator)
-        if isinstance(obj, (list, tuple, set)):
-            for item in obj:
-                for _obj, _iterator, _container in meta_next_gen(item, obj):
-                    if _iterator is None:
-                        yield _obj, iterator, _container
-                    else:
-                        yield _obj, _iterator, _container
-        else:
-            yield obj, iterator, container
-    except TypeError:
-        yield iterator, None, container
-
-
 def listify_update(obj, *args, **kwargs):
     """
     Update a dictionary forcing a list of values when the key already exists.
@@ -233,3 +193,40 @@ def listify_update(obj, *args, **kwargs):
 
     for key, value in kwargs.items():
         _update(key, value)
+
+
+class FrozenDict(Mapping):
+    """A read-only dictionary for shared maps."""
+
+    def __init__(self, *args, **kwargs):
+        self._data = dict(*args, **kwargs)
+        self._hash = None
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __repr__(self):
+        return '<%s %r at %#x>' % (self.__class__.__name__, self._data, id(self))
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def __eq__(self, other):
+        return dict(self._data.items()) == dict(other.items())
+
+    def __hash__(self):
+        if self._hash is None:
+            h = 0
+            for key, value in self._data.items():
+                h ^= hash((key, value))
+            self._hash = h
+        return self._hash
+
+    def copy(self, **kwargs):
+        return self.__class__(self, **kwargs)

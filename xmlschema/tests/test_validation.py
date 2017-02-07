@@ -40,11 +40,17 @@ def get_tests(pathname):
 
         return test_validation
 
-    if len(sys.argv) > 1:
+    # Two optional int arguments: [<test_only> [<log_level>]]
+    if len(sys.argv) > 2:
         log_level = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=log_level)
+    if len(sys.argv) > 1:
+        test_only = int(sys.argv.pop())
+    else:
+        test_only = None
 
     tests = {}
+    test_num = 0
     for line in fileinput.input(glob.iglob(pathname)):
         line = line.strip()
         if not line or line[0] == '#':
@@ -61,7 +67,7 @@ def get_tests(pathname):
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
             continue
 
-        xml_text, xml_root, xml_uri = load_xml(test_file)
+        xml_root, xml_text, xml_uri = load_xml(test_file)
         xsi_schema_location = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
         schema_locations = xml_root.find('.[@%s]' % xsi_schema_location).attrib.get(xsi_schema_location)
         for schema_location in schema_locations.strip().split():
@@ -72,12 +78,15 @@ def get_tests(pathname):
             raise ValueError("Schema not found for the document!")
 
         test_func = make_test_validation_function(test_file, schema_file, num_errors)
-        test_name = os.path.basename(test_file)
-        klassname = 'Test_validation_{0}'.format(test_name)
-        tests[klassname] = type(
-            klassname, (XMLSchemaTestCase,),
-            {'test_validation_{0}'.format(test_name): test_func}
-        )
+        test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
+        test_num += 1
+        if test_only is None or test_num == test_only:
+            klassname = 'Test_validation_{0}_{1}'.format(test_num, test_name)
+            tests[klassname] = type(
+                klassname, (XMLSchemaTestCase,),
+                {'test_validation_{0}'.format(test_num): test_func}
+            )
+
     return tests
 
 

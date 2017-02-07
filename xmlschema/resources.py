@@ -13,7 +13,8 @@ import errno
 import os.path
 
 from .core import (
-    etree_fromstring, etree_parse_error, urlsplit, urljoin, urlopen, uses_relative, URLError
+    etree_fromstring, etree_tostring, etree_parse_error, etree_iselement,
+    urlsplit, urljoin, urlopen, uses_relative, URLError
 )
 from .exceptions import XMLSchemaOSError
 
@@ -92,21 +93,25 @@ def load_xml(source):
 
     :param source: A string with XML data or the name of the file containing
     the XML data or an URI that refers to the xml resource or a file-like object.
-    :return: a tuple with three items: XML text, root Element and XML URI
+    :return: a tuple with three items: root Element, XML text and XML URI
     """
+    if etree_iselement(source):
+        return source, etree_tostring(source), None
+
     try:
         # The source is a file-like object containing XML data
         xml_data = source.read()
         source.close()
-        return xml_data, etree_fromstring(xml_data), getattr(source, 'name', None)
+        return etree_fromstring(xml_data), xml_data, getattr(source, 'name', None)
     except AttributeError:
         try:
-            # Try il the source is a string containing XML data
-            return source, etree_fromstring(source), None
+            # Try if the source is a string containing XML data
+            return etree_fromstring(source), source, None
         except TypeError:
             raise TypeError(
-                "a file-like or a bytes-like object is required, not %r" % source.__class__.__name__
+                "a file-like or a bytes-like object or an Element "
+                "is required, not %r" % source.__class__.__name__
             )
         except etree_parse_error:
             xml_data, uri = load_uri_or_file(source)
-            return xml_data, etree_fromstring(xml_data), uri
+            return etree_fromstring(xml_data), xml_data, uri

@@ -26,6 +26,10 @@ class XMLSchemaLookupError(XMLSchemaException, LookupError):
     pass
 
 
+class XMLSchemaAttributeError(XMLSchemaException, AttributeError):
+    pass
+
+
 class XMLSchemaTypeError(XMLSchemaException, TypeError):
     pass
 
@@ -36,10 +40,28 @@ class XMLSchemaValueError(XMLSchemaException, ValueError):
 
 class XMLSchemaParseError(XMLSchemaException, ValueError):
     """Raised when an error is found when parsing an XML Schema."""
+
+    def __init__(self, message, elem=None):
+        self.message = message or u''
+        self.elem = elem
+
+    def __str__(self):
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return u''.join([
+            self.message,
+            u"\n\n  %s\n" % etree_tostring(
+                self.elem, max_lines=20
+            ) if self.elem is not None else '',
+        ])
+
+    if PY3:
+        __str__ = __unicode__
     pass
 
 
-class XMLSchemaRegexError(XMLSchemaException, ValueError):
+class XMLSchemaRegexError(XMLSchemaParseError):
     """Raised when an error is found when parsing an XML Schema."""
     pass
 
@@ -94,13 +116,13 @@ class XMLSchemaBaseValidatorError(XMLSchemaException, ValueError):
     def __unicode__(self):
         return u''.join([
             self.message,
-            u'\n\nReason: %s' % self.reason if self.reason is not None else '',
-            u"\n\nSchema:\n\n  %s" % etree_tostring(
-                self.schema_elem, max_lines=10
-            ) if self.schema_elem is not None else '',
-            u"\n\nInstance:\n\n  %s" % etree_tostring(
-                self.elem, max_lines=10
-            ) if self.elem is not None else ''
+            u'\n\nReason: %s\n' % self.reason if self.reason is not None else '\n',
+            u"\nSchema:\n\n  %s\n" % etree_tostring(
+                self.schema_elem, max_lines=20
+            ) if self.schema_elem is not None else '\n',
+            u"\nInstance:\n\n  %s\n" % etree_tostring(
+                self.elem, max_lines=20
+            ) if self.elem is not None else '\n'
         ])
 
     if PY3:

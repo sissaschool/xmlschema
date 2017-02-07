@@ -46,7 +46,8 @@ XML_NAMESPACE_PATH = 'http://www.w3.org/XML/1998/namespace'
 "URI of the XML namespace (xml)"
 
 XHTML_NAMESPACE_PATH = 'http://www.w3.org/1999/xhtml'
-"URI of the Extensible Hypertext Markup Language namespace (html)"
+XHTML_DATATYPES_NAMESPACE_PATH = "http://www.w3.org/1999/xhtml/datatypes/"
+"URIs of the Extensible Hypertext Markup Language namespace (html)"
 
 XSLT_NAMESPACE_PATH = "http://www.w3.org/1999/XSL/Transform"
 "URI of the XSL Transformations namespace (xslt)"
@@ -59,12 +60,9 @@ VC_NAMESPACE_PATH = "http://www.w3.org/2007/XMLSchema-versioning"
 
 
 BASE_SCHEMAS = {
-    XSD_NAMESPACE_PATH: None,
-    XHTML_NAMESPACE_PATH: None,
-    XML_NAMESPACE_PATH: 'schemas/XML/xml.xsd',
-    XSI_NAMESPACE_PATH: 'schemas/XSI/XMLSchema-instance.xsd',
-    XSLT_NAMESPACE_PATH: 'schemas/XSLT/schema-for-xslt20.xsd',
-    HFP_NAMESPACE_PATH: 'schemas/HFP/XMLSchema-hasFacetAndProperty.xsd'
+    XML_NAMESPACE_PATH: 'schemas/xml_minimal.xsd',
+    XSI_NAMESPACE_PATH: 'schemas/XMLSchema-instance_minimal.xsd',
+    HFP_NAMESPACE_PATH: 'schemas/XMLSchema-hasFacetAndProperty_minimal.xsd'
 }
 """Base namespaces and related schema definition path."""
 
@@ -124,11 +122,12 @@ def set_logger(name, loglevel=1, logfile=None):
             handler.setLevel(effective_level)
 
 
-# Define ElementTree API for internal module imports
+# Define alias for ElementTree API for internal module imports
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
+etree_iselement = ElementTree.iselement
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):

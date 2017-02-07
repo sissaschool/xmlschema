@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (c), 2016, SISSA (International School for Advanced Studies).
@@ -21,14 +22,23 @@ def get_tests(pathname):
 
     def make_test_schema_function(xsd_file):
         def test_schema(self):
-            self.assertTrue(xmlschema.XMLSchema(xsd_file), "Successfully created schema for {}".format(xsd_file))
+            self.assertTrue(
+                xmlschema.XMLSchema(xsd_file, check_schema=True),
+                "Successfully created schema for {}".format(xsd_file)
+            )
         return test_schema
 
-    if len(sys.argv) > 1:
+    # Two optional int arguments: [<test_only> [<log_level>]]
+    if len(sys.argv) > 2:
         log_level = int(sys.argv.pop())
         xmlschema.set_logger('xmlschema', loglevel=log_level)
+    if len(sys.argv) > 1:
+        test_only = int(sys.argv.pop())
+    else:
+        test_only = None
 
     tests = {}
+    test_num = 0
     for line in fileinput.input(glob.iglob(pathname)):
         line = line.strip()
         if not line or line[0] == '#':
@@ -39,13 +49,17 @@ def get_tests(pathname):
             continue
 
         test_func = make_test_schema_function(test_file)
-        test_name = os.path.basename(test_file)
-        klassname = 'Test_schema_{0}'.format(test_name)
-        tests[klassname] = type(
-            klassname, (XMLSchemaTestCase,),
-            {'test_schema_{0}'.format(test_name): test_func}
-        )
+        test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
+        test_num += 1
+        if test_only is None or test_num == test_only:
+            klassname = 'Test_schema_{0}_{1}'.format(test_num, test_name)
+            tests[klassname] = type(
+                klassname, (XMLSchemaTestCase,),
+                {'test_schema_{0}'.format(test_num): test_func}
+            )
+
     return tests
+
 
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())

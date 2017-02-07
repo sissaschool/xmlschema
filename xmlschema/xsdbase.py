@@ -14,13 +14,13 @@ This module contains functions for manipulating fully qualified names and XSD qn
 import re
 import logging as _logging
 
-from .core import PY3, etree_fromstring, etree_get_namespaces
+from .core import PY3, etree_fromstring, etree_get_namespaces, XSI_NAMESPACE_PATH
 from .exceptions import (
-    XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaParseError,
-    XMLSchemaOSError, XMLSchemaComponentError, XMLSchemaValidationError,
-    XMLSchemaEncodeError, XMLSchemaDecodeError
+    XMLSchemaValueError, XMLSchemaLookupError, XMLSchemaAttributeError,
+    XMLSchemaOSError, XMLSchemaParseError, XMLSchemaComponentError,
+    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from .utils import camel_case_split, split_qname, xsd_qname
+from .utils import camel_case_split, split_qname, xsd_qname, get_qname, FrozenDict
 from .resources import load_uri_or_file, load_resource
 
 
@@ -131,24 +131,37 @@ def get_xsd_annotation(elem):
         return None
 
 
-def get_xsd_declarations(elem, min_occurs=0, max_occurs=None):
+def get_xsd_declaration(elem, required=True, strict=True):
+    declarations_iterator = iter_xsd_declarations(elem)
+    try:
+        xsd_declaration = next(declarations_iterator)
+    except StopIteration:
+        if required:
+            raise XMLSchemaParseError("missing declaration", elem)
+        return None
+    else:
+        if not strict:
+            return xsd_declaration
+        try:
+            next(declarations_iterator)
+        except StopIteration:
+            return xsd_declaration
+        else:
+            raise XMLSchemaParseError("too many declarations", elem)
+
+
+def iter_xsd_declarations(elem):
     """
     Get the node's children are XSD declarations, excluding annotations.
     """
-    declarations = [child for child in elem if child.tag != XSD_ANNOTATION_TAG]
-    occurs = len(declarations)
-    if occurs < min_occurs:
-        raise XMLSchemaParseError("too few declarations (minOccurs={})".format(min_occurs), elem)
-    elif max_occurs is not None and occurs > max_occurs:
-        raise XMLSchemaParseError("too many declarations (maxOccurs={})".format(max_occurs), elem)
-    return declarations
-
-
-def get_xsd_declaration(elem, min_occurs=0):
-    try:
-        return get_xsd_declarations(elem, min_occurs=min_occurs, max_occurs=1)[0]
-    except IndexError:
-        return None
+    counter = 0
+    for child in elem:
+        if child.tag == XSD_ANNOTATION_TAG:
+            if counter > 0:
+                raise XMLSchemaParseError("XSD annotation not allowed here!", elem=elem)
+        else:
+            yield child
+            counter += 1
 
 
 def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
@@ -214,7 +227,9 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
             )
 
 
-def _create_iterfind_by_tag(tag):
+#
+# Define an iterfind function for some XML Schema elements
+def create_iterfind_by_tag(tag):
     """
     Defines a generator that produce all subelements that have a specific tag.
     """
@@ -234,42 +249,49 @@ def _create_iterfind_by_tag(tag):
 
     return iterfind_function
 
+iterfind_xsd_imports = create_iterfind_by_tag(XSD_IMPORT_TAG)
+iterfind_xsd_inclusions = create_iterfind_by_tag(XSD_INCLUDE_TAG)
+iterfind_xsd_redefinitions = create_iterfind_by_tag(XSD_REDEFINE_TAG)
+iterfind_xsd_simple_types = create_iterfind_by_tag(XSD_SIMPLE_TYPE_TAG)
+iterfind_xsd_complex_types = create_iterfind_by_tag(XSD_COMPLEX_TYPE_TAG)
+iterfind_xsd_attributes = create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
+iterfind_xsd_attribute_groups = create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
+iterfind_xsd_elements = create_iterfind_by_tag(XSD_ELEMENT_TAG)
+iterfind_xsd_groups = create_iterfind_by_tag(XSD_GROUP_TAG)
 
-iterfind_xsd_imports = _create_iterfind_by_tag(XSD_IMPORT_TAG)
-iterfind_xsd_inclusions = _create_iterfind_by_tag(XSD_INCLUDE_TAG)
-iterfind_xsd_redefinitions = _create_iterfind_by_tag(XSD_REDEFINE_TAG)
-iterfind_xsd_simple_types = _create_iterfind_by_tag(XSD_SIMPLE_TYPE_TAG)
-iterfind_xsd_complex_types = _create_iterfind_by_tag(XSD_COMPLEX_TYPE_TAG)
-iterfind_xsd_attributes = _create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
-iterfind_xsd_attribute_groups = _create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
-iterfind_xsd_elements = _create_iterfind_by_tag(XSD_ELEMENT_TAG)
-iterfind_xsd_groups = _create_iterfind_by_tag(XSD_GROUP_TAG)
 
-
-def create_lookup_function(lookup_table):
+#
+# Define a lookup function for each structure of the XML Schema
+def create_lookup_function(table_name):
     """
-    Defines a lookup function for a specific map on multiple schema's instances.
+    Defines a lookup function for a specific map of the XMLSchema class.
     """
-    def lookup_function(qname_or_path, namespace, lookup_schemas):
+    def lookup_function(qname, namespace, imported_schemas):
         try:
-            schema = lookup_schemas[namespace]
+            schema = imported_schemas[namespace]
         except KeyError as err:
-            raise XMLSchemaLookupError("Namespace not mapped {}!".format(err))
+            raise XMLSchemaLookupError("Namespace %r not imported!" % err)
 
         try:
-            return getattr(schema, lookup_table)[qname_or_path]
+            return getattr(schema, table_name)[qname]
         except KeyError as err:
             try:
                 # Try the empty namespace for imported schemas without namespace attribute
-                return getattr(lookup_schemas[''], lookup_table)[qname_or_path]
+                return getattr(imported_schemas[''], table_name)[qname]
             except KeyError:
                 raise XMLSchemaLookupError("Missing XSD reference %s!" % err)
 
     return lookup_function
 
+lookup_type = create_lookup_function("types")
 lookup_attribute = create_lookup_function("attributes")
+lookup_element = create_lookup_function("elements")
+lookup_group = create_lookup_function("groups")
+lookup_attribute_group = create_lookup_function("attribute_groups")
 
 
+#
+# Define an update function for each structure of the XML Schema
 def create_update_function(factory_key, filter_function):
 
     def update_xsd_map(schema, target, elements, **kwargs):
@@ -282,12 +304,22 @@ def create_update_function(factory_key, filter_function):
             missing = list()
             for elem in elements:
                 try:
-                    name_or_path, xsd_instance = factory_function(elem, schema, **kwargs)
+                    qname = get_qname(schema.target_namespace, elem.attrib['name'])
+                except KeyError:
+                    print(elem.attrib)
+                    continue  # Skip local declarations
+
+                try:
+                    name_or_path, xsd_instance = factory_function(
+                        elem, schema, instance=target.get(qname), **kwargs
+                    )
                 except XMLSchemaLookupError as err:
                     _logger.debug("XSD reference %s not yet defined: elem.attrib=%r", err, elem.attrib)
                     missing.append(elem)
                 else:
                     _logger.debug("Update XSD reference: target[%r] = %r", name_or_path, xsd_instance)
+                    if qname != name_or_path:
+                        print(name_or_path)
                     target[name_or_path] = xsd_instance
 
             if not missing:
@@ -363,7 +395,7 @@ class XsdBase(object):
     :param name: Name associated with the definition
     :param elem: ElementTree's node containing the definition
     """
-    EMPTY_DICT = {}
+    _DUMMY_DICT = FrozenDict()
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
@@ -371,7 +403,20 @@ class XsdBase(object):
         self.name = name
         self.elem = elem
         self.schema = schema
-        self._attrib = dict(elem.attrib) if elem is not None else self.EMPTY_DICT
+
+    def __setattr__(self, name, value):
+        if name == "elem":
+            self._attrib = value.attrib if value is not None else self._DUMMY_DICT
+        elif name == "schema":
+            if value is not None:
+                self._target_namespace = value.target_namespace
+                self._namespaces = value.namespaces
+                self._imported_schemas = value.imported_schemas
+            else:
+                self._target_namespace = ''
+                self._namespaces = self._DUMMY_DICT
+                self._imported_schemas = self._DUMMY_DICT
+        super(XsdBase, self).__setattr__(name, value)
 
     def __repr__(self):
         return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
@@ -393,11 +438,11 @@ class XsdBase(object):
         Get the namespace attribute value for anyAttribute and anyElement declaration,
         checking if the value is conforming to the specification.
         """
-        value = get_xsd_attribute(self.elem, 'namespace', default='##all')
+        value = get_xsd_attribute(self.elem, 'namespace', default='##any')
         items = value.strip().split()
         if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
             return value
-        elif not all([s not in ('##all', '##other') for s in items]):
+        elif not all([s not in ('##any', '##other') for s in items]):
             raise XMLSchemaValueError("wrong value %r for the 'namespace' attribute." % value, self)
         return value
 
@@ -409,9 +454,31 @@ class XsdBase(object):
         elif not all([s not in values for s in items]):
             raise XMLSchemaValueError("wrong value %r for attribute %r" % (value, attribute), self)
 
+    def _is_namespace_allowed(self, namespace, any_namespace):
+        if any_namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
+            return True
+        elif any_namespace == '##other':
+            return namespace != self._target_namespace
+        else:
+            any_namespaces = any_namespace.split()
+            if '##local' in any_namespaces and namespace == '':
+                return True
+            elif '##targetNamespace' in any_namespaces and namespace == self._target_namespace:
+                return True
+            else:
+                return namespace in any_namespaces
+
     @property
     def id(self):
         return self._attrib.get('id')
+
+    def update_attrs(self, **kwargs):
+        """For simplify the schema building when an instance update is needed."""
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
+            else:
+                raise XMLSchemaAttributeError("%r object has no attribute %r" % (self, k))
 
     def validate(self, obj):
         for error in self.iter_errors(obj):
