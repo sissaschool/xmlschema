@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (c), 2016, SISSA (International School for Advanced Studies).
@@ -21,7 +22,7 @@ def get_tests(pathname):
     from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaValidationError
     from xmlschema.core import XSI_NAMESPACE_PATH
     from xmlschema.utils import get_qname
-    from xmlschema.resources import load_xml
+    from xmlschema.resources import load_xml_resource
 
     def make_test_decoding_function(xml_file, schema, expected_errors):
         def test_decoding(self):
@@ -78,7 +79,7 @@ def get_tests(pathname):
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
             continue
 
-        xml_root, xml_text, xml_uri = load_xml(test_file)
+        xml_root = load_xml_resource(test_file)
         xsi_schema_location = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
         schema_locations = xml_root.find('.[@%s]' % xsi_schema_location).attrib.get(xsi_schema_location)
         for schema_location in schema_locations.strip().split():
@@ -97,7 +98,6 @@ def get_tests(pathname):
                 klassname, (XMLSchemaTestCase,),
                 {'test_decoding_{0}'.format(test_num): test_func}
             )
-
 
     return tests
 

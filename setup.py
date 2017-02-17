@@ -15,26 +15,27 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.8.1b6',
+    version='0.9',
     packages=['xmlschema', 'xmlschema.tests'],
-    package_data={
-        'xmlschema': ['schemas/*/*.xsd', 'tests/examples/*']
-    },
+    package_data={'xmlschema': [
+        'schemas/*.xsd', 'schemas/*/*.xsd', 'tests/examples/*', 'tests/examples/*/*'
+    ]},
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
     license='MIT',
     long_description=long_description,
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: Implementation :: CPython',
         'Topic :: Software Development :: Libraries'
     ]

@@ -17,7 +17,9 @@ from collections import MutableSequence
 from .core import XSD_NAMESPACE_PATH
 from .exceptions import *
 from .utils import get_qname, split_qname
-from .xsdbase import xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .xsdbase import (
+    xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+)
 from .regex import get_python_regex
 
 #

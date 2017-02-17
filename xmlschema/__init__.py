@@ -10,13 +10,13 @@
 #
 from .core import set_logger
 from .exceptions import XMLSchemaException
-from .schema import validate, to_dict, XMLSchema, XMLSchema_v1_0
+from .schema import validate, to_dict, XMLSchema
 
-__version__ = '0.8.1b6'
+__version__ = '0.9'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2017, SISSA"
 __license__ = "MIT"
-__status__ = "Development"
+__status__ = "Production/Stable"
 
 set_logger(__name__)

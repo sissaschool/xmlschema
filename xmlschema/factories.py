@@ -417,20 +417,20 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
     if content_node is None:
         # Empty complexType ==> return a new 'xs:anyType' instance
         if instance is None:
-            content_type = xsd_group_class(initlist=[XsdAnyElement()])
+            content_type = xsd_group_class(initlist=[XsdAnyElement()], mixed=True)
             attributes = xsd_attribute_group_class(
                 elem=elem, schema=schema, initdict={None: XsdAnyAttribute()}
             )
         mixed = True
     elif content_node.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG):
         if instance is None:
-            content_type = xsd_group_class(elem=elem, schema=schema)
+            content_type = xsd_group_class(elem=elem, schema=schema, mixed=mixed)
             attributes = xsd_attribute_group_class(elem=elem, schema=schema)
 
         if parse_content_type and content_type.model is None:
             content_type.model = content_node.tag
             # Build type's content model only when a parent path is provided
-            xsd_group = group_factory(content_node, schema, **kwargs)[1]
+            xsd_group = group_factory(content_node, schema, mixed=mixed, **kwargs)[1]
             content_type.extend(xsd_group)
             content_type.__dict__.update(xsd_group.__dict__)
 
@@ -473,7 +473,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
             if content_declaration is not None:
                 if content_declaration.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
                     content_type.model = content_declaration.tag
-                    xsd_group = group_factory(content_declaration, schema, **kwargs)[1]
+                    xsd_group = group_factory(content_declaration, schema, mixed=mixed, **kwargs)[1]
                     if content_spec.tag == XSD_RESTRICTION_TAG:
                         pass  # TODO: Checks if restrictions are effective.
                     content_type.extend(xsd_group)
@@ -581,9 +581,9 @@ def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
         elif child.tag == XSD_ATTRIBUTE_TAG:
             attribute_group.update([attribute_factory(child, schema, **kwargs)])
         elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
-            _attribute_group_qname, namespace = split_reference(get_xsd_attribute(child, 'ref'), schema.namespaces)
-            _attribute_group = lookup_attribute_group(_attribute_group_qname, namespace, schema.imported_schemas)
-            attribute_group.update(_attribute_group.items())
+            qname, namespace = split_reference(get_xsd_attribute(child, 'ref'), schema.namespaces)
+            ref_attribute_group = lookup_attribute_group(qname, namespace, schema.imported_schemas)
+            attribute_group.update(ref_attribute_group.items())
         elif attribute_group.name is not None:
             raise XMLSchemaParseError("(attribute | attributeGroup) expected, found", child)
     return str(attribute_group_name), attribute_group
@@ -608,6 +608,7 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
     element_factory = kwargs.get('element_factory', xsd_element_factory)
     xsd_group_class = kwargs.get('xsd_group_class', XsdGroup)
     xsd_any_class = kwargs.get('xsd_any_class', XsdAnyElement)
+    mixed = kwargs.pop('mixed', False)
     if not isinstance(instance, (type(None), xsd_group_class)):
         raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_group_class))
 
@@ -627,7 +628,7 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
                 elem=elem,
                 schema=schema,
                 model=xsd_group.model,
-                mixed=xsd_group.mixed,
+                mixed=mixed,
                 initlist=list(xsd_group)
             )
         else:
@@ -643,9 +644,11 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
 
     check_tag(content_model, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_GROUP_TAG)
     if instance is None:
-        xsd_group = xsd_group_class(name=group_name, elem=elem, schema=schema, model=content_model.tag)
+        xsd_group = xsd_group_class(
+            name=group_name, elem=elem, schema=schema, model=content_model.tag, mixed=mixed
+        )
     else:
-        instance.update_attrs(elem=elem, schema=schema, model=content_model.tag)
+        instance.update_attrs(elem=elem, schema=schema, model=content_model.tag, mixed=mixed)
         xsd_group = instance
         xsd_group.clear()
     for child in iter_xsd_declarations(content_model):
@@ -657,7 +660,7 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
         elif child.tag == XSD_ANY_TAG:
             xsd_group.append(xsd_any_class(child, schema))
         elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
-            xsd_group.append(group_factory(child, schema, **kwargs)[1])
+            xsd_group.append(group_factory(child, schema, mixed=mixed, **kwargs)[1])
     return group_name, xsd_group
 
 

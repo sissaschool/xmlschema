@@ -13,19 +13,19 @@ This module contains base classes, functions and constants for the package.
 """
 import logging
 import sys
-from io import StringIO
 from xml.etree import ElementTree
-from collections import MutableMapping
 
 try:
     # Python 3 specific imports
     from urllib.request import urlopen, urljoin, urlsplit
     from urllib.parse import uses_relative, urlparse
     from urllib.error import URLError
+    from io import StringIO
 except ImportError:
     # Python 2 fallback
     from urllib2 import urlopen, URLError
     from urlparse import urlsplit, urljoin, uses_relative, urlparse
+    from StringIO import StringIO  # the io.StringIO accepts only unicode type
 
 PY3 = sys.version_info[0] >= 3
 
@@ -49,6 +49,9 @@ XHTML_NAMESPACE_PATH = 'http://www.w3.org/1999/xhtml'
 XHTML_DATATYPES_NAMESPACE_PATH = "http://www.w3.org/1999/xhtml/datatypes/"
 "URIs of the Extensible Hypertext Markup Language namespace (html)"
 
+XLINK_NAMESPACE_PATH = 'http://www.w3.org/1999/xlink'
+"URI of the XML Linking Language (XLink)"
+
 XSLT_NAMESPACE_PATH = "http://www.w3.org/1999/XSL/Transform"
 "URI of the XSL Transformations namespace (xslt)"
 
@@ -57,14 +60,6 @@ HFP_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 
 VC_NAMESPACE_PATH = "http://www.w3.org/2007/XMLSchema-versioning"
 "URI of the XML Schema Versioning namespace (vc)"
-
-
-BASE_SCHEMAS = {
-    XML_NAMESPACE_PATH: 'schemas/xml_minimal.xsd',
-    XSI_NAMESPACE_PATH: 'schemas/XMLSchema-instance_minimal.xsd',
-    HFP_NAMESPACE_PATH: 'schemas/XMLSchema-hasFacetAndProperty_minimal.xsd'
-}
-"""Base namespaces and related schema definition path."""
 
 
 # Register missing namespaces into imported ElementTree module
@@ -160,25 +155,16 @@ def etree_get_namespaces(source):
     """
     Extract namespaces with related prefixes from schema source.
 
-    Note: cannot use the schema tree because the ElementTree library can modify
-    the mapping of namespace's prefixes without updating the references (cannot
-    change them because ElementTree doesn't parse XSD).
+    Note: can't extract the namespace information directly from the ElementTree
+    instance because the namespace registrations are shared among different trees.
     """
-    try:
-        return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
-    except TypeError:
-        return [node for _, node in etree_iterparse(source, events=['start-ns'])]
+    return [node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))]
 
 
 def etree_iterpath(elem, tag=None, path='.'):
     """
     A version of ElementTree node's iter function that return a couple
     with node and its relative path.
-
-    :param elem:
-    :param tag:
-    :param path:
-    :return:
     """
     if tag == "*":
         tag = None
@@ -194,34 +180,3 @@ def etree_iterpath(elem, tag=None, path='.'):
 
         for _child, _child_path in etree_iterpath(child, tag, path=child_path):
             yield _child, _child_path
-
-
-class URIDict(MutableMapping):
-    """
-    Dictionary which uses normalized URIs as keys.
-    """
-    @staticmethod
-    def normalize(uri):
-        return urlsplit(uri).geturl()
-
-    def __init__(self, *args, **kwargs):
-        self._store = dict()
-        self._store.update(*args, **kwargs)
-
-    def __getitem__(self, uri):
-        return self._store[self.normalize(uri)]
-
-    def __setitem__(self, uri, value):
-        self._store[self.normalize(uri)] = value
-
-    def __delitem__(self, uri):
-        del self._store[self.normalize(uri)]
-
-    def __iter__(self):
-        return iter(self._store)
-
-    def __len__(self):
-        return len(self._store)
-
-    def __repr__(self):
-        return repr(self._store)

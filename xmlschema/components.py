@@ -19,7 +19,7 @@ from .utils import split_reference, get_qname, listify_update
 from .xsdbase import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type,
     check_value, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
-    lookup_attribute, lookup_element, XsdBase
+    lookup_attribute, lookup_element, lookup_base_element, XsdBase
 )
 from .facets import (
     XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_v1_1_FACETS,
@@ -141,8 +141,14 @@ class XsdElement(XsdBase, ParticleMixin):
                     else:
                         listify_update(result_dict, result)
             if not result_dict:
-                print(elem.attrib)
-                # raise XMLSchemaTypeError("the content dictionary of an element cannot be empty!")
+                # The subelements are not decodable so transforms them to string
+                result = '\n'.join([etree_tostring(child) for child in elem])
+                if not result_dict:
+                    yield result
+                    return
+                elif result:
+                    result_dict['_text'] = result
+
         elif elem.text is not None:
             if use_defaults:
                 text = elem.text or self.default
@@ -182,7 +188,8 @@ class XsdElement(XsdBase, ParticleMixin):
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
                     yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
-                yield index
+                else:
+                    yield index
                 return
             else:
                 if qname != self.name:
@@ -312,7 +319,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
         if name == '_attribute_group':
             check_type(self, name, None, value, (dict,))
             for k, v in value.items():
-                check_type(self, name, dict, v, (XsdAnyAttribute,))
+                check_type(self, name, dict, v, (XsdAnyAttribute, XsdAttribute))
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
     def iter_decode(self, elem, validate=True, **kwargs):
@@ -475,6 +482,9 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
         yield result_dict
 
     def iter_model(self, elem, index=0):
+        if not len(self):
+            return  # Skip empty groups!
+
         model_occurs = 0
         reason = "found tag %r when one of %r expected."
         while index < len(elem):
@@ -485,7 +495,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                         if isinstance(obj, XMLSchemaValidationError):
                             if model_occurs == 0 and self.min_occurs > 0:
                                 yield obj
-                            else:
+                            elif model_occurs:
                                 yield index
                             return
                         else:
@@ -500,16 +510,18 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                                 model_index = obj
                                 break
                         else:
-                            if model_occurs == 0 and self.min_occurs > 0:
-                                yield XMLSchemaValidationError(
-                                    self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
-                                    elem, self.elem
-                                )
-                            else:
-                                yield index
-                            return
-
-                        group.remove(item)
+                            continue
+                        break
+                    else:
+                        if model_occurs == 0 and self.min_occurs > 0:
+                            yield XMLSchemaValidationError(
+                                self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
+                                elem, self.elem
+                            )
+                        elif model_occurs:
+                            yield index
+                        return
+                    group.remove(item)
 
             elif self.model == XSD_CHOICE_TAG:
                 validated = False
@@ -528,7 +540,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                             self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
                             elem, self.elem
                         )
-                    else:
+                    elif model_occurs:
                         yield index
                     return
 
@@ -612,7 +624,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
         qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
-                xsd_element = lookup_element(qname, namespace, self._imported_schemas)
+                xsd_element = lookup_base_element(qname, namespace, self._imported_schemas)
             except XMLSchemaLookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(
@@ -621,6 +633,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
             else:
                 for result in xsd_element.iter_decode(elem, validate, **kwargs):
                     yield result
+
         elif validate:
             yield XMLSchemaValidationError(
                 self, elem.tag, "element not allowed", elem, self.elem
@@ -665,9 +678,6 @@ class XsdSimpleType(XsdBase):
             return self.schema.FACETS
         except AttributeError:
             return XSD_v1_1_FACETS.union({None})
-
-    def is_emptiable(self):
-        return None
 
     def normalize(self, obj):
         """

@@ -12,9 +12,9 @@
 This module contains general-purpose utility functions.
 """
 import re
-from collections import Mapping
+from collections import Mapping, MutableMapping
 
-from .core import XSD_NAMESPACE_PATH
+from .core import urlsplit
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')
@@ -118,21 +118,6 @@ def uri_to_prefixes(text, namespaces):
     return text
 
 
-def xsd_qname(name):
-    """
-    Build a QName for XSD namespace from a local name.
-
-    :param name: local name/tag
-    :return: fully qualified name for XSD namespace
-    """
-    if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
-        raise XMLSchemaValueError("'%s' is not a name of the XSD namespace" % name)
-    else:
-        return name
-
-
 #
 # Other utility functions
 def dump_args(func):
@@ -189,10 +174,41 @@ def listify_update(obj, *args, **kwargs):
         elif isinstance(other, (list, tuple)) and len(other) == 2:
                 _update(other[0], other[1])
         else:
-            XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
+            raise XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
 
     for key, value in kwargs.items():
         _update(key, value)
+
+
+class URIDict(MutableMapping):
+    """
+    Dictionary which uses normalized URIs as keys.
+    """
+    @staticmethod
+    def normalize(uri):
+        return urlsplit(uri).geturl()
+
+    def __init__(self, *args, **kwargs):
+        self._store = dict()
+        self._store.update(*args, **kwargs)
+
+    def __getitem__(self, uri):
+        return self._store[self.normalize(uri)]
+
+    def __setitem__(self, uri, value):
+        self._store[self.normalize(uri)] = value
+
+    def __delitem__(self, uri):
+        del self._store[self.normalize(uri)]
+
+    def __iter__(self):
+        return iter(self._store)
+
+    def __len__(self):
+        return len(self._store)
+
+    def __repr__(self):
+        return repr(self._store)
 
 
 class FrozenDict(Mapping):

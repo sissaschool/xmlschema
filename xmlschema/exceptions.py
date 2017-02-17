@@ -11,7 +11,7 @@
 """
 This module contains the exception classes of the 'xmlschema' package.
 """
-from .core import PY3, etree_tostring
+from .core import PY3, etree_tostring, URLError
 
 
 class XMLSchemaException(Exception):
@@ -35,6 +35,10 @@ class XMLSchemaTypeError(XMLSchemaException, TypeError):
 
 
 class XMLSchemaValueError(XMLSchemaException, ValueError):
+    pass
+
+
+class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
 
 
@@ -132,10 +136,10 @@ class XMLSchemaBaseValidatorError(XMLSchemaException, ValueError):
 class XMLSchemaDecodeError(XMLSchemaBaseValidatorError):
     """Raised when an XML data string is not decodable to a Python object."""
 
-    def __init__(self, validator, text, decoder, reason=None, schema_elem=None, elem=None):
-        self.message = u"cannot decode '%s' using the type %r of validator %r." % (text, decoder, validator)
+    def __init__(self, validator, obj, decoder, reason=None, schema_elem=None, elem=None):
+        self.message = u"cannot decode %r using the type %r of validator %r." % (obj, decoder, validator)
         self.validator = validator
-        self.text = text
+        self.obj = obj
         self.decoder = decoder
         self.reason = reason
         self.elem = elem

@@ -19,13 +19,29 @@ import glob
 
 def get_tests(pathname):
     import xmlschema
+    from xmlschema.exceptions import XMLSchemaParseError
 
-    def make_test_schema_function(xsd_file):
+    def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
-            self.assertTrue(
-                xmlschema.XMLSchema(xsd_file, check_schema=True),
-                "Successfully created schema for {}".format(xsd_file)
-            )
+            xs = xmlschema.XMLSchema.META_SCHEMA
+            errors = [str(e) for e in xs.iter_errors(xsd_file)]
+
+            try:
+                xmlschema.XMLSchema(xsd_file)
+            except XMLSchemaParseError as err:
+                num_errors = len(errors) + 1
+                errors.append(str(err))
+            else:
+                num_errors = len(errors)
+
+            if num_errors != expected_errors:
+                raise ValueError(
+                    "n.%d errors expected, found %d: %s" % (
+                        expected_errors, num_errors, '\n++++++\n'.join(errors[:3])
+                    )
+                )
+            else:
+                self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
         return test_schema
 
     # Two optional int arguments: [<test_only> [<log_level>]]
@@ -44,11 +60,18 @@ def get_tests(pathname):
         if not line or line[0] == '#':
             continue
 
-        test_file = os.path.join(os.path.dirname(fileinput.filename()), line)
+        test_args = get_test_args(line)
+        filename = test_args[0]
+        try:
+            num_errors = int(test_args[1])
+        except IndexError:
+            num_errors = 0
+
+        test_file = os.path.join(os.path.dirname(fileinput.filename()), filename)
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xsd':
             continue
 
-        test_func = make_test_schema_function(test_file)
+        test_func = make_test_schema_function(test_file, num_errors)
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
         test_num += 1
         if test_only is None or test_num == test_only:

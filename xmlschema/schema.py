@@ -12,18 +12,23 @@
 This module contains XMLSchema class creator for xmlschema package.
 """
 import logging
+import os.path
 
 from .core import (
-    XSD_NAMESPACE_PATH, XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, BASE_SCHEMAS, etree_get_namespaces, URIDict
+    XSD_NAMESPACE_PATH, XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH,
+    XHTML_NAMESPACE_PATH, HFP_NAMESPACE_PATH, etree_get_namespaces
 )
-from .exceptions import XMLSchemaValueError, XMLSchemaLookupError
-from .utils import get_namespace, split_path, get_qualified_path, get_qname
+from .exceptions import (
+    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaParseError,
+    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaURLError
+)
+from .utils import URIDict
 from .xsdbase import (
-    check_tag, XSD_SCHEMA_TAG, xsd_include_schemas, iterfind_xsd_imports, lookup_attribute,
-    update_xsd_attributes, update_xsd_attribute_groups, update_xsd_simple_types,
-    update_xsd_complex_types, update_xsd_groups, update_xsd_elements
+    check_tag, get_xsi_schema_location, XSD_SCHEMA_TAG, update_xsd_attributes,
+    update_xsd_attribute_groups, update_xsd_simple_types, update_xsd_complex_types,
+    update_xsd_groups, update_xsd_elements, xsd_include_schemas, iterfind_xsd_imports
 )
-from .resources import load_resource, load_xml
+from .resources import open_resource, load_xml_resource
 from .facets import XSD_v1_0_FACETS
 from .builtins import XSD_BUILTIN_TYPES
 from .factories import (
@@ -47,13 +52,16 @@ DEFAULT_OPTIONS = {
 }
 """Default options for building XSD schema elements."""
 
-
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 
 def create_validator(version=None, meta_schema=None, base_schemas=None, facets=None,
                      builtin_types=None, **options):
+
+    if base_schemas is None:
+        base_schemas = {}
+    else:
+        base_schemas = {k: os.path.join(SCHEMAS_DIR, v) for k, v in base_schemas.items()}
 
     validator_options = dict(DEFAULT_OPTIONS.items())
     for opt in validator_options:
@@ -72,7 +80,7 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
 
         include_schemas = OPTIONS.pop('inclusion_method')
 
-        def __init__(self, schema, check_schema=False):
+        def __init__(self, schema, check_schema=False, imported_schemas=None):
             """
             Initialize an XML schema instance.
 
@@ -80,7 +88,11 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
             that reference to a schema definition, a path to a file containing
             the schema or a file-like object containing the schema.
             """
-            self._root, self.text, self.uri = load_xml(schema)
+            try:
+                self._root, self.text, self.uri = load_xml_resource(schema, element_only=False)
+            except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+                raise type(err)('cannot create schema: %s' % err)
+
             check_tag(self._root, XSD_SCHEMA_TAG)
             if check_schema and self.META_SCHEMA is not None:
                 self.check_schema(self._root)
@@ -88,9 +100,11 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
             self.target_namespace = self._root.attrib.get('targetNamespace', '')
             self.element_form = self._root.attrib.get('elementFormDefault', 'unqualified')
             self.attribute_form = self._root.attrib.get('attributeFormDefault', 'unqualified')
-            self._schema_location = self._root.attrib.get(XSI_SCHEMA_LOCATION)
+            self._schema_location = get_xsi_schema_location(self._root)
 
-            if self.META_SCHEMA is not None:
+            if isinstance(imported_schemas, URIDict):
+                self.imported_schemas = imported_schemas
+            elif self.META_SCHEMA is not None:
                 self.imported_schemas = URIDict(self.BASE_SCHEMAS)
             else:
                 self.imported_schemas = self.BASE_SCHEMAS
@@ -104,15 +118,15 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
             self.attributes = {}
             self.attribute_groups = {}
             self.groups = {}
-            self.elements = {}
+            self.elements = {}  # Global elements
+            self.base_elements = {}  # Global elements + global groups expansion
 
             # Extract namespaces from schema and include subschemas
-            self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the 'xml' namespace is required by XSD
+            self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the 'xml' namespace is implicit
             namespaces = etree_get_namespaces(self.text)
             self.namespaces.update(namespaces)
-            self.include_schemas(self._root)
-            self.import_schemas(self._root)
-
+            self.include_schemas(self._root, check_schema)
+            self.import_schemas(self._root, check_schema)
             if '' not in self.namespaces:
                 try:
                     self.namespaces[''] = self.imported_schemas[''].target_namespace
@@ -140,137 +154,108 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
             return ''
 
         @classmethod
-        def create_schema(cls, schema):
-            return cls(schema)
+        def create_schema(cls, *args, **kwargs):
+            return cls(*args, **kwargs)
 
         @classmethod
         def check_schema(cls, schema):
             for error in cls.META_SCHEMA.iter_errors(schema):
                 raise error
 
-        def import_namespace(self, uri, locations=None):
+        def import_namespace(self, uri, locations=None, check_schema=False):
             locations = locations or uri
-            if not locations:
-                raise XMLSchemaValueError("No namespace or locations, cannot import!")
             try:
-                if isinstance(self.imported_schemas[uri], str):
-                    # The value is a path of the BASE_SCHEMA dictionary
-                    self.imported_schemas[uri] = self.create_schema(self.imported_schemas[uri])
+                if isinstance(self.imported_schemas[uri], self.__class__):
+                    return
             except KeyError:
-                try:
-                    schema, schema_uri = load_resource(locations, self.uri)
-                except (OSError, IOError, ValueError) as err:
-                    raise XMLSchemaValueError(
-                        "%r: cannot import namespace %r: %s" % (self, uri, err)
-                    )
-                else:
-                    self.imported_schemas[uri] = self.create_schema(schema_uri)
+                if not locations:
+                    raise XMLSchemaValueError("No namespace or locations, cannot import!")
+            else:
+                locations = self.imported_schemas[uri]
 
-        def import_schemas(self, elements):
+            try:
+                schema_res, schema_uri = open_resource(locations, self.uri)
+            except XMLSchemaURLError as err:
+                raise XMLSchemaURLError(reason="cannot import namespace %r: %s" % (uri, err.reason))
+            else:
+                schema_res.close()
+
+            try:
+                schema = self.create_schema(schema_uri, check_schema, self.imported_schemas)
+            except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+                raise type(err)('cannot import namespace %r: %s' % (uri, err))
+            except XMLSchemaURLError as err:
+                raise XMLSchemaURLError(reason="cannot import namespace %r: %s" % (uri, err.reason))
+            else:
+                if schema.target_namespace != uri:
+                    raise XMLSchemaParseError(
+                        "wrong namespace %r for imported schema %r." % (uri, schema)
+                    )
+
+        def import_schemas(self, elements, check_schema=False):
             for elem in iterfind_xsd_imports(elements, namespaces=self.namespaces):
                 uri = elem.attrib.get('namespace', '')
                 locations = elem.attrib.get('schemaLocation')
                 if locations is not None:
-                    self.import_namespace(uri, locations)
+                    self.import_namespace(uri, locations, check_schema)
 
-        def update_schema(self, elements, path=None):
+        def update_schema(self, elements):
             kwargs = self.OPTIONS.copy()
 
             # Parse global declarations
-            update_xsd_simple_types(self, self.types, elements, path=path, **kwargs)
-            update_xsd_attributes(self, self.attributes, elements, path=path, **kwargs)
+            update_xsd_simple_types(self, self.types, elements, **kwargs)
+            update_xsd_attributes(self, self.attributes, elements, **kwargs)
             update_xsd_attribute_groups(self, self.attribute_groups, elements, **kwargs)
-            update_xsd_complex_types(self, self.types, elements, path=path, **kwargs)
-            update_xsd_elements(self, self.elements, elements, path=path, **kwargs)
-            update_xsd_groups(self, self.groups, elements, path=path, **kwargs)
+            update_xsd_complex_types(self, self.types, elements, **kwargs)
+            update_xsd_elements(self, self.elements, elements, **kwargs)
+            update_xsd_groups(self, self.groups, elements, **kwargs)
 
             # Parse other local declarations
-            update_xsd_groups(self, self.groups, elements, path=path, parse_content_type=True, **kwargs)
-            update_xsd_groups(self, self.groups, elements, path=path, parse_content_type=True, **kwargs)
-            update_xsd_complex_types(self, self.types, elements, path=path, parse_content_type=True, **kwargs)
-            update_xsd_elements(self, self.elements, elements, path=path, parse_content_type=True, **kwargs)
+            update_xsd_groups(self, self.groups, elements, parse_content_type=True, **kwargs)
+            update_xsd_complex_types(self, self.types, elements, parse_content_type=True, **kwargs)
+            update_xsd_elements(self, self.elements, elements, parse_content_type=True, **kwargs)
 
-        def get_element(self, path):
-            qualified_path = get_qualified_path(path, self.target_namespace)
-            elements = split_path(qualified_path)
-            if not elements:
-                raise XMLSchemaValueError("empty path!")
-            try:
-                target_element = self.elements[elements[0]]
-            except KeyError:
-                import pdb
-                pdb.set_trace()
-                raise XMLSchemaLookupError(path)
-
-            for name in elements[1:]:
-                try:
-                    for xsd_element in target_element.type.content_type.iter_elements():
-                        if xsd_element.name == name:
-                            if xsd_element.ref:
-                                target_element = self.elements[name]
-                            else:
-                                target_element = xsd_element
-                            break
-                    else:
-                        raise XMLSchemaLookupError(path)
-                except AttributeError:
-                    raise XMLSchemaLookupError(path)
-            return target_element
-
-        def get_attribute(self, name, path):
-            if name[0] != '{':
-                return self.get_element(path).get_attribute(get_qname(self.target_namespace, name))
-
-            namespace = get_namespace(name)
-            if namespace != self.target_namespace:
-                return lookup_attribute(name, namespace, self.imported_schemas)
-            else:
-                return self.get_element(path).get_attribute(name)
-
-        def get_attributes(self, path):
-            element = self.get_element(path)
-            try:
-                return element.xsd_type.attributes.keys()
-            except AttributeError:
-                return tuple()
+            # Update base_elements
+            self.base_elements.update(self.elements)
+            for v in self.groups.values():
+                self.base_elements.update({e.name: e for e in v.iter_elements()})
 
         def validate(self, *args, **kwargs):
             for error in self.iter_errors(*args, **kwargs):
                 raise error
 
-        def is_valid(self, xml_document, schema=None):
-            error = next(self.iter_errors(xml_document, schema), None)
+        def is_valid(self, xml_document):
+            error = next(self.iter_errors(xml_document), None)
             return error is None
 
-        def iter_errors(self, xml_document, schema=None):
-            xml_root = load_xml(xml_document)[0]
-            schema = schema or self
-            root_path = get_qname(schema.target_namespace, xml_root.tag)
-            xsd_element = schema.get_element(root_path)
-            for error in xsd_element.iter_errors(xml_root):
-                yield error
+        def iter_errors(self, xml_document):
+            for chunk in self.iter_decode(xml_document):
+                if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                    yield chunk
 
-        def iter_decode(self, xml_document, schema=None):
-            xml_root = load_xml(xml_document)[0]
-            schema = schema or self
-            root_path = get_qname(schema.target_namespace, xml_root.tag)
-            xsd_element = schema.get_element(root_path)
-            for obj in xsd_element.iter_decode(xml_root):
-                yield obj
+        def iter_decode(self, xml_document):
+            xml_root = load_xml_resource(xml_document)
+            try:
+                xsd_element = self.elements[xml_root.tag]
+            except KeyError:
+                yield XMLSchemaValidationError(
+                    self, xml_root.tag, "not a global element of the schema of the schema!", xml_root
+                )
+            else:
+                for obj in xsd_element.iter_decode(xml_root):
+                    yield obj
 
-        def to_dict(self, xml_document, schema=None):
-            xml_root = load_xml(xml_document)[0]
-            schema = schema or self
-            root_path = get_qname(schema.target_namespace, xml_root.tag)
-            xsd_element = schema.get_element(root_path)
-            return xsd_element.decode(xml_root)
+        def to_dict(self, xml_document):
+            xml_root = load_xml_resource(xml_document)
+            return self.elements[xml_root.tag].decode(xml_root)
 
     # Create the meta schema
     if meta_schema is not None:
-        meta_schema = XMLSchemaValidator(meta_schema)
-        for k, v in meta_schema.imported_schemas.items():
+        meta_schema = XMLSchemaValidator(os.path.join(SCHEMAS_DIR, meta_schema))
+        for k, v in list(meta_schema.imported_schemas.items()):
             if not isinstance(v, XMLSchemaValidator):
                 meta_schema.imported_schemas[k] = XMLSchemaValidator(v)
+
         XMLSchemaValidator.META_SCHEMA = meta_schema
 
     if version is not None:
@@ -282,33 +267,39 @@ def create_validator(version=None, meta_schema=None, base_schemas=None, facets=N
 # Define classes for generic XML schemas
 XMLSchema_v1_0 = create_validator(
     version='1.0',
-    meta_schema='schemas/XSD_1.0/XMLSchema.xsd',
-    base_schemas=BASE_SCHEMAS,
+    meta_schema='XSD_1.0/XMLSchema.xsd https://www.w3.org/2001/XMLSchema.xsd',
+    base_schemas={
+        XML_NAMESPACE_PATH: 'xml_minimal.xsd http://www.w3.org/2001/xml.xsd',
+        HFP_NAMESPACE_PATH: 'XMLSchema-hasFacetAndProperty_minimal.xsd '
+                            'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty',
+        XHTML_NAMESPACE_PATH: 'xhtml1-strict.xsd '
+                              'http://www.w3.org/2002/08/xhtml/xhtml1-strict.xsd',
+        XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd '
+                            'http://www.w3.org/2001/XMLSchema-instance',
+        XLINK_NAMESPACE_PATH: 'xlink.xsd https://www.w3.org/1999/xlink.xsd',
+    },
     facets=XSD_v1_0_FACETS,
     builtin_types=XSD_BUILTIN_TYPES
 )
-
-#
-# TODO: Extending to XSD 1.1
-#
-# XMLSchema_v1_1 = create_validator(
-#    version='1.1',
-#    meta_schema='schemas/XSD_1.1/XMLSchema.xsd',
-#    base_schemas=BASE_SCHEMAS,
-#    facets=XSD_v1_1_FACETS
-# )
-
 XMLSchema = XMLSchema_v1_0
 
 
-def validate(xml_document, schema, cls=None, *args, **kwargs):
+def validate(xml_document, schema=None, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    cls(schema, *args, **kwargs).validate(xml_document)
+    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
+    if schema is None:
+        schema = open_resource(get_xsi_schema_location(xml_root), xml_uri)
+
+    cls(schema, check_schema=True, *args, **kwargs).validate(xml_root)
 
 
-def to_dict(xml_document, schema, cls=None, *args, **kwargs):
+def to_dict(xml_document, schema=None, cls=None, *args, **kwargs):
     if cls is None:
         cls = XMLSchema
-    cls(schema, *args, **kwargs).validate(xml_document)
-    return cls(schema, *args, **kwargs).to_dict(xml_document)
+    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
+    if schema is None:
+        schema = open_resource(get_xsi_schema_location(xml_root), xml_uri)
+
+    cls(schema, *args, **kwargs).validate(xml_root)
+    return cls(schema, check_schema=True, *args, **kwargs).to_dict(xml_root)
