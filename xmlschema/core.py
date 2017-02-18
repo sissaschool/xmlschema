@@ -13,19 +13,19 @@ This module contains base classes, functions and constants for the package.
 """
 import logging
 import sys
-from io import StringIO
 from xml.etree import ElementTree
-from collections import MutableMapping
 
 try:
     # Python 3 specific imports
     from urllib.request import urlopen, urljoin, urlsplit
     from urllib.parse import uses_relative, urlparse
     from urllib.error import URLError
+    from io import StringIO
 except ImportError:
     # Python 2 fallback
     from urllib2 import urlopen, URLError
     from urlparse import urlsplit, urljoin, uses_relative, urlparse
+    from StringIO import StringIO  # the io.StringIO accepts only unicode type
 
 PY3 = sys.version_info[0] >= 3
 
@@ -46,7 +46,11 @@ XML_NAMESPACE_PATH = 'http://www.w3.org/XML/1998/namespace'
 "URI of the XML namespace (xml)"
 
 XHTML_NAMESPACE_PATH = 'http://www.w3.org/1999/xhtml'
-"URI of the Extensible Hypertext Markup Language namespace (html)"
+XHTML_DATATYPES_NAMESPACE_PATH = "http://www.w3.org/1999/xhtml/datatypes/"
+"URIs of the Extensible Hypertext Markup Language namespace (html)"
+
+XLINK_NAMESPACE_PATH = 'http://www.w3.org/1999/xlink'
+"URI of the XML Linking Language (XLink)"
 
 XSLT_NAMESPACE_PATH = "http://www.w3.org/1999/XSL/Transform"
 "URI of the XSL Transformations namespace (xslt)"
@@ -56,17 +60,6 @@ HFP_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 
 VC_NAMESPACE_PATH = "http://www.w3.org/2007/XMLSchema-versioning"
 "URI of the XML Schema Versioning namespace (vc)"
-
-
-BASE_SCHEMAS = {
-    XSD_NAMESPACE_PATH: None,
-    XHTML_NAMESPACE_PATH: None,
-    XML_NAMESPACE_PATH: 'schemas/XML/xml.xsd',
-    XSI_NAMESPACE_PATH: 'schemas/XSI/XMLSchema-instance.xsd',
-    XSLT_NAMESPACE_PATH: 'schemas/XSLT/schema-for-xslt20.xsd',
-    HFP_NAMESPACE_PATH: 'schemas/HFP/XMLSchema-hasFacetAndProperty.xsd'
-}
-"""Base namespaces and related schema definition path."""
 
 
 # Register missing namespaces into imported ElementTree module
@@ -124,11 +117,12 @@ def set_logger(name, loglevel=1, logfile=None):
             handler.setLevel(effective_level)
 
 
-# Define ElementTree API for internal module imports
+# Define alias for ElementTree API for internal module imports
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
+etree_iselement = ElementTree.iselement
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
@@ -161,25 +155,16 @@ def etree_get_namespaces(source):
     """
     Extract namespaces with related prefixes from schema source.
 
-    Note: cannot use the schema tree because the ElementTree library can modify
-    the mapping of namespace's prefixes without updating the references (cannot
-    change them because ElementTree doesn't parse XSD).
+    Note: can't extract the namespace information directly from the ElementTree
+    instance because the namespace registrations are shared among different trees.
     """
-    try:
-        return [node for _, node in etree_iterparse(StringIO(source), events=['start-ns'])]
-    except TypeError:
-        return [node for _, node in etree_iterparse(source, events=['start-ns'])]
+    return [node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))]
 
 
 def etree_iterpath(elem, tag=None, path='.'):
     """
     A version of ElementTree node's iter function that return a couple
     with node and its relative path.
-
-    :param elem:
-    :param tag:
-    :param path:
-    :return:
     """
     if tag == "*":
         tag = None
@@ -195,34 +180,3 @@ def etree_iterpath(elem, tag=None, path='.'):
 
         for _child, _child_path in etree_iterpath(child, tag, path=child_path):
             yield _child, _child_path
-
-
-class URIDict(MutableMapping):
-    """
-    Dictionary which uses normalized URIs as keys.
-    """
-    @staticmethod
-    def normalize(uri):
-        return urlsplit(uri).geturl()
-
-    def __init__(self, *args, **kwargs):
-        self._store = dict()
-        self._store.update(*args, **kwargs)
-
-    def __getitem__(self, uri):
-        return self._store[self.normalize(uri)]
-
-    def __setitem__(self, uri, value):
-        self._store[self.normalize(uri)] = value
-
-    def __delitem__(self, uri):
-        del self._store[self.normalize(uri)]
-
-    def __iter__(self):
-        return iter(self._store)
-
-    def __len__(self):
-        return len(self._store)
-
-    def __repr__(self):
-        return repr(self._store)

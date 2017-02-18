@@ -7,7 +7,7 @@ Welcome to xmlschema's documentation!
 =====================================
 
 **xmlschema** is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
-for Python (supports versions 2.7 and Python 3).
+for Python (supports versions 2.7 and Python 3.3+).
 
 Contents:
 

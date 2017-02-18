@@ -12,8 +12,9 @@
 This module contains general-purpose utility functions.
 """
 import re
+from collections import Mapping, MutableMapping
 
-from .core import XSD_NAMESPACE_PATH
+from .core import urlsplit
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')
@@ -117,21 +118,6 @@ def uri_to_prefixes(text, namespaces):
     return text
 
 
-def xsd_qname(name):
-    """
-    Build a QName for XSD namespace from a local name.
-
-    :param name: local name/tag
-    :return: fully qualified name for XSD namespace
-    """
-    if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
-        raise XMLSchemaValueError("'%s' is not a name of the XSD namespace" % name)
-    else:
-        return name
-
-
 #
 # Other utility functions
 def dump_args(func):
@@ -151,47 +137,6 @@ def camel_case_split(s):
     Split words of a camel case string
     """
     return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
-
-
-def linked_flatten(obj):
-    """
-    Generate a sequence of 2-tuples from a nested structure of lists/tuples/sets.
-    Each tuple is a couple with an item and the correspondent inner container.
-    """
-    if isinstance(obj, (list, tuple, set)):
-        for item in obj:
-            for _item, _container in linked_flatten(item):
-                if _container is None:
-                    yield _item, obj
-                else:
-                    yield _item, _container
-    else:
-        yield obj, None
-
-
-def meta_next_gen(iterator, container=None):
-    """
-    Generate a 3-tuples of items from an iterator. The iterator's
-    elements are expanded in case of list, tuple or set.
-
-    :param iterator: the root iterator that generates the sequence.
-    :param container: parent container of the iterator.
-    :return: 3-tuple with: an object, a related iterator and the parent
-    container. Returned iterator is None if the argument is not an iterable.
-    """
-    try:
-        obj = next(iterator)
-        if isinstance(obj, (list, tuple, set)):
-            for item in obj:
-                for _obj, _iterator, _container in meta_next_gen(item, obj):
-                    if _iterator is None:
-                        yield _obj, iterator, _container
-                    else:
-                        yield _obj, _iterator, _container
-        else:
-            yield obj, iterator, container
-    except TypeError:
-        yield iterator, None, container
 
 
 def listify_update(obj, *args, **kwargs):
@@ -229,7 +174,75 @@ def listify_update(obj, *args, **kwargs):
         elif isinstance(other, (list, tuple)) and len(other) == 2:
                 _update(other[0], other[1])
         else:
-            XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
+            raise XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
 
     for key, value in kwargs.items():
         _update(key, value)
+
+
+class URIDict(MutableMapping):
+    """
+    Dictionary which uses normalized URIs as keys.
+    """
+    @staticmethod
+    def normalize(uri):
+        return urlsplit(uri).geturl()
+
+    def __init__(self, *args, **kwargs):
+        self._store = dict()
+        self._store.update(*args, **kwargs)
+
+    def __getitem__(self, uri):
+        return self._store[self.normalize(uri)]
+
+    def __setitem__(self, uri, value):
+        self._store[self.normalize(uri)] = value
+
+    def __delitem__(self, uri):
+        del self._store[self.normalize(uri)]
+
+    def __iter__(self):
+        return iter(self._store)
+
+    def __len__(self):
+        return len(self._store)
+
+    def __repr__(self):
+        return repr(self._store)
+
+
+class FrozenDict(Mapping):
+    """A read-only dictionary for shared maps."""
+
+    def __init__(self, *args, **kwargs):
+        self._data = dict(*args, **kwargs)
+        self._hash = None
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __repr__(self):
+        return '<%s %r at %#x>' % (self.__class__.__name__, self._data, id(self))
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def __eq__(self, other):
+        return dict(self._data.items()) == dict(other.items())
+
+    def __hash__(self):
+        if self._hash is None:
+            h = 0
+            for key, value in self._data.items():
+                h ^= hash((key, value))
+            self._hash = h
+        return self._hash
+
+    def copy(self, **kwargs):
+        return self.__class__(self, **kwargs)

@@ -1,3 +1,9 @@
+../../schemas/xml_minimal.xsd
+../../schemas/XMLSchema-instance_minimal.xsd
+../../schemas/XMLSchema-hasFacetAndProperty_minimal.xsd
+../../schemas/XSD_1.0/XMLSchema.xsd
+../../schemas/XSD_1.1/XMLSchema.xsd
+
 collection/collection.xsd
 collection/collection.xml
 vehicles/vehicles.xsd

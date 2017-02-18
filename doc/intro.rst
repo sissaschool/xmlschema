@@ -2,23 +2,24 @@
 Introduction
 ************
 
-The *xmlschema* library arises from the need of a solid Python layer for processing XML Schema
+The *xmlschema* library arises from the needs of a solid Python layer for processing XML Schema
 based files for `MaX (Materials design at the Exascale) <http://www.max-centre.eu>`_  European project.
-The main problem was the encoding and the decoding of XML data files produced by simulation software.
+A significant problem was the encoding and the decoding of the XML data files produced by different
+simulation software.
 Another important requirement was the XML data validation, in order to put the data production under control.
-The lack of a suitable alternative for Python, particularly in the encoding/decoding of data, resulted
-to the decision of creating a new library.
-The library is obviously useful for all the cases related to XML Schema based processing,
-not only for the original scope.
+The lack of a suitable alternative for Python in the encoding/decoding of data has led to build a new library.
+This library is obviously useful for all the cases related to XML Schema based processing, not only for
+the original scope.
 
 Features
 ========
 
 The xmlschema library include those features:
 
-* Validate the XML instances to an XML schema
-* Provides data type conversion from and to XML
-* Converts XML instances to Python dictionaries
+* Builds XML schema objects from XSD files
+* Validates the XML instances with the XSD schema
+* Converts XML instances into Python dictionaries
+* Provides decoding and encoding APIs for XML's elements and attributes
 
 Installation
 ============

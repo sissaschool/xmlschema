@@ -1,0 +1,9 @@
+<?xml version='1.0'?>
+<xs:schema targetNamespace="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+ <xs:attribute name="nil"/>
+ <xs:attribute name="type"/>
+ <xs:attribute name="schemaLocation"/>
+ <xs:attribute name="noNamespaceSchemaLocation"/>
+</xs:schema>
