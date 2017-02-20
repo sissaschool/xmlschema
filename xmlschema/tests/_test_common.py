@@ -28,4 +28,7 @@ class XMLSchemaTestCase(unittest.TestCase):
 
 
 def get_test_args(args_line):
-    return re.split(r'(?<!\\) ', args_line)
+    try:
+        return re.split(r'(?<!\\) ', args_line.split('#', 1)[0])
+    except IndexError:
+        return re.split(r'(?<!\\) ', args_line)

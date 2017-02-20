@@ -19,16 +19,17 @@ import glob
 
 def get_tests(pathname):
     import xmlschema
-    from xmlschema.exceptions import XMLSchemaParseError
+    from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError
 
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
+            # print("Run %s" % self.id())
             xs = xmlschema.XMLSchema.META_SCHEMA
             errors = [str(e) for e in xs.iter_errors(xsd_file)]
 
             try:
                 xmlschema.XMLSchema(xsd_file)
-            except XMLSchemaParseError as err:
+            except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
             else:
@@ -63,22 +64,22 @@ def get_tests(pathname):
         test_args = get_test_args(line)
         filename = test_args[0]
         try:
-            num_errors = int(test_args[1])
-        except IndexError:
-            num_errors = 0
+            total_errors = int(test_args[1])
+        except (IndexError, ValueError):
+            total_errors = 0
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), filename)
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xsd':
             continue
 
-        test_func = make_test_schema_function(test_file, num_errors)
+        test_func = make_test_schema_function(test_file, total_errors)
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
         test_num += 1
         if test_only is None or test_num == test_only:
-            klassname = 'Test_schema_{0}_{1}'.format(test_num, test_name)
+            klassname = 'Test_schema_{0:03d}_{1}'.format(test_num, test_name)
             tests[klassname] = type(
                 klassname, (XMLSchemaTestCase,),
-                {'test_schema_{0}'.format(test_num): test_func}
+                {'test_schema_{0:03d}'.format(test_num): test_func}
             )
 
     return tests
