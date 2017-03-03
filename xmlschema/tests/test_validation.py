@@ -60,9 +60,9 @@ def get_tests(pathname):
         test_args = get_test_args(line)
         filename = test_args[0]
         try:
-            num_errors = int(test_args[1])
-        except IndexError:
-            num_errors = 0
+            tot_errors = int(test_args[1])
+        except (IndexError, ValueError):
+            tot_errors = 0
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), filename)
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
@@ -78,7 +78,7 @@ def get_tests(pathname):
         else:
             raise ValueError("Schema not found for the document!")
 
-        test_func = make_test_validation_function(test_file, schema_file, num_errors)
+        test_func = make_test_validation_function(test_file, schema_file, tot_errors)
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
         test_num += 1
         if test_only is None or test_num == test_only:

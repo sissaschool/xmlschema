@@ -96,7 +96,7 @@ def get_namespace(name):
     try:
         return _RE_MATCH_NAMESPACE.match(name).group(1)
     except AttributeError:
-        return None
+        return ''
 
 
 def strip_namespace(path_or_name, prefix=''):
@@ -153,18 +153,11 @@ def listify_update(obj, *args, **kwargs):
             obj[k] = v
         elif not isinstance(obj[k], list):
             obj[k] = [obj[k], v]
-        elif all(not isinstance(i, list) for i in obj[k]):
-            if isinstance(v, list):
-                obj[k] = [obj[k], v]
-            else:
-                obj[k] = [obj[k], [v]]
-        elif isinstance(v, list):
-            obj[k].append(v)
         else:
-            obj[k].append([v])
+            obj[k].append(v)
 
     if len(args) > 1:
-        raise XMLSchemaTypeError('listify_update expected at most 1 arguments, got %d' % len(args))
+        raise XMLSchemaTypeError('listify_update expected at most 1 arguments, got %d.' % len(args))
 
     if args:
         other = args[0]
@@ -174,7 +167,9 @@ def listify_update(obj, *args, **kwargs):
         elif isinstance(other, (list, tuple)) and len(other) == 2:
                 _update(other[0], other[1])
         else:
-            raise XMLSchemaTypeError('listify_update expected at a couple of values, got %r' % other)
+            raise XMLSchemaTypeError(
+                'listify_update expected a dictionary or a couple of values, got %r.' % other
+            )
 
     for key, value in kwargs.items():
         _update(key, value)

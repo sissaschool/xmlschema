@@ -15,33 +15,9 @@ from .core import (
     urlsplit, urljoin, urlopen, uses_relative, unicode_type, URLError
 )
 from .exceptions import (
-    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError, XMLSchemaURLError
+    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError,
+    XMLSchemaURLError, XMLSchemaOSError
 )
-
-
-def load_text_file(filename):
-    """
-    Reads a text file (coded with ASCII, UTF-8 or ISO-8859-1) into a string.
-    With Python 2 returns an ascii string with encoded Unicode characters.
-
-    :param filename:
-    :return: A string.
-    """
-    try:
-        with open(filename, encoding='utf-8') as text_file:
-            return str(text_file.read())
-    except UnicodeDecodeError:
-        with open(filename, 'rb') as text_file:
-            return str(text_file.read().decode('iso-8859-1'))
-    except TypeError:
-        # Python 2.x fallback
-        import codecs
-        try:
-            with codecs.open(filename, mode='r', encoding='utf-8') as text_file:
-                return text_file.read().encode('utf-8')
-        except UnicodeDecodeError:
-            with codecs.open(filename, mode='rb', encoding='iso-8859-1') as text_file:
-                return text_file.read().encode('utf-8')
 
 
 def load_xml_resource(source, element_only=True):
@@ -51,11 +27,11 @@ def load_xml_resource(source, element_only=True):
     optional argument "element_only" is False. This function is usable for XML
     data files of small or medium sizes, as XSD schemas.
 
-    :param source: An Element or a string with XML data or the name of the file
-    or an URI that refers to the XML resource or a file-like object.
+    :param source: An Element with XML data or an URI that refers to
+    the XML resource or a file-like object.
     :param element_only: If True the function returns only the Element.
     :return: a tuple with three items (root Element, XML text and XML URI) or
-    only the root Element if element_only is True.
+    only the root Element if 'element_only' argument is True.
     """
     if etree_iselement(source):
         return source if element_only else (source, etree_tostring(source), None)
@@ -66,8 +42,8 @@ def load_xml_resource(source, element_only=True):
     except AttributeError:
         if not isinstance(source, (str, bytes, unicode_type)):
             raise XMLSchemaTypeError(
-                "a file-like or a bytes-like object is required"
-                ", not %r." % source.__class__.__name__
+                "an string, a file-like or a bytes-like object "
+                "is required, not %r." % source.__class__.__name__
             )
 
         try:
@@ -94,37 +70,25 @@ def load_xml_resource(source, element_only=True):
     return xml_root if element_only else (xml_root, xml_data, xml_uri)
 
 
-def load_resource(locations, base_uri=None):
+def load_resource(uri):
     """
-    Load resource from the first available URI, decoding into a UTF-8 string.
-    If no URI is available raise an XMLSchemaOSError.
+    Load resource from an URI, decoding into a UTF-8 string.
 
-    :param locations: String-like object with a space separated list of URIs.
-    :param base_uri: The reference base uri for completing local URIs.
+    :param uri: Resource URIs.
     :return: Resource as unicode string ad the loaded URI.
     """
-    if locations is None or not locations.strip():
-        raise XMLSchemaValueError("No locations")
-
-    errors = []
-    for location in locations.strip().split():
-        try:
-            resource, uri = open_resource(location, base_uri)
-        except XMLSchemaURLError as err:
-            errors.append(err.reason)
-            continue
-
-        try:
-            data = resource.read()
-        except (OSError, IOError) as err:
-            errors.append(err)
-        else:
-            resource.close()
-            break
+    msg = "cannot load resource from %r: %s"
+    try:
+        source, uri = open_resource(uri)
+    except XMLSchemaURLError as err:
+        raise XMLSchemaURLError(reason=msg % (uri, err))
     else:
-        raise XMLSchemaURLError(
-            reason="cannot load resource from %r: %s" % (locations, errors)
-        )
+        try:
+            data = source.read()
+        except (OSError, IOError) as err:
+            raise XMLSchemaOSError(msg % (uri, err))
+        finally:
+            source.close()
 
     if PY3:
         try:
@@ -141,11 +105,18 @@ def load_resource(locations, base_uri=None):
 
 
 def open_resource(locations, base_uri=None):
+    """
+    Open the first available resource from a space-separated list of locations.
+
+    :param locations: Space-separated list of locations.
+    :param base_uri: Reference path for completing local URIs.
+    :return: A couple of opened file-like object and a normalized URI.
+    """
     if locations is None or not locations.strip():
         raise XMLSchemaValueError("No locations")
 
     errors = []
-    for location in locations.strip().split():
+    for location in locations.split():
         uri_parts = urlsplit(location)
         uri = uri_parts.geturl()
         if uri_parts.scheme:

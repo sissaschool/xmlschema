@@ -17,9 +17,8 @@ from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
 from .utils import split_reference, get_qname, listify_update
 from .xsdbase import (
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type,
-    check_value, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
-    lookup_attribute, lookup_element, lookup_base_element, XsdBase
+    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, xsd_lookup, XsdBase
 )
 from .facets import (
     XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_v1_1_FACETS,
@@ -269,6 +268,14 @@ class XsdComplexType(XsdBase):
     def final(self):
         return self._get_derivation_attribute('final', ('extension', 'restriction'))
 
+    def admit_simple_restriction(self):
+        if 'restriction' in self.final:
+            return False
+        else:
+            return self.mixed and (
+                not isinstance(self.content_type, XsdGroup) or self.content_type.is_emptiable()
+            )
+
     def has_restriction(self):
         return self.derivation is False
 
@@ -289,7 +296,6 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
     def __init__(self, name=None, elem=None, schema=None, initdict=None):
         XsdBase.__init__(self, name, elem, schema)
         self._namespaces = schema.namespaces if schema else {}
-        self._imported_schemas = schema.imported_schemas if schema else {}
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
@@ -335,7 +341,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 qname, namespace = split_reference(name, self._namespaces)
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = lookup_attribute(qname, namespace, self._imported_schemas)
+                        xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
                     except XMLSchemaLookupError:
                         yield XMLSchemaValidationError(
                             self, name, "not an attribute of the XSI namespace!", elem, self.elem
@@ -380,6 +386,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
         XsdBase.__init__(self, name, elem, schema)
         self.model = model
         self.mixed = mixed
+        self.parsed = initlist is not None
         self._group = []
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
@@ -560,7 +567,6 @@ class XsdAnyAttribute(XsdBase):
         super(XsdAnyAttribute, self).__init__(elem=elem, schema=schema)
         self._target_namespace = schema.target_namespace if schema else ''
         self._namespaces = schema.namespaces if schema else {}
-        self._imported_schemas = schema.imported_schemas if schema else {}
 
     @property
     def namespace(self):
@@ -587,7 +593,7 @@ class XsdAnyAttribute(XsdBase):
             qname, namespace = split_reference(name, namespaces=self._namespaces)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
-                    xsd_attribute = lookup_attribute(qname, namespace, self._imported_schemas)
+                    xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
                 except XMLSchemaLookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(
@@ -624,7 +630,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
         qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
-                xsd_element = lookup_base_element(qname, namespace, self._imported_schemas)
+                xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
             except XMLSchemaLookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(
@@ -645,7 +651,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
             return
 
         try:
-            xsd_element = lookup_element(qname, namespace, self._imported_schemas)
+            xsd_element = xsd_lookup(qname, self.schema.maps.elements)
         except XMLSchemaLookupError:
             return
         else:

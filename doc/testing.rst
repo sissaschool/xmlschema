@@ -43,6 +43,9 @@ Running those scripts make tests for a groups of test files:
 Those scripts use a set of test files. Only a small set of test files are published in the GitHub repository
 for copyright reasons. You can found the published test files in ``xmlschema/tests/examples/`` subdirectory.
 
+You can run all tests (schema building and XSD validation, XML validation, XML decoding) with the script
+*test_all.py*. A bash script *test_all.sh* run all tests with all available Python interpreters (2.7 and 3.3+).
+
 
 Running the tests on other files
 --------------------------------
