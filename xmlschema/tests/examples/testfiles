@@ -3,6 +3,8 @@
 
 collection/collection.xsd
 collection/collection.xml
+patterns/patterns.xsd
+patterns/patterns.xml 4
 vehicles/vehicles.xsd
 vehicles/vehicles.xml
 vehicles/vehicles-1_error.xml 1

@@ -289,7 +289,8 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
-        self.patterns = [re.compile(get_python_regex(value))]
+        regex = get_python_regex(value)
+        self.patterns = [re.compile(regex)]
         self.regexps = [value]
 
     # Implements the abstract methods of MutableSequence

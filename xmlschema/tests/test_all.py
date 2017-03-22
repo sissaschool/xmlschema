@@ -10,17 +10,19 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the building of XSD schemas with the 'xmlschema' package.
+This module runs all tests of the 'xmlschema' package.
 """
 from _test_common import *
-import test_schemas
-import test_decoding
-import test_validation
 
 pkg_folder = os.path.dirname(os.getcwd())
 sys.path.insert(0, pkg_folder)
 
 if __name__ == '__main__':
+    from test_meta import *
+    import test_schemas
+    import test_decoding
+    import test_validation
+
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
     pathname = os.path.join(pkg_folder, "tests/*/testfiles")

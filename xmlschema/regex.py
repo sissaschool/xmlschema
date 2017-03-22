@@ -17,117 +17,18 @@ from itertools import chain
 from sys import maxunicode
 
 from .core import PY3, unicode_type, unicode_chr
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaRegexError
-
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaRegexError, XMLSchemaKeyError
+from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS
 
 I_SHORTCUT_REPLACE = (
-    r":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    r"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+    u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
 C_SHORTCUT_REPLACE = (
-    r"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-    r"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    u"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
+    u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
-
-CHARACTER_BLOCKS = {
-    'BasicLatin': u'\u0000-\u007F',
-    'Latin-1Supplement': u'\u0080-\u00FF',
-    'LatinExtended-A': u'\u0100-\u017F',
-    'LatinExtended-B': u'\u0180-\u024F',
-    'IPAExtensions': u'\u0250-\u02AF',
-    'SpacingModifierLetters': u'\u02B0-\u02FF',
-    'CombiningDiacriticalMarks': u'\u0300-\u036F',
-    'Greek': u'\u0370-\u03FF',
-    'Cyrillic': u'\u0400-\u04FF',
-    'Armenian': u'\u0530-\u058F',
-    'Hebrew': u'\u0590-\u05FF',
-    'Arabic': u'\u0600-\u06FF',
-    'Syriac': u'\u0700-\u074F',
-    'Thaana': u'\u0780-\u07BF',
-    'Devanagari': u'\u0900-\u097F',
-    'Bengali': u'\u0980-\u09FF',
-    'Gurmukhi': u'\u0A00-\u0A7F',
-    'Gujarati': u'\u0A80-\u0AFF',
-    'Oriya': u'\u0B00-\u0B7F',
-    'Tamil': u'\u0B80-\u0BFF',
-    'Telugu': u'\u0C00-\u0C7F',
-    'Kannada': u'\u0C80-\u0CFF',
-    'Malayalam': u'\u0D00-\u0D7F',
-    'Sinhala': u'\u0D80-\u0DFF',
-    'Thai': u'\u0E00-\u0E7F',
-    'Lao': u'\u0E80-\u0EFF',
-    'Tibetan': u'\u0F00-\u0FFF',
-    'Myanmar': u'\u1000-\u109F',
-    'Georgian': u'\u10A0-\u10FF',
-    'HangulJamo': u'\u1100-\u11FF',
-    'Ethiopic': u'\u1200-\u137F',
-    'Cherokee': u'\u13A0-\u13FF',
-    'UnifiedCanadianAboriginalSyllabics': u'\u1400-\u167F',
-    'Ogham': u'\u1680-\u169F',
-    'Runic': u'\u16A0-\u16FF',
-    'Khmer': u'\u1780-\u17FF',
-    'Mongolian': u'\u1800-\u18AF',
-    'LatinExtendedAdditional': u'\u1E00-\u1EFF',
-    'GreekExtended': u'\u1F00-\u1FFF',
-    'GeneralPunctuation': u'\u2000-\u206F',
-    'SuperscriptsandSubscripts': u'\u2070-\u209F',
-    'CurrencySymbols': u'\u20A0-\u20CF',
-    'CombiningMarksforSymbols': u'\u20D0-\u20FF',
-    'LetterlikeSymbols': u'\u2100-\u214F',
-    'NumberForms': u'\u2150-\u218F',
-    'Arrows': u'\u2190-\u21FF',
-    'MathematicalOperators': u'\u2200-\u22FF',
-    'MiscellaneousTechnical': u'\u2300-\u23FF',
-    'ControlPictures': u'\u2400-\u243F',
-    'OpticalCharacterRecognition': u'\u2440-\u245F',
-    'EnclosedAlphanumerics': u'\u2460-\u24FF',
-    'BoxDrawing': u'\u2500-\u257F',
-    'BlockElements': u'\u2580-\u259F',
-    'GeometricShapes': u'\u25A0-\u25FF',
-    'MiscellaneousSymbols': u'\u2600-\u26FF',
-    'Dingbats': u'\u2700-\u27BF',
-    'BraillePatterns': u'\u2800-\u28FF',
-    'CJKRadicalsSupplement': u'\u2E80-\u2EFF',
-    'KangxiRadicals': u'\u2F00-\u2FDF',
-    'IdeographicDescriptionCharacters': u'\u2FF0-\u2FFF',
-    'CJKSymbolsandPunctuation': u'\u3000-\u303F',
-    'Hiragana': u'\u3040-\u309F',
-    'Katakana': u'\u30A0-\u30FF',
-    'Bopomofo': u'\u3100-\u312F',
-    'HangulCompatibilityJamo': u'\u3130-\u318F',
-    'Kanbun': u'\u3190-\u319F',
-    'BopomofoExtended': u'\u31A0-\u31BF',
-    'EnclosedCJKLettersandMonths': u'\u3200-\u32FF',
-    'CJKCompatibility': u'\u3300-\u33FF',
-    'CJKUnifiedIdeographsExtensionA': u'\u3400-\u4DB5',
-    'CJKUnifiedIdeographs': u'\u4E00-\u9FFF',
-    'YiSyllables': u'\uA000-\uA48F',
-    'YiRadicals': u'\uA490-\uA4CF',
-    'HangulSyllables': u'\uAC00-\uD7A3',
-    'HighSurrogates': u'\uD800-\uDB7F',
-    'HighPrivateUseSurrogates': u'\uDB80-\uDBFF',
-    'LowSurrogates': u'\uDC00-\uDFFF',
-    'PrivateUse': u'\uE000-\uF8FF\U000F0000-\U0010FFFD',
-    'CJKCompatibilityIdeographs': u'\uF900-\uFAFF',
-    'AlphabeticPresentationForms': u'\uFB00-\uFB4F',
-    'ArabicPresentationForms-A': u'\uFB50-\uFDFF',
-    'CombiningHalfMarks': u'\uFE20-\uFE2F',
-    'CJKCompatibilityForms': u'\uFE30-\uFE4F',
-    'SmallFormVariants': u'\uFE50-\uFE6F',
-    'ArabicPresentationForms-B': u'\uFE70-\uFEFE',
-    'Specials': u'\uFEFF-\uFEFF\uFFF0-\uFFFD',
-    'HalfwidthandFullwidthForms': u'\uFF00-\uFFEF',
-    'OldItalic': u'\U00010300-\U0001032F',
-    'Gothic': u'\U00010330-\U0001034F',
-    'Deseret': u'\U00010400-\U0001044F',
-    'ByzantineMusicalSymbols': u'\U0001D000-\U0001D0FF',
-    'MusicalSymbols': u'\U0001D100-\U0001D1FF',
-    'MathematicalAlphanumericSymbols': u'\U0001D400-\U0001D7FF',
-    'CJKUnifiedIdeographsExtensionB': u'\U00020000-\U0002A6D6',
-    'CJKCompatibilityIdeographsSupplement': u'\U0002F800-\U0002FA1F',
-    'Tags': u'\U000E0000-\U000E007F',
-}
 
 
 def parse_character_group(s):
@@ -196,15 +97,13 @@ def parse_character_group(s):
 
 def generate_character_group(s):
     """
-    Generate a character group representation of a sequence of Unicode characters.
-    A duplicated character ends the generation of the group with a character range
+    Generate a character group representation of a sequence of Unicode code points.
+    A duplicated code point ends the generation of the group with a character range
     that reaches the maxunicode.
 
-    :param s: An iterable with unicode characters.
+    :param s: An iterable with unicode code points.
     """
     def character_group_repr(cp):
-        if cp > 126:
-            return r'\u{:04x}'.format(cp) if cp < 0x10000 else r'\U{:08x}'.format(cp)
         char = unicode_chr(cp)
         if char in r'-|.^?*+{}()[]':
             return u'\%s' % char
@@ -266,10 +165,8 @@ class UnicodeSubset(MutableSet):
 
         if not args:
             self._store = set()
-        elif isinstance(args[0], UnicodeSubset):
+        elif isinstance(args[0], (set, UnicodeSubset)):
             self._store = args[0].copy()
-        elif isinstance(args[0], set):
-            self._store = args[0]   # assignment if initialized with another set
         else:
             self._store = set()
             if isinstance(args[0], (unicode_type, str)):
@@ -333,71 +230,21 @@ class UnicodeSubset(MutableSet):
         return self._store.copy()
 
 
-def get_unicode_categories():
-    from unicodedata import category
-    from collections import defaultdict
-
-    unicode_categories = defaultdict(set)
-    for cp in range(maxunicode + 1):
-        unicode_categories[category(unicode_chr(cp))].add(cp)
-    return {k: UnicodeSubset(v) for k, v in unicode_categories.items()}
+S_SHORTCUT_SET = {ord(e) for e in parse_character_group(' \n\t\r')}
+D_SHORTCUT_SET = {ord(e) for e in parse_character_group('0-9')}
+I_SHORTCUT_SET = {ord(e) for e in parse_character_group(I_SHORTCUT_REPLACE)}
+C_SHORTCUT_SET = {ord(e) for e in parse_character_group(C_SHORTCUT_REPLACE)}
+W_SHORTCUT_SET = UNICODE_CATEGORIES['P'] | UNICODE_CATEGORIES['Z'] | UNICODE_CATEGORIES['C']
 
 
-UNICODE_CATEGORIES = get_unicode_categories()
-
-
-def get_unicode_subset(ref):
-    if ref == 'C':
-        subset = UNICODE_CATEGORIES['Cc'].copy()
-        subset |= UNICODE_CATEGORIES['Cf']
-        subset |= UNICODE_CATEGORIES['Cs']
-        subset |= UNICODE_CATEGORIES['Co']
-        subset |= UNICODE_CATEGORIES['Cn']
-        return subset
-    if ref == 'L':
-        subset = UNICODE_CATEGORIES['Lu'].copy()
-        subset |= UNICODE_CATEGORIES['Ll']
-        subset |= UNICODE_CATEGORIES['Lt']
-        subset |= UNICODE_CATEGORIES['Lm']
-        subset |= UNICODE_CATEGORIES['Lo']
-        return subset
-    elif ref == 'M':
-        subset = UNICODE_CATEGORIES['Mn'].copy()
-        subset |= UNICODE_CATEGORIES['Mc']
-        subset |= UNICODE_CATEGORIES['Me']
-        return subset
-    elif ref == 'N':
-        subset = UNICODE_CATEGORIES['Nd'].copy()
-        subset |= UNICODE_CATEGORIES['Nl']
-        subset |= UNICODE_CATEGORIES['No']
-        return subset
-    elif ref == 'P':
-        subset = UNICODE_CATEGORIES['Pc'].copy()
-        subset |= UNICODE_CATEGORIES['Pd']
-        subset |= UNICODE_CATEGORIES['Ps']
-        subset |= UNICODE_CATEGORIES['Pe']
-        subset |= UNICODE_CATEGORIES['Pi']
-        subset |= UNICODE_CATEGORIES['Pf']
-        subset |= UNICODE_CATEGORIES['Po']
-        return subset
-    elif ref == 'S':
-        subset = UNICODE_CATEGORIES['Sm'].copy()
-        subset |= UNICODE_CATEGORIES['Sc']
-        subset |= UNICODE_CATEGORIES['Sk']
-        subset |= UNICODE_CATEGORIES['So']
-        return subset
-    elif ref == 'Z':
-        subset = UNICODE_CATEGORIES['Zs'].copy()
-        subset |= UNICODE_CATEGORIES['Zl']
-        subset |= UNICODE_CATEGORIES['Zp']
-        return subset
-
+def get_unicode_subset(key):
     try:
-        return UnicodeSubset(UNICODE_CATEGORIES[ref])
+        return UNICODE_CATEGORIES[key]
     except KeyError:
-        if ref[:2] != 'Is' and ref[2:] not in CHARACTER_BLOCKS:
-            raise XMLSchemaRegexError("invalid unicode block reference: %r" % ref)
-        return UnicodeSubset(CHARACTER_BLOCKS[ref[2:]])
+        try:
+            return UNICODE_BLOCKS[key]
+        except KeyError:
+            raise XMLSchemaKeyError("%r don't match to any Unicode category or block.")
 
 
 class XsdRegexCharGroup(MutableSet):
@@ -468,29 +315,25 @@ class XsdRegexCharGroup(MutableSet):
     def add(self, s):
         for part in self._re_char_group.split(s):
             if part == '\\s':
-                self.positive.add_string(' \n\t\r')
+                self.positive |= S_SHORTCUT_SET
             elif part == '\\S':
-                self.negative.add_string(' \n\t\r')
+                self.negative |= S_SHORTCUT_SET
             elif part == '\\d':
-                self.positive.add_string('0-9')
+                self.positive |= D_SHORTCUT_SET
             elif part == '\\D':
-                self.negative.add_string('0-9')
+                self.negative |= D_SHORTCUT_SET
             elif part == '\\i':
-                self.positive.add_string(I_SHORTCUT_REPLACE)
+                self.positive |= I_SHORTCUT_SET
             elif part == '\\I':
-                self.negative.add_string(I_SHORTCUT_REPLACE)
+                self.negative |= I_SHORTCUT_SET
             elif part == '\\c':
-                self.positive.add_string(C_SHORTCUT_REPLACE)
+                self.positive |= C_SHORTCUT_SET
             elif part == '\\C':
-                self.negative.add_string(C_SHORTCUT_REPLACE)
+                self.negative |= C_SHORTCUT_SET
             elif part == '\\w':
-                self.negative |= get_unicode_subset('P')
-                self.negative |= get_unicode_subset('Z')
-                self.negative |= get_unicode_subset('C')
+                self.positive |= W_SHORTCUT_SET
             elif part == '\\W':
-                self.positive |= get_unicode_subset('P')
-                self.positive |= get_unicode_subset('Z')
-                self.positive |= get_unicode_subset('C')
+                self.negative |= W_SHORTCUT_SET
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive |= get_unicode_subset(part[3:-1])
@@ -502,29 +345,25 @@ class XsdRegexCharGroup(MutableSet):
     def discard(self, s):
         for part in self._re_char_group.split(s):
             if part == '\\s':
-                self.positive.discard_string(' \n\t\r')
+                self.positive -= S_SHORTCUT_SET
             elif part == '\\S':
-                self.negative.discard_string(' \n\t\r')
+                self.negative -= S_SHORTCUT_SET
             elif part == '\\d':
-                self.positive.discard_string('0-9')
+                self.positive -= D_SHORTCUT_SET
             elif part == '\\D':
-                self.negative.discard_string('0-9')
+                self.negative -= D_SHORTCUT_SET
             elif part == '\\i':
-                self.positive.discard_string(I_SHORTCUT_REPLACE)
+                self.positive -= I_SHORTCUT_REPLACE
             elif part == '\\I':
-                self.negative.discard_string(I_SHORTCUT_REPLACE)
+                self.negative -= I_SHORTCUT_REPLACE
             elif part == '\\c':
-                self.positive.discard_string(C_SHORTCUT_REPLACE)
+                self.positive -= C_SHORTCUT_REPLACE
             elif part == '\\C':
-                self.negative.discard_string(C_SHORTCUT_REPLACE)
+                self.negative -= C_SHORTCUT_REPLACE
             elif part == '\\w':
-                self.negative -= get_unicode_subset('P')
-                self.negative -= get_unicode_subset('Z')
-                self.negative -= get_unicode_subset('C')
+                self.positive -= W_SHORTCUT_SET
             elif part == '\\W':
-                self.positive -= get_unicode_subset('P')
-                self.positive -= get_unicode_subset('Z')
-                self.positive -= get_unicode_subset('C')
+                self.negative -= W_SHORTCUT_SET
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive -= get_unicode_subset(part[3:-1])
@@ -542,9 +381,9 @@ class XsdRegexCharGroup(MutableSet):
 
     def get_char_class(self):
         if self.positive:
-            return u'[%s]' % str(self)
+            return u'[%s]' % unicode_type(self)
         elif self.negative:
-            return u'[^%s]' % str(self.negative)
+            return u'[^%s]' % unicode_type(self.negative)
         else:
             return u'[]'
 
@@ -592,13 +431,15 @@ def parse_character_class(xml_regex, start_pos):
     return char_group, pos
 
 
-def get_python_regex(xml_regex):
+def get_python_regex(xml_regex, debug=False):
     """
     Get a Python's compatible regex from a XML regex expression.
     """
+    if debug:
+        import pdb
+        pdb.set_trace()
     regex = ['^']
     pos = 0
-    char_group = XsdRegexCharGroup()
     while pos < len(xml_regex):
         ch = xml_regex[pos]
         if ch == '.':
@@ -617,22 +458,31 @@ def get_python_regex(xml_regex):
             pos += 1
             if pos >= len(xml_regex):
                 regex.append('\\')
-            elif xml_regex[pos] in 'iIcC':
-                char_group.clear()
-                char_group.add('\%s' % xml_regex[pos])
-                regex.append(char_group.get_char_class())
+            elif xml_regex[pos] == 'i':
+                regex.append('[%s]' % I_SHORTCUT_REPLACE)
+            elif xml_regex[pos] == 'I':
+                regex.append('[^%s]' % I_SHORTCUT_REPLACE)
+            elif xml_regex[pos] == 'c':
+                regex.append('[%s]' % C_SHORTCUT_REPLACE)
+            elif xml_regex[pos] == 'C':
+                regex.append('[^%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] in 'pP':
                 start_pos = pos - 1
                 try:
+                    if xml_regex[pos + 1] != '{':
+                        raise ValueError()
                     while xml_regex[pos] != '}':
                         pos += 1
-                except IndexError:
+                except (IndexError, ValueError):
                     raise XMLSchemaRegexError(
                         "truncated unicode block escape at position %d: %r" % (start_pos, xml_regex)
                     )
-                char_group.clear()
-                char_group.add(xml_regex[start_pos:pos + 1])
-                regex.append(char_group.get_char_class())
+                p_shortcut_set = get_unicode_subset(xml_regex[start_pos + 3:pos])
+                p_shortcut_replace = ''.join(generate_character_group(p_shortcut_set))
+                if xml_regex[start_pos + 1] == 'p':
+                    regex.append('[%s]' % p_shortcut_replace)
+                else:
+                    regex.append('[^%s]' % p_shortcut_replace)
             else:
                 regex.append('\\%s' % xml_regex[pos])
         else:
