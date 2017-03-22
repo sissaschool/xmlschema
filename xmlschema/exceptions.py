@@ -38,6 +38,10 @@ class XMLSchemaValueError(XMLSchemaException, ValueError):
     pass
 
 
+class XMLSchemaKeyError(XMLSchemaException, KeyError):
+    pass
+
+
 class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
 

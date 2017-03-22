@@ -101,7 +101,7 @@ def load_resource(uri):
         except UnicodeDecodeError:
             import codecs
             with codecs.open(urlsplit(uri).path, mode='rb', encoding='iso-8859-1') as text_file:
-                return text_file.read().encode('utf-8'), uri
+                return text_file.read().encode('iso-8859-1'), uri
 
 
 def open_resource(locations, base_uri=None):

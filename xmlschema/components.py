@@ -698,7 +698,6 @@ class XsdSimpleType(XsdBase):
                 obj = self._REGEX_SPACE.sub(u" ", obj)
             elif self.white_space == 'collapse':
                 obj = self._REGEX_SPACES.sub(u" ", obj)
-            self.patterns(obj)
         except TypeError:
             pass
         return obj
@@ -706,6 +705,9 @@ class XsdSimpleType(XsdBase):
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate:
+            if self.patterns:
+                for error in self.patterns(text):
+                    yield error
             for validator in self.validators:
                 for error in validator(text):
                     yield error
@@ -716,6 +718,9 @@ class XsdSimpleType(XsdBase):
             yield XMLSchemaEncodeError(self, text, unicode_type)
 
         if validate:
+            if self.patterns:
+                for error in self.patterns(text):
+                    yield error
             for validator in self.validators:
                 for error in validator(text):
                     yield error
@@ -789,8 +794,12 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
 
-    def iter_decode(self, text, validate=True, **kwargs):
-        text = self.normalize(text)
+    def iter_decode(self, text1, validate=True, **kwargs):
+        text = self.normalize(text1)
+        if validate and self.patterns:
+            for error in self.patterns(text):
+                yield error
+
         try:
             result = self.to_python(text)
         except ValueError:
@@ -842,6 +851,10 @@ class XsdList(XsdSimpleType):
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
+        if validate and self.patterns:
+            for error in self.patterns(text):
+                yield error
+
         items = []
         for chunk in text.split():
             for result in self.item_type.iter_decode(chunk, validate, **kwargs):
@@ -905,6 +918,10 @@ class XsdUnion(XsdSimpleType):
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
+        if validate and self.patterns:
+            for error in self.patterns(text):
+                yield error
+
         for member_type in self.member_types:
             for result in member_type.iter_decode(text, validate, **kwargs):
                 if not isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
@@ -942,6 +959,10 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
+        if validate and self.patterns:
+            for error in self.patterns(text):
+                yield error
+
         for result in self.base_type.iter_decode(text, validate, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
