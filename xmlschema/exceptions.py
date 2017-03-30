@@ -11,7 +11,14 @@
 """
 This module contains the exception classes of the 'xmlschema' package.
 """
-from .core import PY3, etree_tostring, URLError
+try:
+    # Python 3 specific imports
+    from urllib.error import URLError
+except ImportError:
+    # Python 2 fallback
+    from urllib2 import URLError
+
+from .core import PY3, etree_tostring
 
 
 class XMLSchemaException(Exception):

@@ -4,7 +4,7 @@
 collection/collection.xsd
 collection/collection.xml
 patterns/patterns.xsd
-patterns/patterns.xml 4
+patterns/patterns.xml 5
 vehicles/vehicles.xsd
 vehicles/vehicles.xml
 vehicles/vehicles-1_error.xml 1

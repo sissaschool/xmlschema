@@ -14,7 +14,11 @@ This module contains general-purpose utility functions.
 import re
 from collections import Mapping, MutableMapping
 
-from .core import urlsplit
+try:
+    from urllib.request import urlsplit
+except ImportError:
+    from urlparse import urlsplit
+
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')

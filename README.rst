@@ -24,7 +24,7 @@ You can install the library with::
 
     pip install xmlschema
 
-then you can import the library::
+then you can import the library in your code::
 
     import xmlschema
 

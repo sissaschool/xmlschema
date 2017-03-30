@@ -15,15 +15,18 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.3',
+    version='0.9.4',
     packages=['xmlschema', 'xmlschema.tests'],
     package_data={'xmlschema': [
-        'schemas/*.xsd', 'schemas/*/*.xsd', 'tests/examples/*', 'tests/examples/*/*'
+        'unicode_categories.json',
+        'schemas/*.xsd', 'schemas/*/*.xsd',
+        'tests/examples/*', 'tests/examples/*/*'
     ]},
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
     license='MIT',
+    description='An XML Schema validator and decoder',
     long_description=long_description,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

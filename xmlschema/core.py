@@ -16,16 +16,11 @@ import sys
 from xml.etree import ElementTree
 
 try:
-    # Python 3 specific imports
-    from urllib.request import urlopen, urljoin, urlsplit
-    from urllib.parse import uses_relative, urlparse
-    from urllib.error import URLError
-    from io import StringIO
-except ImportError:
-    # Python 2 fallback
-    from urllib2 import urlopen, URLError
-    from urlparse import urlsplit, urljoin, uses_relative, urlparse
+    # Python 2 import
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
+except ImportError:
+    # Python 3 fallback
+    from io import StringIO
 
 PY3 = sys.version_info[0] >= 3
 
