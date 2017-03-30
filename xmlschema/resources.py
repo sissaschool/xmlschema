@@ -10,9 +10,19 @@
 #
 import os.path
 
+try:
+    # Python 3 specific imports
+    from urllib.request import urlopen, urljoin, urlsplit, pathname2url
+    from urllib.parse import uses_relative, urlparse
+    from urllib.error import URLError
+except ImportError:
+    # Python 2 fallback
+    from urllib import pathname2url
+    from urllib2 import urlopen, URLError
+    from urlparse import urlsplit, urljoin, uses_relative, urlparse
+
 from .core import (
-    PY3, etree_fromstring, etree_tostring, etree_parse_error, etree_iselement,
-    urlsplit, urljoin, urlopen, uses_relative, unicode_type, URLError
+    PY3, etree_fromstring, etree_tostring, etree_parse_error, etree_iselement, unicode_type
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError,
@@ -130,7 +140,7 @@ def open_resource(locations, base_uri=None):
                 uri_parts = urlsplit(urljoin(base_uri, os.path.basename(uri_parts.path)))
         else:
             # The location is a file path
-            absolute_uri = u'file://%s' % os.path.abspath(uri)
+            absolute_uri = u'file://%s' % pathname2url(os.path.abspath(uri))
             try:
                 return urlopen(absolute_uri), absolute_uri
             except URLError as err:

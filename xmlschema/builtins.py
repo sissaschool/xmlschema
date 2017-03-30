@@ -345,7 +345,7 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     ),  # language codes
     (
         xsd_qname('Name'), unicode_type, xsd_qname('token'),
-        # [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\i\c*"})]
+        [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\i\c*"})]
     ),  # not starting with a digit
     (
         xsd_qname('NCName'), unicode_type, xsd_qname('Name'),
@@ -362,7 +362,7 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     ),  # reference to entity (attribute only)
     (
         xsd_qname('NMTOKEN'), unicode_type, xsd_qname('token'),
-        # [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
+        [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
     ),  # should not contain whitespace (attribute only)
 
     # --- Numerical Types ---

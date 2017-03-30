@@ -26,7 +26,7 @@ setup(
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
     license='MIT',
-    description="An XML Schema validator and decoder",
+    description='An XML Schema validator and decoder',
     long_description=long_description,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

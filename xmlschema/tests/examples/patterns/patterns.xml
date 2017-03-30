@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<pat:patterns xmlns:pat="http://example.com/patterns"
+<pt:patterns xmlns:pt="http://example.com/patterns"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="http://example.com/patterns ./patterns.xsd">
     <ISBN>b0123456789012</ISBN>
     <ISBN>b01234567890123</ISBN> <!--Error-->
-    <ISBN>b0123456789012</ISBN>
+    <ISBN>b0123456789012</ISBN><!--Undetected error: TODO: check identity constraints-->
     <ZipCode>55555</ZipCode>
     <ZipCode>I-55555</ZipCode> <!--Error-->
     <ZipCode>55555-5555</ZipCode>
@@ -13,4 +13,4 @@
     <LatinString>façade</LatinString>
     <Prefix>cc</Prefix> <!--Error-->
     <Prefix>cc: dd:@#!%</Prefix>
-</pat:patterns>
+</pt:patterns>
