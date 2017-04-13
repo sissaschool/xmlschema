@@ -17,7 +17,7 @@ import datetime
 import re
 from decimal import Decimal
 
-from .core import long_type, unicode_type, etree_element
+from .core import long_type, unicode_type, etree_element, etree_iselement
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
 from .xsdbase import xsd_qname, XSD_GROUP_TAG
 from .components import (
@@ -156,7 +156,7 @@ def update_xsd_builtins(builtin_dict, declarations, xsd_class=None):
         for _item in items:
             if isinstance(_item, (list, tuple, set)):
                 _facets.update([(k, None) for k in _item])
-            elif isinstance(_item, etree_element):
+            elif etree_iselement(_item):
                 if _item.tag == XSD_PATTERN_TAG:
                     _facets[_item.tag] = XsdPatternsFacet(base_type, _item)
                 else:
