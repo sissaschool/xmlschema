@@ -32,52 +32,61 @@ from .exceptions import (
 
 def load_xml_resource(source, element_only=True):
     """
-    Examines the source and returns the root Element of an ElementTree structure,
-    the XML text and an uri, if available. Returns only the root Element if the
-    optional argument "element_only" is False. This function is usable for XML
-    data files of small or medium sizes, as XSD schemas.
+    Examines the source and returns the root Element, the XML text and an uri 
+    if available. Returns only the root Element if the optional argument 
+    "element_only" is True. This function is usable for XML data files of small 
+    or medium sizes, as XSD schemas.
 
-    :param source: An Element with XML data or an URI that refers to
-    the XML resource or a file-like object.
-    :param element_only: If True the function returns only the Element.
+    :param source: An Element or an Element Tree with XML data or an URI or a 
+    file-like object.
+    :param element_only: If True the function returns only the root Element of the tree.
     :return: a tuple with three items (root Element, XML text and XML URI) or
     only the root Element if 'element_only' argument is True.
     """
+    # source argument is an Element/ElementTree object.
     if etree_iselement(source):
         return source if element_only else (source, etree_tostring(source), None)
+    else:
+        try:
+            xml_root = source.getroot()
+        except AttributeError:
+            pass
+        else:
+            if etree_iselement(xml_root):
+                return xml_root if element_only else (xml_root, etree_tostring(xml_root), None)
 
-    try:
-        # obj is a file-like object containing XML data
-        xml_data = source.read()
-    except AttributeError:
-        if not isinstance(source, (str, bytes, unicode_type)):
+    # source argument is a string
+    if isinstance(source, (str, bytes, unicode_type)):
+        try:
+            xml_root = etree_fromstring(source)
+        except (etree_parse_error, UnicodeEncodeError):
+            if len(source.splitlines()) > 1:
+                raise
+        else:
+            return xml_root if element_only else (xml_root, source, None)
+
+        xml_data, xml_uri = load_resource(source)
+    else:
+        try:
+            # source is a file-like object containing XML data
+            xml_data = source.read()
+        except AttributeError:
             raise XMLSchemaTypeError(
-                "an string, a file-like or a bytes-like object "
+                "an Element tree, a string or a file-like object "
                 "is required, not %r." % source.__class__.__name__
             )
-
-        try:
-            xml_data, xml_uri = load_resource(source)
-            res_err = None
-        except (OSError, IOError, ValueError, XMLSchemaURLError) as err:
-            xml_data, xml_uri = source, None
-            res_err = err
-        except XMLSchemaTypeError as err:
-            raise type(err)("an element, %s" % err)
-
-    else:
-        xml_uri = getattr(source, 'name', getattr(source, 'uri', None))
-        source.close()
-        res_err = None
+        else:
+            xml_uri = getattr(source, 'name', getattr(source, 'uri', None))
+            source.close()
 
     try:
         xml_root = etree_fromstring(xml_data)
     except (etree_parse_error, UnicodeEncodeError) as err:
-        raise res_err or XMLSchemaParseError(
+        raise XMLSchemaParseError(
             "error parsing XML data from %r: %s" % (xml_uri or type(xml_data), err)
         )
-
-    return xml_root if element_only else (xml_root, xml_data, xml_uri)
+    else:
+        return xml_root if element_only else (xml_root, xml_data, xml_uri)
 
 
 def load_resource(uri):
@@ -129,18 +138,16 @@ def open_resource(locations, base_uri=None):
     for location in locations.split():
         uri_parts = urlsplit(location)
         uri = uri_parts.geturl()
-        if uri_parts.scheme:
+        if uri_parts.scheme and uri_parts.scheme in uses_relative:
             # The location is a well formed uri
             try:
                 return urlopen(uri), uri
             except URLError as err:
                 errors.append(err.reason)
-                if base_uri is None or uri_parts.scheme not in uses_relative:
-                    continue
                 uri_parts = urlsplit(urljoin(base_uri, os.path.basename(uri_parts.path)))
         else:
             # The location is a file path
-            absolute_uri = u'file://%s' % pathname2url(os.path.abspath(uri))
+            absolute_uri = urljoin(u'file:', pathname2url(os.path.abspath(uri)))
             try:
                 return urlopen(absolute_uri), absolute_uri
             except URLError as err:
@@ -153,7 +160,7 @@ def open_resource(locations, base_uri=None):
         # Fallback tentative using a specific base_uri
         uri = uri_parts.geturl()
         if not uri_parts.scheme:
-            uri = urljoin('file://', os.path.abspath(uri))
+            uri = urljoin(u'file:', os.path.abspath(uri))
         try:
             return urlopen(uri), uri
         except URLError:

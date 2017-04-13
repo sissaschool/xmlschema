@@ -11,3 +11,4 @@ xmlschema/__pycache__/
 xmlschema/tests/__pycache__/
 dist/
 build/
+tmp/
