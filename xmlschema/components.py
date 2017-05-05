@@ -15,11 +15,12 @@ from collections import MutableMapping, MutableSequence
 
 from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
-from .utils import split_reference, get_qname, listify_update
+from .utils import split_reference, get_qname, listify_update, uri_to_prefixes
 from .xsdbase import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, xsd_lookup, XsdBase
 )
+from . import xpath
 from .facets import (
     XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_v1_1_FACETS,
     LIST_FACETS, UNION_FACETS, check_facets_group
@@ -33,9 +34,6 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
-    def is_optional(self):
-        return getattr(self, '_attrib').get('minOccurs', '').strip() == "0"
-
     @property
     def min_occurs(self):
         return get_xsd_int_attribute(getattr(self, 'elem'), 'minOccurs', default=1, minimum=0)
@@ -48,6 +46,9 @@ class ParticleMixin(object):
             if getattr(self, '_attrib')['maxOccurs'] == 'unbounded':
                 return None
             raise
+
+    def is_optional(self):
+        return getattr(self, '_attrib').get('minOccurs', '').strip() == "0"
 
     def is_emptiable(self):
         return self.min_occurs == 0
@@ -84,8 +85,8 @@ class XsdAttribute(XsdBase):
     def is_optional(self):
         return self.use == 'optional'
 
-    def iter_decode(self, text, validate=True, **kwargs):
-        for result in self.type.iter_decode(text or self.default, validate):
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+        for result in self.type.iter_decode(text or self.default, validate, namespaces, use_defaults):
             yield result
             if not isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                 return
@@ -120,18 +121,41 @@ class XsdElement(XsdBase, ParticleMixin):
             check_type(self, name, None, value, (XsdSimpleType, XsdComplexType))
         super(XsdElement, self).__setattr__(name, value)
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    @property
+    def abstract(self):
+        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+
+    @property
+    def block(self):
+        return self._get_derivation_attribute('block', ('extension', 'restriction', 'substitution'))
+
+    @property
+    def final(self):
+        return self._get_derivation_attribute('final', ('extension', 'restriction'))
+
+    @property
+    def form(self):
+        return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'))
+
+    @property
+    def nillable(self):
+        return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
+
+    @property
+    def substitution_group(self):
+        return self._attrib.get('substitutionGroup')
+
+    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
         result_dict = {}
-        use_defaults = kwargs.get('use_defaults', True)
         if elem.attrib:
-            for result in self.attributes.iter_decode(elem, validate, **kwargs):
+            for result in self.attributes.iter_decode(elem, validate, namespaces, use_defaults):
                 if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield result
                 else:
                     result_dict.update(result)
 
         if len(elem):
-            for result in self.type.iter_decode(elem, validate, **kwargs):
+            for result in self.type.iter_decode(elem, validate, namespaces, use_defaults):
                 if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield result
                 else:
@@ -140,7 +164,7 @@ class XsdElement(XsdBase, ParticleMixin):
                     else:
                         listify_update(result_dict, result)
             if not result_dict:
-                # The subelements are not decodable so transforms them to string
+                # The subelements are not decodable so transforms them to a string
                 result = '\n'.join([etree_tostring(child) for child in elem])
                 if not result_dict:
                     yield result
@@ -157,7 +181,7 @@ class XsdElement(XsdBase, ParticleMixin):
             if hasattr(self.type, 'content_type'):
                 result = unicode_type(text)
             else:
-                for result in self.type.iter_decode(text, validate, **kwargs):
+                for result in self.type.iter_decode(text, validate, namespaces, use_defaults):
                     if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                         yield result
                     else:
@@ -183,7 +207,7 @@ class XsdElement(XsdBase, ParticleMixin):
         model_occurs = 0
         while True:
             try:
-                qname = get_qname(self._target_namespace, elem[index].tag)
+                qname = get_qname(self.target_namespace, elem[index].tag)
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
                     yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
@@ -209,29 +233,60 @@ class XsdElement(XsdBase, ParticleMixin):
             return self.type.attributes[get_qname(self.type.schema.target_namespace, name)]
         return self.type.attributes[name]
 
-    @property
-    def abstract(self):
-        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+    def iter(self, tag=None):
+        if tag is None or self.name == tag:
+            yield self
+        try:
+            for xsd_element in self.type.content_type.iter_elements():
+                for e in xsd_element.iter(tag):
+                    yield e
+        except (TypeError, AttributeError):
+            return
 
-    @property
-    def block(self):
-        return self._get_derivation_attribute('block', ('extension', 'restriction', 'substitution'))
+    def iterchildren(self, tag=None):
+        try:
+            for xsd_element in self.type.content_type.iter_elements():
+                if tag is None or xsd_element.name == tag:
+                    yield xsd_element
+        except (TypeError, AttributeError):
+            return
 
-    @property
-    def final(self):
-        return self._get_derivation_attribute('final', ('extension', 'restriction'))
+    def iterfind(self, path, namespaces=None):
+        """
+        Generate all matching XML Schema element declarations by path.
 
-    @property
-    def form(self):
-        return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'))
+        :param path: a string having an XPath expression. 
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        """
+        if path[:1] == "/":
+            raise SyntaxError("cannot use absolute path on element")
+        return xpath.xsd_iterfind(self, path, namespaces)
 
-    @property
-    def nillable(self):
-        return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
+    def find(self, path, namespaces=None):
+        """
+        Find first matching XML Schema element declaration by path.
 
-    @property
-    def substitution_group(self):
-        return self._attrib.get('substitutionGroup')
+        :param path: a string having an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        :return: The first matching XML Schema element declaration or None if a 
+        matching declaration is not found.
+        """
+        if path[:1] == "/":
+            raise SyntaxError("cannot use absolute path on element")
+        return next(xpath.xsd_iterfind(self, path, namespaces), None)
+
+    def findall(self, path, namespaces=None):
+        """
+        Find all matching XML Schema element declarations by path.
+
+        :param path: a string having an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        :return: A list of matching XML Schema element declarations or None if a 
+        matching declaration is not found.
+        """
+        if path[:1] == "/":
+            raise SyntaxError("cannot use absolute path on element")
+        return list(xpath.xsd_iterfind(self, path, namespaces))
 
 
 class XsdComplexType(XsdBase):
@@ -282,8 +337,8 @@ class XsdComplexType(XsdBase):
     def has_extension(self):
         return self.derivation is True
 
-    def iter_decode(self, obj, validate=True, **kwargs):
-        for result in self.content_type.iter_decode(obj, validate, **kwargs):
+    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
+        for result in self.content_type.iter_decode(obj, validate, namespaces, use_defaults):
             yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
@@ -295,7 +350,6 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
 
     def __init__(self, name=None, elem=None, schema=None, initdict=None):
         XsdBase.__init__(self, name, elem, schema)
-        self._namespaces = schema.namespaces if schema else {}
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
@@ -328,17 +382,17 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 check_type(self, name, dict, v, (XsdAnyAttribute, XsdAttribute))
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
         required_attributes = {
             k for k, v in self.items() if k is not None and v.use == 'required'
         }
         result_dict = {}
         for name, value in elem.items():
-            qname = get_qname(self._target_namespace, name)
+            qname = get_qname(self.target_namespace, name)
             try:
                 xsd_attribute = self[qname]
             except KeyError:
-                qname, namespace = split_reference(name, self._namespaces)
+                qname, namespace = split_reference(name, self.namespaces)
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
                         xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
@@ -359,11 +413,14 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
             else:
                 required_attributes.discard(qname)
 
-            for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+            for result in xsd_attribute.iter_decode(value, validate, namespaces, use_defaults):
                 if isinstance(result, (XMLSchemaValidationError, XMLSchemaDecodeError)):
                     yield result
                 else:
-                    result_dict[name] = result
+                    if name[0] == '{' and namespaces:
+                        result_dict[uri_to_prefixes(name, namespaces)] = result
+                    else:
+                        result_dict[name] = result
                     break
 
         if required_attributes:
@@ -440,10 +497,10 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
             if isinstance(item, (XsdElement, XsdAnyElement)):
                 yield item
             elif isinstance(item, XsdGroup):
-                for xsd_element in item.iter_elements():
-                    yield xsd_element
+                for e in item.iter_elements():
+                    yield e
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
         def not_whitespace(s):
             return s is not None and s.strip()
 
@@ -460,7 +517,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
         # Decode elements
         group_elements = {e.name: e for e in self.iter_elements()}
         result_dict = {}
-        target_namespace = self._target_namespace
+        target_namespace = self.target_namespace
         for child in elem:
             try:
                 xsd_element = group_elements[get_qname(target_namespace, child.tag)]
@@ -474,9 +531,11 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                     )
                     continue
 
-            for result in xsd_element.iter_decode(child, validate, **kwargs):
+            for result in xsd_element.iter_decode(child, validate, namespaces, use_defaults):
                 if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield result
+                elif child.tag[0] == '{' and namespaces:
+                    listify_update(result_dict, (uri_to_prefixes(child.tag, namespaces), result))
                 else:
                     listify_update(result_dict, (child.tag, result))
 
@@ -565,8 +624,6 @@ class XsdAnyAttribute(XsdBase):
 
     def __init__(self, elem=None, schema=None):
         super(XsdAnyAttribute, self).__init__(elem=elem, schema=schema)
-        self._target_namespace = schema.target_namespace if schema else ''
-        self._namespaces = schema.namespaces if schema else {}
 
     @property
     def namespace(self):
@@ -578,7 +635,7 @@ class XsdAnyAttribute(XsdBase):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
         )
 
-    def iter_decode(self, obj, validate=True, **kwargs):
+    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
         if self.process_contents == 'skip':
             return
 
@@ -590,7 +647,7 @@ class XsdAnyAttribute(XsdBase):
             attributes = obj.attrib
 
         for name, value in attributes.items():
-            qname, namespace = split_reference(name, namespaces=self._namespaces)
+            qname, namespace = split_reference(name, namespaces=self.namespaces)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
                     xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
@@ -600,7 +657,7 @@ class XsdAnyAttribute(XsdBase):
                             self, name, "attribute not found", obj, self.elem
                         )
                 else:
-                    for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+                    for result in xsd_attribute.iter_decode(value, validate, namespaces, use_defaults):
                         yield result
             else:
                 yield XMLSchemaValidationError(
@@ -623,11 +680,11 @@ class XsdAnyElement(XsdBase, ParticleMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
         if self.process_contents == 'skip':
             return
 
-        qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
+        qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
                 xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
@@ -637,7 +694,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
                         self, elem.tag, "element not found", elem, self.elem
                     )
             else:
-                for result in xsd_element.iter_decode(elem, validate, **kwargs):
+                for result in xsd_element.iter_decode(elem, validate, namespaces, use_defaults):
                     yield result
 
         elif validate:
@@ -646,7 +703,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
             )
 
     def iter_model(self, elem, index):
-        qname, namespace = split_reference(elem.tag, namespaces=self._namespaces)
+        qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
         if not self._is_namespace_allowed(namespace, self.namespace):
             return
 
@@ -702,7 +759,7 @@ class XsdSimpleType(XsdBase):
             pass
         return obj
 
-    def iter_decode(self, text, validate=True, **kwargs):
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
         text = self.normalize(text)
         if validate:
             if self.patterns:
@@ -794,7 +851,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
 
-    def iter_decode(self, text1, validate=True, **kwargs):
+    def iter_decode(self, text1, validate=True, namespaces=None, use_defaults=True):
         text = self.normalize(text1)
         if validate and self.patterns:
             for error in self.patterns(text):
@@ -849,7 +906,7 @@ class XsdList(XsdSimpleType):
         except AttributeError:
             return LIST_FACETS
 
-    def iter_decode(self, text, validate=True, **kwargs):
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
@@ -857,7 +914,7 @@ class XsdList(XsdSimpleType):
 
         items = []
         for chunk in text.split():
-            for result in self.item_type.iter_decode(chunk, validate, **kwargs):
+            for result in self.item_type.iter_decode(chunk, validate, namespaces, use_defaults):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif isinstance(result, XMLSchemaDecodeError):
@@ -916,14 +973,14 @@ class XsdUnion(XsdSimpleType):
         except AttributeError:
             return UNION_FACETS
 
-    def iter_decode(self, text, validate=True, **kwargs):
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
                 yield error
 
         for member_type in self.member_types:
-            for result in member_type.iter_decode(text, validate, **kwargs):
+            for result in member_type.iter_decode(text, validate, namespaces, use_defaults):
                 if not isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     if validate:
                         for validator in self.validators:
@@ -957,13 +1014,13 @@ class XsdAtomicRestriction(XsdAtomic):
     def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
         super(XsdAtomicRestriction, self).__init__(base_type, name, elem, schema, facets)
 
-    def iter_decode(self, text, validate=True, **kwargs):
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
                 yield error
 
-        for result in self.base_type.iter_decode(text, validate, **kwargs):
+        for result in self.base_type.iter_decode(text, validate, namespaces, use_defaults):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
                 yield unicode_type(text)

@@ -392,7 +392,7 @@ def create_build_function(factory_key):
                             )
                             obj[0] = xsd_instance
                     else:
-                        raise XMLSchemaTypeError("unexpected %r for XSD global %r" % type(obj, qname))
+                        raise XMLSchemaTypeError("unexpected type %r for XSD global %r" % (type(obj), qname))
 
                 except (XMLSchemaTypeError, XMLSchemaLookupError) as err:
                     _logger.debug("XSD reference %s not yet defined: elem.attrib=%r", err, elem.attrib)
@@ -446,11 +446,11 @@ class XsdBase(object):
             self._attrib = value.attrib if value is not None else self._DUMMY_DICT
         elif name == "schema":
             if value is not None:
-                self._target_namespace = value.target_namespace
-                self._namespaces = value.namespaces
+                self.target_namespace = value.target_namespace
+                self.namespaces = value.namespaces
             else:
-                self._target_namespace = ''
-                self._namespaces = self._DUMMY_DICT
+                self.target_namespace = ''
+                self.namespaces = self._DUMMY_DICT
         super(XsdBase, self).__setattr__(name, value)
 
     def __repr__(self):
@@ -494,12 +494,12 @@ class XsdBase(object):
         if any_namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
             return True
         elif any_namespace == '##other':
-            return namespace != self._target_namespace
+            return namespace != self.target_namespace
         else:
             any_namespaces = any_namespace.split()
             if '##local' in any_namespaces and namespace == '':
                 return True
-            elif '##targetNamespace' in any_namespaces and namespace == self._target_namespace:
+            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
                 return True
             else:
                 return namespace in any_namespaces
@@ -525,8 +525,8 @@ class XsdBase(object):
             if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                 yield chunk
 
-    def decode(self, obj, validate=True, **kwargs):
-        for obj in self.iter_decode(obj, validate, **kwargs):
+    def decode(self, obj, validate=True, namespaces=None, use_defaults=True):
+        for obj in self.iter_decode(obj, validate, namespaces, use_defaults):
             if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                 raise obj
             return obj
@@ -537,7 +537,7 @@ class XsdBase(object):
                 raise obj
             return obj
 
-    def iter_decode(self, obj, validate=True, **kwargs):
+    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
         """
         Decode generator method. It generates the object that represents the
         decoded value or, if there are decoding or validation errors, a sequence

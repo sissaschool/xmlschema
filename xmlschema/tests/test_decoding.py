@@ -34,7 +34,6 @@ def get_tests(pathname):
                     errors.append(obj)
                 else:
                     chunks.append(obj)
-
             if len(errors) != expected_errors:
                 raise ValueError(
                     "n.%d errors expected, found %d: %s" % (
