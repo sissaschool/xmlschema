@@ -45,6 +45,10 @@ class XMLSchemaValueError(XMLSchemaException, ValueError):
     pass
 
 
+class XMLSchemaSyntaxError(XMLSchemaException, SyntaxError):
+    pass
+
+
 class XMLSchemaKeyError(XMLSchemaException, KeyError):
     pass
 
@@ -78,6 +82,11 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
 
 class XMLSchemaRegexError(XMLSchemaParseError):
     """Raised when an error is found when parsing an XML Schema."""
+    pass
+
+
+class XMLSchemaXPathError(XMLSchemaParseError):
+    """Raised when an error is found when parsing an XPath expression."""
     pass
 
 

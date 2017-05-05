@@ -21,9 +21,9 @@ except ImportError:
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
-_RE_MATCH_NAMESPACE = re.compile(r'\{([^}]*)\}')
-_RE_STRIP_NAMESPACE = re.compile(r'\{[^}]*\}')
-_RE_SPLIT_PATH = re.compile(r'/(?![^{}]*\})')
+_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
+_RE_STRIP_NAMESPACE = re.compile(r'{[^}]*}')
+_RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
 
 
 #
@@ -41,6 +41,23 @@ def get_qname(uri, name):
         return u"{%s}%s" % (uri, name)
     else:
         return name
+
+
+def reference_to_qname(ref, namespaces):
+    if ref and ref[0] == '{':
+        return ref
+
+    try:
+        prefix, name = ref.split(':')
+    except ValueError:
+        if ':' in ref:
+            raise XMLSchemaValueError("wrong format for reference name %r" % ref)
+        return ref
+    else:
+        try:
+            return "{%s}%s" % (namespaces[prefix], name)
+        except KeyError:
+            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
 
 
 def split_qname(qname):
@@ -71,11 +88,11 @@ def split_reference(ref, namespaces):
     :param namespaces: Dictionary that maps the namespace prefix into URI.
     :return: A couple with qname and namespace.
     """
-    if ref[0] == '{':
+    if ref and ref[0] == '{':
         return ref, ref[1:].split('}')[0] if ref[0] == '{' else ''
 
     try:
-        prefix, tag = ref.split(":")
+        prefix, name = ref.split(":")
     except ValueError:
         try:
             uri = namespaces['']
@@ -89,7 +106,7 @@ def split_reference(ref, namespaces):
         except KeyError as err:
             raise XMLSchemaValueError("unknown namespace prefix %s for reference %r" % (err, ref))
         else:
-            return u"{%s}%s" % (uri, tag) if uri else tag, uri
+            return u"{%s}%s" % (uri, name) if uri else name, uri
 
 
 def get_qualified_path(path, uri):

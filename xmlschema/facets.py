@@ -103,8 +103,8 @@ class XsdFacet(XsdBase):
         XsdBase.__init__(self, elem=elem, schema=schema)
         self.base_type = base_type
 
-    def iter_decode(self, text, validate=True, **kwargs):
-        return self.base_type.iter_decode(text, validate, **kwargs)
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
 
     def iter_encode(self, text, validate=True, **kwargs):
         return self.base_type.iter_encode(text, validate, **kwargs)

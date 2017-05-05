@@ -41,6 +41,7 @@ from .factories import (
     xsd_attribute_group_factory, xsd_complex_type_factory,
     xsd_element_factory, xsd_group_factory
 )
+from . import xpath
 
 logger = logging.getLogger(__name__)
 
@@ -160,8 +161,8 @@ class XsdGlobals(object):
 
         # Update base_elements
         self.base_elements.update(self.elements)
-        for v in self.groups.values():
-            self.base_elements.update({e.name: e for e in v.iter_elements()})
+        for group in self.groups.values():
+            self.base_elements.update({e.name: e for e in group.iter_elements()})
 
         for schema in self.iter_schemas():
             schema.built = True
@@ -246,8 +247,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
             # Extract namespaces from schema and include subschemas
             self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the XML namespace is implicit
-            namespaces = etree_get_namespaces(self.text)
-            self.namespaces.update(namespaces)
+            self.namespaces.update(etree_get_namespaces(self.text))
             if '' not in self.namespaces:
                 # For default local names are mapped to targetNamespace
                 self.namespaces[''] = self.target_namespace
@@ -393,21 +393,76 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield chunk
 
-        def iter_decode(self, xml_document):
+        def iter_decode(self, xml_document, validate=True, namespaces=None, use_defaults=True):
             xml_root = load_xml_resource(xml_document)
             try:
-                xsd_element = self.maps.elements[xml_root.tag]
+                xsd_element = self.find(xml_root.tag)
             except KeyError:
                 yield XMLSchemaValidationError(
                     self, xml_root.tag, "not a global element of the schema of the schema!", xml_root
                 )
             else:
-                for obj in xsd_element.iter_decode(xml_root):
+                if namespaces is None:
+                    namespaces = etree_get_namespaces(xml_document)
+                else:
+                    namespaces.update(etree_get_namespaces(xml_document))
+
+                for obj in xsd_element.iter_decode(xml_root, validate, namespaces, use_defaults):
                     yield obj
 
-        def to_dict(self, xml_document):
+        def to_dict(self, xml_document, validate=True, namespaces=None, use_defaults=True):
             xml_root = load_xml_resource(xml_document)
-            return self.maps.elements[xml_root.tag].decode(xml_root)
+            if namespaces is None:
+                namespaces = etree_get_namespaces(xml_document)
+            else:
+                namespaces.update(etree_get_namespaces(xml_document))
+
+            return self.find(xml_root.tag).decode(xml_root, validate, namespaces, use_defaults)
+
+        #
+        # ElementTree likes API for Element declaration extractions.
+        def iter(self, tag=None):
+            for xsd_element in self.elements.values():
+                if tag is None or xsd_element.name == tag:
+                    yield xsd_element
+                for e in xsd_element.iter(tag):
+                    yield e
+
+        def iterchildren(self, tag=None):
+            for xsd_element in self.elements.values():
+                if tag is None or xsd_element.name == tag:
+                    yield xsd_element
+
+        def iterfind(self, path, namespaces=None):
+            """
+            Generate all matching XML Schema element declarations by path.
+
+            :param path: a string having an XPath expression. 
+            :param namespaces: an optional mapping from namespace prefix to full name.
+            """
+            return xpath.xsd_iterfind(self, path, namespaces or self.namespaces)
+
+        def find(self, path, namespaces=None):
+            """
+            Find first matching XML Schema element declaration by path.
+
+            :param path: a string having an XPath expression.
+            :param namespaces: an optional mapping from namespace prefix to full name.
+            :return: The first matching XML Schema element declaration or None if a 
+            matching declaration is not found.
+            """
+            return next(xpath.xsd_iterfind(self, path, namespaces or self.namespaces), None)
+
+        def findall(self, path, namespaces=None):
+            """
+            Find all matching XML Schema element declarations by path.
+
+            :param path: a string having an XPath expression.
+            :param namespaces: an optional mapping from namespace prefix to full name.
+            :return: A list of matching XML Schema element declarations or None if a 
+            matching declaration is not found.
+            """
+            return list(xpath.xsd_iterfind(self, path, namespaces or self.namespaces))
 
     # Create the meta schema
     if meta_schema is not None:
