@@ -22,7 +22,7 @@ from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaURLError
 )
-from .utils import URIDict, get_namespace, listify_update
+from .utils import URIDict, get_namespace, listify_update, strip_uri
 from .xsdbase import (
     check_tag, get_xsi_schema_location, get_xsi_no_namespace_schema_location,
     XSD_SCHEMA_TAG, build_xsd_attributes, build_xsd_attribute_groups,
@@ -77,6 +77,7 @@ class XsdGlobals(object):
         self.groups = {}            # Model groups
         self.elements = {}          # Global elements
         self.base_elements = {}     # Global elements + global groups expansion
+        self._view_cache = {}       # Cache for namespace views
 
         self.types.update(validator.BUILTIN_TYPES)
 
@@ -110,11 +111,21 @@ class XsdGlobals(object):
             if not any([schema.uri == obj.uri for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
-    def get_globals(self, map_name, namespace):
-        return {
-            k: v for k, v in getattr(self, map_name).items()
-            if namespace == get_namespace(k)
-        }
+    def get_globals(self, map_name, namespace, fqn_keys=True):
+        try:
+            return self._view_cache[(map_name, namespace, fqn_keys)]
+        except KeyError:
+            if fqn_keys:
+                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
+                    k: v for k, v in getattr(self, map_name).items()
+                    if namespace == get_namespace(k)
+                }
+            else:
+                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
+                    strip_uri(k): v for k, v in getattr(self, map_name).items()
+                    if namespace == get_namespace(k)
+                }
+            return view
 
     def iter_schemas(self):
         for ns_schemas in self.namespaces.values():
@@ -128,6 +139,7 @@ class XsdGlobals(object):
         self.groups.clear()
         self.elements.clear()
         self.base_elements.clear()
+        self._view_cache.clear()
 
         self.types.update(self.validator.BUILTIN_TYPES)
         for schema in self.iter_schemas():
@@ -282,23 +294,23 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
         @property
         def types(self):
-            return self.maps.get_globals('types', self.target_namespace)
+            return self.maps.get_globals('types', self.target_namespace, False)
 
         @property
         def attributes(self):
-            return self.maps.get_globals('attributes', self.target_namespace)
+            return self.maps.get_globals('attributes', self.target_namespace, False)
 
         @property
         def attribute_groups(self):
-            return self.maps.get_globals('attribute_groups', self.target_namespace)
+            return self.maps.get_globals('attribute_groups', self.target_namespace, False)
 
         @property
         def groups(self):
-            return self.maps.get_globals('groups', self.target_namespace)
+            return self.maps.get_globals('groups', self.target_namespace, False)
 
         @property
         def elements(self):
-            return self.maps.get_globals('elements', self.target_namespace)
+            return self.maps.get_globals('elements', self.target_namespace, False)
 
         @classmethod
         def create_schema(cls, *args, **kwargs):

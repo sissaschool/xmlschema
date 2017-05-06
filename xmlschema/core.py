@@ -148,27 +148,27 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
 
 def etree_get_namespaces(source):
     """
-    Extract namespaces with related prefixes from schema source. 
-    If it cant's returns an empty dictionary.
+    Extracts namespaces with related prefixes from schema source, 
+    if it cant's get namespaces returns an empty dictionary.
     
-    :param source: A string containing the XML document or a file path or a file like object or an
-     etree Element. 
+    :param source: A string containing the XML document or a file path 
+    or a file like object or an etree Element. 
     :return: A dictionary for mapping namespace prefixes to full URI.
     """
     try:
-        namespaces = dict([
-            node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))
-        ])
-    except ElementTree.ParseError:
-        namespaces = dict([
-            node for _, node in etree_iterparse(source, events=('start-ns',))
-        ])
+        try:
+            return dict([
+                node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))
+            ])
+        except ElementTree.ParseError:
+            return dict([
+                node for _, node in etree_iterparse(source, events=('start-ns',))
+            ])
     except TypeError:
-        if hasattr(source, 'nsmap'):
-            return source.nsmap.copy()
-        else:
+        try:
+            return dict(source.nsmap)
+        except (AttributeError, TypeError):
             return {}
-    return namespaces
 
 
 def etree_iterpath(elem, tag=None, path='.'):

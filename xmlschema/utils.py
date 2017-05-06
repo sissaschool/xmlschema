@@ -22,7 +22,6 @@ except ImportError:
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
-_RE_STRIP_NAMESPACE = re.compile(r'{[^}]*}')
 _RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
 
 
@@ -76,6 +75,20 @@ def split_qname(qname):
     return None, qname
 
 
+def strip_uri(qname):
+    """
+    Return the local part of a QName.
+    
+    :param qname: QName or universal name formatted string.
+    """
+    if qname[0] != '{':
+        return qname
+    try:
+        return qname[qname.rindex('}') + 1:]
+    except ValueError:
+        raise XMLSchemaValueError("wrong format for a universal name! '%s'" % qname)
+
+
 def split_reference(ref, namespaces):
     """
     Processes a reference name using namespaces information. A reference
@@ -118,10 +131,6 @@ def get_namespace(name):
         return _RE_MATCH_NAMESPACE.match(name).group(1)
     except AttributeError:
         return ''
-
-
-def strip_namespace(path_or_name, prefix=''):
-    return _RE_STRIP_NAMESPACE.sub(prefix, path_or_name)
 
 
 def split_path(path):
