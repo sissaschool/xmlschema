@@ -754,7 +754,7 @@ class XsdSimpleType(XsdBase):
             if self.white_space == 'replace':
                 obj = self._REGEX_SPACE.sub(u" ", obj)
             elif self.white_space == 'collapse':
-                obj = self._REGEX_SPACES.sub(u" ", obj)
+                obj = self._REGEX_SPACES.sub(u" ", obj).strip()
         except TypeError:
             pass
         return obj

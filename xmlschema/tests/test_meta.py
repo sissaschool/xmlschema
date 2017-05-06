@@ -14,8 +14,10 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 from _test_common import *
 
-from xmlschema.codepoints import UNICODE_CATEGORIES
 from sys import maxunicode
+from xmlschema.xsdbase import xsd_qname
+from xmlschema.codepoints import UNICODE_CATEGORIES
+from xmlschema import XMLSchema
 
 
 class TestUnicodeCategories(unittest.TestCase):
@@ -49,6 +51,18 @@ class TestUnicodeCategories(unittest.TestCase):
         self.assertTrue(
             min_code_point >= 0,
             "The Unicode categories have negative code points: %d" % min_code_point
+        )
+
+
+class TestBuiltinTypes(unittest.TestCase):
+
+    def test_boolean(self):
+        xsd_boolean = XMLSchema.META_SCHEMA.maps.types[xsd_qname('boolean')]
+        self.assertTrue(all([
+                xsd_boolean.decode(' true  \n'), not xsd_boolean.decode(' 0  \n'),
+                xsd_boolean.decode(' 1  \n'), not xsd_boolean.decode(' false  \n')
+            ]),
+            "Error decoding boolean values."
         )
 
 
