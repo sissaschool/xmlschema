@@ -17,6 +17,7 @@ from collections import Mapping, MutableMapping
 try:
     from urllib.request import urlsplit
 except ImportError:
+    # noinspection PyCompatibility
     from urlparse import urlsplit
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError

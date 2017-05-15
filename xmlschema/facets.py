@@ -278,7 +278,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
     def __call__(self, value):
         if value not in self.enumeration:
             yield XMLSchemaValidationError(
-                self, value, reason="invalid value, it must be one of %r" % self.enumeration
+                self, value, reason="invalid value %r, it must be one of %r" % (value, self.enumeration)
             )
 
 

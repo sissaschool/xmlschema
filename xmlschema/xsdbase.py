@@ -457,6 +457,7 @@ class XsdBase(object):
         return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
 
     def __str__(self):
+        # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):

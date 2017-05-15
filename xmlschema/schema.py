@@ -71,13 +71,13 @@ class XsdGlobals(object):
         self.namespaces = URIDict()     # Registered schemas by namespace URI
         self.resources = URIDict()      # Registered schemas by resource URI
 
-        self.types = {}             # Global types
-        self.attributes = {}        # Global attributes
-        self.attribute_groups = {}  # Attribute groups
-        self.groups = {}            # Model groups
-        self.elements = {}          # Global elements
-        self.base_elements = {}     # Global elements + global groups expansion
-        self._view_cache = {}       # Cache for namespace views
+        self.types = {}                 # Global types
+        self.attributes = {}            # Global attributes
+        self.attribute_groups = {}      # Attribute groups
+        self.groups = {}                # Model groups
+        self.elements = {}              # Global elements
+        self.base_elements = {}         # Global elements + global groups expansion
+        self._view_cache = {}           # Cache for namespace views
 
         self.types.update(validator.BUILTIN_TYPES)
 
@@ -203,6 +203,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
         BUILTIN_TYPES = builtin_types
         FACETS = facets or ()
         OPTIONS = validator_options
+        _parent_map = None
 
         def __init__(self, source, namespace=None, check_schema=False, global_maps=None):
             """
@@ -312,6 +313,15 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
         def elements(self):
             return self.maps.get_globals('elements', self.target_namespace, False)
 
+        @property
+        def parent_map(self):
+            if self._parent_map is None:
+                self._parent_map = {
+                    e: p for p in self.iter()
+                    for e in p.iterchildren()
+                }
+            return self._parent_map
+
         @classmethod
         def create_schema(cls, *args, **kwargs):
             return cls(*args, **kwargs)
@@ -405,31 +415,26 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield chunk
 
-        def iter_decode(self, xml_document, validate=True, namespaces=None, use_defaults=True):
+        def iter_decode(self, xml_document, *args, **kwargs):
             xml_root = load_xml_resource(xml_document)
             try:
                 xsd_element = self.find(xml_root.tag)
             except KeyError:
                 yield XMLSchemaValidationError(
-                    self, xml_root.tag, "not a global element of the schema of the schema!", xml_root
+                    self, xml_root, "%r is not a global element of the schema!" % xml_root.tag
                 )
             else:
-                if namespaces is None:
-                    namespaces = etree_get_namespaces(xml_document)
-                else:
-                    namespaces.update(etree_get_namespaces(xml_document))
-
-                for obj in xsd_element.iter_decode(xml_root, validate, namespaces, use_defaults):
+                for obj in xsd_element.iter_decode(xml_root, *args, **kwargs):
                     yield obj
 
-        def to_dict(self, xml_document, validate=True, namespaces=None, use_defaults=True):
+        def to_dict(self, xml_document, process_namespaces=True, **kwargs):
             xml_root = load_xml_resource(xml_document)
-            if namespaces is None:
+            if process_namespaces:
                 namespaces = etree_get_namespaces(xml_document)
-            else:
-                namespaces.update(etree_get_namespaces(xml_document))
-
-            return self.find(xml_root.tag).decode(xml_root, validate, namespaces, use_defaults)
+                if 'namespaces' in kwargs:
+                    namespaces.update(kwargs['namespaces'])
+                kwargs['namespaces'] = namespaces
+            return self.find(xml_root.tag).decode(xml_root, **kwargs)
 
         #
         # ElementTree likes API for Element declaration extractions.
@@ -441,7 +446,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                     yield e
 
         def iterchildren(self, tag=None):
-            for xsd_element in self.elements.values():
+            for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
                 if tag is None or xsd_element.name == tag:
                     yield xsd_element
 

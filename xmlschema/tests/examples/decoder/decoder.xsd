@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="http://example.com/decoder" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/decoder" >
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="decimal_value" type="Decimal_9_5"/>
+                <xs:element name="certification" type="year_attr_string_75" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:simpleType name="Decimal_9_5">
+        <xs:restriction base="xs:decimal">
+            <xs:totalDigits value="9"/>
+            <xs:fractionDigits value="5"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="string_75">
+        <xs:restriction base="xs:string">
+            <xs:maxLength value="75"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="year_attr_string_75">
+        <xs:simpleContent>
+            <xs:extension base="string_75">
+                <xs:attribute name="Year" type="xs:integer" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+</xs:schema>

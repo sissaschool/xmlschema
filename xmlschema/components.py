@@ -195,7 +195,10 @@ class XsdElement(XsdBase, ParticleMixin):
             elif text:
                 result_dict['_text'] = result
 
-        yield result_dict
+        if result_dict:
+            yield result_dict
+        else:
+            yield None
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.type.iter_encode(obj, validate, **kwargs):
@@ -398,7 +401,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                         xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
                     except XMLSchemaLookupError:
                         yield XMLSchemaValidationError(
-                            self, name, "not an attribute of the XSI namespace!", elem, self.elem
+                            self, elem, "% is not an attribute of the XSI namespace." % name
                         )
                         continue
                 else:
@@ -407,7 +410,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                         value = {qname: value}
                     except KeyError:
                         yield XMLSchemaValidationError(
-                            self, name, "attribute not allowed for this element", elem, self.elem
+                            self, elem, "%r attribute not allowed for this element" % name
                         )
                         continue
             else:
@@ -425,11 +428,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
 
         if required_attributes:
             yield XMLSchemaValidationError(
-                validator=self,
-                value=elem.attrib,
-                reason="missing required attributes %r" % required_attributes,
-                elem=elem,
-                schema_elem=self.elem
+                self, elem, "missing required attributes %r" % required_attributes,
             )
         yield result_dict
 
@@ -511,7 +510,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
                 else:
                     yield XMLSchemaValidationError(
-                        self, elem, "character data between child elements not allowed!", elem, self.elem
+                        self, elem, "character data between child elements not allowed!"
                     )
 
         # Decode elements
@@ -527,7 +526,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                         break
                 else:
                     yield XMLSchemaValidationError(
-                        self, child.tag, "element not in schema!", child, self.elem
+                        self, child, "element %r not in schema!" % child.tag
                     )
                     continue
 
@@ -581,8 +580,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                     else:
                         if model_occurs == 0 and self.min_occurs > 0:
                             yield XMLSchemaValidationError(
-                                self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
-                                elem, self.elem
+                                self, elem, reason % (elem[model_index].tag, [e.name for e in group])
                             )
                         elif model_occurs:
                             yield index
@@ -603,8 +601,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                     if model_occurs == 0 and self.min_occurs > 0:
                         group = [e for e in self.iter_elements()]
                         yield XMLSchemaValidationError(
-                            self, elem, reason % (elem[model_index].tag, [e.name for e in group]),
-                            elem, self.elem
+                            self, elem, reason % (elem[model_index].tag, [e.name for e in group])
                         )
                     elif model_occurs:
                         yield index
@@ -653,16 +650,12 @@ class XsdAnyAttribute(XsdBase):
                     xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
                 except XMLSchemaLookupError:
                     if self.process_contents == 'strict':
-                        yield XMLSchemaValidationError(
-                            self, name, "attribute not found", obj, self.elem
-                        )
+                        yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
                 else:
                     for result in xsd_attribute.iter_decode(value, validate, namespaces, use_defaults):
                         yield result
             else:
-                yield XMLSchemaValidationError(
-                    self, name, "attribute not allowed for this element", obj, self.elem
-                )
+                yield XMLSchemaValidationError(self, obj, "attribute %r not allowed." % name)
 
 
 class XsdAnyElement(XsdBase, ParticleMixin):
@@ -690,17 +683,13 @@ class XsdAnyElement(XsdBase, ParticleMixin):
                 xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
             except XMLSchemaLookupError:
                 if self.process_contents == 'strict' and validate:
-                    yield XMLSchemaValidationError(
-                        self, elem.tag, "element not found", elem, self.elem
-                    )
+                    yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
             else:
                 for result in xsd_element.iter_decode(elem, validate, namespaces, use_defaults):
                     yield result
 
         elif validate:
-            yield XMLSchemaValidationError(
-                self, elem.tag, "element not allowed", elem, self.elem
-            )
+            yield XMLSchemaValidationError(self, elem, "element %r not allowed here." % elem.tag)
 
     def iter_model(self, elem, index):
         qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
@@ -851,16 +840,16 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
 
-    def iter_decode(self, text1, validate=True, namespaces=None, use_defaults=True):
-        text = self.normalize(text1)
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+        _text = self.normalize(text)
         if validate and self.patterns:
-            for error in self.patterns(text):
+            for error in self.patterns(_text):
                 yield error
 
         try:
-            result = self.to_python(text)
+            result = self.to_python(_text)
         except ValueError:
-            yield XMLSchemaDecodeError(self, text, self.python_type)
+            yield XMLSchemaDecodeError(self, text, self.to_python)
             yield unicode_type(text)
             return
 
@@ -871,8 +860,15 @@ class XsdAtomicBuiltin(XsdAtomic):
         yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
-        if not isinstance(obj, self.python_type):
-            yield XMLSchemaEncodeError(self, obj, self.python_type)
+        try:
+            if not isinstance(obj, self.python_type):
+                if isinstance(obj, bool) or self.python_type == bool:
+                    # Class checking is sufficient only for bool() values.
+                    raise ValueError()
+                elif self.python_type(obj) != obj:
+                    raise ValueError()
+        except ValueError:
+            yield XMLSchemaEncodeError(self, obj, self.from_python)
             yield unicode_type(obj)
             return
 
@@ -1003,7 +999,9 @@ class XsdUnion(XsdSimpleType):
                                 yield error
                     yield result
                     return
-        yield XMLSchemaEncodeError(self, obj, self.member_types)
+        yield XMLSchemaEncodeError(
+            self, obj, self.member_types, reason="no type suitable for encoding the object."
+        )
         yield unicode_type(obj)
 
 

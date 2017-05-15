@@ -12,6 +12,7 @@
 This module contains an XPath expressions parser.
 """
 import re
+from decimal import Decimal
 from collections import MutableSequence
 from abc import ABCMeta
 from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError
@@ -20,7 +21,7 @@ from .utils import reference_to_qname
 
 #
 # XPath tokenizer
-def get_tokenizer_pattern(symbols):
+def get_xpath_tokenizer_pattern(symbols):
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
         (%s | [%s]) |                                   # Symbols
@@ -28,23 +29,39 @@ def get_tokenizer_pattern(symbols):
         \s+                                             # Skip extra spaces
         """
 
+    def tokens_escape(s):
+        s = re.escape(s)
+        if s[-2:] == r'\(':
+            s = '%s\s*%s' % (s[:-2], s[-2:])
+        elif s[-4:] == r'\:\:':
+            s = '%s\s*%s' % (s[:-4], s[-4:])
+        return s
+
     symbols.sort(key=lambda x: -len(x))
     fence = len([i for i in symbols if len(i) > 1])
     return tokenizer_pattern_template % (
-        '|'.join(map(re.escape, symbols[:fence])),
+        '|'.join(map(tokens_escape, symbols[:fence])),
         ''.join(map(re.escape, symbols[fence:]))
     )
+
 
 XPATH_SYMBOLS = [
     'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
     'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
     'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
     'child::', 'self::', 'text(', 'node(', 'and', 'mod', 'div', 'or',
-    '..', '//', '!=', '<=', '>=' '(', ')', '[', ']', '.', '@', ',', '/', '|', '*',
-    '-', '=', '+', '<', '>'
+    '..', '//', '!=', '<=', '>=', '(', ')', '[', ']', '.', '@', ',', '/', '|', '*',
+    '-', '=', '+', '<', '>',
+
+    # XPath Core function library
+    'last(', 'position(',  # Node set functions
+    'not(', 'true(', 'false('  # Boolean functions
+    
+    # added in XPath 2.0
+    'union'
 ]
 
-xpath_tokens_regex = re.compile(get_tokenizer_pattern(XPATH_SYMBOLS), re.VERBOSE)
+xpath_tokens_regex = re.compile(get_xpath_tokenizer_pattern(XPATH_SYMBOLS), re.VERBOSE)
 
 
 #
@@ -58,7 +75,7 @@ class TokenMeta(ABCMeta):
 
     def __new__(mcs, name, bases, _dict):
         _dict['name'] = name
-        lbp = _dict['lbp'] = _dict.pop('bp', 0)
+        lbp = _dict['lbp'] = _dict.pop('lbp', 0)
         nud = _dict.pop('nud', None)
         led = _dict.pop('led', None)
 
@@ -93,7 +110,7 @@ class Token(MutableSequence):
     name = None     # the token identifier, key in the symbol table.
 
     def __init__(self, value=None):
-        self.value = value or self.name
+        self.value = value if value is not None else self.name
         self._operands = []
 
     def __getitem__(self, i):
@@ -136,9 +153,266 @@ class Token(MutableSequence):
                 yield token
 
     def iter_selectors(self):
-        for token in self.iter():
-            if hasattr(token, 'sed'):
-                yield token.sed
+        for t in self[:1]:
+            for sed in t.iter_selectors():
+                yield sed
+        if hasattr(self, 'sed'):
+            yield self.sed
+        if self.name != '[':
+            for t in self[1:]:
+                for sed in t.iter_selectors():
+                    yield sed
+
+    def expected(self, name):
+        if self.name != name:
+            raise XMLSchemaXPathError("Expected %r token, found %r." % (name, str(self.value)))
+
+    def unexpected(self, name=None):
+        if not name or self.name == name:
+            raise XMLSchemaXPathError("Unexpected %r token." % str(self.value))
+
+    #
+    # XPath selectors
+    @staticmethod
+    def self_selector():
+        def select(context, results):
+            for elem in results:
+                yield elem
+        return select
+
+    def descendant_selector(self):
+        def select(context, results):
+            for elem in results:
+                for e in elem.iter(self.value):
+                    if e is not elem:
+                        yield e
+        return select
+
+    def children_selector(self):
+        def select(context, results):
+            for elem in results:
+                for e in elem.iterchildren(self.value):
+                    yield e
+        return select
+
+    def value_selector(self):
+        def select(context, results):
+            for _ in results:
+                yield self.value
+        return select
+
+    # @attribute
+    def attribute_selector(self):
+        key = self.value
+
+        def select(context, results):
+            if key is not None:
+                for elem in results:
+                    if key in elem.attributes:
+                        yield elem.attributes[key]
+            else:
+                for elem in results:
+                    for attr in elem.attributes.values():
+                        yield attr
+        return select
+
+    # @attribute='value'
+    def attribute_value_selector(self):
+        key = self.value
+        value = self[0].value
+
+        def select(context, results):
+            if key is not None:
+                for elem in results:
+                    yield elem.get(key) == value
+            else:
+                for elem in results:
+                    for attr in elem.attributes.values():
+                        yield attr == value
+        return select
+
+    def find_selector(self):
+        def select(context, results):
+            for elem in results:
+                if elem.find(self.value) is not None:
+                    yield elem
+        return select
+
+    def subscript_selector(self):
+        if self.value > 0:
+            index = self.value - 1
+        elif self.value == 0 or self.name not in ('last(', 'position('):
+            index = None
+        else:
+            index = self.value
+
+        def select(context, results):
+            if index is not None:
+                try:
+                    yield [elem for elem in results][index]
+                except IndexError:
+                    return
+        return select
+
+    def predicate_selector(self):
+        selectors = [f for f in self.iter_selectors()]
+
+        def select(context, results):
+            for elem in results:
+                predicate_results = [elem]
+                for selector in selectors:
+                    predicate_results = selector(context, predicate_results)
+                predicate_results = list(predicate_results)
+                if predicate_results and any(predicate_results):
+                    yield elem
+        return select
+
+    @staticmethod
+    def parent_selector():
+        def select(context, results):
+            parent_map = context.parent_map
+            results_parents = []
+            for elem in results:
+                try:
+                    parent = parent_map[elem]
+                except KeyError:
+                    pass
+                else:
+                    if parent not in results_parents:
+                        results_parents.append(parent)
+                        yield parent
+        return select
+
+    # [tag='value']
+    def tag_value_selector(self):
+        def select(context, results):
+            for elem in results:
+                for e in elem.findall(self.name):
+                    if "".join(e.itertext()) == self.value:
+                        yield elem
+                        break
+        return select
+
+    def disjunction_selector(self):
+        def select(context, results):
+            for elem in results:
+                for token in self:
+                    for selector in token.iter_selectors():
+                        for e in selector(context, elem):
+                            yield e
+        return select
+
+    def conjunction_selector(self):
+        def select(context, results):
+            for elem in results:
+                result_set = {
+                    e for selector in self[1].iter_selectors()
+                    for e in selector(context, elem)
+                }
+                for token in self[2:]:
+                    result_set &= {
+                        e for selector in token.iter_selectors()
+                        for e in selector(context, elem)
+                    }
+                for selector in self[0].iter_selectors():
+                    for e in selector(context, elem):
+                        if e in result_set:
+                            yield e
+        return select
+
+
+#
+# Helper functions/decorators
+def symbol(name, lbp=0):
+    """
+    Create or update a token class. If the symbol is already registered
+    just update the left binding power if it has a greater value.
+
+    :param name: An identifier name for this token class and for its objects.
+    :param lbp: Left binding power, default to 0.
+    :return: Custom token class.
+    """
+    return TokenMeta(name.strip(), (Token,), {'lbp': lbp})
+
+
+def register_symbols(*names, **kwargs):
+    """
+    Create or update token classes for a sequence of symbols. Pass a keyword argument 
+    'lbp' for setting a left binding power greater than 0. If a symbol is already 
+    registered just update the left binding power if it has a greater value.
+
+    :param names: A tuple of identifiers for token classes and for their objects.
+    """
+    lbp = kwargs.pop('lbp', 0)
+    for name in names:
+        TokenMeta(name.strip(), (Token,), {'lbp': lbp})
+
+
+def register_nud(*names, **kwargs):
+    """
+    Decorator to register a function as the null denotation method for a token class.
+    Pass a keyword argument 'lbp' for setting a left binding power greater than 0.
+
+    :param names: A tuple of identifiers for token classes and for their objects.
+    """
+
+    def nud_decorator(func):
+        lbp = kwargs.pop('lbp', 0)
+        for name in names:
+            TokenMeta(name.strip(), (Token,), {'lbp': lbp, 'nud': func})
+        return func
+
+    return nud_decorator
+
+
+def register_led(*names, **kwargs):
+    """
+    Decorator to register a function as the left denotation method for a token class.
+    Pass a keyword argument 'lbp' for setting a left binding power greater than 0.
+
+    :param names: A tuple of identifiers for token classes and for their objects.
+    """
+
+    def led_decorator(func):
+        lbp = kwargs.get('lbp', 0)
+        for name in names:
+            TokenMeta(name.strip(), (Token,), {'lbp': lbp, 'led': func})
+        return func
+
+    return led_decorator
+
+
+#
+# XPath parser
+RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
+    '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
+}
+
+
+def dummy_advance(name=None):
+    return symbol('(end)')
+
+advance = dummy_advance  # Replaced by active parser
+current_token = None
+next_token = None
+
+
+def expression(rbp=0):
+    """
+    Recursive expression parser for expressions. Calls token.nud() and then 
+    advance until the right binding power is less the left binding power of 
+    the next token, invoking the led() method on the following token.
+
+    :param rbp: right binding power for the expression.
+    :return: left token.
+    """
+    global current_token, next_token
+    advance()
+    left = current_token.nud()
+    while rbp < next_token.lbp:
+        advance()
+        left = current_token.led(left)
+    return left
 
 
 class XPathParser(object):
@@ -151,12 +425,13 @@ class XPathParser(object):
     """
 
     def __init__(self, token_table, path, namespaces=None):
-        if path[-1:] == "/" and len(path) > 1:
+        if not path:
+            raise XMLSchemaXPathError("Empty XPath expression.")
+        elif path[-1] == '/':
             raise XMLSchemaXPathError("Invalid path: %r" % path)
         if path[:1] == "/":
             path = "." + path
 
-        self.token = None
         self.token_table = token_table
         self.path = path
         self.namespaces = namespaces if namespaces is not None else {}
@@ -173,57 +448,294 @@ class XPathParser(object):
     next = __next__
 
     def advance(self, name=None):
+        global current_token, next_token
+        if name:
+            next_token.expected(name)
         try:
             match = next(self._tokens)
         except StopIteration:
-            return self.token_table['(end)'](self)
-
-        literal, operator, ref = match.groups()
-        if operator is not None:
-            try:
-                token = self.token_table[operator]()
-            except KeyError:
-                raise XMLSchemaXPathError("Unknown operator %r." % operator)
-        elif literal is not None:
-            token = self.token_table['(literal)'](literal)
-        elif ref is not None:
-            value = reference_to_qname(ref, self.namespaces)
-            token = self.token_table['(ref)'](value)
+            current_token, next_token = next_token, self.token_table['(end)']()
         else:
-            raise XMLSchemaXPathError("Unexpected token: %r" % match)
+            current_token = next_token
+            literal, operator, ref = match.groups()
+            if operator is not None:
+                try:
+                    next_token = self.token_table[operator.replace(' ', '')]()
+                except KeyError:
+                    raise XMLSchemaXPathError("Unknown operator %r." % operator)
+            elif literal is not None:
+                if literal[0] in '\'"':
+                    next_token = self.token_table['(string)'](literal.strip("'\""))
+                elif '.' in literal:
+                    next_token = self.token_table['(decimal)'](Decimal(literal))
+                else:
+                    next_token = self.token_table['(integer)'](int(literal))
+            elif ref is not None:
+                value = reference_to_qname(ref, self.namespaces)
+                next_token = self.token_table['(ref)'](value)
+            else:
+                raise XMLSchemaXPathError("Unexpected token: %r" % match)
 
-        if name and token.name != name:
-            raise XMLSchemaXPathError("Expected %r token." % name)
-        return token
+        return current_token
 
     def parse(self):
-        global advance, expression
+        global advance
         advance = self.advance
-        expression = self.expression
         self.__iter__()
-        self.token = advance()
-        return expression()
-
-    def expression(self, rbp=0):
-        """
-        Recursive expression parser. Call token.nud() and then advance until the 
-        right binding power is less the left binding power of the next token,
-        invoking the led() method on the following token.
-
-        :param rbp: right binding power for the expression.
-        :return: left token.
-        """
-        previous_token, self.token = self.token, self.advance()
-        left = previous_token.nud()
-        while rbp < self.token.lbp:
-            previous_token, self.token = self.token, self.advance()
-            left = previous_token.led(left)
-        return left
+        advance()
+        root_token = expression()
+        if next_token.name != '(end)':
+            next_token.unexpected()
+        return root_token
 
 
+@register_nud('(end)')
+def end_nud(self):
+    return self
+
+
+@register_nud('(string)', '(decimal)', '(integer)')
+def value_nud(self):
+    self.sed = self.value_selector()
+    return self
+
+
+@register_nud('(ref)')
+def ref_token_nud(self):
+    self.sed = self.children_selector()
+    return self
+
+
+@register_nud('*')
+def star_token_nud(self):
+    if next_token.name not in ('/', '[', '(end)', ')'):
+        next_token.unexpected()
+    self.value = None
+    self.sed = self.children_selector()
+    return self
+
+
+@register_led('*', lbp=45)
+def star_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(45))
+    self.value = left.value + self[1].value
+    return self
+
+
+@register_nud('@', 'attribute::')
+def attribute_token_nud(self):
+    self.insert(0, advance())
+    if self[0].name not in ('*', '(ref)'):
+        raise SyntaxError("invalid attribute specification")
+    if next_token.name != '=':
+        self.sed = self[0].attribute_selector()
+    else:
+        advance('=')
+        self[0].insert(0, advance('(string)'))
+        self.sed = self[0].attribute_value_selector()
+    return self
+
+
+@register_led('or', lbp=20)
+def or_token_nud(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(20))
+    self.sed = self.disjunction_selector()
+    return self
+
+
+@register_led('and', lbp=25)
+def and_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(25))
+    self.sed = self.conjunction_selector()
+    return self
+
+
+@register_nud('=', '!=', '<', '>', '<=', '>=', lbp=30)
+def compare_token_nud(self):
+    self.insert(0, expression(30))
+    return self
+
+
+@register_led('=', '!=', '<', '>', '<=', '>=', lbp=30)
+def compare_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(30))
+    return self
+
+
+@register_nud('+')
+def plus_token_nud(self):
+    self.insert(0, expression(75))
+    if not isinstance(self[0].value, int):
+        raise XMLSchemaXPathError("an integer value is required: %r." % self[0])
+    self.value = self[0].value
+    return self
+
+
+@register_led('+', lbp=40)
+def plus_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(40))
+    self.value = left.value + self[1].value
+    return self
+
+
+@register_nud('-')
+def minus_token_nud(self):
+    self.insert(0, expression(75))
+    if not isinstance(self[0].value, int):
+        raise XMLSchemaXPathError("an integer value is required: %r." % self[0])
+    self.value = - self[0].value
+    return self
+
+
+@register_led('-', lbp=40)
+def minus_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(40))
+    self.value = left.value - self[1].value
+    return self
+
+
+@register_led('div', lbp=45)
+def div_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(45))
+    return self
+
+
+@register_led('mod', lbp=45)
+def mod_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(45))
+    return self
+
+
+@register_led('union', '|', lbp=50)
+def union_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(50))
+    self.sed = self.disjunction_selector()
+    return self
+
+
+@register_nud('.', 'self::node()', lbp=60)
+def self_token_nud(self):
+    self.sed = self.self_selector()
+    return self
+
+
+@register_nud('..', 'parent::node()', lbp=60)
+def parent_token_nud(self):
+    self.sed = self.parent_selector()
+    return self
+
+
+@register_nud('/')
+def child_nud(self):
+    current_token.unexpected()
+
+
+@register_led('/', lbp=80)
+def child_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(100))
+    if self[1].name not in RELATIVE_PATH_TOKENS:
+        raise SyntaxError("invalid child %r." % self[1])
+    return self
+
+
+@register_nud('child::', lbp=80)
+def child_axis_nud(self):
+    if next_token.name not in ('(ref)', '*'):
+        raise SyntaxError("invalid child axis %r." % next_token)
+    else:
+        self.insert(0, expression(80))
+    return self
+
+
+@register_led('//', lbp=80)
+def descendant_token_led(self, left):
+    self.insert(0, left)
+    self.insert(1, expression(100))
+    if self[1].name not in RELATIVE_PATH_TOKENS:
+        raise SyntaxError("invalid descendant %r." % self[1])
+    if self[0].name in ('*', '(ref)'):
+        delattr(self[0], 'sed')
+        self.value = self[0].value
+    else:
+        self.value = None
+    self.sed = self.descendant_selector()
+    return self
+
+
+@register_nud('(', lbp=90)
+def group_token_nud(self):
+    next_token.unexpected(')')
+    self.insert(0, expression())
+    advance(')')
+    return self[0]
+
+
+@register_nud(')')
+@register_led(')')
+def right_round_bracket_token(*args, **kwargs):
+    current_token.unexpected()
+
+
+@register_nud('[', lbp=90)
+def predicate_token_nud(self):
+    current_token.unexpected()
+
+
+@register_led('[', lbp=90)
+def predicate_token_led(self, left):
+    next_token.unexpected(']')
+    self.insert(0, left)
+    self.insert(1, expression())
+    if isinstance(self[1].value, int):
+        self.sed = self[1].subscript_selector()
+    else:
+        self.sed = self[1].predicate_selector()
+    advance(']')
+    return self
+
+
+@register_nud(']')
+@register_led(']')
+def predicate_close_token(*args, **kwargs):
+    current_token.unexpected(']')
+
+
+@register_nud('last(', )
+def last_token_nud(self):
+    advance(')')
+    if next_token.name == '-':
+        advance('-')
+        self.insert(0, advance('(integer)'))
+        self.value = -1 - self[0].value
+    else:
+        self.value = -1
+    return self
+
+
+@register_nud('position(')
+def position_token_nud(self):
+    advance(')')
+    advance('=')
+    self.insert(0, expression(90))
+    if not isinstance(self[0].value, int):
+        raise XMLSchemaXPathError("an integer expression is required: %r." % self[0].value)
+    self.value = self[0].value
+    return self
+
+
+#
 # XPath selector class and functions
 class XPathSelector(MutableSequence):
-    _parent_map = None
 
     def __init__(self, context, path, initlist=None):
         self.context = context
@@ -248,19 +760,10 @@ class XPathSelector(MutableSequence):
     def insert(self, i, item):
         self._selector.insert(i, item)
 
-    @property
-    def parent_map(self):
-        if self._parent_map is None:
-            self._parent_map = {
-                e: p for p in self.context.iter()
-                for e in p.iterchildren()
-            }
-        return self._parent_map
-
     def iter_results(self):
         results = [self.context]
         for selector in self:
-            results = selector(self, results)
+            results = selector(self.context, results)
         return results
 
 
@@ -273,320 +776,14 @@ def xsd_iterfind(context, path, namespaces=None):
 
     path_key = (id(context), path)
     try:
-        selector = _selector_cache[path_key]
+        return _selector_cache[path_key].iter_results()
     except KeyError:
-        parser = XPathParser(TokenMeta.registry, path, namespaces)
-        token_tree = parser.parse()
-        selector = XPathSelector(context, path, token_tree.iter_selectors())
-        if len(_selector_cache) > 100:
-            _selector_cache.clear()
-        _selector_cache[path] = selector
+        pass
 
+    parser = XPathParser(TokenMeta.registry, path, namespaces)
+    token_tree = parser.parse()
+    selector = XPathSelector(context, path, token_tree.iter_selectors())
+    if len(_selector_cache) > 100:
+        _selector_cache.clear()
+    _selector_cache[path] = selector
     return selector.iter_results()
-
-
-#
-# XPath selectors
-def iter_selector(tag=None):
-    def select(context, result):
-        for elem in result:
-            for e in elem.iter(tag):
-                if e is not elem:
-                    yield e
-    return select
-
-
-def children_selector(tag=None):
-    def select(context, result):
-        for elem in result:
-            for e in elem.iterchildren(tag):
-                yield e
-    return select
-
-
-# [@attribute]
-def has_attribute_selector(key):
-    def select(context, result):
-        for elem in result:
-            if elem.attributes.get(key) is not None:
-                yield elem
-    return select
-
-
-# @attribute
-def attribute_selector(key=None):
-    def select(context, result):
-        if key is not None:
-            for elem in result:
-                if key in elem.attributes:
-                    yield elem.attributes[key]
-        else:
-            for elem in result:
-                for attr in elem.attributes:
-                    yield attr
-    return select
-
-
-def find_selector(tag):
-    def select(context, result):
-        for elem in result:
-            if elem.find(tag) is not None:
-                yield elem
-    return select
-
-
-def position_selector(index):
-    def select(context, result):
-        i = 0
-        for elem in result:
-            if i == index:
-                yield elem
-                return
-            else:
-                 i += 1
-    return select
-
-
-# [tag='value']
-def tag_value_selector(tag, value):
-    def select(context, result):
-        for elem in result:
-            for e in elem.findall(tag):
-                if "".join(e.itertext()) == value:
-                    yield elem
-                    break
-    return select
-
-
-# [@attribute='value']
-def attribute_value_selector(key, value):
-    def select(context, result):
-        for elem in result:
-            if elem.get(key) == value:
-                yield elem
-    return select
-
-
-#
-# Helper functions and decorators
-def symbol(name, bp=0):
-    """
-    Create or update a token class.
-    
-    :param name: An identifier name for this token class and for its objects.
-    :param bp: Binding power, default to 0.
-    :return: Custom token class.
-    """
-    return TokenMeta(name.strip(), (Token,), {'bp': bp})
-
-
-def prefix(*names):
-    """
-    Decorator to register a function as the null denotation method for a token class.
-
-    :param names: A tuple of identifiers for token classes and for their objects.
-    """
-    def nud_decorator(func):
-        for name in names:
-            TokenMeta(name.strip(), (Token,), {'nud': func})
-        return func
-    return nud_decorator
-
-
-def infix(*names, **kwargs):
-    """
-    Decorator to register a function as the left denotation method for a token class.
-    You can also pass a keyword argument 'bp' for setting a binding power greater than 0.
-    
-    :param names: A tuple of identifiers for token classes and for their objects.
-    """
-    def led_decorator(func):
-        bp = kwargs.get('bp', 0)
-        for name in names:
-            TokenMeta(name.strip(), (Token,), {'bp': bp, 'led': func})
-        return func
-
-    return led_decorator
-
-
-
-# Dummy calls replaced by XPathParser instance when parsing.
-advance = lambda name=None: TokenMeta.registry['(end)']()
-expression = lambda rbp=0: TokenMeta.registry['(end)']()
-
-
-#
-# Prefix operators
-@prefix('(literal)', '(end)')
-def literal_or_end_nud(self):
-    return self
-
-
-@prefix('(ref)')
-def reference_nud(self):
-    self.insert(0, expression(10))
-    self.sed = children_selector(self.value)
-    return self
-
-
-@prefix('*')
-def star_token_nud(self):
-    self.insert(0, expression(45))
-    self.sed = children_selector()
-    return self
-
-
-@infix('*', bp=45)
-def star_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(45))
-    return self
-
-
-@prefix('.', 'self::node()')
-def self_token_nud(self):
-    def select(context, result):
-        for elem in result:
-            yield elem
-
-    self.insert(0, expression(100))
-    self.sed = select
-    return self
-
-
-@prefix('..', 'parent::node()')
-def parent_token_nud(self):
-    def select(context, result):
-        parent_map = context.parent_map
-        result_parents = []
-        for elem in result:
-            try:
-                parent = parent_map[elem]
-            except KeyError:
-                pass
-            else:
-                if parent not in result_parents:
-                    result_parents.append(parent)
-                    yield parent
-
-    self.insert(0, expression(70))
-    self.sed = select
-    return self
-
-
-@prefix('@', 'attribute::')
-def attribute_token_nud(self):
-    self.insert(0, expression(70))
-    if self[0].name == '*':
-        self[0].sed = attribute_selector()
-    elif self[0].name == '(ref)':
-        self[0].sed = attribute_selector(self[0].value)
-    else:
-        raise SyntaxError("invalid attribute specification")
-    return self
-
-
-@infix('or', bp=20)
-def or_token_nud(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(20))
-    return self
-
-
-@infix('and', bp=25)
-def and_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(25))
-    return self
-
-
-@infix('=', '!=', '<', '>', '<=', '>=', bp=30)
-def compare_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(30))
-    return self
-
-
-@infix('+', bp=40)
-def add_token_nud(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(40))
-    return self
-
-
-@infix('-', bp=40)
-def sub_token_nud(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(40))
-    return self
-
-
-@infix('div', bp=45)
-def div_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(45))
-    return self
-
-
-@infix('mod', bp=45)
-def mod_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(45))
-    return self
-
-
-@infix('union', '|', bp=50)
-def union_token_led(self, left):
-    self.insert(0, left)
-    self.insert(1, expression(50))
-    return self
-
-
-@prefix('/', 'child::')
-def child_nud(self):
-    self.insert(0, expression(90))
-    if self[0].name == 'child::':
-        right = self[0][0]
-    else:
-        right = self[0]
-    if right.name not in ('(ref)', '*', '@', 'attribute::', 'parent::', '..'):
-        raise SyntaxError("invalid child")
-    return self
-
-
-@prefix('//', 'descendant-or-self::')
-def descendant_token_nud(self):
-    self.insert(0, expression(90))
-    if self[0].name == '*':
-        self[0].sed = iter_selector()
-    elif self[0].name == '(ref)':
-        self[0].sed = iter_selector()
-    if self[0].name not in ('(ref)', '*', '@', 'attribute::', 'parent::', '..'):
-        raise SyntaxError("invalid descendant")
-    return self
-
-
-symbol('(', 80)
-symbol(')', 80)
-
-
-@prefix('[')
-def predicate_token_nud(self):
-    self.insert(0, expression(95))
-    if self[0].name == '(ref)':
-        self.sed = find_selector(self[0].name)
-    elif self[0].name in ('@', 'attribute::'):
-        self[0][0].sed = has_attribute_selector(self[0][0].value)
-    elif self[0].name == '(literal)':
-        try:
-            self.sed = position_selector(int(self[0].value))
-        except:
-            raise XMLSchemaXPathError("an integer value is required")
-    advance(']')
-    return self
-
-
-@prefix(']')
-def close_predicate_token_nud(self):
-    self.insert(0, expression(95))
-    return self
