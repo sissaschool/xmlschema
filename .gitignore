@@ -5,6 +5,7 @@
 *.swp
 *.egg-info
 .idea/
+.ipynb_checkpoints/
 xmlschema/tests/extra-schemas
 doc/_*
 xmlschema/__pycache__/

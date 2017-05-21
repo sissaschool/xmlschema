@@ -109,6 +109,9 @@ class XsdFacet(XsdBase):
     def iter_encode(self, text, validate=True, **kwargs):
         return self.base_type.iter_encode(text, validate, **kwargs)
 
+    def __call__(self, *args, **kwargs):
+        return
+
 
 class XsdUniqueFacet(XsdFacet):
 
@@ -273,12 +276,16 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
         self.enumeration.insert(i, self.base_type.decode(get_xsd_attribute(item, 'value')))
 
     def __repr__(self):
-        return u"<%s %r at %#x>" % (self.__class__.__name__, self.enumeration, id(self))
+        if len(self.enumeration) > 5:
+            enum_repr = '[%s, ...]' % ', '.join(self.enumeration[:5])
+        else:
+            enum_repr = repr(self.enumeration)
+        return u"<%s %r at %#x>" % (self.__class__.__name__, enum_repr, id(self))
 
     def __call__(self, value):
         if value not in self.enumeration:
             yield XMLSchemaValidationError(
-                self, value, reason="invalid value, it must be one of %r" % self.enumeration
+                self, value, reason="invalid value %r, it must be one of %r" % (value, self.enumeration)
             )
 
 

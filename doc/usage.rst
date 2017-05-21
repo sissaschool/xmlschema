@@ -1,33 +1,49 @@
 Usage
 =====
 
-Importing the library
----------------------
+.. _lxml: http://lxml.de
 
-You can import the library in your code with::
+.. testsetup::
 
     import xmlschema
+    import os
+    os.chdir('..')
+
+.. testsetup:: vehicles
+
+    import xmlschema
+    import os
+
+Import the library in your code with::
+
+    import xmlschema
+
+The module initialization builds the XSD meta-schemas and of the dictionary
+containing the code points of the Unicode categories.
+
 
 Create a schema instance
 ------------------------
 
-To create an instance of a schema calling the class with an argument that is the path to
-the file containing the schema:
+Import the library and then create an instance of a schema using the path of
+the file containing the schema as argument:
 
-.. code-block:: python
+.. doctest::
 
-    import xmlschema
-    my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> import xmlschema
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
 
-The argument could also be an opened file-like object or a string:
+Otherwise the argument can be also an opened file-like object:
 
-.. code-block:: pycon
+.. doctest::
 
     >>> import xmlschema
     >>> schema_file = open('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> my_schema = xmlschema.XMLSchema(schema_file)
 
-.. code-block:: pycon
+Alternatively you can pass a string containing the schema definition:
+
+.. doctest::
 
     >>> import xmlschema
     >>> my_schema = xmlschema.XMLSchema("""
@@ -36,35 +52,94 @@ The argument could also be an opened file-like object or a string:
     ... </xs:schema>
     ... """)
 
+This last option has limitations when the schema requires to include other local subschemas
+because the package cannot knows anything about the schema's source location:
 
-Limitations of using a string argument
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Avoid passing the schema as a string when the schema require to include other local subschemas:
-
-.. code-block:: pycon
+.. doctest::
 
     >>> import xmlschema
     >>> schema_xsd = open('xmlschema/tests/examples/vehicles/vehicles.xsd').read()
     >>> my_schema = xmlschema.XMLSchema(schema_xsd)
     Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 128, in __init__
-        self.include_schemas(self._root)
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/xsdbase.py", line 388, in xsd_include_schemas
-        _include_schemas(elements, schema.uri)
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/xsdbase.py", line 367, in _include_schemas
-        "cannot get the subschema from %r: %r" % (locations, errors)
-    xmlschema.exceptions.XMLSchemaOSError: cannot get the subschema from 'cars.xsd': [FileNotFoundError(2, 'No such file or directory')]
+      File "/usr/lib64/python2.7/doctest.py", line 1315, in __run
+        compileflags, 1) in test.globs
+      File "<doctest default[2]>", line 1, in <module>
+        my_schema = xmlschema.XMLSchema(schema_xsd)
+      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 270, in __init__
+        self.include_schemas(self.root, check_schema)
+      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 380, in include_schemas
+        reason="cannot include %r: %s" % (location, err.reason)
+    XMLSchemaURLError: <urlopen error cannot include 'cars.xsd': cannot access resource from 'cars.xsd': [OSError(2, 'No such file or directory')]>
+
+
+XSD declarations
+----------------
+
+The schema object includes XSD declarations (*types*, *elements*, *attributes*,
+*groups*, *attribute_groups*). The global XSD declarations are available as
+dictionary attributes of the schema instance:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> my_schema.types
+    {u'vehicleType': <XsdComplexType '{http://example.com/vehicles}vehicleType' at 0x...>}
+    >>> pprint(my_schema.elements)
+    {u'bikes': <XsdElement '{http://example.com/vehicles}bikes' at 0x...>,
+     u'cars': <XsdElement '{http://example.com/vehicles}cars' at 0x...>,
+     u'vehicles': <XsdElement '{http://example.com/vehicles}vehicles' at 0x...>}
+    >>> my_schema.attributes
+    {u'step': <XsdAttribute '{http://example.com/vehicles}step' at 0x...>}
+
+Those declarations are local views of the XSD global maps shared between related
+schema instances, that can be accessed through :attr:`XMLSchema.maps` attribute:
+
+.. doctest::
+
+    >>> from pprint import pprint
+    >>> pprint(sorted(my_schema.maps.types.keys())[:5])
+    [u'{http://example.com/vehicles}vehicleType',
+     u'{http://www.w3.org/1999/xlink}actuateType',
+     u'{http://www.w3.org/1999/xlink}arcType',
+     u'{http://www.w3.org/1999/xlink}arcroleType',
+     u'{http://www.w3.org/1999/xlink}extended']
+    >>> pprint(sorted(my_schema.maps.elements.keys())[:10])
+    [u'{http://example.com/vehicles}bikes',
+     u'{http://example.com/vehicles}cars',
+     u'{http://example.com/vehicles}vehicles',
+     u'{http://www.w3.org/1999/xlink}arc',
+     u'{http://www.w3.org/1999/xlink}locator',
+     u'{http://www.w3.org/1999/xlink}resource',
+     u'{http://www.w3.org/1999/xlink}title',
+     u'{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasFacet',
+     u'{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasProperty',
+     u'{http://www.w3.org/2001/XMLSchema}all']
+
+Schema objects include methods for finding XSD elements and attributes in the schema.
+Those methods are ElementTree's API equivalents, so use an XPath expression for
+defining the search criteria:
+
+.. doctest::
+
+    >>> my_schema.find('vh:vehicles/vh:bikes')
+    <XsdElement '{http://example.com/vehicles}bikes' at 0x...>
+    >>> pprint(my_schema.findall('vh:vehicles/*'))
+    [<XsdElement '{http://example.com/vehicles}cars' at 0x...>,
+     <XsdElement '{http://example.com/vehicles}bikes' at 0x...>]
 
 
 Validation
 ----------
 
-Using a XMLSchema instance you can validate XML files based on that schema. The first mode is using the
-instance's method **is_valid**:
+The library provides several modes to validate an XML document with a schema.
 
-.. code-block:: pycon
+The first mode is the method :meth:`XMLSchema.is_valid`. This method returns ``True``
+if the XML argument is validated by the schema loaded in the instance,
+returns ``False`` if the document is invalid.
+
+.. doctest::
 
     >>> import xmlschema
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
@@ -75,13 +150,11 @@ instance's method **is_valid**:
     >>> my_schema.is_valid("""<?xml version="1.0" encoding="UTF-8"?><fancy_tag/>""")
     False
 
-*is_valid* returns True if the XML argument is validated by the schema loaded in the instance,
-returns False if it isn't validated.
+An alternative mode for validating an XML document is implemented by the method
+:meth:`XMLSchema.validate`, that raises an error when the XML doesn't conforms
+to the schema:
 
-Another call for validating an XML document is the method *validate*, that raise an error when the
-XML doesn't conforms to the schema:
-
-.. code-block:: pycon
+.. doctest::
 
     >>> import xmlschema
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
@@ -91,7 +164,7 @@ XML doesn't conforms to the schema:
       File "<stdin>", line 1, in <module>
       File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 220, in validate
         raise error
-    xmlschema.exceptions.XMLSchemaValidationError: failed validating <Element '{http://example.com/vehicles}cars' at 0x7f6cab897638> with <XsdGroup 'None' at 0x7f6cab89b198>.
+    xmlschema.exceptions.XMLSchemaValidationError: failed validating <Element ...
 
     Reason: character data between child elements not allowed!
 
@@ -110,46 +183,170 @@ XML doesn't conforms to the schema:
       </ns0:cars>
 
 
-A similar two-argument function is available also at module level:
+A validation method is also available at module level, useful when you want to
+validate a document only once or if you extract information about the schema,
+typically the schema location and the namespace, directly from the XML document:
 
-.. code-block:: pycon
+.. doctest::
 
-    >>> import xmlschema, os
+    >>> import xmlschema
+    >>> xmlschema.validate('xmlschema/tests/examples/vehicles/vehicles.xml')
+
+.. doctest:: vehicles
+
+    >>> import xmlschema
     >>> os.chdir('xmlschema/tests/examples/vehicles/')
     >>> xmlschema.validate('vehicles.xml', 'vehicles.xsd')
 
-The latter is useful when you have to validate starting from the XML file.
 
 Data decoding and encoding
 --------------------------
 
-The schema object includes XSD declarations (types, elements, attributes, groups, attribute_groups).
-The global XSD declarations are available as attributes of the instance:
+Each schema component includes methods for data conversion:
 
-.. code-block:: pycon
+.. doctest::
+
+    >>> my_schema.types['vehicleType'].decode
+    <bound method XsdComplexType.decode of <XsdComplexType ...>>
+    >>> my_schema.elements['cars'].encode
+    <bound method XsdElement.encode of <XsdElement ...>>
+
+.. warning::
+
+    The *encode* methods are not completed yet for this version of the library.
+
+
+Those methods can be used to decode the correspondents parts of the XML document:
+
+.. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> my_schema.types
-    {'{http://example.com/vehicles}vehicleType': <XsdComplexType '{http://example.com/vehicles}vehicleType' at 0x7fd76fda4cf8>}
-    >>> my_schema.elements
-    {'{http://example.com/vehicles}bikes': <XsdElement '{http://example.com/vehicles}bikes' at 0x7fd76fda4a58>,
-    '{http://example.com/vehicles}cars': <XsdElement '{http://example.com/vehicles}cars' at 0x7fd76fda4dd8>,
-    '{http://example.com/vehicles}vehicles': <XsdElement '{http://example.com/vehicles}vehicles' at 0x7fd76fda4f98>}
-    >>> my_schema.attributes
-    {'{http://example.com/vehicles}step': <XsdAttribute '{http://example.com/vehicles}step' at 0x7fd76fda4668>}
+    >>> from pprint import pprint
+    >>> from xml.etree import ElementTree
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
+    {'{http://example.com/vehicles}car': [{'@make': u'Porsche', '@model': u'911'},
+                                          {'@make': u'Porsche', '@model': u'911'}]}
+    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1]))
+    None
+    >>> pprint(xs.elements['bikes'].decode(xt.getroot()[1]))
+    {'{http://example.com/vehicles}bike': [{'@make': u'Harley-Davidson',
+                                            '@model': u'WL'},
+                                           {'@make': u'Yamaha',
+                                            '@model': u'XS650'}]}
 
-The schema declarations objects include methods for data conversion:
+You can also decode the entire XML document to a nested dictionary:
 
-.. code-block:: python
+.. doctest::
 
-    my_schema.types['<XSD type name>'].decode('<XML text or element>')  # Decode XML to data
-    my_schema.types['<XSD type name>'].encode('<data instance>')  # Decode a data to and XML text
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml'))
+    {u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     u'vh:bikes': {u'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
+                                {'@make': u'Yamaha', '@model': u'XS650'}]},
+     u'vh:cars': {u'vh:car': [{'@make': u'Porsche', '@model': u'911'},
+                              {'@make': u'Porsche', '@model': u'911'}]}}
 
-You can also decode a XML document to a nested dictionary:
+The decoded values coincide with the datatypes declared in the XSD schema:
 
-.. code-block:: python
+.. doctest::
 
-    import xmlschema
-    my_schema = xmlschema.XMLSchema(<path to your XSD schema file>)
-    my_schema.to_dict(<path to an XML file based on your XSD schema>)
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
+    {u'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+     'object': [{'@available': True,
+                 '@id': u'b0836217462',
+                 'author': {'@id': u'PAR',
+                            'born': u'1841-02-25',
+                            'dead': u'1919-12-03',
+                            'name': u'Pierre-Auguste Renoir',
+                            'qualification': u'painter'},
+                 'estimation': Decimal('10000.00'),
+                 'position': 1,
+                 'title': u'The Umbrellas',
+                 'year': u'1886'},
+                {'@available': True,
+                 '@id': u'b0836217463',
+                 'author': {'@id': u'JM',
+                            'born': u'1893-04-20',
+                            'dead': u'1983-12-25',
+                            'name': u'Joan Mir\xf3',
+                            'qualification': u'painter, sculptor and ceramicist'},
+                 'position': 2,
+                 'title': None,
+                 'year': u'1925'}]}
+
+If you need to decode only a part of the XML document you can pass also an XPath
+expression using in the *path* argument.
+
+.. doctest::
+
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml', './vh:vehicles/vh:bikes'))
+    {u'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
+                  {'@make': u'Yamaha', '@model': u'XS650'}]}
+
+.. note::
+
+    Decode using an XPath could be simpler than using subelements, method illustrated previously.
+
+
+Validating and decoding ElementTree XML data
+--------------------------------------------
+
+Validation and decode API works also with XML data loaded in ElementTree structures:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> from xml.etree import ElementTree
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xs.is_valid(xt)
+    True
+    >>> pprint(xs.to_dict(xt), depth=2)
+    {'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     '{http://example.com/vehicles}bikes': {'{http://example.com/vehicles}bike': [...]},
+     '{http://example.com/vehicles}cars': {'{http://example.com/vehicles}car': [...]}}
+
+The standard ElementTree library lacks of namespace information in trees, so you
+have to provide a map to convert URIs to prefixes:
+
+    >>> namespaces = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 'vh': 'http://example.com/vehicles'}
+    >>> pprint(xs.to_dict(xt, namespaces=namespaces))
+    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
+                              {'@make': u'Yamaha', '@model': u'XS650'}]},
+     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
+                            {'@make': u'Porsche', '@model': u'911'}]}}
+
+You can also convert XML data using the lxml_ library, that works better because
+namespace information is associated within each node of the trees:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> import lxml.etree as ElementTree
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xs.is_valid(xt)
+    True
+    >>> pprint(xs.to_dict(xt))
+    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
+                              {'@make': u'Yamaha', '@model': u'XS650'}]},
+     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
+                            {'@make': u'Porsche', '@model': u'911'}]}}
+    >>> pprint(xmlschema.to_dict(xt, 'xmlschema/tests/examples/vehicles/vehicles.xsd'))
+    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
+                              {'@make': u'Yamaha', '@model': u'XS650'}]},
+     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
+                            {'@make': u'Porsche', '@model': u'911'}]}}

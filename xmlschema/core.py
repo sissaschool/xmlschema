@@ -17,6 +17,7 @@ from xml.etree import ElementTree
 
 try:
     # Python 2 import
+    # noinspection PyCompatibility
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
 except ImportError:
     # Python 3 fallback
@@ -124,6 +125,7 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     if PY3:
         lines = ElementTree.tostring(elem, encoding="unicode").splitlines()
     else:
+        # noinspection PyCompatibility
         lines = unicode(ElementTree.tostring(elem)).splitlines()
     while lines and not lines[-1].strip():
         lines.pop(-1)
@@ -166,7 +168,10 @@ def etree_get_namespaces(source):
             ])
     except TypeError:
         try:
-            return dict(source.nsmap)
+            if hasattr(source, 'getroot'):
+                return dict(source.getroot().nsmap)
+            else:
+                return dict(source.nsmap)
         except (AttributeError, TypeError):
             return {}
 

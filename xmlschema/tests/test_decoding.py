@@ -15,10 +15,63 @@ This module runs tests concerning the decoding of XML files with the 'xmlschema'
 from _test_common import *
 import glob
 import fileinput
+import xmlschema
+import decimal
+from xml.etree import ElementTree as _ElementTree
+try:
+    import lxml.etree as _etree
+except ImportError:
+    _etree = None
+
+
+_VEHICLES_DICT = {
+    'vh:cars': {
+        'vh:car': [
+            {'@make': 'Porsche', '@model': '911'},
+            {'@make': 'Porsche', '@model': '911'}
+        ]},
+    'vh:bikes': {
+        'vh:bike': [
+            {'@make': 'Harley-Davidson', '@model': 'WL'},
+            {'@make': 'Yamaha', '@model': 'XS650'}
+        ]},
+    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'
+}
+
+_COLLECTION_DICT = {
+    '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+    'object': [{
+        '@available': True,
+        '@id': 'b0836217462',
+        'author': {
+            '@id': 'PAR',
+            'born': '1841-02-25',
+            'dead': '1919-12-03',
+            'name': 'Pierre-Auguste Renoir',
+            'qualification': 'painter'
+        },
+        'estimation': decimal.Decimal('10000.00'),
+        'position': 1,
+        'title': 'The Umbrellas',
+        'year': '1886'},
+        {
+            '@available': True,
+            '@id': 'b0836217463',
+            'author': {
+                '@id': 'JM',
+                'born': '1893-04-20',
+                'dead': '1983-12-25',
+                'name': 'Joan Miró',
+                'qualification': 'painter, sculptor and ceramicist'
+            },
+            'position': 2,
+            'title': None,
+            'year': '1925'
+        }]
+}
 
 
 def get_tests(pathname):
-    import xmlschema
     from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaValidationError
     from xmlschema.core import XSI_NAMESPACE_PATH
     from xmlschema.utils import get_qname
@@ -37,7 +90,7 @@ def get_tests(pathname):
             if len(errors) != expected_errors:
                 raise ValueError(
                     "n.%d errors expected, found %d: %s" % (
-                        expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:3]])
+                        expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:]])
                     )
                 )
             if not chunks:
@@ -99,6 +152,45 @@ def get_tests(pathname):
             )
 
     return tests
+
+
+class TestDecoding(unittest.TestCase):
+    namespaces = {
+        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'vh': 'http://example.com/vehicles',
+        'col': 'http://example.com/ns/collection'
+    }
+    vehicles_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
+    collection_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
+
+    @unittest.skipIf(_etree is None, "Skip if lxml library is not installed.")
+    def test_lxml(self):
+        xt1 = _etree.parse('examples/vehicles/vehicles.xml')
+        self.assertTrue(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
+        self.assertTrue(xmlschema.to_dict(xt1, self.vehicles_schema.uri) == _VEHICLES_DICT)
+
+    def test_to_dict(self):
+        xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
+        xt2 = _ElementTree.parse('examples/collection/collection.xml')
+        self.assertFalse(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
+        self.assertTrue(
+            self.vehicles_schema.to_dict(xt1, namespaces=self.namespaces) == _VEHICLES_DICT)
+        self.assertTrue(
+            xmlschema.to_dict(xt1, self.vehicles_schema.uri,
+                              namespaces=self.namespaces) == _VEHICLES_DICT)
+        self.assertTrue(
+            self.collection_schema.to_dict(xt2, namespaces=self.namespaces) == _COLLECTION_DICT)
+        self.assertTrue(
+            xmlschema.to_dict(xt2, self.collection_schema.uri,
+                              namespaces=self.namespaces) == _COLLECTION_DICT)
+
+    def test_path(self):
+        xs = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
+        xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
+        path = './vh:vehicles/vh:bikes'
+        self.assertTrue(
+            xs.to_dict(xt1, path, namespaces=self.namespaces) == _VEHICLES_DICT['vh:bikes']
+        )
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ Features
 
 * Validates the XML instances with the XSD schema
 
-* Converts XML instances into Python dictionaries
+* Converts XML instances into Python nested dictionaries
 
 * Provides decoding and encoding APIs for XML's elements and attributes
 

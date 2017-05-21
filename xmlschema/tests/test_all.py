@@ -19,6 +19,7 @@ sys.path.insert(0, pkg_folder)
 
 if __name__ == '__main__':
     from test_meta import *
+    from test_xpath import *
     import test_schemas
     import test_decoding
     import test_validation

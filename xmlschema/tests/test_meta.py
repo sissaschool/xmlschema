@@ -15,7 +15,7 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 from _test_common import *
 
 from sys import maxunicode
-from xmlschema.xsdbase import xsd_qname
+from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.codepoints import UNICODE_CATEGORIES
 from xmlschema import XMLSchema
 
@@ -56,14 +56,58 @@ class TestUnicodeCategories(unittest.TestCase):
 
 class TestBuiltinTypes(unittest.TestCase):
 
-    def test_boolean(self):
-        xsd_boolean = XMLSchema.META_SCHEMA.maps.types[xsd_qname('boolean')]
-        self.assertTrue(all([
-                xsd_boolean.decode(' true  \n'), not xsd_boolean.decode(' 0  \n'),
-                xsd_boolean.decode(' 1  \n'), not xsd_boolean.decode(' false  \n')
-            ]),
-            "Error decoding boolean values."
-        )
+    def test_boolean_decode(self):
+        xsd_type = XMLSchema.META_SCHEMA.types['boolean']
+        self.assertTrue(xsd_type.decode(' true  \n') is True)
+        self.assertTrue(xsd_type.decode(' 0  \n') is False)
+        self.assertTrue(xsd_type.decode(' 1  \n') is True)
+        self.assertTrue(xsd_type.decode(' false  \n') is False)
+        self.assertRaises(XMLSchemaDecodeError, xsd_type.decode, ' 1.0  ')
+        self.assertRaises(XMLSchemaDecodeError, xsd_type.decode, ' alpha  \n')
+
+    def test_boolean_encode(self):
+        xsd_type = XMLSchema.META_SCHEMA.types['boolean']
+        self.assertTrue(xsd_type.encode(True) == 'true')
+        self.assertTrue(xsd_type.encode(False) == 'false')
+        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 1)
+        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 0)
+        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 10)
+        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 'alpha')
+
+    def test_integer_decode(self):
+        xsd_types = XMLSchema.META_SCHEMA.types
+        self.assertTrue(xsd_types['integer'].decode(' 1000  \n') == 1000)
+        self.assertTrue(xsd_types['integer'].decode(' -19  \n') == -19)
+        self.assertTrue(xsd_types['integer'].decode(' 0\n') == 0)
+        self.assertRaises(XMLSchemaDecodeError, xsd_types['integer'].decode, ' 1000.0  \n')
+        self.assertRaises(XMLSchemaDecodeError, xsd_types['integer'].decode, ' alpha  \n')
+        self.assertRaises(XMLSchemaValidationError, xsd_types['byte'].decode, ' 257  \n')
+        self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
+
+    def test_integer_encode(self):
+        xsd_types = XMLSchema.META_SCHEMA.types
+        self.assertTrue(xsd_types['integer'].encode(1000) == '1000')
+        self.assertTrue(xsd_types['integer'].encode(-19) == '-19')
+        self.assertTrue(xsd_types['integer'].encode(0) == '0')
+        self.assertRaises(XMLSchemaEncodeError, xsd_types['integer'].encode, 10.1)
+        self.assertRaises(XMLSchemaEncodeError, xsd_types['integer'].encode, 'alpha')
+        self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
+
+    def test_float_decode(self):
+        xsd_types = XMLSchema.META_SCHEMA.types
+        self.assertTrue(xsd_types['float'].decode(' 1000.1  \n') == 1000.10)
+        self.assertTrue(xsd_types['float'].decode(' -19  \n') == -19.0)
+        self.assertTrue(xsd_types['double'].decode(' 0.0001\n') == 0.0001)
+        self.assertRaises(XMLSchemaDecodeError, xsd_types['float'].decode, ' true ')
+        self.assertRaises(XMLSchemaDecodeError, xsd_types['double'].decode, ' alpha  \n')
+
+    def test_float_encode(self):
+        xsd_types = XMLSchema.META_SCHEMA.types
+        self.assertTrue(xsd_types['float'].encode(1000.0) == '1000.0')
+        self.assertTrue(xsd_types['float'].encode(-19.0) == '-19.0')
+        self.assertTrue(xsd_types['float'].encode(0.0) == '0.0')
+        self.assertRaises(XMLSchemaEncodeError, xsd_types['float'].encode, True)
+        self.assertRaises(XMLSchemaEncodeError, xsd_types['float'].encode, 'alpha')
 
 
 if __name__ == '__main__':

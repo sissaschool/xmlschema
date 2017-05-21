@@ -20,7 +20,7 @@ from .exceptions import (
     XMLSchemaAttributeError, XMLSchemaParseError, XMLSchemaComponentError,
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from .utils import camel_case_split, split_qname, get_qname, FrozenDict, listify_update
+from .utils import camel_case_split, split_qname, get_qname, FrozenDict
 
 
 _logger = _logging.getLogger(__name__)
@@ -335,12 +335,22 @@ def create_load_function(filter_function):
 
             for elem in filter_function(schema.root):
                 qname = get_qname(target_namespace, get_xsd_attribute(elem, 'name'))
-                listify_update(xsd_globals, (qname, (elem, schema)))
+                try:
+                    xsd_globals[qname].append((elem, schema))
+                except KeyError:
+                    xsd_globals[qname] = (elem, schema)
+                except AttributeError:
+                    xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
 
         for qname, obj in redefinitions:
             if qname not in xsd_globals:
                 raise XMLSchemaParseError("not a redefinition!", obj[0])
-            listify_update(xsd_globals, (qname, obj))
+            try:
+                xsd_globals[qname].append(obj)
+            except KeyError:
+                xsd_globals[qname] = obj
+            except AttributeError:
+                xsd_globals[qname] = [xsd_globals[qname], obj]
 
     return load_xsd_globals
 
@@ -426,11 +436,11 @@ build_xsd_groups = create_build_function('group_factory')
 
 class XsdBase(object):
     """
-    Abstract base class for representing generic XML Schema Definition object,
-    providing common API interface.
+    Base class for XML Schema Definition classes.
 
-    :param name: Name associated with the definition
-    :param elem: ElementTree's node containing the definition
+    :param name: A name associated with the definition.
+    :param elem: ElementTree's node containing the definition.
+    :param schema: The XMLSchema object that owns the definition.
     """
     _DUMMY_DICT = FrozenDict()
     _REGEX_SPACE = re.compile(r'\s')
@@ -457,6 +467,7 @@ class XsdBase(object):
         return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
 
     def __str__(self):
+        # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -506,10 +517,11 @@ class XsdBase(object):
 
     @property
     def id(self):
+        """The ``'id'`` attribute of declaration tag, ``None`` if missing."""
         return self._attrib.get('id')
 
     def update_attrs(self, **kwargs):
-        """For simplify the schema building when an instance update is needed."""
+        """Updates a set of existing instance attributes."""
         for k, v in kwargs.items():
             if hasattr(self, k):
                 setattr(self, k, v)
@@ -517,16 +529,48 @@ class XsdBase(object):
                 raise XMLSchemaAttributeError("%r object has no attribute %r" % (self, k))
 
     def validate(self, obj):
+        """
+        Validates XML data using the XSD component.
+        
+        :param obj: the object containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not valid.
+        """
         for error in self.iter_errors(obj):
             raise error
 
     def iter_errors(self, obj):
+        """
+        Creates an iterator for errors generated validating XML data with 
+        the XSD component.
+
+        :param obj: the object containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        """
         for chunk in self.iter_decode(obj):
             if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                 yield chunk
 
-    def decode(self, obj, validate=True, namespaces=None, use_defaults=True):
-        for obj in self.iter_decode(obj, validate, namespaces, use_defaults):
+    def decode(self, obj, validate=True, **kwargs):
+        """
+        Decodes the object using the XSD component.
+        
+        :param obj: the object containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        :param validate: if ``True`` validates the object against the XSD \
+        component during the decoding process.
+        :param kwargs: keyword arguments from the ones included in the optional \
+        arguments of the :func:`XMLSchema.iter_decode`.
+        :return: A dictionary like object if the XSD component is an element, a \
+        group or a complex type; a list if the XSD component is an attribute group; \
+         a simple data type object otherwise.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
+        the XSD component, or also if it's invalid when ``validate=True`` is provided.
+        """
+        for obj in self.iter_decode(obj, validate, **kwargs):
             if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                 raise obj
             return obj
@@ -537,13 +581,12 @@ class XsdBase(object):
                 raise obj
             return obj
 
-    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, obj, validate=True, **kwargs):
         """
-        Decode generator method. It generates the object that represents the
-        decoded value or, if there are decoding or validation errors, a sequence
-        of exceptions XMLSchemaValidationError followed by the decoded value. If
-        there is a decoding error the last generated value is the original value
-        or a partial decoded object (eg. in case of a list).
+        Creates an iterator for decoding an object using the XSD component. Likes
+        method *decode* except that does not raise any exception. Yields decoded values.
+        Also :exc:`XMLSchemaValidationError` errors are yielded during decoding process
+        if the *obj* is invalid.
         """
         raise NotImplementedError
 

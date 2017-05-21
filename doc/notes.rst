@@ -9,6 +9,5 @@ This *xmlschema* library is distributed under the terms of the `MIT License <htt
 Support
 -------
 
-The project is hosted on GitHub, then refer to the `xmlschema's project page <https://github.com/brunato/xmlschema>`_
+The project is hosted on GitHub, refer to the `xmlschema's project page <https://github.com/brunato/xmlschema>`_
 for source code and for an issue tracker.
-

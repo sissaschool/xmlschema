@@ -15,10 +15,14 @@ This module runs tests concerning the validation of XML files with the 'xmlschem
 from _test_common import *
 import glob
 import fileinput
+import xmlschema
+try:
+    import lxml.etree as etree
+except ImportError:
+    etree = None
 
 
 def get_tests(pathname):
-    import xmlschema
     from xmlschema.resources import load_xml_resource
     from xmlschema.core import XSI_NAMESPACE_PATH
     from xmlschema.utils import get_qname
@@ -89,6 +93,19 @@ def get_tests(pathname):
             )
 
     return tests
+
+
+class TestValidation(unittest.TestCase):
+
+    @unittest.skipIf(etree is None, "Skip if lxml library is not installed.")
+    def test_lxml(self):
+        xs = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
+        xt1 = etree.parse('examples/vehicles/vehicles.xml')
+        xt2 = etree.parse('examples/vehicles/vehicles-1_error.xml')
+        self.assertTrue(xs.is_valid(xt1))
+        self.assertFalse(xs.is_valid(xt2))
+        self.assertTrue(xs.validate(xt1) is None)
+        self.assertRaises(xmlschema.XMLSchemaValidationError, xs.validate, xt2)
 
 
 if __name__ == '__main__':

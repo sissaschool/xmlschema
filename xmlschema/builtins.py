@@ -142,6 +142,11 @@ def boolean_to_python(s):
     else:
         raise XMLSchemaValueError('not a boolean value: %r' % s)
 
+
+def python_to_boolean(obj):
+    return unicode_type(obj).lower()
+
+
 #
 # Element facets instances for builtin types.
 PRESERVE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'preserve'})
@@ -313,7 +318,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = (
         'python_type': bool,
         'facets': (BOOLEAN_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
         'to_python': boolean_to_python,
-        'from_python': lambda x: unicode_type(x).lower()
+        'from_python': python_to_boolean,
     },  # true/false or 1/0
     {
         'name': xsd_qname('base64Binary'),
