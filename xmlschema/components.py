@@ -15,7 +15,7 @@ from collections import MutableMapping, MutableSequence
 
 from .core import XSI_NAMESPACE_PATH, unicode_type
 from .exceptions import *
-from .utils import split_reference, get_qname, listify_update, uri_to_prefixes
+from .utils import split_reference, get_qname, uri_to_prefixes
 from .xsdbase import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, xsd_lookup, XsdBase
@@ -85,16 +85,18 @@ class XsdAttribute(XsdBase):
     def is_optional(self):
         return self.use == 'optional'
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
-        for result in self.type.iter_decode(text or self.default, validate, namespaces, use_defaults):
+    def iter_decode(self, text, validate=True, **kwargs):
+        if not text and kwargs.get('use_defaults', True):
+            text = self.default
+        for result in self.type.iter_decode(text, validate, **kwargs):
             yield result
-            if not isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+            if not isinstance(result, XMLSchemaValidationError):
                 return
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.type.iter_encode(obj, validate):
             yield result
-            if not isinstance(result, (XMLSchemaEncodeError, XMLSchemaValidationError)):
+            if not isinstance(result, XMLSchemaValidationError):
                 return
 
 
@@ -145,32 +147,41 @@ class XsdElement(XsdBase, ParticleMixin):
     def substitution_group(self):
         return self._attrib.get('substitutionGroup')
 
-    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
-        result_dict = {}
-        if elem.attrib:
-            for result in self.attributes.iter_decode(elem, validate, namespaces, use_defaults):
-                if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    yield result
-                else:
-                    result_dict.update(result)
+    def iter_decode(self, elem, validate=True, **kwargs):
+        dict_class = kwargs.get('dict_class', dict)
+        use_defaults = kwargs.get('use_defaults', False)
+        text_key = kwargs.get('text_key', '#text')
+        attribute_prefix = kwargs.get('attribute_prefix', '@')
 
-        if len(elem):
-            for result in self.type.iter_decode(elem, validate, namespaces, use_defaults):
-                if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+        result_dict = dict_class()
+        if elem.attrib:
+            for result in self.attributes.iter_decode(elem, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    if result.elem is None:
+                        result.schema_elem = self.elem
+                        result.elem = elem
                     yield result
                 else:
-                    if not isinstance(result, dict):
-                        raise XMLSchemaTypeError("expected a %r, found %r." % (dict, type(result)))
-                    else:
-                        listify_update(result_dict, result)
-            if not result_dict:
-                # The subelements are not decodable so transforms them to a string
-                result = '\n'.join([etree_tostring(child) for child in elem])
-                if not result_dict:
+                    result_dict.update([('%s%s' % (attribute_prefix, k), v) for k, v in result])
+                    break
+
+        result = None
+        if len(elem):
+            for result in self.type.iter_decode(elem, validate, result_dict=result_dict, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    if result.elem is None:
+                        result.schema_elem = self.elem
+                        result.elem = elem
                     yield result
-                    return
-                elif result:
-                    result_dict['_text'] = result
+                else:
+                    result = None
+                    break
+            else:
+                if not kwargs.get('skip_errors'):
+                    # The subelements are not decodable then transform them to a string.
+                    result = '\n'.join([etree_tostring(child) for child in elem]) or None
+                else:
+                    result = None
 
         elif elem.text is not None:
             if use_defaults:
@@ -181,22 +192,26 @@ class XsdElement(XsdBase, ParticleMixin):
             if hasattr(self.type, 'content_type'):
                 result = unicode_type(text)
             else:
-                for result in self.type.iter_decode(text, validate, namespaces, use_defaults):
-                    if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                for result in self.type.iter_decode(text, validate, result_dict=result_dict, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        if result.elem is None:
+                            result.schema_elem = self.elem
+                            result.elem = elem
                         yield result
                     else:
                         break
                 else:
-                    result = unicode_type(text)
-
-            if not result_dict:
-                yield result
-                return
-            elif text:
-                result_dict['_text'] = result
+                    if not kwargs.get('skip_errors'):
+                        result = unicode_type(text)
+                    else:
+                        result = None
 
         if result_dict:
+            if result:
+                result_dict[text_key] = result
             yield result_dict
+        elif result:
+            yield result
         else:
             yield None
 
@@ -224,6 +239,8 @@ class XsdElement(XsdBase, ParticleMixin):
                     else:
                         yield index
                     return
+                else:
+                    yield (self, elem[index])
 
             index += 1
             model_occurs += 1
@@ -340,8 +357,8 @@ class XsdComplexType(XsdBase):
     def has_extension(self):
         return self.derivation is True
 
-    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
-        for result in self.content_type.iter_decode(obj, validate, namespaces, use_defaults):
+    def iter_decode(self, obj, validate=True, **kwargs):
+        for result in self.content_type.iter_decode(obj, validate, **kwargs):
             yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
@@ -385,11 +402,12 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 check_type(self, name, dict, v, (XsdAnyAttribute, XsdAttribute))
         super(XsdAttributeGroup, self).__setattr__(name, value)
 
-    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, elem, validate=True, **kwargs):
+        namespaces = kwargs.get('namespaces')
+        result_list = []
         required_attributes = {
             k for k, v in self.items() if k is not None and v.use == 'required'
         }
-        result_dict = {}
         for name, value in elem.items():
             qname = get_qname(self.target_namespace, name)
             try:
@@ -416,21 +434,21 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
             else:
                 required_attributes.discard(qname)
 
-            for result in xsd_attribute.iter_decode(value, validate, namespaces, use_defaults):
-                if isinstance(result, (XMLSchemaValidationError, XMLSchemaDecodeError)):
+            for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
                     if name[0] == '{' and namespaces:
-                        result_dict[uri_to_prefixes(name, namespaces)] = result
+                        result_list.append((uri_to_prefixes(name, namespaces), result))
                     else:
-                        result_dict[name] = result
+                        result_list.append((name, result))
                     break
 
         if required_attributes:
             yield XMLSchemaValidationError(
                 self, elem, "missing required attributes %r" % required_attributes,
             )
-        yield result_dict
+        yield result_list
 
 
 class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
@@ -499,7 +517,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                 for e in item.iter_elements():
                     yield e
 
-    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, elem, validate=True, **kwargs):
         def not_whitespace(s):
             return s is not None and s.strip()
 
@@ -514,35 +532,35 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                     )
 
         # Decode elements
-        group_elements = {e.name: e for e in self.iter_elements()}
-        result_dict = {}
-        target_namespace = self.target_namespace
-        for child in elem:
-            try:
-                xsd_element = group_elements[get_qname(target_namespace, child.tag)]
-            except KeyError:
-                for xsd_element in self:
-                    if isinstance(xsd_element, XsdAnyElement):
-                        break
-                else:
-                    yield XMLSchemaValidationError(
-                        self, child, "element %r not in schema!" % child.tag
-                    )
-                    continue
-
-            for result in xsd_element.iter_decode(child, validate, namespaces, use_defaults):
-                if isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    yield result
-                elif child.tag[0] == '{' and namespaces:
-                    listify_update(result_dict, (uri_to_prefixes(child.tag, namespaces), result))
-                else:
-                    listify_update(result_dict, (child.tag, result))
-
-        # Validate child elements
-        if validate:
-            for obj in self.iter_model(elem):
-                if isinstance(obj, XMLSchemaValidationError):
+        dict_class = kwargs.get('dict_class', dict)
+        force_list = kwargs.get('force_list', True)
+        namespaces = kwargs.get('namespaces')
+        result_dict = kwargs.pop('result_dict', dict_class())
+        for obj in self.iter_model(elem):
+            if isinstance(obj, XMLSchemaValidationError):
+                if validate:
                     yield obj
+            elif isinstance(obj, tuple):
+                xsd_element, child = obj
+                for result in xsd_element.iter_decode(child, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
+                        continue
+                    elif child.tag[0] == '{' and namespaces:
+                        key = uri_to_prefixes(child.tag, namespaces)
+                    else:
+                        key = child.tag
+
+                    # Set or append the result
+                    try:
+                        result_dict[key].append(result)
+                    except KeyError:
+                        if force_list and xsd_element.max_occurs != 1:
+                            result_dict[key] = [result]
+                        else:
+                            result_dict[key] = result
+                    except AttributeError:
+                        result_dict[key] = [result_dict[key], result]
 
         yield result_dict
 
@@ -563,6 +581,8 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                             elif model_occurs:
                                 yield index
                             return
+                        elif isinstance(obj, tuple):
+                            yield obj
                         else:
                             model_index = obj
 
@@ -571,7 +591,9 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                 while group:
                     for item in group:
                         for obj in item.iter_model(elem, model_index):
-                            if isinstance(obj, int):
+                            if isinstance(obj, tuple):
+                                yield obj
+                            elif isinstance(obj, int):
                                 model_index = obj
                                 break
                         else:
@@ -592,6 +614,9 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                 for item in self:
                     for obj in item.iter_model(elem, model_index):
                         if not isinstance(obj, XMLSchemaValidationError):
+                            if isinstance(obj, tuple):
+                                yield obj
+                                continue
                             validated = True
                             model_index = obj
                         break
@@ -632,7 +657,7 @@ class XsdAnyAttribute(XsdBase):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
         )
 
-    def iter_decode(self, obj, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, obj, validate=True, **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -652,7 +677,7 @@ class XsdAnyAttribute(XsdBase):
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
                 else:
-                    for result in xsd_attribute.iter_decode(value, validate, namespaces, use_defaults):
+                    for result in xsd_attribute.iter_decode(value, validate, **kwargs):
                         yield result
             else:
                 yield XMLSchemaValidationError(self, obj, "attribute %r not allowed." % name)
@@ -673,7 +698,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
-    def iter_decode(self, elem, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, elem, validate=True, **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -685,7 +710,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
             else:
-                for result in xsd_element.iter_decode(elem, validate, namespaces, use_defaults):
+                for result in xsd_element.iter_decode(elem, validate, **kwargs):
                     yield result
 
         elif validate:
@@ -748,7 +773,7 @@ class XsdSimpleType(XsdBase):
             pass
         return obj
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate:
             if self.patterns:
@@ -840,7 +865,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, text, validate=True, **kwargs):
         _text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(_text):
@@ -850,7 +875,8 @@ class XsdAtomicBuiltin(XsdAtomic):
             result = self.to_python(_text)
         except ValueError:
             yield XMLSchemaDecodeError(self, text, self.to_python)
-            yield unicode_type(text)
+            if not kwargs.get('skip_errors'):
+                yield unicode_type(text)
             return
 
         if validate:
@@ -869,7 +895,8 @@ class XsdAtomicBuiltin(XsdAtomic):
                     raise ValueError()
         except ValueError:
             yield XMLSchemaEncodeError(self, obj, self.from_python)
-            yield unicode_type(obj)
+            if not kwargs.get('skip_errors'):
+                yield unicode_type(obj)
             return
 
         if validate:
@@ -902,7 +929,7 @@ class XsdList(XsdSimpleType):
         except AttributeError:
             return LIST_FACETS
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
@@ -910,12 +937,13 @@ class XsdList(XsdSimpleType):
 
         items = []
         for chunk in text.split():
-            for result in self.item_type.iter_decode(chunk, validate, namespaces, use_defaults):
+            for result in self.item_type.iter_decode(chunk, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif isinstance(result, XMLSchemaDecodeError):
                     yield result
-                    items.append(unicode_type(chunk))
+                    if not kwargs.get('skip_errors'):
+                        items.append(unicode_type(chunk))
                 else:
                     items.append(result)
 
@@ -938,7 +966,8 @@ class XsdList(XsdSimpleType):
                     yield result
                 elif isinstance(result, XMLSchemaEncodeError):
                     yield result
-                    encoded_items.append(unicode_type(item))
+                    if not kwargs.get('skip_errors'):
+                        encoded_items.append(unicode_type(item))
                 else:
                     encoded_items.append(result)
         yield u' '.join(encoded_items)
@@ -969,15 +998,15 @@ class XsdUnion(XsdSimpleType):
         except AttributeError:
             return UNION_FACETS
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
                 yield error
 
         for member_type in self.member_types:
-            for result in member_type.iter_decode(text, validate, namespaces, use_defaults):
-                if not isinstance(result, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+            for result in member_type.iter_decode(text, validate, **kwargs):
+                if not isinstance(result, XMLSchemaValidationError):
                     if validate:
                         for validator in self.validators:
                             for error in validator(result):
@@ -987,12 +1016,13 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaDecodeError(
             self, text, self.member_types, reason="no type suitable for decoding the text."
         )
-        yield unicode_type(text)
+        if not kwargs.get('skip_errors'):
+            yield unicode_type(text)
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for member_type in self.member_types:
             for result in member_type.iter_encode(obj, validate):
-                if not isinstance(result, (XMLSchemaEncodeError, XMLSchemaValidationError)):
+                if not isinstance(result, XMLSchemaValidationError):
                     if validate:
                         for validator in self.validators:
                             for error in validator(obj):
@@ -1002,7 +1032,8 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaEncodeError(
             self, obj, self.member_types, reason="no type suitable for encoding the object."
         )
-        yield unicode_type(obj)
+        if not kwargs.get('skip_errors'):
+            yield unicode_type(obj)
 
 
 class XsdAtomicRestriction(XsdAtomic):
@@ -1012,16 +1043,17 @@ class XsdAtomicRestriction(XsdAtomic):
     def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
         super(XsdAtomicRestriction, self).__init__(base_type, name, elem, schema, facets)
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+    def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate and self.patterns:
             for error in self.patterns(text):
                 yield error
 
-        for result in self.base_type.iter_decode(text, validate, namespaces, use_defaults):
+        for result in self.base_type.iter_decode(text, validate, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
-                yield unicode_type(text)
+                if not kwargs.get('skip_errors'):
+                    yield unicode_type(text)
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result
@@ -1037,7 +1069,8 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_encode(obj, validate):
             if isinstance(result, XMLSchemaEncodeError):
                 yield result
-                yield unicode_type(obj)
+                if not kwargs.get('skip_errors'):
+                    yield unicode_type(obj)
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result

@@ -147,8 +147,11 @@ class Token(MutableSequence):
         raise XMLSchemaSyntaxError("Undefined operator for %r." % self.name)
 
     def iter(self):
+        for t in self[:1]:
+            for token in t.iter():
+                yield token
         yield self
-        for t in self:
+        for t in self[1:]:
             for token in t.iter():
                 yield token
 
@@ -451,30 +454,36 @@ class XPathParser(object):
         global current_token, next_token
         if name:
             next_token.expected(name)
-        try:
-            match = next(self._tokens)
-        except StopIteration:
-            current_token, next_token = next_token, self.token_table['(end)']()
-        else:
-            current_token = next_token
-            literal, operator, ref = match.groups()
-            if operator is not None:
-                try:
-                    next_token = self.token_table[operator.replace(' ', '')]()
-                except KeyError:
-                    raise XMLSchemaXPathError("Unknown operator %r." % operator)
-            elif literal is not None:
-                if literal[0] in '\'"':
-                    next_token = self.token_table['(string)'](literal.strip("'\""))
-                elif '.' in literal:
-                    next_token = self.token_table['(decimal)'](Decimal(literal))
-                else:
-                    next_token = self.token_table['(integer)'](int(literal))
-            elif ref is not None:
-                value = reference_to_qname(ref, self.namespaces)
-                next_token = self.token_table['(ref)'](value)
+
+        while True:
+            try:
+                match = next(self._tokens)
+            except StopIteration:
+                current_token, next_token = next_token, self.token_table['(end)']()
+                break
             else:
-                raise XMLSchemaXPathError("Unexpected token: %r" % match)
+                current_token = next_token
+                literal, operator, ref = match.groups()
+                if operator is not None:
+                    try:
+                        next_token = self.token_table[operator.replace(' ', '')]()
+                    except KeyError:
+                        raise XMLSchemaXPathError("Unknown operator %r." % operator)
+                    break
+                elif literal is not None:
+                    if literal[0] in '\'"':
+                        next_token = self.token_table['(string)'](literal.strip("'\""))
+                    elif '.' in literal:
+                        next_token = self.token_table['(decimal)'](Decimal(literal))
+                    else:
+                        next_token = self.token_table['(integer)'](int(literal))
+                    break
+                elif ref is not None:
+                    value = reference_to_qname(ref, self.namespaces)
+                    next_token = self.token_table['(ref)'](value)
+                    break
+                elif match.group().strip():
+                    raise XMLSchemaXPathError("Unexpected token: %r" % match)
 
         return current_token
 
@@ -527,7 +536,7 @@ def star_token_led(self, left):
 def attribute_token_nud(self):
     self.insert(0, advance())
     if self[0].name not in ('*', '(ref)'):
-        raise SyntaxError("invalid attribute specification")
+        raise XMLSchemaXPathError("invalid attribute specification for XPath.")
     if next_token.name != '=':
         self.sed = self[0].attribute_selector()
     else:
@@ -644,14 +653,14 @@ def child_led(self, left):
     self.insert(0, left)
     self.insert(1, expression(100))
     if self[1].name not in RELATIVE_PATH_TOKENS:
-        raise SyntaxError("invalid child %r." % self[1])
+        raise XMLSchemaXPathError("invalid child %r." % self[1])
     return self
 
 
 @register_nud('child::', lbp=80)
 def child_axis_nud(self):
     if next_token.name not in ('(ref)', '*'):
-        raise SyntaxError("invalid child axis %r." % next_token)
+        raise XMLSchemaXPathError("invalid child axis %r." % next_token)
     else:
         self.insert(0, expression(80))
     return self
@@ -662,7 +671,7 @@ def descendant_token_led(self, left):
     self.insert(0, left)
     self.insert(1, expression(100))
     if self[1].name not in RELATIVE_PATH_TOKENS:
-        raise SyntaxError("invalid descendant %r." % self[1])
+        raise XMLSchemaXPathError("invalid descendant %r." % self[1])
     if self[0].name in ('*', '(ref)'):
         delattr(self[0], 'sed')
         self.value = self[0].value
@@ -787,3 +796,30 @@ def xsd_iterfind(context, path, namespaces=None):
         _selector_cache.clear()
     _selector_cache[path] = selector
     return selector.iter_results()
+
+
+def relative_path(path, levels, namespaces=None):
+    """
+    Return a relative XPath expression.
+    
+    :param path: An XPath expression.
+    :param levels: Number of path levels to remove.
+    :param namespaces: is an optional mapping from namespace 
+    prefix to full qualified name.
+    :return: a string with a relative XPath expression.
+    """
+    parser = XPathParser(TokenMeta.registry, path, namespaces)
+    token_tree = parser.parse()
+    path_parts = [t.value for t in token_tree.iter()]
+    i = 0
+    if path_parts[0] == '.':
+        i += 1
+    if path_parts[i] == '/':
+        i += 1
+    for value in path_parts[i:]:
+        if levels <= 0:
+            break
+        if value == '/':
+            levels -= 1
+        i += 1
+    return ''.join(path_parts[i:])

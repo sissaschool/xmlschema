@@ -33,6 +33,7 @@ from .xsdbase import (
     load_xsd_elements, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG, get_xsd_attribute
 )
+from .components import XsdElement
 from .resources import open_resource, load_xml_resource
 from .facets import XSD_v1_0_FACETS
 from .builtins import XSD_BUILTIN_TYPES
@@ -62,9 +63,12 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 class XsdGlobals(object):
     """
-    Mediator class for related XML schema instances. It stores global declarations
-    defined from registered schemas. Registering a schema to add it's declarations
-    to the global maps.
+    Mediator class for related XML schema instances. It stores the global 
+    declarations defined in the registered schemas. Register a schema to 
+    add it's declarations to the global maps.
+    
+    :param validator: the XMLSchema class that have to be used for initializing \
+    the object.
     """
     def __init__(self, validator):
         self.validator = validator
@@ -82,6 +86,7 @@ class XsdGlobals(object):
         self.types.update(validator.BUILTIN_TYPES)
 
     def copy(self):
+        """Makes a copy of the object."""
         obj = XsdGlobals(self.validator)
         obj.namespaces.update(self.namespaces)
         obj.resources.update(self.resources)
@@ -95,6 +100,9 @@ class XsdGlobals(object):
     __copy__ = copy
 
     def register(self, schema):
+        """
+        Registers an XMLSchema instance.         
+        """
         if schema.uri:
             if schema.uri not in self.resources:
                 self.resources[schema.uri] = schema
@@ -112,6 +120,18 @@ class XsdGlobals(object):
                 ns_schemas.append(schema)
 
     def get_globals(self, map_name, namespace, fqn_keys=True):
+        """
+        Get a global map for a namespace. The map is cached by the instance.
+
+        :param map_name: can be the name of one of the XSD global maps \
+        (``'attributes'``, ``'attribute_groups'``, ``'elements'``, \
+        ``'groups'``, ``'elements'``).
+        :param namespace: is an optional mapping from namespace prefix \
+        to full qualified name. 
+        :param fqn_keys: if ``True`` the returned map's keys are fully \
+        qualified names, if ``False`` the returned map's keys are local names.
+        :return: a dictionary.
+        """
         try:
             return self._view_cache[(map_name, namespace, fqn_keys)]
         except KeyError:
@@ -128,11 +148,16 @@ class XsdGlobals(object):
             return view
 
     def iter_schemas(self):
+        """Creates an iterator for the schemas registered in the instance."""
         for ns_schemas in self.namespaces.values():
             for schema in ns_schemas:
                 yield schema
 
     def clear(self, remove_schemas=False):
+        """
+        Clears the instance maps, removing also all the registered schemas 
+        and cleaning the cache.
+        """
         self.types.clear()
         self.attributes.clear()
         self.attribute_groups.clear()
@@ -150,6 +175,10 @@ class XsdGlobals(object):
             self.resources = URIDict()
 
     def build(self):
+        """
+        Builds the schemas registered in the instance, excluding
+        those that are already built.
+        """
         kwargs = self.validator.OPTIONS.copy()
 
         # Load and build global declarations
@@ -241,7 +270,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 self.schema_location = URIDict()
             else:
                 self.schema_location = URIDict()
-                listify_update(self.schema_location, dict(zip(schema_location[0::2], schema_location[1::2])))
+                listify_update(self.schema_location, zip(schema_location[0::2], schema_location[1::2]))
             self.no_namespace_schema_location = get_xsi_no_namespace_schema_location(self.root)
 
             if global_maps is None:
@@ -402,52 +431,77 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                     except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                         raise type(err)('cannot redefine %r: %s' % (schema_uri, err))
 
-        def validate(self, *args, **kwargs):
-            for error in self.iter_errors(*args, **kwargs):
+        def validate(self, xml_document, use_defaults=True):
+            for error in self.iter_errors(xml_document, use_defaults=use_defaults):
                 raise error
 
-        def is_valid(self, xml_document):
-            error = next(self.iter_errors(xml_document), None)
+        def is_valid(self, xml_document, use_defaults=True):
+            error = next(self.iter_errors(xml_document, use_defaults=use_defaults), None)
             return error is None
 
-        def iter_errors(self, xml_document):
-            for chunk in self.iter_decode(xml_document):
+        def iter_errors(self, xml_document, path=None, use_defaults=True):
+            for chunk in self.iter_decode(
+                    xml_document, path, use_defaults=use_defaults, skip_errors=True):
                 if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield chunk
 
-        def iter_decode(self, xml_document, *args, **kwargs):
+        def iter_decode(self, xml_document, path=None, validate=True, namespaces=None,
+                        use_defaults=True, skip_errors=False, dict_class=dict, force_list=True,
+                        text_key='#', attribute_prefix='@', **kwargs):
             xml_root = load_xml_resource(xml_document)
-            try:
-                xsd_element = self.find(xml_root.tag)
-            except KeyError:
-                yield XMLSchemaValidationError(
-                    self, xml_root, "%r is not a global element of the schema!" % xml_root.tag
-                )
-            else:
-                for obj in xsd_element.iter_decode(xml_root, *args, **kwargs):
+            if path is None:
+                xsd_element = self.find(xml_root.tag, namespaces=namespaces)
+                if not isinstance(xsd_element, XsdElement):
+                    msg = "%r is not a global element of the schema!" % xml_root.tag
+                    yield XMLSchemaValidationError(self, xml_root, reason=msg)
+                for obj in xsd_element.iter_decode(
+                        xml_root, validate, namespaces=namespaces, use_defaults=use_defaults,
+                        skip_errors=skip_errors, dict_class=dict_class, force_list=force_list,
+                        text_key=text_key, attribute_prefix=attribute_prefix, **kwargs):
                     yield obj
+            else:
+                xsd_element = self.find(path, namespaces=namespaces)
+                if not isinstance(xsd_element, XsdElement):
+                    msg = "the path %r doesn't match any element of the schema!" % path
+                    obj = xml_root.findall(path, namespaces=namespaces) or xml_root
+                    yield XMLSchemaValidationError(self, obj, reason=msg)
+                rel_path = xpath.relative_path(path, 1, namespaces)
+                for elem in xml_root.findall(rel_path, namespaces=namespaces):
+                    for obj in xsd_element.iter_decode(
+                            elem, validate, namespaces=namespaces, use_defaults=use_defaults,
+                            skip_errors=skip_errors, dict_class=dict_class, force_list=force_list,
+                            text_key=text_key, attribute_prefix=attribute_prefix, **kwargs):
+                        yield obj
 
-        def to_dict(self, xml_document, process_namespaces=True, **kwargs):
+        def to_dict(self, xml_document, path=None, process_namespaces=True, **kwargs):
             xml_root = load_xml_resource(xml_document)
             if process_namespaces:
-                namespaces = etree_get_namespaces(xml_document)
-                if 'namespaces' in kwargs:
-                    namespaces.update(kwargs['namespaces'])
-                kwargs['namespaces'] = namespaces
-            return self.find(xml_root.tag).decode(xml_root, **kwargs)
+                try:
+                    uris = set(kwargs['namespaces'].values())
+                except (KeyError, AttributeError):
+                    kwargs['namespaces'] = etree_get_namespaces(xml_document)
+                else:
+                    kwargs['namespaces'].update({
+                        k: v for k, v in etree_get_namespaces(xml_document).items()
+                        if v not in uris
+                    })
+            for obj in self.iter_decode(xml_root, path, **kwargs):
+                if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                    raise obj
+                return obj
 
         #
-        # ElementTree likes API for Element declaration extractions.
-        def iter(self, tag=None):
+        # ElementTree APIs for extracting XSD elements and attributes.
+        def iter(self, name=None):
             for xsd_element in self.elements.values():
-                if tag is None or xsd_element.name == tag:
+                if name is None or xsd_element.name == name:
                     yield xsd_element
-                for e in xsd_element.iter(tag):
+                for e in xsd_element.iter(name):
                     yield e
 
-        def iterchildren(self, tag=None):
+        def iterchildren(self, name=None):
             for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-                if tag is None or xsd_element.name == tag:
+                if name is None or xsd_element.name == name:
                     yield xsd_element
 
         def iterfind(self, path, namespaces=None):
@@ -510,24 +564,3 @@ XMLSchema_v1_0 = create_validator(
     builtin_types=XSD_BUILTIN_TYPES
 )
 XMLSchema = XMLSchema_v1_0
-
-
-def validate(xml_document, schema=None, cls=None, *args, **kwargs):
-    if cls is None:
-        cls = XMLSchema
-    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
-    if schema is None:
-        schema = open_resource(get_xsi_schema_location(xml_root), xml_uri)
-
-    cls(schema, check_schema=True, *args, **kwargs).validate(xml_root)
-
-
-def to_dict(xml_document, schema=None, cls=None, *args, **kwargs):
-    if cls is None:
-        cls = XMLSchema
-    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
-    if schema is None:
-        schema = open_resource(get_xsi_schema_location(xml_root), xml_uri)
-
-    cls(schema, *args, **kwargs).validate(xml_root)
-    return cls(schema, check_schema=True, *args, **kwargs).to_dict(xml_root)

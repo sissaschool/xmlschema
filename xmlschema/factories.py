@@ -59,6 +59,7 @@ def xsd_factory(*args):
             try:
                 result = factory_function(elem, schema, instance, **kwargs)
             except XMLSchemaValidationError as err:
+                print(err)
                 raise XMLSchemaParseError(err.message, elem)
             else:
                 if instance is not None:

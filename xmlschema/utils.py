@@ -20,7 +20,7 @@ except ImportError:
     # noinspection PyCompatibility
     from urlparse import urlsplit
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from .exceptions import XMLSchemaValueError
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 _RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
@@ -170,40 +170,22 @@ def camel_case_split(s):
     return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
 
 
-def listify_update(obj, *args, **kwargs):
+def listify_update(obj, pairs, force_list=False):
     """
     Update a dictionary forcing a list of values when the key already exists.
+    Force the list also for a single value if the argument force_list is True.
 
     :param obj: the dictionary-like instance.
-    :param args: couple (key, value) or dictionary.
-    :param kwargs: keyword arguments dictionary.
-    :return:
+    :param pairs: sequence of (key, value) couples.
+    :param force_list: Force a list at the key first insertion.
     """
-    def _update(k, v):
+    for k, v in pairs:
         if k not in obj:
-            obj[k] = v
+            obj[k] = [v] if force_list else v
         elif not isinstance(obj[k], list):
             obj[k] = [obj[k], v]
         else:
             obj[k].append(v)
-
-    if len(args) > 1:
-        raise XMLSchemaTypeError('listify_update expected at most 1 arguments, got %d.' % len(args))
-
-    if args:
-        other = args[0]
-        if hasattr(other, 'items'):
-            for key, value in other.items():
-                _update(key, value)
-        elif isinstance(other, (list, tuple)) and len(other) == 2:
-                _update(other[0], other[1])
-        else:
-            raise XMLSchemaTypeError(
-                'listify_update expected a dictionary or a couple of values, got %r.' % other
-            )
-
-    for key, value in kwargs.items():
-        _update(key, value)
 
 
 class URIDict(MutableMapping):

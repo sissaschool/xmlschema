@@ -168,7 +168,10 @@ def etree_get_namespaces(source):
             ])
     except TypeError:
         try:
-            return dict(source.nsmap)
+            if hasattr(source, 'getroot'):
+                return dict(source.getroot().nsmap)
+            else:
+                return dict(source.nsmap)
         except (AttributeError, TypeError):
             return {}
 
