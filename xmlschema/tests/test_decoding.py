@@ -61,13 +61,23 @@ _COLLECTION_DICT = {
                 '@id': 'JM',
                 'born': '1893-04-20',
                 'dead': '1983-12-25',
-                'name': 'Joan Miró',
+                'name': u'Joan Miró',
                 'qualification': 'painter, sculptor and ceramicist'
             },
             'position': 2,
             'title': None,
             'year': '1925'
         }]
+}
+
+_DATA_DICT = {
+    '@xsi:schemaLocation': 'http://example.com/decoder  ./decoder.xsd',
+    'certification': [
+        {'#text': 'ISO-9001', '@Year': 1999},
+        {'#text': 'ISO-27001', '@Year': 2009}
+    ],
+    'decimal_value': decimal.Decimal('1'),
+    u'menù': u'baccalà mantecato'
 }
 
 
@@ -158,7 +168,8 @@ class TestDecoding(unittest.TestCase):
     namespaces = {
         'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
         'vh': 'http://example.com/vehicles',
-        'col': 'http://example.com/ns/collection'
+        'col': 'http://example.com/ns/collection',
+        'dt': 'http://example.com/decoder'
     }
     vehicles_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
     collection_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
@@ -169,7 +180,7 @@ class TestDecoding(unittest.TestCase):
         self.assertTrue(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
         self.assertTrue(xmlschema.to_dict(xt1, self.vehicles_schema.uri) == _VEHICLES_DICT)
 
-    def test_to_dict(self):
+    def test_to_dict_python3(self):
         xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
         xt2 = _ElementTree.parse('examples/collection/collection.xml')
         self.assertFalse(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
@@ -190,6 +201,14 @@ class TestDecoding(unittest.TestCase):
         path = './vh:vehicles/vh:bikes'
         self.assertTrue(
             xs.to_dict(xt1, path, namespaces=self.namespaces) == _VEHICLES_DICT['vh:bikes']
+        )
+
+    def test_datatypes3(self):
+        xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
+        xt1 = _ElementTree.parse('examples/decoder/data.xml')
+        self.assertTrue(xs.to_dict(xt1, namespaces=self.namespaces) == _DATA_DICT)
+        self.assertTrue(
+            xs.to_dict('examples/decoder/data.xml', namespaces=self.namespaces) == _DATA_DICT
         )
 
 

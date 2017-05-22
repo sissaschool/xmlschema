@@ -1,99 +1,115 @@
-=========
+*********
 xmlschema
-=========
+*********
 
-This is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
+This package is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
 for Python (supports versions 2.7 and Python 3.3+).
 
+This is a library that arises from the needs of a solid Python layer for processing XML
+Schema based files for
+`MaX (Materials design at the Exascale) <http://www.max-centre.eu>`_  European project.
+A significant problem is the encoding and the decoding of the XML data files
+produced by different simulation software.
+Another important requirement is the XML data validation, in order to put the
+produced data under control. The lack of a suitable alternative for Python in
+the schema-based decoding of XML data has led to build this library. Obviously
+this library can be useful for other cases related to XML Schema based processing,
+not only for the original scope.
+
 Features
---------
+========
+
+The xmlschema library includes the following features:
 
 * Builds XML schema objects from XSD files
-
 * Validates the XML instances with the XSD schema
-
 * Converts XML instances into Python nested dictionaries
-
 * Provides decoding and encoding APIs for XML's elements and attributes
 
+Installation
+============
 
-Installation and usage
-----------------------
-
-You can install the library with::
+You can install the library with *pip* in a Python 2.7 or Python 3.3+ environment::
 
     pip install xmlschema
 
-then you can import the library in your code::
+The library uses the Python's ElementTree XML library and doesn't require additional
+packages. The library includes also the schemas of the XML Schema standards for working
+offline and to speed-up the building of schema instances.
 
-    import xmlschema
+Usage
+=====
 
-and create an instance of a schema with::
+Import the library and then create an instance of a schema using the path of
+the file containing the schema as argument:
 
-    my_schema = xmlschema.XMLSchema(<path to your XSD schema file>)
+.. code-block:: pycon
 
+    >>> import xmlschema
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
 
-Validation
-**********
+The schema can be used to validate XML documents:
 
-Using a XMLSchema object you can validate XML files based on that schema::
+.. code-block:: pycon
 
-   my_schema.is_valid(<path to an XML file based on your XSD schema>)  # returns True or False
+    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles.xml')
+    True
+    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    False
+    >>> my_schema.validate('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 220, in validate
+        raise error
+    xmlschema.exceptions.XMLSchemaValidationError: failed validating <Element ...
 
-If you prefer to raise an exception when the XML file is not validated you can choose another call::
+    Reason: character data between child elements not allowed!
 
-   my_schema.validate(<path to an XML file based on your XSD schema>)
+    Schema:
 
-If you need to validate only once a file with a particular schema you can use the module's call::
+      <xs:sequence xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="car" type="vh:vehicleType" />
+      </xs:sequence>
 
-   xmlschema.validate(<path to the XML file>, <path to XSD schema file>)
+    Instance:
 
-Data decode and encode
-**********************
+      <ns0:cars xmlns:ns0="http://example.com/vehicles">
+        NOT ALLOWED CHARACTER DATA
+        <ns0:car make="Porsche" model="911" />
+        <ns0:car make="Porsche" model="911" />
+      </ns0:cars>
 
-A schema object includes APIs for decoding and encoding the XSD types defined in the schema::
+Using a schema you can also decode the XML documents to nested dictionaries, with
+values that corresponds to the data types declared by the schema:
 
-    my_schema.types[<XSD type name>].decode(<XML text>)       # Decode XML text or elem to data
-    my_schema.types[<XSD type name>].encode(<data instance>)  # Decode a data to and XML text
+.. code-block:: pycon
 
-You can also convert the entire XML document to a nested dictionary with data conversion::
-
-    my_schema = xmlschema.XMLSchema(<path to your XSD schema file>)
-    my_schema.to_dict(<path to an XML file based on your XSD schema>)
-
-
-Running Tests
--------------
-The package uses the Python's *unitest* library. The tests are located in the
-directory ``tests/``. There are three scripts to test the package:
-
-  tests/test_schemas.py
-    Tests about parsing of XSD Schemas
-
-  tests/test_validation.py
-    Tests about XML validation
-
-  tests/test_decoding.py
-    Tests regarding XML data decoding
-
-There are only some basic tests published on xmlschema's GitHub repository, but you
-can add your own tests in a subdirectory as a Git module::
-
-    git clone https://github.com/brunato/xmlschema.git
-    mkdir xmlschema/xmlschema/tests/extra-schemas
-    cd xmlschema/xmlschema/tests/extra-schemas
-    git init
-    touch testfiles
-
-Add to this file the relative or absolute paths of files to be tested, one per line.
-The file path maybe followed by the number of errors that have to be found in the XML
-to pass the test.
-
-
-Release Notes
--------------
-This release conforming to XML Schema version 1.0, but maybe extended to 1.1 in nearly
-future releases. Maybe soon will be available a manual for users and developers.
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
+    {u'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+     'object': [{'@available': True,
+                 '@id': u'b0836217462',
+                 'author': {'@id': u'PAR',
+                            'born': u'1841-02-25',
+                            'dead': u'1919-12-03',
+                            'name': u'Pierre-Auguste Renoir',
+                            'qualification': u'painter'},
+                 'estimation': Decimal('10000.00'),
+                 'position': 1,
+                 'title': u'The Umbrellas',
+                 'year': u'1886'},
+                {'@available': True,
+                 '@id': u'b0836217463',
+                 'author': {'@id': u'JM',
+                            'born': u'1893-04-20',
+                            'dead': u'1983-12-25',
+                            'name': u'Joan Mir\xf3',
+                            'qualification': u'painter, sculptor and ceramicist'},
+                 'position': 2,
+                 'title': None,
+                 'year': u'1925'}]}
 
 License
 -------

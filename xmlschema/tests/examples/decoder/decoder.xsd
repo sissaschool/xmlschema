@@ -6,6 +6,7 @@
             <xs:sequence>
                 <xs:element name="decimal_value" type="Decimal_9_5"/>
                 <xs:element name="certification" type="year_attr_string_75" maxOccurs="unbounded"/>
+                <xs:element name="menù" type="xs:string"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
