@@ -2,10 +2,10 @@
 xmlschema
 *********
 
-This library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
+This package is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
 for Python (supports versions 2.7 and Python 3.3+).
 
-This library arises from the needs of a solid Python layer for processing XML
+This is a library that arises from the needs of a solid Python layer for processing XML
 Schema based files for
 `MaX (Materials design at the Exascale) <http://www.max-centre.eu>`_  European project.
 A significant problem is the encoding and the decoding of the XML data files
