@@ -13,12 +13,15 @@ This module contains classes for XML Schema components.
 """
 from collections import MutableMapping, MutableSequence
 
-from .core import XSI_NAMESPACE_PATH, unicode_type
-from .exceptions import *
-from .utils import split_reference, get_qname, uri_to_prefixes
+from .core import XSI_NAMESPACE_PATH, unicode_type, etree_tostring
+from .exceptions import (
+    XMLSchemaTypeError, XMLSchemaValidationError, XMLSchemaEncodeError,
+    XMLSchemaDecodeError, XMLSchemaParseError
+)
+from .qnames import split_reference, get_qname, qname_to_prefixed
 from .xsdbase import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, check_type, check_value,
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, xsd_lookup, XsdBase
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute, xsd_lookup, XsdComponent
 )
 from . import xpath
 from .facets import (
@@ -34,27 +37,34 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
+
+    def __init__(self, elem):
+        self.elem = elem
+        max_occurs = self.max_occurs
+        if max_occurs is not None and self.min_occurs > max_occurs:
+            raise XMLSchemaParseError("maxOccurs must be 'unbounded' or greater than minOccurs")
+
     @property
     def min_occurs(self):
-        return get_xsd_int_attribute(getattr(self, 'elem'), 'minOccurs', default=1, minimum=0)
+        return get_xsd_int_attribute(self.elem, 'minOccurs', default=1, minimum=0)
 
     @property
     def max_occurs(self):
         try:
-            return get_xsd_int_attribute(getattr(self, 'elem'), 'maxOccurs', default=1, minimum=0)
-        except (XMLSchemaTypeError, XMLSchemaValueError):
+            return get_xsd_int_attribute(self.elem, 'maxOccurs', default=1, minimum=0)
+        except (TypeError, ValueError):
             if getattr(self, '_attrib')['maxOccurs'] == 'unbounded':
                 return None
             raise
 
     def is_optional(self):
-        return getattr(self, '_attrib').get('minOccurs', '').strip() == "0"
+        return self.elem.get('minOccurs', '').strip() == "0"
 
     def is_emptiable(self):
         return self.min_occurs == 0
 
 
-class XsdAttribute(XsdBase):
+class XsdAttribute(XsdComponent):
     """
     Support structure to associate an attribute with XSD simple types.
     """
@@ -100,12 +110,13 @@ class XsdAttribute(XsdBase):
                 return
 
 
-class XsdElement(XsdBase, ParticleMixin):
+class XsdElement(XsdComponent, ParticleMixin):
     """
     Support structure to associate an element and its attributes with XSD simple types.
     """
     def __init__(self, name, xsd_type, elem=None, schema=None, ref=False, qualified=False):
         super(XsdElement, self).__init__(name, elem, schema)
+        ParticleMixin.__init__(self, elem)
         self.type = xsd_type
         self.ref = ref
         self.qualified = qualified
@@ -210,7 +221,7 @@ class XsdElement(XsdBase, ParticleMixin):
             if result:
                 result_dict[text_key] = result
             yield result_dict
-        elif result:
+        elif result or result is False:
             yield result
         else:
             yield None
@@ -309,7 +320,7 @@ class XsdElement(XsdBase, ParticleMixin):
         return list(xpath.xsd_iterfind(self, path, namespaces))
 
 
-class XsdComplexType(XsdBase):
+class XsdComplexType(XsdComponent):
     """
     A class for representing a complexType definition for XML schemas.
     """
@@ -366,10 +377,10 @@ class XsdComplexType(XsdBase):
             yield result
 
 
-class XsdAttributeGroup(MutableMapping, XsdBase):
+class XsdAttributeGroup(MutableMapping, XsdComponent):
 
     def __init__(self, name=None, elem=None, schema=None, initdict=None):
-        XsdBase.__init__(self, name, elem, schema)
+        XsdComponent.__init__(self, name, elem, schema)
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
@@ -417,7 +428,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
                         xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
-                    except XMLSchemaLookupError:
+                    except LookupError:
                         yield XMLSchemaValidationError(
                             self, elem, "% is not an attribute of the XSI namespace." % name
                         )
@@ -439,7 +450,7 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
                     yield result
                 else:
                     if name[0] == '{' and namespaces:
-                        result_list.append((uri_to_prefixes(name, namespaces), result))
+                        result_list.append((qname_to_prefixed(name, namespaces), result))
                     else:
                         result_list.append((name, result))
                     break
@@ -451,13 +462,14 @@ class XsdAttributeGroup(MutableMapping, XsdBase):
         yield result_list
 
 
-class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
+class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     """
     A group can have a model, that indicate the elements that compose the content
     type associated with it.
     """
     def __init__(self, name=None, elem=None, schema=None, model=None, mixed=False, initlist=None):
-        XsdBase.__init__(self, name, elem, schema)
+        XsdComponent.__init__(self, name, elem, schema)
+        ParticleMixin.__init__(self, elem)
         self.model = model
         self.mixed = mixed
         self.parsed = initlist is not None
@@ -490,7 +502,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
         self._group.insert(i, item)
 
     def __repr__(self):
-        return XsdBase.__repr__(self)
+        return XsdComponent.__repr__(self)
 
     def __setattr__(self, name, value):
         if name == 'model':
@@ -547,7 +559,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
                         yield result
                         continue
                     elif child.tag[0] == '{' and namespaces:
-                        key = uri_to_prefixes(child.tag, namespaces)
+                        key = qname_to_prefixed(child.tag, namespaces)
                     else:
                         key = child.tag
 
@@ -642,7 +654,7 @@ class XsdGroup(MutableSequence, XsdBase, ParticleMixin):
         return
 
 
-class XsdAnyAttribute(XsdBase):
+class XsdAnyAttribute(XsdComponent):
 
     def __init__(self, elem=None, schema=None):
         super(XsdAnyAttribute, self).__init__(elem=elem, schema=schema)
@@ -673,7 +685,7 @@ class XsdAnyAttribute(XsdBase):
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
                     xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
-                except XMLSchemaLookupError:
+                except LookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
                 else:
@@ -683,10 +695,11 @@ class XsdAnyAttribute(XsdBase):
                 yield XMLSchemaValidationError(self, obj, "attribute %r not allowed." % name)
 
 
-class XsdAnyElement(XsdBase, ParticleMixin):
+class XsdAnyElement(XsdComponent, ParticleMixin):
 
     def __init__(self, elem=None, schema=None):
         super(XsdAnyElement, self).__init__(elem=elem, schema=schema)
+        ParticleMixin.__init__(self, elem)
 
     @property
     def namespace(self):
@@ -706,7 +719,7 @@ class XsdAnyElement(XsdBase, ParticleMixin):
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
                 xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
-            except XMLSchemaLookupError:
+            except LookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
             else:
@@ -723,14 +736,14 @@ class XsdAnyElement(XsdBase, ParticleMixin):
 
         try:
             xsd_element = xsd_lookup(qname, self.schema.maps.elements)
-        except XMLSchemaLookupError:
+        except LookupError:
             return
         else:
             for obj in xsd_element.iter_model(elem, index):
                 yield obj
 
 
-class XsdSimpleType(XsdBase):
+class XsdSimpleType(XsdComponent):
     """
     Base class for simple types, used only for instances of xs:anySimpleType.
     """

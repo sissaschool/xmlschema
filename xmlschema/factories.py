@@ -11,21 +11,14 @@
 """
 This module contains XSD factories for the 'xmlschema' package.
 """
-import logging
-
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .utils import get_qname, split_qname, split_reference
+from .exceptions import XMLSchemaParseError
+from .qnames import *
 from .xsdbase import (
-    XSD_SIMPLE_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_LIST_TAG,
-    XSD_UNION_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG,
-    XSD_GROUP_TAG, XSD_SIMPLE_CONTENT_TAG, XSD_EXTENSION_TAG,
-    XSD_COMPLEX_CONTENT_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG,
-    XSD_ANY_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_SEQUENCE_TAG,
-    check_tag, get_xsd_attribute, get_xsd_declaration, iter_xsd_declarations, xsd_lookup
+    check_tag, xsd_factory, get_xsd_attribute, get_xsd_declaration,
+    iter_xsd_declarations, xsd_lookup
 )
 from .facets import (
-    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet,
-    XSD_v1_0_FACETS, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG
+    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XSD_v1_0_FACETS
 )
 from .components import (
     XsdElement, XsdAnyAttribute, XsdAnyElement,
@@ -33,49 +26,6 @@ from .components import (
     XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
 )
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
-
-
-logger = logging.getLogger(__name__)
-
-
-def xsd_factory(*args):
-    """
-    Check Element instance passed to a factory and log arguments.
-
-    :param args: Values admitted for Element's tag (base argument of the factory)
-    """
-    def make_factory_wrapper(factory_function):
-        def xsd_factory_wrapper(elem, schema, instance=None, **kwargs):
-            if logger.getEffectiveLevel() == logging.DEBUG:
-                logger.debug(
-                    "%s: elem.tag='%s', elem.attrib=%r, kwargs.keys()=%r",
-                    factory_function.__name__, elem.tag, elem.attrib, kwargs.keys()
-                )
-                check_tag(elem, *args)
-                factory_result = factory_function(elem, schema, instance, **kwargs)
-                logger.debug("%s: return %r", factory_function.__name__, factory_result)
-                return factory_result
-            check_tag(elem, *args)
-            try:
-                result = factory_function(elem, schema, instance, **kwargs)
-            except XMLSchemaValidationError as err:
-                print(err)
-                raise XMLSchemaParseError(err.message, elem)
-            else:
-                if instance is not None:
-                    if isinstance(result, tuple):
-                        if instance.name is not None and instance.name != result[0]:
-                            raise XMLSchemaParseError(
-                                "name mismatch wih instance %r: %r." % (instance, result[0]), elem
-                            )
-                    if instance.elem is None:
-                        instance.elem = elem
-                    if instance.schema is None:
-                        instance.schema = schema
-                return result
-
-        return xsd_factory_wrapper
-    return make_factory_wrapper
 
 
 @xsd_factory(XSD_SIMPLE_TYPE_TAG)
@@ -751,3 +701,10 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
     return element_name, xsd_element_class(
         name=element_name, xsd_type=element_type, elem=elem, schema=schema, qualified=qualified, ref=ref
     )
+
+
+__all__ = [
+    'xsd_attribute_factory', 'xsd_element_factory', 'xsd_attribute_group_factory',
+    'xsd_complex_type_factory', 'xsd_group_factory', 'xsd_simple_type_factory',
+    'xsd_restriction_factory', 'xsd_list_factory', 'xsd_union_factory'
+]

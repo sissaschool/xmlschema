@@ -14,31 +14,12 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from .core import XSD_NAMESPACE_PATH
-from .exceptions import *
-from .utils import get_qname, split_qname
+from .qnames import *
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .xsdbase import (
-    xsd_qname, XsdBase, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+    XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 )
 from .regex import get_python_regex
-
-#
-#  Facets (lexical, pre-lexical and value-based facets)
-XSD_ENUMERATION_TAG = xsd_qname('enumeration')
-XSD_LENGTH_TAG = xsd_qname('length')
-XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
-XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
-XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
-XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
-XSD_WHITE_SPACE_ENUM = ('preserve', 'replace', 'collapse')
-XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
-XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
-XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
-XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
-XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
-XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
-XSD_ASSERTIONS_TAG = xsd_qname('assertions')
-XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
 
 XSD_v1_0_FACETS = {
     XSD_LENGTH_TAG,
@@ -97,10 +78,10 @@ UNION_FACETS = {
 
 #
 # Class hierarchy for XSD facets
-class XsdFacet(XsdBase):
+class XsdFacet(XsdComponent):
 
     def __init__(self, base_type, elem=None, schema=None):
-        XsdBase.__init__(self, elem=elem, schema=schema)
+        XsdComponent.__init__(self, elem=elem, schema=schema)
         self.base_type = base_type
 
     def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):

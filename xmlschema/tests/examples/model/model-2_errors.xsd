@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A sample schema for testing model validation -->
+<xs:schema xmlns="http://example.com/model" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://example.com/model" >
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="comment" type="xs:string" minOccurs="4" maxOccurs="3"/>
+                <xs:element name="name" type="xs:string" minOccurs="4"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
