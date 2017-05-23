@@ -24,8 +24,7 @@ except ImportError:
 
 def get_tests(pathname):
     from xmlschema.resources import load_xml_resource
-    from xmlschema.core import XSI_NAMESPACE_PATH
-    from xmlschema.utils import get_qname
+    from xmlschema.qnames import XSI_SCHEMA_LOCATION
 
     def make_test_validation_function(xml_file, schema, expected_errors):
         def test_validation(self):
@@ -73,8 +72,7 @@ def get_tests(pathname):
             continue
 
         xml_root = load_xml_resource(test_file)
-        xsi_schema_location = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-        schema_locations = xml_root.find('.[@%s]' % xsi_schema_location).attrib.get(xsi_schema_location)
+        schema_locations = xml_root.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
         for schema_location in schema_locations.strip().split():
             schema_file = os.path.join(os.path.dirname(test_file), schema_location)
             if os.path.isfile(schema_file):

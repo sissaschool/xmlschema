@@ -14,79 +14,17 @@ This module contains functions for manipulating fully qualified names and XSD qn
 import re
 import logging as _logging
 
-from .core import PY3, XSI_NAMESPACE_PATH, XSD_NAMESPACE_PATH
+from .core import PY3
+from .qnames import *
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaLookupError,
     XMLSchemaAttributeError, XMLSchemaParseError, XMLSchemaComponentError,
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from .utils import camel_case_split, split_qname, get_qname, FrozenDict
+from .utils import FrozenDict
 
 
 _logger = _logging.getLogger(__name__)
-
-
-def xsd_qname(name):
-    """
-    Build a QName for XSD namespace from a local name.
-
-    :param name: local name/tag
-    :return: fully qualified name for XSD namespace
-    """
-    if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
-        raise XMLSchemaValueError("'%s' is not a name of the XSD namespace" % name)
-    else:
-        return name
-
-
-# ------------------------
-#  XSD/XS Qualified Names
-# ------------------------
-XSD_SCHEMA_TAG = xsd_qname('schema')
-
-# Composing schemas
-XSD_INCLUDE_TAG = xsd_qname('include')
-XSD_IMPORT_TAG = xsd_qname('import')
-XSD_REDEFINE_TAG = xsd_qname('redefine')
-
-# Structures
-XSD_SIMPLE_TYPE_TAG = xsd_qname('simpleType')
-XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
-XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
-XSD_ELEMENT_TAG = xsd_qname('element')
-XSD_NOTATION_TAG = xsd_qname('notation')
-XSD_ANNOTATION_TAG = xsd_qname('annotation')
-
-# Grouping
-XSD_GROUP_TAG = xsd_qname('group')
-XSD_ATTRIBUTE_GROUP_TAG = xsd_qname('attributeGroup')
-
-# simpleType declaration elements
-XSD_RESTRICTION_TAG = xsd_qname('restriction')
-XSD_LIST_TAG = xsd_qname('list')
-XSD_UNION_TAG = xsd_qname('union')
-
-# complexType content
-XSD_EXTENSION_TAG = xsd_qname('extension')
-XSD_SEQUENCE_TAG = xsd_qname('sequence')
-XSD_CHOICE_TAG = xsd_qname('choice')
-XSD_ALL_TAG = xsd_qname('all')
-XSD_ANY_TAG = xsd_qname('any')
-XSD_SIMPLE_CONTENT_TAG = xsd_qname('simpleContent')
-XSD_COMPLEX_CONTENT_TAG = xsd_qname('complexContent')
-XSD_ANY_ATTRIBUTE_TAG = xsd_qname('anyAttribute')
-
-# XSD 1.1 facets
-XSD_ASSERTIONS_TAG = xsd_qname('assertions')
-XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
-
-
-#
-# XSI attributes
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
 
 
 def get_xsi_schema_location(elem):
@@ -163,7 +101,7 @@ def get_xsd_annotation(elem):
     """
     try:
         return elem[0] if elem[0].tag == XSD_ANNOTATION_TAG else None
-    except IndexError:
+    except (TypeError, IndexError):
         return None
 
 
@@ -215,7 +153,7 @@ def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
     """
     try:
         value = elem.attrib[attribute]
-    except KeyError as err:
+    except (KeyError, AttributeError) as err:
         try:
             return kwargs['default']
         except KeyError:
@@ -264,39 +202,6 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
 
 
 #
-# Define an iterfind function for some XML Schema elements
-def create_iterfind_by_tag(tag):
-    """
-    Defines a generator that produce all subelements that have a specific tag.
-    """
-    tag = str(tag)
-
-    def iterfind_function(elements, path=None, namespaces=None):
-        if isinstance(elements, list):
-            for _elem in elements:
-                for elem in _elem.iterfind(path or tag, namespaces or {}):
-                    if elem.tag == tag:
-                        yield _elem
-        else:
-            for elem in elements.iterfind(path or tag, namespaces or {}):
-                if elem.tag == tag:
-                    yield elem
-    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(split_qname(tag)[1])).lower()
-
-    return iterfind_function
-
-iterfind_xsd_import = create_iterfind_by_tag(XSD_IMPORT_TAG)
-iterfind_xsd_include = create_iterfind_by_tag(XSD_INCLUDE_TAG)
-iterfind_xsd_redefine = create_iterfind_by_tag(XSD_REDEFINE_TAG)
-iterfind_xsd_simple_types = create_iterfind_by_tag(XSD_SIMPLE_TYPE_TAG)
-iterfind_xsd_complex_types = create_iterfind_by_tag(XSD_COMPLEX_TYPE_TAG)
-iterfind_xsd_attributes = create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
-iterfind_xsd_attribute_groups = create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
-iterfind_xsd_elements = create_iterfind_by_tag(XSD_ELEMENT_TAG)
-iterfind_xsd_groups = create_iterfind_by_tag(XSD_GROUP_TAG)
-
-
-#
 # Lookups an XML schema global component.
 def xsd_lookup(qname, xsd_globals):
     try:
@@ -316,122 +221,74 @@ def xsd_lookup(qname, xsd_globals):
             )
 
 
-#
-# Define an update function for each structure of the XML Schema
+def xsd_factory(*args):
+    """
+    Check Element instance passed to a factory and log arguments.
 
-def create_load_function(filter_function):
-
-    def load_xsd_globals(xsd_globals, schemas):
-        redefinitions = []
-        for schema in schemas:
-            if schema.built:
-                continue
-
-            target_namespace = schema.target_namespace
-            for elem in iterfind_xsd_redefine(schema.root):
-                for child in filter_function(elem):
-                    qname = get_qname(target_namespace, get_xsd_attribute(child, 'name'))
-                    redefinitions.append((qname, (child, schema)))
-
-            for elem in filter_function(schema.root):
-                qname = get_qname(target_namespace, get_xsd_attribute(elem, 'name'))
-                try:
-                    xsd_globals[qname].append((elem, schema))
-                except KeyError:
-                    xsd_globals[qname] = (elem, schema)
-                except AttributeError:
-                    xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
-
-        for qname, obj in redefinitions:
-            if qname not in xsd_globals:
-                raise XMLSchemaParseError("not a redefinition!", obj[0])
+    :param args: Values admitted for Element's tag (base argument of the factory)
+    """
+    def make_factory_wrapper(factory_function):
+        def xsd_factory_wrapper(elem, schema, instance=None, **kwargs):
+            if _logger.getEffectiveLevel() == _logging.DEBUG:
+                _logger.debug(
+                    "%s: elem.tag='%s', elem.attrib=%r, kwargs.keys()=%r",
+                    factory_function.__name__, elem.tag, elem.attrib, kwargs.keys()
+                )
+                check_tag(elem, *args)
+                factory_result = factory_function(elem, schema, instance, **kwargs)
+                _logger.debug("%s: return %r", factory_function.__name__, factory_result)
+                return factory_result
+            check_tag(elem, *args)
             try:
-                xsd_globals[qname].append(obj)
-            except KeyError:
-                xsd_globals[qname] = obj
-            except AttributeError:
-                xsd_globals[qname] = [xsd_globals[qname], obj]
-
-    return load_xsd_globals
-
-load_xsd_simple_types = create_load_function(iterfind_xsd_simple_types)
-load_xsd_attributes = create_load_function(iterfind_xsd_attributes)
-load_xsd_attribute_groups = create_load_function(iterfind_xsd_attribute_groups)
-load_xsd_complex_types = create_load_function(iterfind_xsd_complex_types)
-load_xsd_elements = create_load_function(iterfind_xsd_elements)
-load_xsd_groups = create_load_function(iterfind_xsd_groups)
-
-
-def create_build_function(factory_key):
-
-    def build_xsd_map(xsd_globals, tag, **kwargs):
-        global_names = set(xsd_globals.keys())
-        factory_function = kwargs.get(factory_key)
-        errors_counter = 0
-        i = 0
-        while True:
-            i += 1
-            missing = []
-            errors = []
-            for qname in global_names:
-                obj = xsd_globals[qname]
-                try:
-                    if isinstance(obj, XsdBase):
-                        elem, schema = obj.elem, obj.schema
-                        if elem is None or elem.tag != tag or schema.built:
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, obj, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, tuple):
-                        elem, schema = obj
-                        if elem.tag != tag:
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, list):
-                        start = int(isinstance(obj[0], XsdBase))
-                        xsd_instance = obj[0] if start else None
-                        for k in range(start, len(obj)):
-                            elem, schema = obj[k]
-                            if elem.tag != tag:
-                                break
-                            res_qname, xsd_instance = factory_function(
-                                elem, schema, xsd_instance, is_global=True, **kwargs
+                result = factory_function(elem, schema, instance, **kwargs)
+            except XMLSchemaValidationError as err:
+                raise XMLSchemaParseError(err.message, elem)
+            else:
+                if instance is not None:
+                    if isinstance(result, tuple):
+                        if instance.name is not None and instance.name != result[0]:
+                            raise XMLSchemaParseError(
+                                "name mismatch wih instance %r: %r." % (instance, result[0]), elem
                             )
-                            obj[0] = xsd_instance
-                    else:
-                        raise XMLSchemaTypeError("unexpected type %r for XSD global %r" % (type(obj), qname))
+                    if instance.elem is None:
+                        instance.elem = elem
+                    if instance.schema is None:
+                        instance.schema = schema
+                return result
 
-                except (XMLSchemaTypeError, XMLSchemaLookupError) as err:
-                    _logger.debug("XSD reference %s not yet defined: elem.attrib=%r", err, elem.attrib)
-                    missing.append(qname)
-                    if isinstance(err, XMLSchemaLookupError):
-                        errors.append(err)
-                    if len(missing) == errors_counter:
-                        raise errors[0] if errors else XMLSchemaParseError(message=str(err), elem=elem)
-                else:
-                    if elem.tag != tag:
-                        continue
-                    if res_qname != qname:
-                        raise XMLSchemaParseError("wrong result name: %r != %r" % (res_qname, qname))
-                    _logger.debug("Update XSD reference: target[%r] = %r", res_qname, xsd_instance)
-                    xsd_globals[qname] = xsd_instance
+        return xsd_factory_wrapper
+    return make_factory_wrapper
 
-            if not missing:
-                break
-            errors_counter = len(missing)
-            global_names = missing
 
-    return build_xsd_map
+@xsd_factory(XSD_ANNOTATION_TAG)
+def xsd_annotation_factory(elem, schema, instance=None, **kwargs):
+    """
+    Factory for XSD 'annotation' declarations.
 
-build_xsd_simple_types = create_build_function('simple_type_factory')
-build_xsd_attributes = create_build_function('attribute_factory')
-build_xsd_attribute_groups = create_build_function('attribute_group_factory')
-build_xsd_complex_types = create_build_function('complex_type_factory')
-build_xsd_elements = create_build_function('element_factory')
-build_xsd_groups = create_build_function('group_factory')
+    <annotation
+        id = ID
+        {any attributes with non-schema Namespace}...>
+    Content: (appinfo | documentation)*
+    </annotation>
+    """
+    appinfo = []
+    documentation = []
+    for child in elem:
+        if child.tag == XSD_APPINFO_TAG:
+            for key in child.attrib:
+                if key != 'source':
+                    raise XMLSchemaParseError(
+                        "wrong attribute %r for appinfo declaration." % key, child
+                    )
+            appinfo.append(child)
+        elif child.tag == XSD_DOCUMENTATION_TAG:
+            for key in child.attrib:
+                if key not in ['source', XML_LANG]:
+                    raise XMLSchemaParseError(
+                        "wrong attribute %r for documentation declaration." % key, child
+                    )
+            documentation.append(child)
+    return XsdAnnotation(elem, schema, appinfo, documentation)
 
 
 class XsdBase(object):
@@ -446,10 +303,9 @@ class XsdBase(object):
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
-    def __init__(self, name=None, elem=None, schema=None):
-        self.name = name
-        self.elem = elem
+    def __init__(self, elem=None, schema=None):
         self.schema = schema
+        self.elem = elem
 
     def __setattr__(self, name, value):
         if name == "elem":
@@ -464,17 +320,14 @@ class XsdBase(object):
         super(XsdBase, self).__setattr__(name, value)
 
     def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name, id(self))
+        return u"<%s at %#x>" % (self.__class__.__name__, id(self))
 
     def __str__(self):
         # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        if self.name and self.name[0] == '{':
-            return self.name
-        else:
-            return self.__repr__()
+        return self.__repr__()
 
     if PY3:
         __str__ = __unicode__
@@ -527,6 +380,51 @@ class XsdBase(object):
                 setattr(self, k, v)
             else:
                 raise XMLSchemaAttributeError("%r object has no attribute %r" % (self, k))
+
+
+class XsdAnnotation(XsdBase):
+    """
+    Class for XML Schema annotation definitions.
+    """
+
+    def __init__(self, elem=None, schema=None, appinfo=None, documentation=None):
+        super(XsdAnnotation, self).__init__(elem, schema)
+        self.appinfo = appinfo if appinfo is not None else []
+        self.documentation = documentation if documentation is not None else []
+
+
+class XsdComponent(XsdBase):
+
+    def __init__(self, name=None, elem=None, schema=None):
+        self.name = name
+        super(XsdComponent, self).__init__(elem, schema)
+
+    def __repr__(self):
+        return u"<%s %r at %#x>" % (self.__class__.__name__, self.name, id(self))
+
+    def __str__(self):
+        # noinspection PyCompatibility
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        if self.name and self.name[0] == '{':
+            return self.name
+        else:
+            return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
+
+    def __setattr__(self, name, value):
+        if name == "elem":
+            annotation = get_xsd_annotation(value)
+            if annotation is not None:
+                self.annotation = xsd_annotation_factory(annotation, self.schema)
+            else:
+                self.annotation = None
+
+        super(XsdComponent, self).__setattr__(name, value)
 
     def validate(self, obj):
         """

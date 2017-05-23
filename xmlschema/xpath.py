@@ -16,7 +16,7 @@ from decimal import Decimal
 from collections import MutableSequence
 from abc import ABCMeta
 from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError
-from .utils import reference_to_qname
+from .qnames import reference_to_qname
 
 
 #

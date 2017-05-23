@@ -11,7 +11,6 @@
 """
 This module contains XMLSchema class creator for xmlschema package.
 """
-import logging
 import os.path
 
 from .core import (
@@ -22,29 +21,21 @@ from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaURLError
 )
-from .utils import URIDict, get_namespace, listify_update, strip_uri
+from .utils import URIDict, listify_update
+from .qnames import XSD_SCHEMA_TAG
 from .xsdbase import (
-    check_tag, get_xsi_schema_location, get_xsi_no_namespace_schema_location,
-    XSD_SCHEMA_TAG, build_xsd_attributes, build_xsd_attribute_groups,
-    build_xsd_simple_types, build_xsd_complex_types, build_xsd_groups,
-    build_xsd_elements, iterfind_xsd_import,
-    iterfind_xsd_include, iterfind_xsd_redefine, load_xsd_attribute_groups,
-    load_xsd_attributes, load_xsd_groups, load_xsd_complex_types, load_xsd_simple_types,
-    load_xsd_elements, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
-    XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG, get_xsd_attribute
+    check_tag, get_xsd_attribute, get_xsi_schema_location,
+    get_xsi_no_namespace_schema_location
 )
 from .components import XsdElement
 from .resources import open_resource, load_xml_resource
 from .facets import XSD_v1_0_FACETS
 from .builtins import XSD_BUILTIN_TYPES
-from .factories import (
-    xsd_simple_type_factory, xsd_restriction_factory, xsd_attribute_factory,
-    xsd_attribute_group_factory, xsd_complex_type_factory,
-    xsd_element_factory, xsd_group_factory
+from .namespaces import (
+    XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
 )
+from .factories import *
 from . import xpath
-
-logger = logging.getLogger(__name__)
 
 
 DEFAULT_OPTIONS = {
@@ -59,154 +50,6 @@ DEFAULT_OPTIONS = {
 """Default options for building XSD schema elements."""
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-
-
-class XsdGlobals(object):
-    """
-    Mediator class for related XML schema instances. It stores the global 
-    declarations defined in the registered schemas. Register a schema to 
-    add it's declarations to the global maps.
-    
-    :param validator: the XMLSchema class that have to be used for initializing \
-    the object.
-    """
-    def __init__(self, validator):
-        self.validator = validator
-        self.namespaces = URIDict()     # Registered schemas by namespace URI
-        self.resources = URIDict()      # Registered schemas by resource URI
-
-        self.types = {}                 # Global types
-        self.attributes = {}            # Global attributes
-        self.attribute_groups = {}      # Attribute groups
-        self.groups = {}                # Model groups
-        self.elements = {}              # Global elements
-        self.base_elements = {}         # Global elements + global groups expansion
-        self._view_cache = {}           # Cache for namespace views
-
-        self.types.update(validator.BUILTIN_TYPES)
-
-    def copy(self):
-        """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator)
-        obj.namespaces.update(self.namespaces)
-        obj.resources.update(self.resources)
-        obj.types.update(self.types)
-        obj.attributes.update(self.attributes)
-        obj.attribute_groups.update(self.attribute_groups)
-        obj.groups.update(self.groups)
-        obj.elements.update(self.elements)
-        obj.base_elements.update(self.base_elements)
-        return obj
-    __copy__ = copy
-
-    def register(self, schema):
-        """
-        Registers an XMLSchema instance.         
-        """
-        if schema.uri:
-            if schema.uri not in self.resources:
-                self.resources[schema.uri] = schema
-            elif self.resources[schema.uri] != schema:
-                return
-
-        try:
-            ns_schemas = self.namespaces[schema.target_namespace]
-        except KeyError:
-            self.namespaces[schema.target_namespace] = [schema]
-        else:
-            if schema in ns_schemas:
-                return
-            if not any([schema.uri == obj.uri for obj in ns_schemas]):
-                ns_schemas.append(schema)
-
-    def get_globals(self, map_name, namespace, fqn_keys=True):
-        """
-        Get a global map for a namespace. The map is cached by the instance.
-
-        :param map_name: can be the name of one of the XSD global maps \
-        (``'attributes'``, ``'attribute_groups'``, ``'elements'``, \
-        ``'groups'``, ``'elements'``).
-        :param namespace: is an optional mapping from namespace prefix \
-        to full qualified name. 
-        :param fqn_keys: if ``True`` the returned map's keys are fully \
-        qualified names, if ``False`` the returned map's keys are local names.
-        :return: a dictionary.
-        """
-        try:
-            return self._view_cache[(map_name, namespace, fqn_keys)]
-        except KeyError:
-            if fqn_keys:
-                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
-                    k: v for k, v in getattr(self, map_name).items()
-                    if namespace == get_namespace(k)
-                }
-            else:
-                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
-                    strip_uri(k): v for k, v in getattr(self, map_name).items()
-                    if namespace == get_namespace(k)
-                }
-            return view
-
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
-
-    def clear(self, remove_schemas=False):
-        """
-        Clears the instance maps, removing also all the registered schemas 
-        and cleaning the cache.
-        """
-        self.types.clear()
-        self.attributes.clear()
-        self.attribute_groups.clear()
-        self.groups.clear()
-        self.elements.clear()
-        self.base_elements.clear()
-        self._view_cache.clear()
-
-        self.types.update(self.validator.BUILTIN_TYPES)
-        for schema in self.iter_schemas():
-            schema.built = False
-
-        if remove_schemas:
-            self.namespaces = URIDict()
-            self.resources = URIDict()
-
-    def build(self):
-        """
-        Builds the schemas registered in the instance, excluding
-        those that are already built.
-        """
-        kwargs = self.validator.OPTIONS.copy()
-
-        # Load and build global declarations
-        load_xsd_simple_types(self.types, self.iter_schemas())
-        build_xsd_simple_types(self.types, XSD_SIMPLE_TYPE_TAG, **kwargs)
-        load_xsd_attributes(self.attributes, self.iter_schemas())
-        build_xsd_attributes(self.attributes, XSD_ATTRIBUTE_TAG, **kwargs)
-        load_xsd_attribute_groups(self.attribute_groups, self.iter_schemas())
-        build_xsd_attribute_groups(self.attribute_groups, XSD_ATTRIBUTE_GROUP_TAG, **kwargs)
-        load_xsd_complex_types(self.types, self.iter_schemas())
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, **kwargs)
-        load_xsd_elements(self.elements, self.iter_schemas())
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, **kwargs)
-        load_xsd_groups(self.groups, self.iter_schemas())
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, **kwargs)
-
-        # Build all local declarations
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, parse_local_groups=True, **kwargs)
-
-        # Update base_elements
-        self.base_elements.update(self.elements)
-        for group in self.groups.values():
-            self.base_elements.update({e.name: e for e in group.iter_elements()})
-
-        for schema in self.iter_schemas():
-            schema.built = True
 
 
 def create_validator(version, meta_schema, base_schemas=None, facets=None,
