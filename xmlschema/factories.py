@@ -21,7 +21,7 @@ from .facets import (
     XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XSD_v1_0_FACETS
 )
 from .components import (
-    XsdElement, XsdAnyAttribute, XsdAnyElement,
+    XsdElement, XsdAnyAttribute, XsdAnyElement, XsdNotation,
     XsdComplexType, XsdAttributeGroup, XsdGroup, XsdAttribute,
     XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
 )
@@ -189,7 +189,7 @@ def xsd_list_factory(elem, schema, instance=None, **kwargs):
         if item_type is None:
             item_type = xsd_lookup(item_qname, schema.maps.types)
         if item_type.name != item_qname:
-            XMLSchemaParseError("Wrong name for %r: %r." % (instance, item_qname), elem)
+            raise XMLSchemaParseError("Wrong name for %r: %r." % (instance, item_qname), elem)
     else:
         raise XMLSchemaParseError("missing list type declaration", elem)
 
@@ -288,7 +288,8 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         xsd_type = xsd_type or xsd_lookup(type_qname, schema.maps.types)
         if xsd_type.name != type_qname:
-            XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
+            # must implement substitution groups before!?
+            pass  # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
     except KeyError:
         if xsd_declaration is not None:
             # No 'type' attribute in declaration, parse for child local simpleType
@@ -553,8 +554,6 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
     xsd_any_class = kwargs.get('xsd_any_class', XsdAnyElement)
     mixed = kwargs.pop('mixed', False)
     is_global = kwargs.pop('is_global', False)
-    if not isinstance(instance, (type(None), xsd_group_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_group_class))
 
     if elem.tag == XSD_GROUP_TAG:
         # Model group with 'name' or 'ref'
@@ -661,6 +660,8 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
         ref = False
     else:
         # Reference to a global element
+        if is_global:
+            raise XMLSchemaParseError("an element reference can't be global:", elem)
         msg = "attribute '{}' is not allowed when element reference is used!"
         if 'name' in elem.attrib:
             raise XMLSchemaParseError(msg.format('name'), elem)
@@ -671,14 +672,16 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
         ref = True
         xsd_element = xsd_lookup(element_name, schema.maps.elements)
         element_type = xsd_element.type
-        # schema = xsd_element.schema or schema
 
     if instance is not None and instance.name != element_name:
-        XMLSchemaParseError("Wrong name for %r: %r." % (instance, element_name), elem)
+        raise XMLSchemaParseError("wrong name for %r: %r." % (instance, element_name), elem)
+
+    if 'substitutionGroup' in elem.attrib and not is_global:
+        raise XMLSchemaParseError("a substitution group declaration must be global:", elem)
 
     if ref:
         if get_xsd_declaration(elem, required=False, strict=False) is not None:
-            raise XMLSchemaParseError("Element reference declaration can't have children:", elem)
+            raise XMLSchemaParseError("element reference declaration can't has children:", elem)
     elif 'type' in elem.attrib:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         element_type = xsd_lookup(type_qname, schema.maps.types)
@@ -692,6 +695,7 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
         else:
             element_type = ANY_TYPE
 
+
     if instance is not None:
         instance.update_attrs(
             type=element_type, elem=elem, schema=schema, qualified=qualified, ref=ref
@@ -703,8 +707,34 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
     )
 
 
+@xsd_factory(XSD_NOTATION_TAG)
+def xsd_notation_factory(elem, schema, instance=None, **kwargs):
+    """
+    Factory for XSD 'notation' definitions.
+
+    <notation
+        id = ID
+        name = NCName
+        public = Public identifier per ISO 8879
+        system = anyURI
+        {any attributes with non-schema Namespace}...>
+    Content: (annotation?)
+    </notation>
+    """
+    xsd_notation_class = kwargs.get('xsd_notation_class', XsdNotation)
+    if not isinstance(instance, (type(None), xsd_notation_class)):
+        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_notation_class))
+    try:
+        notation_name = get_qname(schema.target_namespace, elem.attrib['name'])
+    except KeyError:
+        raise XMLSchemaParseError("a notation must have a 'name'.", elem)
+    return notation_name, XsdNotation(notation_name, elem, schema)
+
+
 __all__ = [
-    'xsd_attribute_factory', 'xsd_element_factory', 'xsd_attribute_group_factory',
-    'xsd_complex_type_factory', 'xsd_group_factory', 'xsd_simple_type_factory',
-    'xsd_restriction_factory', 'xsd_list_factory', 'xsd_union_factory'
+    'xsd_attribute_factory', 'xsd_element_factory',
+    'xsd_attribute_group_factory', 'xsd_group_factory',
+    'xsd_complex_type_factory', 'xsd_simple_type_factory',
+    'xsd_restriction_factory', 'xsd_list_factory',
+    'xsd_union_factory', 'xsd_notation_factory'
 ]

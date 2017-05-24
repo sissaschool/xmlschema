@@ -45,6 +45,7 @@ DEFAULT_OPTIONS = {
     'complex_type_factory': xsd_complex_type_factory,
     'group_factory': xsd_group_factory,
     'element_factory': xsd_element_factory,
+    'notation_factory': xsd_notation_factory,
     'restriction_factory': xsd_restriction_factory
 }
 """Default options for building XSD schema elements."""
@@ -164,6 +165,10 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 if namespace == self.target_namespace:
                     return prefix
             return ''
+
+        @property
+        def notations(self):
+            return self.maps.get_globals('notations', self.target_namespace, False)
 
         @property
         def types(self):

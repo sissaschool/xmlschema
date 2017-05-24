@@ -123,11 +123,18 @@ class XsdElement(XsdComponent, ParticleMixin):
         self.default = self._attrib.get('default', '')
         self.fixed = self._attrib.get('fixed', '')
         if self.default and self.fixed:
-            raise XMLSchemaParseError("'default' and 'fixed' attributes are mutually exclusive", self.elem)
+            raise XMLSchemaParseError(
+                "'default' and 'fixed' attributes are mutually exclusive", elem
+            )
         try:
             self.attributes = self.type.attributes
         except AttributeError:
             self.attributes = XsdAttributeGroup(schema=schema)
+
+        if ref and self.substitution_group is not None:
+            raise XMLSchemaParseError(
+                "a reference can't has 'substitutionGroup' attribute.", elem
+            )
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -375,6 +382,29 @@ class XsdComplexType(XsdComponent):
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.content_type.iter_encode(obj, validate, **kwargs):
             yield result
+
+
+class XsdNotation(XsdComponent):
+
+    def __init__(self, name, elem, schema=None):
+        super(XsdNotation, self).__init__(name, elem, schema)
+        for key in self._attrib:
+            if key not in {'id', 'name', 'public', 'system'}:
+                raise XMLSchemaParseError(
+                    "wrong attribute %r for notation definition." % key, elem
+                )
+        if 'public' not in elem.attrib and 'system' not in elem.attrib:
+            raise XMLSchemaParseError(
+                "a notation may have 'public' or 'system' attribute.", elem
+            )
+
+    @property
+    def public(self):
+        return self._attrib.get('public')
+
+    @property
+    def system(self):
+        return self._attrib.get('system')
 
 
 class XsdAttributeGroup(MutableMapping, XsdComponent):

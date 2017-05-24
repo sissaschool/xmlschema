@@ -248,7 +248,7 @@ def xsd_factory(*args):
                     if isinstance(result, tuple):
                         if instance.name is not None and instance.name != result[0]:
                             raise XMLSchemaParseError(
-                                "name mismatch wih instance %r: %r." % (instance, result[0]), elem
+                                "name mismatch with instance %r: %r." % (instance, result[0]), elem
                             )
                     if instance.elem is None:
                         instance.elem = elem
