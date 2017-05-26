@@ -10,9 +10,9 @@
 #
 from .core import set_logger, etree_get_namespaces
 from .exceptions import (
-    XMLSchemaException, XMLSchemaParseError, XMLSchemaComponentError,
-    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError,
-    XMLSchemaXPathError, XMLSchemaRegexError
+    XMLSchemaException, XMLSchemaParseError, XMLSchemaValidationError,
+    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
+    XMLSchemaRegexError
 )
 from .resources import open_resource, load_xml_resource
 from .xsdbase import get_xsi_schema_location

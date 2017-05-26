@@ -286,18 +286,20 @@ class XsdBase(object):
 
 class XsdAnnotation(XsdBase):
     """
-    Class for XML Schema annotation definitions.
+    Class for XSD 'annotation' definitions.
     
     <annotation
       id = ID
       {any attributes with non-schema namespace . . .}>
       Content: (appinfo | documentation)*
     </annotation>
+    
     <appinfo
       source = anyURI
       {any attributes with non-schema namespace . . .}>
       Content: ({any})*
     </appinfo>
+    
     <documentation
       source = anyURI
       xml:lang = language
@@ -321,14 +323,14 @@ class XsdAnnotation(XsdBase):
                     for key in child.attrib:
                         if key != 'source':
                             raise XMLSchemaParseError(
-                                "wrong attribute %r for appinfo declaration." % key, child
+                                "wrong attribute %r for appinfo declaration." % key, self
                             )
                     self.appinfo.append(child)
                 elif child.tag == XSD_DOCUMENTATION_TAG:
                     for key in child.attrib:
                         if key not in ['source', XML_LANG]:
                             raise XMLSchemaParseError(
-                                "wrong attribute %r for documentation declaration." % key, child
+                                "wrong attribute %r for documentation declaration." % key, self
                             )
                     self.documentation.append(child)
         super(XsdAnnotation, self).__setattr__(name, value)
@@ -469,7 +471,7 @@ class ParticleMixin(object):
             max_occurs = self.max_occurs
             if max_occurs is not None and self.min_occurs > max_occurs:
                 raise XMLSchemaParseError(
-                    "maxOccurs must be 'unbounded' or greater than minOccurs:", value
+                    "maxOccurs must be 'unbounded' or greater than minOccurs:", self
                 )
 
     @property

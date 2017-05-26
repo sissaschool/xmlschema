@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for XML Schema data types.
+This module contains classes for XML Schema simple data types.
 """
 from ..core import unicode_type
 from ..exceptions import (
@@ -18,7 +18,7 @@ from ..exceptions import (
 from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
 from ..xsdbase import check_type, check_value, XsdComponent
 
-from .facets import XSD_v1_1_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
+from .facets import XSD11_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
 
 
 class XsdSimpleType(XsdComponent):
@@ -54,7 +54,7 @@ class XsdSimpleType(XsdComponent):
         try:
             return self.schema.FACETS
         except AttributeError:
-            return XSD_v1_1_FACETS.union({None})
+            return XSD11_FACETS.union({None})
 
     def normalize(self, obj):
         """
@@ -102,9 +102,9 @@ class XsdSimpleType(XsdComponent):
 # simpleType's derived classes:
 class XsdAtomic(XsdSimpleType):
     """
-    Class for simpleType atomic variety declarations. An atomic
-    declaration has a base_type attribute that refers to primitive
-    or derived atomic built-in type or another derived simpleType.
+    Class for atomic simpleType definitions. An atomic definition has 
+    a base_type attribute that refers to primitive or derived atomic 
+    built-in type or another derived simpleType.
     """
     def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
         self.base_type = base_type
@@ -130,7 +130,7 @@ class XsdAtomic(XsdSimpleType):
         try:
             facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return XSD_v1_1_FACETS.union({None})
+            return XSD11_FACETS.union({None})
         else:
             if self.schema:
                 return self.schema.FACETS.intersection(facets)
@@ -208,8 +208,8 @@ class XsdAtomicBuiltin(XsdAtomic):
 
 class XsdList(XsdSimpleType):
     """
-    Class for simpleType list variety declarations. A list declaration has an
-    item_type attribute that refers to an atomic or union simpleType definition.
+    Class for 'list' definitions. A list definition has an item_type attribute 
+    that refers to an atomic or union simpleType definition.
     
     <list
       id = ID
@@ -282,8 +282,8 @@ class XsdList(XsdSimpleType):
 
 class XsdUnion(XsdSimpleType):
     """
-    Class for simpleType union variety declarations. A union declaration
-    has a member_types attribute that refers to a simpleType definition.
+    Class for 'union' definitions. A union definition has a member_types 
+    attribute that refers to a 'simpleType' definition.
 
     <union
       id = ID
@@ -352,7 +352,7 @@ class XsdUnion(XsdSimpleType):
 
 class XsdAtomicRestriction(XsdAtomic):
     """
-    Class for XSD 1.0/1.1 atomic simpleType and complexType's simpleContent restrictions.
+    Class for XSD 1.0 atomic simpleType and complexType's simpleContent restrictions.
 
     <restriction
       base = QName
@@ -361,16 +361,6 @@ class XsdAtomicRestriction(XsdAtomic):
       Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
       maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
       enumeration | whiteSpace | pattern)*))
-    </restriction>
-
-    <restriction
-      base = QName
-      id = ID
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
-      enumeration | whiteSpace | pattern | assertion | explicitTimezone | 
-      {any with namespace: ##other})*))
     </restriction>
     """
     def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
@@ -414,3 +404,20 @@ class XsdAtomicRestriction(XsdAtomic):
                             yield error
                 yield result
                 return
+
+
+class Xsd11AtomicRestriction(XsdAtomicRestriction):
+    """
+    Class for XSD 1.1 atomic simpleType and complexType's simpleContent restrictions.
+
+    <restriction
+      base = QName
+      id = ID
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
+      enumeration | whiteSpace | pattern | assertion | explicitTimezone | 
+      {any with namespace: ##other})*))
+    </restriction>
+    """
+    pass

@@ -24,16 +24,16 @@ def get_tests(pathname):
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
             # print("Run %s" % self.id())
-            xs = xmlschema.XMLSchema.META_SCHEMA
-            errors = [str(e) for e in xs.iter_errors(xsd_file)]
+            meta_schema = xmlschema.XMLSchema.META_SCHEMA
+            errors = [str(e) for e in meta_schema.iter_errors(xsd_file)]
 
             try:
-                xmlschema.XMLSchema(xsd_file)
+                xs = xmlschema.XMLSchema(xsd_file)
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
             else:
-                num_errors = len(errors)
+                num_errors = len(errors) + len(xs.errors)
 
             if num_errors != expected_errors:
                 raise ValueError(

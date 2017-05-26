@@ -13,11 +13,12 @@ This module contains XSD factories for the 'xmlschema' package.
 """
 import logging as _logging
 
+from .core import etree_iselement
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .qnames import *
 from .xsdbase import (
     check_tag, get_xsd_attribute, get_xsd_component,
-    iter_xsd_declarations, xsd_lookup
+    iter_xsd_declarations, xsd_lookup, XsdComponent
 )
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
@@ -55,16 +56,31 @@ def xsd_factory(xsd_class, *tags):
             except XMLSchemaValidationError as err:
                 raise XMLSchemaParseError(err.message, elem)
             except XMLSchemaParseError as err:
-                print(err, xsd_class)
                 schema.errors.append(err)
-                raise
-                name = elem.get('name')
-                import pdb
-                pdb.set_trace()
-                if issubclass(xsd_class, XsdElement):
-                    return name, xsd_class(name, ANY_SIMPLE_TYPE, elem, schema)
-                elif issubclass(xsd_class, XsdGroup):
-                    return name, xsd_class(name, elem, schema)
+                if isinstance(err.obj, XsdComponent):
+                    if isinstance(err.obj, (XsdAtomicRestriction, XsdUnion, XsdList)):
+                        return err.obj
+                    else:
+                        return err.obj.name, err.obj
+                elif etree_iselement(err.obj):
+                    # Produce a dummy declaration for prosecuting the parse process
+                    name = err.obj.get('name')
+                    if issubclass(xsd_class, (XsdAtomicRestriction, XsdUnion, XsdList)):
+                        return ANY_SIMPLE_TYPE
+                    elif not name:
+                        raise
+                    elif issubclass(xsd_class, XsdSimpleType):
+                        return name, ANY_SIMPLE_TYPE
+                    elif issubclass(xsd_class, XsdComplexType):
+                        return name, ANY_TYPE
+                    elif issubclass(xsd_class, XsdGroup):
+                        return name, xsd_class(name)
+                    elif issubclass(xsd_class, XsdAttribute):
+                        return name, xsd_class(name, xsd_type=ANY_SIMPLE_TYPE)
+                    elif issubclass(xsd_class, XsdElement):
+                        return name, xsd_class(name, xsd_type=ANY_TYPE)
+                    else:
+                        raise
             else:
                 if instance is not None:
                     if isinstance(result, tuple):
@@ -262,7 +278,7 @@ def xsd_list_factory(elem, schema, instance=None, **kwargs):
 @xsd_factory(XsdUnion, XSD_UNION_TAG)
 def xsd_union_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 'union' declarations:
+    Factory for XSD 'union' definitions.
 
     <union
       id = ID
@@ -294,7 +310,7 @@ def xsd_union_factory(elem, schema, instance=None, **kwargs):
 @xsd_factory(XsdAttribute, XSD_ATTRIBUTE_TAG)
 def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 'attribute' declarations:
+    Factory for XSD 'attribute' declarations.
 
     <attribute
       default = string
@@ -356,7 +372,8 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
         xsd_type = xsd_type or xsd_lookup(type_qname, schema.maps.types)
         if xsd_type.name != type_qname:
             # must implement substitution groups before!?
-            pass  # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
+            # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
+            pass
     except KeyError:
         if xsd_declaration is not None:
             # No 'type' attribute in declaration, parse for child local simpleType
@@ -386,18 +403,31 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
 @xsd_factory(XsdComplexType, XSD_COMPLEX_TYPE_TAG)
 def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0 'complexType' declarations:
+    Factory for XSD 'complexType' definitions.
 
     <complexType
-        abstract = boolean : false
-        block = (#all | List of (extension | restriction))
-        final = (#all | List of (extension | restriction))
-        id = ID
-        mixed = boolean : false
-        name = NCName
-        {any attributes with non-schema namespace . . .}>
-        Content: (annotation?, (simpleContent | complexContent |
-        ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction))
+      final = (#all | List of (extension | restriction))
+      id = ID
+      mixed = boolean : false
+      name = NCName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleContent | complexContent | 
+      ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
+    </complexType>
+
+    <complexType
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction))
+      final = (#all | List of (extension | restriction))
+      id = ID
+      mixed = boolean
+      name = NCName
+      defaultAttributesApply = boolean : true
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleContent | complexContent | (openContent?, 
+      (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """
     parse_local_groups = kwargs.get('parse_local_groups')
@@ -540,16 +570,16 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
              XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
 def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0/1.1 'attributeGroup' declarations. Used for attributeGroup
+    Factory for XSD 'attributeGroup' definitions. Used for attributeGroup
     definitions and equivalents in complexType attribute declarations.
 
-        <attributeGroup
-            id = ID
-            name = NCName
-            ref = QName
-            {any attributes with non-schema namespace . . .}>
-            Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
-        </attributeGroup>
+    <attributeGroup
+      id = ID
+      name = NCName
+      ref = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
+    </attributeGroup>
     """
     attribute_factory = kwargs.get('attribute_factory', xsd_attribute_factory)
     kwargs.pop('is_global', False)
@@ -594,17 +624,49 @@ def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
              XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
 def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
     """
-    Factory for XSD 1.0/1.1 model 'group' declarations:
+    Factory for XSD 'group', 'sequence', 'choice', 'all' definitions.
 
-        <group
-            id = ID
-            maxOccurs = (nonNegativeInteger | unbounded)  : 1
-            minOccurs = nonNegativeInteger : 1
-            name = NCName
-            ref = QName
-            {any attributes with non-schema namespace . . .}>
-            Content: (annotation?, (all | choice | sequence)?)
-        </group>
+    <group
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      ref = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (all | choice | sequence)?)
+    </group>
+
+    <all
+      id = ID
+      maxOccurs = 1 : 1
+      minOccurs = (0 | 1) : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, element*)
+    </all>
+
+    <all
+      id = ID
+      maxOccurs = (0 | 1) : 1
+      minOccurs = (0 | 1) : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | any | group)*)
+    </all>
+    
+    <choice
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | group | choice | sequence | any)*)
+    </choice>
+
+    <sequence
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | group | choice | sequence | any)*)
+    </sequence>
     """
     group_factory = kwargs.get('group_factory', xsd_group_factory)
     element_factory = kwargs.get('element_factory', xsd_element_factory)
@@ -670,26 +732,46 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
 @xsd_factory(XsdElement, XSD_ELEMENT_TAG)
 def xsd_element_factory(elem, schema, instance=None, is_global=False, **kwargs):
     """
-    Factory for XSD 1.0 'element' declarations:
+    Factory for XSD 'element' declarations:
 
-        <element
-            abstract = boolean : false
-            block = (#all | List of (extension | restriction | substitution))
-            default = string
-            final = (#all | List of (extension | restriction))
-            fixed = string
-            form = (qualified | unqualified)
-            id = ID
-            maxOccurs = (nonNegativeInteger | unbounded)  : 1
-            minOccurs = nonNegativeInteger : 1
-            name = NCName
-            nillable = boolean : false
-            ref = QName
-            substitutionGroup = QName
-            type = QName
-            {any attributes with non-schema namespace . . .}>
-            Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
-        </element>
+    <element
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction | substitution))
+      default = string
+      final = (#all | List of (extension | restriction))
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      nillable = boolean : false
+      ref = QName
+      substitutionGroup = QName
+      type = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
+    </element>
+        
+    <element
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction | substitution))
+      default = string
+      final = (#all | List of (extension | restriction))
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      nillable = boolean : false
+      ref = QName
+      substitutionGroup = List of QName
+      targetNamespace = anyURI
+      type = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
+    </element>
     """
     element_form_default = kwargs.get('element_form', 'unqualified')
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
@@ -761,12 +843,12 @@ def xsd_notation_factory(elem, schema, **kwargs):
     Factory for XSD 'notation' definitions.
 
     <notation
-        id = ID
-        name = NCName
-        public = Public identifier per ISO 8879
-        system = anyURI
-        {any attributes with non-schema Namespace}...>
-    Content: (annotation?)
+      id = ID
+      name = NCName
+      public = token
+      system = anyURI
+      {any attributes with non-schema namespace}...>
+      Content: (annotation?)
     </notation>
     """
     is_global = kwargs.pop('is_global', False)

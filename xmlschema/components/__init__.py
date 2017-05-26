@@ -15,7 +15,7 @@ from ..exceptions import XMLSchemaParseError
 from ..xsdbase import XsdComponent
 
 from .facets import (
-    XSD_v1_0_FACETS, XSD_v1_1_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
+    XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
 from .datatypes import (
@@ -26,7 +26,18 @@ from .elements import XsdElement, XsdAnyElement, XsdComplexType, XsdGroup
 
 
 class XsdNotation(XsdComponent):
+    """
+    Class for XSD 'notation' definitions.
 
+    <notation
+      id = ID
+      name = NCName
+      public = token
+      system = anyURI
+      {any attributes with non-schema namespace}...>
+      Content: (annotation?)
+    </notation>
+    """
     def __init__(self, name, elem, schema):
         super(XsdNotation, self).__init__(name, elem, schema)
         for key in self._attrib:

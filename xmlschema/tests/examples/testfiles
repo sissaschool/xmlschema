@@ -4,7 +4,7 @@
 collection/collection.xsd
 collection/collection.xml
 model/model.xsd
-model/model-2_errors.xsd 1  # Should be 2 but has to generate parse errors before
+model/model-2_errors.xsd 2
 patterns/patterns.xsd
 patterns/patterns.xml 5
 vehicles/vehicles.xsd

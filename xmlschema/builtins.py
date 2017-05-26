@@ -23,7 +23,7 @@ from .qnames import XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG
 from .xsdbase import xsd_qname, XSD_GROUP_TAG
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet,
-    XSD_v1_1_FACETS, STRING_FACETS, BOOLEAN_FACETS,
+    XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS,
     FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS,
     XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdAttributeGroup,
     XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
@@ -43,7 +43,7 @@ ANY_TYPE = XsdComplexType(
     attributes=XsdAttributeGroup(initdict={None: XsdAnyAttribute()}),
     mixed=True
 )
-ANY_SIMPLE_TYPE = XsdSimpleType(xsd_qname('anySimpleType'), facets={k: None for k in XSD_v1_1_FACETS})
+ANY_SIMPLE_TYPE = XsdSimpleType(xsd_qname('anySimpleType'), facets={k: None for k in XSD11_FACETS})
 ANY_ATOMIC_TYPE = XsdAtomicRestriction(base_type=ANY_SIMPLE_TYPE, name=xsd_qname('anyAtomicType'))
 
 

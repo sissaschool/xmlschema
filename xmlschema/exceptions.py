@@ -59,12 +59,23 @@ class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
 
 
-class XMLSchemaParseError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XML Schema."""
+class XMLSchemaXPathError(XMLSchemaException, ValueError):
+    """Raised when an error is found when parsing an XPath expression."""
+    pass
 
-    def __init__(self, message, elem=None):
+
+class XMLSchemaParseError(XMLSchemaException, ValueError):
+    """Raised when an error is found when parsing an XML Schema definition/declaration."""
+
+    def __init__(self, message, obj=None):
         self.message = message or u''
-        self.elem = elem
+        self.obj = obj
+        if etree_iselement(obj):
+            self.elem = obj
+        elif etree_iselement(getattr(obj, 'elem', None)):
+            self.elem = getattr(obj, 'elem')
+        else:
+            self.elem = None
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -85,35 +96,6 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
 class XMLSchemaRegexError(XMLSchemaParseError):
     """Raised when an error is found when parsing an XML Schema regular expression."""
     pass
-
-
-class XMLSchemaXPathError(XMLSchemaParseError):
-    """Raised when an error is found when parsing an XPath expression."""
-    pass
-
-
-class XMLSchemaComponentError(XMLSchemaException, ValueError):
-    """
-    Raised when an error is found in an XML Schema component. Indicates 
-    an inconsistency in the schema representation structure.
-    """
-    def __init__(self, message, xsd_component):
-        """
-        :param message: Error text message.
-        :param obj: The object that generate the exception.
-        """
-        self.message = message
-        self.xsd_component = xsd_component
-
-    def __str__(self):
-        # noinspection PyCompatibility
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return u'%r: %s' % (self.xsd_component, self.message)
-
-    if PY3:
-        __str__ = __unicode__
 
 
 class XMLSchemaValidationError(XMLSchemaException, ValueError):

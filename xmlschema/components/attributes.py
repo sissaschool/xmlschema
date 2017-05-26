@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for XML Schema attribute related components.
+This module contains classes for XML Schema attributes and attribute groups.
 """
 from collections import MutableMapping
 
@@ -50,7 +50,7 @@ class XsdAttribute(XsdComponent):
         elif name == "elem":
             if self.default and self.fixed:
                 raise XMLSchemaParseError(
-                    "'default' and 'fixed' attributes are mutually exclusive", self.elem
+                    "'default' and 'fixed' attributes are mutually exclusive", self
                 )
             getattr(self, 'form')
             getattr(self, 'use')
@@ -93,7 +93,7 @@ class XsdAttribute(XsdComponent):
                 return
 
 
-class XsdAttribute1(XsdAttribute):
+class Xsd11Attribute(XsdAttribute):
     """
     Class for XSD 1.1 'attribute' declarations.
 
@@ -166,7 +166,7 @@ class XsdAnyAttribute(XsdComponent):
                 yield XMLSchemaValidationError(self, obj, "attribute %r not allowed." % name)
 
 
-class XsdAnyAttribute1(XsdAnyAttribute):
+class Xsd11AnyAttribute(XsdAnyAttribute):
     """
     Class for XSD 1.1 'anyAttribute' declarations.
 

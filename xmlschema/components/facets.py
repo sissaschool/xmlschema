@@ -21,7 +21,7 @@ from ..xsdbase import (
 )
 from ..regex import get_python_regex
 
-XSD_v1_0_FACETS = {
+XSD_FACETS = {
     XSD_LENGTH_TAG,
     XSD_MIN_LENGTH_TAG,
     XSD_MAX_LENGTH_TAG,
@@ -36,8 +36,8 @@ XSD_v1_0_FACETS = {
     XSD_FRACTION_DIGITS_TAG
 }
 
-XSD_v1_1_FACETS = XSD_v1_0_FACETS.copy()
-XSD_v1_1_FACETS.update({XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
+XSD11_FACETS = XSD_FACETS.copy()
+XSD11_FACETS.update({XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
 
 #
 # Admitted facets sets for Atomic Types, List Type and Union Type

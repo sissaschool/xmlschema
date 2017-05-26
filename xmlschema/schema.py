@@ -28,7 +28,7 @@ from .xsdbase import (
     get_xsi_no_namespace_schema_location
 )
 from .resources import open_resource, load_xml_resource
-from .components import XsdElement, XSD_v1_0_FACETS
+from .components import XsdElement, XSD_FACETS
 from .builtins import XSD_BUILTIN_TYPES
 from .namespaces import (
     XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
@@ -409,7 +409,7 @@ XMLSchema_v1_0 = create_validator(
         XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
         XLINK_NAMESPACE_PATH: 'xlink.xsd'
     },
-    facets=XSD_v1_0_FACETS,
+    facets=XSD_FACETS,
     builtin_types=XSD_BUILTIN_TYPES
 )
 XMLSchema = XMLSchema_v1_0

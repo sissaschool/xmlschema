@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for XML Schema elements.
+This module contains classes for XML Schema elements, complex types and model groups.
 """
 from collections import MutableSequence
 
@@ -33,7 +33,26 @@ from .attributes import XsdAttributeGroup
 
 class XsdElement(XsdComponent, ParticleMixin):
     """
-    Support structure to associate an element and its attributes with XSD simple types.
+    Class for XSD 1.0 'element' declarations.
+    
+    <element
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction | substitution))
+      default = string
+      final = (#all | List of (extension | restriction))
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      nillable = boolean : false
+      ref = QName
+      substitutionGroup = QName
+      type = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
+    </element>
     """
     def __init__(self, name, xsd_type, elem, schema, ref=False, qualified=False):
         super(XsdElement, self).__init__(name, elem, schema)
@@ -47,7 +66,7 @@ class XsdElement(XsdComponent, ParticleMixin):
 
         if ref and self.substitution_group is not None:
             raise XMLSchemaParseError(
-                "a reference can't has 'substitutionGroup' attribute.", elem
+                "a reference can't has 'substitutionGroup' attribute.", self
             )
 
     def __setattr__(self, name, value):
@@ -58,7 +77,7 @@ class XsdElement(XsdComponent, ParticleMixin):
         elif name == "elem":
             if self.default and self.fixed:
                 raise XMLSchemaParseError(
-                    "'default' and 'fixed' attributes are mutually exclusive", self.elem
+                    "'default' and 'fixed' attributes are mutually exclusive", self
                 )
             getattr(self, 'abstract')
             getattr(self, 'block')
@@ -260,8 +279,47 @@ class XsdElement(XsdComponent, ParticleMixin):
         return list(xpath.xsd_iterfind(self, path, namespaces))
 
 
-class XsdAnyElement(XsdComponent, ParticleMixin):
+class Xsd11Element(XsdElement):
+    """
+    Class for XSD 1.1 'element' declarations.
 
+    <element
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction | substitution))
+      default = string
+      final = (#all | List of (extension | restriction))
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      nillable = boolean : false
+      ref = QName
+      substitutionGroup = List of QName
+      targetNamespace = anyURI
+      type = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
+    </element>
+    """
+    pass
+
+
+class XsdAnyElement(XsdComponent, ParticleMixin):
+    """
+    Class for XSD 1.0 'any' declarations.
+
+    <any
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )  : ##any
+      processContents = (lax | skip | strict) : strict
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </any>
+    """
     def __init__(self, elem=None, schema=None):
         super(XsdAnyElement, self).__init__(elem=elem, schema=schema)
 
@@ -311,9 +369,40 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
                 yield obj
 
 
+class Xsd11AnyElement(XsdAnyElement):
+    """
+    Class for XSD 1.1 'any' declarations.
+
+    <any
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
+      notNamespace = List of (anyURI | (##targetNamespace | ##local))
+      notQName = List of (QName | (##defined | ##definedSibling))
+      processContents = (lax | skip | strict) : strict
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </any>
+    """
+    pass
+
+
 class XsdComplexType(XsdComponent):
     """
-    A class for representing a complexType definition for XML schemas.
+    Class for XSD 1.0 'complexType' definitions.
+    
+    <complexType
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction))
+      final = (#all | List of (extension | restriction))
+      id = ID
+      mixed = boolean : false
+      name = NCName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleContent | complexContent | 
+      ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
+    </complexType>
     """
     def __init__(self, content_type, name=None, elem=None, schema=None, attributes=None,
                  derivation=None, mixed=None):
@@ -372,10 +461,64 @@ class XsdComplexType(XsdComponent):
             yield result
 
 
+class Xsd11ComplexType(XsdComplexType):
+    """
+    Class for XSD 1.1 'complexType' definitions.
+
+    <complexType
+      abstract = boolean : false
+      block = (#all | List of (extension | restriction))
+      final = (#all | List of (extension | restriction))
+      id = ID
+      mixed = boolean
+      name = NCName
+      defaultAttributesApply = boolean : true
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleContent | complexContent | (openContent?, 
+      (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
+    </complexType>
+    """
+    pass
+
+
 class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     """
-    A group can have a model, that indicate the elements that compose the content
-    type associated with it.
+    A class for XSD 'group', 'choice', 'sequence' definitions and 
+    XSD 1.0 'all' definitions.
+
+    <group
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      name = NCName
+      ref = QName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (all | choice | sequence)?)
+    </group>
+
+    <all
+      id = ID
+      maxOccurs = 1 : 1
+      minOccurs = (0 | 1) : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, element*)
+    </all>
+
+    <choice
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | group | choice | sequence | any)*)
+    </choice>
+
+    <sequence
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | group | choice | sequence | any)*)
+    </sequence>
     """
     def __init__(self, name=None, elem=None, schema=None, model=None, mixed=False, initlist=None):
         XsdComponent.__init__(self, name, elem, schema)
@@ -398,7 +541,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def __setitem__(self, i, item):
         check_type(item, XsdGroup)
         if self.model is None:
-            raise XMLSchemaParseError(u"cannot add items when the group model is None.", self.elem)
+            raise XMLSchemaParseError(u"cannot add items when the group model is None.", self)
         self._group[i] = item
 
     def __delitem__(self, i):
@@ -562,3 +705,19 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
 
     def iter_encode(self, obj, validate=True, **kwargs):
         return
+
+
+class Xsd11Group(XsdGroup):
+    """
+    A class for XSD 'group', 'choice', 'sequence' definitions and 
+    XSD 1.1 'all' definitions.
+
+    <all
+      id = ID
+      maxOccurs = (0 | 1) : 1
+      minOccurs = (0 | 1) : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (element | any | group)*)
+    </all>
+    """
+    pass
