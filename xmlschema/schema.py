@@ -27,9 +27,8 @@ from .xsdbase import (
     check_tag, get_xsd_attribute, get_xsi_schema_location,
     get_xsi_no_namespace_schema_location
 )
-from .components import XsdElement
 from .resources import open_resource, load_xml_resource
-from .facets import XSD_v1_0_FACETS
+from .components import XsdElement, XSD_v1_0_FACETS
 from .builtins import XSD_BUILTIN_TYPES
 from .namespaces import (
     XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
@@ -92,9 +91,11 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 raise type(err)('cannot create schema: %s' % err)
 
             check_tag(self.root, XSD_SCHEMA_TAG)
-            self.built = False
             self.element_form = self.root.attrib.get('elementFormDefault', 'unqualified')
             self.attribute_form = self.root.attrib.get('attributeFormDefault', 'unqualified')
+
+            self.built = False  # True if the schema is built successfully
+            self.errors = []    # Parsing errors
 
             # Determine the targetNamespace
             self.target_namespace = self.root.attrib.get('targetNamespace', '')

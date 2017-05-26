@@ -20,7 +20,7 @@ from .qnames import (
     local_name, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG
 )
-from .xsdbase import get_xsd_attribute, XsdBase
+from .xsdbase import get_xsd_attribute, XsdComponent
 
 _logger = _logging.getLogger(__name__)
 
@@ -118,10 +118,11 @@ def create_builder_function(factory_key):
             i += 1
             missing = []
             errors = []
+            schema = None
             for qname in global_names:
                 obj = xsd_globals[qname]
                 try:
-                    if isinstance(obj, XsdBase):
+                    if isinstance(obj, XsdComponent):
                         elem, schema = obj.elem, obj.schema
                         if elem is None or elem.tag != tag or schema.built:
                             continue
@@ -136,7 +137,7 @@ def create_builder_function(factory_key):
                             elem, schema, is_global=True, **kwargs
                         )
                     elif isinstance(obj, list):
-                        start = int(isinstance(obj[0], XsdBase))
+                        start = int(isinstance(obj[0], XsdComponent))
                         xsd_instance = obj[0] if start else None
                         for k in range(start, len(obj)):
                             elem, schema = obj[k]

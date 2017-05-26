@@ -97,34 +97,20 @@ class XMLSchemaComponentError(XMLSchemaException, ValueError):
     Raised when an error is found in an XML Schema component. Indicates 
     an inconsistency in the schema representation structure.
     """
-    def __init__(self, obj, name, ref=None, message=None):
+    def __init__(self, message, xsd_component):
         """
-        :param obj: The object that generate the exception.
-        :param name: The attribute/key name.
-        :param ref: An object or type that refer to the name.
         :param message: Error text message.
+        :param obj: The object that generate the exception.
         """
         self.message = message
-        self.obj = obj
-        if not isinstance(ref, (int, str, type)):
-            self.description = 'attribute %r' % name
-        elif isinstance(ref, int):
-            self.description = 'item %d of %r' % (ref, name)
-        elif isinstance(ref, str):
-            self.description = '%r: %s' % (name, ref)
-        elif issubclass(ref, dict):
-                self.description = 'value of dictionary %r' % name
-        elif issubclass(ref, list):
-            self.description = 'item of list %r' % name
-        else:
-            self.description = 'instance %r of type %r' % (name, ref)
+        self.xsd_component = xsd_component
 
     def __str__(self):
         # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        return u'%r: %s: %s' % (self.obj, self.description, self.message)
+        return u'%r: %s' % (self.xsd_component, self.message)
 
     if PY3:
         __str__ = __unicode__

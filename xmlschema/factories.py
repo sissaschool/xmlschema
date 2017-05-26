@@ -11,55 +11,113 @@
 """
 This module contains XSD factories for the 'xmlschema' package.
 """
-from .exceptions import XMLSchemaParseError
+import logging as _logging
+
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .qnames import *
 from .xsdbase import (
-    check_tag, xsd_factory, get_xsd_attribute, get_xsd_declaration,
+    check_tag, get_xsd_attribute, get_xsd_component,
     iter_xsd_declarations, xsd_lookup
 )
-from .facets import (
-    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XSD_v1_0_FACETS
-)
 from .components import (
-    XsdElement, XsdAnyAttribute, XsdAnyElement, XsdNotation,
-    XsdComplexType, XsdAttributeGroup, XsdGroup, XsdAttribute,
-    XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
+    XsdAnyElement, XsdAttribute, XsdAnyAttribute, XsdAttributeGroup,
+    XsdGroup, XsdNotation, XsdComplexType, XsdSimpleType, XsdAtomicBuiltin,
+    XsdAtomicRestriction, XsdList, XsdUnion
 )
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
 
+_logger = _logging.getLogger(__name__)
 
-@xsd_factory(XSD_SIMPLE_TYPE_TAG)
+
+def xsd_factory(xsd_class, *tags):
+    """
+    Check Element instance passed to a factory and log arguments.
+
+    :param xsd_class: XSD class for the created instances.
+    :param tags: Values admitted for Element's tag.
+    """
+    def make_factory_wrapper(factory_function):
+        def xsd_factory_wrapper(elem, schema, instance=None, is_global=False, **kwargs):
+            if instance is not None and not isinstance(instance, xsd_class):
+                raise XMLSchemaParseError(
+                    "instance=%r must be a %r." % (instance, xsd_class), elem
+                )
+            if is_global and 'name' not in elem.attrib:
+                raise XMLSchemaParseError(
+                    "a global declaration/definition requires a 'name' attribute.", elem
+                )
+
+            try:
+                result = factory_function(
+                    elem, schema, instance=instance, is_global=is_global, **kwargs
+                )
+            except XMLSchemaValidationError as err:
+                raise XMLSchemaParseError(err.message, elem)
+            except XMLSchemaParseError as err:
+                print(err, xsd_class)
+                schema.errors.append(err)
+                raise
+                name = elem.get('name')
+                import pdb
+                pdb.set_trace()
+                if issubclass(xsd_class, XsdElement):
+                    return name, xsd_class(name, ANY_SIMPLE_TYPE, elem, schema)
+                elif issubclass(xsd_class, XsdGroup):
+                    return name, xsd_class(name, elem, schema)
+            else:
+                if instance is not None:
+                    if isinstance(result, tuple):
+                        if instance.name is not None and instance.name != result[0]:
+                            raise XMLSchemaParseError(
+                                "name mismatch with instance %r: %r." % (instance, result[0]), elem
+                            )
+                    if instance.elem is None:
+                        instance.elem = elem
+                    if instance.schema is None:
+                        instance.schema = schema
+                return result
+            if _logger.getEffectiveLevel() == _logging.DEBUG:
+                _logger.debug(
+                    "%s: elem.tag=%r, elem.attrib=%r, kwargs.keys()=%r",
+                    factory_function.__name__, elem.tag, elem.attrib, kwargs.keys()
+                )
+                _logger.debug("%s: return %r", factory_function.__name__, locals()['result'])
+
+        return xsd_factory_wrapper
+    return make_factory_wrapper
+
+
+@xsd_factory(XsdSimpleType, XSD_SIMPLE_TYPE_TAG)
 def xsd_simple_type_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0 'simpleType' declarations:
+    Factory for XSD simpleType definitions.
 
     <simpleType
-        final = (#all | List of (list | union | restriction))
-        id = ID
-        name = NCName
-        {any attributes with non-schema namespace . . .}>
-        Content: (annotation?, (restriction | list | union))
+      final = (#all | List of (list | union | restriction))
+      id = ID
+      name = NCName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
     restriction_factory = kwargs.get('restriction_factory', xsd_restriction_factory)
     list_factory = kwargs.get('list_factory', xsd_list_factory)
     union_factory = kwargs.get('union_factory', xsd_union_factory)
-    is_global = kwargs.pop('is_global', False)
+    kwargs.pop('is_global', False)
 
     try:
         type_name = get_qname(schema.target_namespace, elem.attrib['name'])
     except KeyError:
-        if is_global:
-            raise XMLSchemaParseError("a global attribute require a 'name' attribute.", elem)
         type_name = None
 
-    # Don't rebuild the XSD builtins (3 are instances of XsdList).
+    # Don't rebuild XSD builtins (3 are instances of XsdList).
     if isinstance(instance, XsdAtomicBuiltin):
         instance.elem = elem
         instance.schema = schema
         return instance.name, instance
 
-    child = get_xsd_declaration(elem)
+    child = get_xsd_component(elem)
     if child.tag == XSD_RESTRICTION_TAG:
         xsd_type = restriction_factory(child, schema, instance, **kwargs)
     elif child.tag == XSD_LIST_TAG:
@@ -73,27 +131,31 @@ def xsd_simple_type_factory(elem, schema, instance=None, **kwargs):
     return type_name, xsd_type
 
 
-@xsd_factory(XSD_RESTRICTION_TAG)
+@xsd_factory(XsdAtomicRestriction, XSD_RESTRICTION_TAG)
 def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0 'restriction' declarations:
+    Factory for XSD 'restriction' definitions.
 
     <restriction
-        base = QName
-        id = ID
-        {any attributes with non-schema namespace . . .}>
-        Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | maxInclusive |
-        totalDigits | fractionDigits | length | minLength | maxLength | enumeration | whiteSpace | pattern)*))
+      base = QName
+      id = ID
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
+      enumeration | whiteSpace | pattern)*))
+    </restriction>
+
+    <restriction
+      base = QName
+      id = ID
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
+      enumeration | whiteSpace | pattern | assertion | explicitTimezone | 
+      {any with namespace: ##other})*))
     </restriction>
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
-    xsd_restriction_class = kwargs.get('xsd_restriction_class', XsdAtomicRestriction)
-    xsd_complex_type_class = kwargs.get('complex_type_class', XsdComplexType)
-    if not isinstance(instance, (type(None), xsd_restriction_class, xsd_complex_type_class)):
-        raise XMLSchemaParseError(
-            "instance argument %r is not a %r" % (instance, xsd_restriction_class), elem
-        )
-
     base_type = getattr(instance, 'base_type', None)
     facets = {}
     has_attributes = False
@@ -104,7 +166,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
         if base_type is None:
             base_type = xsd_lookup(base_qname, schema.maps.types)
         if isinstance(base_type, XsdComplexType) and base_type.admit_simple_restriction():
-            if get_xsd_declaration(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
+            if get_xsd_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                 # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                 raise XMLSchemaParseError(
                     "when a complexType with simpleContent restricts a complexType "
@@ -125,7 +187,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
                 _, base_type = simple_type_factory(child, schema, base_type, **kwargs)
             else:
                 if isinstance(base_type, XsdComplexType) and base_type.admit_simple_restriction():
-                    base_type = xsd_complex_type_class(
+                    base_type = XsdComplexType(
                         content_type=simple_type_factory(child, schema, **kwargs)[1],
                         name=None,
                         elem=elem,
@@ -135,7 +197,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
                         mixed=base_type.mixed
                     )
             has_simple_type_child = True
-        elif child.tag not in XSD_v1_0_FACETS:
+        elif child.tag not in schema.FACETS:
             raise XMLSchemaParseError("unexpected tag in restriction", child)
         elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
             try:
@@ -154,30 +216,29 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)
 
     if instance is not None:
-        instance.update_attrs(elem=elem, schema=base_type.schema, facets=facets)
+        instance.elem = elem
+        instance.schema = base_type.schema
+        instance.facets = facets
         return instance
-    return xsd_restriction_class(base_type, elem=elem, schema=base_type.schema, facets=facets)
+    return XsdAtomicRestriction(base_type, elem=elem, schema=base_type.schema, facets=facets)
 
 
-@xsd_factory(XSD_LIST_TAG)
+@xsd_factory(XsdList, XSD_LIST_TAG)
 def xsd_list_factory(elem, schema, instance=None, **kwargs):
     """
     Factory for XSD 'list' declarations:
 
     <list
-        id = ID
-        itemType = QName
-        {any attributes with non-schema namespace . . .}>
-        Content: (annotation?, simpleType?)
+      id = ID
+      itemType = QName
+      {any attributes with non-schema namespace ...}>
+      Content: (annotation?, simpleType?)
     </list>
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
-    xsd_list_class = kwargs.get('xsd_list_class', XsdList)
-    if not isinstance(instance, (type(None), xsd_list_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_list_class))
     item_type = getattr(instance, 'item_type', None)
 
-    child = get_xsd_declaration(elem, required=False)
+    child = get_xsd_component(elem, required=False)
     if child is not None:
         # Case of a local simpleType declaration inside the list tag
         _, item_type = simple_type_factory(child, schema, item_type, **kwargs)
@@ -188,33 +249,29 @@ def xsd_list_factory(elem, schema, instance=None, **kwargs):
         item_qname, namespace = split_reference(elem.attrib['itemType'], schema.namespaces)
         if item_type is None:
             item_type = xsd_lookup(item_qname, schema.maps.types)
-        if item_type.name != item_qname:
-            raise XMLSchemaParseError("Wrong name for %r: %r." % (instance, item_qname), elem)
     else:
         raise XMLSchemaParseError("missing list type declaration", elem)
 
     if instance is not None:
-        instance.update_attrs(elem=elem, schema=item_type.schema)
+        instance.schema = item_type.schema
+        instance.elem = elem
         return instance
-    return xsd_list_class(item_type=item_type, elem=elem, schema=item_type.schema)
+    return XsdList(item_type=item_type, elem=elem, schema=item_type.schema)
 
 
-@xsd_factory(XSD_UNION_TAG)
+@xsd_factory(XsdUnion, XSD_UNION_TAG)
 def xsd_union_factory(elem, schema, instance=None, **kwargs):
     """
     Factory for XSD 'union' declarations:
 
     <union
-        id = ID
-        memberTypes = List of QName
-        {any attributes with non-schema namespace ...}>
-        Content: (annotation?, simpleType*)
+      id = ID
+      memberTypes = List of QName
+      {any attributes with non-schema namespace ...}>
+      Content: (annotation?, simpleType*)
     </union>
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
-    xsd_union_class = kwargs.get('xsd_union_class', XsdUnion)
-    if not isinstance(instance, (type(None), xsd_union_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_union_class), elem)
 
     member_types = [
         simple_type_factory(child, schema, **kwargs)[1] for child in iter_xsd_declarations(elem)
@@ -228,42 +285,52 @@ def xsd_union_factory(elem, schema, instance=None, **kwargs):
         raise XMLSchemaParseError("missing union type declarations", elem)
 
     if instance is not None:
-        instance.update_attrs(elem=elem, schema=schema)
+        instance.schema = schema
+        instance.elem = elem
         return instance
-    return xsd_union_class(member_types, elem=elem, schema=schema)
+    return XsdUnion(member_types, elem=elem, schema=schema)
 
 
-@xsd_factory(XSD_ATTRIBUTE_TAG)
+@xsd_factory(XsdAttribute, XSD_ATTRIBUTE_TAG)
 def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0 'attribute' declarations:
+    Factory for XSD 'attribute' declarations:
 
     <attribute
-        default = string
-        fixed = string
-        form = (qualified | unqualified)
-        id = ID
-        name = NCName
-        ref = QName
-        type = QName
-        use = (optional | prohibited | required) : optional
-        {any attributes with non-schema namespace ...}>
-        Content: (annotation?, simpleType?)
+      default = string
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      name = NCName
+      ref = QName
+      type = QName
+      use = (optional | prohibited | required) : optional
+      {any attributes with non-schema namespace ...}>
+      Content: (annotation?, simpleType?)
+    </attribute>
+
+    <attribute
+      default = string
+      fixed = string
+      form = (qualified | unqualified)
+      id = ID
+      name = NCName
+      ref = QName
+      targetNamespace = anyURI
+      type = QName
+      use = (optional | prohibited | required) : optional
+      inheritable = boolean
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, simpleType?)
     </attribute>
     """
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
-    xsd_attribute_class = kwargs.get('xsd_attribute_class', XsdAttribute)
-    is_global = kwargs.pop('is_global', False)
-    if not isinstance(instance, (type(None), xsd_attribute_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_attribute_class), elem)
-
     qualified = elem.attrib.get('form', schema.attribute_form)
+    kwargs.pop('is_global', False)
 
     try:
         name = elem.attrib['name']
     except KeyError:
-        if is_global:
-            raise XMLSchemaParseError("a global attribute require a 'name' attribute.", elem)
         # No 'name' attribute, must be a reference
         try:
             attribute_name = split_reference(elem.attrib['ref'], schema.namespaces)[0]
@@ -272,7 +339,7 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
             raise XMLSchemaParseError("missing both 'name' and 'ref' in attribute declaration", elem)
         else:
             xsd_attribute = xsd_lookup(attribute_name, schema.maps.attributes)
-            return attribute_name, xsd_attribute_class(
+            return attribute_name, XsdAttribute(
                 xsd_type=xsd_attribute.type,
                 name=attribute_name,
                 elem=elem,
@@ -283,7 +350,7 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
         attribute_name = get_qname(schema.target_namespace, name)
 
     xsd_type = getattr(instance, 'type', None)
-    xsd_declaration = get_xsd_declaration(elem, required=False)
+    xsd_declaration = get_xsd_component(elem, required=False)
     try:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         xsd_type = xsd_type or xsd_lookup(type_qname, schema.maps.types)
@@ -304,17 +371,19 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
                 "not allowed element in XSD attribute declaration: {}".format(xsd_declaration[0]),
                 elem
             )
-        # schema = xsd_type.schema or schema
 
     if instance is not None:
-        instance.update_attrs(type=xsd_type, elem=elem, schema=schema, qualified=qualified)
+        instance.type = xsd_type
+        instance.elem = elem
+        instance.schema = schema
+        instance.qualified = qualified
         return attribute_name, instance
-    return attribute_name, xsd_attribute_class(
+    return attribute_name, XsdAttribute(
         name=attribute_name, xsd_type=xsd_type, elem=elem, schema=schema, qualified=qualified
     )
 
 
-@xsd_factory(XSD_COMPLEX_TYPE_TAG)
+@xsd_factory(XsdComplexType, XSD_COMPLEX_TYPE_TAG)
 def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
     """
     Factory for XSD 1.0 'complexType' declarations:
@@ -332,32 +401,25 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
     </complexType>
     """
     parse_local_groups = kwargs.get('parse_local_groups')
-    xsd_complex_type_class = kwargs.get('complex_type_class', XsdComplexType)
     attribute_group_factory = kwargs.get('attribute_group_factory', xsd_attribute_group_factory)
     complex_type_factory = kwargs.get('complex_type_factory', xsd_complex_type_factory)
     group_factory = kwargs.get('group_factory', xsd_group_factory)
     restriction_factory = kwargs.get('restriction_factory', xsd_restriction_factory)
-    xsd_group_class = kwargs.get('xsd_group_class', XsdGroup)
-    xsd_attribute_group_class = kwargs.get('xsd_attribute_group_class', XsdAttributeGroup)
-    is_global = kwargs.pop('is_global', False)
-    if not isinstance(instance, (type(None), xsd_complex_type_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_complex_type_class), elem)
+    kwargs.pop('is_global', False)
 
     # Get complexType's attributes and content
     try:
         type_name = get_qname(schema.target_namespace, elem.attrib['name'])
     except KeyError:
-        if is_global:
-            raise XMLSchemaParseError("a global type require a 'name' attribute.", elem)
         type_name = None
 
     mixed = elem.attrib.get('mixed') in ('true', '1')
     derivation = None
-    content_node = get_xsd_declaration(elem, required=False, strict=False)
+    content_node = get_xsd_component(elem, required=False, strict=False)
 
     if instance is None:
         content_type = None
-        attributes = xsd_attribute_group_class(elem=elem, schema=schema)
+        attributes = XsdAttributeGroup(elem=elem, schema=schema)
     else:
         content_type = instance.content_type
         attributes = instance.attributes
@@ -367,14 +429,14 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
         #
         # complexType with empty content
         if content_type is None:
-            content_type = xsd_group_class(elem=elem, schema=schema, mixed=mixed)
+            content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed)
         attributes.update(attribute_group_factory(elem, schema, instance=attributes, **kwargs)[1])
 
     elif content_node.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG):
         #
         # complexType with child elements
         if content_type is None:
-            content_type = xsd_group_class(elem=content_node, schema=schema, mixed=mixed)
+            content_type = XsdGroup(elem=content_node, schema=schema, mixed=mixed)
 
         if parse_local_groups:
             content_type = group_factory(content_node, schema, content_type, mixed=mixed, **kwargs)[1]
@@ -386,12 +448,12 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
         if 'mixed' in content_node.attrib:
             mixed = content_node.attrib['mixed'] in ('true', '1')
 
-        content_spec = get_xsd_declaration(content_node)
+        content_spec = get_xsd_component(content_node)
         check_tag(content_spec, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG)
         derivation = content_spec.tag == XSD_EXTENSION_TAG
 
         if content_type is None:
-            content_type = xsd_group_class(elem=content_node, schema=schema, mixed=mixed)
+            content_type = XsdGroup(elem=content_node, schema=schema, mixed=mixed)
 
         # Get the base type: raise XMLSchemaLookupError if it's not defined.
         content_base = get_xsd_attribute(content_spec, 'base')
@@ -410,13 +472,13 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
                 content_type.mixed = base_type.content_type.mixed
 
             try:
-                content_declaration = get_xsd_declaration(content_spec, strict=False)
+                content_definition = get_xsd_component(content_spec, strict=False)
             except XMLSchemaParseError:
-                pass
+                pass  # Empty extension
             else:
-                if content_declaration.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
-                    content_type.model = content_declaration.tag
-                    xsd_group = group_factory(content_declaration, schema, mixed=mixed, **kwargs)[1]
+                if content_definition.tag in (XSD_GROUP_TAG, XSD_CHOICE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG):
+                    content_type.model = content_definition.tag
+                    xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)[1]
                     if content_spec.tag == XSD_RESTRICTION_TAG:
                         pass  # TODO: Checks if restrictions are effective.
                     content_type.extend(xsd_group)
@@ -433,7 +495,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
         if 'mixed' in content_node.attrib:
             raise XMLSchemaParseError("'mixed' attribute not allowed with simpleContent", elem)
 
-        content_spec = get_xsd_declaration(content_node)
+        content_spec = get_xsd_component(content_node)
         check_tag(content_spec, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG)
 
         content_base = get_xsd_attribute(content_spec, 'base')
@@ -452,34 +514,34 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
 
     elif content_node.tag in (XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG):
         if content_type is None:
-            content_type = xsd_group_class(elem=elem, schema=schema, mixed=mixed)
+            content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed)
         attributes.update(attribute_group_factory(elem, schema, instance=attributes, **kwargs)[1])
     else:
         raise XMLSchemaParseError(
             "unexpected tag for complexType content: %r " % content_node.tag, elem
         )
 
-    instance_attrs = {
-        'content_type': content_type,
-        'attributes': attributes,
-        'name': type_name,
-        'elem': elem,
-        'schema': schema,
-        'derivation': derivation,
-        'mixed': mixed
-    }
-
     if instance is not None:
-        instance.update_attrs(**instance_attrs)
+        instance.content_type = content_type
+        instance.attributes = attributes
+        instance.name = type_name
+        instance.elem = elem
+        instance.schema = schema
+        instance.derivation = derivation
+        instance.mixed = mixed
         return type_name, instance
-    return type_name, xsd_complex_type_class(**instance_attrs)
+    return type_name, XsdComplexType(
+        content_type, type_name, elem, schema, attributes, derivation, mixed
+    )
 
 
-@xsd_factory(XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-             XSD_ATTRIBUTE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
+@xsd_factory(XsdAttributeGroup, XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG,
+             XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG, XSD_ATTRIBUTE_TAG,
+             XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
 def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
     """
-    Factory for XSD 1.0/1.1 'attributeGroup' declarations:
+    Factory for XSD 1.0/1.1 'attributeGroup' declarations. Used for attributeGroup
+    definitions and equivalents in complexType attribute declarations.
 
         <attributeGroup
             id = ID
@@ -490,26 +552,21 @@ def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
         </attributeGroup>
     """
     attribute_factory = kwargs.get('attribute_factory', xsd_attribute_factory)
-    xsd_attribute_group_class = kwargs.get('xsd_attribute_group_class', XsdAttributeGroup)
-    is_global = kwargs.pop('is_global', False)
-    if not isinstance(instance, (type(None), xsd_attribute_group_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_attribute_group_class))
-
+    kwargs.pop('is_global', False)
     any_attribute = False
 
     if elem.tag == XSD_ATTRIBUTE_GROUP_TAG:
         try:
             attribute_group_name = get_qname(schema.target_namespace, elem.attrib['name'])
         except KeyError:
-            attribute_group_name = None
+            raise XMLSchemaParseError(
+                "an attribute group declaration requires a 'name' attribute.", elem
+            )
     else:
         attribute_group_name = None
 
-    if attribute_group_name is None and is_global:
-        raise XMLSchemaParseError("a global attribute group requires a 'name' attribute.", elem)
-
     if instance is None:
-        attribute_group = xsd_attribute_group_class(attribute_group_name, elem, schema)
+        attribute_group = XsdAttributeGroup(attribute_group_name, elem, schema)
     else:
         attribute_group = instance
 
@@ -533,8 +590,9 @@ def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
     return attribute_group_name, attribute_group
 
 
-@xsd_factory(XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
-def xsd_group_factory(elem, schema, instance=None, **kwargs):
+@xsd_factory(XsdGroup, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG,
+             XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
+def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
     """
     Factory for XSD 1.0/1.1 model 'group' declarations:
 
@@ -550,22 +608,17 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
     """
     group_factory = kwargs.get('group_factory', xsd_group_factory)
     element_factory = kwargs.get('element_factory', xsd_element_factory)
-    xsd_group_class = kwargs.get('xsd_group_class', XsdGroup)
-    xsd_any_class = kwargs.get('xsd_any_class', XsdAnyElement)
     mixed = kwargs.pop('mixed', False)
-    is_global = kwargs.pop('is_global', False)
 
     if elem.tag == XSD_GROUP_TAG:
         # Model group with 'name' or 'ref'
         name = elem.attrib.get('name')
         ref = elem.attrib.get('ref')
         if name is None:
-            if is_global:
-                raise XMLSchemaParseError("a global group require a 'name' attribute.", elem)
-            elif ref is not None:
+            if ref is not None:
                 group_name, namespace = split_reference(ref, schema.namespaces)
                 xsd_group = xsd_lookup(group_name, schema.maps.groups)
-                return group_name, xsd_group_class(
+                return group_name, XsdGroup(
                     name=xsd_group.name,
                     elem=elem,
                     schema=schema,
@@ -577,24 +630,24 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
                 raise XMLSchemaParseError("missing both attributes 'name' and 'ref'", elem)
         elif ref is None:
             group_name = get_qname(schema.target_namespace, name)
-            content_model = get_xsd_declaration(elem)
+            content_model = get_xsd_component(elem)
         else:
             raise XMLSchemaParseError("found both attributes 'name' and 'ref'", elem)
     else:
         # Local group (SEQUENCE|ALL|CHOICE)
-        if is_global:
-            raise XMLSchemaParseError("a global group require a 'name' attribute.", elem)
-        else:
-            content_model = elem
-            group_name = None
+        content_model = elem
+        group_name = None
 
     check_tag(content_model, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_GROUP_TAG)
     if instance is None:
-        xsd_group = xsd_group_class(
+        xsd_group = XsdGroup(
             name=group_name, elem=elem, schema=schema, model=content_model.tag, mixed=mixed
         )
     else:
-        instance.update_attrs(elem=elem, schema=schema, model=content_model.tag, mixed=mixed)
+        instance.elem = elem
+        instance.schema = schema
+        instance.model = content_model.tag
+        instance.mixed = mixed
         xsd_group = instance
 
     if not xsd_group.parsed or is_global:
@@ -605,7 +658,7 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
             elif content_model.tag == XSD_ALL_TAG:
                 raise XMLSchemaParseError("'all' tags can contain only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
-                xsd_group.append(xsd_any_class(child, schema))
+                xsd_group.append(XsdAnyElement(child, schema))
             elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
                 xsd_group.append(
                     group_factory(child, schema, mixed=mixed, **kwargs)[1]
@@ -614,8 +667,8 @@ def xsd_group_factory(elem, schema, instance=None, **kwargs):
     return group_name, xsd_group
 
 
-@xsd_factory(XSD_ELEMENT_TAG)
-def xsd_element_factory(elem, schema, instance=None, **kwargs):
+@xsd_factory(XsdElement, XSD_ELEMENT_TAG)
+def xsd_element_factory(elem, schema, instance=None, is_global=False, **kwargs):
     """
     Factory for XSD 1.0 'element' declarations:
 
@@ -641,10 +694,6 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
     element_form_default = kwargs.get('element_form', 'unqualified')
     simple_type_factory = kwargs.get('simple_type_factory', xsd_simple_type_factory)
     complex_type_factory = kwargs.get('complex_type_factory', xsd_complex_type_factory)
-    xsd_element_class = kwargs.get('xsd_element_class', XsdElement)
-    is_global = kwargs.pop('is_global', False)
-    if not isinstance(instance, (type(None), xsd_element_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_element_class))
 
     element_type = getattr(instance, 'type', None)
     qualified = elem.attrib.get('form', element_form_default) == 'qualified'
@@ -667,8 +716,6 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
             raise XMLSchemaParseError(msg.format('name'), elem)
         elif 'type' in elem.attrib:
             raise XMLSchemaParseError(msg.format('type'), elem)
-        elif is_global:
-            raise XMLSchemaParseError("a global element require a 'name' attribute.", elem)
         ref = True
         xsd_element = xsd_lookup(element_name, schema.maps.elements)
         element_type = xsd_element.type
@@ -680,13 +727,13 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
         raise XMLSchemaParseError("a substitution group declaration must be global:", elem)
 
     if ref:
-        if get_xsd_declaration(elem, required=False, strict=False) is not None:
+        if get_xsd_component(elem, required=False, strict=False) is not None:
             raise XMLSchemaParseError("element reference declaration can't has children:", elem)
     elif 'type' in elem.attrib:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
         element_type = xsd_lookup(type_qname, schema.maps.types)
     else:
-        child = get_xsd_declaration(elem, required=False, strict=False)
+        child = get_xsd_component(elem, required=False, strict=False)
         if child is not None:
             if child.tag == XSD_COMPLEX_TYPE_TAG:
                 _, element_type = complex_type_factory(child, schema, element_type, **kwargs)
@@ -695,20 +742,21 @@ def xsd_element_factory(elem, schema, instance=None, **kwargs):
         else:
             element_type = ANY_TYPE
 
-
     if instance is not None:
-        instance.update_attrs(
-            type=element_type, elem=elem, schema=schema, qualified=qualified, ref=ref
-        )
+        instance.type = element_type
+        instance.elem = elem
+        instance.schema = schema
+        instance.qualified = qualified
+        instance.ref = ref
         return element_name, instance
 
-    return element_name, xsd_element_class(
+    return element_name, XsdElement(
         name=element_name, xsd_type=element_type, elem=elem, schema=schema, qualified=qualified, ref=ref
     )
 
 
-@xsd_factory(XSD_NOTATION_TAG)
-def xsd_notation_factory(elem, schema, instance=None, **kwargs):
+@xsd_factory(XsdNotation, XSD_NOTATION_TAG)
+def xsd_notation_factory(elem, schema, **kwargs):
     """
     Factory for XSD 'notation' definitions.
 
@@ -721,9 +769,9 @@ def xsd_notation_factory(elem, schema, instance=None, **kwargs):
     Content: (annotation?)
     </notation>
     """
-    xsd_notation_class = kwargs.get('xsd_notation_class', XsdNotation)
-    if not isinstance(instance, (type(None), xsd_notation_class)):
-        raise XMLSchemaParseError("instance argument %r is not a %r" % (instance, xsd_notation_class))
+    is_global = kwargs.pop('is_global', False)
+    if not is_global:
+        raise XMLSchemaParseError("a notation declaration must be global.", elem)
     try:
         notation_name = get_qname(schema.target_namespace, elem.attrib['name'])
     except KeyError:

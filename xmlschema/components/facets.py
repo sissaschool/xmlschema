@@ -14,12 +14,12 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from .qnames import *
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .xsdbase import (
-    XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from ..qnames import *
+from ..xsdbase import (
+    XsdFacet, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 )
-from .regex import get_python_regex
+from ..regex import get_python_regex
 
 XSD_v1_0_FACETS = {
     XSD_LENGTH_TAG,
@@ -74,24 +74,6 @@ UNION_FACETS = {
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
     XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
 }
-
-
-#
-# Class hierarchy for XSD facets
-class XsdFacet(XsdComponent):
-
-    def __init__(self, base_type, elem=None, schema=None):
-        XsdComponent.__init__(self, elem=elem, schema=schema)
-        self.base_type = base_type
-
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
-        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
-
-    def iter_encode(self, text, validate=True, **kwargs):
-        return self.base_type.iter_encode(text, validate, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        return
 
 
 class XsdUniqueFacet(XsdFacet):
