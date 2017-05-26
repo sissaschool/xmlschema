@@ -22,7 +22,7 @@ except ImportError:
     etree = None
 
 
-def get_tests(pathname):
+def create_validation_tests(pathname):
     from xmlschema.resources import load_xml_resource
     from xmlschema.qnames import XSI_SCHEMA_LOCATION
 
@@ -109,5 +109,5 @@ class TestValidation(unittest.TestCase):
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    globals().update(get_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
+    globals().update(create_validation_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
     unittest.main()

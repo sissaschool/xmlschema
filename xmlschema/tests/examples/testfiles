@@ -3,6 +3,8 @@
 
 collection/collection.xsd
 collection/collection.xml
+decoder/decoder.xsd
+decoder/data2.xml 1
 model/model.xsd
 model/model-2_errors.xsd 2
 patterns/patterns.xsd

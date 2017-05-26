@@ -17,7 +17,7 @@ from collections import MutableSequence
 from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from ..qnames import *
 from ..xsdbase import (
-    XsdFacet, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+    XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 )
 from ..regex import get_python_regex
 
@@ -74,6 +74,24 @@ UNION_FACETS = {
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
     XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTIONS_TAG
 }
+
+
+class XsdFacet(XsdComponent):
+    """
+    XML Schema constraining facets base class.
+    """
+    def __init__(self, base_type, elem=None, schema=None):
+        super(XsdFacet, self).__init__(elem=elem, schema=schema)
+        self.base_type = base_type
+
+    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
+        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
+
+    def iter_encode(self, text, validate=True, **kwargs):
+        return self.base_type.iter_encode(text, validate, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return
 
 
 class XsdUniqueFacet(XsdFacet):
@@ -203,11 +221,11 @@ class XsdUniqueFacet(XsdFacet):
             yield XMLSchemaValidationError(self, x)
 
     def total_digits_validator(self, x):
-        if len([d for d in str(x) if d.isdigit()]) > self.value:
+        if len([d for d in str(x).strip('0') if d.isdigit()]) > self.value:
             yield XMLSchemaValidationError(self, x)
 
     def fraction_digits_validator(self, x):
-        if len(str(x).partition('.')[2]) > self.value:
+        if len(str(x).strip('0').partition('.')[2]) > self.value:
             yield XMLSchemaValidationError(self, x)
 
 

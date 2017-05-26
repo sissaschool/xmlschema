@@ -94,9 +94,12 @@ def qname_to_prefixed(qname, namespaces):
     :return: String with a prefixed or local reference.
     """
     for prefix, uri in namespaces.items():
-        if not uri or not prefix:
+        if not uri:
             continue
-        return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
+        if prefix:
+            qname = qname.replace(u'{%s}' % uri, u'%s:' % prefix)
+        else:
+            qname = qname.replace(u'{%s}' % uri, '')
     return qname
 
 

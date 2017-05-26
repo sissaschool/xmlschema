@@ -159,7 +159,7 @@ class XsdElement(XsdComponent, ParticleMixin):
             else:
                 text = elem.text
 
-            if hasattr(self.type, 'content_type'):
+            if not self.type.is_simple():
                 result = unicode_type(text)
             else:
                 for result in self.type.iter_decode(text, validate, result_dict=result_dict, **kwargs):
@@ -177,7 +177,7 @@ class XsdElement(XsdComponent, ParticleMixin):
                         result = None
 
         if result_dict:
-            if result:
+            if result or result is False:
                 result_dict[text_key] = result
             yield result_dict
         elif result or result is False:
@@ -437,6 +437,10 @@ class XsdComplexType(XsdComponent):
     @property
     def final(self):
         return self._get_derivation_attribute('final', ('extension', 'restriction'))
+
+    def is_simple(self):
+        """Return true if the the type has simple content."""
+        return isinstance(self.content_type, XsdSimpleType)
 
     def admit_simple_restriction(self):
         if 'restriction' in self.final:

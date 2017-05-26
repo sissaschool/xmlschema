@@ -336,24 +336,6 @@ class XsdAnnotation(XsdBase):
         super(XsdAnnotation, self).__setattr__(name, value)
 
 
-class XsdFacet(XsdBase):
-    """
-    XML Schema constraining facets base class.
-    """
-    def __init__(self, base_type, elem=None, schema=None):
-        XsdBase.__init__(self, elem=elem, schema=schema)
-        self.base_type = base_type
-
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
-        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
-
-    def iter_encode(self, text, validate=True, **kwargs):
-        return self.base_type.iter_encode(text, validate, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        return
-
-
 class XsdComponent(XsdBase):
     """
     XML Schema component base class.

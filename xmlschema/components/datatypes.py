@@ -56,6 +56,9 @@ class XsdSimpleType(XsdComponent):
         except AttributeError:
             return XSD11_FACETS.union({None})
 
+    def is_simple(self):
+        return True
+
     def normalize(self, obj):
         """
         Normalize and restrict value-space with pre-lexical and lexical facets.

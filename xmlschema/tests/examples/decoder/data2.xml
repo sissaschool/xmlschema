@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dt:data xmlns:dt="http://example.com/decoder"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://example.com/decoder ./decoder.xsd">
+    <decimal_value>000000000611.000</decimal_value>
+    <celsiusBodyTemp>37.0</celsiusBodyTemp>
+    <celsiusBodyTemp>0500.0</celsiusBodyTemp>
+    <celsiusBodyTemp>500.00</celsiusBodyTemp>
+    <celsiusBodyTemp>50000.0</celsiusBodyTemp>
+    <certification Year="1999">ISO-9001</certification>
+    <certification Year="2009">ISO-27001</certification>
+    <menù>baccalà mantecato</menù>
+</dt:data>
