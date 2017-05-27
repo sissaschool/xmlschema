@@ -29,7 +29,6 @@ def create_schema_tests(pathname):
 
             try:
                 xs = xmlschema.XMLSchema(xsd_file)
-                print(len(xs.base_elements))
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
