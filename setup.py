@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 setup(
     name='xmlschema',
     version='0.9.8',
-    packages=['xmlschema', 'xmlschema.tests'],
+    packages=['xmlschema', 'xmlschema.components', 'xmlschema.tests'],
     package_data={'xmlschema': [
         'unicode_categories.json',
         'schemas/*.xsd', 'schemas/*/*.xsd',
