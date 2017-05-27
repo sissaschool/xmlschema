@@ -56,7 +56,8 @@ class XsdSimpleType(XsdComponent):
         except AttributeError:
             return XSD11_FACETS.union({None})
 
-    def is_simple(self):
+    @staticmethod
+    def is_simple():
         return True
 
     def normalize(self, obj):

@@ -85,13 +85,13 @@ dictionary attributes of the schema instance:
     >>> from pprint import pprint
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> my_schema.types
-    {u'vehicleType': <XsdComplexType '{http://example.com/vehicles}vehicleType' at 0x...>}
+    {u'vehicleType': <XsdComplexType u'{http://example.com/vehicles}vehicleType' at 0x...>}
     >>> pprint(my_schema.elements)
-    {u'bikes': <XsdElement '{http://example.com/vehicles}bikes' at 0x...>,
-     u'cars': <XsdElement '{http://example.com/vehicles}cars' at 0x...>,
-     u'vehicles': <XsdElement '{http://example.com/vehicles}vehicles' at 0x...>}
+    {u'bikes': <XsdElement u'{http://example.com/vehicles}bikes' at 0x...>,
+     u'cars': <XsdElement u'{http://example.com/vehicles}cars' at 0x...>,
+     u'vehicles': <XsdElement u'{http://example.com/vehicles}vehicles' at 0x...>}
     >>> my_schema.attributes
-    {u'step': <XsdAttribute '{http://example.com/vehicles}step' at 0x...>}
+    {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>}
 
 Those declarations are local views of the XSD global maps shared between related
 schema instances, that can be accessed through :attr:`XMLSchema.maps` attribute:
@@ -124,10 +124,10 @@ defining the search criteria:
 .. doctest::
 
     >>> my_schema.find('vh:vehicles/vh:bikes')
-    <XsdElement '{http://example.com/vehicles}bikes' at 0x...>
+    <XsdElement u'{http://example.com/vehicles}bikes' at 0x...>
     >>> pprint(my_schema.findall('vh:vehicles/*'))
-    [<XsdElement '{http://example.com/vehicles}cars' at 0x...>,
-     <XsdElement '{http://example.com/vehicles}bikes' at 0x...>]
+    [<XsdElement u'{http://example.com/vehicles}cars' at 0x...>,
+     <XsdElement u'{http://example.com/vehicles}bikes' at 0x...>]
 
 
 Validation
@@ -226,15 +226,17 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
-    {'{http://example.com/vehicles}car': [{'@make': u'Porsche', '@model': u'911'},
-                                          {'@make': u'Porsche', '@model': u'911'}]}
+    {'{http://example.com/vehicles}car': [{u'@make': u'Porsche',
+                                           u'@model': u'911'},
+                                          {u'@make': u'Porsche',
+                                           u'@model': u'911'}]}
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[1]))
     None
     >>> pprint(xs.elements['bikes'].decode(xt.getroot()[1]))
-    {'{http://example.com/vehicles}bike': [{'@make': u'Harley-Davidson',
-                                            '@model': u'WL'},
-                                           {'@make': u'Yamaha',
-                                            '@model': u'XS650'}]}
+    {'{http://example.com/vehicles}bike': [{u'@make': u'Harley-Davidson',
+                                            u'@model': u'WL'},
+                                           {u'@make': u'Yamaha',
+                                            u'@model': u'XS650'}]}
 
 You can also decode the entire XML document to a nested dictionary:
 
@@ -245,10 +247,10 @@ You can also decode the entire XML document to a nested dictionary:
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml'))
     {u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
-     u'vh:bikes': {u'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
-                                {'@make': u'Yamaha', '@model': u'XS650'}]},
-     u'vh:cars': {u'vh:car': [{'@make': u'Porsche', '@model': u'911'},
-                              {'@make': u'Porsche', '@model': u'911'}]}}
+     u'vh:bikes': {u'vh:bike': [{u'@make': u'Harley-Davidson', u'@model': u'WL'},
+                                {u'@make': u'Yamaha', u'@model': u'XS650'}]},
+     u'vh:cars': {u'vh:car': [{u'@make': u'Porsche', u'@model': u'911'},
+                              {u'@make': u'Porsche', u'@model': u'911'}]}}
 
 The decoded values coincide with the datatypes declared in the XSD schema:
 
@@ -259,9 +261,9 @@ The decoded values coincide with the datatypes declared in the XSD schema:
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
     {u'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
-     'object': [{'@available': True,
-                 '@id': u'b0836217462',
-                 'author': {'@id': u'PAR',
+     'object': [{u'@available': True,
+                 u'@id': u'b0836217462',
+                 'author': {u'@id': u'PAR',
                             'born': u'1841-02-25',
                             'dead': u'1919-12-03',
                             'name': u'Pierre-Auguste Renoir',
@@ -270,9 +272,9 @@ The decoded values coincide with the datatypes declared in the XSD schema:
                  'position': 1,
                  'title': u'The Umbrellas',
                  'year': u'1886'},
-                {'@available': True,
-                 '@id': u'b0836217463',
-                 'author': {'@id': u'JM',
+                {u'@available': True,
+                 u'@id': u'b0836217463',
+                 'author': {u'@id': u'JM',
                             'born': u'1893-04-20',
                             'dead': u'1983-12-25',
                             'name': u'Joan Mir\xf3',
@@ -288,12 +290,14 @@ expression using in the *path* argument.
 
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml', './vh:vehicles/vh:bikes'))
-    {u'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
-                  {'@make': u'Yamaha', '@model': u'XS650'}]}
+    {u'vh:bike': [{u'@make': u'Harley-Davidson', u'@model': u'WL'},
+                  {u'@make': u'Yamaha', u'@model': u'XS650'}]}
 
 .. note::
 
     Decode using an XPath could be simpler than using subelements, method illustrated previously.
+    An XPath expression for the schema *considers the schema as the root element with global
+    elements as its children*.
 
 
 Validating and decoding ElementTree XML data
@@ -311,7 +315,7 @@ Validation and decode API works also with XML data loaded in ElementTree structu
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt), depth=2)
-    {'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {u'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      '{http://example.com/vehicles}bikes': {'{http://example.com/vehicles}bike': [...]},
      '{http://example.com/vehicles}cars': {'{http://example.com/vehicles}car': [...]}}
 
@@ -320,11 +324,11 @@ have to provide a map to convert URIs to prefixes:
 
     >>> namespaces = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 'vh': 'http://example.com/vehicles'}
     >>> pprint(xs.to_dict(xt, namespaces=namespaces))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
-     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
-                              {'@make': u'Yamaha', '@model': u'XS650'}]},
-     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
-                            {'@make': u'Porsche', '@model': u'911'}]}}
+    {u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     u'vh:bikes': {u'vh:bike': [{u'@make': u'Harley-Davidson', u'@model': u'WL'},
+                                {u'@make': u'Yamaha', u'@model': u'XS650'}]},
+     u'vh:cars': {u'vh:car': [{u'@make': u'Porsche', u'@model': u'911'},
+                              {u'@make': u'Porsche', u'@model': u'911'}]}}
 
 You can also convert XML data using the lxml_ library, that works better because
 namespace information is associated within each node of the trees:
@@ -339,14 +343,14 @@ namespace information is associated within each node of the trees:
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
-     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
-                              {'@make': u'Yamaha', '@model': u'XS650'}]},
-     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
-                            {'@make': u'Porsche', '@model': u'911'}]}}
+    {u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     u'vh:bikes': {u'vh:bike': [{u'@make': u'Harley-Davidson', u'@model': u'WL'},
+                                {u'@make': u'Yamaha', u'@model': u'XS650'}]},
+     u'vh:cars': {u'vh:car': [{u'@make': u'Porsche', u'@model': u'911'},
+                              {u'@make': u'Porsche', u'@model': u'911'}]}}
     >>> pprint(xmlschema.to_dict(xt, 'xmlschema/tests/examples/vehicles/vehicles.xsd'))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
-     'vh:bikes': {'vh:bike': [{'@make': u'Harley-Davidson', '@model': u'WL'},
-                              {'@make': u'Yamaha', '@model': u'XS650'}]},
-     'vh:cars': {'vh:car': [{'@make': u'Porsche', '@model': u'911'},
-                            {'@make': u'Porsche', '@model': u'911'}]}}
+    {u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+     u'vh:bikes': {u'vh:bike': [{u'@make': u'Harley-Davidson', u'@model': u'WL'},
+                                {u'@make': u'Yamaha', u'@model': u'XS650'}]},
+     u'vh:cars': {u'vh:car': [{u'@make': u'Porsche', u'@model': u'911'},
+                              {u'@make': u'Porsche', u'@model': u'911'}]}}

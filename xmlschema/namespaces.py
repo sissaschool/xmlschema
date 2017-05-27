@@ -156,7 +156,7 @@ def create_builder_function(factory_key):
                     if isinstance(err, XMLSchemaLookupError):
                         errors.append(err)
                     if len(missing) == errors_counter:
-                        raise errors[0] if errors else XMLSchemaParseError(message=str(err), elem=elem)
+                        raise errors[0] if errors else XMLSchemaParseError(str(err), elem)
                 else:
                     if elem.tag != tag:
                         continue

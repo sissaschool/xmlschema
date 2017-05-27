@@ -18,7 +18,7 @@ from ..exceptions import (
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaParseError
 )
 from ..qnames import (
-    split_reference, get_qname, qname_to_prefixed,
+    split_reference, get_qname, qname_to_prefixed, local_name,
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
 )
 from ..xsdbase import (
@@ -132,7 +132,7 @@ class XsdElement(XsdComponent, ParticleMixin):
                         result.elem = elem
                     yield result
                 else:
-                    result_dict.update([('%s%s' % (attribute_prefix, k), v) for k, v in result])
+                    result_dict.update([(u'%s%s' % (attribute_prefix, k), v) for k, v in result])
                     break
 
         result = None
@@ -236,7 +236,9 @@ class XsdElement(XsdComponent, ParticleMixin):
     def iterchildren(self, tag=None):
         try:
             for xsd_element in self.type.content_type.iter_elements():
-                if tag is None or xsd_element.name == tag:
+                if tag is None or xsd_element.name == tag or (
+                    not xsd_element.qualified and local_name(xsd_element.name) == tag
+                ):
                     yield xsd_element
         except (TypeError, AttributeError):
             return

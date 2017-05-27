@@ -111,7 +111,7 @@ def iter_xsd_declarations(elem):
     for child in elem:
         if child.tag == XSD_ANNOTATION_TAG:
             if counter > 0:
-                raise XMLSchemaParseError("XSD annotation not allowed here!", elem=elem)
+                raise XMLSchemaParseError("XSD annotation not allowed here!", elem)
         else:
             yield child
             counter += 1

@@ -192,6 +192,10 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
             return self.maps.get_globals('elements', self.target_namespace, False)
 
         @property
+        def base_elements(self):
+            return self.maps.get_globals('base_elements', self.target_namespace, False)
+
+        @property
         def parent_map(self):
             if self._parent_map is None:
                 self._parent_map = {

@@ -31,7 +31,7 @@ def split_path(path):
 def get_namespace(name):
     try:
         return _RE_MATCH_NAMESPACE.match(name).group(1)
-    except AttributeError:
+    except (AttributeError, TypeError):
         return ''
 
 

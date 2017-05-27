@@ -12,7 +12,7 @@
 This module contains declarations and classes for XML Schema definition tags.
 """
 from .core import XML_NAMESPACE_PATH, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaTypeError,     XMLSchemaValueError
 
 
 #
@@ -38,12 +38,16 @@ def local_name(qname):
 
     :param qname: QName or universal name formatted string.
     """
-    if qname[0] != '{':
-        return qname
     try:
+        if qname[0] != '{':
+            return qname
         return qname[qname.rindex('}') + 1:]
     except ValueError:
         raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
+    except TypeError:
+        if qname is None:
+            return qname
+        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
 
 
 def xsd_qname(name):
@@ -94,8 +98,6 @@ def qname_to_prefixed(qname, namespaces):
     :return: String with a prefixed or local reference.
     """
     for prefix, uri in namespaces.items():
-        if not uri:
-            continue
         if prefix:
             qname = qname.replace(u'{%s}' % uri, u'%s:' % prefix)
         else:
