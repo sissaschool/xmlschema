@@ -20,7 +20,7 @@ from .qnames import (
     local_name, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG
 )
-from .xsdbase import get_xsd_attribute, XsdBase
+from .xsdbase import get_xsd_attribute, XsdComponent
 
 _logger = _logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ iterfind_xsd_attributes = create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
 iterfind_xsd_attribute_groups = create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
 iterfind_xsd_elements = create_iterfind_by_tag(XSD_ELEMENT_TAG)
 iterfind_xsd_groups = create_iterfind_by_tag(XSD_GROUP_TAG)
+iterfind_xsd_notations = create_iterfind_by_tag(XSD_NOTATION_TAG)
 
 
 #
@@ -101,6 +102,7 @@ load_xsd_attribute_groups = create_load_function(iterfind_xsd_attribute_groups)
 load_xsd_complex_types = create_load_function(iterfind_xsd_complex_types)
 load_xsd_elements = create_load_function(iterfind_xsd_elements)
 load_xsd_groups = create_load_function(iterfind_xsd_groups)
+load_xsd_notations = create_load_function(iterfind_xsd_notations)
 
 
 #
@@ -116,10 +118,11 @@ def create_builder_function(factory_key):
             i += 1
             missing = []
             errors = []
+            schema = None
             for qname in global_names:
                 obj = xsd_globals[qname]
                 try:
-                    if isinstance(obj, XsdBase):
+                    if isinstance(obj, XsdComponent):
                         elem, schema = obj.elem, obj.schema
                         if elem is None or elem.tag != tag or schema.built:
                             continue
@@ -134,7 +137,7 @@ def create_builder_function(factory_key):
                             elem, schema, is_global=True, **kwargs
                         )
                     elif isinstance(obj, list):
-                        start = int(isinstance(obj[0], XsdBase))
+                        start = int(isinstance(obj[0], XsdComponent))
                         xsd_instance = obj[0] if start else None
                         for k in range(start, len(obj)):
                             elem, schema = obj[k]
@@ -153,7 +156,7 @@ def create_builder_function(factory_key):
                     if isinstance(err, XMLSchemaLookupError):
                         errors.append(err)
                     if len(missing) == errors_counter:
-                        raise errors[0] if errors else XMLSchemaParseError(message=str(err), elem=elem)
+                        raise errors[0] if errors else XMLSchemaParseError(str(err), elem)
                 else:
                     if elem.tag != tag:
                         continue
@@ -175,6 +178,7 @@ build_xsd_attribute_groups = create_builder_function('attribute_group_factory')
 build_xsd_complex_types = create_builder_function('complex_type_factory')
 build_xsd_elements = create_builder_function('element_factory')
 build_xsd_groups = create_builder_function('group_factory')
+build_xsd_notations = create_builder_function('notation_factory')
 
 
 class XsdGlobals(object):
@@ -189,16 +193,18 @@ class XsdGlobals(object):
 
     def __init__(self, validator):
         self.validator = validator
-        self.namespaces = URIDict()  # Registered schemas by namespace URI
-        self.resources = URIDict()  # Registered schemas by resource URI
+        self.namespaces = URIDict()     # Registered schemas by namespace URI
+        self.resources = URIDict()      # Registered schemas by resource URI
 
-        self.types = {}  # Global types
-        self.attributes = {}  # Global attributes
-        self.attribute_groups = {}  # Attribute groups
-        self.groups = {}  # Model groups
-        self.elements = {}  # Global elements
-        self.base_elements = {}  # Global elements + global groups expansion
-        self._view_cache = {}  # Cache for namespace views
+        self.types = {}                 # Global types (both complex and simple)
+        self.attributes = {}            # Global attributes
+        self.attribute_groups = {}      # Attribute groups
+        self.groups = {}                # Model groups
+        self.substitution_groups = {}   # Substitution groups
+        self.notations = {}             # Notations
+        self.elements = {}              # Global elements
+        self.base_elements = {}         # Global elements + global groups expansion
+        self._view_cache = {}           # Cache for namespace views
 
         self.types.update(validator.BUILTIN_TYPES)
 
@@ -211,6 +217,8 @@ class XsdGlobals(object):
         obj.attributes.update(self.attributes)
         obj.attribute_groups.update(self.attribute_groups)
         obj.groups.update(self.groups)
+        obj.substitution_groups.update(self.substitution_groups)
+        obj.notations.update(self.notations)
         obj.elements.update(self.elements)
         obj.base_elements.update(self.base_elements)
         return obj
@@ -280,6 +288,8 @@ class XsdGlobals(object):
         self.attributes.clear()
         self.attribute_groups.clear()
         self.groups.clear()
+        self.substitution_groups.clear()
+        self.notations.clear()
         self.elements.clear()
         self.base_elements.clear()
         self._view_cache.clear()
@@ -300,6 +310,8 @@ class XsdGlobals(object):
         kwargs = self.validator.OPTIONS.copy()
 
         # Load and build global declarations
+        load_xsd_notations(self.notations, self.iter_schemas())
+        build_xsd_notations(self.notations, XSD_NOTATION_TAG, **kwargs)
         load_xsd_simple_types(self.types, self.iter_schemas())
         build_xsd_simple_types(self.types, XSD_SIMPLE_TYPE_TAG, **kwargs)
         load_xsd_attributes(self.attributes, self.iter_schemas())
@@ -312,6 +324,17 @@ class XsdGlobals(object):
         build_xsd_elements(self.elements, XSD_ELEMENT_TAG, **kwargs)
         load_xsd_groups(self.groups, self.iter_schemas())
         build_xsd_groups(self.groups, XSD_GROUP_TAG, **kwargs)
+
+        # Build substitution groups from element declarations
+        for xsd_element in self.elements.values():
+            if xsd_element.substitution_group:
+                name = reference_to_qname(xsd_element.substitution_group, xsd_element.namespaces)
+                if name[0] != '{':
+                    name = get_qname(xsd_element.target_namespace, name)
+                try:
+                    self.substitution_groups[name].add(xsd_element)
+                except KeyError:
+                    self.substitution_groups[name] = {xsd_element}
 
         # Build all local declarations
         build_xsd_groups(self.groups, XSD_GROUP_TAG, parse_local_groups=True, **kwargs)

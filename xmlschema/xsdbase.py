@@ -12,19 +12,15 @@
 This module contains functions for manipulating fully qualified names and XSD qname constants.
 """
 import re
-import logging as _logging
 
 from .core import PY3
 from .qnames import *
 from .exceptions import (
     XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaLookupError,
-    XMLSchemaAttributeError, XMLSchemaParseError, XMLSchemaComponentError,
-    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
+    XMLSchemaParseError, XMLSchemaAttributeError, XMLSchemaValidationError,
+    XMLSchemaEncodeError, XMLSchemaDecodeError
 )
 from .utils import FrozenDict
-
-
-_logger = _logging.getLogger(__name__)
 
 
 def get_xsi_schema_location(elem):
@@ -45,49 +41,32 @@ def get_xsi_no_namespace_schema_location(elem):
 
 #
 # Check functions for XSD schema factories and components.
-def check_tag(elem, *args):
-    if elem.tag not in args:
-        tags = (split_qname(tag)[1] for tag in args)
+def check_tag(elem, *tags):
+    if elem.tag not in tags:
+        tags = (split_qname(tag)[1] for tag in tags)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
 
 
-def check_type(obj, name, ref, value, types):
-    """
-    Checks the type of 'value' argument to be in a tuple of types.
+def check_attrs(obj, *attrs):
+    for attr in attrs:
+        try:
+            getattr(obj, attr)
+        except AttributeError as err:
+            raise XMLSchemaAttributeError(err.message)
 
-    :param obj: The schema object.
-    :param name: The name of the attribute/key of the object.
-    :param ref: An object or type that refer to the name.
-    :param value: The value to be checked.
-    :param types: A tuple with admitted types.
-    """
-    if not isinstance(value, types):
-        raise XMLSchemaComponentError(
-            obj=obj,
-            name=name,
-            ref=ref,
-            message="wrong type %s, it must be one of %r." % (type(value), types)
+
+def check_type(obj, *types):
+    if not isinstance(obj, types):
+        raise XMLSchemaTypeError(
+            "wrong type %s, it must be one of %r." % (type(obj), types)
         )
 
 
-def check_value(obj, name, ref, value, values, nullable=True):
-    """
-    Checks the value of 'value' argument to be in a tuple of values.
-
-    :param obj: The schema object.
-    :param name: The name of the attribute/key of the object.
-    :param ref: An object or type that refer to the name.
-    :param value: The value to be checked.
-    :param values: A tuple with admitted values.
-    :param nullable: None  admitted values.
-    """
-    if nullable:
-        if value is not None and value not in values:
-            message = "wrong value %s, it must be None or one of %r." % (type(value), values)
-            raise XMLSchemaComponentError(obj, name, ref, message)
-    elif value not in values:
-        message = "wrong value %r, it must be one of %r." % (type(value), values)
-        raise XMLSchemaComponentError(obj, name, ref, message)
+def check_value(value, *values):
+    if value not in values:
+        raise XMLSchemaValueError(
+            "wrong value %s, it must be None or one of %r." % (value, values)
+        )
 
 
 #
@@ -105,7 +84,7 @@ def get_xsd_annotation(elem):
         return None
 
 
-def get_xsd_declaration(elem, required=True, strict=True):
+def get_xsd_component(elem, required=True, strict=True):
     declarations_iterator = iter_xsd_declarations(elem)
     try:
         xsd_declaration = next(declarations_iterator)
@@ -132,7 +111,7 @@ def iter_xsd_declarations(elem):
     for child in elem:
         if child.tag == XSD_ANNOTATION_TAG:
             if counter > 0:
-                raise XMLSchemaParseError("XSD annotation not allowed here!", elem=elem)
+                raise XMLSchemaParseError("XSD annotation not allowed here!", elem)
         else:
             yield child
             counter += 1
@@ -173,7 +152,9 @@ def get_xsd_bool_attribute(elem, attribute, **kwargs):
     elif value in ('false', '0'):
         return False
     else:
-        raise XMLSchemaParseError("an XML boolean value is required for attribute %r" % attribute, elem)
+        raise XMLSchemaParseError(
+            "an XML boolean value is required for attribute %r" % attribute, elem
+        )
 
 
 def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
@@ -191,7 +172,7 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
     try:
         value = int(value)
     except (TypeError, ValueError) as err:
-        raise XMLSchemaValueError("attribute {} error: {}".format(attribute, str(err)), elem)
+        raise XMLSchemaValueError("attribute %r error: %r" % (attribute, str(err)), elem)
     else:
         if minimum is None or value >= minimum:
             return value
@@ -207,7 +188,7 @@ def xsd_lookup(qname, xsd_globals):
     try:
         obj = xsd_globals[qname]
     except KeyError:
-        raise XMLSchemaLookupError("Missing XSD reference %r!" % qname)
+        raise XMLSchemaLookupError("missing XSD reference %r!" % qname)
     else:
         if isinstance(obj, XsdBase):
             return obj
@@ -221,81 +202,10 @@ def xsd_lookup(qname, xsd_globals):
             )
 
 
-def xsd_factory(*args):
-    """
-    Check Element instance passed to a factory and log arguments.
-
-    :param args: Values admitted for Element's tag (base argument of the factory)
-    """
-    def make_factory_wrapper(factory_function):
-        def xsd_factory_wrapper(elem, schema, instance=None, **kwargs):
-            if _logger.getEffectiveLevel() == _logging.DEBUG:
-                _logger.debug(
-                    "%s: elem.tag='%s', elem.attrib=%r, kwargs.keys()=%r",
-                    factory_function.__name__, elem.tag, elem.attrib, kwargs.keys()
-                )
-                check_tag(elem, *args)
-                factory_result = factory_function(elem, schema, instance, **kwargs)
-                _logger.debug("%s: return %r", factory_function.__name__, factory_result)
-                return factory_result
-            check_tag(elem, *args)
-            try:
-                result = factory_function(elem, schema, instance, **kwargs)
-            except XMLSchemaValidationError as err:
-                raise XMLSchemaParseError(err.message, elem)
-            else:
-                if instance is not None:
-                    if isinstance(result, tuple):
-                        if instance.name is not None and instance.name != result[0]:
-                            raise XMLSchemaParseError(
-                                "name mismatch wih instance %r: %r." % (instance, result[0]), elem
-                            )
-                    if instance.elem is None:
-                        instance.elem = elem
-                    if instance.schema is None:
-                        instance.schema = schema
-                return result
-
-        return xsd_factory_wrapper
-    return make_factory_wrapper
-
-
-@xsd_factory(XSD_ANNOTATION_TAG)
-def xsd_annotation_factory(elem, schema, instance=None, **kwargs):
-    """
-    Factory for XSD 'annotation' declarations.
-
-    <annotation
-        id = ID
-        {any attributes with non-schema Namespace}...>
-    Content: (appinfo | documentation)*
-    </annotation>
-    """
-    appinfo = []
-    documentation = []
-    for child in elem:
-        if child.tag == XSD_APPINFO_TAG:
-            for key in child.attrib:
-                if key != 'source':
-                    raise XMLSchemaParseError(
-                        "wrong attribute %r for appinfo declaration." % key, child
-                    )
-            appinfo.append(child)
-        elif child.tag == XSD_DOCUMENTATION_TAG:
-            for key in child.attrib:
-                if key not in ['source', XML_LANG]:
-                    raise XMLSchemaParseError(
-                        "wrong attribute %r for documentation declaration." % key, child
-                    )
-            documentation.append(child)
-    return XsdAnnotation(elem, schema, appinfo, documentation)
-
-
 class XsdBase(object):
     """
     Base class for XML Schema Definition classes.
 
-    :param name: A name associated with the definition.
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
     """
@@ -350,8 +260,8 @@ class XsdBase(object):
         items = value.split()
         if len(items) == 1 and items[0] == "#all":
             return ' '.join(values)
-        elif not all([s not in values for s in items]):
-            raise XMLSchemaValueError("wrong value %r for attribute %r" % (value, attribute), self)
+        elif not all([s in values for s in items]):
+            raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute), self)
         return value
 
     def _is_namespace_allowed(self, namespace, any_namespace):
@@ -373,27 +283,67 @@ class XsdBase(object):
         """The ``'id'`` attribute of declaration tag, ``None`` if missing."""
         return self._attrib.get('id')
 
-    def update_attrs(self, **kwargs):
-        """Updates a set of existing instance attributes."""
-        for k, v in kwargs.items():
-            if hasattr(self, k):
-                setattr(self, k, v)
-            else:
-                raise XMLSchemaAttributeError("%r object has no attribute %r" % (self, k))
-
 
 class XsdAnnotation(XsdBase):
     """
-    Class for XML Schema annotation definitions.
-    """
+    Class for XSD 'annotation' definitions.
+    
+    <annotation
+      id = ID
+      {any attributes with non-schema namespace . . .}>
+      Content: (appinfo | documentation)*
+    </annotation>
+    
+    <appinfo
+      source = anyURI
+      {any attributes with non-schema namespace . . .}>
+      Content: ({any})*
+    </appinfo>
+    
+    <documentation
+      source = anyURI
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ({any})*
+    </documentation>
 
-    def __init__(self, elem=None, schema=None, appinfo=None, documentation=None):
+    :param elem: ElementTree's node containing the definition.
+    :param schema: The XMLSchema object that owns the definition.
+    """
+    def __init__(self, elem=None, schema=None):
         super(XsdAnnotation, self).__init__(elem, schema)
-        self.appinfo = appinfo if appinfo is not None else []
-        self.documentation = documentation if documentation is not None else []
+
+    def __setattr__(self, name, value):
+        if name == 'elem':
+            check_tag(value, XSD_ANNOTATION_TAG)
+            self.appinfo = []
+            self.documentation = []
+            for child in value:
+                if child.tag == XSD_APPINFO_TAG:
+                    for key in child.attrib:
+                        if key != 'source':
+                            raise XMLSchemaParseError(
+                                "wrong attribute %r for appinfo declaration." % key, self
+                            )
+                    self.appinfo.append(child)
+                elif child.tag == XSD_DOCUMENTATION_TAG:
+                    for key in child.attrib:
+                        if key not in ['source', XML_LANG]:
+                            raise XMLSchemaParseError(
+                                "wrong attribute %r for documentation declaration." % key, self
+                            )
+                    self.documentation.append(child)
+        super(XsdAnnotation, self).__setattr__(name, value)
 
 
 class XsdComponent(XsdBase):
+    """
+    XML Schema component base class.
+
+    :param name: A name associated with the component definition/declaration..
+    :param elem: ElementTree's node containing the definition.
+    :param schema: The XMLSchema object that owns the definition.
+    """
 
     def __init__(self, name=None, elem=None, schema=None):
         self.name = name
@@ -415,15 +365,13 @@ class XsdComponent(XsdBase):
     if PY3:
         __str__ = __unicode__
 
-
     def __setattr__(self, name, value):
         if name == "elem":
             annotation = get_xsd_annotation(value)
             if annotation is not None:
-                self.annotation = xsd_annotation_factory(annotation, self.schema)
+                self.annotation = XsdAnnotation(annotation, self.schema)
             else:
                 self.annotation = None
-
         super(XsdComponent, self).__setattr__(name, value)
 
     def validate(self, obj):
@@ -490,3 +438,39 @@ class XsdComponent(XsdBase):
 
     def iter_encode(self, obj, validate=True, **kwargs):
         raise NotImplementedError
+
+
+class ParticleMixin(object):
+    """
+    Mixin for objects related to XSD Particle Schema Components:
+
+      https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
+      https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
+    """
+    def __setattr__(self, name, value):
+        super(ParticleMixin, self).__setattr__(name, value)
+        if name == 'elem':
+            max_occurs = self.max_occurs
+            if max_occurs is not None and self.min_occurs > max_occurs:
+                raise XMLSchemaParseError(
+                    "maxOccurs must be 'unbounded' or greater than minOccurs:", self
+                )
+
+    @property
+    def min_occurs(self):
+        return get_xsd_int_attribute(getattr(self, 'elem'), 'minOccurs', default=1, minimum=0)
+
+    @property
+    def max_occurs(self):
+        try:
+            return get_xsd_int_attribute(getattr(self, 'elem'), 'maxOccurs', default=1, minimum=0)
+        except (TypeError, ValueError):
+            if getattr(self, '_attrib')['maxOccurs'] == 'unbounded':
+                return None
+            raise
+
+    def is_optional(self):
+        return getattr(self, 'elem').get('minOccurs', '').strip() == "0"
+
+    def is_emptiable(self):
+        return self.min_occurs == 0

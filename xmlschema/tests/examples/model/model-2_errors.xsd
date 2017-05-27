@@ -6,7 +6,7 @@
         <xs:complexType>
             <xs:sequence>
                 <xs:element name="comment" type="xs:string" minOccurs="4" maxOccurs="3"/>
-                <xs:element name="name" type="xs:string" minOccurs="4"/>
+                <xs:element name="name" type="xs:string" minOccurs="4" maxOccurs="2"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>

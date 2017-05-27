@@ -14,14 +14,14 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from .qnames import *
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .xsdbase import (
+from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from ..qnames import *
+from ..xsdbase import (
     XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 )
-from .regex import get_python_regex
+from ..regex import get_python_regex
 
-XSD_v1_0_FACETS = {
+XSD_FACETS = {
     XSD_LENGTH_TAG,
     XSD_MIN_LENGTH_TAG,
     XSD_MAX_LENGTH_TAG,
@@ -36,8 +36,8 @@ XSD_v1_0_FACETS = {
     XSD_FRACTION_DIGITS_TAG
 }
 
-XSD_v1_1_FACETS = XSD_v1_0_FACETS.copy()
-XSD_v1_1_FACETS.update({XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
+XSD11_FACETS = XSD_FACETS.copy()
+XSD11_FACETS.update({XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
 
 #
 # Admitted facets sets for Atomic Types, List Type and Union Type
@@ -76,12 +76,12 @@ UNION_FACETS = {
 }
 
 
-#
-# Class hierarchy for XSD facets
 class XsdFacet(XsdComponent):
-
+    """
+    XML Schema constraining facets base class.
+    """
     def __init__(self, base_type, elem=None, schema=None):
-        XsdComponent.__init__(self, elem=elem, schema=schema)
+        super(XsdFacet, self).__init__(elem=elem, schema=schema)
         self.base_type = base_type
 
     def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
@@ -221,11 +221,11 @@ class XsdUniqueFacet(XsdFacet):
             yield XMLSchemaValidationError(self, x)
 
     def total_digits_validator(self, x):
-        if len([d for d in str(x) if d.isdigit()]) > self.value:
+        if len([d for d in str(x).strip('0') if d.isdigit()]) > self.value:
             yield XMLSchemaValidationError(self, x)
 
     def fraction_digits_validator(self, x):
-        if len(str(x).partition('.')[2]) > self.value:
+        if len(str(x).strip('0').partition('.')[2]) > self.value:
             yield XMLSchemaValidationError(self, x)
 
 

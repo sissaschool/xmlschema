@@ -4,9 +4,12 @@
     <xs:element name="data">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="decimal_value" type="Decimal_9_5"/>
+                <xs:element name="decimal_value" type="Decimal_9_5" maxOccurs="unbounded"/>
+                <xs:element name="celsiusBodyTemp" type="celsiusBodyTemp" minOccurs="0" maxOccurs="unbounded"/>
                 <xs:element name="certification" type="year_attr_string_75" maxOccurs="unbounded"/>
                 <xs:element name="menù" type="xs:string"/>
+                <xs:element name="complex_boolean" type="TYPE_ATTR_BOOLEAN" minOccurs="0" maxOccurs="4"/>
+                <xs:element name="simple_boolean" type="xs:boolean" minOccurs="0" maxOccurs="4"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -15,6 +18,13 @@
         <xs:restriction base="xs:decimal">
             <xs:totalDigits value="9"/>
             <xs:fractionDigits value="5"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='celsiusBodyTemp'>
+        <xs:restriction base='xs:decimal'>
+            <xs:totalDigits value='4'/>
+            <xs:fractionDigits value='1'/>
         </xs:restriction>
     </xs:simpleType>
 
@@ -28,6 +38,14 @@
         <xs:simpleContent>
             <xs:extension base="string_75">
                 <xs:attribute name="Year" type="xs:integer" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="TYPE_ATTR_BOOLEAN">
+        <xs:simpleContent>
+            <xs:extension base="xs:boolean">
+                <xs:attribute name="Type" type="xs:integer" use="optional"/>
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>

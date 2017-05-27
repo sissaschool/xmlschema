@@ -27,9 +27,8 @@ from .xsdbase import (
     check_tag, get_xsd_attribute, get_xsi_schema_location,
     get_xsi_no_namespace_schema_location
 )
-from .components import XsdElement
 from .resources import open_resource, load_xml_resource
-from .facets import XSD_v1_0_FACETS
+from .components import XsdElement, XSD_FACETS
 from .builtins import XSD_BUILTIN_TYPES
 from .namespaces import (
     XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
@@ -45,6 +44,7 @@ DEFAULT_OPTIONS = {
     'complex_type_factory': xsd_complex_type_factory,
     'group_factory': xsd_group_factory,
     'element_factory': xsd_element_factory,
+    'notation_factory': xsd_notation_factory,
     'restriction_factory': xsd_restriction_factory
 }
 """Default options for building XSD schema elements."""
@@ -91,9 +91,11 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 raise type(err)('cannot create schema: %s' % err)
 
             check_tag(self.root, XSD_SCHEMA_TAG)
-            self.built = False
             self.element_form = self.root.attrib.get('elementFormDefault', 'unqualified')
             self.attribute_form = self.root.attrib.get('attributeFormDefault', 'unqualified')
+
+            self.built = False  # True if the schema is built successfully
+            self.errors = []    # Parsing errors
 
             # Determine the targetNamespace
             self.target_namespace = self.root.attrib.get('targetNamespace', '')
@@ -166,6 +168,10 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
             return ''
 
         @property
+        def notations(self):
+            return self.maps.get_globals('notations', self.target_namespace, False)
+
+        @property
         def types(self):
             return self.maps.get_globals('types', self.target_namespace, False)
 
@@ -184,6 +190,10 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
         @property
         def elements(self):
             return self.maps.get_globals('elements', self.target_namespace, False)
+
+        @property
+        def base_elements(self):
+            return self.maps.get_globals('base_elements', self.target_namespace, False)
 
         @property
         def parent_map(self):
@@ -403,7 +413,7 @@ XMLSchema_v1_0 = create_validator(
         XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
         XLINK_NAMESPACE_PATH: 'xlink.xsd'
     },
-    facets=XSD_v1_0_FACETS,
+    facets=XSD_FACETS,
     builtin_types=XSD_BUILTIN_TYPES
 )
 XMLSchema = XMLSchema_v1_0

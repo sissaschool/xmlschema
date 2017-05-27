@@ -89,12 +89,16 @@ _DATA_DICT = {
         {'#text': 'ISO-9001', '@Year': 1999},
         {'#text': 'ISO-27001', '@Year': 2009}
     ],
-    'decimal_value': decimal.Decimal('1'),
-    u'menù': u'baccalà mantecato'
+    'decimal_value': [decimal.Decimal('1')],
+    u'menù': u'baccalà mantecato',
+    u'complex_boolean': [
+        {'#text': True, '@Type': 2}, {'#text': False, '@Type': 1}, True, False
+    ],
+    u'simple_boolean': [True, False]
 }
 
 
-def get_tests(pathname):
+def create_decoding_tests(pathname):
     from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaValidationError
     from xmlschema.qnames import XSI_SCHEMA_LOCATION
     from xmlschema.resources import load_xml_resource
@@ -219,12 +223,12 @@ class TestDecoding(unittest.TestCase):
         xt1 = _ElementTree.parse('examples/decoder/data.xml')
         self.assertTrue(xs.to_dict(xt1, namespaces=self.namespaces) == _DATA_DICT)
         self.assertTrue(
-            xs.to_dict('examples/decoder/data.xml', namespaces=self.namespaces) == _DATA_DICT
+            xs.to_dict('examples/decoder/data.xml', namespaces=self.namespaces.copy()) == _DATA_DICT
         )
 
 
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    globals().update(get_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
+    globals().update(create_decoding_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
     unittest.main()

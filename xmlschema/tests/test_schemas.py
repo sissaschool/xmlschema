@@ -17,23 +17,24 @@ import fileinput
 import glob
 
 
-def get_tests(pathname):
+def create_schema_tests(pathname):
     import xmlschema
     from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError
 
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
             # print("Run %s" % self.id())
-            xs = xmlschema.XMLSchema.META_SCHEMA
-            errors = [str(e) for e in xs.iter_errors(xsd_file)]
+            meta_schema = xmlschema.XMLSchema.META_SCHEMA
+            errors = [str(e) for e in meta_schema.iter_errors(xsd_file)]
 
             try:
-                xmlschema.XMLSchema(xsd_file)
+                xs = xmlschema.XMLSchema(xsd_file)
+                print(len(xs.base_elements))
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
             else:
-                num_errors = len(errors)
+                num_errors = len(errors) + len(xs.errors)
 
             if num_errors != expected_errors:
                 raise ValueError(
@@ -88,5 +89,5 @@ def get_tests(pathname):
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    globals().update(get_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
+    globals().update(create_schema_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
     unittest.main()

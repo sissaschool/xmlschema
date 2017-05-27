@@ -10,15 +10,15 @@
 #
 from .core import set_logger, etree_get_namespaces
 from .exceptions import (
-    XMLSchemaException, XMLSchemaParseError, XMLSchemaComponentError,
-    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError,
-    XMLSchemaXPathError, XMLSchemaRegexError
+    XMLSchemaException, XMLSchemaParseError, XMLSchemaValidationError,
+    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
+    XMLSchemaRegexError
 )
 from .resources import open_resource, load_xml_resource
 from .xsdbase import get_xsi_schema_location
 from .schema import XsdGlobals, XMLSchema
 
-__version__ = '0.9.7'
+__version__ = '0.9.8'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2017, SISSA"
