@@ -16,7 +16,7 @@ from collections import MutableMapping
 from ..core import XSI_NAMESPACE_PATH
 from ..qnames import split_reference, get_qname, qname_to_prefixed
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from ..xsdbase import check_type, get_xsd_attribute, xsd_lookup, XsdComponent
+from ..xsdbase import check_type, get_xsd_attribute, XsdComponent
 
 from .datatypes import XsdSimpleType
 
@@ -155,7 +155,7 @@ class XsdAnyAttribute(XsdComponent):
             qname, namespace = split_reference(name, namespaces=self.namespaces)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
-                    xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
+                    xsd_attribute = self.schema.maps.lookup_attribute(qname)
                 except LookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
@@ -246,7 +246,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 qname, namespace = split_reference(name, self.namespaces)
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
+                        xsd_attribute = self.schema.maps.lookup_attribute(qname)
                     except LookupError:
                         yield XMLSchemaValidationError(
                             self, elem, "% is not an attribute of the XSI namespace." % name

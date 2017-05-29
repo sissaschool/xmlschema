@@ -16,8 +16,8 @@ import re
 from .core import PY3
 from .qnames import *
 from .exceptions import (
-    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaLookupError,
-    XMLSchemaParseError, XMLSchemaAttributeError, XMLSchemaValidationError,
+    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaParseError,
+    XMLSchemaAttributeError, XMLSchemaValidationError,
     XMLSchemaEncodeError, XMLSchemaDecodeError
 )
 from .utils import FrozenDict
@@ -179,26 +179,6 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
         else:
             raise XMLSchemaParseError(
                 "attribute %r value must be greater or equal to %r" % (attribute, minimum), elem
-            )
-
-
-#
-# Lookups an XML schema global component.
-def xsd_lookup(qname, xsd_globals):
-    try:
-        obj = xsd_globals[qname]
-    except KeyError:
-        raise XMLSchemaLookupError("missing XSD reference %r!" % qname)
-    else:
-        if isinstance(obj, XsdBase):
-            return obj
-        elif isinstance(obj, list) and isinstance(obj[0], XsdBase):
-            return obj[0]
-        elif isinstance(obj, (tuple, list)):
-            raise XMLSchemaTypeError("XSD reference %r not built!" % qname)
-        else:
-            raise XMLSchemaTypeError(
-                "wrong type %r for XSD reference %r." % (type(obj), qname)
             )
 
 

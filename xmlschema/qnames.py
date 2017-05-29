@@ -173,6 +173,7 @@ XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
 XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
 XSD_ELEMENT_TAG = xsd_qname('element')
 XSD_NOTATION_TAG = xsd_qname('notation')
+XSD_NOTATION_TYPE = xsd_qname('NOTATION')
 
 # Grouping
 XSD_GROUP_TAG = xsd_qname('group')

@@ -9,18 +9,25 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions and classes for managing namespaces XSD declarations.
+This module contains functions and classes for managing namespaces's  
+XSD declarations/definitions.
 """
 import logging as _logging
 
 from .qnames import *
-from .exceptions import XMLSchemaTypeError, XMLSchemaLookupError, XMLSchemaParseError
+from .exceptions import (
+    XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
+)
 from .utils import get_namespace, camel_case_split, URIDict
 from .qnames import (
     local_name, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG
 )
 from .xsdbase import get_xsd_attribute, XsdComponent
+from .components import (
+    XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement,
+    XsdAttributeGroup, XsdGroup, XsdNotation
+)
 
 _logger = _logging.getLogger(__name__)
 
@@ -106,19 +113,46 @@ load_xsd_notations = create_load_function(iterfind_xsd_notations)
 
 
 #
+# Defines the builder function for maps lookup functions.
+def create_lookup_function(map_name, xsd_classes):
+    if isinstance(xsd_classes, tuple):
+        types_desc = ' or '.join([c.__name__ for c in xsd_classes])
+    else:
+        types_desc = xsd_classes.__name__
+
+    def lookup(global_maps, qname):
+        try:
+            obj = getattr(global_maps, map_name)[qname]
+        except KeyError:
+            raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
+        else:
+            if isinstance(obj, xsd_classes):
+                return obj
+            elif isinstance(obj, list) and isinstance(obj[0], xsd_classes):
+                return obj[0]
+            elif isinstance(obj, (tuple, list)):
+                raise XMLSchemaNotBuiltError(
+                    "a %s object for %r not built!" % (types_desc, qname), obj, qname
+                )
+            else:
+                raise XMLSchemaTypeError(
+                    "wrong type %s for %r, a %s required." % (type(obj), qname, types_desc)
+                )
+    return lookup
+
+
+#
 # Defines the builder functions for XML Schema structures
 def create_builder_function(factory_key):
 
     def build_xsd_map(xsd_globals, tag, **kwargs):
         global_names = set(xsd_globals.keys())
         factory_function = kwargs.get(factory_key)
-        errors_counter = 0
+        last_not_built = 0
         i = 0
         while True:
             i += 1
-            missing = []
-            errors = []
-            schema = None
+            not_built = {}
             for qname in global_names:
                 obj = xsd_globals[qname]
                 try:
@@ -148,27 +182,43 @@ def create_builder_function(factory_key):
                             )
                             obj[0] = xsd_instance
                     else:
-                        raise XMLSchemaTypeError("unexpected type %r for XSD global %r" % (type(obj), qname))
+                        raise XMLSchemaTypeError(
+                            "unexpected type %r for XSD global %r" % (type(obj), qname)
+                        )
 
-                except (XMLSchemaTypeError, XMLSchemaLookupError) as err:
-                    _logger.debug("XSD reference %s not yet defined: elem.attrib=%r", err, elem.attrib)
-                    missing.append(qname)
-                    if isinstance(err, XMLSchemaLookupError):
-                        errors.append(err)
-                    if len(missing) == errors_counter:
-                        raise errors[0] if errors else XMLSchemaParseError(str(err), elem)
+                except XMLSchemaNotBuiltError as err:
+                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
+                    not_built[qname] = err.qname
+                    if len(not_built) == last_not_built:
+                        raise XMLSchemaParseError(str(err), elem)
+
+                except (XMLSchemaTypeError, XMLSchemaKeyError) as err:
+                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
+                    raise
                 else:
                     if elem.tag != tag:
                         continue
                     if res_qname != qname:
-                        raise XMLSchemaParseError("wrong result name: %r != %r" % (res_qname, qname))
-                    _logger.debug("Update XSD reference: target[%r] = %r", res_qname, xsd_instance)
+                        raise XMLSchemaValueError(
+                            "wrong result name: %r != %r" % (res_qname, qname)
+                        )
+                    _logger.debug("Build xsd_globals[%r] = %r", res_qname, xsd_instance)
                     xsd_globals[qname] = xsd_instance
 
-            if not missing:
+            if not not_built:
                 break
-            errors_counter = len(missing)
-            global_names = missing
+
+            last_not_built = len(not_built)
+
+            # Defines not-built element list from dependencies
+            global_names = [k for k, v in not_built.items() if v not in not_built]
+            while True:
+                names = [
+                    k for k, v in not_built.items() if k not in global_names and v in global_names
+                ]
+                if not names:
+                    break
+                global_names.extend(names)
 
     return build_xsd_map
 
@@ -272,6 +322,14 @@ class XsdGlobals(object):
                     if namespace == get_namespace(k)
                 }
             return view
+
+    lookup_type = create_lookup_function('types', (XsdSimpleType, XsdComplexType))
+    lookup_attribute = create_lookup_function('attributes', XsdAttribute)
+    lookup_attribute_group = create_lookup_function('attribute_groups', XsdAttributeGroup)
+    lookup_group = create_lookup_function('groups', XsdGroup)
+    lookup_notation = create_lookup_function('notations', XsdNotation)
+    lookup_element = create_lookup_function('elements', XsdElement)
+    lookup_base_element = create_lookup_function('base_elements', XsdElement)
 
     def iter_schemas(self):
         """Creates an iterator for the schemas registered in the instance."""

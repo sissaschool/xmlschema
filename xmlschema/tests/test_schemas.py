@@ -19,7 +19,7 @@ import glob
 
 def create_schema_tests(pathname):
     import xmlschema
-    from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError
+    from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError
 
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
@@ -29,7 +29,7 @@ def create_schema_tests(pathname):
 
             try:
                 xs = xmlschema.XMLSchema(xsd_file)
-            except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaLookupError) as err:
+            except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
             else:

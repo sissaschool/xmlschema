@@ -23,7 +23,7 @@ from ..qnames import (
 )
 from ..xsdbase import (
     check_type, get_xsd_attribute, get_xsd_bool_attribute,
-    xsd_lookup, XsdComponent, check_value, ParticleMixin
+    XsdComponent, check_value, ParticleMixin
 )
 from .. import xpath
 
@@ -124,16 +124,14 @@ class XsdElement(XsdComponent, ParticleMixin):
         attribute_prefix = kwargs.get('attribute_prefix', '@')
 
         result_dict = dict_class()
-        if elem.attrib:
-            for result in self.attributes.iter_decode(elem, validate, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    if result.elem is None:
-                        result.schema_elem = self.elem
-                        result.elem = elem
-                    yield result
-                else:
-                    result_dict.update([(u'%s%s' % (attribute_prefix, k), v) for k, v in result])
-                    break
+        for result in self.attributes.iter_decode(elem, validate, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
+                if result.elem is None:
+                    result.elem, result.schema_elem = elem, self.elem
+                yield result
+            else:
+                result_dict.update([(u'%s%s' % (attribute_prefix, k), v) for k, v in result])
+                break
 
         result = None
         if len(elem):
@@ -346,7 +344,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
-                xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
+                xsd_element = self.schema.maps.lookup_base_element(qname)
             except LookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
@@ -363,7 +361,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             return
 
         try:
-            xsd_element = xsd_lookup(qname, self.schema.maps.elements)
+            xsd_element = self.schema.maps.lookup_element(qname)
         except LookupError:
             return
         else:
