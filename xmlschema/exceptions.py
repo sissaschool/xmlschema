@@ -117,7 +117,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
     """Raised when the XML data is not validated with the XSD component or schema."""
     message = None
 
-    def __init__(self, validator, obj, reason=None):
+    def __init__(self, validator, obj=None, reason=None):
         self.validator = validator
         self.obj = obj
         self.reason = reason

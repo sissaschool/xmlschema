@@ -86,13 +86,13 @@ _COLLECTION_DICT = {
 _DATA_DICT = {
     '@xsi:schemaLocation': 'http://example.com/decoder  ./decoder.xsd',
     'certification': [
-        {'#text': 'ISO-9001', '@Year': 1999},
-        {'#text': 'ISO-27001', '@Year': 2009}
+        {'$': 'ISO-9001', '@Year': 1999},
+        {'$': 'ISO-27001', '@Year': 2009}
     ],
     'decimal_value': [decimal.Decimal('1')],
     u'menù': u'baccalà mantecato',
     u'complex_boolean': [
-        {'#text': True, '@Type': 2}, {'#text': False, '@Type': 1}, True, False
+        {'$': True, '@Type': 2}, {'$': False, '@Type': 1}, True, False
     ],
     u'simple_boolean': [True, False]
 }

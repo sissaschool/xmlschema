@@ -179,8 +179,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             result = self.to_python(_text)
         except ValueError:
             yield XMLSchemaDecodeError(self, text, self.to_python)
-            if not kwargs.get('skip_errors'):
-                yield unicode_type(text)
+            yield unicode_type(text) if not kwargs.get('skip_errors') else None
             return
 
         if validate:
@@ -199,8 +198,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                     raise ValueError()
         except ValueError:
             yield XMLSchemaEncodeError(self, obj, self.from_python)
-            if not kwargs.get('skip_errors'):
-                yield unicode_type(obj)
+            yield unicode_type(obj) if not kwargs.get('skip_errors') else None
             return
 
         if validate:
@@ -255,6 +253,8 @@ class XsdList(XsdSimpleType):
                     yield result
                     if not kwargs.get('skip_errors'):
                         items.append(unicode_type(chunk))
+                    else:
+                        items.append(None)
                 else:
                     items.append(result)
 
@@ -279,6 +279,8 @@ class XsdList(XsdSimpleType):
                     yield result
                     if not kwargs.get('skip_errors'):
                         encoded_items.append(unicode_type(item))
+                    else:
+                        items.append(None)
                 else:
                     encoded_items.append(result)
         yield u' '.join(encoded_items)
@@ -334,8 +336,7 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaDecodeError(
             self, text, self.member_types, reason="no type suitable for decoding the text."
         )
-        if not kwargs.get('skip_errors'):
-            yield unicode_type(text)
+        yield unicode_type(text) if not kwargs.get('skip_errors') else None
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for member_type in self.member_types:
@@ -350,8 +351,7 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaEncodeError(
             self, obj, self.member_types, reason="no type suitable for encoding the object."
         )
-        if not kwargs.get('skip_errors'):
-            yield unicode_type(obj)
+        yield unicode_type(obj) if not kwargs.get('skip_errors') else None
 
 
 class XsdAtomicRestriction(XsdAtomic):
@@ -379,8 +379,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_decode(text, validate, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
-                if not kwargs.get('skip_errors'):
-                    yield unicode_type(text)
+                yield unicode_type(text) if not kwargs.get('skip_errors') else None
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result
@@ -396,8 +395,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_encode(obj, validate):
             if isinstance(result, XMLSchemaEncodeError):
                 yield result
-                if not kwargs.get('skip_errors'):
-                    yield unicode_type(obj)
+                yield unicode_type(obj) if not kwargs.get('skip_errors') else None
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result

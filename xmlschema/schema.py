@@ -300,7 +300,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
         def iter_decode(self, xml_document, path=None, validate=True, namespaces=None,
                         use_defaults=True, skip_errors=False, dict_class=dict, force_list=True,
-                        text_key='#text', attribute_prefix='@', **kwargs):
+                        text_key='$', attribute_prefix='@', **kwargs):
             xml_root = load_xml_resource(xml_document)
             if path is None:
                 xsd_element = self.find(xml_root.tag, namespaces=namespaces)

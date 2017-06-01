@@ -13,7 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from collections import MutableSequence
 
-from ..core import unicode_type, etree_tostring
+from ..core import unicode_type
 from ..exceptions import (
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaParseError
 )
@@ -118,70 +118,32 @@ class XsdElement(XsdComponent, ParticleMixin):
         return self._attrib.get('substitutionGroup')
 
     def iter_decode(self, elem, validate=True, **kwargs):
-        dict_class = kwargs.get('dict_class', dict)
         use_defaults = kwargs.get('use_defaults', False)
-        text_key = kwargs.get('text_key', '#text')
-        attribute_prefix = kwargs.get('attribute_prefix', '@')
-
-        result_dict = dict_class()
-        for result in self.attributes.iter_decode(elem, validate, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                if result.elem is None:
+        if isinstance(self.type, XsdComplexType):
+            if use_defaults and self.type.is_simple():
+                kwargs['default'] = self.default
+            for result in self.type.iter_decode(elem, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError) and result.elem is None:
                     result.elem, result.schema_elem = elem, self.elem
                 yield result
-            else:
-                result_dict.update([(u'%s%s' % (attribute_prefix, k), v) for k, v in result])
-                break
-
-        result = None
-        if len(elem):
-            for result in self.type.iter_decode(elem, validate, result_dict=result_dict, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    if result.elem is None:
-                        result.schema_elem = self.elem
-                        result.elem = elem
-                    yield result
-                else:
-                    result = None
-                    break
-            else:
-                if not kwargs.get('skip_errors'):
-                    # The subelements are not decodable then transform them to a string.
-                    result = '\n'.join([etree_tostring(child) for child in elem]) or None
-                else:
-                    result = None
-
-        elif elem.text is not None:
-            if use_defaults:
-                text = elem.text or self.default
-            else:
-                text = elem.text
-
-            if not self.type.is_simple():
-                result = unicode_type(text)
-            else:
-                for result in self.type.iter_decode(text, validate, result_dict=result_dict, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        if result.elem is None:
-                            result.schema_elem = self.elem
-                            result.elem = elem
-                        yield result
-                    else:
-                        break
-                else:
-                    if not kwargs.get('skip_errors'):
-                        result = unicode_type(text)
-                    else:
-                        result = None
-
-        if result_dict:
-            if result or result is False:
-                result_dict[text_key] = result
-            yield result_dict
-        elif result or result is False:
-            yield result
         else:
-            yield None
+            if elem.attrib:
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple type element can't has attributes."
+                )
+            if len(elem):
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple type element can't has child elements."
+                )
+
+            if elem.text is None:
+                yield None
+            else:
+                text = elem.text or self.default if use_defaults else elem.text
+                for result in self.type.iter_decode(text, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError) and result.elem is None:
+                        result.elem, result.schema_elem = elem, self.elem
+                    yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.type.iter_encode(obj, validate, **kwargs):
@@ -456,9 +418,46 @@ class XsdComplexType(XsdComponent):
     def has_extension(self):
         return self.derivation is True
 
-    def iter_decode(self, obj, validate=True, **kwargs):
-        for result in self.content_type.iter_decode(obj, validate, **kwargs):
-            yield result
+    def iter_decode(self, elem, validate=True, **kwargs):
+        # Decode attributes
+        for result in self.attributes.iter_decode(elem, validate, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
+                if result.elem is None:
+                    result.elem, result.schema_elem = elem, self.elem
+                yield result
+            else:
+                result_dict = result
+                break
+        else:
+            # Should be never executed with the default implementation
+            result_dict = kwargs.get('dict_class', dict)()
+
+        if self.is_simple():
+            # Decode a simple content element
+            if len(elem):
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple content element can't has child elements."
+                )
+            if elem.text is not None:
+                text = elem.text or kwargs.pop('default', '')
+                for result in self.content_type.iter_decode(text, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        if result.elem is None:
+                            result.elem, result.schema_elem = elem, self.elem
+                        yield result
+                    else:
+                        if result_dict:
+                            if result is not None and result != '':
+                                result_dict[kwargs.get('text_key', '$')] = result
+                            yield result_dict
+                        else:
+                            yield result if result != '' else None
+        else:
+            # Decode a complex content element
+            for result in self.content_type.iter_decode(elem, validate, result_dict=result_dict, **kwargs):
+                if isinstance(result, XMLSchemaValidationError) and result.elem is None:
+                    result.elem, result.schema_elem = elem, self.elem
+                yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.content_type.iter_encode(obj, validate, **kwargs):
@@ -590,21 +589,14 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         def not_whitespace(s):
             return s is not None and s.strip()
 
-        # Validate character data between tags
-        if validate and not self.mixed:
-            if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
-                if len(self) == 1 and isinstance(self[0], XsdAnyElement):
-                    pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
-                else:
-                    yield XMLSchemaValidationError(
-                        self, elem, "character data between child elements not allowed!"
-                    )
-
-        # Decode elements
         dict_class = kwargs.get('dict_class', dict)
         force_list = kwargs.get('force_list', True)
+        skip_errors = kwargs.get('skip_errors', False)
         namespaces = kwargs.get('namespaces')
+        text_key = kwargs.get('text_key', '$')
         result_dict = kwargs.pop('result_dict', dict_class())
+
+        # Decode child elements
         for obj in self.iter_model(elem):
             if isinstance(obj, XMLSchemaValidationError):
                 if validate:
@@ -631,7 +623,46 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                     except AttributeError:
                         result_dict[key] = [result_dict[key], result]
 
-        yield result_dict
+        # Decode text parts and yield result
+        try:
+            text = unicode_type(elem.text.strip())
+        except AttributeError:
+            text = None
+
+        if len(elem):
+            cdata_allowed = True
+            if validate and not self.mixed:
+                # Validate character data between tags
+                if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
+                    if len(self) == 1 and isinstance(self[0], XsdAnyElement):
+                        pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
+                    else:
+                        cdata_allowed = False
+                        yield XMLSchemaValidationError(
+                            self, elem, "character data between child elements not allowed!"
+                        )
+
+            if cdata_allowed or not cdata_allowed and not skip_errors:
+                i = 1
+                if text:
+                    result_dict['%s%i' % (text_key, i)] = text
+                    i += 1
+                for child in elem:
+                    try:
+                        tail = unicode_type(child.tail.strip())
+                    except AttributeError:
+                        continue
+                    else:
+                        if tail:
+                            result_dict['%s%d' % (text_key, i)] = tail
+                            i += 1
+            yield result_dict or None
+        elif result_dict:
+            if text:
+                result_dict[text_key] = text
+            yield result_dict
+        else:
+            yield text
 
     def iter_model(self, elem, index=0):
         if not len(self):
