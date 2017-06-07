@@ -119,6 +119,7 @@ etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
 etree_iselement = ElementTree.iselement
+etree_register_namespace = ElementTree.register_namespace
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
@@ -148,32 +149,40 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     return xml_text.replace('\t', ' ' * spaces_for_tab) if spaces_for_tab else xml_text
 
 
-def etree_get_namespaces(source):
+def etree_get_namespaces(source, namespaces=None):
     """
-    Extracts namespaces with related prefixes from schema source, 
-    if it cant's get namespaces returns an empty dictionary.
+    Extracts namespaces with related prefixes from the XML source.
+    The extracted namespaces are merged with the ones passed with
+    the optional argument 'namespaces' and returned.
     
     :param source: A string containing the XML document or a file path 
-    or a file like object or an etree Element. 
+    or a file like object or an etree Element.
+    :param namespaces: An optional dictionary with a map from prefixes to full URI.
     :return: A dictionary for mapping namespace prefixes to full URI.
     """
     try:
         try:
-            return dict([
+            xml_namespaces = dict([
                 node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))
             ])
         except ElementTree.ParseError:
-            return dict([
+            xml_namespaces = dict([
                 node for _, node in etree_iterparse(source, events=('start-ns',))
             ])
     except TypeError:
         try:
             if hasattr(source, 'getroot'):
-                return dict(source.getroot().nsmap)
+                xml_namespaces = dict(source.getroot().nsmap)
             else:
-                return dict(source.nsmap)
+                xml_namespaces = dict(source.nsmap)
         except (AttributeError, TypeError):
-            return {}
+            xml_namespaces = {}
+
+    if namespaces:
+        uris = set(namespaces.values())
+        namespaces.update({k: v for k, v in xml_namespaces.items() if v not in uris})
+        return namespaces
+    return xml_namespaces
 
 
 def etree_iterpath(elem, tag=None, path='.'):

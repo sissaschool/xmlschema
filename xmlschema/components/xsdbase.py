@@ -9,41 +9,24 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for manipulating fully qualified names and XSD qname constants.
+This module contains base functions and classes XML Schema components.
 """
 import re
 
-from .core import PY3
-from .qnames import *
-from .exceptions import (
+from ..core import PY3
+from ..qnames import *
+from ..exceptions import (
     XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaParseError,
     XMLSchemaAttributeError, XMLSchemaValidationError,
     XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from .utils import FrozenDict
-
-
-def get_xsi_schema_location(elem):
-    """Retrieve the attribute xsi:schemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
-
-
-def get_xsi_no_namespace_schema_location(elem):
-    """Retrieve the attribute xsi:noNamespaceSchemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).attrib.get(XSI_NONS_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
-
+from ..utils import FrozenDict
 
 #
 # Check functions for XSD schema factories and components.
 def check_tag(elem, *tags):
     if elem.tag not in tags:
-        tags = (split_qname(tag)[1] for tag in tags)
+        tags = (local_name(tag) for tag in tags)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
 
 
@@ -454,3 +437,6 @@ class ParticleMixin(object):
 
     def is_emptiable(self):
         return self.min_occurs == 0
+
+    def is_single(self):
+        return self.max_occurs == 1

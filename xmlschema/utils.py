@@ -20,20 +20,6 @@ except ImportError:
     # noinspection PyCompatibility
     from urlparse import urlsplit
 
-_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
-_RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
-
-
-def split_path(path):
-    return _RE_SPLIT_PATH.split(path)
-
-
-def get_namespace(name):
-    try:
-        return _RE_MATCH_NAMESPACE.match(name).group(1)
-    except (AttributeError, TypeError):
-        return ''
-
 
 def dump_args(func):
     arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
@@ -45,6 +31,16 @@ def dump_args(func):
         ))
         return func(*args, **kwargs)
     return dump_func
+
+
+_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
+
+
+def get_namespace(name):
+    try:
+        return _RE_MATCH_NAMESPACE.match(name).group(1)
+    except (AttributeError, TypeError):
+        return ''
 
 
 def camel_case_split(s):
@@ -138,3 +134,86 @@ class FrozenDict(Mapping):
 
     def copy(self, **kwargs):
         return self.__class__(self, **kwargs)
+
+
+class NamespaceMapper(MutableMapping):
+    """
+    A class to map/unmap XML namespace URIs to prefixes. An instance
+    memorize the used prefixes.
+
+    :param namespaces: The reference dictionary for namespace prefix to URI mapping.
+    """
+    def __init__(self, namespaces=None):
+        self._xmlns = {}
+        self.namespaces = namespaces if namespaces is not None else {}
+
+    def __getitem__(self, key):
+        return self._xmlns[key]
+
+    def __setitem__(self, key, value):
+        self._xmlns[key] = value
+
+    def __delitem__(self, key):
+        del self._xmlns[key]
+
+    def __iter__(self):
+        return iter(self._xmlns)
+
+    def __len__(self):
+        return len(self._xmlns)
+
+    def clear(self):
+        self._xmlns.clear()
+
+    def map_qname(self, qname):
+        try:
+            if qname[0] != '{' or not self.namespaces:
+                return qname
+        except IndexError:
+            return qname
+
+        qname_uri = get_namespace(qname)
+        for prefix, uri in self.namespaces.items():
+            if uri != qname_uri:
+                continue
+            if prefix:
+                self._xmlns[prefix] = uri
+                return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
+            else:
+                if uri:
+                    self._xmlns[prefix] = uri
+                return qname.replace(u'{%s}' % uri, '')
+        else:
+            return qname
+
+    def unmap_qname(self, qname):
+        try:
+            if qname[0] == '{' or not self.namespaces:
+                return qname
+        except IndexError:
+            return qname
+
+        try:
+            prefix, name = qname.split(':', 1)
+        except ValueError:
+            return qname
+        else:
+            try:
+                uri = self.namespaces[prefix]
+            except KeyError:
+                return qname
+            else:
+                self._xmlns[prefix] = uri
+                return u'{%s}%s' % (uri, name)
+
+    def transfer(self, other):
+        transferred = []
+        for k, v in other.items():
+            if k in self:
+                if v != self[k]:
+                    continue
+            else:
+                self[k] = v
+            transferred.append(k)
+        for k in transferred:
+            del other[k]

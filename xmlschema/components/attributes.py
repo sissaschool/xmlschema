@@ -14,10 +14,10 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections import MutableMapping
 
 from ..core import XSI_NAMESPACE_PATH
-from ..qnames import split_reference, get_qname, qname_to_prefixed
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from ..xsdbase import check_type, get_xsd_attribute, XsdComponent
-
+from ..qnames import get_qname
+from ..utils import get_namespace
+from .xsdbase import check_type, get_xsd_attribute, XsdComponent
 from .datatypes import XsdSimpleType
 
 
@@ -154,10 +154,10 @@ class XsdAnyAttribute(XsdComponent):
             return
 
         for name, value in get_attributes(obj).items():
-            qname, namespace = split_reference(name, namespaces=self.namespaces)
+            namespace = get_namespace(name)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
-                    xsd_attribute = self.schema.maps.lookup_attribute(qname)
+                    xsd_attribute = self.schema.maps.lookup_attribute(name)
                 except LookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
@@ -241,13 +241,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             }
 
     def iter_decode(self, obj, validate=True, **kwargs):
-        namespaces = kwargs.get('namespaces')
-        attribute_prefix = kwargs.get('attribute_prefix', '@')
-        result_dict = kwargs.get('dict_class', dict)()
-
-        if attribute_prefix is None:
-            yield result_dict
-            return
+        result_list = []
 
         required_attributes = self.required.copy()
         attributes = get_attributes(obj)
@@ -256,7 +250,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             try:
                 xsd_attribute = self[qname]
             except KeyError:
-                qname, namespace = split_reference(name, self.namespaces)
+                namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
                         xsd_attribute = self.schema.maps.lookup_attribute(qname)
@@ -281,13 +275,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    if name[0] == '{' and namespaces:
-                        name = qname_to_prefixed(name, namespaces)
-                    result_dict[u'%s%s' % (attribute_prefix, name)] = result
+                    result_list.append((name, result))
                     break
 
         if required_attributes:
             yield XMLSchemaValidationError(
                 self, attributes, "missing required attributes %r" % required_attributes,
             )
-        yield result_dict
+        yield result_list

@@ -14,11 +14,13 @@ from .exceptions import (
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
     XMLSchemaRegexError
 )
-from .resources import open_resource, load_xml_resource
-from .xsdbase import get_xsi_schema_location
+from .resources import open_resource, load_xml_resource, fetch_schema
 from .schema import XsdGlobals, XMLSchema
+from .converters import (
+    XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
+)
 
-__version__ = '0.9.8'
+__version__ = '0.9.9'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2017, SISSA"
@@ -28,23 +30,15 @@ __status__ = "Production/Stable"
 set_logger(__name__)
 
 
-def validate(xml_document, schema=None, cls=None, use_defaults=True):
-    if cls is None:
-        cls = XMLSchema
-    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
+def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True):
     if schema is None:
-        namespace, location = get_xsi_schema_location(xml_root).split()
-        schema_resource, schema = open_resource(location, xml_uri)
-        schema_resource.close()
-    cls(schema, check_schema=True).validate(xml_root, use_defaults)
+        schema = fetch_schema(xml_document)
+    cls(schema, check_schema=True).validate(xml_document, use_defaults)
 
 
-def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True, **kwargs):
-    if cls is None:
-        cls = XMLSchema
-    xml_root, xml_text, xml_uri = load_xml_resource(xml_document, element_only=False)
+def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True, **kwargs):
     if schema is None:
-        namespace, location = get_xsi_schema_location(xml_root).split()
-        schema_resource, schema = open_resource(location, xml_uri)
-        schema_resource.close()
-    return cls(schema, check_schema=True).to_dict(xml_root, path, process_namespaces, **kwargs)
+        schema = fetch_schema(xml_document)
+    return cls(schema, check_schema=True).to_dict(
+        xml_document, path=path, process_namespaces=process_namespaces, **kwargs
+    )

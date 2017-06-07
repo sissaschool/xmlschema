@@ -11,13 +11,14 @@
 """
 This module contains classes for XML Schema simple data types.
 """
+from decimal import Decimal
+
 from ..core import unicode_type
 from ..exceptions import (
     XMLSchemaTypeError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
 )
 from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
-from ..xsdbase import check_type, check_value, XsdComponent
-
+from .xsdbase import check_type, check_value, XsdComponent
 from .facets import XSD11_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
 
 
@@ -186,6 +187,12 @@ class XsdAtomicBuiltin(XsdAtomic):
             for validator in self.validators:
                 for error in validator(result):
                     yield error
+
+        if isinstance(result, Decimal):
+            try:
+                result = kwargs.get('decimal_type')(result)
+            except TypeError:
+                pass
         yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):

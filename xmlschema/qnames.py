@@ -9,10 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains declarations and classes for XML Schema definition tags.
+This module contains functions for manipulating fully qualified names and XML Schema tags.
 """
 from .core import XML_NAMESPACE_PATH, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
-from .exceptions import XMLSchemaTypeError,     XMLSchemaValueError
+from .utils import get_namespace
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
 
 #
@@ -97,12 +98,36 @@ def qname_to_prefixed(qname, namespaces):
     :param namespaces: Dictionary with the map from prefixes to namespace URIs.
     :return: String with a prefixed or local reference.
     """
+    qname_uri = get_namespace(qname)
     for prefix, uri in namespaces.items():
+        if uri != qname_uri:
+            continue
         if prefix:
-            qname = qname.replace(u'{%s}' % uri, u'%s:' % prefix)
+            return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
         else:
-            qname = qname.replace(u'{%s}' % uri, '')
+            return qname.replace(u'{%s}' % uri, '')
     return qname
+
+
+def split_to_prefixed(qname, namespaces):
+    """
+    Transforms a fully qualified name into a prefixed reference using
+    a namespace map. Returns also the qname's URI and matched prefix.
+
+    :param qname: a fully qualified name or a local name.
+    :param namespaces: Dictionary with the map from prefixes to namespace URIs.
+    :return: A prefixed FQN or local reference, a prefix and an URI. Prefix and URI
+    are None if the namespace isn't in the `namespaces` map.
+    """
+    qname_uri = get_namespace(qname)
+    for prefix, uri in namespaces.items():
+        if uri != qname_uri:
+            continue
+        if prefix:
+            return qname.replace(u'{%s}' % uri, u'%s:' % prefix), prefix, uri
+        else:
+            return qname.replace(u'{%s}' % uri, ''), prefix, uri
+    return qname, None, None
 
 
 def split_qname(qname):
@@ -110,7 +135,7 @@ def split_qname(qname):
     Splits a universal name format (QName) into namespace URI and local part.
 
     :param qname: QName or universal name formatted string.
-    :return: A couple with namespace URI and local part. Namespace URI is None \
+    :return: A couple with namespace URI and the local part. Namespace URI is None \
     if there is only the local part.
     """
     if qname[0] == '{':
@@ -152,6 +177,7 @@ def split_reference(ref, namespaces):
             raise XMLSchemaValueError("unknown namespace prefix %s for reference %r" % (err, ref))
         else:
             return u"{%s}%s" % (uri, name) if uri else name, uri
+
 
 #
 # XML Schema fully qualified names

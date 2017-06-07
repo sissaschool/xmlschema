@@ -19,8 +19,7 @@ from decimal import Decimal
 
 from .core import long_type, unicode_type, etree_element, etree_iselement
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
-from .qnames import XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG
-from .xsdbase import xsd_qname, XSD_GROUP_TAG
+from .qnames import xsd_qname, XSD_GROUP_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet,
     XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS,

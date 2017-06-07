@@ -16,16 +16,13 @@ import logging as _logging
 from .core import etree_iselement
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .qnames import *
-from .xsdbase import (
-    check_tag, get_xsd_attribute, get_xsd_component, iter_xsd_declarations, XsdComponent
-)
-from .components import (
-    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
-    XsdAnyElement, XsdAttribute, XsdAnyAttribute, XsdAttributeGroup,
-    XsdGroup, XsdNotation, XsdComplexType, XsdSimpleType, XsdAtomicBuiltin,
-    XsdAtomicRestriction, XsdList, XsdUnion
-)
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
+from .components import (
+    check_tag, get_xsd_attribute, get_xsd_component, iter_xsd_declarations,
+    XsdComponent, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
+    XsdAnyElement, XsdAttribute, XsdAnyAttribute, XsdAttributeGroup, XsdGroup, XsdNotation,
+    XsdComplexType, XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+)
 
 _logger = _logging.getLogger(__name__)
 
@@ -225,7 +222,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
         elif child.tag not in facets:
             facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
         else:
-            raise XMLSchemaParseError("multiple %r constraint facet" % split_qname(child.tag)[1], elem)
+            raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
 
     if base_type is None:
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)
@@ -489,9 +486,9 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
         base_qname, namespace = split_reference(content_base, schema.namespaces)
         base_type = schema.maps.lookup_type(base_qname)
 
-        if parse_local_groups and not content_type.parsed:
+        if parse_local_groups and not content_type:
             if base_type != instance and isinstance(base_type.content_type, XsdGroup):
-                if not base_type.content_type.parsed:
+                if not base_type.content_type:
                     complex_type_factory(
                         base_type.elem, base_type.schema, instance=base_type, **kwargs
                     )
@@ -711,7 +708,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
         instance.mixed = mixed
         xsd_group = instance
 
-    if not xsd_group.parsed or is_global:
+    if not xsd_group or is_global:
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 _, xsd_element = element_factory(child, schema, **kwargs)
@@ -724,7 +721,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
                 xsd_group.append(
                     group_factory(child, schema, mixed=mixed, **kwargs)[1]
                 )
-        xsd_group.parsed = True
+        xsd_group.elements = [e for e in xsd_group.iter_elements()]
     return group_name, xsd_group
 
 

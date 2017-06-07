@@ -15,8 +15,16 @@ import re
 from decimal import Decimal
 from collections import MutableSequence
 from abc import ABCMeta
+
 from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError
 from .qnames import reference_to_qname
+
+
+_RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
+
+
+def split_path(path):
+    return _RE_SPLIT_PATH.split(path)
 
 
 #

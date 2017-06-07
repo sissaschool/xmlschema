@@ -14,19 +14,12 @@ XSD declarations/definitions.
 """
 import logging as _logging
 
+from .exceptions import XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
 from .qnames import *
-from .exceptions import (
-    XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
-)
-from .utils import get_namespace, camel_case_split, URIDict
-from .qnames import (
-    local_name, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG,
-    XSD_SIMPLE_TYPE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_GROUP_TAG
-)
-from .xsdbase import get_xsd_attribute, XsdComponent
+from .utils import camel_case_split, get_namespace, URIDict
 from .components import (
-    XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement,
-    XsdAttributeGroup, XsdGroup, XsdNotation
+    get_xsd_attribute, XsdComponent, XsdAttribute, XsdSimpleType,
+    XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
 
 _logger = _logging.getLogger(__name__)
@@ -50,7 +43,7 @@ def create_iterfind_by_tag(tag):
             for elem in elements.iterfind(path or tag, namespaces or {}):
                 if elem.tag == tag:
                     yield elem
-    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(split_qname(tag)[1])).lower()
+    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower()
 
     return iterfind_function
 
