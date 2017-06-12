@@ -16,10 +16,10 @@ from collections import MutableSequence
 
 from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from ..qnames import *
-from ..xsdbase import (
+from ..regex import get_python_regex
+from .xsdbase import (
     XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 )
-from ..regex import get_python_regex
 
 XSD_FACETS = {
     XSD_LENGTH_TAG,
@@ -98,7 +98,7 @@ class XsdUniqueFacet(XsdFacet):
 
     def __init__(self, base_type, elem=None, schema=None):
         super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
-        self.name = '%s(value=%r)' % (split_qname(elem.tag)[1], elem.attrib['value'])
+        self.name = '%s(value=%r)' % (local_name(elem.tag), elem.attrib['value'])
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
 
         # TODO: Add checks with base_type's constraints.
@@ -233,17 +233,21 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema=None):
         XsdFacet.__init__(self, base_type, schema=schema)
-        self.name = '{}(values=%r)'.format(split_qname(elem.tag)[1])
-        self._elements = [elem]
-        self.enumeration = [base_type.decode(get_xsd_attribute(elem, 'value'))]
+        self.name = '{}(values=%r)'.format(local_name(elem.tag))
+        self._elements = []
+        self.enumeration = []
+        self.append(elem)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
         return self._elements[i]
 
     def __setitem__(self, i, item):
+        value = self.base_type.decode(get_xsd_attribute(item, 'value'))
+        if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
+            raise XMLSchemaParseError("value must match a notation global declaration.", item)
         self._elements[i] = item
-        self.enumeration[i] = self.base_type.decode(get_xsd_attribute(item, 'value'))
+        self.enumeration[i] = value
 
     def __delitem__(self, i):
         del self._elements[i]
@@ -254,7 +258,10 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def insert(self, i, item):
         self._elements.insert(i, item)
-        self.enumeration.insert(i, self.base_type.decode(get_xsd_attribute(item, 'value')))
+        value = self.base_type.decode(get_xsd_attribute(item, 'value'))
+        if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
+            raise XMLSchemaParseError("value must match a notation global declaration.", item)
+        self.enumeration.insert(i, value)
 
     def __repr__(self):
         if len(self.enumeration) > 5:
@@ -274,7 +281,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema=None):
         XsdFacet.__init__(self, base_type, schema=schema)
-        self.name = '{}(patterns=%r)'.format(split_qname(elem.tag)[1])
+        self.name = '{}(patterns=%r)'.format(local_name(elem.tag))
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
         regex = get_python_regex(value)
@@ -325,7 +332,7 @@ def check_facets_group(facets, admitted_facets, elem=None):
     """
     # Checks the applicability of the facets
     if not admitted_facets.issuperset(set(facets.keys())):
-        admitted_facets = {split_qname(e)[1] for e in admitted_facets if e}
+        admitted_facets = {local_name(e) for e in admitted_facets if e}
         msg = "one or more facets are not applicable, admitted set is %r:"
         raise XMLSchemaParseError(msg % admitted_facets, elem)
 

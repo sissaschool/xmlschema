@@ -16,17 +16,13 @@ import logging as _logging
 from .core import etree_iselement
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .qnames import *
-from .xsdbase import (
-    check_tag, get_xsd_attribute, get_xsd_component,
-    iter_xsd_declarations, xsd_lookup, XsdComponent
-)
-from .components import (
-    XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
-    XsdAnyElement, XsdAttribute, XsdAnyAttribute, XsdAttributeGroup,
-    XsdGroup, XsdNotation, XsdComplexType, XsdSimpleType, XsdAtomicBuiltin,
-    XsdAtomicRestriction, XsdList, XsdUnion
-)
 from .builtins import ANY_TYPE, ANY_SIMPLE_TYPE
+from .components import (
+    check_tag, get_xsd_attribute, get_xsd_component, iter_xsd_declarations,
+    XsdComponent, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet, XsdElement,
+    XsdAnyElement, XsdAttribute, XsdAnyAttribute, XsdAttributeGroup, XsdGroup, XsdNotation,
+    XsdComplexType, XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+)
 
 _logger = _logging.getLogger(__name__)
 
@@ -180,7 +176,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
     if 'base' in elem.attrib:
         base_qname, namespace = split_reference(elem.attrib['base'], schema.namespaces)
         if base_type is None:
-            base_type = xsd_lookup(base_qname, schema.maps.types)
+            base_type = schema.maps.lookup_type(base_qname)
         if isinstance(base_type, XsdComplexType) and base_type.admit_simple_restriction():
             if get_xsd_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                 # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
@@ -226,7 +222,7 @@ def xsd_restriction_factory(elem, schema, instance=None, **kwargs):
         elif child.tag not in facets:
             facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
         else:
-            raise XMLSchemaParseError("multiple %r constraint facet" % split_qname(child.tag)[1], elem)
+            raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
 
     if base_type is None:
         raise XMLSchemaParseError("missing base type in simpleType declaration", elem)
@@ -264,7 +260,7 @@ def xsd_list_factory(elem, schema, instance=None, **kwargs):
         # List tag with itemType attribute that refers to a global type
         item_qname, namespace = split_reference(elem.attrib['itemType'], schema.namespaces)
         if item_type is None:
-            item_type = xsd_lookup(item_qname, schema.maps.types)
+            item_type = schema.maps.lookup_type(item_qname)
     else:
         raise XMLSchemaParseError("missing list type declaration", elem)
 
@@ -294,7 +290,7 @@ def xsd_union_factory(elem, schema, instance=None, **kwargs):
     ]
     if 'memberTypes' in elem.attrib:
         member_types.extend([
-            xsd_lookup(split_reference(_type, schema.namespaces)[0], schema.maps.types)
+            schema.maps.lookup_type(split_reference(_type, schema.namespaces)[0])
             for _type in elem.attrib['memberTypes'].split()
         ])
     if not member_types:
@@ -354,7 +350,7 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
             # Missing also the 'ref' attribute
             raise XMLSchemaParseError("missing both 'name' and 'ref' in attribute declaration", elem)
         else:
-            xsd_attribute = xsd_lookup(attribute_name, schema.maps.attributes)
+            xsd_attribute = schema.maps.lookup_attribute(attribute_name)
             return attribute_name, XsdAttribute(
                 xsd_type=xsd_attribute.type,
                 name=attribute_name,
@@ -369,7 +365,7 @@ def xsd_attribute_factory(elem, schema, instance=None, **kwargs):
     xsd_declaration = get_xsd_component(elem, required=False)
     try:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
-        xsd_type = xsd_type or xsd_lookup(type_qname, schema.maps.types)
+        xsd_type = xsd_type or schema.maps.lookup_type(type_qname)
         if xsd_type.name != type_qname:
             # must implement substitution groups before!?
             # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
@@ -488,11 +484,11 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
         # Get the base type: raise XMLSchemaLookupError if it's not defined.
         content_base = get_xsd_attribute(content_spec, 'base')
         base_qname, namespace = split_reference(content_base, schema.namespaces)
-        base_type = xsd_lookup(base_qname, schema.maps.types)
+        base_type = schema.maps.lookup_type(base_qname)
 
-        if parse_local_groups and not content_type.parsed:
+        if parse_local_groups and not content_type:
             if base_type != instance and isinstance(base_type.content_type, XsdGroup):
-                if not base_type.content_type.parsed:
+                if not base_type.content_type:
                     complex_type_factory(
                         base_type.elem, base_type.schema, instance=base_type, **kwargs
                     )
@@ -530,7 +526,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, **kwargs):
 
         content_base = get_xsd_attribute(content_spec, 'base')
         base_qname, namespace = split_reference(content_base, schema.namespaces)
-        base_type = xsd_lookup(base_qname, schema.maps.types)
+        base_type = schema.maps.lookup_type(base_qname)
 
         derivation = content_spec.tag == XSD_EXTENSION_TAG
         if content_spec.tag == XSD_RESTRICTION_TAG:
@@ -613,7 +609,7 @@ def xsd_attribute_group_factory(elem, schema, instance=None, **kwargs):
             attribute_group.update([attribute_factory(child, schema, **kwargs)])
         elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
             qname, namespace = split_reference(get_xsd_attribute(child, 'ref'), schema.namespaces)
-            ref_attribute_group = xsd_lookup(qname, schema.maps.attribute_groups)
+            ref_attribute_group = schema.maps.lookup_attribute_group(qname)
             attribute_group.update(ref_attribute_group.items())
         elif attribute_group.name is not None:
             raise XMLSchemaParseError("(attribute | attributeGroup) expected, found", child)
@@ -679,7 +675,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
         if name is None:
             if ref is not None:
                 group_name, namespace = split_reference(ref, schema.namespaces)
-                xsd_group = xsd_lookup(group_name, schema.maps.groups)
+                xsd_group = schema.maps.lookup_group(group_name)
                 return group_name, XsdGroup(
                     name=xsd_group.name,
                     elem=elem,
@@ -712,7 +708,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
         instance.mixed = mixed
         xsd_group = instance
 
-    if not xsd_group.parsed or is_global:
+    if not xsd_group or is_global:
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 _, xsd_element = element_factory(child, schema, **kwargs)
@@ -725,7 +721,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
                 xsd_group.append(
                     group_factory(child, schema, mixed=mixed, **kwargs)[1]
                 )
-        xsd_group.parsed = True
+        xsd_group.elements = [e for e in xsd_group.iter_elements()]
     return group_name, xsd_group
 
 
@@ -799,7 +795,7 @@ def xsd_element_factory(elem, schema, instance=None, is_global=False, **kwargs):
         elif 'type' in elem.attrib:
             raise XMLSchemaParseError(msg.format('type'), elem)
         ref = True
-        xsd_element = xsd_lookup(element_name, schema.maps.elements)
+        xsd_element = schema.maps.lookup_element(element_name)
         element_type = xsd_element.type
 
     if instance is not None and instance.name != element_name:
@@ -813,7 +809,7 @@ def xsd_element_factory(elem, schema, instance=None, is_global=False, **kwargs):
             raise XMLSchemaParseError("element reference declaration can't has children:", elem)
     elif 'type' in elem.attrib:
         type_qname, namespace = split_reference(elem.attrib['type'], schema.namespaces)
-        element_type = xsd_lookup(type_qname, schema.maps.types)
+        element_type = schema.maps.lookup_type(type_qname)
     else:
         child = get_xsd_component(elem, required=False, strict=False)
         if child is not None:

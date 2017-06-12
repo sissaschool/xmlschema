@@ -14,11 +14,20 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections import MutableMapping
 
 from ..core import XSI_NAMESPACE_PATH
-from ..qnames import split_reference, get_qname, qname_to_prefixed
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from ..xsdbase import check_type, get_xsd_attribute, xsd_lookup, XsdComponent
-
+from ..qnames import get_qname
+from ..utils import get_namespace
+from .xsdbase import check_type, get_xsd_attribute, XsdComponent
 from .datatypes import XsdSimpleType
+
+
+def get_attributes(obj):
+    if isinstance(obj, dict):
+        return obj
+    elif isinstance(obj, str):
+        return {(attr.split('=', maxsplit=1) for attr in obj.split(''))}
+    else:
+        return obj.attrib
 
 
 class XsdAttribute(XsdComponent):
@@ -144,18 +153,11 @@ class XsdAnyAttribute(XsdComponent):
         if self.process_contents == 'skip':
             return
 
-        if isinstance(obj, dict):
-            attributes = obj
-        elif isinstance(obj, str):
-            attributes = {(attr.split('=', maxsplit=1) for attr in obj.split(''))}
-        else:
-            attributes = obj.attrib
-
-        for name, value in attributes.items():
-            qname, namespace = split_reference(name, namespaces=self.namespaces)
+        for name, value in get_attributes(obj).items():
+            namespace = get_namespace(name)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
-                    xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
+                    xsd_attribute = self.schema.maps.lookup_attribute(name)
                 except LookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
@@ -211,9 +213,12 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
         else:
             check_type(value, XsdAttribute)
         self._attribute_group[key] = value
+        if key is not None and value.use == 'required':
+            self.required.add(key)
 
     def __delitem__(self, key):
         del self._attribute_group[key]
+        self.required.discard(key)
 
     def __iter__(self):
         return iter(self._attribute_group)
@@ -223,6 +228,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
 
     # Other methods
     def __setattr__(self, name, value):
+        super(XsdAttributeGroup, self).__setattr__(name, value)
         if name == '_attribute_group':
             check_type(value, dict)
             for k, v in value.items():
@@ -230,26 +236,27 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     check_type(v, XsdAnyAttribute)
                 else:
                     check_type(v, XsdAttribute)
-        super(XsdAttributeGroup, self).__setattr__(name, value)
+            self.required = {
+                k for k, v in self.items() if k is not None and v.use == 'required'
+            }
 
-    def iter_decode(self, elem, validate=True, **kwargs):
-        namespaces = kwargs.get('namespaces')
+    def iter_decode(self, obj, validate=True, **kwargs):
         result_list = []
-        required_attributes = {
-            k for k, v in self.items() if k is not None and v.use == 'required'
-        }
-        for name, value in elem.items():
+
+        required_attributes = self.required.copy()
+        attributes = get_attributes(obj)
+        for name, value in attributes.items():
             qname = get_qname(self.target_namespace, name)
             try:
                 xsd_attribute = self[qname]
             except KeyError:
-                qname, namespace = split_reference(name, self.namespaces)
+                namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = xsd_lookup(qname, self.schema.maps.attributes)
+                        xsd_attribute = self.schema.maps.lookup_attribute(qname)
                     except LookupError:
                         yield XMLSchemaValidationError(
-                            self, elem, "% is not an attribute of the XSI namespace." % name
+                            self, attributes, "% is not an attribute of the XSI namespace." % name
                         )
                         continue
                 else:
@@ -258,7 +265,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                         value = {qname: value}
                     except KeyError:
                         yield XMLSchemaValidationError(
-                            self, elem, "%r attribute not allowed for this element" % name
+                            self, attributes, "%r attribute not allowed for element." % name
                         )
                         continue
             else:
@@ -268,14 +275,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    if name[0] == '{' and namespaces:
-                        result_list.append((qname_to_prefixed(name, namespaces), result))
-                    else:
-                        result_list.append((name, result))
+                    result_list.append((name, result))
                     break
 
         if required_attributes:
             yield XMLSchemaValidationError(
-                self, elem, "missing required attributes %r" % required_attributes,
+                self, attributes, "missing required attributes %r" % required_attributes,
             )
         yield result_list

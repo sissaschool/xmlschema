@@ -23,8 +23,6 @@ except ImportError:
 
 
 def create_validation_tests(pathname):
-    from xmlschema.resources import load_xml_resource
-    from xmlschema.qnames import XSI_SCHEMA_LOCATION
 
     def make_test_validation_function(xml_file, schema, expected_errors):
         def test_validation(self):
@@ -71,15 +69,7 @@ def create_validation_tests(pathname):
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
             continue
 
-        xml_root = load_xml_resource(test_file)
-        schema_locations = xml_root.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
-        for schema_location in schema_locations.strip().split():
-            schema_file = os.path.join(os.path.dirname(test_file), schema_location)
-            if os.path.isfile(schema_file):
-                break
-        else:
-            raise ValueError("Schema not found for the document!")
-
+        schema_file = xmlschema.fetch_schema(test_file)
         test_func = make_test_validation_function(test_file, schema_file, tot_errors)
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
         test_num += 1

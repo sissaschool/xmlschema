@@ -28,6 +28,24 @@ from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError,
     XMLSchemaURLError, XMLSchemaOSError
 )
+from .utils import get_namespace
+from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+
+
+def get_xsi_schema_location(elem):
+    """Retrieve the attribute xsi:schemaLocation from an XML document node."""
+    try:
+        return elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
+    except AttributeError:
+        return None
+
+
+def get_xsi_no_namespace_schema_location(elem):
+    """Retrieve the attribute xsi:noNamespaceSchemaLocation from an XML document node."""
+    try:
+        return elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).attrib.get(XSI_NONS_SCHEMA_LOCATION)
+    except AttributeError:
+        return None
 
 
 def load_xml_resource(source, element_only=True):
@@ -87,6 +105,29 @@ def load_xml_resource(source, element_only=True):
         )
     else:
         return xml_root if element_only else (xml_root, xml_data, xml_uri)
+
+
+def fetch_schema(source):
+    """
+    Fetch the schema URI from an XML resource. If no schema location is found
+    raises a ValueError.
+
+    :param source: An Element or an Element Tree with XML data or an URI or a
+    file-like object.
+    :return: An URI referring to the schema resource.
+    """
+    xml_root, xml_source, xml_uri = load_xml_resource(source, element_only=False)
+    namespace = get_namespace(xml_root.tag)
+    if namespace:
+        uri_list = get_xsi_schema_location(xml_root).split()
+        for ns, schema_location in zip(uri_list[0::2], uri_list[1::2]):
+            if ns == namespace:
+                return urljoin(xml_uri, schema_location)
+    else:
+        schema_location = get_xsi_no_namespace_schema_location(xml_root)
+        if schema_location:
+            return urljoin(xml_uri, schema_location)
+    raise XMLSchemaValueError("schema not found for the XML resource %r." % source)
 
 
 def load_resource(uri):

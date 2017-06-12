@@ -11,18 +11,21 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from ..exceptions import XMLSchemaParseError
-from ..xsdbase import XsdComponent
-
+from .xsdbase import (
+    check_tag, check_attrs, check_type, check_value, get_xsd_annotation,
+    get_xsd_component, iter_xsd_declarations, get_xsd_attribute,
+    get_xsd_bool_attribute, get_xsd_int_attribute, XsdAnnotation, XsdComponent
+)
+from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
+from .datatypes import (
+    XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+)
+from .elements import XsdElement, XsdAnyElement, XsdComplexType, XsdGroup
 from .facets import (
     XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-from .datatypes import (
-    XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
-)
-from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
-from .elements import XsdElement, XsdAnyElement, XsdComplexType, XsdGroup
+from ..exceptions import XMLSchemaParseError
 
 
 class XsdNotation(XsdComponent):

@@ -31,10 +31,6 @@ class XMLSchemaOSError(XMLSchemaException, OSError):
     pass
 
 
-class XMLSchemaLookupError(XMLSchemaException, LookupError):
-    pass
-
-
 class XMLSchemaAttributeError(XMLSchemaException, AttributeError):
     pass
 
@@ -57,6 +53,25 @@ class XMLSchemaKeyError(XMLSchemaException, KeyError):
 
 class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
+
+
+class XMLSchemaNotBuiltError(XMLSchemaException, TypeError):
+    """Raised when a not built XSD object is found."""
+
+    def __init__(self, message, obj, qname):
+        self.message = message or ''
+        self.obj = obj
+        self.qname = qname
+
+    def __str__(self):
+        # noinspection PyCompatibility
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return self.message
+
+    if PY3:
+        __str__ = __unicode__
 
 
 class XMLSchemaParseError(XMLSchemaException, ValueError):
@@ -102,7 +117,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
     """Raised when the XML data is not validated with the XSD component or schema."""
     message = None
 
-    def __init__(self, validator, obj, reason=None):
+    def __init__(self, validator, obj=None, reason=None):
         self.validator = validator
         self.obj = obj
         self.reason = reason

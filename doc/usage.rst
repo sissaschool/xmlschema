@@ -354,3 +354,124 @@ namespace information is associated within each node of the trees:
                                 {u'@make': u'Yamaha', u'@model': u'XS650'}]},
      u'vh:cars': {u'vh:car': [{u'@make': u'Porsche', u'@model': u'911'},
                               {u'@make': u'Porsche', u'@model': u'911'}]}}
+
+
+Customize the decoded data structure
+------------------------------------
+
+Starting from the version 0.9.9 the package includes converter objects, in order to
+control the decoding process and produce different data structures. Those objects
+intervene at element level to compose the decoded data (attributes and content) into
+a data structure.
+
+The default converter produces a data structure similar to the format produced by
+previous versions of the package. You can customize the conversion process providing
+a converter instance or subclass when you create a schema instance or when you want
+to decode an XML document.
+For instance, for use a Badgerfish convention converter for a schema instance:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> from pprint import pprint
+    >>> xml_schema = 'xmlschema/tests/examples/vehicles/vehicles.xsd'
+    >>> xml_document = 'xmlschema/tests/examples/vehicles/vehicles.xml'
+    >>> xs = xmlschema.XMLSchema(xml_schema, converter=xmlschema.BadgerFishConverter)
+    >>> pprint(xs.to_dict(xml_document, dict_class=dict), indent=4)
+    {   '@xmlns': {   u'vh': 'http://example.com/vehicles',
+                      u'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
+        u'vh:vehicles': {   u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+                            u'vh:bikes': {   u'vh:bike': [   {   u'@make': u'Harley-Davidson',
+                                                                 u'@model': u'WL'},
+                                                             {   u'@make': u'Yamaha',
+                                                                 u'@model': u'XS650'}]},
+                            u'vh:cars': {   u'vh:car': [   {   u'@make': u'Porsche',
+                                                               u'@model': u'911'},
+                                                           {   u'@make': u'Porsche',
+                                                               u'@model': u'911'}]}}}
+
+You can also change the data decoding process providing the keyword argument *converter*
+at method level:
+
+.. doctest::
+
+    >>> pprint(xs.to_dict(xml_document, converter=xmlschema.ParkerConverter, dict_class=dict), indent=4)
+    {   u'vh:bikes': {   u'vh:bike': [None, None]},
+        u'vh:cars': {   u'vh:car': [None, None]}}
+
+
+Decoding to JSON
+----------------
+
+The data structured created by the decoder can be easily serialized to JSON. But if you data
+include `Decimal` values (for *decimal* XSD built-in type) you cannot convert the data to JSON:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> import json
+    >>> xml_document = 'xmlschema/tests/examples/collection/collection.xml'
+    >>> print(json.dumps(xmlschema.to_dict(xml_document), indent=4))
+    Traceback (most recent call last):
+      File "/usr/lib64/python2.7/doctest.py", line 1315, in __run
+        compileflags, 1) in test.globs
+      File "<doctest default[3]>", line 1, in <module>
+        print(json.dumps(xmlschema.to_dict(xml_document), indent=4))
+      File "/usr/lib64/python2.7/json/__init__.py", line 251, in dumps
+        sort_keys=sort_keys, **kw).encode(obj)
+      File "/usr/lib64/python2.7/json/encoder.py", line 209, in encode
+        chunks = list(chunks)
+      File "/usr/lib64/python2.7/json/encoder.py", line 434, in _iterencode
+        for chunk in _iterencode_dict(o, _current_indent_level):
+      File "/usr/lib64/python2.7/json/encoder.py", line 408, in _iterencode_dict
+        for chunk in chunks:
+      File "/usr/lib64/python2.7/json/encoder.py", line 332, in _iterencode_list
+        for chunk in chunks:
+      File "/usr/lib64/python2.7/json/encoder.py", line 408, in _iterencode_dict
+        for chunk in chunks:
+      File "/usr/lib64/python2.7/json/encoder.py", line 442, in _iterencode
+        o = _default(o)
+      File "/usr/lib64/python2.7/json/encoder.py", line 184, in default
+        raise TypeError(repr(o) + " is not JSON serializable")
+    TypeError: Decimal('10000.00') is not JSON serializable
+
+This problem is resolved providing an alternative JSON-compatible type for `Decimal` values,
+using the keyword argument *decimal_type*:
+
+.. doctest::
+
+    >>> print(json.dumps(xmlschema.to_dict(xml_document, decimal_type=str), indent=4))  # doctest: +SKIP
+    {
+        "object": [
+            {
+                "@available": true,
+                "author": {
+                    "qualification": "painter",
+                    "born": "1841-02-25",
+                    "@id": "PAR",
+                    "name": "Pierre-Auguste Renoir",
+                    "dead": "1919-12-03"
+                },
+                "title": "The Umbrellas",
+                "year": "1886",
+                "position": 1,
+                "estimation": "10000.00",
+                "@id": "b0836217462"
+            },
+            {
+                "@available": true,
+                "author": {
+                    "qualification": "painter, sculptor and ceramicist",
+                    "born": "1893-04-20",
+                    "@id": "JM",
+                    "name": "Joan Mir\u00f3",
+                    "dead": "1983-12-25"
+                },
+                "title": null,
+                "year": "1925",
+                "position": 2,
+                "@id": "b0836217463"
+            }
+        ],
+        "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd"
+    }
