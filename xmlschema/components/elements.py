@@ -11,27 +11,26 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
-from collections import MutableSequence
+from collections import Sequence, MutableSequence
 
-from ..core import unicode_type, etree_tostring
+from ..core import unicode_type
 from ..exceptions import (
-    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaParseError
+    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaParseError, XMLSchemaValueError
 )
 from ..qnames import (
-    split_reference, get_qname, qname_to_prefixed, local_name,
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
+    get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
 )
-from ..xsdbase import (
-    check_type, get_xsd_attribute, get_xsd_bool_attribute,
-    xsd_lookup, XsdComponent, check_value, ParticleMixin
-)
+from ..utils import get_namespace
 from .. import xpath
-
-from .datatypes import XsdSimpleType
+from .xsdbase import (
+    check_type, get_xsd_attribute, get_xsd_bool_attribute,
+    XsdComponent, check_value, ParticleMixin
+)
 from .attributes import XsdAttributeGroup
+from .datatypes import XsdSimpleType
 
 
-class XsdElement(XsdComponent, ParticleMixin):
+class XsdElement(Sequence, XsdComponent, ParticleMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -68,6 +67,28 @@ class XsdElement(XsdComponent, ParticleMixin):
             raise XMLSchemaParseError(
                 "a reference can't has 'substitutionGroup' attribute.", self
             )
+
+    def __getitem__(self, i):
+        try:
+            return self.type.content_type.elements[i]
+        except (AttributeError, IndexError):
+            raise IndexError('child index out of range')
+        except TypeError:
+            content_type = self.type.content_type
+            content_type.elements = [e for e in content_type.iter_elements()]
+            try:
+                content_type.elements[i]
+            except IndexError:
+                raise IndexError('child index out of range')
+
+    def __len__(self):
+        try:
+            return len(self.type.content_type.elements)
+        except AttributeError:
+            return 0
+        except TypeError:
+            content_type = self.type.content_type
+            content_type.elements = [e for e in content_type.iter_elements()]
 
     def __setattr__(self, name, value):
         super(XsdElement, self).__setattr__(name, value)
@@ -117,73 +138,49 @@ class XsdElement(XsdComponent, ParticleMixin):
     def substitution_group(self):
         return self._attrib.get('substitutionGroup')
 
+    def has_name(self, name):
+        return self.name == name or (not self.qualified and local_name(self.name) == name)
+
     def iter_decode(self, elem, validate=True, **kwargs):
-        dict_class = kwargs.get('dict_class', dict)
+        element_decode_hook = kwargs.get('element_decode_hook')
+        if element_decode_hook is None:
+            element_decode_hook = self.schema.get_converter().element_decode
+            kwargs['element_decode_hook'] = element_decode_hook
         use_defaults = kwargs.get('use_defaults', False)
-        text_key = kwargs.get('text_key', '#text')
-        attribute_prefix = kwargs.get('attribute_prefix', '@')
 
-        result_dict = dict_class()
-        if elem.attrib:
-            for result in self.attributes.iter_decode(elem, validate, **kwargs):
+        if isinstance(self.type, XsdComplexType):
+            if use_defaults and self.type.is_simple():
+                kwargs['default'] = self.default
+            for result in self.type.iter_decode(elem, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     if result.elem is None:
-                        result.schema_elem = self.elem
-                        result.elem = elem
+                        result.elem, result.schema_elem = elem, self.elem
                     yield result
                 else:
-                    result_dict.update([(u'%s%s' % (attribute_prefix, k), v) for k, v in result])
-                    break
+                    yield element_decode_hook(elem, self, *result)
+                    del result
+        else:
+            if elem.attrib:
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple type element can't has attributes."
+                )
+            if len(elem):
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple type element can't has child elements."
+                )
 
-        result = None
-        if len(elem):
-            for result in self.type.iter_decode(elem, validate, result_dict=result_dict, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    if result.elem is None:
-                        result.schema_elem = self.elem
-                        result.elem = elem
-                    yield result
-                else:
-                    result = None
-                    break
+            if elem.text is None:
+                yield None
             else:
-                if not kwargs.get('skip_errors'):
-                    # The subelements are not decodable then transform them to a string.
-                    result = '\n'.join([etree_tostring(child) for child in elem]) or None
-                else:
-                    result = None
-
-        elif elem.text is not None:
-            if use_defaults:
-                text = elem.text or self.default
-            else:
-                text = elem.text
-
-            if not self.type.is_simple():
-                result = unicode_type(text)
-            else:
-                for result in self.type.iter_decode(text, validate, result_dict=result_dict, **kwargs):
+                text = elem.text or self.default if use_defaults else elem.text
+                for result in self.type.iter_decode(text, validate, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         if result.elem is None:
-                            result.schema_elem = self.elem
-                            result.elem = elem
+                            result.elem, result.schema_elem = elem, self.elem
                         yield result
                     else:
-                        break
-                else:
-                    if not kwargs.get('skip_errors'):
-                        result = unicode_type(text)
-                    else:
-                        result = None
-
-        if result_dict:
-            if result or result is False:
-                result_dict[text_key] = result
-            yield result_dict
-        elif result or result is False:
-            yield result
-        else:
-            yield None
+                        yield element_decode_hook(elem, self, result)
+                        del result
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.type.iter_encode(obj, validate, **kwargs):
@@ -191,7 +188,7 @@ class XsdElement(XsdComponent, ParticleMixin):
             if isinstance(result, XMLSchemaEncodeError):
                 return
 
-    def iter_model(self, elem, index):
+    def iter_model(self, elem, index=0):
         model_occurs = 0
         while True:
             try:
@@ -236,9 +233,7 @@ class XsdElement(XsdComponent, ParticleMixin):
     def iterchildren(self, tag=None):
         try:
             for xsd_element in self.type.content_type.iter_elements():
-                if tag is None or xsd_element.name == tag or (
-                    not xsd_element.qualified and local_name(xsd_element.name) == tag
-                ):
+                if tag is None or xsd_element.has_name(tag):
                     yield xsd_element
         except (TypeError, AttributeError):
             return
@@ -343,10 +338,10 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         if self.process_contents == 'skip':
             return
 
-        qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
+        namespace = get_namespace(elem.tag)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
-                xsd_element = xsd_lookup(qname, self.schema.maps.base_elements)
+                xsd_element = self.schema.maps.lookup_base_element(elem.tag)
             except LookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
@@ -357,13 +352,13 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         elif validate:
             yield XMLSchemaValidationError(self, elem, "element %r not allowed here." % elem.tag)
 
-    def iter_model(self, elem, index):
-        qname, namespace = split_reference(elem.tag, namespaces=self.namespaces)
+    def iter_model(self, elem, index=0):
+        namespace = get_namespace(elem.tag)
         if not self._is_namespace_allowed(namespace, self.namespace):
             return
 
         try:
-            xsd_element = xsd_lookup(qname, self.schema.maps.elements)
+            xsd_element = self.schema.maps.lookup_element(elem.tag)
         except LookupError:
             return
         else:
@@ -458,9 +453,46 @@ class XsdComplexType(XsdComponent):
     def has_extension(self):
         return self.derivation is True
 
-    def iter_decode(self, obj, validate=True, **kwargs):
-        for result in self.content_type.iter_decode(obj, validate, **kwargs):
-            yield result
+    def iter_decode(self, elem, validate=True, **kwargs):
+        # Decode attributes
+        for result in self.attributes.iter_decode(elem, validate, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
+                if result.elem is None:
+                    result.elem, result.schema_elem = elem, self.elem
+                yield result
+            else:
+                attributes = result
+                break
+        else:
+            # Should be never executed with the default implementation
+            attributes = []
+
+        if self.is_simple():
+            # Decode a simple content element
+            if len(elem):
+                yield XMLSchemaValidationError(
+                    self, elem, "a simple content element can't has child elements."
+                )
+            if elem.text is not None:
+                text = elem.text or kwargs.pop('default', '')
+                for result in self.content_type.iter_decode(text, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        if result.elem is None:
+                            result.elem, result.schema_elem = elem, self.elem
+                        yield result
+                    else:
+                        yield (result, attributes)
+            else:
+                yield (None, attributes)
+        else:
+            # Decode a complex content element
+            for result in self.content_type.iter_decode(elem, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    if result.elem is None:
+                        result.elem, result.schema_elem = elem, self.elem
+                    yield result
+                else:
+                    yield (result, attributes)
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for result in self.content_type.iter_encode(obj, validate, **kwargs):
@@ -530,8 +562,8 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         XsdComponent.__init__(self, name, elem, schema)
         self.model = model
         self.mixed = mixed
-        self.parsed = initlist is not None
         self._group = []
+        self.elements = None
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
                 self._group[:] = initlist
@@ -545,10 +577,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return self._group[i]
 
     def __setitem__(self, i, item):
-        check_type(item, XsdGroup)
-        if self.model is None:
-            raise XMLSchemaParseError(u"cannot add items when the group model is None.", self)
+        check_type(item, XsdGroup, XsdElement, XsdAnyElement)
         self._group[i] = item
+        self.elements = None
 
     def __delitem__(self, i):
         del self._group[i]
@@ -557,7 +588,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return len(self._group)
 
     def insert(self, i, item):
+        check_type(item, XsdGroup, XsdElement, XsdAnyElement)
         self._group.insert(i, item)
+        self.elements = None
 
     def __repr__(self):
         return XsdComponent.__repr__(self)
@@ -592,21 +625,27 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         def not_whitespace(s):
             return s is not None and s.strip()
 
-        # Validate character data between tags
+        skip_errors = kwargs.get('skip_errors', False)
+        result_list = []
+        cdata_index = 1
         if validate and not self.mixed:
+            # Validate character data between tags
             if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
                 else:
-                    yield XMLSchemaValidationError(
-                        self, elem, "character data between child elements not allowed!"
-                    )
+                    if skip_errors:
+                        cdata_index = 0
+                    cdata_msg = "character data between child elements not allowed!"
+                    yield XMLSchemaValidationError(self, elem, cdata_msg)
 
-        # Decode elements
-        dict_class = kwargs.get('dict_class', dict)
-        force_list = kwargs.get('force_list', True)
-        namespaces = kwargs.get('namespaces')
-        result_dict = kwargs.pop('result_dict', dict_class())
+        if cdata_index and elem.text is not None:
+            text = unicode_type(elem.text.strip())
+            if text:
+                result_list.append((cdata_index, text, None))
+                cdata_index += 1
+
+        # Decode child elements
         for obj in self.iter_model(elem):
             if isinstance(obj, XMLSchemaValidationError):
                 if validate:
@@ -615,25 +654,16 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 xsd_element, child = obj
                 for result in xsd_element.iter_decode(child, validate, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
-                        yield result
-                        continue
-                    elif child.tag[0] == '{' and namespaces:
-                        key = qname_to_prefixed(child.tag, namespaces)
+                        if validate:
+                            yield result
                     else:
-                        key = child.tag
-
-                    # Set or append the result
-                    try:
-                        result_dict[key].append(result)
-                    except KeyError:
-                        if force_list and xsd_element.max_occurs != 1:
-                            result_dict[key] = [result]
-                        else:
-                            result_dict[key] = result
-                    except AttributeError:
-                        result_dict[key] = [result_dict[key], result]
-
-        yield result_dict
+                        result_list.append((child.tag, result, xsd_element))
+                if cdata_index and elem.tail is not None:
+                    tail = unicode_type(elem.tail.strip())
+                    if tail:
+                        result_list.append((cdata_index, tail, None))
+                        cdata_index += 1
+        yield result_list
 
     def iter_model(self, elem, index=0):
         if not len(self):
@@ -695,13 +725,15 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                         break
                 else:
                     if model_occurs == 0 and self.min_occurs > 0:
-                        group = [e for e in self.iter_elements()]
+                        tags = [e.name for e in self.iter_elements()]
                         yield XMLSchemaValidationError(
-                            self, elem, reason % (elem[model_index].tag, [e.name for e in group])
+                            self, elem, reason % (elem[model_index].tag, tags)
                         )
                     elif model_occurs:
                         yield index
                     return
+            else:
+                raise XMLSchemaValueError("the group %r has no model!" % self)
 
             model_occurs += 1
             index = model_index

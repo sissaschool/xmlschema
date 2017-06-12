@@ -15,27 +15,25 @@ import os.path
 
 from .core import (
     XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH,
-    HFP_NAMESPACE_PATH, etree_get_namespaces
+    HFP_NAMESPACE_PATH, etree_get_namespaces, etree_register_namespace
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaURLError
 )
-from .utils import URIDict, listify_update
 from .qnames import XSD_SCHEMA_TAG
-from .xsdbase import (
-    check_tag, get_xsd_attribute, get_xsi_schema_location,
-    get_xsi_no_namespace_schema_location
+from .utils import URIDict, listify_update
+from .resources import (
+    open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
-from .resources import open_resource, load_xml_resource
-from .components import XsdElement, XSD_FACETS
+from . import xpath
 from .builtins import XSD_BUILTIN_TYPES
+from .components import check_tag, get_xsd_attribute, XsdElement, XSD_FACETS
+from .converters import XMLSchemaConverter
+from .factories import *
 from .namespaces import (
     XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
 )
-from .factories import *
-from . import xpath
-
 
 DEFAULT_OPTIONS = {
     'simple_type_factory': xsd_simple_type_factory,
@@ -77,7 +75,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
         OPTIONS = validator_options
         _parent_map = None
 
-        def __init__(self, source, namespace=None, check_schema=False, global_maps=None):
+        def __init__(self, source, namespace=None, check_schema=False, global_maps=None, converter=None):
             """
             Initialize an XML schema instance.
 
@@ -118,6 +116,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 listify_update(self.schema_location, zip(schema_location[0::2], schema_location[1::2]))
             self.no_namespace_schema_location = get_xsi_no_namespace_schema_location(self.root)
 
+            # Create or set the XSD global maps instance
             if global_maps is None:
                 try:
                     self.maps = self.META_SCHEMA.maps.copy()
@@ -138,6 +137,9 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
             if '' not in self.namespaces:
                 # For default local names are mapped to targetNamespace
                 self.namespaces[''] = self.target_namespace
+
+            # Set the default converter class
+            self.converter = self.get_converter(converter)
 
             if self.META_SCHEMA is not None:
                 self.include_schemas(self.root, check_schema)
@@ -227,6 +229,31 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 else:
                     return locations
 
+        def get_converter(self, converter=None, namespaces=None, dict_class=None,
+                          list_class=None, element_class=None):
+            if converter is None:
+                converter = getattr(self, 'converter', XMLSchemaConverter)
+            if namespaces:
+                for prefix, uri in namespaces.items():
+                    etree_register_namespace(prefix, uri)
+
+            if isinstance(converter, XMLSchemaConverter):
+                converter = converter.copy()
+                if namespaces is not None:
+                    converter.namespaces = namespaces
+                if dict_class is not None:
+                    converter.dict = dict_class
+                if list_class is not None:
+                    converter.list = list_class
+                if element_class is not None:
+                    converter.etree_element = element_class
+                return converter
+            elif issubclass(converter, XMLSchemaConverter):
+                    return converter(namespaces, dict_class, list_class, element_class)
+            else:
+                msg = "'converter' argument must be a %r subclass or instance: %r"
+                raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
+
         def import_schemas(self, elements, check_schema=False):
             for elem in iterfind_xsd_import(elements, namespaces=self.namespaces):
                 namespace = elem.attrib.get('namespace', '').strip()
@@ -298,50 +325,46 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     yield chunk
 
-        def iter_decode(self, xml_document, path=None, validate=True, namespaces=None,
-                        use_defaults=True, skip_errors=False, dict_class=dict, force_list=True,
-                        text_key='#text', attribute_prefix='@', **kwargs):
+        def iter_decode(self, xml_document, path=None, process_namespaces=True, validate=True,
+                        namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
+                        converter=None, dict_class=None, list_class=None):
+            if process_namespaces:
+                _namespaces = etree_get_namespaces(xml_document, namespaces)
+            else:
+                _namespaces = {}
+
+            _converter = self.get_converter(converter, _namespaces, dict_class, list_class)
+            element_decode_hook = _converter.element_decode
+
             xml_root = load_xml_resource(xml_document)
             if path is None:
-                xsd_element = self.find(xml_root.tag, namespaces=namespaces)
+                xsd_element = self.find(xml_root.tag, namespaces=_namespaces)
                 if not isinstance(xsd_element, XsdElement):
                     msg = "%r is not a global element of the schema!" % xml_root.tag
                     yield XMLSchemaValidationError(self, xml_root, reason=msg)
                 for obj in xsd_element.iter_decode(
-                        xml_root, validate, namespaces=namespaces, use_defaults=use_defaults,
-                        skip_errors=skip_errors, dict_class=dict_class, force_list=force_list,
-                        text_key=text_key, attribute_prefix=attribute_prefix, **kwargs):
+                        xml_root, validate, use_defaults=use_defaults, skip_errors=skip_errors,
+                        decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                     yield obj
             else:
-                xsd_element = self.find(path, namespaces=namespaces)
+                xsd_element = self.find(path, namespaces=_namespaces)
                 if not isinstance(xsd_element, XsdElement):
                     msg = "the path %r doesn't match any element of the schema!" % path
-                    obj = xml_root.findall(path, namespaces=namespaces) or xml_root
+                    obj = xml_root.findall(path, namespaces=_namespaces) or xml_root
                     yield XMLSchemaValidationError(self, obj, reason=msg)
-                rel_path = xpath.relative_path(path, 1, namespaces)
-                for elem in xml_root.findall(rel_path, namespaces=namespaces):
+                rel_path = xpath.relative_path(path, 1, _namespaces)
+                for elem in xml_root.findall(rel_path, namespaces=_namespaces):
                     for obj in xsd_element.iter_decode(
-                            elem, validate, namespaces=namespaces, use_defaults=use_defaults,
-                            skip_errors=skip_errors, dict_class=dict_class, force_list=force_list,
-                            text_key=text_key, attribute_prefix=attribute_prefix, **kwargs):
+                            elem, validate, use_defaults=use_defaults, skip_errors=skip_errors,
+                            decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                         yield obj
 
-        def to_dict(self, xml_document, path=None, process_namespaces=True, **kwargs):
-            xml_root = load_xml_resource(xml_document)
-            if process_namespaces:
-                try:
-                    uris = set(kwargs['namespaces'].values())
-                except (KeyError, AttributeError):
-                    kwargs['namespaces'] = etree_get_namespaces(xml_document)
-                else:
-                    kwargs['namespaces'].update({
-                        k: v for k, v in etree_get_namespaces(xml_document).items()
-                        if v not in uris
-                    })
-            for obj in self.iter_decode(xml_root, path, **kwargs):
+        def decode(self, *args, **kwargs):
+            for obj in self.iter_decode(*args, **kwargs):
                 if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     raise obj
                 return obj
+        to_dict = decode
 
         #
         # ElementTree APIs for extracting XSD elements and attributes.

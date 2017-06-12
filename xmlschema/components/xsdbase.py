@@ -9,41 +9,24 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for manipulating fully qualified names and XSD qname constants.
+This module contains base functions and classes XML Schema components.
 """
 import re
 
-from .core import PY3
-from .qnames import *
-from .exceptions import (
-    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaLookupError,
-    XMLSchemaParseError, XMLSchemaAttributeError, XMLSchemaValidationError,
+from ..core import PY3
+from ..qnames import *
+from ..exceptions import (
+    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaParseError,
+    XMLSchemaAttributeError, XMLSchemaValidationError,
     XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from .utils import FrozenDict
-
-
-def get_xsi_schema_location(elem):
-    """Retrieve the attribute xsi:schemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
-
-
-def get_xsi_no_namespace_schema_location(elem):
-    """Retrieve the attribute xsi:noNamespaceSchemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).attrib.get(XSI_NONS_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
-
+from ..utils import FrozenDict
 
 #
 # Check functions for XSD schema factories and components.
 def check_tag(elem, *tags):
     if elem.tag not in tags:
-        tags = (split_qname(tag)[1] for tag in tags)
+        tags = (local_name(tag) for tag in tags)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
 
 
@@ -179,26 +162,6 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
         else:
             raise XMLSchemaParseError(
                 "attribute %r value must be greater or equal to %r" % (attribute, minimum), elem
-            )
-
-
-#
-# Lookups an XML schema global component.
-def xsd_lookup(qname, xsd_globals):
-    try:
-        obj = xsd_globals[qname]
-    except KeyError:
-        raise XMLSchemaLookupError("missing XSD reference %r!" % qname)
-    else:
-        if isinstance(obj, XsdBase):
-            return obj
-        elif isinstance(obj, list) and isinstance(obj[0], XsdBase):
-            return obj[0]
-        elif isinstance(obj, (tuple, list)):
-            raise XMLSchemaTypeError("XSD reference %r not built!" % qname)
-        else:
-            raise XMLSchemaTypeError(
-                "wrong type %r for XSD reference %r." % (type(obj), qname)
             )
 
 
@@ -474,3 +437,6 @@ class ParticleMixin(object):
 
     def is_emptiable(self):
         return self.min_occurs == 0
+
+    def is_single(self):
+        return self.max_occurs == 1

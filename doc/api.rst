@@ -18,7 +18,8 @@ Module level API
     the instance (default is :class:`XMLSchema`). *use_defaults* defines when to
     use elements and attribute defaults for filling missing required values.
 
-.. function:: to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True, **kwargs)
+.. function:: to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True, \
+              con**kwargs)
 
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
@@ -42,7 +43,7 @@ Module level API
 Schema level API
 ----------------
 
-.. class:: XMLSchema(source, namespace=None, check_schema=False, global_maps=None)
+.. class:: XMLSchema(source, namespace=None, check_schema=False, global_maps=None, converter=None)
 
     The class for an XML Schema instance, created using :class:`XMLSchemaValidator`.
     *source* can be an URI that reference to a resource or a file path or a file-like
@@ -52,7 +53,9 @@ Schema level API
     indicating whether the schema must be validated against XSD meta-schema before
     building. *global_maps* is an optional argument containing an :class:`XsdGlobal`
     instance, a mediator object for sharing declaration data between dependents
-    schema instances.
+    schema instances. *converter* is an optional argument that can be an
+    :class:`XMLSchemaConverter` subclass or instance, used for defining the default
+    XML data converter for XML Schema instance.
 
     .. attribute::root
 
@@ -97,6 +100,10 @@ Schema level API
         A map from prefixes used by the schema to the correspondent namespace URI.
         This mapping can be different between each schema resource, so it's saved
         at schema's instance level.
+
+    .. attribute:: converter
+
+        The default `XMLSchemaConverter` instance used for XML data conversion.
 
     .. attribute:: maps
 
@@ -149,37 +156,40 @@ Schema level API
         *use_defaults* indicates whether to use default values for filling missing
         attributes or elements.
 
-    .. method:: iter_decode(xml_document, path=None, validate=True, namespaces=None, \
-                use_defaults=True, skip_errors=False, dict_class=dict, force_list=True, \
-                text_key='#', attribute_prefix='@', **kwargs)
+    .. method:: iter_decode(xml_document, path=None, process_namespaces=True, validate=True, \
+                namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None, \
+                converter=None, dict_class=None, list_class=None):
 
         Creates an iterator for decoding an XML document using the schema instance.
         Yields objects that can be dictionaries or simple data values.
         *path* is an optional XPath expression that matches the parts of the document
         that have to be decoded. The XPath expression considers the schema as the root
         element with global elements as its children.
-        *validate* defines if generates validation errors also.
-        *namespaces* is an optional mapping from namespace prefix to full name.
+        *process_namespaces* indicates whether to process namespaces, using the map
+        provided with the argument *namespaces* and the map extracted from the XML
+        document.
+        *validate* defines if validating data during the decoding process.
+        *namespaces* is an optional mapping from namespace prefix to URI.
         *use_defaults* indicates whether to use default values for filling missing
-        attributes or elements. *skip_errors* indicates to skip a value with the XML
-        value string in case of decoding error. *dict_class* the dictionary-like class
-        that have to used instead of :class:`dict`. *force_list* indicates whether to
-        force list at first insertion for elements declared in the schema with
-        *maxOccurs* greater then 1 or ``'unbounded'``. *text_key* is the predefined key
-        (default to ``'#text'``) for the text part of complex elements in the decoded
-        dictionaries. *attribute_prefix* is the prefix character (default is ``'@'``)
-        for naming attributes in the decoded dictionaries.
+        attributes or elements.
+        *skip_errors* indicates to skip a value with the XML value string in case of
+        decoding error.
+        *decimal_type* conversion type for `Decimal` objects (genarated by XSD `decimal`
+        built-in and derived types), useful if you want to generate a JSON-compatible
+        data structure.
+        *converter* an `XMLSchemaConverter` subclass or instance to use for the decoding.
+        *dict_class* the dictionary-like class that have to be used instead of
+        the default dictionary class of the `XMLSchemaConverter` subclass/instance.
+        *list_class* the list-like class that have to be used instead of the default
+        list class of the `XMLSchemaConverter` class/instance.
 
-    .. method:: to_dict(xml_document, path=None, process_namespaces=True, **kwargs)
+    .. method:: decode(*args, **kwargs)
+    .. method:: to_dict(*args, **kwargs)
 
-        Decodes an XML document to a nested dictionary, using the schema instance.
-        *path* is an optional XPath expression that matches the subelement of the
-        document that have to be decoded. The XPath expression considers the schema
-        as the root element with global elements as its children.
-        *process_namespaces* indicates whether to get the namespaces from the XML
-        document and use them in the decoding process.
-        With *kwargs* you can provide the optional arguments of :meth:`iter_decode`
-        as keyword arguments to variate the decoding process.
+        Decodes an XML document to a Python data structure using the schema instance.
+        You can provide the arguments and keyword arguments of :meth:`iter_decode`.
+        Raises an `XMLSchemaValidationError` at first decoding or validation error (when
+        validation is requested, that is the default).
 
     .. method:: iter(name=None)
 
@@ -225,10 +235,37 @@ XSD globals maps API
 .. autoclass:: xmlschema.XsdGlobals
     :members: copy, register, get_globals, iter_schemas, clear, build
 
+XML Schema converters
+---------------------
+
+The base class `XMLSchemaConverter` is used for defining generic converters.
+The subclasses implement some of the most used conventions for converting XML
+to JSON data.
+
+.. autoclass:: xmlschema.converters.XMLSchemaConverter
+    :members: element_decode
+
+.. class:: xmlschema.converters.ParkerConverter
+
+    Converter class for Parker convention.
+
+.. class:: xmlschema.converters.BadgerFishConverter
+
+    Converter class for Badgerfish convention.
+
+.. class:: xmlschema.converters.AbderaConverter
+
+    Converter class for Abdera convention.
+
+.. class:: xmlschema.converters.JsonMLConverter
+
+    Converter class for JsonML convention.
+
+
 XSD components API
 ------------------
 
-.. autoclass:: xmlschema.xsdbase.XsdComponent
+.. autoclass:: xmlschema.components.XsdComponent
     :members: id, validate, iter_errors, decode, encode, iter_decode, iter_encode
 
 Errors and exceptions

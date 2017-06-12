@@ -23,8 +23,8 @@ The xmlschema library includes the following features:
 
 * Builds XML schema objects from XSD files
 * Validates the XML instances with the XSD schema
-* Converts XML instances into Python nested dictionaries
-* Provides decoding and encoding APIs for XML's elements and attributes
+* Converts XML instances into Python data structures
+* Provides decoding and encoding APIs for XML elements and attributes
 * Provides XPath based API for finding schema's elements and attributes
 
 Installation

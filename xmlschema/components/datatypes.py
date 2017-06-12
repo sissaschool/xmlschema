@@ -11,13 +11,14 @@
 """
 This module contains classes for XML Schema simple data types.
 """
+from decimal import Decimal
+
 from ..core import unicode_type
 from ..exceptions import (
     XMLSchemaTypeError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
 )
 from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
-from ..xsdbase import check_type, check_value, XsdComponent
-
+from .xsdbase import check_type, check_value, XsdComponent
 from .facets import XSD11_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
 
 
@@ -179,14 +180,19 @@ class XsdAtomicBuiltin(XsdAtomic):
             result = self.to_python(_text)
         except ValueError:
             yield XMLSchemaDecodeError(self, text, self.to_python)
-            if not kwargs.get('skip_errors'):
-                yield unicode_type(text)
+            yield unicode_type(text) if not kwargs.get('skip_errors') else None
             return
 
         if validate:
             for validator in self.validators:
                 for error in validator(result):
                     yield error
+
+        if isinstance(result, Decimal):
+            try:
+                result = kwargs.get('decimal_type')(result)
+            except TypeError:
+                pass
         yield result
 
     def iter_encode(self, obj, validate=True, **kwargs):
@@ -199,8 +205,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                     raise ValueError()
         except ValueError:
             yield XMLSchemaEncodeError(self, obj, self.from_python)
-            if not kwargs.get('skip_errors'):
-                yield unicode_type(obj)
+            yield unicode_type(obj) if not kwargs.get('skip_errors') else None
             return
 
         if validate:
@@ -255,6 +260,8 @@ class XsdList(XsdSimpleType):
                     yield result
                     if not kwargs.get('skip_errors'):
                         items.append(unicode_type(chunk))
+                    else:
+                        items.append(None)
                 else:
                     items.append(result)
 
@@ -279,6 +286,8 @@ class XsdList(XsdSimpleType):
                     yield result
                     if not kwargs.get('skip_errors'):
                         encoded_items.append(unicode_type(item))
+                    else:
+                        items.append(None)
                 else:
                     encoded_items.append(result)
         yield u' '.join(encoded_items)
@@ -334,8 +343,7 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaDecodeError(
             self, text, self.member_types, reason="no type suitable for decoding the text."
         )
-        if not kwargs.get('skip_errors'):
-            yield unicode_type(text)
+        yield unicode_type(text) if not kwargs.get('skip_errors') else None
 
     def iter_encode(self, obj, validate=True, **kwargs):
         for member_type in self.member_types:
@@ -350,8 +358,7 @@ class XsdUnion(XsdSimpleType):
         yield XMLSchemaEncodeError(
             self, obj, self.member_types, reason="no type suitable for encoding the object."
         )
-        if not kwargs.get('skip_errors'):
-            yield unicode_type(obj)
+        yield unicode_type(obj) if not kwargs.get('skip_errors') else None
 
 
 class XsdAtomicRestriction(XsdAtomic):
@@ -379,8 +386,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_decode(text, validate, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
-                if not kwargs.get('skip_errors'):
-                    yield unicode_type(text)
+                yield unicode_type(text) if not kwargs.get('skip_errors') else None
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result
@@ -396,8 +402,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_encode(obj, validate):
             if isinstance(result, XMLSchemaEncodeError):
                 yield result
-                if not kwargs.get('skip_errors'):
-                    yield unicode_type(obj)
+                yield unicode_type(obj) if not kwargs.get('skip_errors') else None
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result
