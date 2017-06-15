@@ -13,14 +13,14 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from collections import Sequence, MutableSequence
 
-from ..core import unicode_type
+from ..core import unicode_type, etree_element, ElementData
 from ..exceptions import (
-    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaParseError, XMLSchemaValueError
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError, XMLSchemaEncodeError
 )
 from ..qnames import (
     get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
 )
-from ..utils import get_namespace
+from ..utils import get_namespace, listify_update
 from .. import xpath
 from .xsdbase import (
     check_type, get_xsd_attribute, get_xsd_bool_attribute,
@@ -161,13 +161,9 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                     del result
         else:
             if elem.attrib:
-                yield XMLSchemaValidationError(
-                    self, elem, "a simple type element can't has attributes."
-                )
+                yield XMLSchemaValidationError(self, elem, "a simpleType element can't has attributes.")
             if len(elem):
-                yield XMLSchemaValidationError(
-                    self, elem, "a simple type element can't has child elements."
-                )
+                yield XMLSchemaValidationError(self, elem, "a simpleType element can't has child elements.")
 
             if elem.text is None:
                 yield None
@@ -182,11 +178,59 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                         yield element_decode_hook(elem, self, result)
                         del result
 
-    def iter_encode(self, obj, validate=True, **kwargs):
-        for result in self.type.iter_encode(obj, validate, **kwargs):
-            yield result
-            if isinstance(result, XMLSchemaEncodeError):
-                return
+    def iter_encode(self, data, validate=True, **kwargs):
+        element_encode_hook = kwargs.get('element_encode_hook')
+        if element_encode_hook is None:
+            element_encode_hook = self.schema.get_converter().element_encode
+            kwargs['element_encode_hook'] = element_encode_hook
+        _etree_element = kwargs.get('etree_element') or etree_element
+
+        level = kwargs.pop('level', 0)
+        indent = kwargs.get('indent', None)
+        tail = (u'\n' + u' ' * indent * level) if indent is not None else None
+
+        element_data, errors = element_encode_hook(data, self)
+        for e in errors:
+            yield e
+
+        if isinstance(self.type, XsdComplexType):
+            for result in self.type.iter_encode(element_data, validate, level=level + 1, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    if result.schema_elem is None:
+                        result.obj, result.schema_elem = data, self.elem
+                    yield result
+                else:
+                    elem = _etree_element(self.name, attrib=dict(result.attributes))
+                    elem.text = result.text
+                    elem.extend(result.content)
+                    elem.tail = tail
+                    yield elem
+        else:
+            # Encode a simpleType
+            if element_data.attributes:
+                yield XMLSchemaValidationError(self, data, "a simpleType element can't has attributes.")
+            if element_data.content:
+                yield XMLSchemaValidationError(self, data, "a simpleType element can't has child elements.")
+
+            if element_data.text is None:
+                elem = _etree_element(self.name, attrib={})
+                elem.text = None
+                elem.tail = tail
+                yield elem
+            else:
+                for result in self.type.iter_encode(element_data.text, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        if result.elem is None:
+                            result.obj, result.schema_elem = data, self.elem
+                        yield result
+                    else:
+                        elem = _etree_element(self.name, attrib={})
+                        elem.text = result
+                        elem.tail = tail
+                        yield elem
+                        break
+
+        del element_data
 
     def iter_model(self, elem, index=0):
         model_occurs = 0
@@ -457,8 +501,6 @@ class XsdComplexType(XsdComponent):
         # Decode attributes
         for result in self.attributes.iter_decode(elem, validate, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
-                if result.elem is None:
-                    result.elem, result.schema_elem = elem, self.elem
                 yield result
             else:
                 attributes = result
@@ -477,8 +519,6 @@ class XsdComplexType(XsdComponent):
                 text = elem.text or kwargs.pop('default', '')
                 for result in self.content_type.iter_decode(text, validate, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
-                        if result.elem is None:
-                            result.elem, result.schema_elem = elem, self.elem
                         yield result
                     else:
                         yield (result, attributes)
@@ -488,15 +528,38 @@ class XsdComplexType(XsdComponent):
             # Decode a complex content element
             for result in self.content_type.iter_decode(elem, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
-                    if result.elem is None:
-                        result.elem, result.schema_elem = elem, self.elem
                     yield result
                 else:
                     yield (result, attributes)
 
-    def iter_encode(self, obj, validate=True, **kwargs):
-        for result in self.content_type.iter_encode(obj, validate, **kwargs):
-            yield result
+    def iter_encode(self, data, validate=True, **kwargs):
+        # Encode attributes
+        for result in self.attributes.iter_encode(data.attributes, validate, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
+                yield result
+            else:
+                attributes = result
+                break
+        else:
+            attributes = ()
+
+        if self.is_simple():
+            # Encode a simple or simple content element
+            if data.text is None:
+                yield ElementData(None, data.content, attributes)
+            else:
+                for result in self.content_type.iter_encode(data.text, validate, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
+                    else:
+                        yield ElementData(result, data.content, attributes)
+        else:
+            # Encode a complex content element
+            for result in self.content_type.iter_encode(data.content, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    yield ElementData(result[0], result[1], attributes)
 
 
 class Xsd11ComplexType(XsdComplexType):
@@ -665,6 +728,53 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                         cdata_index += 1
         yield result_list
 
+    def iter_encode(self, data, validate=True, **kwargs):
+        skip_errors = kwargs.get('skip_errors', False)
+        children = []
+        children_map = {}
+        level = kwargs.get('level', 0)
+        indent = kwargs.get('indent', None)
+        padding = (u'\n' + u' ' * indent * level) if indent is not None else None
+        text = padding
+        listify_update(children_map, [(e.name, e) for e in self.elements])
+        if self.target_namespace:
+            listify_update(children_map, [(local_name(e.name), e) for e in self.elements if not e.qualified])
+
+        try:
+            for name, value in data:
+                if isinstance(name, int):
+                    if children:
+                        children[-1].tail = padding + value + padding
+                    else:
+                        text = padding + value + padding
+                else:
+                    try:
+                        xsd_element = children_map[name]
+                    except KeyError:
+                        yield XMLSchemaValidationError(
+                            self, obj=value, reason='%r does not match any declared element.' % name
+                        )
+                    else:
+                        for result in xsd_element.iter_encode(value, validate, **kwargs):
+                            if isinstance(result, XMLSchemaValidationError):
+                                yield result
+                            else:
+                                children.append(result)
+        except ValueError:
+            yield XMLSchemaEncodeError(
+                self,
+                obj=data,
+                encoder=self,
+                reason='%r does not match content.' % data
+            )
+
+        if indent and level:
+            if children:
+                children[-1].tail = children[-1].tail[:-indent]
+            else:
+                text = text[:-indent]
+        yield text, children
+
     def iter_model(self, elem, index=0):
         if not len(self):
             return  # Skip empty groups!
@@ -740,9 +850,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             if self.max_occurs is not None and model_occurs >= self.max_occurs:
                 yield index
                 return
-
-    def iter_encode(self, obj, validate=True, **kwargs):
-        return
 
 
 class Xsd11Group(XsdGroup):

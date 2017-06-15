@@ -19,7 +19,7 @@ from .core import (
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
-    XMLSchemaDecodeError, XMLSchemaURLError
+    XMLSchemaDecodeError, XMLSchemaURLError, XMLSchemaEncodeError
 )
 from .qnames import XSD_SCHEMA_TAG
 from .utils import URIDict, listify_update
@@ -229,8 +229,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 else:
                     return locations
 
-        def get_converter(self, converter=None, namespaces=None, dict_class=None,
-                          list_class=None, element_class=None):
+        def get_converter(self, converter=None, namespaces=None, dict_class=None, list_class=None):
             if converter is None:
                 converter = getattr(self, 'converter', XMLSchemaConverter)
             if namespaces:
@@ -245,11 +244,9 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                     converter.dict = dict_class
                 if list_class is not None:
                     converter.list = list_class
-                if element_class is not None:
-                    converter.etree_element = element_class
                 return converter
             elif issubclass(converter, XMLSchemaConverter):
-                    return converter(namespaces, dict_class, list_class, element_class)
+                    return converter(namespaces, dict_class, list_class)
             else:
                 msg = "'converter' argument must be a %r subclass or instance: %r"
                 raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
@@ -329,10 +326,14 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                         namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
                         converter=None, dict_class=None, list_class=None):
             if process_namespaces:
-                _namespaces = etree_get_namespaces(xml_document, namespaces)
+                # Considers namespaces extracted from the XML document first,
+                # then from the argument and at last from the schema.
+                _namespaces = {k: v for k, v in self.namespaces.items() if k != ''}
+                if namespaces:
+                    _namespaces.update(namespaces)
+                _namespaces.update(etree_get_namespaces(xml_document))
             else:
                 _namespaces = {}
-
             _converter = self.get_converter(converter, _namespaces, dict_class, list_class)
             element_decode_hook = _converter.element_decode
 
@@ -359,12 +360,54 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                             decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                         yield obj
 
+        def iter_encode(self, data, path, validate=True, namespaces=None, skip_errors=False,
+                        indent=None, element_class=None, converter=None):
+            """
+
+            :param data:
+            :param path:
+            :param validate:
+            :param namespaces:
+            :param skip_errors:
+            :param indent:
+            :param element_class: Element class to use when encode data to an ElementTree \
+            structure. Default is `xml.etree.ElementTree.Element`.
+            :param converter:
+            :return:
+            """
+            if indent is not None and indent < 0:
+                indent = 0
+            _namespaces = self.namespaces.copy()
+            if namespaces:
+                _namespaces.update(namespaces)
+
+            xsd_element = self.find(path, namespaces=_namespaces)
+            if not isinstance(xsd_element, XsdElement):
+                msg = "the path %r doesn't match any element of the schema!" % path
+                yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
+            else:
+                _converter = self.get_converter(converter, _namespaces)
+                kwargs = {
+                    'skip_errors': skip_errors,
+                    'indent': indent,
+                    'element_encode_hook': _converter.element_encode
+                }
+                for obj in xsd_element.iter_encode(data, validate, **kwargs):
+                    yield obj
+
         def decode(self, *args, **kwargs):
             for obj in self.iter_decode(*args, **kwargs):
                 if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
                     raise obj
                 return obj
         to_dict = decode
+
+        def encode(self, *args, **kwargs):
+            for obj in self.iter_encode(*args, **kwargs):
+                if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
+                    raise obj
+                return obj
+        to_elem = encode
 
         #
         # ElementTree APIs for extracting XSD elements and attributes.

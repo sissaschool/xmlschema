@@ -13,6 +13,7 @@ This module contains base classes, functions and constants for the package.
 """
 import logging
 import sys
+from collections import namedtuple
 from xml.etree import ElementTree
 
 try:
@@ -121,6 +122,9 @@ etree_element = ElementTree.Element
 etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
 
+# Namedtuple for a generic Element data representation.
+ElementData = namedtuple('ElementData', ['text', 'content', 'attributes'])
+
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     if PY3:
@@ -149,40 +153,31 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     return xml_text.replace('\t', ' ' * spaces_for_tab) if spaces_for_tab else xml_text
 
 
-def etree_get_namespaces(source, namespaces=None):
+def etree_get_namespaces(source):
     """
     Extracts namespaces with related prefixes from the XML source.
-    The extracted namespaces are merged with the ones passed with
-    the optional argument 'namespaces' and returned.
-    
+
     :param source: A string containing the XML document or a file path 
     or a file like object or an etree Element.
-    :param namespaces: An optional dictionary with a map from prefixes to full URI.
     :return: A dictionary for mapping namespace prefixes to full URI.
     """
     try:
         try:
-            xml_namespaces = dict([
+            return dict([
                 node for _, node in etree_iterparse(StringIO(source), events=('start-ns',))
             ])
         except ElementTree.ParseError:
-            xml_namespaces = dict([
+            return dict([
                 node for _, node in etree_iterparse(source, events=('start-ns',))
             ])
     except TypeError:
         try:
             if hasattr(source, 'getroot'):
-                xml_namespaces = dict(source.getroot().nsmap)
+                return dict(source.getroot().nsmap)
             else:
-                xml_namespaces = dict(source.nsmap)
+                return dict(source.nsmap)
         except (AttributeError, TypeError):
-            xml_namespaces = {}
-
-    if namespaces:
-        uris = set(namespaces.values())
-        namespaces.update({k: v for k, v in xml_namespaces.items() if v not in uris})
-        return namespaces
-    return xml_namespaces
+            return {}
 
 
 def etree_iterpath(elem, tag=None, path='.'):

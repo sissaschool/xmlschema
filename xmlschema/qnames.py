@@ -82,8 +82,13 @@ def reference_to_qname(ref, namespaces):
     except ValueError:
         if ':' in ref:
             raise XMLSchemaValueError("wrong format for reference name %r" % ref)
-        return ref
+        elif '' in namespaces:
+            return u'{%s}%s' % (namespaces[''], ref)
+        else:
+            return ref
     else:
+        if not prefix or not name:
+            raise XMLSchemaValueError("wrong format for reference name %r" % ref)
         try:
             return u'{%s}%s' % (namespaces[prefix], name)
         except KeyError:

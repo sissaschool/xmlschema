@@ -15,7 +15,7 @@ from collections import MutableMapping
 
 from ..core import XSI_NAMESPACE_PATH
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from ..qnames import get_qname
+from ..qnames import get_qname, reference_to_qname
 from ..utils import get_namespace
 from .xsdbase import check_type, get_xsd_attribute, XsdComponent
 from .datatypes import XsdSimpleType
@@ -272,6 +272,54 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 required_attributes.discard(qname)
 
             for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    result_list.append((name, result))
+                    break
+
+        if required_attributes:
+            yield XMLSchemaValidationError(
+                self, attributes, "missing required attributes %r" % required_attributes,
+            )
+        yield result_list
+
+    def iter_encode(self, attributes, validate=True, **kwargs):
+        result_list = []
+        required_attributes = self.required.copy()
+        try:
+            attributes = attributes.items()
+        except AttributeError:
+            pass
+
+        for name, value in attributes:
+            qname = reference_to_qname(name, self.namespaces)
+            # qname = get_qname(self.target_namespace, name)
+            try:
+                xsd_attribute = self[qname]
+            except KeyError:
+                namespace = get_namespace(name) or self.target_namespace
+                if namespace == XSI_NAMESPACE_PATH:
+                    try:
+                        xsd_attribute = self.schema.maps.lookup_attribute(qname)
+                    except LookupError:
+                        yield XMLSchemaValidationError(
+                            self, attributes, "% is not an attribute of the XSI namespace." % name
+                        )
+                        continue
+                else:
+                    try:
+                        xsd_attribute = self[None]  # None key ==> anyAttribute
+                        value = {qname: value}
+                    except KeyError:
+                        yield XMLSchemaValidationError(
+                            self, attributes, "%r attribute not allowed for element." % name
+                        )
+                        continue
+            else:
+                required_attributes.discard(qname)
+
+            for result in xsd_attribute.iter_encode(value, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
