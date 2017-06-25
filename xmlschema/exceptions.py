@@ -58,7 +58,7 @@ class XMLSchemaURLError(XMLSchemaException, URLError):
 class XMLSchemaNotBuiltError(XMLSchemaException, TypeError):
     """Raised when a not built XSD object is found."""
 
-    def __init__(self, message, obj, qname):
+    def __init__(self, message, obj=None, qname=None):
         self.message = message or ''
         self.obj = obj
         self.qname = qname
@@ -115,16 +115,14 @@ class XMLSchemaXPathError(XMLSchemaParseError):
 
 class XMLSchemaValidationError(XMLSchemaException, ValueError):
     """Raised when the XML data is not validated with the XSD component or schema."""
-    message = None
 
-    def __init__(self, validator, obj=None, reason=None):
+    def __init__(self, validator, obj, reason=None, schema_elem=None, elem=None):
         self.validator = validator
         self.obj = obj
         self.reason = reason
-        self.elem = obj if etree_iselement(obj) else None
-        self.schema_elem = None
-        if not self.message:
-            self.message = u"failed validating %r with %r." % (obj, validator)
+        self.schema_elem = schema_elem or getattr(validator, 'elem', None)
+        self.elem = elem or obj if etree_iselement(obj) else None
+        self.message = None
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -132,7 +130,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
 
     def __unicode__(self):
         return u''.join([
-            self.message, '\n',
+            self.message or u"failed validating %r with %r.\n" % (self.obj, self.validator),
             u'\nReason: %s\n' % self.reason if self.reason is not None else '',
             u"\nSchema:\n\n  %s\n" % etree_tostring(
                 self.schema_elem, max_lines=20
@@ -145,27 +143,20 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
     if PY3:
         __str__ = __unicode__
 
-    def __setattr__(self, name, value):
-        if name == 'validator' and hasattr(value, 'elem'):
-            self.schema_elem = value.elem
-        super(XMLSchemaValidationError, self).__setattr__(name, value)
-
 
 class XMLSchemaDecodeError(XMLSchemaValidationError):
     """Raised when an XML data string is not decodable to a Python object."""
 
-    def __init__(self, validator, obj, decoder, reason=None):
-        self.decoder = decoder
-        self.message = u"cannot decode %r using the decoder %r " \
-                       u"of validator %r." % (obj, decoder, validator)
+    def __init__(self, validator, obj, decoder, reason=None, schema_elem=None, elem=None):
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason)
+        self.decoder = decoder
+        self.message = u"failed decoding %r with %r.\n" % (obj, validator)
 
 
 class XMLSchemaEncodeError(XMLSchemaValidationError):
     """Raised when an object is not encodable to an XML data string."""
 
-    def __init__(self, validator, obj, encoder, reason=None):
-        self.encoder = encoder
-        self.message = u"cannot encode %r using the encoder %r " \
-                       u"of validator %r." % (obj, encoder, validator)
+    def __init__(self, validator, obj, encoder, reason=None, schema_elem=None, elem=None):
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason)
+        self.encoder = encoder
+        self.message = u"failed encoding %r with %r.\n" % (obj, validator)

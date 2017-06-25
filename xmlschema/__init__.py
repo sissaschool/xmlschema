@@ -33,12 +33,12 @@ set_logger(__name__)
 def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True):
     if schema is None:
         schema = fetch_schema(xml_document)
-    cls(schema, check_schema=True).validate(xml_document, use_defaults)
+    cls(schema, validation='strict').validate(xml_document, use_defaults)
 
 
 def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True, **kwargs):
     if schema is None:
         schema = fetch_schema(xml_document)
-    return cls(schema, check_schema=True).to_dict(
+    return cls(schema, validation='strict').to_dict(
         xml_document, path=path, process_namespaces=process_namespaces, **kwargs
     )

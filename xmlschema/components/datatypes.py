@@ -15,10 +15,12 @@ from decimal import Decimal
 
 from ..core import unicode_type
 from ..exceptions import (
-    XMLSchemaTypeError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError
+    XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaValidationError,
+    XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG
-from .xsdbase import check_type, check_value, XsdComponent
+from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ANY_ATOMIC_TYPE
+from .xsdbase import get_xsd_derivation_attribute, XsdComponent
+from xmlschema.utils import check_type, check_value
 from .facets import XSD11_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
 
 
@@ -35,8 +37,8 @@ class XsdSimpleType(XsdComponent):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
-    def __init__(self, name=None, elem=None, schema=None, facets=None):
-        super(XsdSimpleType, self).__init__(name, elem, schema)
+    def __init__(self, name=None, elem=None, schema=None, facets=None, is_global=False):
+        super(XsdSimpleType, self).__init__(name, elem, schema, is_global)
         self.facets = facets or {}
         self.white_space = getattr(self.facets.get(XSD_WHITE_SPACE_TAG), 'value', None)
         self.patterns = self.facets.get(XSD_PATTERN_TAG)
@@ -44,11 +46,11 @@ class XsdSimpleType(XsdComponent):
             v for k, v in self.facets.items()
             if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG) and callable(v)
         ]
-        check_facets_group(self.facets, self.admitted_facets, elem)
+        self.min_value, self.max_value = check_facets_group(self.facets, self.admitted_facets, elem)
 
     @property
     def final(self):
-        return self._get_derivation_attribute('final', ('list', 'union', 'restriction'))
+        return get_xsd_derivation_attribute(self.elem, 'final', ('list', 'union', 'restriction'))
 
     @property
     def admitted_facets(self):
@@ -81,9 +83,10 @@ class XsdSimpleType(XsdComponent):
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate:
-            if self.patterns:
+            if self.patterns is not None:
                 for error in self.patterns(text):
                     yield error
+
             for validator in self.validators:
                 for error in validator(text):
                     yield error
@@ -94,13 +97,22 @@ class XsdSimpleType(XsdComponent):
             yield XMLSchemaEncodeError(self, text, unicode_type)
 
         if validate:
-            if self.patterns:
+            if self.patterns is not None:
                 for error in self.patterns(text):
                     yield error
             for validator in self.validators:
                 for error in validator(text):
                     yield error
         yield text
+
+    def get_facet(self, tag, recursive=False):
+        try:
+            return self.facets[tag]
+        except KeyError:
+            if recursive and hasattr(self, 'base_type'):
+                return getattr(self, 'base_type').get_facets(tag, recursive)
+            else:
+                return None
 
 
 #
@@ -111,9 +123,9 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
-    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
+    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None, is_global=False):
         self.base_type = base_type
-        super(XsdAtomic, self).__init__(name, elem, schema, facets)
+        super(XsdAtomic, self).__init__(name, elem, schema, facets, is_global)
         self.white_space = self.white_space or getattr(base_type, 'white_space', None)
 
     @property
@@ -142,6 +154,22 @@ class XsdAtomic(XsdSimpleType):
             else:
                 return set(primitive_type.facets.keys()).union({None})
 
+    def check(self):
+        if self.checked:
+            return
+        super(XsdAtomic, self).check()
+
+        if self.name != XSD_ANY_ATOMIC_TYPE:
+            try:
+                self.base_type.check()
+            except AttributeError:
+                return  # For primitive atomic built-in types
+
+            if self.base_type.valid is False:
+                self._valid = False
+            elif self.valid is not False and self.base_type.valid is None:
+                self._valid = None
+
 
 class XsdAtomicBuiltin(XsdAtomic):
     """
@@ -165,7 +193,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         """
         if not callable(python_type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
-        super(XsdAtomicBuiltin, self).__init__(base_type, name, facets=facets)
+        super(XsdAtomicBuiltin, self).__init__(base_type, name, facets=facets, is_global=True)
         self.python_type = python_type
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
@@ -178,9 +206,9 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         try:
             result = self.to_python(_text)
-        except ValueError:
-            yield XMLSchemaDecodeError(self, text, self.to_python)
-            yield unicode_type(text) if not kwargs.get('skip_errors') else None
+        except ValueError as err:
+            yield XMLSchemaDecodeError(self, text, self.to_python, reason=str(err))
+            yield unicode_type(_text) if not kwargs.get('skip_errors') else None
             return
 
         if validate:
@@ -228,8 +256,8 @@ class XsdList(XsdSimpleType):
     </list>
     """
 
-    def __init__(self, item_type, name=None, elem=None, schema=None, facets=None):
-        super(XsdList, self).__init__(name, elem, schema, facets)
+    def __init__(self, item_type, name=None, elem=None, schema=None, facets=None, is_global=False):
+        super(XsdList, self).__init__(name, elem, schema, facets, is_global)
         self.item_type = item_type
         self.white_space = self.white_space or 'collapse'
 
@@ -245,6 +273,17 @@ class XsdList(XsdSimpleType):
         except AttributeError:
             return LIST_FACETS
 
+    def check(self):
+        if self.checked:
+            return
+        super(XsdList, self).check()
+
+        self.item_type.check()
+        if self.item_type.valid is False:
+            self._valid = False
+        elif self.valid is not False and self.item_type.valid is None:
+            self._valid = None
+
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
         if validate and self.patterns:
@@ -256,12 +295,6 @@ class XsdList(XsdSimpleType):
             for result in self.item_type.iter_decode(chunk, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
-                elif isinstance(result, XMLSchemaDecodeError):
-                    yield result
-                    if not kwargs.get('skip_errors'):
-                        items.append(unicode_type(chunk))
-                    else:
-                        items.append(None)
                 else:
                     items.append(result)
 
@@ -305,8 +338,8 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
-    def __init__(self, member_types, name=None, elem=None, schema=None, facets=None):
-        super(XsdUnion, self).__init__(name, elem, schema, facets)
+    def __init__(self, member_types, name=None, elem=None, schema=None, facets=None, is_global=False):
+        super(XsdUnion, self).__init__(name, elem, schema, facets, is_global)
         self.member_types = member_types
         self.white_space = self.white_space or 'collapse'
 
@@ -314,6 +347,8 @@ class XsdUnion(XsdSimpleType):
         if name == "member_types":
             for member_type in value:
                 check_type(member_type, XsdSimpleType)
+            if not value:
+                raise XMLSchemaValueError("%r attribute cannot be empty or None." % name)
         elif name == 'white_space':
             check_value(value, None, 'collapse')
         super(XsdUnion, self).__setattr__(name, value)
@@ -324,6 +359,19 @@ class XsdUnion(XsdSimpleType):
             return self.schema.FACETS.intersection(UNION_FACETS)
         except AttributeError:
             return UNION_FACETS
+
+    def check(self):
+        if self.checked:
+            return
+        super(XsdUnion, self).check()
+
+        for member_type in self.member_types:
+            member_type.check()
+
+        if any([mt.valid is False for mt in self.member_types]):
+            self._valid = False
+        elif self.valid is not False and any([mt.valid is None for mt in self.member_types]):
+            self._valid = None
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
@@ -340,9 +388,11 @@ class XsdUnion(XsdSimpleType):
                                 yield error
                     yield result
                     return
-        yield XMLSchemaDecodeError(
+
+        error = XMLSchemaDecodeError(
             self, text, self.member_types, reason="no type suitable for decoding the text."
         )
+        yield error
         yield unicode_type(text) if not kwargs.get('skip_errors') else None
 
     def iter_encode(self, obj, validate=True, **kwargs):
@@ -374,8 +424,8 @@ class XsdAtomicRestriction(XsdAtomic):
       enumeration | whiteSpace | pattern)*))
     </restriction>
     """
-    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None):
-        super(XsdAtomicRestriction, self).__init__(base_type, name, elem, schema, facets)
+    def __init__(self, base_type, name=None, elem=None, schema=None, facets=None, is_global=False):
+        super(XsdAtomicRestriction, self).__init__(base_type, name, elem, schema, facets, is_global)
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
@@ -386,8 +436,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_decode(text, validate, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
-                yield unicode_type(text) if not kwargs.get('skip_errors') else None
-                return
+                yield unicode_type(result) if not kwargs.get('skip_errors') else None
             elif isinstance(result, XMLSchemaValidationError):
                 yield result
             else:

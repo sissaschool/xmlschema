@@ -17,7 +17,8 @@ from ..core import XSI_NAMESPACE_PATH
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from ..qnames import get_qname, reference_to_qname
 from ..utils import get_namespace
-from .xsdbase import check_type, get_xsd_attribute, XsdComponent
+from .xsdbase import get_xsd_attribute, XsdComponent
+from xmlschema.utils import check_type
 from .datatypes import XsdSimpleType
 
 
@@ -25,7 +26,7 @@ def get_attributes(obj):
     if isinstance(obj, dict):
         return obj
     elif isinstance(obj, str):
-        return {(attr.split('=', maxsplit=1) for attr in obj.split(''))}
+        return {(attr.split('=', maxsplit=1) for attr in obj.split(' '))}
     else:
         return obj.attrib
 
@@ -47,8 +48,8 @@ class XsdAttribute(XsdComponent):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    def __init__(self, xsd_type, name, elem=None, schema=None, qualified=False):
-        super(XsdAttribute, self).__init__(name, elem, schema)
+    def __init__(self, xsd_type, name, elem=None, schema=None, qualified=False, is_global=False):
+        super(XsdAttribute, self).__init__(name, elem, schema, is_global)
         self.type = xsd_type
         self.qualified = qualified
 
@@ -83,6 +84,17 @@ class XsdAttribute(XsdComponent):
         return get_xsd_attribute(
             self.elem, 'use', ('optional', 'prohibited', 'required'), default='optional'
         )
+
+    def check(self):
+        if self.checked:
+            return
+        super(XsdAttribute, self).check()
+
+        self.type.check()
+        if self.type.valid is False:
+            self._valid = False
+        elif self.valid is not False and self.type.valid is None:
+            self._valid = None
 
     def is_optional(self):
         return self.use == 'optional'
@@ -149,6 +161,13 @@ class XsdAnyAttribute(XsdComponent):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
         )
 
+    def check(self):
+        if self.checked:
+            return
+        super(XsdAnyAttribute, self).check()
+        if self.process_contents != 'strict' and self.elem is not None:
+            self._valid = True
+
     def iter_decode(self, obj, validate=True, **kwargs):
         if self.process_contents == 'skip':
             return
@@ -197,8 +216,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
-    def __init__(self, name=None, elem=None, schema=None, initdict=None):
-        XsdComponent.__init__(self, name, elem, schema)
+    def __init__(self, name=None, elem=None, schema=None, is_global=False, initdict=None):
+        XsdComponent.__init__(self, name, elem, schema, is_global)
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
@@ -239,6 +258,19 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             self.required = {
                 k for k, v in self.items() if k is not None and v.use == 'required'
             }
+
+    def check(self):
+        if self.checked:
+            return
+        super(XsdAttributeGroup, self).check()
+
+        for attr in self.values():
+            attr.check()
+
+        if any([attr.valid is False for attr in self.values()]):
+            self._valid = False
+        elif self.valid is not False and any([attr.valid is None for attr in self.values()]):
+            self._valid = None
 
     def iter_decode(self, obj, validate=True, **kwargs):
         result_list = []

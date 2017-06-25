@@ -13,50 +13,18 @@ This module contains functions and classes for managing namespaces's
 XSD declarations/definitions.
 """
 import logging as _logging
+import uuid
 
 from .exceptions import XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
 from .qnames import *
-from .utils import camel_case_split, get_namespace, URIDict
+from .utils import get_namespace, URIDict
 from .components import (
     get_xsd_attribute, XsdComponent, XsdAttribute, XsdSimpleType,
-    XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
+    XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation,
+    iterchildren_by_tag, iterchildren_xsd_redefine
 )
 
 _logger = _logging.getLogger(__name__)
-
-
-#
-# Defines the iterfind functions for XML Schema declarations
-def create_iterfind_by_tag(tag):
-    """
-    Defines a generator that produce all subelements that have a specific tag.
-    """
-    tag = str(tag)
-
-    def iterfind_function(elements, path=None, namespaces=None):
-        if isinstance(elements, list):
-            for _elem in elements:
-                for elem in _elem.iterfind(path or tag, namespaces or {}):
-                    if elem.tag == tag:
-                        yield _elem
-        else:
-            for elem in elements.iterfind(path or tag, namespaces or {}):
-                if elem.tag == tag:
-                    yield elem
-    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower()
-
-    return iterfind_function
-
-iterfind_xsd_import = create_iterfind_by_tag(XSD_IMPORT_TAG)
-iterfind_xsd_include = create_iterfind_by_tag(XSD_INCLUDE_TAG)
-iterfind_xsd_redefine = create_iterfind_by_tag(XSD_REDEFINE_TAG)
-iterfind_xsd_simple_types = create_iterfind_by_tag(XSD_SIMPLE_TYPE_TAG)
-iterfind_xsd_complex_types = create_iterfind_by_tag(XSD_COMPLEX_TYPE_TAG)
-iterfind_xsd_attributes = create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
-iterfind_xsd_attribute_groups = create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
-iterfind_xsd_elements = create_iterfind_by_tag(XSD_ELEMENT_TAG)
-iterfind_xsd_groups = create_iterfind_by_tag(XSD_GROUP_TAG)
-iterfind_xsd_notations = create_iterfind_by_tag(XSD_NOTATION_TAG)
 
 
 #
@@ -70,7 +38,7 @@ def create_load_function(filter_function):
                 continue
 
             target_namespace = schema.target_namespace
-            for elem in iterfind_xsd_redefine(schema.root):
+            for elem in iterchildren_xsd_redefine(schema.root):
                 for child in filter_function(elem):
                     qname = get_qname(target_namespace, get_xsd_attribute(child, 'name'))
                     redefinitions.append((qname, (child, schema)))
@@ -96,13 +64,13 @@ def create_load_function(filter_function):
 
     return load_xsd_globals
 
-load_xsd_simple_types = create_load_function(iterfind_xsd_simple_types)
-load_xsd_attributes = create_load_function(iterfind_xsd_attributes)
-load_xsd_attribute_groups = create_load_function(iterfind_xsd_attribute_groups)
-load_xsd_complex_types = create_load_function(iterfind_xsd_complex_types)
-load_xsd_elements = create_load_function(iterfind_xsd_elements)
-load_xsd_groups = create_load_function(iterfind_xsd_groups)
-load_xsd_notations = create_load_function(iterfind_xsd_notations)
+load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE_TAG))
+load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_TAG))
+load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP_TAG))
+load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE_TAG))
+load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT_TAG))
+load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
+load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
 
 
 #
@@ -151,7 +119,7 @@ def create_builder_function(factory_key):
                 try:
                     if isinstance(obj, XsdComponent):
                         elem, schema = obj.elem, obj.schema
-                        if elem is None or elem.tag != tag or schema.built:
+                        if elem is None or elem.tag != tag or getattr(schema, 'built', None):
                             continue
                         res_qname, xsd_instance = factory_function(
                             elem, schema, obj, is_global=True, **kwargs
@@ -248,8 +216,12 @@ class XsdGlobals(object):
         self.elements = {}              # Global elements
         self.base_elements = {}         # Global elements + global groups expansion
         self._view_cache = {}           # Cache for namespace views
+        self.errors = []                # Building errors
 
         self.types.update(validator.BUILTIN_TYPES)
+        self.global_maps = (self.notations, self.types, self.attributes,
+                            self.attribute_groups, self.groups, self.elements)
+        self.check_token = uuid.uuid4()
 
     def copy(self):
         """Makes a copy of the object."""
@@ -264,6 +236,7 @@ class XsdGlobals(object):
         obj.notations.update(self.notations)
         obj.elements.update(self.elements)
         obj.base_elements.update(self.base_elements)
+        obj.errors.extend(self.errors)
         return obj
 
     __copy__ = copy
@@ -330,20 +303,21 @@ class XsdGlobals(object):
             for schema in ns_schemas:
                 yield schema
 
+    def iter_globals(self):
+        for global_map in self.global_maps:
+            for obj in global_map.values():
+                yield obj
+
     def clear(self, remove_schemas=False):
         """
         Clears the instance maps, removing also all the registered schemas 
         and cleaning the cache.
         """
-        self.types.clear()
-        self.attributes.clear()
-        self.attribute_groups.clear()
-        self.groups.clear()
-        self.substitution_groups.clear()
-        self.notations.clear()
-        self.elements.clear()
+        for global_map in self.global_maps:
+            global_map.clear()
         self.base_elements.clear()
         self._view_cache.clear()
+        del self.errors[:]
 
         self.types.update(self.validator.BUILTIN_TYPES)
         for schema in self.iter_schemas():
@@ -396,6 +370,25 @@ class XsdGlobals(object):
         self.base_elements.update(self.elements)
         for group in self.groups.values():
             self.base_elements.update({e.name: e for e in group.iter_elements()})
+        self._view_cache.clear()
+
+    def check(self):
+        for xsd_global in self.iter_globals():
+            xsd_global.check()
+
+        for e in self.iter_globals():
+            print(repr(e.validity), repr(e.validation_attempted), repr(e))
 
         for schema in self.iter_schemas():
-            schema.built = True
+            schema.check()
+
+        if self.errors:
+            if len(self.errors) == 2:
+                raise self.errors[0]
+            else:
+                err = self.errors[0]
+                msg = "found %d errors parsing the schema: %s"
+                raise XMLSchemaParseError(
+                    msg % (len(self.errors), err.message),
+                    obj=self.errors[0].obj
+                )

@@ -112,29 +112,24 @@ class XMLSchemaConverter(NamespaceMapper):
                 if self.cdata_prefix is not None:
                     yield u'%s%s' % (self.cdata_prefix, name), value, xsd_child
 
-    def element_decode(self, elem, xsd_element, content, attributes=None):
+    def element_decode(self, data, xsd_element):
         """
-        Converts a decoded element to a data structure.
+        Converts a decoded element data to a data structure.
 
-        :param elem: The `Element` object that has been decoded.
-        :param xsd_element: The `XsdElement` used to decode the *elem* object.
-        :param content: A sequence or an iterator of tuples with the name of the \
-        element, the decoded value and the `XsdElement` instance associated.
-        :param attributes: A sequence or an iterator of couples with the name of \
-        the attribute and the decoded value. Default is `None` (for `simpleType` \
-        elements, that don't have attributes).
-        :return: A data structure.
+        :param data: Decoded ElementData from an Element node.
+        :param xsd_element: The `XsdElement` associated to decoded the data.
+        :return: A dictionary-based data structure containing the decoded data.
         """
-        result_dict = self.dict([t for t in self.map_attributes(attributes)])
+        result_dict = self.dict([t for t in self.map_attributes(data.attributes)])
         if xsd_element.type.is_simple():
             if result_dict:
-                if content is not None and content != '':
-                    result_dict[self.text_key] = content
+                if data.text is not None and data.text != '':
+                    result_dict[self.text_key] = data.text
                 return result_dict
             else:
-                return content if content != '' else None
+                return data.text if data.text != '' else None
         else:
-            for name, value, xsd_child in self.map_content(content):
+            for name, value, xsd_child in self.map_content(data.content):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
@@ -151,11 +146,9 @@ class XMLSchemaConverter(NamespaceMapper):
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
         Uses the XSD element for recognizing errors.
 
-        :param data: A dictionary if the data represents a decoded `complexType` or \
-        a list or other basic type for a decoded `simpleType`
-        :param xsd_element: The reference element of the schema
-        :param skip_errors: Skip recording errors
-        :return: an ElementData type.
+        :param data: Decoded data structure.
+        :param xsd_element: The `XsdElement` associated to the decoded data structure.
+        :return: A couple with encoded ElementData and a list of errors.
         """
         attributes = []
         errors = []
@@ -168,7 +161,7 @@ class XMLSchemaConverter(NamespaceMapper):
             text = data[text_key]
         except TypeError:
             # simpleType
-            return ElementData(data, None, attributes), errors
+            return ElementData(xsd_element.name, data, None, attributes), errors
         except KeyError:
             # complexType with a complex content
             text = None
@@ -197,7 +190,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     attributes.append((unmap_qname(name[len(attr_prefix):]), value))
                 elif not skip_errors:
                     errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
-        return ElementData(text, content, attributes), errors
+        return ElementData(xsd_element.name, text, content, attributes), errors
 
 
 class ParkerConverter(XMLSchemaConverter):
@@ -221,17 +214,17 @@ class ParkerConverter(XMLSchemaConverter):
     def copy(self):
         return type(self)(self.namespaces, self.dict, self.list, self.preserve_root)
 
-    def element_decode(self, elem, xsd_element, content, attributes=None):
+    def element_decode(self, data, xsd_element):
         map_qname = self.map_qname
         preserve_root = self.preserve_root
         if xsd_element.type.is_simple():
             if preserve_root:
-                return self.dict([(map_qname(elem.tag), content)])
+                return self.dict([(map_qname(data.tag), data.text)])
             else:
-                return content if content != '' else None
+                return data.text if data.text != '' else None
         else:
             result_dict = self.dict()
-            for name, value, _ in self.map_content(content):
+            for name, value, _ in self.map_content(data.content):
                 if preserve_root:
                     try:
                         if len(value) == 1:
@@ -246,7 +239,7 @@ class ParkerConverter(XMLSchemaConverter):
                 except AttributeError:
                     result_dict[name] = self.list([result_dict[name], value])
             if preserve_root:
-                return self.dict([(map_qname(elem.tag), result_dict)])
+                return self.dict([(map_qname(data.tag), result_dict)])
             else:
                 return result_dict if result_dict else None
 
@@ -268,21 +261,21 @@ class BadgerFishConverter(XMLSchemaConverter):
             attr_prefix='@', text_key='$', cdata_prefix='#'
         )
 
-    def element_decode(self, elem, xsd_element, content, attributes=None):
+    def element_decode(self, data, xsd_element):
         self.clear()
         dict_class = self.dict
 
-        tag = self.map_qname(elem.tag)
+        tag = self.map_qname(data.tag)
         has_local_root = not len(self)
-        result_dict = dict_class([t for t in self.map_attributes(attributes)])
+        result_dict = dict_class([t for t in self.map_attributes(data.attributes)])
         if has_local_root:
             result_dict[u'@xmlns'] = dict_class()
 
         if xsd_element.type.is_simple():
-            if content is not None and content != '':
-                result_dict[self.text_key] = content
+            if data.text is not None and data.text != '':
+                result_dict[self.text_key] = data.text
         else:
-            for name, value, xsd_child in self.map_content(content):
+            for name, value, xsd_child in self.map_content(data.content):
                 try:
                     if u'@xmlns' in value:
                         self.transfer(value[u'@xmlns'])
@@ -337,12 +330,12 @@ class AbderaConverter(XMLSchemaConverter):
             attr_prefix='', text_key='', cdata_prefix=None
         )
 
-    def element_decode(self, elem, xsd_element, content, attributes=None):
+    def element_decode(self, data, xsd_element):
         if xsd_element.type.is_simple():
-            children = content if content is not None and content != '' else None
+            children = data.text if data.text is not None and data.text != '' else None
         else:
             children = self.dict()
-            for name, value, xsd_child in self.map_content(content):
+            for name, value, xsd_child in self.map_content(data.content):
                 if value is None:
                     value = self.list()
 
@@ -358,14 +351,14 @@ class AbderaConverter(XMLSchemaConverter):
             if not children:
                 children = None
 
-        if attributes:
+        if data.attributes:
             if children:
                 return self.dict([
-                    ('attributes', self.dict([(k, v) for k, v in self.map_attributes(attributes)])),
+                    ('attributes', self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])),
                     ('children', self.list([children]) if children is not None else self.list())
                 ])
             else:
-                return self.dict([(k, v) for k, v in self.map_attributes(attributes)])
+                return self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
         else:
             return children if children is not None else self.list()
 
@@ -387,18 +380,18 @@ class JsonMLConverter(XMLSchemaConverter):
             attr_prefix='', text_key='', cdata_prefix=None
         )
 
-    def element_decode(self, elem, xsd_element, content, attributes=None):
+    def element_decode(self, data, xsd_element):
         self.clear()
-        result_list = self.list([self.map_qname(elem.tag)])
-        element_dict = self.dict([(k, v) for k, v in self.map_attributes(attributes)])
+        result_list = self.list([self.map_qname(data.tag)])
+        element_dict = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
 
         if xsd_element.type.is_simple():
-            if content is not None and content != '':
-                result_list.append(content)
+            if data.text is not None and data.text != '':
+                result_list.append(data.text)
         else:
             result_list.extend([
                 value if value is not None else self.list([name])
-                for name, value, _ in self.map_content(content)
+                for name, value, _ in self.map_content(data.content)
             ])
 
         if self:

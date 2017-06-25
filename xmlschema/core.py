@@ -123,7 +123,7 @@ etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
 
 # Namedtuple for a generic Element data representation.
-ElementData = namedtuple('ElementData', ['text', 'content', 'attributes'])
+ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):

@@ -12,10 +12,13 @@
 This subpackage contains classes and constants for XML Schema components.
 """
 from .xsdbase import (
-    check_tag, check_attrs, check_type, check_value, get_xsd_annotation,
-    get_xsd_component, iter_xsd_declarations, get_xsd_attribute,
-    get_xsd_bool_attribute, get_xsd_int_attribute, XsdAnnotation, XsdComponent
+    check_tag, get_xsd_annotation,
+    get_xsd_component, get_xsd_attribute, get_xsd_bool_attribute,
+    get_xsd_int_attribute, get_xsd_derivation_attribute, iter_xsd_declarations,
+    iterchildren_by_tag, iterchildren_xsd_import, iterchildren_xsd_include,
+    iterchildren_xsd_redefine, XsdAnnotation, XsdComponent, XMLSchemaValidator
 )
+from xmlschema.utils import check_type, check_value
 from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
 from .datatypes import (
     XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
@@ -42,7 +45,7 @@ class XsdNotation(XsdComponent):
     </notation>
     """
     def __init__(self, name, elem, schema):
-        super(XsdNotation, self).__init__(name, elem, schema)
+        super(XsdNotation, self).__init__(name, elem, schema, is_global=True)
         for key in self._attrib:
             if key not in {'id', 'name', 'public', 'system'}:
                 schema.errors.append(XMLSchemaParseError(

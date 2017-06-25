@@ -18,19 +18,21 @@ from ..exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError, XMLSchemaEncodeError
 )
 from ..qnames import (
-    get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
+    get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG,
+    XSD_CHOICE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ANY_TYPE
 )
 from ..utils import get_namespace, listify_update
-from .. import xpath
+from ..xpath import XPathMixin
 from .xsdbase import (
-    check_type, get_xsd_attribute, get_xsd_bool_attribute,
-    XsdComponent, check_value, ParticleMixin
+    check_tag, get_xsd_attribute, get_xsd_bool_attribute,
+    get_xsd_derivation_attribute, XsdComponent, ParticleMixin
 )
+from xmlschema.utils import check_type, check_value
 from .attributes import XsdAttributeGroup
 from .datatypes import XsdSimpleType
 
 
-class XsdElement(Sequence, XsdComponent, ParticleMixin):
+class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -53,8 +55,8 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    def __init__(self, name, xsd_type, elem, schema, ref=False, qualified=False):
-        super(XsdElement, self).__init__(name, elem, schema)
+    def __init__(self, name, xsd_type, elem, schema, ref=False, qualified=False, is_global=False):
+        super(XsdElement, self).__init__(name, elem, schema, is_global)
         self.type = xsd_type
         self.ref = ref
         self.qualified = qualified
@@ -112,7 +114,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
 
     @property
     def block(self):
-        return self._get_derivation_attribute('block', ('extension', 'restriction', 'substitution'))
+        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
 
     @property
     def default(self):
@@ -120,7 +122,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
 
     @property
     def final(self):
-        return self._get_derivation_attribute('final', ('extension', 'restriction'))
+        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
     @property
     def fixed(self):
@@ -138,10 +140,27 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
     def substitution_group(self):
         return self._attrib.get('substitutionGroup')
 
+    def check(self):
+        if self.checked:
+            return
+        super(XsdElement, self).check()
+
+        self.type.check()
+        if self.type.valid is False:
+            self._valid = False
+        elif self.valid is False and self.type.valid is None:
+            self._valid = None
+
     def has_name(self, name):
         return self.name == name or (not self.qualified and local_name(self.name) == name)
 
     def iter_decode(self, elem, validate=True, **kwargs):
+        """
+        Generator method for decoding elements. A data structure is returned, eventually
+        preceded by a sequence of validation or decode errors (decode errors only if the
+        optional argument *validate* is `False`).
+        """
+        skip_errors = kwargs.get('skip_errors', False)
         element_decode_hook = kwargs.get('element_decode_hook')
         if element_decode_hook is None:
             element_decode_hook = self.schema.get_converter().element_decode
@@ -153,11 +172,16 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                 kwargs['default'] = self.default
             for result in self.type.iter_decode(elem, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
+                    if result.schema_elem is None:
+                        if self.type.name is not None and self.target_namespace == self.type.target_namespace:
+                            result.schema_elem = self.type.elem
+                        else:
+                            result.schema_elem = self.elem
                     if result.elem is None:
-                        result.elem, result.schema_elem = elem, self.elem
+                        result.elem = elem
                     yield result
                 else:
-                    yield element_decode_hook(elem, self, *result)
+                    yield element_decode_hook(ElementData(elem.tag, *result), self)
                     del result
         else:
             if elem.attrib:
@@ -171,11 +195,17 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                 text = elem.text or self.default if use_defaults else elem.text
                 for result in self.type.iter_decode(text, validate, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
+                        if result.schema_elem is None:
+                            if self.type.name is not None and \
+                                            self.target_namespace == self.type.target_namespace:
+                                result.schema_elem = self.type.elem
+                            else:
+                                result.schema_elem = self.elem
                         if result.elem is None:
-                            result.elem, result.schema_elem = elem, self.elem
+                            result.elem = elem
                         yield result
                     else:
-                        yield element_decode_hook(elem, self, result)
+                        yield element_decode_hook(ElementData(elem.tag, result, None, None), self)
                         del result
 
     def iter_encode(self, data, validate=True, **kwargs):
@@ -251,7 +281,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                         yield index
                     return
                 else:
-                    yield (self, elem[index])
+                    yield self, elem[index]
 
             index += 1
             model_occurs += 1
@@ -281,43 +311,6 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin):
                     yield xsd_element
         except (TypeError, AttributeError):
             return
-
-    def iterfind(self, path, namespaces=None):
-        """
-        Generate all matching XML Schema element declarations by path.
-
-        :param path: a string having an XPath expression. 
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        """
-        if path[:1] == "/":
-            raise SyntaxError("cannot use absolute path on element")
-        return xpath.xsd_iterfind(self, path, namespaces)
-
-    def find(self, path, namespaces=None):
-        """
-        Find first matching XML Schema element declaration by path.
-
-        :param path: a string having an XPath expression.
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: The first matching XML Schema element declaration or None if a 
-        matching declaration is not found.
-        """
-        if path[:1] == "/":
-            raise SyntaxError("cannot use absolute path on element")
-        return next(xpath.xsd_iterfind(self, path, namespaces), None)
-
-    def findall(self, path, namespaces=None):
-        """
-        Find all matching XML Schema element declarations by path.
-
-        :param path: a string having an XPath expression.
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: A list of matching XML Schema element declarations or None if a 
-        matching declaration is not found.
-        """
-        if path[:1] == "/":
-            raise SyntaxError("cannot use absolute path on element")
-        return list(xpath.xsd_iterfind(self, path, namespaces))
 
 
 class Xsd11Element(XsdElement):
@@ -378,6 +371,13 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
+    def check(self):
+        if self.checked:
+            return
+        super(XsdAnyElement, self).check()
+        if self.process_contents != 'strict' and self.elem is not None:
+            self._valid = True
+
     def iter_decode(self, elem, validate=True, **kwargs):
         if self.process_contents == 'skip':
             return
@@ -397,17 +397,38 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             yield XMLSchemaValidationError(self, elem, "element %r not allowed here." % elem.tag)
 
     def iter_model(self, elem, index=0):
-        namespace = get_namespace(elem.tag)
-        if not self._is_namespace_allowed(namespace, self.namespace):
-            return
+        model_occurs = 0
+        process_contents = self.process_contents
+        while True:
+            try:
+                namespace = get_namespace(elem[index].tag)
+            except IndexError:
+                if model_occurs == 0 and self.min_occurs > 0:
+                    yield XMLSchemaValidationError(self, elem, "a tag from %r expected." % self.namespaces)
+                yield index
+                return
+            else:
+                if not self._is_namespace_allowed(namespace, self.namespace):
+                    yield XMLSchemaValidationError(self, elem, "%r not allowed." % namespace)
 
-        try:
-            xsd_element = self.schema.maps.lookup_element(elem.tag)
-        except LookupError:
-            return
-        else:
-            for obj in xsd_element.iter_model(elem, index):
-                yield obj
+                try:
+                    xsd_element = self.schema.maps.lookup_element(elem[index].tag)
+                except LookupError:
+                    if process_contents == 'strict':
+                        yield XMLSchemaValidationError(
+                            self, elem, "cannot retrieve the schema for %r" % elem[index]
+                        )
+                else:
+                    if process_contents != 'skip':
+                        for obj in xsd_element.iter_model(elem, index):
+                            yield obj
+
+            index += 1
+            model_occurs += 1
+            if self.max_occurs is not None and model_occurs >= self.max_occurs:
+                yield index
+                return
+
 
 
 class Xsd11AnyElement(XsdAnyElement):
@@ -445,11 +466,11 @@ class XsdComplexType(XsdComponent):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    def __init__(self, content_type, name=None, elem=None, schema=None, attributes=None,
-                 derivation=None, mixed=None):
-        super(XsdComplexType, self).__init__(name, elem, schema)
+    def __init__(self, content_type, attributes, name=None, elem=None, schema=None,
+                 derivation=None, mixed=None, is_global=False):
+        super(XsdComplexType, self).__init__(name, elem, schema, is_global)
         self.content_type = content_type
-        self.attributes = attributes or XsdAttributeGroup(schema=schema)
+        self.attributes = attributes
         if mixed is not None:
             self.mixed = mixed
         else:
@@ -473,15 +494,34 @@ class XsdComplexType(XsdComponent):
 
     @property
     def block(self):
-        return self._get_derivation_attribute('block', ('extension', 'restriction'))
+        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction'))
 
     @property
     def final(self):
-        return self._get_derivation_attribute('final', ('extension', 'restriction'))
+        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+
+    def check(self):
+        if self.checked:
+            return
+        super(XsdComplexType, self).check()
+
+        if self.name != XSD_ANY_TYPE:
+            self.content_type.check()
+            self.attributes.check()
+
+            if self.content_type.valid is False or self.attributes.valid is False:
+                self._valid = False
+            elif self.valid is not False:
+                if self.content_type.valid is None and self.attributes.valid is None:
+                    self._valid = None
 
     def is_simple(self):
         """Return true if the the type has simple content."""
         return isinstance(self.content_type, XsdSimpleType)
+
+    @staticmethod
+    def get_facet(*args, **kwargs):
+        return None
 
     def admit_simple_restriction(self):
         if 'restriction' in self.final:
@@ -498,6 +538,12 @@ class XsdComplexType(XsdComponent):
         return self.derivation is True
 
     def iter_decode(self, elem, validate=True, **kwargs):
+        """
+        Generator method for decoding complexType elements. A 3-tuple (simple content,
+        complex content, attributes) containing the decoded parts is returned, eventually
+        preceded by a sequence of validation/decode errors (decode errors only if the
+        optional argument *validate* is `False`).
+        """
         # Decode attributes
         for result in self.attributes.iter_decode(elem, validate, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -506,8 +552,7 @@ class XsdComplexType(XsdComponent):
                 attributes = result
                 break
         else:
-            # Should be never executed with the default implementation
-            attributes = []
+            attributes = None
 
         if self.is_simple():
             # Decode a simple content element
@@ -521,16 +566,16 @@ class XsdComplexType(XsdComponent):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
-                        yield (result, attributes)
+                        yield result, None, attributes
             else:
-                yield (None, attributes)
+                yield None, None, attributes
         else:
             # Decode a complex content element
             for result in self.content_type.iter_decode(elem, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    yield (result, attributes)
+                    yield None, result, attributes
 
     def iter_encode(self, data, validate=True, **kwargs):
         # Encode attributes
@@ -546,20 +591,20 @@ class XsdComplexType(XsdComponent):
         if self.is_simple():
             # Encode a simple or simple content element
             if data.text is None:
-                yield ElementData(None, data.content, attributes)
+                yield ElementData(None, None, data.content, attributes)
             else:
                 for result in self.content_type.iter_encode(data.text, validate, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
-                        yield ElementData(result, data.content, attributes)
+                        yield ElementData(None, result, data.content, attributes)
         else:
             # Encode a complex content element
             for result in self.content_type.iter_encode(data.content, validate, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    yield ElementData(result[0], result[1], attributes)
+                    yield ElementData(None, result[0], result[1], attributes)
 
 
 class Xsd11ComplexType(XsdComplexType):
@@ -584,7 +629,7 @@ class Xsd11ComplexType(XsdComplexType):
 
 class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     """
-    A class for XSD 'group', 'choice', 'sequence' definitions and 
+    A class for XSD 'group', 'choice', 'sequence' definitions and
     XSD 1.0 'all' definitions.
 
     <group
@@ -621,11 +666,13 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    def __init__(self, name=None, elem=None, schema=None, model=None, mixed=False, initlist=None):
-        XsdComponent.__init__(self, name, elem, schema)
+    def __init__(self, name=None, elem=None, schema=None, model=None,
+                 mixed=False, length=None, is_global=False, initlist=None):
+        XsdComponent.__init__(self, name, elem, schema, is_global)
         self.model = model
         self.mixed = mixed
         self._group = []
+        self.length = length
         self.elements = None
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
@@ -634,6 +681,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 self._group[:] = initlist._group[:]
             else:
                 self._group = list(initlist)
+            self.length = max([len(self), length or 0])
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -659,16 +707,44 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return XsdComponent.__repr__(self)
 
     def __setattr__(self, name, value):
-        super(XsdGroup, self).__setattr__(name, value)
-        ParticleMixin.__setattr__(self, name, value)
-        if name == 'model':
-            check_value(value, None, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
+        if name == 'elem' and value is not None:
+            if self.name is None:
+                check_tag(value, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
+            else:
+                check_tag(value, XSD_GROUP_TAG)
+                # Check maxOccurs and minOccurs: not allowed
+        elif name == 'model':
+            check_value(value, None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
+            model = getattr(self, 'model', None)
+            if model is not None and value != model:
+                raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
         elif name == 'mixed':
             check_value(value, True, False)
         elif name == '_group':
             check_type(value, list)
             for item in value:
                 check_type(item, XsdGroup, XsdElement, XsdAnyElement)
+        super(XsdGroup, self).__setattr__(name, value)
+        ParticleMixin.__setattr__(self, name, value)
+
+    @property
+    def built(self):
+        if self.length is None or len(self) < self.length:
+            return False
+        else:
+            return super(XsdGroup, self).built
+
+    def check(self):
+        if self.checked:
+            return
+        super(XsdGroup, self).check()
+
+        for item in self:
+            item.check()
+        if any([e.valid is False for e in self]):
+            self._valid = False
+        elif self.valid is not False and any([e.valid is None for e in self]):
+            self._valid = None
 
     def clear(self):
         del self._group[:]
@@ -685,12 +761,18 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                     yield e
 
     def iter_decode(self, elem, validate=True, **kwargs):
+        """
+        Generator method for decoding complex content elements. A list of 3-tuples
+        (key, decoded data, decoder) is returned, eventually preceded by a sequence
+        of validation/decode errors (decode errors only if the optional argument
+        *validate* is `False`).
+        """
         def not_whitespace(s):
             return s is not None and s.strip()
 
         skip_errors = kwargs.get('skip_errors', False)
         result_list = []
-        cdata_index = 1
+        cdata_index = 1  # keys for CDATA sections are positive integers
         if validate and not self.mixed:
             # Validate character data between tags
             if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
@@ -709,23 +791,49 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 cdata_index += 1
 
         # Decode child elements
-        for obj in self.iter_model(elem):
-            if isinstance(obj, XMLSchemaValidationError):
-                if validate:
-                    yield obj
-            elif isinstance(obj, tuple):
-                xsd_element, child = obj
-                for result in xsd_element.iter_decode(child, validate, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        if validate:
-                            yield result
-                    else:
-                        result_list.append((child.tag, result, xsd_element))
-                if cdata_index and elem.tail is not None:
-                    tail = unicode_type(elem.tail.strip())
-                    if tail:
-                        result_list.append((cdata_index, tail, None))
-                        cdata_index += 1
+        index = 0
+        repeat = 0
+        while index < len(elem):
+            repeat += 1
+            if repeat > 10:
+                print ("ITER #%d" % repeat, index, len(elem), self)
+                break
+                # import pdb
+                # pdb.set_trace()
+            for obj in self.iter_model(elem, index=index):
+                if isinstance(obj, XMLSchemaValidationError):
+                    if validate:
+                        yield obj
+                elif isinstance(obj, tuple):
+                    xsd_element, child = obj
+                    for result in xsd_element.iter_decode(child, validate, **kwargs):
+                        if isinstance(result, XMLSchemaValidationError):
+                            if validate:
+                                yield result
+                        else:
+                            result_list.append((child.tag, result, xsd_element))
+                    if cdata_index and elem.tail is not None:
+                        tail = unicode_type(elem.tail.strip())
+                        if tail:
+                            result_list.append((cdata_index, tail, None))
+                            cdata_index += 1
+                elif obj < len(elem) - 1:
+                    print("Invalid", obj, index)
+                    yield XMLSchemaValidationError(
+                        self, elem,
+                        reason="Invalid content was found starting with element %r. "
+                               "No child element is expected at this point." % elem[obj].tag
+                    )
+                    index = obj + 1
+                    break
+                else:
+                    if index == obj:
+                        stop = True
+                    index = obj
+                    break
+            else:
+                pass
+                #print("Niente numero!!!")
         yield result_list
 
     def iter_encode(self, data, validate=True, **kwargs):
@@ -821,17 +929,18 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                     group.remove(item)
 
             elif self.model == XSD_CHOICE_TAG:
-                validated = False
+                matched_choice = False
                 for item in self:
                     for obj in item.iter_model(elem, model_index):
                         if not isinstance(obj, XMLSchemaValidationError):
                             if isinstance(obj, tuple):
                                 yield obj
                                 continue
-                            validated = True
-                            model_index = obj
+                            if model_index < obj:
+                                matched_choice = True
+                                model_index = obj
                         break
-                    if validated:
+                    if matched_choice:
                         break
                 else:
                     if model_occurs == 0 and self.min_occurs > 0:
@@ -850,6 +959,8 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             if self.max_occurs is not None and model_occurs >= self.max_occurs:
                 yield index
                 return
+        else:
+            yield index
 
 
 class Xsd11Group(XsdGroup):

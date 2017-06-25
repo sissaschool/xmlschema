@@ -336,23 +336,87 @@ def check_facets_group(facets, admitted_facets, elem=None):
         msg = "one or more facets are not applicable, admitted set is %r:"
         raise XMLSchemaParseError(msg % admitted_facets, elem)
 
+    # Check group base_type
+    base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
+    if len(base_type) > 1:
+        raise XMLSchemaValueError("facet group must have the same base_type: %r" % base_type)
+    base_type = base_type.pop() if base_type else None
+
     # Checks length based facets
     length = getattr(facets.get(XSD_LENGTH_TAG), 'value', None)
-    min_length = getattr(facets.get(XSD_MIN_LENGTH_TAG), 'value', 0)
+    min_length = getattr(facets.get(XSD_MIN_LENGTH_TAG), 'value', None)
     max_length = getattr(facets.get(XSD_MAX_LENGTH_TAG), 'value', None)
-    if max_length is not None and min_length > max_length:
-        raise XMLSchemaParseError("value of 'minLength' is greater than 'maxLength'.", elem)
-
-    # TODO: complete the checks on facets
     if length is not None:
-        if min_length > length:
-            raise XMLSchemaParseError("value of 'minLength' is greater than 'length'.", elem)
+        if length < 0:
+            raise XMLSchemaParseError("'length' value must be non negative integer.", elem)
+        if min_length is not None:
+            if min_length > length:
+                raise XMLSchemaParseError("'minLength' value must be less or equal to 'length'.", elem)
+            min_length_facet = base_type.get_facet(XSD_MIN_LENGTH_TAG, recursive=True)
+            length_facet = base_type.get_facet(XSD_LENGTH_TAG, recursive=True)
+            if min_length_facet is None or \
+                    (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
+                raise XMLSchemaParseError("cannot specify both 'length' and 'minLength'.", elem)
+        if max_length is not None:
+            if max_length < length:
+                raise XMLSchemaParseError("'maxLength' value must be greater or equal to 'length'.", elem)
+            max_length_facet = base_type.get_facet(XSD_MAX_LENGTH_TAG, recursive=True)
+            length_facet = base_type.get_facet(XSD_LENGTH_TAG, recursive=True)
+            if max_length_facet is None or \
+                    (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
+                raise XMLSchemaParseError("cannot specify both 'length' and 'maxLength'.", elem)
+    elif min_length is not None:
+        if min_length < 0:
+            raise XMLSchemaParseError("'minLength' value must be non negative integer.", elem)
+        if max_length is not None and max_length < min_length:
+            raise XMLSchemaParseError("'maxLength' value is lesser than 'minLength'.", elem)
+        min_length_facet = base_type.get_facet(XSD_MIN_LENGTH_TAG)
+        if min_length_facet is not None and min_length_facet.value > min_length:
+            raise XMLSchemaParseError("parent 'minLength' has a lesser value.", elem)
+    elif max_length is not None:
+        if max_length < 0:
+            raise XMLSchemaParseError("'maxLength' value must be non negative integer.", elem)
+        max_length_facet = base_type.get_facet(XSD_MAX_LENGTH_TAG)
+        if max_length_facet is not None and max_length_facet.value > min_length:
+            raise XMLSchemaParseError("parent 'maxLength' has a greater value.", elem)
 
-        if max_length is not None and max_length < length:
-            raise XMLSchemaParseError("value of 'maxLength' is lesser than 'length'.", elem)
+    # Checks max/min
+    min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE_TAG), 'value', None)
+    min_exclusive = getattr(facets.get(XSD_MIN_EXCLUSIVE_TAG), 'value', None)
+    max_inclusive = getattr(facets.get(XSD_MAX_INCLUSIVE_TAG), 'value', None)
+    max_exclusive = getattr(facets.get(XSD_MAX_EXCLUSIVE_TAG), 'value', None)
+    if min_inclusive is not None and min_exclusive is not None:
+        raise XMLSchemaParseError("cannot specify both 'minInclusive' and 'minExclusive.", elem)
+    if max_inclusive is not None and max_exclusive is not None:
+        raise XMLSchemaParseError("cannot specify both 'maxInclusive' and 'maxExclusive.", elem)
 
-        lengths = (0, max_length)
-    elif min_length is not None or max_length is not None:
-        pass
+    if min_inclusive is not None:
+        if max_inclusive is not None and min_inclusive > max_inclusive:
+            raise XMLSchemaParseError("'minInclusive' must be less or equal to 'maxInclusive'", elem)
+        elif max_exclusive is not None and min_inclusive >= max_exclusive:
+            raise XMLSchemaParseError("'minInclusive' must be lesser than 'maxExclusive'", elem)
+        min_value = max_inclusive
+    elif min_exclusive is not None:
+        if max_inclusive is not None and min_exclusive >= max_inclusive:
+            raise XMLSchemaParseError("'minExclusive' must be lesser than 'maxInclusive'", elem)
+        elif max_exclusive is not None and min_exclusive > max_exclusive:
+            raise XMLSchemaParseError("'minExclusive' must be less or equal to 'maxExclusive'", elem)
+        min_value = min_exclusive + 1
     else:
-        lengths = (length, length)
+        min_value = None
+
+    if max_inclusive is not None:
+        max_value = max_inclusive
+    elif max_exclusive is not None:
+        max_value = max_exclusive - 1
+    else:
+        max_value = None
+
+    base_min_value = getattr(base_type, 'min_value', None)
+    base_max_value = getattr(base_type, 'max_value', None)
+    if base_min_value is not None and min_value is not None and base_min_value > min_value:
+        raise XMLSchemaParseError("minimum value of base_type is greater.", elem)
+    if base_max_value is not None and max_value is not None and base_max_value < max_value:
+        raise XMLSchemaParseError("maximum value of base_type is lesser.", elem)
+
+    return min_value, max_value

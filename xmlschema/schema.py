@@ -19,21 +19,24 @@ from .core import (
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
-    XMLSchemaDecodeError, XMLSchemaURLError, XMLSchemaEncodeError
+    XMLSchemaURLError, XMLSchemaEncodeError
 )
-from .qnames import XSD_SCHEMA_TAG
+from . import qnames
 from .utils import URIDict, listify_update
 from .resources import (
     open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
 from . import xpath
 from .builtins import XSD_BUILTIN_TYPES
-from .components import check_tag, get_xsd_attribute, XsdElement, XSD_FACETS
+from .validator import XMLSchemaValidator
+from .components import (
+    check_tag, get_xsd_attribute, XSD_FACETS, XsdElement, get_xsd_derivation_attribute,
+    iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
+)
+from xmlschema.utils import check_value
 from .converters import XMLSchemaConverter
 from .factories import *
-from .namespaces import (
-    XsdGlobals, iterfind_xsd_import, iterfind_xsd_include, iterfind_xsd_redefine
-)
+from .namespaces import XsdGlobals
 
 DEFAULT_OPTIONS = {
     'simple_type_factory': xsd_simple_type_factory,
@@ -50,7 +53,7 @@ DEFAULT_OPTIONS = {
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 
-def create_validator(version, meta_schema, base_schemas=None, facets=None,
+def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                      builtin_types=None, **options):
 
     meta_schema = os.path.join(SCHEMAS_DIR, meta_schema)
@@ -64,18 +67,18 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
         if opt in options:
             validator_options[opt] = options[opt]
 
-    class XMLSchemaValidator(object):
+    class _XMLSchema(XMLSchemaValidator, xpath.XPathMixin):
         """
         Class to wrap an XML Schema for components lookups and conversion.
         """
-        VERSION = version
+        XSD_VERSION = xsd_version
         META_SCHEMA = None
-        BUILTIN_TYPES = builtin_types
+        BUILTIN_TYPES = builtin_types  # TODO: implement __deepcopy__
         FACETS = facets or ()
         OPTIONS = validator_options
         _parent_map = None
 
-        def __init__(self, source, namespace=None, check_schema=False, global_maps=None, converter=None):
+        def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None):
             """
             Initialize an XML schema instance.
 
@@ -87,16 +90,15 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 self.root, self.text, self.uri = load_xml_resource(source, element_only=False)
             except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                 raise type(err)('cannot create schema: %s' % err)
+            else:
+                super(_XMLSchema, self).__init__()
 
-            check_tag(self.root, XSD_SCHEMA_TAG)
-            self.element_form = self.root.attrib.get('elementFormDefault', 'unqualified')
-            self.attribute_form = self.root.attrib.get('attributeFormDefault', 'unqualified')
-
-            self.built = False  # True if the schema is built successfully
-            self.errors = []    # Parsing errors
+            # Schema validity assessments
+            self.validation = validation
+            self.errors = []        # Parsing errors
 
             # Determine the targetNamespace
-            self.target_namespace = self.root.attrib.get('targetNamespace', '')
+            self.target_namespace = self.root.get('targetNamespace', '')
             if namespace is not None and self.target_namespace != namespace:
                 if self.target_namespace:
                     raise XMLSchemaParseError(
@@ -121,7 +123,7 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 try:
                     self.maps = self.META_SCHEMA.maps.copy()
                 except AttributeError:
-                    self.maps = XsdGlobals(XMLSchemaValidator)
+                    self.maps = XsdGlobals(_XMLSchema)
                 else:
                     if self.target_namespace in self.maps.namespaces:
                         self.maps.clear()
@@ -142,25 +144,67 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
             self.converter = self.get_converter(converter)
 
             if self.META_SCHEMA is not None:
-                self.include_schemas(self.root, check_schema)
-                self.import_schemas(self.root, check_schema)
-                self.redefine_schemas(self.root, check_schema)
+                self.include_schemas(self.root, validation)
+                self.import_schemas(self.root, validation)
+                self.redefine_schemas(self.root, validation)
 
-                if check_schema:
+                if validation in ('strict', 'lax'):
                     self.check_schema(self.root)
+                    self._valid = True
 
                 # Builds the XSD objects only if the instance is
                 # the creator of the XSD globals maps.
                 if global_maps is None:
                     self.maps.build()
+                    self.maps.check()
             else:
                 # If the META_SCHEMA is not instantiated do not import
                 # other namespaces and do not build maps.
+                self._valid = True  # Meta-schemas are checked by factories only.
                 self.include_schemas(self.root)
-                self.redefine_schemas(self.root, check_schema)
+                self.redefine_schemas(self.root, validation)
+
+            self.global_maps = (self.notations, self.types, self.attributes,
+                                self.attribute_groups, self.groups, self.elements)
 
         def __repr__(self):
             return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
+
+        def __setattr__(self, name, value):
+            if name == 'root':
+                check_tag(value, qnames.XSD_SCHEMA_TAG)
+            elif name == 'validation':
+                check_value(value, 'strict', 'lax', 'skip')
+            super(_XMLSchema, self).__setattr__(name, value)
+
+        # Schema element attributes
+        @property
+        def attribute_form_default(self):
+            return self.root.get('attributeFormDefault', 'unqualified')
+
+        @property
+        def block_default(self):
+            return get_xsd_derivation_attribute(
+                self.root, 'blockDefault', ('extension', 'restriction', 'substitution')
+            )
+
+        @property
+        def element_form_default(self):
+            return self.root.get('elementFormDefault', 'unqualified')
+
+        @property
+        def final_default(self):
+            return get_xsd_derivation_attribute(
+                self.root, 'finalDefault', ('extension', 'restriction', 'list', 'union')
+            )
+
+        @property
+        def id(self):
+            return self.root.get('id')
+
+        @property
+        def version(self):
+            return self.root.get('version')
 
         @property
         def target_prefix(self):
@@ -211,9 +255,39 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
             return cls(*args, **kwargs)
 
         @classmethod
-        def check_schema(cls, schema):
-            for error in cls.META_SCHEMA.iter_errors(schema):
-                raise error
+        def check_schema(cls, schema, raise_on_error=True):
+            if raise_on_error:
+                for error in cls.META_SCHEMA.iter_errors(schema):
+                    raise error
+            else:
+                return [error for error in cls.META_SCHEMA.iter_errors(schema)]
+
+        @property
+        def check_token(self):
+            return self.maps.check_token
+
+        @property
+        def built(self):
+            return None
+
+        def check(self):
+            if self.errors:
+                self._valid = False
+            elif any([e.valid is False for e in self.iter_globals()]):
+                self._valid = False
+            elif any([e.valid is None for e in self.iter_globals()]):
+                self._valid = None
+            elif all([e.valid is None for e in self.iter_globals()]):
+                self._valid = None
+            elif all([e.valid is True for e in self.iter_globals()]):
+                self._valid = True
+            else:
+                self._valid = None
+
+        def iter_globals(self):
+            for global_map in self.global_maps:
+                for obj in global_map.values():
+                    yield obj
 
         def get_locations(self, namespace):
             if not namespace:
@@ -251,13 +325,13 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 msg = "'converter' argument must be a %r subclass or instance: %r"
                 raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
 
-        def import_schemas(self, elements, check_schema=False):
-            for elem in iterfind_xsd_import(elements, namespaces=self.namespaces):
-                namespace = elem.attrib.get('namespace', '').strip()
+        def import_schemas(self, elem, validation='strict'):
+            for child in iterchildren_xsd_import(elem):
+                namespace = child.get('namespace', '').strip()
                 if namespace in self.maps.namespaces:
                     continue
 
-                locations = elem.attrib.get('schemaLocation', self.get_locations(namespace))
+                locations = child.get('schemaLocation', self.get_locations(namespace))
                 if locations:
                     try:
                         schema_res, schema_uri = open_resource(locations, self.uri)
@@ -269,14 +343,14 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
                     try:
                         self.create_schema(
-                            schema_uri, namespace or self.target_namespace, check_schema, self.maps
+                            schema_uri, namespace or self.target_namespace, validation, self.maps
                         )
                     except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                         raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
-        def include_schemas(self, elements, check_schema=False):
-            for elem in iterfind_xsd_include(elements, namespaces=self.namespaces):
-                location = get_xsd_attribute(elem, 'schemaLocation')
+        def include_schemas(self, elem, validation='strict'):
+            for child in iterchildren_xsd_include(elem):
+                location = get_xsd_attribute(child, 'schemaLocation')
                 try:
                     schema_res, schema_uri = open_resource(location, self.uri)
                     schema_res.close()
@@ -287,13 +361,13 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
                 if schema_uri not in self.maps.resources:
                     try:
-                        self.create_schema(schema_uri, self.target_namespace, check_schema, self.maps)
+                        self.create_schema(schema_uri, self.target_namespace, validation, self.maps)
                     except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                         raise type(err)('cannot include %r: %s' % (schema_uri, err))
 
-        def redefine_schemas(self, elements, check_schema=False):
-            for elem in iterfind_xsd_redefine(elements, namespaces=self.namespaces):
-                location = get_xsd_attribute(elem, 'schemaLocation')
+        def redefine_schemas(self, elem, validation='strict'):
+            for child in iterchildren_xsd_redefine(elem):
+                location = get_xsd_attribute(child, 'schemaLocation')
                 try:
                     schema_res, schema_uri = open_resource(location, self.uri)
                     schema_res.close()
@@ -304,23 +378,9 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
 
                 if schema_uri not in self.maps.resources:
                     try:
-                        self.create_schema(schema_uri, self.target_namespace, check_schema, self.maps)
+                        self.create_schema(schema_uri, self.target_namespace, validation, self.maps)
                     except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                         raise type(err)('cannot redefine %r: %s' % (schema_uri, err))
-
-        def validate(self, xml_document, use_defaults=True):
-            for error in self.iter_errors(xml_document, use_defaults=use_defaults):
-                raise error
-
-        def is_valid(self, xml_document, use_defaults=True):
-            error = next(self.iter_errors(xml_document, use_defaults=use_defaults), None)
-            return error is None
-
-        def iter_errors(self, xml_document, path=None, use_defaults=True):
-            for chunk in self.iter_decode(
-                    xml_document, path, use_defaults=use_defaults, skip_errors=True):
-                if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    yield chunk
 
         def iter_decode(self, xml_document, path=None, process_namespaces=True, validate=True,
                         namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
@@ -360,21 +420,8 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                             decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                         yield obj
 
-        def iter_encode(self, data, path, validate=True, namespaces=None, skip_errors=False,
+        def iter_encode(self, data, path=None, validate=True, namespaces=None, skip_errors=False,
                         indent=None, element_class=None, converter=None):
-            """
-
-            :param data:
-            :param path:
-            :param validate:
-            :param namespaces:
-            :param skip_errors:
-            :param indent:
-            :param element_class: Element class to use when encode data to an ElementTree \
-            structure. Default is `xml.etree.ElementTree.Element`.
-            :param converter:
-            :return:
-            """
             if indent is not None and indent < 0:
                 indent = 0
             _namespaces = self.namespaces.copy()
@@ -395,22 +442,6 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 for obj in xsd_element.iter_encode(data, validate, **kwargs):
                     yield obj
 
-        def decode(self, *args, **kwargs):
-            for obj in self.iter_decode(*args, **kwargs):
-                if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    raise obj
-                return obj
-        to_dict = decode
-
-        def encode(self, *args, **kwargs):
-            for obj in self.iter_encode(*args, **kwargs):
-                if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                    raise obj
-                return obj
-        to_elem = encode
-
-        #
-        # ElementTree APIs for extracting XSD elements and attributes.
         def iter(self, name=None):
             for xsd_element in self.elements.values():
                 if name is None or xsd_element.name == name:
@@ -423,55 +454,28 @@ def create_validator(version, meta_schema, base_schemas=None, facets=None,
                 if name is None or xsd_element.name == name:
                     yield xsd_element
 
-        def iterfind(self, path, namespaces=None):
-            """
-            Generate all matching XML Schema element declarations by path.
-
-            :param path: a string having an XPath expression. 
-            :param namespaces: an optional mapping from namespace prefix to full name.
-            """
-            return xpath.xsd_iterfind(self, path, namespaces or self.namespaces)
-
-        def find(self, path, namespaces=None):
-            """
-            Find first matching XML Schema element declaration by path.
-
-            :param path: a string having an XPath expression.
-            :param namespaces: an optional mapping from namespace prefix to full name.
-            :return: The first matching XML Schema element declaration or None if a 
-            matching declaration is not found.
-            """
-            return next(xpath.xsd_iterfind(self, path, namespaces or self.namespaces), None)
-
-        def findall(self, path, namespaces=None):
-            """
-            Find all matching XML Schema element declarations by path.
-
-            :param path: a string having an XPath expression.
-            :param namespaces: an optional mapping from namespace prefix to full name.
-            :return: A list of matching XML Schema element declarations or None if a 
-            matching declaration is not found.
-            """
-            return list(xpath.xsd_iterfind(self, path, namespaces or self.namespaces))
-
     # Create the meta schema
     if meta_schema is not None:
-        meta_schema = XMLSchemaValidator(meta_schema)
+        meta_schema = _XMLSchema(meta_schema)
+        meta_schema.maps.types[qnames.XSD_ANY_TYPE].schema = meta_schema
+        meta_schema.maps.types[qnames.XSD_ANY_SIMPLE_TYPE].schema = meta_schema
+        meta_schema.maps.types[qnames.XSD_ANY_ATOMIC_TYPE].schema = meta_schema
         for k, v in list(base_schemas.items()):
-            XMLSchemaValidator(v, global_maps=meta_schema.maps)
+            _XMLSchema(v, global_maps=meta_schema.maps)
 
-        XMLSchemaValidator.META_SCHEMA = meta_schema
+        _XMLSchema.META_SCHEMA = meta_schema
         meta_schema.maps.build()
+        meta_schema.maps.check()
 
-    if version is not None:
-        XMLSchemaValidator.__name__ = 'XMLSchema_{}'.format(version.replace(".", "_"))
+    if xsd_version is not None:
+        _XMLSchema.__name__ = 'XMLSchema_{}'.format(xsd_version.replace(".", "_"))
 
-    return XMLSchemaValidator
+    return _XMLSchema
 
 
 # Define classes for generic XML schemas
 XMLSchema_v1_0 = create_validator(
-    version='1.0',
+    xsd_version='1.0',
     meta_schema='XSD_1.0/XMLSchema.xsd',
     base_schemas={
         XML_NAMESPACE_PATH: 'xml_minimal.xsd',

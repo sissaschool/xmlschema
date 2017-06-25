@@ -14,46 +14,19 @@ This module contains base functions and classes XML Schema components.
 import re
 
 from ..core import PY3
+from ..exceptions import XMLSchemaParseError
 from ..qnames import *
-from ..exceptions import (
-    XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaParseError,
-    XMLSchemaAttributeError, XMLSchemaValidationError,
-    XMLSchemaEncodeError, XMLSchemaDecodeError
-)
-from ..utils import FrozenDict
+from ..utils import camel_case_split, FrozenDict
+from ..validator import XMLSchemaValidator
 
 #
-# Check functions for XSD schema factories and components.
+# Functions for parsing declarations from schema's tree
 def check_tag(elem, *tags):
     if elem.tag not in tags:
         tags = (local_name(tag) for tag in tags)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
 
 
-def check_attrs(obj, *attrs):
-    for attr in attrs:
-        try:
-            getattr(obj, attr)
-        except AttributeError as err:
-            raise XMLSchemaAttributeError(err.message)
-
-
-def check_type(obj, *types):
-    if not isinstance(obj, types):
-        raise XMLSchemaTypeError(
-            "wrong type %s, it must be one of %r." % (type(obj), types)
-        )
-
-
-def check_value(value, *values):
-    if value not in values:
-        raise XMLSchemaValueError(
-            "wrong value %s, it must be None or one of %r." % (value, values)
-        )
-
-
-#
-# Functions for extracting declarations from schema's tree
 def get_xsd_annotation(elem):
     """
     Return the annotation of a node child that is
@@ -155,7 +128,7 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
     try:
         value = int(value)
     except (TypeError, ValueError) as err:
-        raise XMLSchemaValueError("attribute %r error: %r" % (attribute, str(err)), elem)
+        raise XMLSchemaParseError("attribute %r error: %r" % (attribute, str(err)), elem)
     else:
         if minimum is None or value >= minimum:
             return value
@@ -163,6 +136,41 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
             raise XMLSchemaParseError(
                 "attribute %r value must be greater or equal to %r" % (attribute, minimum), elem
             )
+
+
+def get_xsd_derivation_attribute(elem, attribute, values):
+    """
+    Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
+    checking the items with the values arguments. Returns a string.
+
+    :param elem: The Element's instance.
+    :param attribute: The attribute name.
+    :param values: Sequence of admitted values when the attribute value is not '#all'.
+    :return: A string.
+    """
+    value = get_xsd_attribute(elem, attribute, default='')
+    items = value.split()
+    if len(items) == 1 and items[0] == "#all":
+        return ' '.join(values)
+    elif not all([s in values for s in items]):
+        raise XMLSchemaParseError("wrong value %r for attribute %r." % (value, attribute), elem)
+    return value
+
+
+def iterchildren_by_tag(tag):
+    """
+    Defines a generator that produce all child elements that have a specific tag.
+    """
+    def iterfind_function(root):
+        for elem in root:
+            if elem.tag == tag:
+                yield elem
+    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower()
+    return iterfind_function
+
+iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
+iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
+iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
 
 
 class XsdBase(object):
@@ -182,8 +190,22 @@ class XsdBase(object):
 
     def __setattr__(self, name, value):
         if name == "elem":
+            elem = getattr(self, 'elem', None)
+            if False and elem is not None and elem is not value:
+                raise XMLSchemaValueError("cannot change the 'elem' of an XSD object.")
             self._attrib = value.attrib if value is not None else self._DUMMY_DICT
         elif name == "schema":
+            schema = getattr(self, 'schema', None)
+            if schema is not None:
+                if value is None:
+                    raise XMLSchemaValueError("cannot remove the 'schema' of %r." % self)
+                if schema.target_namespace != value.target_namespace:
+                    import pdb
+                    pdb.set_trace()
+                    raise XMLSchemaValueError(
+                        "cannot change 'schema' attribute of %r: the actual %r has a different "
+                        "target namespace than %r." % (self, schema, value)
+                    )
             if value is not None:
                 self.target_namespace = value.target_namespace
                 self.namespaces = value.namespaces
@@ -215,16 +237,7 @@ class XsdBase(object):
         if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
             return value
         elif not all([s not in ('##any', '##other') for s in items]):
-            raise XMLSchemaValueError("wrong value %r for the 'namespace' attribute." % value, self)
-        return value
-
-    def _get_derivation_attribute(self, attribute, values):
-        value = get_xsd_attribute(self.elem, attribute, default='')
-        items = value.split()
-        if len(items) == 1 and items[0] == "#all":
-            return ' '.join(values)
-        elif not all([s in values for s in items]):
-            raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute), self)
+            raise XMLSchemaParseError("wrong value %r for the 'namespace' attribute." % value, self.elem)
         return value
 
     def _is_namespace_allowed(self, namespace, any_namespace):
@@ -299,7 +312,7 @@ class XsdAnnotation(XsdBase):
         super(XsdAnnotation, self).__setattr__(name, value)
 
 
-class XsdComponent(XsdBase):
+class XsdComponent(XsdBase, XMLSchemaValidator):
     """
     XML Schema component base class.
 
@@ -308,9 +321,12 @@ class XsdComponent(XsdBase):
     :param schema: The XMLSchema object that owns the definition.
     """
 
-    def __init__(self, name=None, elem=None, schema=None):
+    def __init__(self, name=None, elem=None, schema=None, is_global=False):
         self.name = name
+        self.parent = None  # Parent XSD component (the schema for XSD globals)
+        self.is_global = is_global
         super(XsdComponent, self).__init__(elem, schema)
+        XMLSchemaValidator.__init__(self)
 
     def __repr__(self):
         return u"<%s %r at %#x>" % (self.__class__.__name__, self.name, id(self))
@@ -329,7 +345,9 @@ class XsdComponent(XsdBase):
         __str__ = __unicode__
 
     def __setattr__(self, name, value):
-        if name == "elem":
+        # if getattr(self, '_checked', False) and name != '_checked':
+        #    raise XMLSchemaValueError("Cannot change ", name, value)
+        if name == 'elem':
             annotation = get_xsd_annotation(value)
             if annotation is not None:
                 self.annotation = XsdAnnotation(annotation, self.schema)
@@ -337,70 +355,36 @@ class XsdComponent(XsdBase):
                 self.annotation = None
         super(XsdComponent, self).__setattr__(name, value)
 
-    def validate(self, obj):
-        """
-        Validates XML data using the XSD component.
-        
-        :param obj: the object containing the XML data. Can be a string for an \
-        attribute or a simple type definition, or an ElementTree's Element for \
-        other XSD components.
-        :raises: :exc:`XMLSchemaValidationError` if the object is not valid.
-        """
-        for error in self.iter_errors(obj):
-            raise error
+    @property
+    def check_token(self):
+        try:
+            return self.schema.maps.check_token
+        except AttributeError:
+            print (self, self.built, self.elem)
+            raise
 
-    def iter_errors(self, obj):
-        """
-        Creates an iterator for errors generated validating XML data with 
-        the XSD component.
+    @property
+    def built(self):
+        return self.elem is not None or self.name in XSD_SPECIAL_TYPES
 
-        :param obj: the object containing the XML data. Can be a string for an \
-        attribute or a simple type definition, or an ElementTree's Element for \
-        other XSD components.
-        """
-        for chunk in self.iter_decode(obj):
-            if isinstance(chunk, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                yield chunk
+    def check(self):
+        if self.checked:
+            return
+        XMLSchemaValidator.check(self)
 
-    def decode(self, obj, validate=True, **kwargs):
-        """
-        Decodes the object using the XSD component.
-        
-        :param obj: the object containing the XML data. Can be a string for an \
-        attribute or a simple type definition, or an ElementTree's Element for \
-        other XSD components.
-        :param validate: if ``True`` validates the object against the XSD \
-        component during the decoding process.
-        :param kwargs: keyword arguments from the ones included in the optional \
-        arguments of the :func:`XMLSchema.iter_decode`.
-        :return: A dictionary like object if the XSD component is an element, a \
-        group or a complex type; a list if the XSD component is an attribute group; \
-         a simple data type object otherwise.
-        :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
-        the XSD component, or also if it's invalid when ``validate=True`` is provided.
-        """
-        for obj in self.iter_decode(obj, validate, **kwargs):
-            if isinstance(obj, (XMLSchemaDecodeError, XMLSchemaValidationError)):
-                raise obj
-            return obj
-
-    def encode(self, obj, validate=True, **kwargs):
-        for obj in self.iter_encode(obj, validate, **kwargs):
-            if isinstance(obj, (XMLSchemaEncodeError, XMLSchemaValidationError)):
-                raise obj
-            return obj
-
-    def iter_decode(self, obj, validate=True, **kwargs):
-        """
-        Creates an iterator for decoding an object using the XSD component. Likes
-        method *decode* except that does not raise any exception. Yields decoded values.
-        Also :exc:`XMLSchemaValidationError` errors are yielded during decoding process
-        if the *obj* is invalid.
-        """
-        raise NotImplementedError
-
-    def iter_encode(self, obj, validate=True, **kwargs):
-        raise NotImplementedError
+        if self.name in XSD_SPECIAL_TYPES:
+            self._valid = True
+        elif self.built is False:
+            self._valid = None
+        if self.schema is not None:
+            if any([err.obj is self.elem for err in self.schema.errors]):
+                self._valid = False
+            elif self.schema.validation == 'strict':
+                self._valid = True
+            else:
+                self._valid = None
+        else:
+            self._valid = None
 
 
 class ParticleMixin(object):

@@ -19,7 +19,10 @@ from decimal import Decimal
 
 from .core import long_type, unicode_type, etree_element, etree_iselement
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
-from .qnames import xsd_qname, XSD_GROUP_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG
+from .qnames import (
+    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG, XSD_WHITE_SPACE_TAG,
+    XSD_PATTERN_TAG, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+)
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet,
     XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS,
@@ -30,20 +33,31 @@ from .components import (
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 
-
 #
-# Special builtin types
+# Special builtin types.
 ANY_TYPE = XsdComplexType(
     content_type=XsdGroup(
         elem=etree_element(XSD_GROUP_TAG, attrib={'min_occurs': '0'}),
         initlist=[XsdAnyElement()]
     ),
-    name=xsd_qname('anyType'),
     attributes=XsdAttributeGroup(initdict={None: XsdAnyAttribute()}),
-    mixed=True
+    name=XSD_ANY_TYPE,
+    elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
+    mixed=True,
+    is_global=True
 )
-ANY_SIMPLE_TYPE = XsdSimpleType(xsd_qname('anySimpleType'), facets={k: None for k in XSD11_FACETS})
-ANY_ATOMIC_TYPE = XsdAtomicRestriction(base_type=ANY_SIMPLE_TYPE, name=xsd_qname('anyAtomicType'))
+ANY_SIMPLE_TYPE = XsdSimpleType(
+    name=XSD_ANY_SIMPLE_TYPE,
+    elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
+    facets={k: None for k in XSD11_FACETS},
+    is_global=True
+)
+ANY_ATOMIC_TYPE = XsdAtomicRestriction(
+    base_type=ANY_SIMPLE_TYPE,
+    name=XSD_ANY_ATOMIC_TYPE,
+    elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
+    is_global=True
+)
 
 
 #

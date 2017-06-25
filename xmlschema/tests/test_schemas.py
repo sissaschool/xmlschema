@@ -28,7 +28,7 @@ def create_schema_tests(pathname):
             errors = [str(e) for e in meta_schema.iter_errors(xsd_file)]
 
             try:
-                xs = xmlschema.XMLSchema(xsd_file)
+                xs = xmlschema.XMLSchema(xsd_file, validation='skip')
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
