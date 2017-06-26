@@ -14,10 +14,15 @@ from .utils import check_value
 
 class XMLSchemaValidator(object):
     """
-    Base class for defining XML Schema validators.
+    Base class for defining XML Schema validators. The validator uses two tokens,
+    one for building and the other for validity check, because a schema could
+    contains circular definitions. Those tokens are usually managed by the object
+    that contains the global maps, and the implementations of the validator has to
+    define two properties that returns the value of those tokens.
     """
     def __init__(self):
-        self._check_token = None
+        self._built = None
+        self._checked = None
         self._validity = None
 
     def __setattr__(self, name, value):
@@ -26,28 +31,37 @@ class XMLSchemaValidator(object):
         super(XMLSchemaValidator, self).__setattr__(name, value)
 
     @property
-    def check_token(self):
+    def built_token(self):
         """
-        :returns: The reference UUID token for define the checking \
-        status of XML Schema components.
+        Get the reference token for verify the built status of the validator.
         """
         raise NotImplementedError
 
     @property
-    def checked(self):
-        if not self.built:
-            return False
-        return self._check_token == self.check_token
+    def checked_token(self):
+        """
+        Get the reference token for verify the check status of the validator.
+        """
+        raise NotImplementedError
 
     @property
     def built(self):
         """
-        XML Schema validator built status.
-
-        :returns: True if the XML Schema validator has been already \
-        fully built, returns False otherwise.
+        Returns the validator built status, `True` if the validator has been \
+        fully built, `False` otherwise.
         """
         raise NotImplementedError
+        # return self._built == self.built_token
+
+    @property
+    def checked(self):
+        """
+        Returns the validator built status, `True` if the validator has been \
+        fully checked, `False` otherwise.
+        """
+        if not self.built:
+            return False
+        return self._checked == self.checked_token
 
     @property
     def valid(self):
@@ -85,11 +99,17 @@ class XMLSchemaValidator(object):
             return 'partial'  # the instance was already parsed in any case ...
 
     def check(self):
+        #if not self.built:
+        #    raise XMLSchemaNotBuiltError("%r is not built." % self)
+        self._checked = self.checked_token
         if not self.built:
-            print("%r not built" % self, len(self), repr(self.parent))
+            self._validity = None
+            # import pdb
+            # pdb.set_trace()
+            print("%r not built" % self, repr(self.parent))
             # raise XMLSchemaNotBuiltError("%r: cannot check a not built component." % self)
-        self._check_token = self.check_token
-        self._validity = True
+        else:
+            self._validity = True
 
     def validate(self, data, use_defaults=True):
         """

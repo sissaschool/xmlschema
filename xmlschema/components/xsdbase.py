@@ -259,7 +259,7 @@ class XsdBase(object):
         """The ``'id'`` attribute of declaration tag, ``None`` if missing."""
         return self._attrib.get('id')
 
-    def as_string(self, indent='', max_lines=None, spaces_for_tab=4):
+    def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
         if self.elem is None:
             return str(None)
         else:
@@ -326,6 +326,8 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
     """
+    FACTORY_KWARG = None
+    XSD_GLOBAL_TAG = None
 
     def __init__(self, name=None, elem=None, schema=None, is_global=False):
         self.name = name
@@ -351,8 +353,6 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         __str__ = __unicode__
 
     def __setattr__(self, name, value):
-        # if getattr(self, '_checked', False) and name != '_checked':
-        #    raise XMLSchemaValueError("Cannot change ", name, value)
         if name == 'elem':
             annotation = get_xsd_annotation(value)
             if annotation is not None:
@@ -362,12 +362,12 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         super(XsdComponent, self).__setattr__(name, value)
 
     @property
-    def check_token(self):
-        try:
-            return self.schema.maps.check_token
-        except AttributeError:
-            print (self, self.built, self.elem)
-            raise
+    def built_token(self):
+        return self.schema.maps.built_token
+
+    @property
+    def checked_token(self):
+        return self.schema.maps.checked_token
 
     @property
     def built(self):
@@ -379,18 +379,18 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         XMLSchemaValidator.check(self)
 
         if self.name in XSD_SPECIAL_TYPES:
-            self._valid = True
+            self._validity = True
         elif self.built is False:
-            self._valid = None
+            self._validity = None
         if self.schema is not None:
             if any([err.obj is self.elem for err in self.schema.errors]):
-                self._valid = False
+                self._validity = False
             elif self.schema.validation == 'strict':
-                self._valid = True
+                self._validity = True
             else:
-                self._valid = None
+                self._validity = None
         else:
-            self._valid = None
+            self._validity = None
 
 
 class ParticleMixin(object):

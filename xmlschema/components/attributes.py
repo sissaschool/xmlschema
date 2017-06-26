@@ -15,7 +15,7 @@ from collections import MutableMapping
 
 from ..core import XSI_NAMESPACE_PATH
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from ..qnames import get_qname, reference_to_qname
+from ..qnames import get_qname, reference_to_qname, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG
 from ..utils import get_namespace
 from .xsdbase import get_xsd_attribute, XsdComponent
 from xmlschema.utils import check_type
@@ -48,6 +48,9 @@ class XsdAttribute(XsdComponent):
       Content: (annotation?, simpleType?)
     </attribute>
     """
+    FACTORY_KWARG = 'attribute_factory'
+    XSD_GLOBAL_TAG = XSD_ATTRIBUTE_TAG
+
     def __init__(self, xsd_type, name, elem=None, schema=None, qualified=False, is_global=False):
         super(XsdAttribute, self).__init__(name, elem, schema, is_global)
         self.type = xsd_type
@@ -92,9 +95,9 @@ class XsdAttribute(XsdComponent):
 
         self.type.check()
         if self.type.valid is False:
-            self._valid = False
+            self._validity = False
         elif self.valid is not False and self.type.valid is None:
-            self._valid = None
+            self._validity = None
 
     def is_optional(self):
         return self.use == 'optional'
@@ -166,7 +169,7 @@ class XsdAnyAttribute(XsdComponent):
             return
         super(XsdAnyAttribute, self).check()
         if self.process_contents != 'strict' and self.elem is not None:
-            self._valid = True
+            self._validity = True
 
     def iter_decode(self, obj, validate=True, **kwargs):
         if self.process_contents == 'skip':
@@ -216,6 +219,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
+    FACTORY_KWARG = 'attribute_group_factory'
+    XSD_GLOBAL_TAG = XSD_ATTRIBUTE_GROUP_TAG
+
     def __init__(self, name=None, elem=None, schema=None, is_global=False, initdict=None):
         XsdComponent.__init__(self, name, elem, schema, is_global)
         self._attribute_group = dict()
@@ -259,6 +265,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 k for k, v in self.items() if k is not None and v.use == 'required'
             }
 
+    @property
+    def built(self):
+        built = super(XsdAttributeGroup, self).built
+        return built and all([attr.built for attr in self.values()])
+
     def check(self):
         if self.checked:
             return
@@ -268,9 +279,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             attr.check()
 
         if any([attr.valid is False for attr in self.values()]):
-            self._valid = False
+            self._validity = False
         elif self.valid is not False and any([attr.valid is None for attr in self.values()]):
-            self._valid = None
+            self._validity = None
 
     def iter_decode(self, obj, validate=True, **kwargs):
         result_list = []

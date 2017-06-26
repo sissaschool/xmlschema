@@ -263,7 +263,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 return [error for error in cls.META_SCHEMA.iter_errors(schema)]
 
         @property
-        def check_token(self):
+        def checked_token(self):
             return self.maps.check_token
 
         @property
@@ -465,6 +465,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
 
         _XMLSchema.META_SCHEMA = meta_schema
         meta_schema.maps.build()
+        print("FINITO IL BUILD ::::")
         meta_schema.maps.check()
 
     if xsd_version is not None:

@@ -15,13 +15,12 @@ XSD declarations/definitions.
 import logging as _logging
 import uuid
 
-from .exceptions import XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
+from .exceptions import XMLSchemaKeyError, XMLSchemaParseError
 from .qnames import *
 from .utils import get_namespace, URIDict
 from .components import (
-    get_xsd_attribute, XsdComponent, XsdAttribute, XsdSimpleType,
-    XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation,
-    iterchildren_by_tag, iterchildren_xsd_redefine
+    get_xsd_attribute, XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement,
+    XsdAttributeGroup, XsdGroup, XsdNotation, iterchildren_by_tag, iterchildren_xsd_redefine
 )
 
 _logger = _logging.getLogger(__name__)
@@ -81,115 +80,69 @@ def create_lookup_function(map_name, xsd_classes):
     else:
         types_desc = xsd_classes.__name__
 
-    def lookup(global_maps, qname):
+    def lookup(global_maps, qname, **kwargs):
+        global_map = getattr(global_maps, map_name)
         try:
-            obj = getattr(global_maps, map_name)[qname]
+            obj = global_map[qname]
         except KeyError:
             raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
         else:
             if isinstance(obj, xsd_classes):
-                return obj
-            elif isinstance(obj, list) and isinstance(obj[0], xsd_classes):
+                if obj.built:
+                    return obj
+                else:
+                    elem, schema = obj.elem, obj.schema
+                    factory_function = kwargs[obj.FACTORY_KWARG]
+                    obj2 = factory_function(elem, schema, obj, is_global=True, **kwargs)
+                    global_map[qname] = obj2
+                    return obj2
+            elif isinstance(obj, (tuple, list)) and obj and isinstance(obj[0], xsd_classes):
+                # More complex: redefine case
+                start = int(isinstance(obj[0], xsd_classes))
+                xsd_instance = obj[0] if start else None    # No
+                for k in range(start, len(obj)):
+                    elem, schema = obj[k]
+
+                    if isinstance(xsd_classes, (tuple, list)):
+                        for xsd_class in xsd_classes:
+                            if elem.tag == xsd_class.XSD_GLOBAL_TAG:
+                                factory_function = kwargs[xsd_class.FACTORY_KWARG]
+                                break
+                        else:
+                            raise XMLSchemaValueError("Element not compatible!")
+                    else:
+                        factory_function = kwargs[xsd_classes.FACTORY_KWARG]
+
+                    xsd_instance = factory_function(
+                        elem, schema, xsd_instance, is_global=True, **kwargs
+                    )
+                    obj[0] = xsd_instance
+                global_map[qname] = xsd_instance
                 return obj[0]
-            elif isinstance(obj, (tuple, list)):
-                raise XMLSchemaNotBuiltError(
-                    "a %s object for %r not built!" % (types_desc, qname), obj, qname
-                )
+
+            elif isinstance(obj, (tuple, list)) and len(obj) == 2:
+                # print("Build %r(%r)" % (xsd_classes, qname))
+                # global_map[qname] = None
+                # The map entry is a couple with etree element and reference schema.
+                elem, schema = obj
+                if isinstance(xsd_classes, (tuple, list)):
+                    for xsd_class in xsd_classes:
+                        if elem.tag == xsd_class.XSD_GLOBAL_TAG:
+                            factory_function = kwargs[xsd_class.FACTORY_KWARG]
+                            break
+                    else:
+                        raise XMLSchemaValueError("Element not compatible!")
+                else:
+                    factory_function = kwargs[xsd_classes.FACTORY_KWARG]
+
+                obj = factory_function(elem, schema, is_global=True, **kwargs)
+                global_map[qname] = obj
+                return obj
             else:
                 raise XMLSchemaTypeError(
                     "wrong type %s for %r, a %s required." % (type(obj), qname, types_desc)
                 )
     return lookup
-
-
-#
-# Defines the builder functions for XML Schema structures
-def create_builder_function(factory_key):
-
-    def build_xsd_map(xsd_globals, tag, **kwargs):
-        global_names = set(xsd_globals.keys())
-        factory_function = kwargs.get(factory_key)
-        last_not_built = 0
-        i = 0
-        while True:
-            i += 1
-            not_built = {}
-            for qname in global_names:
-                obj = xsd_globals[qname]
-                try:
-                    if isinstance(obj, XsdComponent):
-                        elem, schema = obj.elem, obj.schema
-                        if elem is None or elem.tag != tag or getattr(schema, 'built', None):
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, obj, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, tuple):
-                        elem, schema = obj
-                        if elem.tag != tag:
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, list):
-                        start = int(isinstance(obj[0], XsdComponent))
-                        xsd_instance = obj[0] if start else None
-                        for k in range(start, len(obj)):
-                            elem, schema = obj[k]
-                            if elem.tag != tag:
-                                break
-                            res_qname, xsd_instance = factory_function(
-                                elem, schema, xsd_instance, is_global=True, **kwargs
-                            )
-                            obj[0] = xsd_instance
-                    else:
-                        raise XMLSchemaTypeError(
-                            "unexpected type %r for XSD global %r" % (type(obj), qname)
-                        )
-
-                except XMLSchemaNotBuiltError as err:
-                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
-                    not_built[qname] = err.qname
-                    if len(not_built) == last_not_built:
-                        raise XMLSchemaParseError(str(err), elem)
-
-                except (XMLSchemaTypeError, XMLSchemaKeyError) as err:
-                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
-                    raise
-                else:
-                    if elem.tag != tag:
-                        continue
-                    if res_qname != qname:
-                        raise XMLSchemaValueError(
-                            "wrong result name: %r != %r" % (res_qname, qname)
-                        )
-                    _logger.debug("Build xsd_globals[%r] = %r", res_qname, xsd_instance)
-                    xsd_globals[qname] = xsd_instance
-
-            if not not_built:
-                break
-
-            last_not_built = len(not_built)
-
-            # Defines not-built element list from dependencies
-            global_names = [k for k, v in not_built.items() if v not in not_built]
-            while True:
-                names = [
-                    k for k, v in not_built.items() if k not in global_names and v in global_names
-                ]
-                if not names:
-                    break
-                global_names.extend(names)
-
-    return build_xsd_map
-
-build_xsd_simple_types = create_builder_function('simple_type_factory')
-build_xsd_attributes = create_builder_function('attribute_factory')
-build_xsd_attribute_groups = create_builder_function('attribute_group_factory')
-build_xsd_complex_types = create_builder_function('complex_type_factory')
-build_xsd_elements = create_builder_function('element_factory')
-build_xsd_groups = create_builder_function('group_factory')
-build_xsd_notations = create_builder_function('notation_factory')
 
 
 class XsdGlobals(object):
@@ -221,7 +174,8 @@ class XsdGlobals(object):
         self.types.update(validator.BUILTIN_TYPES)
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
-        self.check_token = uuid.uuid4()
+        self.built_token = uuid.uuid4()
+        self.checked_token = uuid.uuid4()
 
     def copy(self):
         """Makes a copy of the object."""
@@ -336,19 +290,32 @@ class XsdGlobals(object):
 
         # Load and build global declarations
         load_xsd_notations(self.notations, self.iter_schemas())
-        build_xsd_notations(self.notations, XSD_NOTATION_TAG, **kwargs)
         load_xsd_simple_types(self.types, self.iter_schemas())
-        build_xsd_simple_types(self.types, XSD_SIMPLE_TYPE_TAG, **kwargs)
         load_xsd_attributes(self.attributes, self.iter_schemas())
-        build_xsd_attributes(self.attributes, XSD_ATTRIBUTE_TAG, **kwargs)
         load_xsd_attribute_groups(self.attribute_groups, self.iter_schemas())
-        build_xsd_attribute_groups(self.attribute_groups, XSD_ATTRIBUTE_GROUP_TAG, **kwargs)
         load_xsd_complex_types(self.types, self.iter_schemas())
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, **kwargs)
         load_xsd_elements(self.elements, self.iter_schemas())
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, **kwargs)
         load_xsd_groups(self.groups, self.iter_schemas())
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, **kwargs)
+
+        for qname in self.notations:
+            self.lookup_notation(qname, **kwargs)
+        for qname in self.attributes:
+            self.lookup_attribute(qname, **kwargs)
+        for qname in self.attribute_groups:
+            self.lookup_attribute_group(qname, **kwargs)
+        for qname in self.types:
+            self.lookup_type(qname, **kwargs)
+        for qname in self.elements:
+            self.lookup_element(qname, **kwargs)
+        for qname in self.groups:
+            self.lookup_group(qname, **kwargs)
+
+        for qname in self.groups:
+            self.lookup_group(qname, parse_local_groups=True, **kwargs)
+        for qname in self.types:
+            self.lookup_type(qname, parse_local_groups=True, **kwargs)
+        for qname in self.elements:
+            self.lookup_element(qname, parse_local_groups=True, **kwargs)
 
         # Build substitution groups from element declarations
         for xsd_element in self.elements.values():
@@ -360,11 +327,6 @@ class XsdGlobals(object):
                     self.substitution_groups[name].add(xsd_element)
                 except KeyError:
                     self.substitution_groups[name] = {xsd_element}
-
-        # Build all local declarations
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, parse_local_groups=True, **kwargs)
 
         # Update base_elements
         self.base_elements.update(self.elements)

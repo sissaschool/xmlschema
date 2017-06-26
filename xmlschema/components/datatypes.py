@@ -18,7 +18,7 @@ from ..exceptions import (
     XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaValidationError,
     XMLSchemaEncodeError, XMLSchemaDecodeError
 )
-from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ANY_ATOMIC_TYPE
+from ..qnames import XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_SIMPLE_TYPE_TAG
 from .xsdbase import get_xsd_derivation_attribute, XsdComponent
 from xmlschema.utils import check_type, check_value
 from .facets import XSD11_FACETS, LIST_FACETS, UNION_FACETS, check_facets_group
@@ -37,6 +37,9 @@ class XsdSimpleType(XsdComponent):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
+    FACTORY_KWARG = 'simple_type_factory'
+    XSD_GLOBAL_TAG = XSD_SIMPLE_TYPE_TAG
+
     def __init__(self, name=None, elem=None, schema=None, facets=None, is_global=False):
         super(XsdSimpleType, self).__init__(name, elem, schema, is_global)
         self.facets = facets or {}
@@ -166,9 +169,9 @@ class XsdAtomic(XsdSimpleType):
                 return  # For primitive atomic built-in types
 
             if self.base_type.valid is False:
-                self._valid = False
+                self._validity = False
             elif self.valid is not False and self.base_type.valid is None:
-                self._valid = None
+                self._validity = None
 
 
 class XsdAtomicBuiltin(XsdAtomic):
@@ -280,9 +283,9 @@ class XsdList(XsdSimpleType):
 
         self.item_type.check()
         if self.item_type.valid is False:
-            self._valid = False
+            self._validity = False
         elif self.valid is not False and self.item_type.valid is None:
-            self._valid = None
+            self._validity = None
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
@@ -369,9 +372,9 @@ class XsdUnion(XsdSimpleType):
             member_type.check()
 
         if any([mt.valid is False for mt in self.member_types]):
-            self._valid = False
+            self._validity = False
         elif self.valid is not False and any([mt.valid is None for mt in self.member_types]):
-            self._valid = None
+            self._validity = None
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)

@@ -19,7 +19,7 @@ from ..exceptions import (
 )
 from ..qnames import (
     get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG,
-    XSD_CHOICE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ANY_TYPE
+    XSD_CHOICE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_ANY_TYPE, XSD_ELEMENT_TAG
 )
 from ..utils import get_namespace, listify_update
 from ..xpath import XPathMixin
@@ -55,6 +55,9 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
+    FACTORY_KWARG = 'element_factory'
+    XSD_GLOBAL_TAG = XSD_ELEMENT_TAG
+
     def __init__(self, name, xsd_type, elem, schema, ref=False, qualified=False, is_global=False):
         super(XsdElement, self).__init__(name, elem, schema, is_global)
         self.type = xsd_type
@@ -140,6 +143,10 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
     def substitution_group(self):
         return self._attrib.get('substitutionGroup')
 
+    @property
+    def built(self):
+        return super(XsdElement, self).built and self.type.built
+
     def check(self):
         if self.checked:
             return
@@ -147,9 +154,9 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
         self.type.check()
         if self.type.valid is False:
-            self._valid = False
+            self._validity = False
         elif self.valid is False and self.type.valid is None:
-            self._valid = None
+            self._validity = None
 
     def has_name(self, name):
         return self.name == name or (not self.qualified and local_name(self.name) == name)
@@ -376,7 +383,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             return
         super(XsdAnyElement, self).check()
         if self.process_contents != 'strict' and self.elem is not None:
-            self._valid = True
+            self._validity = True
 
     def iter_decode(self, elem, validate=True, **kwargs):
         if self.process_contents == 'skip':
@@ -466,6 +473,9 @@ class XsdComplexType(XsdComponent):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
+    FACTORY_KWARG = 'complex_type_factory'
+    XSD_GLOBAL_TAG = XSD_COMPLEX_TYPE_TAG
+
     def __init__(self, content_type, attributes, name=None, elem=None, schema=None,
                  derivation=None, mixed=None, is_global=False):
         super(XsdComplexType, self).__init__(name, elem, schema, is_global)
@@ -500,6 +510,12 @@ class XsdComplexType(XsdComponent):
     def final(self):
         return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
+    @property
+    def built(self):
+        if not self.attributes.built or not self.content_type.built:
+            return False
+        return super(XsdComplexType, self).built
+
     def check(self):
         if self.checked:
             return
@@ -510,10 +526,10 @@ class XsdComplexType(XsdComponent):
             self.attributes.check()
 
             if self.content_type.valid is False or self.attributes.valid is False:
-                self._valid = False
+                self._validity = False
             elif self.valid is not False:
                 if self.content_type.valid is None and self.attributes.valid is None:
-                    self._valid = None
+                    self._validity = None
 
     def is_simple(self):
         """Return true if the the type has simple content."""
@@ -666,6 +682,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
+    FACTORY_KWARG = 'group_factory'
+    XSD_GLOBAL_TAG = XSD_GROUP_TAG
+
     def __init__(self, name=None, elem=None, schema=None, model=None,
                  mixed=False, length=None, is_global=False, initlist=None):
         XsdComponent.__init__(self, name, elem, schema, is_global)
@@ -717,6 +736,8 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             check_value(value, None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
             model = getattr(self, 'model', None)
             if model is not None and value != model:
+                import pdb
+                pdb.set_trace()
                 raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
         elif name == 'mixed':
             check_value(value, True, False)
@@ -737,6 +758,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         elif self.length is None or len(self) < self.length:
             return False
         else:
+            for item in self:
+                if isinstance(item, XsdGroup) and not item.built:
+                    return False
             return super(XsdGroup, self).built
 
     def check(self):
@@ -747,9 +771,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         for item in self:
             item.check()
         if any([e.valid is False for e in self]):
-            self._valid = False
+            self._validity = False
         elif self.valid is not False and any([e.valid is None for e in self]):
-            self._valid = None
+            self._validity = None
 
     def clear(self):
         del self._group[:]

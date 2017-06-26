@@ -11,6 +11,9 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
+from ..exceptions import XMLSchemaParseError
+from ..qnames import XSD_NOTATION_TAG
+
 from .xsdbase import (
     check_tag, get_xsd_annotation,
     get_xsd_component, get_xsd_attribute, get_xsd_bool_attribute,
@@ -28,7 +31,6 @@ from .facets import (
     XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-from ..exceptions import XMLSchemaParseError
 
 
 class XsdNotation(XsdComponent):
@@ -44,6 +46,9 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
+    FACTORY_KWARG = 'notation_factory'
+    XSD_GLOBAL_TAG = XSD_NOTATION_TAG
+
     def __init__(self, name, elem, schema):
         super(XsdNotation, self).__init__(name, elem, schema, is_global=True)
         for key in self._attrib:
