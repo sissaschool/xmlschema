@@ -20,8 +20,9 @@ from decimal import Decimal
 from .core import long_type, unicode_type, etree_element, etree_iselement
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
 from .qnames import (
-    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG, XSD_WHITE_SPACE_TAG,
-    XSD_PATTERN_TAG, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
+    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG,
+    XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG,
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
 )
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet,
@@ -35,12 +36,31 @@ _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 
 #
 # Special builtin types.
+#
+# xs:anyType
+# Ref. XSD 1.1: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
+# Ref. XSD 1.0: https://www.w3.org/TR/xmlschema-1/#d0e9252
 ANY_TYPE = XsdComplexType(
     content_type=XsdGroup(
-        elem=etree_element(XSD_GROUP_TAG, attrib={'min_occurs': '0'}),
-        initlist=[XsdAnyElement()]
+        elem=etree_element(XSD_GROUP_TAG),
+        model=XSD_SEQUENCE_TAG,
+        mixed=True,
+        initlist=[XsdAnyElement(etree_element(
+            XSD_ANY_TAG,
+            attrib={
+                'namespace': '##any',
+                'processContents': 'lax',
+                'minOccurs': '0',
+                'maxOccurs': 'unbounded'
+            }
+        ))]
     ),
-    attributes=XsdAttributeGroup(initdict={None: XsdAnyAttribute()}),
+    attributes=XsdAttributeGroup(initdict={
+        None: XsdAnyAttribute(etree_element(
+            XSD_ANY_ATTRIBUTE_TAG,
+            attrib={'namespace': '##any', 'processContents': 'lax'}
+        ))
+    }),
     name=XSD_ANY_TYPE,
     elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
     mixed=True,

@@ -13,7 +13,7 @@ This module contains base functions and classes XML Schema components.
 """
 import re
 
-from ..core import PY3
+from ..core import PY3, etree_tostring
 from ..exceptions import XMLSchemaParseError
 from ..qnames import *
 from ..utils import camel_case_split, FrozenDict
@@ -258,6 +258,12 @@ class XsdBase(object):
     def id(self):
         """The ``'id'`` attribute of declaration tag, ``None`` if missing."""
         return self._attrib.get('id')
+
+    def as_string(self, indent='', max_lines=None, spaces_for_tab=4):
+        if self.elem is None:
+            return str(None)
+        else:
+            return etree_tostring(self.elem, indent, max_lines, spaces_for_tab)
 
 
 class XsdAnnotation(XsdBase):

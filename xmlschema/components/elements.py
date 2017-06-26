@@ -729,7 +729,12 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
 
     @property
     def built(self):
-        if self.length is None or len(self) < self.length:
+        if self.model is None:
+            if self.length == 0 and not self:
+                return True
+            else:
+                return False
+        elif self.length is None or len(self) < self.length:
             return False
         else:
             return super(XsdGroup, self).built
@@ -749,8 +754,11 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def clear(self):
         del self._group[:]
 
+    def is_empty(self):
+        return self.model is None and self.length == 0
+
     def is_emptiable(self):
-        return all([item.is_emptiable() for item in self])
+        return self.is_empty() or all([item.is_emptiable() for item in self])
 
     def iter_elements(self):
         for item in self:

@@ -95,6 +95,14 @@ def xsd_factory(xsd_class, *tags):
                 else:
                     instance = result
 
+                if instance.is_global is not is_global:
+                    # import pdb
+                    # pdb.set_trace()
+                    if is_global:
+                        raise XMLSchemaValueError("%r must be global." % instance)
+                    else:
+                        raise XMLSchemaValueError("%r must be local." % instance)
+
                 # Complete the XSD instance with references
                 if instance.elem is None:
                     instance.elem = elem
@@ -503,7 +511,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
         content_base = get_xsd_attribute(content_spec, 'base')
         base_qname, namespace = split_reference(content_base, schema.namespaces)
         base_type = schema.maps.lookup_type(base_qname)
-        content_definition = get_xsd_component(content_spec, strict=False) #, required=False)??
+        content_definition = get_xsd_component(content_spec, strict=False)  # required=False)??
 
         if content_spec.tag == XSD_RESTRICTION_TAG:
             # Parse complexContent restriction
@@ -511,9 +519,15 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
             if content_definition.tag in XSD_MODEL_GROUP_TAGS:
                 if content_type is None:
                     content_type = XsdGroup(elem=content_definition, schema=schema, mixed=mixed)
-                if parse_local_groups and (content_type is None or not len(content_type)):
+
+                if parse_local_groups and not content_type.built:
                     group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
+
+                    if content_type.model != base_type.content_type.model:
+                        print("YEAHHHHHHHHHHHHHHHHHHHHHHH")
+
                     # TODO: Checks if restrictions are effective.
+
             elif content_type is None:
                 content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed, length=0)  # Empty content model
         else:
@@ -523,22 +537,27 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
                 pass  # TODO: XSD 1.0 do not allow ALL group extensions
 
             if content_type is None:
-                content_type = XsdGroup(elem=elem, schema=schema, model=XSD_SEQUENCE_TAG, mixed=mixed)
+                content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed)
 
             if parse_local_groups and not len(content_type):
-                if isinstance(base_type.content_type, XsdGroup):
-                    if base_type is not instance and not base_type.content_type:
-                        complex_type_factory(base_type.elem, base_type.schema, base_type, **kwargs)
-
+                if base_type.content_type.is_empty():
+                    group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
+                elif isinstance(base_type.content_type, XsdGroup):
+                    if base_type is not instance and not base_type.content_type.built:
+                        complex_type_factory(
+                            base_type.elem, base_type.schema, base_type, base_type.is_global, **kwargs
+                        )
                     if content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
                         _, xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
                         if base_type.content_type.model != xsd_group.model:
-                            pass # TODO: raise an error!!!
+                            print("DIVERSO MODELLO!!!")
+                            pass  # TODO: raise an error!!!
 
                         content_type.append(base_type.content_type)
                         content_type.append(xsd_group)
                     else:
                         content_type.append(base_type.content_type)
+
 
                     if base_type != instance:
                         attributes.update(base_type.attributes)
@@ -560,7 +579,9 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
 
         derivation = content_spec.tag == XSD_EXTENSION_TAG
         if content_spec.tag == XSD_RESTRICTION_TAG:
-            content_type = restriction_factory(content_spec, schema, instance=content_type, **kwargs)
+            content_type = restriction_factory(
+                content_spec, schema, content_type, content_type.is_global, **kwargs
+            )
         else:
             content_type = base_type
 
@@ -751,7 +772,7 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
         instance.mixed = mixed
         xsd_group = instance
 
-    if xsd_group.built is False and kwargs.get('parse_local_groups'):
+    if xsd_group.built is False:
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 _, xsd_element = element_factory(child, schema, **kwargs)

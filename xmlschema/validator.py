@@ -86,10 +86,10 @@ class XMLSchemaValidator(object):
 
     def check(self):
         if not self.built:
-            print("%r not built" % self)
+            print("%r not built" % self, len(self), repr(self.parent))
             # raise XMLSchemaNotBuiltError("%r: cannot check a not built component." % self)
         self._check_token = self.check_token
-        self._validity = None
+        self._validity = True
 
     def validate(self, data, use_defaults=True):
         """
