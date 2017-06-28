@@ -21,9 +21,8 @@ class XMLSchemaValidator(object):
     define two properties that returns the value of those tokens.
     """
     def __init__(self):
-        self._built = None
-        self._checked = None
-        self._validity = None
+        self._check_token = None
+        self._valid = None
 
     def __setattr__(self, name, value):
         if name == '_valid':
@@ -31,14 +30,7 @@ class XMLSchemaValidator(object):
         super(XMLSchemaValidator, self).__setattr__(name, value)
 
     @property
-    def built_token(self):
-        """
-        Get the reference token for verify the built status of the validator.
-        """
-        raise NotImplementedError
-
-    @property
-    def checked_token(self):
+    def check_token(self):
         """
         Get the reference token for verify the check status of the validator.
         """
@@ -51,7 +43,6 @@ class XMLSchemaValidator(object):
         fully built, `False` otherwise.
         """
         raise NotImplementedError
-        # return self._built == self.built_token
 
     @property
     def checked(self):
@@ -61,12 +52,12 @@ class XMLSchemaValidator(object):
         """
         if not self.built:
             return False
-        return self._checked == self.checked_token
+        return self._check_token == self.check_token
 
     @property
     def valid(self):
         if self.checked:
-            return self._validity
+            return self._valid
         else:
             return None
 
@@ -77,9 +68,9 @@ class XMLSchemaValidator(object):
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
         """
         if self.checked and self.built:
-            if self._validity is True:
+            if self._valid is True:
                 return 'valid'
-            elif self._validity is False:
+            elif self._valid is False:
                 return 'invalid'
         return 'notKnown'
 
@@ -101,15 +92,15 @@ class XMLSchemaValidator(object):
     def check(self):
         #if not self.built:
         #    raise XMLSchemaNotBuiltError("%r is not built." % self)
-        self._checked = self.checked_token
+        self._check_token = self.check_token
         if not self.built:
-            self._validity = None
-            # import pdb
-            # pdb.set_trace()
+            self._valid = None
+            import pdb
+            pdb.set_trace()
             print("%r not built" % self, repr(self.parent))
             # raise XMLSchemaNotBuiltError("%r: cannot check a not built component." % self)
         else:
-            self._validity = True
+            self._valid = True
 
     def validate(self, data, use_defaults=True):
         """

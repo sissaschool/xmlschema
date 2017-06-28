@@ -169,9 +169,9 @@ class XsdAtomic(XsdSimpleType):
                 return  # For primitive atomic built-in types
 
             if self.base_type.valid is False:
-                self._validity = False
+                self._valid = False
             elif self.valid is not False and self.base_type.valid is None:
-                self._validity = None
+                self._valid = None
 
 
 class XsdAtomicBuiltin(XsdAtomic):
@@ -283,9 +283,9 @@ class XsdList(XsdSimpleType):
 
         self.item_type.check()
         if self.item_type.valid is False:
-            self._validity = False
+            self._valid = False
         elif self.valid is not False and self.item_type.valid is None:
-            self._validity = None
+            self._valid = None
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)
@@ -372,9 +372,9 @@ class XsdUnion(XsdSimpleType):
             member_type.check()
 
         if any([mt.valid is False for mt in self.member_types]):
-            self._validity = False
+            self._valid = False
         elif self.valid is not False and any([mt.valid is None for mt in self.member_types]):
-            self._validity = None
+            self._valid = None
 
     def iter_decode(self, text, validate=True, **kwargs):
         text = self.normalize(text)

@@ -143,6 +143,12 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
     def substitution_group(self):
         return self._attrib.get('substitutionGroup')
 
+    def iter_components(self, xsd_classes=None):
+        for obj in super(XsdElement, self).iter_components(xsd_classes):
+            yield obj
+        for obj in self.type.iter_components(xsd_classes):
+            yield obj
+
     @property
     def built(self):
         return super(XsdElement, self).built and self.type.built
@@ -154,9 +160,9 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
         self.type.check()
         if self.type.valid is False:
-            self._validity = False
+            self._valid = False
         elif self.valid is False and self.type.valid is None:
-            self._validity = None
+            self._valid = None
 
     def has_name(self, name):
         return self.name == name or (not self.qualified and local_name(self.name) == name)
@@ -383,7 +389,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             return
         super(XsdAnyElement, self).check()
         if self.process_contents != 'strict' and self.elem is not None:
-            self._validity = True
+            self._valid = True
 
     def iter_decode(self, elem, validate=True, **kwargs):
         if self.process_contents == 'skip':
@@ -510,6 +516,14 @@ class XsdComplexType(XsdComponent):
     def final(self):
         return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
+    def iter_components(self, xsd_classes=None):
+        for obj in super(XsdComplexType, self).iter_components(xsd_classes):
+            yield obj
+        for obj in self.attributes.iter_components(xsd_classes):
+            yield obj
+        for obj in self.content_type.iter_components(xsd_classes):
+            yield obj
+
     @property
     def built(self):
         if not self.attributes.built or not self.content_type.built:
@@ -526,10 +540,10 @@ class XsdComplexType(XsdComponent):
             self.attributes.check()
 
             if self.content_type.valid is False or self.attributes.valid is False:
-                self._validity = False
+                self._valid = False
             elif self.valid is not False:
                 if self.content_type.valid is None and self.attributes.valid is None:
-                    self._validity = None
+                    self._valid = None
 
     def is_simple(self):
         """Return true if the the type has simple content."""
@@ -718,7 +732,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return len(self._group)
 
     def insert(self, i, item):
-        check_type(item, XsdGroup, XsdElement, XsdAnyElement)
+        check_type(item, tuple, XsdGroup, XsdElement, XsdAnyElement)
         self._group.insert(i, item)
         self.elements = None
 
@@ -748,6 +762,20 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         super(XsdGroup, self).__setattr__(name, value)
         ParticleMixin.__setattr__(self, name, value)
 
+    def iter_components(self, xsd_classes=None):
+        for obj in super(XsdGroup, self).iter_components(xsd_classes):
+            yield obj
+        for item in self:
+            if isinstance(item, XsdElement) and item.ref:
+                if xsd_classes is None or isinstance(item, xsd_classes):
+                    yield item
+            else:
+                try:
+                    for obj in item.iter_components(xsd_classes):
+                        yield obj
+                except AttributeError:
+                    pass
+
     @property
     def built(self):
         if self.model is None:
@@ -759,7 +787,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             return False
         else:
             for item in self:
-                if isinstance(item, XsdGroup) and not item.built:
+                if isinstance(item, (XsdElement, tuple)):
+                    continue
+                if not item.built:
                     return False
             return super(XsdGroup, self).built
 
@@ -769,11 +799,15 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         super(XsdGroup, self).check()
 
         for item in self:
+            if not isinstance(item, (XsdElement, XsdGroup, XsdAnyElement)):
+                self._valid = False
+                return
             item.check()
+
         if any([e.valid is False for e in self]):
-            self._validity = False
+            self._valid = False
         elif self.valid is not False and any([e.valid is None for e in self]):
-            self._validity = None
+            self._valid = None
 
     def clear(self):
         del self._group[:]

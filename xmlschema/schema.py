@@ -19,7 +19,7 @@ from .core import (
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
-    XMLSchemaURLError, XMLSchemaEncodeError
+    XMLSchemaURLError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaValueError
 )
 from . import qnames
 from .utils import URIDict, listify_update
@@ -36,7 +36,7 @@ from .components import (
 from xmlschema.utils import check_value
 from .converters import XMLSchemaConverter
 from .factories import *
-from .namespaces import XsdGlobals
+from .namespaces import XsdGlobals, NamespaceView
 
 DEFAULT_OPTIONS = {
     'simple_type_factory': xsd_simple_type_factory,
@@ -96,6 +96,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
             # Schema validity assessments
             self.validation = validation
             self.errors = []        # Parsing errors
+            self.parent = self
 
             # Determine the targetNamespace
             self.target_namespace = self.root.get('targetNamespace', '')
@@ -123,15 +124,13 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 try:
                     self.maps = self.META_SCHEMA.maps.copy()
                 except AttributeError:
-                    self.maps = XsdGlobals(_XMLSchema)
+                    self.maps = XsdGlobals(_XMLSchema, self.validation)
                 else:
-                    if self.target_namespace in self.maps.namespaces:
-                        self.maps.clear()
+                    self.maps.validation = self.validation
             elif isinstance(global_maps, XsdGlobals):
                 self.maps = global_maps
             else:
                 raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
-            self.maps.register(self)
 
             # Extract namespaces from schema and include subschemas
             self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the XML namespace is implicit
@@ -148,24 +147,18 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 self.import_schemas(self.root, validation)
                 self.redefine_schemas(self.root, validation)
 
-                if validation in ('strict', 'lax'):
+                if validation == 'strict':
                     self.check_schema(self.root)
-                    self._valid = True
 
                 # Builds the XSD objects only if the instance is
                 # the creator of the XSD globals maps.
                 if global_maps is None:
                     self.maps.build()
-                    self.maps.check()
             else:
                 # If the META_SCHEMA is not instantiated do not import
                 # other namespaces and do not build maps.
-                self._valid = True  # Meta-schemas are checked by factories only.
                 self.include_schemas(self.root)
                 self.redefine_schemas(self.root, validation)
-
-            self.global_maps = (self.notations, self.types, self.attributes,
-                                self.attribute_groups, self.groups, self.elements)
 
         def __repr__(self):
             return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
@@ -175,6 +168,18 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 check_tag(value, qnames.XSD_SCHEMA_TAG)
             elif name == 'validation':
                 check_value(value, 'strict', 'lax', 'skip')
+            elif name == 'maps':
+                value.register(self)
+                self.notations = NamespaceView(value.notations, self.target_namespace)
+                self.types = NamespaceView(value.types, self.target_namespace)
+                self.attributes = NamespaceView(value.attributes, self.target_namespace)
+                self.attribute_groups = NamespaceView(value.attribute_groups, self.target_namespace)
+                self.groups = NamespaceView(value.groups, self.target_namespace)
+                self.elements = NamespaceView(value.elements, self.target_namespace)
+                self.base_elements = NamespaceView(value.base_elements, self.target_namespace)
+                self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
+                self.global_maps = (self.notations, self.types, self.attributes,
+                                    self.attribute_groups, self.groups, self.elements)
             super(_XMLSchema, self).__setattr__(name, value)
 
         # Schema element attributes
@@ -214,34 +219,6 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
             return ''
 
         @property
-        def notations(self):
-            return self.maps.get_globals('notations', self.target_namespace, False)
-
-        @property
-        def types(self):
-            return self.maps.get_globals('types', self.target_namespace, False)
-
-        @property
-        def attributes(self):
-            return self.maps.get_globals('attributes', self.target_namespace, False)
-
-        @property
-        def attribute_groups(self):
-            return self.maps.get_globals('attribute_groups', self.target_namespace, False)
-
-        @property
-        def groups(self):
-            return self.maps.get_globals('groups', self.target_namespace, False)
-
-        @property
-        def elements(self):
-            return self.maps.get_globals('elements', self.target_namespace, False)
-
-        @property
-        def base_elements(self):
-            return self.maps.get_globals('base_elements', self.target_namespace, False)
-
-        @property
         def parent_map(self):
             if self._parent_map is None:
                 self._parent_map = {
@@ -255,34 +232,57 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
             return cls(*args, **kwargs)
 
         @classmethod
-        def check_schema(cls, schema, raise_on_error=True):
-            if raise_on_error:
-                for error in cls.META_SCHEMA.iter_errors(schema):
-                    raise error
-            else:
-                return [error for error in cls.META_SCHEMA.iter_errors(schema)]
+        def check_schema(cls, schema):
+            for error in cls.META_SCHEMA.iter_errors(schema):
+                raise error
 
         @property
-        def checked_token(self):
+        def check_token(self):
             return self.maps.check_token
 
         @property
         def built(self):
-            return None
+            xsd_global = None
+            for xsd_global in self.iter_globals():
+                if xsd_global is False:
+                    return False
+            return xsd_global is not None  # An empty schema is not built
 
         def check(self):
-            if self.errors:
-                self._valid = False
-            elif any([e.valid is False for e in self.iter_globals()]):
-                self._valid = False
-            elif any([e.valid is None for e in self.iter_globals()]):
-                self._valid = None
-            elif all([e.valid is None for e in self.iter_globals()]):
-                self._valid = None
-            elif all([e.valid is True for e in self.iter_globals()]):
-                self._valid = True
-            else:
-                self._valid = None
+            if not self.checked:
+
+                if self.errors:
+                    self._valid = False
+
+                for xsd_global in self.iter_globals():
+                    xsd_global.check()
+                    if xsd_global.valid is False:
+                        self._valid = False
+                        break
+                    elif xsd_global.valid is None:
+                        self._valid = None
+                super(_XMLSchema, self).check()
+
+            if self.valid is not True and self.validation == 'strict':
+                if not self.built:
+                    raise XMLSchemaNotBuiltError(
+                        "%r: 'strict' validation requires a built schema."
+                    )
+                elif self.valid is False:
+                    try:
+                        if len(self.errors) == 2:
+                            raise self.errors[0]
+                        else:
+                            err = self.errors[0]
+                            msg = "found %d errors parsing the schema: %s"
+                            raise XMLSchemaParseError(
+                                msg % (len(self.errors), err.message),
+                                obj=self.errors[0].obj
+                            )
+                    except IndexError:
+                        raise XMLSchemaValueError("%r: at least an error expected." % self)
+                else:
+                    raise XMLSchemaValueError('%r: schema built but validity unknown.' % self)
 
         def iter_globals(self):
             for global_map in self.global_maps:
@@ -457,16 +457,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
     # Create the meta schema
     if meta_schema is not None:
         meta_schema = _XMLSchema(meta_schema)
-        meta_schema.maps.types[qnames.XSD_ANY_TYPE].schema = meta_schema
-        meta_schema.maps.types[qnames.XSD_ANY_SIMPLE_TYPE].schema = meta_schema
-        meta_schema.maps.types[qnames.XSD_ANY_ATOMIC_TYPE].schema = meta_schema
         for k, v in list(base_schemas.items()):
             _XMLSchema(v, global_maps=meta_schema.maps)
-
         _XMLSchema.META_SCHEMA = meta_schema
-        meta_schema.maps.build()
-        print("FINITO IL BUILD ::::")
-        meta_schema.maps.check()
 
     if xsd_version is not None:
         _XMLSchema.__name__ = 'XMLSchema_{}'.format(xsd_version.replace(".", "_"))

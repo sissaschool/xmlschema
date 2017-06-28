@@ -362,12 +362,8 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         super(XsdComponent, self).__setattr__(name, value)
 
     @property
-    def built_token(self):
-        return self.schema.maps.built_token
-
-    @property
-    def checked_token(self):
-        return self.schema.maps.checked_token
+    def check_token(self):
+        return self.schema.maps.check_token
 
     @property
     def built(self):
@@ -379,18 +375,22 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         XMLSchemaValidator.check(self)
 
         if self.name in XSD_SPECIAL_TYPES:
-            self._validity = True
+            self._valid = True
         elif self.built is False:
-            self._validity = None
+            self._valid = None
         if self.schema is not None:
             if any([err.obj is self.elem for err in self.schema.errors]):
-                self._validity = False
+                self._valid = False
             elif self.schema.validation == 'strict':
-                self._validity = True
+                self._valid = True
             else:
-                self._validity = None
+                self._valid = None
         else:
-            self._validity = None
+            self._valid = None
+
+    def iter_components(self, xsd_classes=None):
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
 
 
 class ParticleMixin(object):

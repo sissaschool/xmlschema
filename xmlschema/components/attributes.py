@@ -95,12 +95,18 @@ class XsdAttribute(XsdComponent):
 
         self.type.check()
         if self.type.valid is False:
-            self._validity = False
+            self._valid = False
         elif self.valid is not False and self.type.valid is None:
-            self._validity = None
+            self._valid = None
 
     def is_optional(self):
         return self.use == 'optional'
+
+    def iter_components(self, xsd_classes=None):
+        for obj in super(XsdAttribute, self).iter_components(xsd_classes):
+            yield obj
+        for obj in self.type.iter_components(xsd_classes):
+            yield obj
 
     def iter_decode(self, text, validate=True, **kwargs):
         if not text and kwargs.get('use_defaults', True):
@@ -169,7 +175,7 @@ class XsdAnyAttribute(XsdComponent):
             return
         super(XsdAnyAttribute, self).check()
         if self.process_contents != 'strict' and self.elem is not None:
-            self._validity = True
+            self._valid = True
 
     def iter_decode(self, obj, validate=True, **kwargs):
         if self.process_contents == 'skip':
@@ -279,9 +285,16 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             attr.check()
 
         if any([attr.valid is False for attr in self.values()]):
-            self._validity = False
+            self._valid = False
         elif self.valid is not False and any([attr.valid is None for attr in self.values()]):
-            self._validity = None
+            self._valid = None
+
+    def iter_components(self, xsd_classes=None):
+        for obj in super(XsdAttributeGroup, self).iter_components(xsd_classes):
+            yield obj
+        for attr in self.values():
+            for obj in attr.iter_components(xsd_classes):
+                yield obj
 
     def iter_decode(self, obj, validate=True, **kwargs):
         result_list = []

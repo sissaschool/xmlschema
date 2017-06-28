@@ -233,7 +233,7 @@ XSD globals maps API
 --------------------
 
 .. autoclass:: xmlschema.XsdGlobals
-    :members: copy, register, get_globals, iter_schemas, clear, build
+    :members: copy, register, iter_schemas, iter_globals, clear, build, check
 
 XML Schema converters
 ---------------------

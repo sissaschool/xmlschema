@@ -70,6 +70,20 @@ def listify_update(obj, pairs, force_list=False):
             obj[k].append(v)
 
 
+def check_type(obj, *types):
+    if not isinstance(obj, types):
+        raise XMLSchemaTypeError(
+            "wrong type %s, it must be one of %r." % (type(obj), types)
+        )
+
+
+def check_value(value, *values):
+    if value not in values:
+        raise XMLSchemaValueError(
+            "wrong value %r, it must be one of %r." % (value, values)
+        )
+
+
 class URIDict(MutableMapping):
     """
     Dictionary which uses normalized URIs as keys.
@@ -219,19 +233,3 @@ class NamespaceMapper(MutableMapping):
             transferred.append(k)
         for k in transferred:
             del other[k]
-
-
-def check_type(obj, *types):
-    if not isinstance(obj, types):
-        raise XMLSchemaTypeError(
-            "wrong type %s, it must be one of %r." % (type(obj), types)
-        )
-
-
-def check_value(value, *values):
-    if value not in values:
-        raise XMLSchemaValueError(
-            "wrong value %r, it must be one of %r." % (value, values)
-        )
-
-

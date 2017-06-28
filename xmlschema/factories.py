@@ -442,7 +442,6 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
       (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """
-    parse_local_groups = kwargs.get('parse_local_groups')
     attribute_group_factory = kwargs.get('attribute_group_factory', xsd_attribute_group_factory)
     complex_type_factory = kwargs.get('complex_type_factory', xsd_complex_type_factory)
     group_factory = kwargs.get('group_factory', xsd_group_factory)
@@ -470,7 +469,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
         #
         # complexType with empty content
         if content_type is None:
-            content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed)
+            content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed, length=0)
         attributes.update(attribute_group_factory(elem, schema, instance=attributes, **kwargs))
 
     elif content_node.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG):
@@ -479,8 +478,7 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
         if content_type is None:
             content_type = XsdGroup(elem=content_node, schema=schema, mixed=mixed)
 
-        if parse_local_groups and not content_type.built:
-            content_type = group_factory(content_node, schema, content_type, mixed=mixed, **kwargs)
+        content_type = group_factory(content_node, schema, content_type, mixed=mixed, **kwargs)
         attributes.update(attribute_group_factory(elem, schema, instance=attributes, **kwargs))
 
     elif content_node.tag == XSD_COMPLEX_CONTENT_TAG:
@@ -508,15 +506,14 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
             if content_definition.tag in XSD_MODEL_GROUP_TAGS:
                 if content_type is None:
                     content_type = XsdGroup(elem=content_definition, schema=schema, mixed=mixed)
+                group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
 
-                if parse_local_groups and not content_type.built:
-                    group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
-
-                    if content_type.model != base_type.content_type.model:
-                        raise XMLSchemaParseError(
-                            "content model differ from base type: %r" % base_type.content_type.model, elem
-                        )
-                    # TODO: Checks if restrictions are effective.
+                # Checks restrictions
+                if content_type.model != base_type.content_type.model:
+                    raise XMLSchemaParseError(
+                        "content model differ from base type: %r" % base_type.content_type.model, elem
+                    )
+                # TODO: other checks on restrictions ...
 
             elif content_type is None:
                 content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed, length=0)  # Empty content model
@@ -529,29 +526,28 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
             if base_type.content_type.model == XSD_ALL_TAG:
                 pass  # TODO: XSD 1.0 do not allow ALL group extensions
 
-            if parse_local_groups and not content_type.built:
-                if base_type.content_type.is_empty():
-                    # Empty model extension: don't create a nested group.
-                    group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
-                elif isinstance(base_type.content_type, XsdGroup):
-                    content_type.model = XSD_SEQUENCE_TAG
-                    if base_type is not instance and not base_type.content_type.built:
-                        complex_type_factory(
-                            base_type.elem, base_type.schema, base_type, base_type.is_global, **kwargs
-                        )
-                    if content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
-                        xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
-                        content_type.append(base_type.content_type)
-                        content_type.append(xsd_group)
-                        content_type.length = 2
-                    else:
-                        content_type.append(base_type.content_type)
-                        content_type.length = 1
+            if base_type.content_type.is_empty():
+                # Empty model extension: don't create a nested group.
+                group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
+            elif isinstance(base_type.content_type, XsdGroup):
+                content_type.model = XSD_SEQUENCE_TAG
+                if base_type is not instance and not base_type.content_type.built:
+                    complex_type_factory(
+                        base_type.elem, base_type.schema, base_type, base_type.is_global, **kwargs
+                    )
+                if content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
+                    xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
+                    content_type.append(base_type.content_type)
+                    content_type.append(xsd_group)
+                    content_type.length = 2
+                else:
+                    content_type.append(base_type.content_type)
+                    content_type.length = 1
 
-                    attributes.update(base_type.attributes)
-                elif content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
-                    raise ValueError("ERRORE")
-                    # xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
+                attributes.update(base_type.attributes)
+            elif content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
+                raise ValueError("ERRORE")
+                # xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
 
         attributes.update(attribute_group_factory(content_spec, schema, instance=attributes, **kwargs))
 
@@ -704,7 +700,6 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    build_refs = kwargs.get('build_refs')
     group_factory = kwargs.get('group_factory', xsd_group_factory)
     element_factory = kwargs.get('element_factory', xsd_element_factory)
     mixed = kwargs.pop('mixed', False)
@@ -766,14 +761,15 @@ def xsd_group_factory(elem, schema, instance=None, is_global=False, **kwargs):
     if xsd_group.built is False:
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
-                xsd_element = element_factory(child, schema, **kwargs)
-                print("ELEMENTO %r: %r" % (child.attrib, xsd_element.is_global))
-                xsd_group.append(xsd_element)
-                #xsd_group.append((child, schema))  # Avoid circularity: building at the end.
+                # xsd_element = element_factory(child, schema, debug=True, **kwargs)
+                # xsd_group.append(xsd_element)
+                xsd_group.append((child, schema))  # Avoid circularity: building at the end.
             elif content_model.tag == XSD_ALL_TAG:
                 raise XMLSchemaParseError("'all' model can contain only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
                 xsd_group.append(XsdAnyElement(child, schema))
+            #elif child.tag == XSD_GROUP_TAG:
+            #    xsd_group.append((child, schema))  # ref to a global group
             elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
                 xsd_group.append(group_factory(child, schema, mixed=mixed, **kwargs))
             else:
