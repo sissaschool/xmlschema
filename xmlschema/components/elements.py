@@ -368,10 +368,8 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
     </any>
     """
     def __init__(self, elem=None, schema=None):
+        self.name = None
         super(XsdAnyElement, self).__init__(elem=elem, schema=schema)
-
-    def __setattr__(self, name, value):
-        super(XsdAnyElement, self).__setattr__(name, value)
 
     @property
     def namespace(self):

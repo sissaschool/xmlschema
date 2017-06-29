@@ -12,7 +12,7 @@
 This subpackage contains classes and constants for XML Schema components.
 """
 from ..exceptions import XMLSchemaParseError
-from ..qnames import XSD_NOTATION_TAG
+from ..qnames import get_qname, XSD_NOTATION_TAG
 
 from .xsdbase import (
     check_tag, get_xsd_annotation,
@@ -49,17 +49,31 @@ class XsdNotation(XsdComponent):
     FACTORY_KWARG = 'notation_factory'
     XSD_GLOBAL_TAG = XSD_NOTATION_TAG
 
-    def __init__(self, name, elem, schema):
-        super(XsdNotation, self).__init__(name, elem, schema, is_global=True)
-        for key in self._attrib:
-            if key not in {'id', 'name', 'public', 'system'}:
-                schema.errors.append(XMLSchemaParseError(
-                    "wrong attribute %r for notation definition." % key, elem
-                ))
-        if 'public' not in elem.attrib and 'system' not in elem.attrib:
-            schema.errors.append(XMLSchemaParseError(
-                "a notation may have 'public' or 'system' attribute.", elem
+    def __init__(self, elem, schema, is_global=False, **options):
+        super(XsdNotation, self).__init__(elem.get('name', ''), elem, schema, is_global=is_global, **options)
+
+    def _parse(self):
+        super(XsdNotation, self)._parse()
+        if not self.is_global:
+            self.schema.errors.append(XMLSchemaParseError(
+                "a notation declaration must be global.", self
             ))
+        try:
+            self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
+        except KeyError:
+            self.schema.errors.append(
+                XMLSchemaParseError("a notation must have a 'name'.", self)
+            )
+
+        for key in self.elem.attrib:
+            if key not in {'id', 'name', 'public', 'system'}:
+                self.schema.errors.append(XMLSchemaParseError(
+                    "wrong attribute %r for notation definition." % key, self
+                ))
+            if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
+                self.schema.errors.append(XMLSchemaParseError(
+                    "a notation may have 'public' or 'system' attribute.", self
+                ))
 
     @property
     def public(self):

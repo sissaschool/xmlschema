@@ -920,16 +920,10 @@ def xsd_notation_factory(elem, schema, instance=None, is_global=False, **kwargs)
       Content: (annotation?)
     </notation>
     """
-    if not is_global:
-        raise XMLSchemaParseError("a notation declaration must be global.", elem)
-    try:
-        notation_name = get_qname(schema.target_namespace, elem.attrib['name'])
-    except KeyError:
-        raise XMLSchemaParseError("a notation must have a 'name'.", elem)
     if instance is not None:
         return instance
     else:
-        return XsdNotation(notation_name, elem, schema)
+        return XsdNotation(elem, schema, is_global)
 
 
 __all__ = [

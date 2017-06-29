@@ -30,10 +30,13 @@ from . import xpath
 from .builtins import XSD_BUILTIN_TYPES
 from .validator import XMLSchemaValidator
 from .components import (
-    check_tag, get_xsd_attribute, XSD_FACETS, XsdElement, get_xsd_derivation_attribute,
-    iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
+    check_tag, get_xsd_attribute, XSD_FACETS, get_xsd_derivation_attribute,
+    iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine,
+    XsdNotation, XsdSimpleType, XsdComplexType, XsdAttribute, XsdElement,
+    XsdAttributeGroup, XsdGroup, XsdAtomicRestriction, XsdList, XsdUnion
 )
-from xmlschema.utils import check_value
+from . import qnames
+from .utils import check_value
 from .converters import XMLSchemaConverter
 from .factories import *
 from .namespaces import XsdGlobals, NamespaceView
@@ -46,7 +49,14 @@ DEFAULT_OPTIONS = {
     'group_factory': xsd_group_factory,
     'element_factory': xsd_element_factory,
     'notation_factory': xsd_notation_factory,
-    'restriction_factory': xsd_restriction_factory
+    'restriction_factory': xsd_restriction_factory,
+    qnames.XSD_NOTATION_TAG: XsdNotation,
+    qnames.XSD_SIMPLE_TYPE_TAG: (XsdSimpleType, XsdAtomicRestriction, XsdUnion, XsdList),
+    qnames.XSD_COMPLEX_TYPE_TAG: XsdComplexType,
+    qnames.XSD_ANNOTATION_TAG: XsdAttribute,
+    qnames.XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup,
+    qnames.XSD_GROUP_TAG: XsdGroup,
+    qnames.XSD_ELEMENT_TAG: XsdElement
 }
 """Default options for building XSD schema elements."""
 

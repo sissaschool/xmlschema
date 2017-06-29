@@ -331,10 +331,12 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     FACTORY_KWARG = None
     XSD_GLOBAL_TAG = None
 
-    def __init__(self, name=None, elem=None, schema=None, is_global=False):
+    def __init__(self, name=None, elem=None, schema=None, is_global=False, **options):
+        self.errors = []                # For collecting component parsing errors
         self.name = name
         self.parent = None  # Parent XSD component (the schema for XSD globals)
         self.is_global = is_global
+        self.options = options
         super(XsdComponent, self).__init__(elem, schema)
         XMLSchemaValidator.__init__(self)
 
@@ -355,13 +357,18 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         __str__ = __unicode__
 
     def __setattr__(self, name, value):
-        if name == 'elem':
-            annotation = get_xsd_annotation(value)
-            if annotation is not None:
-                self.annotation = XsdAnnotation(annotation, self.schema)
-            else:
-                self.annotation = None
         super(XsdComponent, self).__setattr__(name, value)
+        if name == 'elem':
+            self._parse()
+
+    def _parse(self):
+        if self.errors:
+            del self.errors[:]
+        annotation = get_xsd_annotation(self.elem)
+        if annotation is not None:
+            self.annotation = XsdAnnotation(annotation, self.schema)
+        else:
+            self.annotation = None
 
     @property
     def check_token(self):

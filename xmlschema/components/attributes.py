@@ -68,6 +68,9 @@ class XsdAttribute(XsdComponent):
             getattr(self, 'form')
             getattr(self, 'use')
 
+    def _parse(self):
+        
+
     @property
     def default(self):
         return self._attrib.get('default', '')
