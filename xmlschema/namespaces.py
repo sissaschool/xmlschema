@@ -94,7 +94,7 @@ def create_lookup_function(map_name, xsd_classes):
                     obj2 = factory_function(elem, schema, obj, is_global=True, **kwargs)
                     global_map[qname] = obj2
                     return obj2
-            elif isinstance(obj, (tuple, list)) and obj and isinstance(obj[0], xsd_classes):
+            elif isinstance(obj, list):
                 # More complex: redefine case
                 start = int(isinstance(obj[0], xsd_classes))
                 xsd_instance = obj[0] if start else None    # No
@@ -114,11 +114,11 @@ def create_lookup_function(map_name, xsd_classes):
                     xsd_instance = factory_function(
                         elem, schema, xsd_instance, is_global=True, **kwargs
                     )
-                    obj[0] = xsd_instance
+                    obj[0] = global_map[qname] = xsd_instance
                 global_map[qname] = xsd_instance
                 return obj[0]
 
-            elif isinstance(obj, (tuple, list)) and len(obj) == 2:
+            elif isinstance(obj, tuple) and len(obj) == 2:
                 # print("Build %r(%r)" % (xsd_classes, qname))
                 # global_map[qname] = None
                 # The map entry is a couple with etree element and reference schema.
@@ -137,6 +137,7 @@ def create_lookup_function(map_name, xsd_classes):
                 global_map[qname] = obj
                 return obj
             else:
+                print(repr(obj))
                 raise XMLSchemaTypeError(
                     "wrong type %s for %r, a %s required." % (type(obj), qname, types_desc)
                 )
@@ -253,6 +254,7 @@ class XsdGlobals(object):
         Builds the schemas registered in the instance, excluding
         those that are already built.
         """
+        self.clear()
         kwargs = self.validator.OPTIONS.copy()
 
         if any([schema.errors for schema in self.iter_schemas()]) or \

@@ -460,6 +460,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
         for k, v in list(base_schemas.items()):
             _XMLSchema(v, global_maps=meta_schema.maps)
         _XMLSchema.META_SCHEMA = meta_schema
+        meta_schema.maps.build()
 
     if xsd_version is not None:
         _XMLSchema.__name__ = 'XMLSchema_{}'.format(xsd_version.replace(".", "_"))

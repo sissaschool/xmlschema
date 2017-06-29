@@ -36,6 +36,8 @@ def xsd_factory(xsd_class, *tags):
     def make_factory_wrapper(factory_function):
         def xsd_factory_wrapper(elem, schema, instance=None, is_global=False, **kwargs):
             if instance is not None and not isinstance(instance, xsd_class):
+                import pdb
+                pdb.set_trace()
                 raise XMLSchemaParseError(
                     "instance=%r must be a %r." % (instance, xsd_class), elem
                 )
@@ -54,10 +56,7 @@ def xsd_factory(xsd_class, *tags):
             except XMLSchemaParseError as err:
                 schema.errors.append(err)
                 if isinstance(err.obj, XsdComponent):
-                    if isinstance(err.obj, (XsdAtomicRestriction, XsdUnion, XsdList)):
-                        return err.obj
-                    else:
-                        return err.obj.name, err.obj
+                    return err.obj
                 elif etree_iselement(err.obj):
                     # Produce a dummy declaration for prosecuting the parse process
                     name = err.obj.get('name')
@@ -517,6 +516,13 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
 
             elif content_type is None:
                 content_type = XsdGroup(elem=elem, schema=schema, mixed=mixed, length=0)  # Empty content model
+
+            attributes.update(base_type.attributes)
+            for ak, av in attribute_group_factory(content_spec, schema, **kwargs).items():
+                if ak in attributes:
+                    attributes[ak] = av
+                else:
+                    raise XMLSchemaParseError("%r attribute not in base type", content_spec)
         else:
             # Parse complexContent extension
             #
@@ -528,7 +534,8 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
 
             if base_type.content_type.is_empty():
                 # Empty model extension: don't create a nested group.
-                group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
+                if content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
+                    group_factory(content_definition, schema, content_type, mixed=mixed, **kwargs)
             elif isinstance(base_type.content_type, XsdGroup):
                 content_type.model = XSD_SEQUENCE_TAG
                 if base_type is not instance and not base_type.content_type.built:
@@ -544,12 +551,11 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
                     content_type.append(base_type.content_type)
                     content_type.length = 1
 
-                attributes.update(base_type.attributes)
             elif content_definition is not None and content_definition.tag in XSD_MODEL_GROUP_TAGS:
-                raise ValueError("ERRORE")
-                # xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
+                xsd_group = group_factory(content_definition, schema, mixed=mixed, **kwargs)
 
-        attributes.update(attribute_group_factory(content_spec, schema, instance=attributes, **kwargs))
+            attributes.update(base_type.attributes)
+            attributes.update(attribute_group_factory(content_spec, schema, instance=attributes, **kwargs))
 
     elif content_node.tag == XSD_SIMPLE_CONTENT_TAG:
         if 'mixed' in content_node.attrib:
@@ -557,18 +563,29 @@ def xsd_complex_type_factory(elem, schema, instance=None, is_global=False, **kwa
 
         content_spec = get_xsd_component(content_node)
         check_tag(content_spec, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG)
+        derivation = content_spec.tag == XSD_EXTENSION_TAG
 
         content_base = get_xsd_attribute(content_spec, 'base')
         base_qname, namespace = split_reference(content_base, schema.namespaces)
         base_type = schema.maps.lookup_type(base_qname, **kwargs)
 
-        derivation = content_spec.tag == XSD_EXTENSION_TAG
         if content_spec.tag == XSD_RESTRICTION_TAG:
-            content_type = restriction_factory(
-                content_spec, schema, content_type, content_type.is_global, **kwargs
-            )
-        else:
+            if base_type.is_simple():
+                content_type = restriction_factory(
+                    content_spec, schema, content_type,
+                    getattr(content_type, 'is_global', False) , **kwargs
+                )
+            else:
+                print("ECCCCC")
+                import pdb
+                pdb.set_trace()
+                content_type = restriction_factory(content_spec, schema, **kwargs)
+        elif base_type.is_simple():
             content_type = base_type
+        else:
+            import pdb
+            pdb.set_trace()
+            raise XMLSchemaValueError("ERROR")
 
         if hasattr(base_type, 'attributes'):
             attributes.update(base_type.attributes)

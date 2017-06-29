@@ -21,8 +21,8 @@ class XMLSchemaValidator(object):
     define two properties that returns the value of those tokens.
     """
     def __init__(self):
-        self._check_token = None
-        self._valid = None
+        self._check_token = None    # Token for managing checks without circularity
+        self._valid = None          # True == 'valid', False == 'invalid', None == 'notKnown'
 
     def __setattr__(self, name, value):
         if name == '_valid':

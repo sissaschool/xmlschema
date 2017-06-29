@@ -62,9 +62,9 @@ class XsdAttribute(XsdComponent):
             check_type(value, XsdSimpleType)
         elif name == "elem":
             if self.default and self.fixed:
-                raise XMLSchemaParseError(
+                self.schema.errors.append(XMLSchemaParseError(
                     "'default' and 'fixed' attributes are mutually exclusive", self
-                )
+                ))
             getattr(self, 'form')
             getattr(self, 'use')
 

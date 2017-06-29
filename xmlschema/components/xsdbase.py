@@ -237,7 +237,9 @@ class XsdBase(object):
         if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
             return value
         elif not all([s not in ('##any', '##other') for s in items]):
-            raise XMLSchemaParseError("wrong value %r for the 'namespace' attribute." % value, self.elem)
+            self.schema.errors.append(
+                XMLSchemaParseError("wrong value %r for the 'namespace' attribute." % value, self.elem)
+            )
         return value
 
     def _is_namespace_allowed(self, namespace, any_namespace):
@@ -304,16 +306,16 @@ class XsdAnnotation(XsdBase):
                 if child.tag == XSD_APPINFO_TAG:
                     for key in child.attrib:
                         if key != 'source':
-                            raise XMLSchemaParseError(
+                            self.schema.errors.append(XMLSchemaParseError(
                                 "wrong attribute %r for appinfo declaration." % key, self
-                            )
+                            ))
                     self.appinfo.append(child)
                 elif child.tag == XSD_DOCUMENTATION_TAG:
                     for key in child.attrib:
                         if key not in ['source', XML_LANG]:
-                            raise XMLSchemaParseError(
+                            self.schema.errors.append(XMLSchemaParseError(
                                 "wrong attribute %r for documentation declaration." % key, self
-                            )
+                            ))
                     self.documentation.append(child)
         super(XsdAnnotation, self).__setattr__(name, value)
 
@@ -405,9 +407,11 @@ class ParticleMixin(object):
         if name == 'elem':
             max_occurs = self.max_occurs
             if max_occurs is not None and self.min_occurs > max_occurs:
-                raise XMLSchemaParseError(
-                    "maxOccurs must be 'unbounded' or greater than minOccurs:", self
-                )
+                schema = getattr(self, 'schema')
+                if schema is not None:
+                    schema.errors.append(XMLSchemaParseError(
+                        "maxOccurs must be 'unbounded' or greater than minOccurs:", self
+                    ))
 
     @property
     def min_occurs(self):

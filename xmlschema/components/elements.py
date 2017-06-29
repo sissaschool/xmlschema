@@ -15,7 +15,8 @@ from collections import Sequence, MutableSequence
 
 from ..core import unicode_type, etree_element, ElementData
 from ..exceptions import (
-    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError, XMLSchemaEncodeError
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError,
+    XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
 from ..qnames import (
     get_qname, local_name, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG,
@@ -69,9 +70,9 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
             self.attributes = XsdAttributeGroup(schema=schema)
 
         if ref and self.substitution_group is not None:
-            raise XMLSchemaParseError(
+            self.schema.errors.append(XMLSchemaParseError(
                 "a reference can't has 'substitutionGroup' attribute.", self
-            )
+            ))
 
     def __getitem__(self, i):
         try:
@@ -97,14 +98,13 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
     def __setattr__(self, name, value):
         super(XsdElement, self).__setattr__(name, value)
-        ParticleMixin.__setattr__(self, name, value)
         if name == "type":
             check_type(value, XsdSimpleType, XsdComplexType)
         elif name == "elem":
             if self.default and self.fixed:
-                raise XMLSchemaParseError(
+                self.schema.errors.append(XMLSchemaParseError(
                     "'default' and 'fixed' attributes are mutually exclusive", self
-                )
+                ))
             getattr(self, 'abstract')
             getattr(self, 'block')
             getattr(self, 'final')
@@ -275,7 +275,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
         del element_data
 
-    def iter_model(self, elem, index=0):
+    def iter_decode_children(self, elem, index=0):
         model_occurs = 0
         while True:
             try:
@@ -372,7 +372,6 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
 
     def __setattr__(self, name, value):
         super(XsdAnyElement, self).__setattr__(name, value)
-        ParticleMixin.__setattr__(self, name, value)
 
     @property
     def namespace(self):
@@ -409,7 +408,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         elif validate:
             yield XMLSchemaValidationError(self, elem, "element %r not allowed here." % elem.tag)
 
-    def iter_model(self, elem, index=0):
+    def iter_decode_children(self, elem, index=0):
         model_occurs = 0
         process_contents = self.process_contents
         while True:
@@ -433,7 +432,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
                         )
                 else:
                     if process_contents != 'skip':
-                        for obj in xsd_element.iter_model(elem, index):
+                        for obj in xsd_element.iter_decode_children(elem, index):
                             yield obj
 
             index += 1
@@ -721,6 +720,11 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return self._group[i]
 
     def __setitem__(self, i, item):
+        if isinstance(item, tuple):
+            print(item)
+            # import pdb
+            # pdb.set_trace()
+            raise XMLSchemaNotBuiltError("element not built", obj=item)
         check_type(item, XsdGroup, XsdElement, XsdAnyElement)
         self._group[i] = item
         self.elements = None
@@ -760,13 +764,12 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             for item in value:
                 check_type(item, XsdGroup, XsdElement, XsdAnyElement)
         super(XsdGroup, self).__setattr__(name, value)
-        ParticleMixin.__setattr__(self, name, value)
 
     def iter_components(self, xsd_classes=None):
         for obj in super(XsdGroup, self).iter_components(xsd_classes):
             yield obj
         for item in self:
-            if isinstance(item, XsdElement) and item.ref:
+            if 'ref' in item.elem.attrib:
                 if xsd_classes is None or isinstance(item, xsd_classes):
                     yield item
             else:
@@ -866,7 +869,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 break
                 # import pdb
                 # pdb.set_trace()
-            for obj in self.iter_model(elem, index=index):
+            for obj in self.iter_decode_children(elem, index=index):
                 if isinstance(obj, XMLSchemaValidationError):
                     if validate:
                         yield obj
@@ -949,7 +952,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 text = text[:-indent]
         yield text, children
 
-    def iter_model(self, elem, index=0):
+    def iter_decode_children(self, elem, index=0):
         if not len(self):
             return  # Skip empty groups!
 
@@ -959,7 +962,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             model_index = index
             if self.model == XSD_SEQUENCE_TAG:
                 for item in self:
-                    for obj in item.iter_model(elem, model_index):
+                    for obj in item.iter_decode_children(elem, model_index):
                         if isinstance(obj, XMLSchemaValidationError):
                             if model_occurs == 0 and self.min_occurs > 0:
                                 yield obj
@@ -975,7 +978,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 group = [e for e in self]
                 while group:
                     for item in group:
-                        for obj in item.iter_model(elem, model_index):
+                        for obj in item.iter_decode_children(elem, model_index):
                             if isinstance(obj, tuple):
                                 yield obj
                             elif isinstance(obj, int):
@@ -997,7 +1000,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             elif self.model == XSD_CHOICE_TAG:
                 matched_choice = False
                 for item in self:
-                    for obj in item.iter_model(elem, model_index):
+                    for obj in item.iter_decode_children(elem, model_index):
                         if not isinstance(obj, XMLSchemaValidationError):
                             if isinstance(obj, tuple):
                                 yield obj
