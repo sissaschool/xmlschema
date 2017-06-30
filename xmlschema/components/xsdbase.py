@@ -19,6 +19,7 @@ from ..qnames import *
 from ..utils import camel_case_split, FrozenDict
 from ..validator import XMLSchemaValidator
 
+
 #
 # Functions for parsing declarations from schema's tree
 def check_tag(elem, *tags):
@@ -38,6 +39,15 @@ def get_xsd_annotation(elem):
         return elem[0] if elem[0].tag == XSD_ANNOTATION_TAG else None
     except (TypeError, IndexError):
         return None
+
+
+def get_attributes(obj):
+    if isinstance(obj, dict):
+        return obj
+    elif isinstance(obj, str):
+        return {(attr.split('=', maxsplit=1) for attr in obj.split(' '))}
+    else:
+        return obj.attrib
 
 
 def get_xsd_component(elem, required=True, strict=True):
@@ -184,7 +194,7 @@ class XsdBase(object):
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
-    def __init__(self, elem=None, schema=None):
+    def __init__(self, elem, schema=None):
         self.schema = schema
         self.elem = elem
 
@@ -290,13 +300,7 @@ class XsdAnnotation(XsdBase):
       {any attributes with non-schema namespace . . .}>
       Content: ({any})*
     </documentation>
-
-    :param elem: ElementTree's node containing the definition.
-    :param schema: The XMLSchema object that owns the definition.
     """
-    def __init__(self, elem=None, schema=None):
-        super(XsdAnnotation, self).__init__(elem, schema)
-
     def __setattr__(self, name, value):
         if name == 'elem':
             check_tag(value, XSD_ANNOTATION_TAG)
@@ -324,19 +328,27 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     """
     XML Schema component base class.
 
-    :param name: A name associated with the component definition/declaration..
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
+    :param is_global: `True` if the component is a global declaration/definition, \
+    `False` if it's local.
+    :param parent: Parent XSD component. For global components the default parent \
+    is the argument `schema`.
+    :param name: Name of the component, overwritten by the parse of the `elem` argument.
+    :param options: Options containing classes and factories to use for creating new components.
     """
     FACTORY_KWARG = None
     XSD_GLOBAL_TAG = None
 
-    def __init__(self, name=None, elem=None, schema=None, is_global=False, **options):
-        self.errors = []                # For collecting component parsing errors
-        self.name = name
-        self.parent = None  # Parent XSD component (the schema for XSD globals)
+    def __init__(self, elem, schema=None, is_global=False, parent=None, name=None, **options):
         self.is_global = is_global
+        if is_global:
+            self.parent = schema or parent
+        else:
+            self.parent = parent
+        self.name = name
         self.options = options
+        self.errors = []  # Component parsing errors
         super(XsdComponent, self).__init__(elem, schema)
         XMLSchemaValidator.__init__(self)
 
@@ -358,7 +370,7 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
 
     def __setattr__(self, name, value):
         super(XsdComponent, self).__setattr__(name, value)
-        if name == 'elem':
+        if name == 'elem' and value is not None and self.schema is not None:
             self._parse()
 
     def _parse(self):
@@ -369,6 +381,9 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
             self.annotation = XsdAnnotation(annotation, self.schema)
         else:
             self.annotation = None
+
+    def _parse_error(self, msg, elem=None):
+        self.errors.append(XMLSchemaParseError(msg, self, elem))
 
     @property
     def check_token(self):
@@ -400,6 +415,12 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
+
+    def iter_encode(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def iter_decode(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 class ParticleMixin(object):

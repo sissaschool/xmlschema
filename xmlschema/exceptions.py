@@ -77,7 +77,7 @@ class XMLSchemaNotBuiltError(XMLSchemaException, TypeError):
 class XMLSchemaParseError(XMLSchemaException, ValueError):
     """Raised when an error is found when parsing an XML Schema definition/declaration."""
 
-    def __init__(self, message, obj=None):
+    def __init__(self, message, obj=None, elem=None):
         self.message = message or u''
         self.obj = obj
         if etree_iselement(obj):

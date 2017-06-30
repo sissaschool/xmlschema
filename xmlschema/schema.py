@@ -21,7 +21,6 @@ from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaURLError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaValueError
 )
-from . import qnames
 from .utils import URIDict, listify_update
 from .resources import (
     open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
@@ -32,31 +31,24 @@ from .validator import XMLSchemaValidator
 from .components import (
     check_tag, get_xsd_attribute, XSD_FACETS, get_xsd_derivation_attribute,
     iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine,
-    XsdNotation, XsdSimpleType, XsdComplexType, XsdAttribute, XsdElement,
-    XsdAttributeGroup, XsdGroup, XsdAtomicRestriction, XsdList, XsdUnion
+    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
+    xsd_simple_type_factory, XsdAtomicRestriction, XsdSimpleType
 )
 from . import qnames
 from .utils import check_value
 from .converters import XMLSchemaConverter
-from .factories import *
 from .namespaces import XsdGlobals, NamespaceView
 
 DEFAULT_OPTIONS = {
     'simple_type_factory': xsd_simple_type_factory,
-    'attribute_factory': xsd_attribute_factory,
-    'attribute_group_factory': xsd_attribute_group_factory,
-    'complex_type_factory': xsd_complex_type_factory,
-    'group_factory': xsd_group_factory,
-    'element_factory': xsd_element_factory,
-    'notation_factory': xsd_notation_factory,
-    'restriction_factory': xsd_restriction_factory,
     qnames.XSD_NOTATION_TAG: XsdNotation,
-    qnames.XSD_SIMPLE_TYPE_TAG: (XsdSimpleType, XsdAtomicRestriction, XsdUnion, XsdList),
+    qnames.XSD_SIMPLE_TYPE_TAG: XsdSimpleType,
     qnames.XSD_COMPLEX_TYPE_TAG: XsdComplexType,
     qnames.XSD_ANNOTATION_TAG: XsdAttribute,
     qnames.XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup,
     qnames.XSD_GROUP_TAG: XsdGroup,
-    qnames.XSD_ELEMENT_TAG: XsdElement
+    qnames.XSD_ELEMENT_TAG: XsdElement,
+    qnames.XSD_RESTRICTION_TAG: XsdAtomicRestriction
 }
 """Default options for building XSD schema elements."""
 

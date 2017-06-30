@@ -20,16 +20,16 @@ from decimal import Decimal
 from .core import long_type, unicode_type, etree_element, etree_iselement
 from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
 from .qnames import (
-    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG,
-    XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG,
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
+    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG, XSD_ANY_TAG,
+    XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ATTRIBUTE_GROUP_TAG,
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG, XSD_ELEMENT_TAG
 )
 from .components import (
     XsdUniqueFacet, XsdPatternsFacet,
     XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS,
     FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS,
     XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdAttributeGroup,
-    XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement
+    XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement, XsdElement
 )
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
@@ -53,18 +53,26 @@ ANY_TYPE = XsdComplexType(
                 'minOccurs': '0',
                 'maxOccurs': 'unbounded'
             }
-        ))]
+        ))],
+        **{XSD_ELEMENT_TAG: XsdElement}
     ),
-    attributes=XsdAttributeGroup(initdict={
+    attributes=XsdAttributeGroup(
+        elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
+        initdict={
         None: XsdAnyAttribute(etree_element(
             XSD_ANY_ATTRIBUTE_TAG,
             attrib={'namespace': '##any', 'processContents': 'lax'}
-        ))
-    }),
+        ))}
+    ),
     name=XSD_ANY_TYPE,
     elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
     mixed=True,
-    is_global=True
+    is_global=True,
+    **{
+        XSD_SIMPLE_TYPE_TAG: XsdSimpleType,
+        XSD_GROUP_TAG: XsdGroup,
+        XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup
+    }
 )
 ANY_SIMPLE_TYPE = XsdSimpleType(
     name=XSD_ANY_SIMPLE_TYPE,
@@ -78,7 +86,6 @@ ANY_ATOMIC_TYPE = XsdAtomicRestriction(
     elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
     is_global=True
 )
-
 
 #
 # XSD builtin validator functions
