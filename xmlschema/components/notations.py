@@ -26,11 +26,8 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
-    FACTORY_KWARG = 'notation_factory'
-    XSD_GLOBAL_TAG = XSD_NOTATION_TAG
-
-    def __init__(self, elem, schema, is_global=False, **options):
-        super(XsdNotation, self).__init__(elem.get('name', ''), elem, schema, is_global=is_global, **options)
+    def __init__(self, elem, schema=None, is_global=False, **options):
+        super(XsdNotation, self).__init__(elem, schema=None, is_global=is_global, **options)
 
     def _parse(self):
         super(XsdNotation, self)._parse()

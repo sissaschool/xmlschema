@@ -68,9 +68,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    FACTORY_KWARG = 'group_factory'
-    XSD_GLOBAL_TAG = XSD_GROUP_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
                  model=None, mixed=False, initlist=None, **options):
         self.element_class = options[XSD_ELEMENT_TAG]

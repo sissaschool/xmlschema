@@ -13,7 +13,7 @@ from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError
 from ..utils import check_type
 from ..qnames import (
     get_qname, reference_to_qname, local_name, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG,
-    XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG,
+    XSD_ATTRIBUTE_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG,
     XSD_ANY_ATTRIBUTE_TAG, XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
@@ -41,11 +41,9 @@ class XsdComplexType(XsdComponent):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    TAG = XSD_COMPLEX_TYPE_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
                  content_type=None, attributes=None, derivation=None, mixed=None, **options):
-        self.simple_type_class = options[XSD_SIMPLE_TYPE_TAG]
+        self.simple_type_class = options['simple_type_class']
         self.group_class = options[XSD_GROUP_TAG]
         self.attribute_group_class = options[XSD_ATTRIBUTE_GROUP_TAG]
         self.derivation = derivation
@@ -122,8 +120,6 @@ class XsdComplexType(XsdComponent):
             if self.is_global:
                 self._parse_error("attribute 'name' not allowed for a local complexType", elem)
 
-        self.content_type = None
-        self.attributes = None
         self.derivation = None
         self._mixed = elem.attrib.get('mixed') in ('true', '1')
 
@@ -183,6 +179,7 @@ class XsdComplexType(XsdComponent):
                 self._parse_simple_extension(derivation_elem, base_type)
 
         else:
+            print("MANCA IL TIPO")
             self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
 
     def _parse_base_type(self, elem):
@@ -197,7 +194,7 @@ class XsdComplexType(XsdComponent):
             base_type = self.schema.maps.lookup_type(base_qname)
         except KeyError:
             self._parse_error("missing base type %r" % base_qname, elem)
-            return self.schema.maps.lookup_type(XSD_ANY_TYPE)
+            return self.schema.maps.lookup_type(XSD_ANY_TYPE, **self.options)
         else:
             return base_type
 

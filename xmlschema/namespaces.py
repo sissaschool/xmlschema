@@ -78,7 +78,7 @@ def create_lookup_function(map_name, xsd_classes):
     else:
         types_desc = xsd_classes.__name__
 
-    def lookup(global_maps, qname, **kwargs):
+    def lookup(global_maps, qname, **options):
         global_map = getattr(global_maps, map_name)
         try:
             obj = global_map[qname]
@@ -90,50 +90,27 @@ def create_lookup_function(map_name, xsd_classes):
                     return obj
                 else:
                     elem, schema = obj.elem, obj.schema
-                    factory_function = kwargs[obj.FACTORY_KWARG]
-                    obj2 = factory_function(elem, schema, obj, is_global=True, **kwargs)
+                    factory_or_class = options[elem.tag]
+                    obj2 = factory_or_class(elem, schema, obj, is_global=True, **options)
                     global_map[qname] = obj2
                     return obj2
             elif isinstance(obj, list):
-                # More complex: redefine case
+                # Redefined XSD globals TODO: Fix in classes
                 start = int(isinstance(obj[0], xsd_classes))
-                xsd_instance = obj[0] if start else None    # No
+                xsd_instance = obj[0] if start else None
                 for k in range(start, len(obj)):
                     elem, schema = obj[k]
-
-                    if isinstance(xsd_classes, (tuple, list)):
-                        for xsd_class in xsd_classes:
-                            if elem.tag == xsd_class.XSD_GLOBAL_TAG:
-                                factory_function = kwargs[xsd_class.FACTORY_KWARG]
-                                break
-                        else:
-                            raise XMLSchemaValueError("Element not compatible!")
-                    else:
-                        factory_function = kwargs[xsd_classes.FACTORY_KWARG]
-
-                    xsd_instance = factory_function(
-                        elem, schema, xsd_instance, is_global=True, **kwargs
-                    )
+                    factory_or_class = options[elem.tag]
+                    xsd_instance = factory_or_class(elem, schema, is_global=True, **options)
                     obj[0] = global_map[qname] = xsd_instance
                 global_map[qname] = xsd_instance
                 return obj[0]
 
             elif isinstance(obj, tuple) and len(obj) == 2:
-                # print("Build %r(%r)" % (xsd_classes, qname))
-                # global_map[qname] = None
                 # The map entry is a couple with etree element and reference schema.
                 elem, schema = obj
-                if isinstance(xsd_classes, (tuple, list)):
-                    for xsd_class in xsd_classes:
-                        if elem.tag == xsd_class.XSD_GLOBAL_TAG:
-                            factory_function = kwargs[xsd_class.FACTORY_KWARG]
-                            break
-                    else:
-                        raise XMLSchemaValueError("Element not compatible!")
-                else:
-                    factory_function = kwargs[xsd_classes.FACTORY_KWARG]
-
-                obj = factory_function(elem, schema, is_global=True, **kwargs)
+                factory_or_class = options[elem.tag]
+                obj = factory_or_class(elem, schema, is_global=True, **options)
                 global_map[qname] = obj
                 return obj
             else:

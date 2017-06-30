@@ -40,15 +40,15 @@ from .converters import XMLSchemaConverter
 from .namespaces import XsdGlobals, NamespaceView
 
 DEFAULT_OPTIONS = {
-    'simple_type_factory': xsd_simple_type_factory,
     qnames.XSD_NOTATION_TAG: XsdNotation,
-    qnames.XSD_SIMPLE_TYPE_TAG: XsdSimpleType,
+    qnames.XSD_SIMPLE_TYPE_TAG: xsd_simple_type_factory,
     qnames.XSD_COMPLEX_TYPE_TAG: XsdComplexType,
-    qnames.XSD_ANNOTATION_TAG: XsdAttribute,
+    qnames.XSD_ATTRIBUTE_TAG: XsdAttribute,
     qnames.XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup,
     qnames.XSD_GROUP_TAG: XsdGroup,
     qnames.XSD_ELEMENT_TAG: XsdElement,
-    qnames.XSD_RESTRICTION_TAG: XsdAtomicRestriction
+    qnames.XSD_RESTRICTION_TAG: XsdAtomicRestriction,
+    'simple_type_class': XsdSimpleType,
 }
 """Default options for building XSD schema elements."""
 

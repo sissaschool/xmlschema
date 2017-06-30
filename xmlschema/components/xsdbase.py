@@ -337,9 +337,6 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     :param name: Name of the component, overwritten by the parse of the `elem` argument.
     :param options: Options containing classes and factories to use for creating new components.
     """
-    FACTORY_KWARG = None
-    XSD_GLOBAL_TAG = None
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None, **options):
         self.is_global = is_global
         if is_global:

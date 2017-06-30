@@ -43,9 +43,6 @@ class XsdAttribute(XsdComponent):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    FACTORY_KWARG = 'attribute_factory'
-    XSD_GLOBAL_TAG = XSD_ATTRIBUTE_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
                  xsd_type=None, qualified=False, **options):
         if xsd_type is not None:
@@ -72,7 +69,7 @@ class XsdAttribute(XsdComponent):
         elem = self.elem
         schema = self.schema
         options = self.options
-        simple_type_factory = options['simple_type_factory']
+        simple_type_factory = options[XSD_SIMPLE_TYPE_TAG]
         self.qualified = elem.attrib.get('form', schema.attribute_form_default)
 
         try:
@@ -92,7 +89,7 @@ class XsdAttribute(XsdComponent):
                 self.name = attribute_name
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
-                self.schema = xsd_attribute.schema  # TODO: Check this
+                # self.schema = xsd_attribute.schema  TODO: Check this
                 return
         else:
             attribute_name = get_qname(schema.target_namespace, name)
@@ -212,9 +209,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
-    FACTORY_KWARG = 'attribute_group_factory'
-    XSD_GLOBAL_TAG = XSD_ATTRIBUTE_GROUP_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
                  derivation=None, initdict=None, **options):
         self.derivation = derivation

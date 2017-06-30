@@ -65,10 +65,11 @@ class XsdSimpleType(XsdComponent):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
-    FACTORY_KWARG = 'simple_type_factory'
-    XSD_GLOBAL_TAG = XSD_SIMPLE_TYPE_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None, facets=None, **options):
+        self.min_length = self.max_length = self.min_value = self.max_value = None
+        self.white_space = None
+        self.patterns = None
+        self.validators = []
         super(XsdSimpleType, self).__init__(elem, schema, is_global, parent, name, **options)
 
     def __setattr__(self, name, value):
@@ -284,7 +285,7 @@ class XsdAtomic(XsdSimpleType):
                  facets=None, base_type=None, **options):
         super(XsdAtomic, self).__init__(elem, schema, is_global, parent, name, facets, **options)
         if not hasattr(self, 'base_type'):
-            if base_type is None:
+            if base_type is None and not isinstance(self, XsdAtomicBuiltin):
                 raise XMLSchemaAttributeError("undefined 'base_type' for %r." % self)
             self.base_type = base_type
         if not hasattr(self, 'facets'):
@@ -294,9 +295,13 @@ class XsdAtomic(XsdSimpleType):
         super(XsdAtomic, self).__setattr__(name, value)
         if name in ('base_type', 'white_space'):
             if getattr(self, 'white_space', None) is None:
-                white_space = getattr(self.base_type, 'white_space', None)
-                if white_space is not None:
-                    self.white_space = white_space
+                try:
+                    white_space = self.base_type.white_space
+                except AttributeError:
+                    return
+                else:
+                    if white_space is not None:
+                        self.white_space = white_space
 
     @property
     def primitive_type(self):

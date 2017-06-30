@@ -53,13 +53,10 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    FACTORY_KWARG = 'element_factory'
-    XSD_GLOBAL_TAG = XSD_ELEMENT_TAG
-
     def __init__(self, elem, schema=None, is_global=False, parent=None, name=None, xsd_type=None,
                  qualified=False, ref=False, **options):
 
-        self.simple_type_class = options[XSD_SIMPLE_TYPE_TAG]
+        self.simple_type_class = options['simple_type_class']
         self.complex_type_class = options[XSD_COMPLEX_TYPE_TAG]
         self.attribute_group_class = options[XSD_ATTRIBUTE_GROUP_TAG]
 

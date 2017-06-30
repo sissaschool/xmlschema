@@ -69,7 +69,7 @@ ANY_TYPE = XsdComplexType(
     mixed=True,
     is_global=True,
     **{
-        XSD_SIMPLE_TYPE_TAG: XsdSimpleType,
+        'simple_type_class': XsdSimpleType,
         XSD_GROUP_TAG: XsdGroup,
         XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup
     }
