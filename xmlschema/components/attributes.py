@@ -43,34 +43,32 @@ class XsdAttribute(XsdComponent):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
-                 xsd_type=None, qualified=False, **options):
+    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+                 xsd_type=None, qualified=False):
         if xsd_type is not None:
             self.type = xsd_type
         self.qualified = qualified
-        super(XsdAttribute, self).__init__(elem, schema, is_global, parent, name, **options)
+        super(XsdAttribute, self).__init__(elem, schema, is_global, parent, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
 
     def __setattr__(self, name, value):
-        super(XsdAttribute, self).__setattr__(name, value)
         if name == "type":
             check_type(value, XsdSimpleType)
-        elif name == "elem":
-            if self.default and self.fixed:
-                self.schema.errors.append(XMLSchemaParseError(
-                    "'default' and 'fixed' attributes are mutually exclusive", self
-                ))
-            getattr(self, 'form')
-            getattr(self, 'use')
+        super(XsdAttribute, self).__setattr__(name, value)
 
     def _parse(self):
         super(XsdAttribute, self)._parse()
         elem = self.elem
         schema = self.schema
-        options = self.options
-        simple_type_factory = options[XSD_SIMPLE_TYPE_TAG]
         self.qualified = elem.attrib.get('form', schema.attribute_form_default)
+
+        if self.default and self.fixed:
+            self.schema.errors.append(XMLSchemaParseError(
+                "'default' and 'fixed' attributes are mutually exclusive", self
+            ))
+        getattr(self, 'form')
+        getattr(self, 'use')
 
         try:
             name = elem.attrib['name']
@@ -85,7 +83,7 @@ class XsdAttribute(XsdComponent):
                 ))
                 return
             else:
-                xsd_attribute = schema.maps.lookup_attribute(attribute_name, **options)
+                xsd_attribute = schema.maps.lookup_attribute(attribute_name)
                 self.name = attribute_name
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
@@ -98,7 +96,7 @@ class XsdAttribute(XsdComponent):
         xsd_declaration = get_xsd_component(elem, required=False)
         try:
             type_qname = reference_to_qname(elem.attrib['type'], schema.namespaces)
-            xsd_type = schema.maps.lookup_type(type_qname, **options)
+            xsd_type = schema.maps.lookup_type(type_qname)
             if xsd_type.name != type_qname:
                 # must implement substitution groups before!?
                 # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
@@ -106,9 +104,10 @@ class XsdAttribute(XsdComponent):
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = simple_type_factory(xsd_declaration, schema, xsd_type, **options)
+                xsd_type = schema.simple_type_factory(xsd_declaration, schema, xsd_type)
             else:
-                xsd_type = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)  # Empty declaration means xsdAnySimpleType
+                # Empty declaration means xsdAnySimpleType
+                xsd_type = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
         else:
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
                 raise XMLSchemaParseError("ambiguous type declaration for XSD attribute", elem)
@@ -121,12 +120,16 @@ class XsdAttribute(XsdComponent):
         self.type = xsd_type
 
     @property
+    def admitted_tags(self):
+        return {XSD_ATTRIBUTE_TAG}
+
+    @property
     def default(self):
-        return self._attrib.get('default', '')
+        return self.elem.get('default', '')
 
     @property
     def fixed(self):
-        return self._attrib.get('fixed', '')
+        return self.elem.get('fixed', '')
 
     @property
     def form(self):
@@ -139,6 +142,14 @@ class XsdAttribute(XsdComponent):
         return get_xsd_attribute(
             self.elem, 'use', ('optional', 'prohibited', 'required'), default='optional'
         )
+
+    def validation_attempted(self):
+        if self.checked:
+            return 'full'
+        elif self.type.checked:
+            return 'partial'
+        else:
+            return 'none'
 
     def check(self):
         if self.checked:
@@ -209,13 +220,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
-    def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
-                 derivation=None, initdict=None, **options):
+    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+                 derivation=None, initdict=None):
         self.derivation = derivation
         self._attribute_group = dict()
         if initdict is not None:
             self._attribute_group.update(initdict.items())
-        XsdComponent.__init__(self, elem, schema, is_global, parent, name, **options)
+        XsdComponent.__init__(self, elem, schema, is_global, parent, name)
 
     # Implements the abstract methods of MutableMapping
     def __getitem__(self, key):
@@ -258,15 +269,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
         super(XsdAttributeGroup, self)._parse()
         elem = self.elem
         schema = self.schema
-        options = self.options
         any_attribute = False
         self.clear()
         self.name = None
-
-        if elem.tag not in {XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG,
-                            XSD_EXTENSION_TAG, XSD_ATTRIBUTE_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
-            schema.errors.append(XMLSchemaParseError("unexpected tag", elem))
-            return
 
         if elem.tag == XSD_ATTRIBUTE_GROUP_TAG:
             if not self.is_global:
@@ -291,21 +296,28 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 any_attribute = True
                 self.update({None: XsdAnyAttribute(elem=child, schema=schema)})
             elif child.tag == XSD_ATTRIBUTE_TAG:
-                attribute = XsdAttribute(child, schema, **options)
+                attribute = XsdAttribute(child, schema)
                 self[attribute.name] = attribute
             elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
                 qname = reference_to_qname(get_xsd_attribute(child, 'ref'), schema.namespaces)
-                ref_attribute_group = schema.maps.lookup_attribute_group(qname, **options)
+                ref_attribute_group = schema.maps.lookup_attribute_group(qname)
                 self.update(ref_attribute_group.items())
             elif self.name is not None:
                 schema.errors.append(XMLSchemaParseError(
                     "(attribute | attributeGroup) expected, found", child
                 ))
-
     @property
-    def built(self):
-        built = super(XsdAttributeGroup, self).built
-        return built and all([attr.built for attr in self.values()])
+    def admitted_tags(self):
+        return {XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
+                XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}
+
+    def validation_attempted(self):
+        if self.checked:
+            return 'full'
+        elif any([attr.checked for attr in self.values()]):
+            return 'partial'
+        else:
+            return 'none'
 
     def check(self):
         if self.checked:

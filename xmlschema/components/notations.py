@@ -26,8 +26,12 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
-    def __init__(self, elem, schema=None, is_global=False, **options):
-        super(XsdNotation, self).__init__(elem, schema=None, is_global=is_global, **options)
+    def __init__(self, elem, schema, is_global=True, parent=None):
+        super(XsdNotation, self).__init__(elem, schema, is_global, parent)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_NOTATION_TAG}
 
     def _parse(self):
         super(XsdNotation, self)._parse()
@@ -54,8 +58,8 @@ class XsdNotation(XsdComponent):
 
     @property
     def public(self):
-        return self._attrib.get('public')
+        return self.elem.get('public')
 
     @property
     def system(self):
-        return self._attrib.get('system')
+        return self.elem.get('system')

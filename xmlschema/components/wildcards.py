@@ -13,6 +13,7 @@ This module contains classes for XML Schema wildcards.
 """
 from ..exceptions import XMLSchemaValidationError
 from ..utils import get_namespace
+from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from .xsdbase import get_attributes, get_xsd_attribute, XsdComponent, ParticleMixin
 
 
@@ -30,8 +31,12 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
       Content: (annotation?)
     </any>
     """
-    def __init__(self, elem, schema=None, parent=None, **options):
-        super(XsdAnyElement, self).__init__(elem, schema, is_global=False, parent=parent, **options)
+    def __init__(self, elem, schema, parent=None):
+        super(XsdAnyElement, self).__init__(elem, schema, is_global=False, parent=parent)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_ANY_TAG}
 
     @property
     def namespace(self):
@@ -102,7 +107,6 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
                 return
 
 
-
 class Xsd11AnyElement(XsdAnyElement):
     """
     Class for XSD 1.1 'any' declarations.
@@ -134,8 +138,12 @@ class XsdAnyAttribute(XsdComponent):
       Content: (annotation?)
     </anyAttribute>
     """
-    def __init__(self, elem, schema=None, parent=None, **options):
-        super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False, parent=parent, **options)
+    def __init__(self, elem, schema, parent=None):
+        super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False, parent=parent)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_ANY_ATTRIBUTE_TAG}
 
     @property
     def namespace(self):

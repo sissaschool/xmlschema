@@ -36,22 +36,16 @@ class XMLSchemaValidator(object):
         """
         raise NotImplementedError
 
-    @property
-    def built(self):
-        """
-        Returns the validator built status, `True` if the validator has been \
-        fully built, `False` otherwise.
-        """
-        raise NotImplementedError
+    def check(self):
+        self._check_token = self.check_token
+        self._valid = True
 
     @property
     def checked(self):
         """
-        Returns the validator built status, `True` if the validator has been \
+        Returns the validator checking status, `True` if the validator has been \
         fully checked, `False` otherwise.
         """
-        if not self.built:
-            return False
         return self._check_token == self.check_token
 
     @property
@@ -67,7 +61,7 @@ class XMLSchemaValidator(object):
         Ref: https://www.w3.org/TR/xmlschema-1/#e-validity
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
         """
-        if self.checked and self.built:
+        if self.checked:
             if self._valid is True:
                 return 'valid'
             elif self._valid is False:
@@ -80,27 +74,10 @@ class XMLSchemaValidator(object):
         Ref: https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
         """
-        if self.valid is True:
+        if self.checked:
             return 'full'
-        elif self.valid is False:
-            return 'partial'
-        elif self.built is False:
+        else:
             return 'none'
-        else:
-            return 'partial'  # the instance was already parsed in any case ...
-
-    def check(self):
-        #if not self.built:
-        #    raise XMLSchemaNotBuiltError("%r is not built." % self)
-        self._check_token = self.check_token
-        if not self.built:
-            self._valid = None
-            import pdb
-            pdb.set_trace()
-            print("%r not built" % self, repr(self.parent))
-            # raise XMLSchemaNotBuiltError("%r: cannot check a not built component." % self)
-        else:
-            self._valid = True
 
     def validate(self, data, use_defaults=True):
         """

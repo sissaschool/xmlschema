@@ -19,7 +19,7 @@ from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XML
 from xmlschema.codepoints import UNICODE_CATEGORIES
 from xmlschema import XMLSchema
 
-meta_schema = XMLSchema.META_SCHEMA
+meta_schema = XMLSchema.meta_schema
 meta_schema.maps.build()
 
 
@@ -126,6 +126,10 @@ class TestGlobalMaps(unittest.TestCase):
 
         self.assertTrue(len(meta_schema.maps.base_elements) == 48)
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
+
+    def test_rebuild(self):
+        meta_schema.maps.build()
+        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
 
 
 # TODO: Add test for base schemas files.

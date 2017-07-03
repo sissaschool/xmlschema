@@ -16,14 +16,15 @@ from collections import MutableSequence
 from ..core import unicode_type
 from ..exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError,
-    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaAttributeError
+    XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
-    XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, local_name
+    XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
+    local_name
 )
 from ..utils import check_type, check_value, listify_update
-from .xsdbase import check_tag, get_xsd_component, XsdComponent, ParticleMixin, iter_xsd_declarations
+from .xsdbase import get_xsd_component, XsdComponent, ParticleMixin, iter_xsd_declarations
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -68,11 +69,8 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    def __init__(self, elem, schema=None, is_global=False, parent=None, name=None,
-                 model=None, mixed=False, initlist=None, **options):
-        self.element_class = options[XSD_ELEMENT_TAG]
-
-
+    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+                 model=None, mixed=False, initlist=None):
         self.model = model
         self.mixed = mixed
         self._group = []
@@ -84,18 +82,13 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 self._group[:] = initlist._group[:]
             else:
                 self._group = list(initlist)
-        XsdComponent.__init__(self, elem, schema, is_global, parent, name, **options)
+        XsdComponent.__init__(self, elem, schema, is_global, parent, name)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
         return self._group[i]
 
     def __setitem__(self, i, item):
-        if isinstance(item, tuple):
-            print(item)
-            # import pdb
-            # pdb.set_trace()
-            raise XMLSchemaNotBuiltError("element not built", obj=item)
         check_type(item, ParticleMixin)
         self._group[i] = item
         self.elements = None
@@ -115,18 +108,10 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return XsdComponent.__repr__(self)
 
     def __setattr__(self, name, value):
-        if name == 'elem' and value is not None:
-            if self.name is None:
-                check_tag(value, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG)
-            else:
-                check_tag(value, XSD_GROUP_TAG)
-                # Check maxOccurs and minOccurs: not allowed
-        elif name == 'model':
+        if name == 'model':
             check_value(value, None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
             model = getattr(self, 'model', None)
             if model is not None and value != model:
-                import pdb
-                pdb.set_trace()
                 raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
         elif name == 'mixed':
             check_value(value, True, False)
@@ -140,23 +125,19 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         super(XsdGroup, self)._parse()
         elem = self.elem
         schema = self.schema
-        options = self.options
 
         self.clear()
-        if elem.tag not in {XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG,
-                            XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
-            self._parse_error('unexpected tag %r' % elem.tag, elem)
-
         if elem.tag == XSD_GROUP_TAG:
-            # Model group with 'name' or 'ref'
-            name = elem.attrib.get('name')
-            ref = elem.attrib.get('ref')
+            # Global group (group)
+            name = elem.get('name')
+            ref = elem.get('ref')
             if name is None:
                 if ref is not None:
+                    # Reference to a global group
                     group_name = reference_to_qname(ref, schema.namespaces)
-                    xsd_group = schema.maps.lookup_group(group_name, **options)
-                    self.name = xsd_group.name,
-                    self.model = xsd_group.model,
+                    xsd_group = schema.maps.lookup_group(group_name)
+                    self.name = xsd_group.name
+                    self.model = xsd_group.model
                     self.extend(xsd_group)
                 else:
                     self._parse_error("missing both attributes 'name' and 'ref'", elem)
@@ -165,34 +146,58 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 # Global group
                 self.name = get_qname(schema.target_namespace, name)
                 content_model = get_xsd_component(elem)
+                if not self.is_global:
+                    self._parse_error(
+                        "attribute 'name' not allowed for a local group", self
+                    )
+                else:
+                    if 'minOccurs' in elem.attrib:
+                        self._parse_error(
+                            "attribute 'minOccurs' not allowed for a global group", self
+                        )
+                    if 'maxOccurs' in elem.attrib:
+                        self._parse_error(
+                            "attribute 'maxOccurs' not allowed for a global group", self
+                        )
+                if content_model.tag not in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
+                    self._parse_error('unexpected tag %r' % content_model.tag, content_model)
+                    return
             else:
                 self._parse_error("found both attributes 'name' and 'ref'", elem)
                 return
-        else:
-            # Local group (SEQUENCE|ALL|CHOICE)
+        elif elem.tag in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
+            # Local group (sequence|all|choice)
             content_model = elem
             self.name = None
-
-        if content_model.tag not in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
-            self._parse_error('unexpected tag %r' % content_model.tag, content_model)
+        elif elem.tag in {XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG}:
+            self.name = self.model = None
+            return
+        else:
+            self._parse_error('unexpected tag %r' % elem.tag, elem)
+            return
 
         self.model = content_model.tag
-
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
-                # xsd_element = element_factory(child, schema, debug=True, **kwargs)
-                # xsd_group.append(xsd_element)
-                self.append((child, schema))  # Avoid circularity: building at the end.
+                # Builds inner elements at the end for avoids circularity
+                self.append((child, schema))
             elif content_model.tag == XSD_ALL_TAG:
-                raise XMLSchemaParseError("'all' model can contain only elements.", elem)
+                self._parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
-                self.append(XsdAnyElement(child, schema))
-            elif child.tag == XSD_GROUP_TAG:
-                self.append((child, schema))  # ref to a global group
-            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
-                self.append(XsdGroup(child, schema, mixed=self.mixed, **options))
+                self.append(XsdAnyElement(child, schema, parent=self))
+            elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
+                self.append(XsdGroup(child, schema, parent=self, mixed=self.mixed))
             else:
                 raise XMLSchemaParseError("unexpected element:", elem)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG,
+                XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+
+    @property
+    def ref(self):
+        return self.elem.get('ref')
 
     def iter_components(self, xsd_classes=None):
         for obj in super(XsdGroup, self).iter_components(xsd_classes):
@@ -208,30 +213,23 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 except AttributeError:
                     pass
 
-    @property
-    def built(self):
-        if self.model is None:
-            if self.length == 0 and not self:
-                return True
-            else:
-                return False
-        elif self.length is None or len(self) < self.length:
-            return False
+    def validation_attempted(self):
+        if self.checked:
+            return 'full'
+        elif any([item.checked for item in self]):
+            return 'partial'
         else:
-            for item in self:
-                if isinstance(item, (self.element_class, tuple)):
-                    continue
-                if not item.built:
-                    return False
-            return super(XsdGroup, self).built
+            return 'none'
 
     def check(self):
         if self.checked:
             return
+        if any([not isinstance(item, XsdComponent) for item in self]):
+            raise XMLSchemaNotBuiltError("cannot check %r: not built!", self, self.elem)
         super(XsdGroup, self).check()
 
         for item in self:
-            if not isinstance(item, (self.element_class, XsdGroup, XsdAnyElement)):
+            if not isinstance(item, (self.schema.element_class, XsdGroup, XsdAnyElement)):
                 self._valid = False
                 return
             item.check()
@@ -252,7 +250,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
 
     def iter_elements(self):
         for item in self:
-            if isinstance(item, (self.element_class, XsdAnyElement)):
+            if isinstance(item, (self.schema.element_class, XsdAnyElement)):
                 yield item
             elif isinstance(item, XsdGroup):
                 for e in item.iter_elements():

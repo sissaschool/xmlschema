@@ -26,13 +26,12 @@ from .resources import (
     open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
 from . import xpath
-from .builtins import XSD_BUILTIN_TYPES
 from .validator import XMLSchemaValidator
 from .components import (
     check_tag, get_xsd_attribute, XSD_FACETS, get_xsd_derivation_attribute,
     iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine,
     XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
-    xsd_simple_type_factory, XsdAtomicRestriction, XsdSimpleType
+    xsd_simple_type_factory, xsd_builtin_types_factory, XsdAtomicRestriction, XsdSimpleType
 )
 from . import qnames
 from .utils import check_value
@@ -40,23 +39,23 @@ from .converters import XMLSchemaConverter
 from .namespaces import XsdGlobals, NamespaceView
 
 DEFAULT_OPTIONS = {
-    qnames.XSD_NOTATION_TAG: XsdNotation,
-    qnames.XSD_SIMPLE_TYPE_TAG: xsd_simple_type_factory,
-    qnames.XSD_COMPLEX_TYPE_TAG: XsdComplexType,
-    qnames.XSD_ATTRIBUTE_TAG: XsdAttribute,
-    qnames.XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup,
-    qnames.XSD_GROUP_TAG: XsdGroup,
-    qnames.XSD_ELEMENT_TAG: XsdElement,
-    qnames.XSD_RESTRICTION_TAG: XsdAtomicRestriction,
+    'notation_class': XsdNotation,
     'simple_type_class': XsdSimpleType,
+    'complex_type_class': XsdComplexType,
+    'attribute_class': XsdAttribute,
+    'attribute_group_class': XsdAttributeGroup,
+    'group_class': XsdGroup,
+    'element_class': XsdElement,
+    'restriction_class': XsdAtomicRestriction,
+    'simple_type_factory': xsd_simple_type_factory,
+    'builtin_types_factory': xsd_builtin_types_factory
 }
 """Default options for building XSD schema elements."""
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 
-def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
-                     builtin_types=None, **options):
+def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **kwargs):
 
     meta_schema = os.path.join(SCHEMAS_DIR, meta_schema)
     if base_schemas is None:
@@ -64,20 +63,28 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
     else:
         base_schemas = {k: os.path.join(SCHEMAS_DIR, v) for k, v in base_schemas.items()}
 
-    validator_options = dict(DEFAULT_OPTIONS.items())
-    for opt in validator_options:
-        if opt in options:
-            validator_options[opt] = options[opt]
+    options = dict(DEFAULT_OPTIONS.items())
+    options.update(kwargs)
 
     class _XMLSchema(XMLSchemaValidator, xpath.XPathMixin):
         """
         Class to wrap an XML Schema for components lookups and conversion.
         """
         XSD_VERSION = xsd_version
-        META_SCHEMA = None
-        BUILTIN_TYPES = builtin_types  # TODO: implement __deepcopy__
+        meta_schema = None
         FACETS = facets or ()
-        OPTIONS = validator_options
+
+        notation_class = options['notation_class']
+        simple_type_class = options['simple_type_class']
+        complex_type_class = options['complex_type_class']
+        attribute_class = options['attribute_class']
+        attribute_group_class = options['attribute_group_class']
+        group_class = options['group_class']
+        element_class = options['element_class']
+        restriction_class = options['restriction_class']
+        simple_type_factory = staticmethod(options['simple_type_factory'])
+        builtin_types_factory = options['builtin_types_factory']
+
         _parent_map = None
 
         def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None):
@@ -124,7 +131,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
             # Create or set the XSD global maps instance
             if global_maps is None:
                 try:
-                    self.maps = self.META_SCHEMA.maps.copy()
+
+                    self.maps = self.meta_schema.maps.copy()
                 except AttributeError:
                     self.maps = XsdGlobals(_XMLSchema, self.validation)
                 else:
@@ -144,7 +152,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
             # Set the default converter class
             self.converter = self.get_converter(converter)
 
-            if self.META_SCHEMA is not None:
+            if self.meta_schema is not None:
                 self.include_schemas(self.root, validation)
                 self.import_schemas(self.root, validation)
                 self.redefine_schemas(self.root, validation)
@@ -155,9 +163,10 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 # Builds the XSD objects only if the instance is
                 # the creator of the XSD globals maps.
                 if global_maps is None:
+                    print("build maps...")
                     self.maps.build()
             else:
-                # If the META_SCHEMA is not instantiated do not import
+                # If the meta_schema is not instantiated do not import
                 # other namespaces and do not build maps.
                 self.include_schemas(self.root)
                 self.redefine_schemas(self.root, validation)
@@ -235,24 +244,26 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
 
         @classmethod
         def check_schema(cls, schema):
-            for error in cls.META_SCHEMA.iter_errors(schema):
+            for error in cls.meta_schema.iter_errors(schema):
                 raise error
 
         @property
         def check_token(self):
             return self.maps.check_token
 
-        @property
-        def built(self):
-            xsd_global = None
-            for xsd_global in self.iter_globals():
-                if xsd_global is False:
-                    return False
-            return xsd_global is not None  # An empty schema is not built
+        def validation_attempted(self):
+            if self.checked:
+                return 'full'
+            elif any([xsd_global.checked for xsd_global in self.iter_globals()]):
+                return 'partial'
+            else:
+                return 'none'
 
         def check(self):
-            if not self.checked:
+            if not self.maps.built:
+                raise XMLSchemaNotBuiltError("global maps are not built!", self)
 
+            if not self.checked:
                 if self.errors:
                     self._valid = False
 
@@ -266,11 +277,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                 super(_XMLSchema, self).check()
 
             if self.valid is not True and self.validation == 'strict':
-                if not self.built:
-                    raise XMLSchemaNotBuiltError(
-                        "%r: 'strict' validation requires a built schema."
-                    )
-                elif self.valid is False:
+                if self.valid is False:
                     try:
                         if len(self.errors) == 2:
                             raise self.errors[0]
@@ -284,7 +291,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
                     except IndexError:
                         raise XMLSchemaValueError("%r: at least an error expected." % self)
                 else:
-                    raise XMLSchemaValueError('%r: schema built but validity unknown.' % self)
+                    raise XMLSchemaValueError('%r: schema validity is not known.' % self)
 
         def iter_globals(self):
             for global_map in self.global_maps:
@@ -387,6 +394,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
         def iter_decode(self, xml_document, path=None, process_namespaces=True, validate=True,
                         namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
                         converter=None, dict_class=None, list_class=None):
+            if not self.maps.built:
+                raise XMLSchemaNotBuiltError("%r: XSD globals maps are not built.")
+
             if process_namespaces:
                 # Considers namespaces extracted from the XML document first,
                 # then from the argument and at last from the schema.
@@ -461,7 +471,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None,
         meta_schema = _XMLSchema(meta_schema)
         for k, v in list(base_schemas.items()):
             _XMLSchema(v, global_maps=meta_schema.maps)
-        _XMLSchema.META_SCHEMA = meta_schema
+        _XMLSchema.meta_schema = meta_schema
         meta_schema.maps.build()
 
     if xsd_version is not None:
@@ -480,7 +490,6 @@ XMLSchema_v1_0 = create_validator(
         XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
         XLINK_NAMESPACE_PATH: 'xlink.xsd'
     },
-    facets=XSD_FACETS,
-    builtin_types=XSD_BUILTIN_TYPES
+    facets=XSD_FACETS
 )
 XMLSchema = XMLSchema_v1_0

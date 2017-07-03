@@ -17,75 +17,24 @@ import datetime
 import re
 from decimal import Decimal
 
-from .core import long_type, unicode_type, etree_element, etree_iselement
-from .exceptions import XMLSchemaValidationError, XMLSchemaValueError
-from .qnames import (
+from ..core import long_type, unicode_type, etree_element, etree_iselement
+from ..exceptions import XMLSchemaValidationError, XMLSchemaValueError
+from ..qnames import (
     xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_GROUP_TAG, XSD_ANY_TAG,
-    XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG, XSD_ELEMENT_TAG
+    XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ANY_TYPE,
+    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
 )
-from .components import (
-    XsdUniqueFacet, XsdPatternsFacet,
-    XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS,
-    FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS,
-    XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction, XsdAttributeGroup,
-    XsdGroup, XsdComplexType, XsdAnyAttribute, XsdAnyElement, XsdElement
+from .facets import (
+    XsdUniqueFacet, XsdPatternsFacet, XSD11_FACETS, STRING_FACETS,
+    BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
+from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction
+from .wildcards import XsdAnyAttribute, XsdAnyElement
+from .attributes import XsdAttributeGroup
+from .complex_types import XsdComplexType
+from .groups import XsdGroup
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
-
-#
-# Special builtin types.
-#
-# xs:anyType
-# Ref. XSD 1.1: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-# Ref. XSD 1.0: https://www.w3.org/TR/xmlschema-1/#d0e9252
-ANY_TYPE = XsdComplexType(
-    content_type=XsdGroup(
-        elem=etree_element(XSD_GROUP_TAG),
-        model=XSD_SEQUENCE_TAG,
-        mixed=True,
-        initlist=[XsdAnyElement(etree_element(
-            XSD_ANY_TAG,
-            attrib={
-                'namespace': '##any',
-                'processContents': 'lax',
-                'minOccurs': '0',
-                'maxOccurs': 'unbounded'
-            }
-        ))],
-        **{XSD_ELEMENT_TAG: XsdElement}
-    ),
-    attributes=XsdAttributeGroup(
-        elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
-        initdict={
-        None: XsdAnyAttribute(etree_element(
-            XSD_ANY_ATTRIBUTE_TAG,
-            attrib={'namespace': '##any', 'processContents': 'lax'}
-        ))}
-    ),
-    name=XSD_ANY_TYPE,
-    elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
-    mixed=True,
-    is_global=True,
-    **{
-        'simple_type_class': XsdSimpleType,
-        XSD_GROUP_TAG: XsdGroup,
-        XSD_ATTRIBUTE_GROUP_TAG: XsdAttributeGroup
-    }
-)
-ANY_SIMPLE_TYPE = XsdSimpleType(
-    name=XSD_ANY_SIMPLE_TYPE,
-    elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
-    facets={k: None for k in XSD11_FACETS},
-    is_global=True
-)
-ANY_ATOMIC_TYPE = XsdAtomicRestriction(
-    base_type=ANY_SIMPLE_TYPE,
-    name=XSD_ANY_ATOMIC_TYPE,
-    elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
-    is_global=True
-)
 
 #
 # XSD builtin validator functions
@@ -193,59 +142,7 @@ COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value
 REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'replace'})
 
 
-def update_xsd_builtins(builtin_dict, declarations, xsd_class=None):
-
-    def create_facets(items):
-        _facets = {}
-        for _item in items:
-            if isinstance(_item, (list, tuple, set)):
-                _facets.update([(k, None) for k in _item])
-            elif etree_iselement(_item):
-                if _item.tag == XSD_PATTERN_TAG:
-                    _facets[_item.tag] = XsdPatternsFacet(base_type, _item)
-                else:
-                    _facets[_item.tag] = XsdUniqueFacet(base_type, _item)
-            elif isinstance(_item, (XsdUniqueFacet, XsdPatternsFacet)):
-                _facets[_item.name] = _item
-            elif callable(_item):
-                if None in _facets:
-                    raise XMLSchemaValueError("Almost one callable required!!")
-                _facets[None] = _item
-        return _facets
-
-    xsd_class = xsd_class or XsdAtomicBuiltin
-    for item in declarations:
-        if isinstance(item, (tuple, list)):
-            name = item[0]
-            try:
-                base_type = builtin_dict[item[2]]
-            except IndexError:
-                builtin_dict[name] = xsd_class(*item)
-            else:
-                try:
-                    facets = create_facets(item[3])
-                except IndexError:
-                    builtin_dict[name] = xsd_class(name, item[1], base_type, *item[3:])
-                else:
-                    builtin_dict[name] = xsd_class(name, item[1], base_type, facets, *item[4:])
-
-        elif isinstance(item, dict):
-            if item.get('base_type'):
-                base_type = item.get('base_type')
-                item.update(base_type=builtin_dict[base_type])
-            elif item.get('item_type'):
-                base_type = item.get('item_type')
-                item.update(item_type=builtin_dict[base_type])
-            else:
-                base_type = None
-            if 'facets' in item:
-                item.update(facets=create_facets(item['facets']))
-            builtin_dict[item['name']] = xsd_class(**item)
-        else:
-            raise XMLSchemaValueError("Require a sequence of list/tuples or dictionaries")
-
-
-XSD_BUILTIN_PRIMITIVE_TYPES = (
+XSD_BUILTIN_PRIMITIVE_TYPES = [
     # --- String Types ---
     {
         'name': xsd_qname('string'),
@@ -374,7 +271,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = (
         'python_type': unicode_type,
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     }   # hexadecimal encoded binary value
-)
+]
 
 
 XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
@@ -457,16 +354,119 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
 ]
 
 
-#
-# Build XSD built-in types dictionary
-_builtin_types = {
-    ANY_TYPE.name: ANY_TYPE,
-    ANY_SIMPLE_TYPE.name: ANY_SIMPLE_TYPE,
-    ANY_ATOMIC_TYPE.name: ANY_ATOMIC_TYPE
-}
+def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
+    """
+    Builds the dictionary for XML Schema built-in types mapping.
+    """
+    def create_facets(items):
+        _facets = {}
+        for _item in items:
+            if isinstance(_item, (list, tuple, set)):
+                _facets.update([(k, None) for k in _item])
+            elif etree_iselement(_item):
+                if _item.tag == XSD_PATTERN_TAG:
+                    _facets[_item.tag] = XsdPatternsFacet(base_type, _item, meta_schema, )
+                else:
+                    _facets[_item.tag] = XsdUniqueFacet(base_type, _item, meta_schema)
+            elif isinstance(_item, (XsdUniqueFacet, XsdPatternsFacet)):
+                _facets[_item.name] = _item
+            elif callable(_item):
+                if None in _facets:
+                    raise XMLSchemaValueError("Almost one callable required!!")
+                _facets[None] = _item
+        return _facets
 
-update_xsd_builtins(_builtin_types, XSD_BUILTIN_PRIMITIVE_TYPES)
-update_xsd_builtins(_builtin_types, XSD_BUILTIN_OTHER_ATOMIC_TYPES)
+    #
+    # Special builtin types.
+    #
+    # xs:anyType
+    # Ref. XSD 1.1: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
+    # Ref. XSD 1.0: https://www.w3.org/TR/xmlschema-1/#d0e9252
+    xsd_types[XSD_ANY_TYPE] = XsdComplexType(
+        schema=meta_schema,
+        elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
+        is_global=True,
+        content_type=XsdGroup(
+            schema=meta_schema,
+            elem=etree_element(XSD_GROUP_TAG),
+            model=XSD_SEQUENCE_TAG,
+            mixed=True,
+            initlist=[XsdAnyElement(
+                schema=meta_schema,
+                elem=etree_element(
+                    XSD_ANY_TAG,
+                    attrib={
+                        'namespace': '##any',
+                        'processContents': 'lax',
+                        'minOccurs': '0',
+                        'maxOccurs': 'unbounded'
+                    })
+            )]
+        ),
+        attributes=XsdAttributeGroup(
+            schema=meta_schema,
+            elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
+            initdict={
+                None: XsdAnyAttribute(
+                    schema=meta_schema,
+                    elem=etree_element(
+                        XSD_ANY_ATTRIBUTE_TAG,
+                        attrib={'namespace': '##any', 'processContents': 'lax'}))
+            }
+        ),
+        mixed=True,
+    )
+    xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
+        schema=meta_schema,
+        elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
+        is_global=True,
+        facets={k: None for k in XSD11_FACETS},
+        name=XSD_ANY_SIMPLE_TYPE
+    )
+    xsd_types[XSD_ANY_ATOMIC_TYPE] = XsdAtomicRestriction(
+        schema=meta_schema,
+        elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
+        is_global=True,
+        base_type=xsd_types[XSD_ANY_SIMPLE_TYPE],
+        name=XSD_ANY_ATOMIC_TYPE
+    )
 
-XSD_BUILTIN_TYPES = _builtin_types
-"""Dictionary for XML Schema built-in types mapping. The values are XSDType instances"""
+    xsd_class = xsd_class or XsdAtomicBuiltin
+    for item in XSD_BUILTIN_PRIMITIVE_TYPES + XSD_BUILTIN_OTHER_ATOMIC_TYPES:
+        if isinstance(item, (tuple, list)):
+            name = item[0]
+            elem, schema = xsd_types[name]
+            if schema is not meta_schema:
+                raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
+
+            try:
+                base_type = xsd_types[item[2]]
+            except IndexError:
+                xsd_types[name] = xsd_class(elem, schema, *item)
+            else:
+                try:
+                    facets = create_facets(item[3])
+                except IndexError:
+                    xsd_types[name] = xsd_class(elem, schema, name, item[1], base_type, *item[3:])
+                else:
+                    xsd_types[name] = xsd_class(elem, schema, name, item[1], base_type, facets, *item[4:])
+
+        elif isinstance(item, dict):
+            item = item.copy()
+            elem, schema = xsd_types[item['name']]
+            if schema is not meta_schema:
+                raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
+
+            if item.get('base_type'):
+                base_type = item.get('base_type')
+                item['base_type'] = xsd_types[base_type]
+            elif item.get('item_type'):
+                base_type = item.get('item_type')
+                item['item_type'] = xsd_types[base_type]
+            else:
+                base_type = None
+            if 'facets' in item:
+                item['facets'] = create_facets(item['facets'])
+            xsd_types[item['name']] = xsd_class(elem, schema, **item)
+        else:
+            raise XMLSchemaValueError("Require a sequence of list/tuples or dictionaries")

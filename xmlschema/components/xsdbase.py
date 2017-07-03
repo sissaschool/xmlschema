@@ -13,10 +13,13 @@ This module contains base functions and classes XML Schema components.
 """
 import re
 
-from ..core import PY3, etree_tostring
-from ..exceptions import XMLSchemaParseError
-from ..qnames import *
-from ..utils import camel_case_split, FrozenDict
+from ..core import PY3, etree_tostring, etree_iselement
+from ..exceptions import XMLSchemaParseError, XMLSchemaValueError, XMLSchemaTypeError
+from ..qnames import (
+    local_name, XSD_ANNOTATION_TAG, XSD_INCLUDE_TAG, XSD_IMPORT_TAG, XSD_REDEFINE_TAG,
+    XSI_NAMESPACE_PATH, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG, XSD_SPECIAL_TYPES
+)
+from ..utils import camel_case_split
 from ..validator import XMLSchemaValidator
 
 
@@ -24,6 +27,7 @@ from ..validator import XMLSchemaValidator
 # Functions for parsing declarations from schema's tree
 def check_tag(elem, *tags):
     if elem.tag not in tags:
+        print(etree_tostring(elem))
         tags = (local_name(tag) for tag in tags)
         raise XMLSchemaParseError("({}) expected: {}".format('|'.join(tags), elem))
 
@@ -190,38 +194,34 @@ class XsdBase(object):
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
     """
-    _DUMMY_DICT = FrozenDict()
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
-    def __init__(self, elem, schema=None):
+    def __init__(self, elem, schema):
         self.schema = schema
         self.elem = elem
 
     def __setattr__(self, name, value):
         if name == "elem":
-            elem = getattr(self, 'elem', None)
-            if False and elem is not None and elem is not value:
-                raise XMLSchemaValueError("cannot change the 'elem' of an XSD object.")
-            self._attrib = value.attrib if value is not None else self._DUMMY_DICT
-        elif name == "schema":
-            schema = getattr(self, 'schema', None)
-            if schema is not None:
-                if value is None:
-                    raise XMLSchemaValueError("cannot remove the 'schema' of %r." % self)
-                if schema.target_namespace != value.target_namespace:
-                    import pdb
-                    pdb.set_trace()
-                    raise XMLSchemaValueError(
-                        "cannot change 'schema' attribute of %r: the actual %r has a different "
-                        "target namespace than %r." % (self, schema, value)
+            if not etree_iselement(value):
+                raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
+            elif value.tag not in self.admitted_tags:
+                raise XMLSchemaValueError(
+                    "wrong XSD element %r for %r, must be one of %r." % (
+                        local_name(value.tag), self,
+                        [local_name(tag) for tag in self.admitted_tags]
                     )
-            if value is not None:
-                self.target_namespace = value.target_namespace
-                self.namespaces = value.namespaces
-            else:
-                self.target_namespace = ''
-                self.namespaces = self._DUMMY_DICT
+                )
+            elif hasattr(self, 'elem'):
+                self._elem = self.elem  # redefinition cases
+        elif name == "schema":
+            if hasattr(self, 'schema') and self.schema.target_namespace != value.target_namespace:
+                raise XMLSchemaValueError(
+                    "cannot change 'schema' attribute of %r: the actual %r has a different "
+                    "target namespace than %r." % (self, self.schema, value)
+                )
+            self.target_namespace = value.target_namespace
+            self.namespaces = value.namespaces
         super(XsdBase, self).__setattr__(name, value)
 
     def __repr__(self):
@@ -269,7 +269,11 @@ class XsdBase(object):
     @property
     def id(self):
         """The ``'id'`` attribute of declaration tag, ``None`` if missing."""
-        return self._attrib.get('id')
+        return self.elem.get('id')
+
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
 
     def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
         if self.elem is None:
@@ -301,9 +305,12 @@ class XsdAnnotation(XsdBase):
       Content: ({any})*
     </documentation>
     """
+    @property
+    def admitted_tags(self):
+        return {XSD_ANNOTATION_TAG}
+
     def __setattr__(self, name, value):
         if name == 'elem':
-            check_tag(value, XSD_ANNOTATION_TAG)
             self.appinfo = []
             self.documentation = []
             for child in value:
@@ -335,16 +342,14 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     :param parent: Parent XSD component. For global components the default parent \
     is the argument `schema`.
     :param name: Name of the component, overwritten by the parse of the `elem` argument.
-    :param options: Options containing classes and factories to use for creating new components.
     """
-    def __init__(self, elem, schema=None, is_global=False, parent=None, name=None, **options):
+    def __init__(self, elem, schema, is_global=False, parent=None, name=None):
         self.is_global = is_global
         if is_global:
             self.parent = schema or parent
         else:
             self.parent = parent
         self.name = name
-        self.options = options
         self.errors = []  # Component parsing errors
         super(XsdComponent, self).__init__(elem, schema)
         XMLSchemaValidator.__init__(self)
@@ -386,10 +391,6 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     def check_token(self):
         return self.schema.maps.check_token
 
-    @property
-    def built(self):
-        return self.elem is not None or self.name in XSD_SPECIAL_TYPES
-
     def check(self):
         if self.checked:
             return
@@ -397,8 +398,6 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
 
         if self.name in XSD_SPECIAL_TYPES:
             self._valid = True
-        elif self.built is False:
-            self._valid = None
         if self.schema is not None:
             if any([err.obj is self.elem for err in self.schema.errors]):
                 self._valid = False
@@ -419,6 +418,9 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     def iter_decode(self, *args, **kwargs):
         raise NotImplementedError
 
+
+class XsdType(XsdComponent):
+    pass
 
 class ParticleMixin(object):
     """
@@ -447,7 +449,7 @@ class ParticleMixin(object):
         try:
             return get_xsd_int_attribute(getattr(self, 'elem'), 'maxOccurs', default=1, minimum=0)
         except (TypeError, ValueError):
-            if getattr(self, '_attrib')['maxOccurs'] == 'unbounded':
+            if getattr(self, 'elem').attrib['maxOccurs'] == 'unbounded':
                 return None
             raise
 

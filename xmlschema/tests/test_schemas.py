@@ -24,7 +24,7 @@ def create_schema_tests(pathname):
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
             # print("Run %s" % self.id())
-            meta_schema = xmlschema.XMLSchema.META_SCHEMA
+            meta_schema = xmlschema.XMLSchema.meta_schema
             errors = [str(e) for e in meta_schema.iter_errors(xsd_file)]
 
             try:

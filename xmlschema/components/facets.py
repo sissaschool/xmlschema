@@ -169,6 +169,12 @@ class XsdUniqueFacet(XsdFacet):
                         )
         super(XsdUniqueFacet, self).__setattr__(name, value)
 
+    @property
+    def admitted_tags(self):
+        return {XSD_WHITE_SPACE_TAG, XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG,
+                XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
+                XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG}
+
     def get_base_facet(self, tag):
         """
         Retrieve the first base_type facet corresponding to the tag.
@@ -232,7 +238,7 @@ class XsdUniqueFacet(XsdFacet):
 class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
+        XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(values=%r)'.format(local_name(elem.tag))
         self._elements = []
         self.enumeration = []
@@ -276,11 +282,15 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
                 self, value, reason="invalid value %r, it must be one of %r" % (value, self.enumeration)
             )
 
+    @property
+    def admitted_tags(self):
+        return {XSD_ENUMERATION_TAG}
+
 
 class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
+        XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(patterns=%r)'.format(local_name(elem.tag))
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
@@ -319,3 +329,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         if all(pattern.search(text) is None for pattern in self.patterns):
             msg = "value don't match any pattern of %r."
             yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_PATTERN_TAG}
