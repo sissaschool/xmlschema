@@ -62,7 +62,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         namespace = get_namespace(elem.tag)
         if self._is_namespace_allowed(namespace, self.namespace):
             try:
-                xsd_element = self.schema.maps.lookup_base_element(elem.tag)
+                xsd_element = self.maps.lookup_base_element(elem.tag)
             except LookupError:
                 if self.process_contents == 'strict' and validate:
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
@@ -89,7 +89,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
                     yield XMLSchemaValidationError(self, elem, "%r not allowed." % namespace)
 
                 try:
-                    xsd_element = self.schema.maps.lookup_element(elem[index].tag)
+                    xsd_element = self.maps.lookup_element(elem[index].tag)
                 except LookupError:
                     if process_contents == 'strict':
                         yield XMLSchemaValidationError(
@@ -170,7 +170,7 @@ class XsdAnyAttribute(XsdComponent):
             namespace = get_namespace(name)
             if self._is_namespace_allowed(namespace, self.namespace):
                 try:
-                    xsd_attribute = self.schema.maps.lookup_attribute(name)
+                    xsd_attribute = self.maps.lookup_attribute(name)
                 except LookupError:
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)

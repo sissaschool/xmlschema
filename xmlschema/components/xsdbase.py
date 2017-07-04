@@ -221,7 +221,6 @@ class XsdBase(object):
                     "target namespace than %r." % (self, self.schema, value)
                 )
             self.target_namespace = value.target_namespace
-            self.namespaces = value.namespaces
         super(XsdBase, self).__setattr__(name, value)
 
     def __repr__(self):
@@ -372,7 +371,11 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
 
     def __setattr__(self, name, value):
         super(XsdComponent, self).__setattr__(name, value)
-        if name == 'elem' and value is not None and self.schema is not None:
+        if name == 'schema':
+            self.BUILDERS = value.BUILDERS
+            self.namespaces = value.namespaces
+            self.maps = value.maps
+        elif name == 'elem':
             self._parse()
 
     def _parse(self):
@@ -384,8 +387,14 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
         else:
             self.annotation = None
 
-    def _parse_error(self, msg, elem=None):
-        self.errors.append(XMLSchemaParseError(msg, self, elem))
+    def _parse_error(self, error, elem=None):
+        if isinstance(error, XMLSchemaParseError):
+            error.obj = self
+            error.elem = elem
+        else:
+            error = XMLSchemaParseError(error, self, elem)
+        self.errors.append(error)
+        self.schema.errors.append(error)
 
     @property
     def check_token(self):
@@ -461,3 +470,6 @@ class ParticleMixin(object):
 
     def is_single(self):
         return self.max_occurs == 1
+
+    def is_restriction(self, other):
+        return True     # Make this abstract and implement in subclasses.

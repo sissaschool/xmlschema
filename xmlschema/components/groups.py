@@ -124,7 +124,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def _parse(self):
         super(XsdGroup, self)._parse()
         elem = self.elem
-        schema = self.schema
 
         self.clear()
         if elem.tag == XSD_GROUP_TAG:
@@ -134,8 +133,8 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             if name is None:
                 if ref is not None:
                     # Reference to a global group
-                    group_name = reference_to_qname(ref, schema.namespaces)
-                    xsd_group = schema.maps.lookup_group(group_name)
+                    group_name = reference_to_qname(ref, self.namespaces)
+                    xsd_group = self.maps.lookup_group(group_name)
                     self.name = xsd_group.name
                     self.model = xsd_group.model
                     self.extend(xsd_group)
@@ -144,7 +143,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 return
             elif ref is None:
                 # Global group
-                self.name = get_qname(schema.target_namespace, name)
+                self.name = get_qname(self.target_namespace, name)
                 content_model = get_xsd_component(elem)
                 if not self.is_global:
                     self._parse_error(
@@ -180,13 +179,13 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         for child in iter_xsd_declarations(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 # Builds inner elements at the end for avoids circularity
-                self.append((child, schema))
+                self.append((child, self.schema))
             elif content_model.tag == XSD_ALL_TAG:
                 self._parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
-                self.append(XsdAnyElement(child, schema, parent=self))
+                self.append(XsdAnyElement(child, self.schema, parent=self))
             elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
-                self.append(XsdGroup(child, schema, parent=self, mixed=self.mixed))
+                self.append(XsdGroup(child, self.schema, parent=self, mixed=self.mixed))
             else:
                 raise XMLSchemaParseError("unexpected element:", elem)
 
@@ -200,16 +199,14 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         return self.elem.get('ref')
 
     def iter_components(self, xsd_classes=None):
-        for obj in super(XsdGroup, self).iter_components(xsd_classes):
-            yield obj
-        for item in self:
-            if 'ref' in item.elem.attrib:
-                if xsd_classes is None or isinstance(item, xsd_classes):
-                    yield item
-            else:
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
+        if self.ref is None:
+            for item in self:
                 try:
-                    for obj in item.iter_components(xsd_classes):
-                        yield obj
+                    if not item.is_global:
+                        for obj in item.iter_components(xsd_classes):
+                            yield obj
                 except AttributeError:
                     pass
 
@@ -229,7 +226,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         super(XsdGroup, self).check()
 
         for item in self:
-            if not isinstance(item, (self.schema.element_class, XsdGroup, XsdAnyElement)):
+            if not isinstance(item, (self.BUILDERS.element_class, XsdGroup, XsdAnyElement)):
                 self._valid = False
                 return
             item.check()
@@ -243,14 +240,14 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
         del self._group[:]
 
     def is_empty(self):
-        return not self
+        return not self.mixed and not self
 
     def is_emptiable(self):
         return not self or all([item.is_emptiable() for item in self])
 
     def iter_elements(self):
         for item in self:
-            if isinstance(item, (self.schema.element_class, XsdAnyElement)):
+            if isinstance(item, (self.BUILDERS.element_class, XsdAnyElement)):
                 yield item
             elif isinstance(item, XsdGroup):
                 for e in item.iter_elements():

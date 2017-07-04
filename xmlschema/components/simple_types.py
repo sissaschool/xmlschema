@@ -79,7 +79,7 @@ class XsdSimpleType(XsdComponent):
                 self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
             except XMLSchemaParseError as err:
                 if hasattr(self, 'error'):
-                    self.error.append(err)
+                    self._parse_error(err)
                 else:
                     raise
             else:
@@ -97,10 +97,7 @@ class XsdSimpleType(XsdComponent):
 
     @property
     def admitted_facets(self):
-        try:
-            return self.schema.FACETS
-        except AttributeError:
-            return XSD11_FACETS.union({None})
+        return self.schema.FACETS
 
     @property
     def final(self):
@@ -455,7 +452,14 @@ class XsdList(XsdSimpleType):
             self.facets = facets
 
     def __setattr__(self, name, value):
-        if name == 'item_type':
+        if name == 'elem' and value is not None:
+            if value.tag != XSD_LIST_TAG:
+                value = get_xsd_component(value)
+                if value.tag != XSD_LIST_TAG:
+                    raise XMLSchemaValueError(
+                        "a %r definition required for %r." % (XSD_LIST_TAG, self)
+                    )
+        elif name == 'item_type':
             check_type(value, XsdSimpleType)
         elif name == 'white_space' and value is None:
             value = 'collapse'
@@ -464,28 +468,27 @@ class XsdList(XsdSimpleType):
     def _parse(self):
         super(XsdList, self)._parse()
         elem = self.elem
-        schema = self.schema
         item_type = None
 
         child = get_xsd_component(elem, required=False)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
-            item_type = xsd_simple_type_factory(child, schema, item_type)
+            item_type = xsd_simple_type_factory(child, self.schema, item_type)
             if isinstance(item_type, XMLSchemaParseError):
-                self.errors.append(item_type)
-                item_type = schema.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                self._parse_error(item_type, elem)
+                item_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
             if 'itemType' in elem.attrib:
-                self.errors.append(XMLSchemaParseError("ambiguous list type declaration", self))
+                self._parse_error("ambiguous list type declaration", self)
         elif 'itemType' in elem.attrib:
             # List tag with itemType attribute that refers to a global type
-            item_qname = reference_to_qname(elem.attrib['itemType'], schema.namespaces)
-            item_type = schema.maps.lookup_type(item_qname)
+            item_qname = reference_to_qname(elem.attrib['itemType'], self.namespaces)
+            item_type = self.maps.lookup_type(item_qname)
             if isinstance(item_type, XMLSchemaParseError):
-                self.errors.append(item_type)
-                item_type = schema.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                self._parse_error(item_type, elem)
+                item_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         else:
-            self.errors.append(XMLSchemaParseError("missing list type declaration", self))
-            item_type = schema.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            self._parse_error("missing list type declaration", elem)
+            item_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         self.item_type = item_type
 
     @property
@@ -494,10 +497,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        try:
-            return self.schema.FACETS.intersection(LIST_FACETS)
-        except AttributeError:
-            return LIST_FACETS
+        return self.schema.FACETS.intersection(LIST_FACETS)
 
     def check(self):
         if self.checked:
@@ -577,7 +577,14 @@ class XsdUnion(XsdSimpleType):
             self.facets = facets
 
     def __setattr__(self, name, value):
-        if name == "member_types":
+        if name == 'elem' and value is not None:
+            if value.tag != XSD_UNION_TAG:
+                value = get_xsd_component(value)
+                if value.tag != XSD_UNION_TAG:
+                    raise XMLSchemaValueError(
+                        "a %r definition required for %r." % (XSD_UNION_TAG, self)
+                    )
+        elif name == "member_types":
             for member_type in value:
                 check_type(member_type, XsdSimpleType)
             if not value:
@@ -590,29 +597,28 @@ class XsdUnion(XsdSimpleType):
     def _parse(self):
         super(XsdUnion, self)._parse()
         elem = self.elem
-        schema = self.schema
         member_types = []
 
         for child in iter_xsd_declarations(elem):
-            mt = xsd_simple_type_factory(child, schema)
+            mt = xsd_simple_type_factory(child, self.schema)
             if isinstance(mt, XMLSchemaParseError):
-                self.errors.append(mt)
+                self._parse_error(mt)
             else:
                 member_types.append(mt)
 
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
-                type_qname = reference_to_qname(name, schema.namespaces)
-                mt = schema.maps.lookup_type(type_qname)
+                type_qname = reference_to_qname(name, self.namespaces)
+                mt = self.maps.lookup_type(type_qname)
                 if isinstance(mt, XMLSchemaParseError):
-                    self.errors.append(mt)
+                    self._parse_error(mt)
                 elif not isinstance(mt, XsdSimpleType):
-                    self.errors.append(XMLSchemaParseError("a simpleType required", mt))
+                    self._parse_error("a simpleType required", mt)
                 else:
                     member_types.append(mt)
 
         if not member_types:
-            self.errors.append(XMLSchemaParseError("missing union type declarations", self))
+            self._parse_error("missing union type declarations", elem)
 
         self.member_types = member_types
 
@@ -622,10 +628,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        try:
-            return self.schema.FACETS.intersection(UNION_FACETS)
-        except AttributeError:
-            return UNION_FACETS
+        return self.schema.FACETS.intersection(UNION_FACETS)
 
     def check(self):
         if self.checked:
@@ -691,77 +694,84 @@ class XsdAtomicRestriction(XsdAtomic):
       enumeration | whiteSpace | pattern)*))
     </restriction>
     """
+    def __setattr__(self, name, value):
+        if name == 'elem' and value is not None:
+            if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION_TAG:
+                value = get_xsd_component(value)
+                if value.tag != XSD_RESTRICTION_TAG:
+                    raise XMLSchemaValueError(
+                        "a %r definition required for %r." % (XSD_RESTRICTION_TAG, self)
+                    )
+        super(XsdAtomicRestriction, self).__setattr__(name, value)
+
     def _parse(self):
         super(XsdAtomicRestriction, self)._parse()
         elem = self.elem
-        schema = self.schema
         base_type = None
         facets = {}
         has_attributes = False
         has_simple_type_child = False
 
         if 'base' in self.elem.attrib:
-            base_qname = reference_to_qname(elem.attrib['base'], schema.namespaces)
-            base_type = schema.maps.lookup_type(base_qname)
+            base_qname = reference_to_qname(elem.attrib['base'], self.namespaces)
+            base_type = self.maps.lookup_type(base_qname)
             if isinstance(base_type, XMLSchemaParseError):
-                self.errors.append(base_qname)
-                base_type = schema.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                self._parse_error(base_qname)
+                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
             if base_type.is_complex() and base_type.admit_simple_restriction():
                 if get_xsd_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                     # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
-                    self.errors.append(XMLSchemaParseError(
+                    self._parse_error(
                         "when a complexType with simpleContent restricts a complexType "
                         "with mixed and with emptiable content then a simpleType child "
                         "declaration is required.", elem
-                    ))
+                    )
 
         for child in iter_xsd_declarations(elem):
             if child.tag in {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
-                self.errors.append(XMLSchemaParseError(
-                    "unexpected tag after attribute declarations", child
-                ))
+                self._parse_error("unexpected tag after attribute declarations", child)
             elif child.tag == XSD_SIMPLE_TYPE_TAG:
                 # Case of simpleType declaration inside a restriction
                 if has_simple_type_child:
-                    self.errors.append(XMLSchemaParseError("duplicated simpleType declaration", child))
+                    self._parse_error("duplicated simpleType declaration", child)
                 elif base_type is None:
-                    base_type = xsd_simple_type_factory(child, schema)
+                    base_type = xsd_simple_type_factory(child, self.schema)
                     if isinstance(base_type, XMLSchemaParseError):
-                        self.errors.append(base_type)
-                        base_type = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                        self._parse_error(base_type)
+                        base_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
                 else:
                     if base_type.is_complex() and base_type.admit_simple_restriction():
-                        content_type = xsd_simple_type_factory(child, schema)
-                        base_type = self.schema.complex_type_class(
+                        content_type = xsd_simple_type_factory(child, self.schema)
+                        base_type = self.BUILDERS.complex_type_class(
                             content_type=content_type,
                             attributes=base_type.attributes,
                             name=None,
                             elem=elem,
-                            schema=schema,
+                            schema=self.schema,
                             derivation=base_type.derivation,
                             mixed=base_type.mixed
                         )
                 has_simple_type_child = True
-            elif child.tag not in schema.FACETS:
+            elif child.tag not in self.schema.FACETS:
                 raise XMLSchemaParseError("unexpected tag in restriction", child)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:
                     facets[child.tag].append(child)
                 except KeyError:
                     if child.tag == XSD_ENUMERATION_TAG:
-                        facets[child.tag] = XsdEnumerationFacet(base_type, child, schema)
+                        facets[child.tag] = XsdEnumerationFacet(base_type, child, self.schema)
                     else:
-                        facets[child.tag] = XsdPatternsFacet(base_type, child, schema)
+                        facets[child.tag] = XsdPatternsFacet(base_type, child, self.schema)
             elif child.tag not in facets:
-                facets[child.tag] = XsdUniqueFacet(base_type, child, schema)
+                facets[child.tag] = XsdUniqueFacet(base_type, child, self.schema)
             else:
                 raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
 
         if base_type is None:
-            self.errors.append(XMLSchemaParseError("missing base type in restriction:", self))
+            self._parse_error("missing base type in restriction:", self)
         self.base_type = base_type
         self.facets = facets
 

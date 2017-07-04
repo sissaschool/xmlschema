@@ -36,25 +36,17 @@ class XsdNotation(XsdComponent):
     def _parse(self):
         super(XsdNotation, self)._parse()
         if not self.is_global:
-            self.schema.errors.append(XMLSchemaParseError(
-                "a notation declaration must be global.", self
-            ))
+            self._parse_error("a notation declaration must be global.", self.elem)
         try:
-            self.name = get_qname(self.schema.target_namespace, self.elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.schema.errors.append(
-                XMLSchemaParseError("a notation must have a 'name'.", self)
-            )
+            self._parse_error("a notation must have a 'name'.", self.elem)
 
         for key in self.elem.attrib:
             if key not in {'id', 'name', 'public', 'system'}:
-                self.schema.errors.append(XMLSchemaParseError(
-                    "wrong attribute %r for notation definition." % key, self
-                ))
+                self._parse_error("wrong attribute %r for notation definition." % key, self.elem)
             if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-                self.schema.errors.append(XMLSchemaParseError(
-                    "a notation may have 'public' or 'system' attribute.", self
-                ))
+                self._parse_error("a notation may have 'public' or 'system' attribute.", self.elem)
 
     @property
     def public(self):

@@ -53,14 +53,12 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None, xsd_type=None,
-                 qualified=False):
-        if xsd_type is not None:
-            self.type = xsd_type
-        self.qualified = qualified
+    def __init__(self, elem, schema, is_global=False, parent=None, name=None):
         super(XsdElement, self).__init__(elem, schema, is_global, parent, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
+        if not hasattr(self, 'qualified'):
+            raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
     def __getitem__(self, i):
         try:
@@ -86,11 +84,11 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
     def __setattr__(self, name, value):
         if name == "type":
-            check_type(value, self.schema.simple_type_class, self.schema.complex_type_class)
+            check_type(value, self.BUILDERS.simple_type_class, self.BUILDERS.complex_type_class)
             try:
                 self.attributes = self.type.attributes
             except AttributeError:
-                self.attributes = self.schema.attribute_group_class(
+                self.attributes = self.BUILDERS.attribute_group_class(
                     etree_element(XSD_ATTRIBUTE_GROUP_TAG), schema=self.schema
                 )
         super(XsdElement, self).__setattr__(name, value)
@@ -98,15 +96,10 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
     def _parse(self):
         super(XsdElement, self)._parse()
         elem = self.elem
-        schema = self.schema
-
         self.name = None
-        self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
 
         if self.default and self.fixed:
-            self.schema.errors.append(XMLSchemaParseError(
-                "'default' and 'fixed' attributes are mutually exclusive", self
-            ))
+            self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
 
         getattr(self, 'abstract')
         getattr(self, 'block')
@@ -116,13 +109,14 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
         # Parse element attributes
         try:
-            element_name = reference_to_qname(elem.attrib['ref'], schema.namespaces)
+            element_name = reference_to_qname(elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
             try:
-                self.name = get_qname(schema.target_namespace, elem.attrib['name'])
+                self.name = get_qname(self.target_namespace, elem.attrib['name'])
             except KeyError:
                 self._parse_error("invalid element declaration in XSD schema", elem)
+            self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
         else:
             # Reference to a global element
             if self.is_global:
@@ -132,9 +126,10 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
                 self._parse_error(msg % 'name', elem)
             elif 'type' in elem.attrib:
                 self._parse_error(msg % 'type', elem)
-            xsd_element = schema.maps.lookup_element(element_name)
+            xsd_element = self.maps.lookup_element(element_name)
             self.name = xsd_element.name
-            self.type = xsd_element.type   # TODO: Check if copy other attributes
+            self.type = xsd_element.type
+            self.qualified = xsd_element.qualified
 
         if 'substitutionGroup' in elem.attrib and not self.is_global:
             self._parse_error("'substitutionGroup' attribute in a local element declaration", elem)
@@ -143,21 +138,21 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
             if get_xsd_component(elem, required=False, strict=False) is not None:
                 self._parse_error("element reference declaration can't has children", elem)
         elif 'type' in elem.attrib:
-            type_qname = reference_to_qname(elem.attrib['type'], schema.namespaces)
+            type_qname = reference_to_qname(elem.attrib['type'], self.namespaces)
             try:
-                self.type = schema.maps.lookup_type(type_qname)
+                self.type = self.maps.lookup_type(type_qname)
             except KeyError:
                 self._parse_error('unknown type %r' % elem.attrib['type'], elem)
-                self.type = schema.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         else:
             child = get_xsd_component(elem, required=False, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE_TAG:
-                    self.type = schema.complex_type_class(child, schema)
+                    self.type = self.BUILDERS.complex_type_class(child, self.schema)
                 elif child.tag == XSD_SIMPLE_TYPE_TAG:
-                    self.type = schema.simple_type_factory(child, schema)
+                    self.type = self.BUILDERS.simple_type_factory(child, self.schema)
             else:
-                self.type = schema.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
 
     @property
     def admitted_tags(self):
@@ -200,10 +195,11 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
         return self.elem.get('substitutionGroup')
 
     def iter_components(self, xsd_classes=None):
-        for obj in super(XsdElement, self).iter_components(xsd_classes):
-            yield obj
-        for obj in self.type.iter_components(xsd_classes):
-            yield obj
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
+        if self.ref is None and not self.type.is_global:
+            for obj in self.type.iter_components(xsd_classes):
+                yield obj
 
     def validation_attempted(self):
         if self.checked:
@@ -364,7 +360,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
 
     def get_attribute(self, name):
         if name[0] != '{':
-            return self.type.attributes[get_qname(self.type.schema.target_namespace, name)]
+            return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
     def iter(self, tag=None):

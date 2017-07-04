@@ -11,8 +11,10 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
+from .xsdbase import XsdAnnotation, XsdComponent, check_tag, \
+    get_xsd_attribute, get_xsd_derivation_attribute, iterchildren_xsd_import, \
+    iterchildren_xsd_include, iterchildren_xsd_redefine, iterchildren_by_tag
 from .notations import XsdNotation
-from .builtins import xsd_builtin_types_factory
 from .wildcards import XsdAnyElement, XsdAnyAttribute
 from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
 from .simple_types import (
@@ -26,7 +28,5 @@ from .facets import (
     XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-from .xsdbase import XsdAnnotation, XsdComponent, XMLSchemaValidator, check_tag, \
-    get_xsd_attribute, get_xsd_derivation_attribute, iterchildren_xsd_import, \
-    iterchildren_xsd_include, iterchildren_xsd_redefine, iterchildren_by_tag
-
+from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, \
+    xsd_build_any_content_group

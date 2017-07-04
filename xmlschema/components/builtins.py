@@ -36,6 +36,7 @@ from .groups import XsdGroup
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 
+
 #
 # XSD builtin validator functions
 def byte_validator(x):
@@ -354,6 +355,41 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
 ]
 
 
+def xsd_build_any_content_group(schema):
+    return XsdGroup(
+        schema=schema,
+        elem=etree_element(XSD_GROUP_TAG),
+        model=XSD_SEQUENCE_TAG,
+        mixed=True,
+        initlist=[XsdAnyElement(
+            schema=schema,
+            elem=etree_element(
+                XSD_ANY_TAG,
+                attrib={
+                    'namespace': '##any',
+                    'processContents': 'lax',
+                    'minOccurs': '0',
+                    'maxOccurs': 'unbounded'
+                })
+        )]
+    )
+
+
+def xsd_build_any_attribute_group(schema):
+    return XsdAttributeGroup(
+        schema=schema,
+        elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
+        base_attributes={
+            None: XsdAnyAttribute(
+                schema=schema,
+                elem=etree_element(
+                    XSD_ANY_ATTRIBUTE_TAG,
+                    attrib={'namespace': '##any', 'processContents': 'lax'}
+                )
+            )
+        })
+
+
 def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     """
     Builds the dictionary for XML Schema built-in types mapping.
@@ -365,7 +401,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
                 _facets.update([(k, None) for k in _item])
             elif etree_iselement(_item):
                 if _item.tag == XSD_PATTERN_TAG:
-                    _facets[_item.tag] = XsdPatternsFacet(base_type, _item, meta_schema, )
+                    _facets[_item.tag] = XsdPatternsFacet(base_type, _item, meta_schema)
                 else:
                     _facets[_item.tag] = XsdUniqueFacet(base_type, _item, meta_schema)
             elif isinstance(_item, (XsdUniqueFacet, XsdPatternsFacet)):
@@ -386,34 +422,8 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         schema=meta_schema,
         elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
         is_global=True,
-        content_type=XsdGroup(
-            schema=meta_schema,
-            elem=etree_element(XSD_GROUP_TAG),
-            model=XSD_SEQUENCE_TAG,
-            mixed=True,
-            initlist=[XsdAnyElement(
-                schema=meta_schema,
-                elem=etree_element(
-                    XSD_ANY_TAG,
-                    attrib={
-                        'namespace': '##any',
-                        'processContents': 'lax',
-                        'minOccurs': '0',
-                        'maxOccurs': 'unbounded'
-                    })
-            )]
-        ),
-        attributes=XsdAttributeGroup(
-            schema=meta_schema,
-            elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
-            initdict={
-                None: XsdAnyAttribute(
-                    schema=meta_schema,
-                    elem=etree_element(
-                        XSD_ANY_ATTRIBUTE_TAG,
-                        attrib={'namespace': '##any', 'processContents': 'lax'}))
-            }
-        ),
+        content_type=xsd_build_any_content_group(meta_schema),
+        attributes=xsd_build_any_attribute_group(meta_schema),
         mixed=True,
     )
     xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
