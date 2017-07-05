@@ -84,11 +84,11 @@ class XsdFacet(XsdComponent):
         super(XsdFacet, self).__init__(elem=elem, schema=schema)
         self.base_type = base_type
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
-        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
+    def iter_decode(self, text, validation='lax', namespaces=None, use_defaults=True):
+        return self.base_type.iter_decode(text, validation, namespaces, use_defaults)
 
-    def iter_encode(self, text, validate=True, **kwargs):
-        return self.base_type.iter_encode(text, validate, **kwargs)
+    def iter_encode(self, text, validation='lax', **kwargs):
+        return self.base_type.iter_encode(text, validation, **kwargs)
 
     def __call__(self, *args, **kwargs):
         return

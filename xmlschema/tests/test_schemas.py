@@ -41,9 +41,7 @@ def create_schema_tests(pathname):
             if num_errors != expected_errors:
                 print("\nTest n.%r: %r errors, expected %r." % (self.id()[-3:], num_errors, expected_errors))
                 raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (
-                        expected_errors, num_errors, '\n++++++\n'.join(errors[:3])
-                    )
+                    "n.%d errors expected, found %d: %s" % (expected_errors, num_errors, errors[0])
                 )
             else:
                 self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))

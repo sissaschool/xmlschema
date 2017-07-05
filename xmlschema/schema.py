@@ -16,7 +16,7 @@ from collections import namedtuple
 
 from .core import (
     XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH, HFP_NAMESPACE_PATH,
-    etree_element, etree_get_namespaces, etree_register_namespace
+    etree_get_namespaces, etree_register_namespace
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
@@ -27,7 +27,7 @@ from .resources import (
     open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
 from . import xpath
-from .validator import XMLSchemaValidator
+from .validator import XSD_VALIDATION_MODES, XMLSchemaValidator
 from .components import (
     check_tag, get_xsd_attribute, XSD_FACETS, get_xsd_derivation_attribute,
     iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine,
@@ -97,9 +97,10 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 super(_XMLSchema, self).__init__()
 
             # Schema validity assessments
+            if validation not in XSD_VALIDATION_MODES:
+                raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
             self.validation = validation
-            self.errors = []        # Parsing errors
-            self.parent = self
+            self.errors = []  # Schema errors (validation with meta-schema and parsing)
 
             # Determine the targetNamespace
             self.target_namespace = self.root.get('targetNamespace', '')
@@ -383,9 +384,12 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                     except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                         raise type(err)('cannot redefine %r: %s' % (schema_uri, err))
 
-        def iter_decode(self, xml_document, path=None, process_namespaces=True, validate=True,
-                        namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
+        def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
+                        namespaces=None, use_defaults=True, decimal_type=None,
                         converter=None, dict_class=None, list_class=None):
+            if validation not in XSD_VALIDATION_MODES:
+                raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
+
             if not self.maps.built:
                 raise XMLSchemaNotBuiltError("%r: XSD globals maps are not built.")
 
@@ -408,7 +412,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                     msg = "%r is not a global element of the schema!" % xml_root.tag
                     yield XMLSchemaValidationError(self, xml_root, reason=msg)
                 for obj in xsd_element.iter_decode(
-                        xml_root, validate, use_defaults=use_defaults, skip_errors=skip_errors,
+                        xml_root, validation, use_defaults=use_defaults,
                         decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                     yield obj
             else:
@@ -420,12 +424,15 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 rel_path = xpath.relative_path(path, 1, _namespaces)
                 for elem in xml_root.findall(rel_path, namespaces=_namespaces):
                     for obj in xsd_element.iter_decode(
-                            elem, validate, use_defaults=use_defaults, skip_errors=skip_errors,
+                            elem, validation, use_defaults=use_defaults,
                             decimal_type=decimal_type, element_decode_hook=element_decode_hook):
                         yield obj
 
-        def iter_encode(self, data, path=None, validate=True, namespaces=None, skip_errors=False,
-                        indent=None, element_class=None, converter=None):
+        def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
+                        element_class=None, converter=None):
+            if validation not in XSD_VALIDATION_MODES:
+                raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
+
             if indent is not None and indent < 0:
                 indent = 0
             _namespaces = self.namespaces.copy()
@@ -438,12 +445,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
             else:
                 _converter = self.get_converter(converter, _namespaces)
-                kwargs = {
-                    'skip_errors': skip_errors,
-                    'indent': indent,
-                    'element_encode_hook': _converter.element_encode
-                }
-                for obj in xsd_element.iter_encode(data, validate, **kwargs):
+                for obj in xsd_element.iter_encode(data, validation, indent=indent,
+                                                   element_encode_hook=_converter.element_encode):
                     yield obj
 
         def iter(self, name=None):

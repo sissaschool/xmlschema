@@ -8,8 +8,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .exceptions import XMLSchemaNotBuiltError, XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError
 from .utils import check_value
+
+XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 
 
 class XMLSchemaValidator(object):
@@ -103,7 +105,7 @@ class XMLSchemaValidator(object):
         :param path:
         :param use_defaults: Use schema's default values for filling missing data.
         """
-        for chunk in self.iter_decode(data, path, use_defaults=use_defaults, skip_errors=True):
+        for chunk in self.iter_decode(data, path, validation='lax', use_defaults=use_defaults):
             if isinstance(chunk, XMLSchemaValidationError):
                 yield chunk
 
@@ -125,28 +127,29 @@ class XMLSchemaValidator(object):
         group or a complex type; a list if the XSD component is an attribute group; \
          a simple data type object otherwise.
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
-        the XSD component, or also if it's invalid when ``validate=True`` is provided.
+        the XSD component, or also if it's invalid when ``validate='strict'`` is provided.
         """
-        for chunk in self.iter_decode(data, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError):
+        validation = kwargs.pop('validation', 'strict')
+        for chunk in self.iter_decode(data, validation=validation, *args, **kwargs):
+            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
                 raise chunk
             return chunk
     to_dict = decode
 
     def encode(self, data, *args, **kwargs):
-        for chunk in self.iter_encode(data, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError):
+        validation = kwargs.pop('validation', 'strict')
+        for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
+            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
                 raise chunk
             return chunk
     to_etree = encode
 
-    def iter_decode(self, data, path=None, process_namespaces=True, validate=True,
-                    namespaces=None, use_defaults=True, skip_errors=False, decimal_type=None,
-                    converter=None, dict_class=None, list_class=None):
+    def iter_decode(self, data, path=None, validation='lax', process_namespaces=True,
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
+                    dict_class=None, list_class=None):
         """
         Generator method for decoding XML data using the XSD component. Returns a data
-        structure after a sequence, possibly empty, of validation or decode errors
-        (decode errors only if the optional argument *validate* is `False`).
+        structure after a sequence, possibly empty, of validation or decode errors.
 
         Like the method *decode* except that it does not raise any exception. Yields
         decoded values. Also :exc:`XMLSchemaValidationError` errors are yielded during
@@ -154,19 +157,6 @@ class XMLSchemaValidator(object):
         """
         raise NotImplementedError
 
-    def iter_encode(self, data, path=None, validate=True, namespaces=None, skip_errors=False,
-                    indent=None, element_class=None, converter=None):
-        """
-
-        :param data:
-        :param path:
-        :param validate:
-        :param namespaces:
-        :param skip_errors:
-        :param indent:
-        :param element_class: Element class to use when encode data to an ElementTree \
-        structure. Default is `xml.etree.ElementTree.Element`.
-        :param converter:
-        :return:
-        """
+    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
+                    element_class=None, converter=None):
         raise NotImplementedError

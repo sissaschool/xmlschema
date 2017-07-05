@@ -43,12 +43,12 @@ class XsdAttribute(XsdComponent):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+    def __init__(self, elem, schema, is_global=False, name=None,
                  xsd_type=None, qualified=False):
         if xsd_type is not None:
             self.type = xsd_type
         self.qualified = qualified
-        super(XsdAttribute, self).__init__(elem, schema, is_global, parent, name)
+        super(XsdAttribute, self).__init__(elem, schema, is_global, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
 
@@ -175,16 +175,16 @@ class XsdAttribute(XsdComponent):
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def iter_decode(self, text, validate=True, **kwargs):
+    def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
-        for result in self.type.iter_decode(text, validate, **kwargs):
+        for result in self.type.iter_decode(text, validation, **kwargs):
             yield result
             if not isinstance(result, XMLSchemaValidationError):
                 return
 
-    def iter_encode(self, obj, validate=True, **kwargs):
-        for result in self.type.iter_encode(obj, validate):
+    def iter_encode(self, obj, validation='lax', **kwargs):
+        for result in self.type.iter_encode(obj, validation):
             yield result
             if not isinstance(result, XMLSchemaValidationError):
                 return
@@ -224,12 +224,12 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+    def __init__(self, elem, schema, is_global=False, name=None,
                  derivation=None, base_attributes=None):
         self.derivation = derivation
         self._attribute_group = dict()
         self.base_attributes = base_attributes
-        XsdComponent.__init__(self, elem, schema, is_global, parent, name)
+        XsdComponent.__init__(self, elem, schema, is_global, name)
 
     # Implements the abstract methods of MutableMapping
     def __getitem__(self, key):
@@ -349,7 +349,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     for obj in attr.iter_components(xsd_classes):
                         yield obj
 
-    def iter_decode(self, obj, validate=True, **kwargs):
+    def iter_decode(self, obj, validation='lax', **kwargs):
         result_list = []
 
         required_attributes = self.required.copy()
@@ -380,7 +380,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             else:
                 required_attributes.discard(qname)
 
-            for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+            for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -393,7 +393,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             )
         yield result_list
 
-    def iter_encode(self, attributes, validate=True, **kwargs):
+    def iter_encode(self, attributes, validation='lax', **kwargs):
         result_list = []
         required_attributes = self.required.copy()
         try:
@@ -428,7 +428,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             else:
                 required_attributes.discard(qname)
 
-            for result in xsd_attribute.iter_encode(value, validate, **kwargs):
+            for result in xsd_attribute.iter_encode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

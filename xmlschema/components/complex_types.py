@@ -42,10 +42,10 @@ class XsdComplexType(XsdComponent):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+    def __init__(self, elem, schema, is_global=False, name=None,
                  content_type=None, attributes=None, derivation=None, mixed=None):
         self.derivation = derivation
-        super(XsdComplexType, self).__init__(elem, schema, is_global, parent, name)
+        super(XsdComplexType, self).__init__(elem, schema, is_global, name)
 
         if not hasattr(self, 'content_type'):
             if content_type is None:
@@ -73,8 +73,10 @@ class XsdComplexType(XsdComponent):
     def _parse(self):
         super(XsdComplexType, self)._parse()
         elem = self.elem
-        self.mixed = get_xsd_bool_attribute(elem, 'mixed', default=False)
+        if elem.tag == XSD_RESTRICTION_TAG:
+            return  # a local restriction is already parsed by the caller
 
+        self.mixed = get_xsd_bool_attribute(elem, 'mixed', default=False)
         getattr(self, 'abstract')
         getattr(self, 'block')
         getattr(self, 'final')
@@ -135,6 +137,8 @@ class XsdComplexType(XsdComponent):
                 self._parse_complex_content_extension(derivation_elem, base_type)
 
         else:
+            import pdb
+            pdb.set_trace()
             self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
 
     def _parse_derivation_elem(self, elem):
@@ -162,7 +166,10 @@ class XsdComplexType(XsdComponent):
             base_type = self.maps.lookup_type(base_qname)
         except KeyError:
             self._parse_error("missing base type %r" % base_qname, elem)
-            return self.maps.lookup_type(XSD_ANY_TYPE)
+            if complex_content:
+                return self.maps.lookup_type(XSD_ANY_TYPE)
+            else:
+                return self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
         else:
             if complex_content and base_type.is_simple():
                 self._parse_error("a complexType ancestor required: %r" % base_type, elem)
@@ -291,7 +298,10 @@ class XsdComplexType(XsdComponent):
 
     @property
     def admitted_tags(self):
-        return {XSD_COMPLEX_TYPE_TAG}
+        if self.is_global:
+            return {XSD_COMPLEX_TYPE_TAG}
+        else:
+            return {XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG}
 
     @staticmethod
     def is_simple():
@@ -386,15 +396,14 @@ class XsdComplexType(XsdComponent):
     def has_extension(self):
         return self.derivation is True
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding complexType elements. A 3-tuple (simple content,
         complex content, attributes) containing the decoded parts is returned, eventually
-        preceded by a sequence of validation/decode errors (decode errors only if the
-        optional argument *validate* is `False`).
+        preceded by a sequence of validation/decode errors.
         """
         # Decode attributes
-        for result in self.attributes.iter_decode(elem, validate, **kwargs):
+        for result in self.attributes.iter_decode(elem, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
@@ -403,7 +412,7 @@ class XsdComplexType(XsdComponent):
         else:
             attributes = None
 
-        if self.is_simple():
+        if self.has_simple_content():
             # Decode a simple content element
             if len(elem):
                 yield XMLSchemaValidationError(
@@ -411,7 +420,7 @@ class XsdComplexType(XsdComponent):
                 )
             if elem.text is not None:
                 text = elem.text or kwargs.pop('default', '')
-                for result in self.content_type.iter_decode(text, validate, **kwargs):
+                for result in self.content_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
@@ -420,15 +429,15 @@ class XsdComplexType(XsdComponent):
                 yield None, None, attributes
         else:
             # Decode a complex content element
-            for result in self.content_type.iter_decode(elem, validate, **kwargs):
+            for result in self.content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
                     yield None, result, attributes
 
-    def iter_encode(self, data, validate=True, **kwargs):
+    def iter_encode(self, data, validation='lax', **kwargs):
         # Encode attributes
-        for result in self.attributes.iter_encode(data.attributes, validate, **kwargs):
+        for result in self.attributes.iter_encode(data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
@@ -437,19 +446,19 @@ class XsdComplexType(XsdComponent):
         else:
             attributes = ()
 
-        if self.is_simple():
-            # Encode a simple or simple content element
+        if self.has_simple_content():
+            # Encode a simple content element
             if data.text is None:
                 yield ElementData(None, None, data.content, attributes)
             else:
-                for result in self.content_type.iter_encode(data.text, validate, **kwargs):
+                for result in self.content_type.iter_encode(data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
                         yield ElementData(None, result, data.content, attributes)
         else:
             # Encode a complex content element
-            for result in self.content_type.iter_encode(data.content, validate, **kwargs):
+            for result in self.content_type.iter_encode(data.content, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

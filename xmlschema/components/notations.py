@@ -26,8 +26,8 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
-    def __init__(self, elem, schema, is_global=True, parent=None):
-        super(XsdNotation, self).__init__(elem, schema, is_global, parent)
+    def __init__(self, elem, schema, is_global=True):
+        super(XsdNotation, self).__init__(elem, schema, is_global)
 
     @property
     def admitted_tags(self):

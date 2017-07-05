@@ -114,14 +114,14 @@ class TestBuiltinTypes(unittest.TestCase):
 
 class TestGlobalMaps(unittest.TestCase):
 
-    def test_number(self):
+    def test_globals(self):
         self.assertTrue(len(meta_schema.maps.notations) == 2)
         self.assertTrue(len(meta_schema.maps.types) == 105)
         self.assertTrue(len(meta_schema.maps.attributes) == 18)
         self.assertTrue(len(meta_schema.maps.attribute_groups) == 9)
         self.assertTrue(len(meta_schema.maps.groups) == 18)
         self.assertTrue(len(meta_schema.maps.elements) == 47)
-        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 199)
 
         self.assertTrue(len(meta_schema.maps.base_elements) == 48)
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
@@ -131,6 +131,26 @@ class TestGlobalMaps(unittest.TestCase):
         meta_schema.maps.build()
         self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
 
+    def test_components(self):
+        container = set()
+        total_counter = 0
+        global_counter = 0
+        repetition_counter = 0
+        for g in meta_schema.maps.iter_globals():
+            for c in g.iter_components():
+                total_counter += 1
+                if id(c) in container:
+                    repetition_counter += 1
+                else:
+                    if c.is_global:
+                        global_counter +=1
+                    container.add(id(c))
+        print (len(container), total_counter, repetition_counter)
+        print(global_counter)
+        self.assertTrue(global_counter == 199)
+        self.assertTrue(total_counter == 1199)
+        # self.assertTrue(len(container) == 817)
+        # self.assertTrue(repetition_counter == 382)
 
 # TODO: Add test for base schemas files.
 

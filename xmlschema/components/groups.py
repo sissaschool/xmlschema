@@ -69,12 +69,11 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None,
+    def __init__(self, elem, schema, is_global=False, name=None,
                  model=None, mixed=False, initlist=None):
         self.model = model
         self.mixed = mixed
         self._group = []
-        self.elements = None
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
                 self._group[:] = initlist
@@ -82,7 +81,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 self._group[:] = initlist._group[:]
             else:
                 self._group = list(initlist)
-        XsdComponent.__init__(self, elem, schema, is_global, parent, name)
+        XsdComponent.__init__(self, elem, schema, is_global, name)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -91,7 +90,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def __setitem__(self, i, item):
         check_type(item, ParticleMixin)
         self._group[i] = item
-        self.elements = None
 
     def __delitem__(self, i):
         del self._group[i]
@@ -102,7 +100,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def insert(self, i, item):
         check_type(item, tuple, ParticleMixin)
         self._group.insert(i, item)
-        self.elements = None
 
     def __repr__(self):
         return XsdComponent.__repr__(self)
@@ -183,9 +180,9 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             elif content_model.tag == XSD_ALL_TAG:
                 self._parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
-                self.append(XsdAnyElement(child, self.schema, parent=self))
+                self.append(XsdAnyElement(child, self.schema))
             elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
-                self.append(XsdGroup(child, self.schema, parent=self, mixed=self.mixed))
+                self.append(XsdGroup(child, self.schema, mixed=self.mixed))
             else:
                 raise XMLSchemaParseError("unexpected element:", elem)
 
@@ -201,13 +198,16 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if self.ref is None:
+        if True or self.ref is None:
             for item in self:
                 try:
                     if not item.is_global:
                         for obj in item.iter_components(xsd_classes):
                             yield obj
                 except AttributeError:
+                    import pdb
+                    pdb.set_trace()
+                    print("ERRORE: ", item)
                     pass
 
     def validation_attempted(self):
@@ -253,26 +253,24 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 for e in item.iter_elements():
                     yield e
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding complex content elements. A list of 3-tuples
         (key, decoded data, decoder) is returned, eventually preceded by a sequence
-        of validation/decode errors (decode errors only if the optional argument
-        *validate* is `False`).
+        of validation/decode errors.
         """
         def not_whitespace(s):
             return s is not None and s.strip()
 
-        skip_errors = kwargs.get('skip_errors', False)
         result_list = []
         cdata_index = 1  # keys for CDATA sections are positive integers
-        if validate and not self.mixed:
+        if validation != 'skip' and not self.mixed:
             # Validate character data between tags
             if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
                 else:
-                    if skip_errors:
+                    if validation == 'lax':
                         cdata_index = 0
                     cdata_msg = "character data between child elements not allowed!"
                     yield XMLSchemaValidationError(self, elem, cdata_msg)
@@ -291,18 +289,14 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
             if repeat > 10:
                 print ("ITER #%d" % repeat, index, len(elem), self)
                 break
-                # import pdb
-                # pdb.set_trace()
             for obj in self.iter_decode_children(elem, index=index):
                 if isinstance(obj, XMLSchemaValidationError):
-                    if validate:
-                        yield obj
+                    yield obj
                 elif isinstance(obj, tuple):
                     xsd_element, child = obj
-                    for result in xsd_element.iter_decode(child, validate, **kwargs):
+                    for result in xsd_element.iter_decode(child, validation, **kwargs):
                         if isinstance(result, XMLSchemaValidationError):
-                            if validate:
-                                yield result
+                            yield result
                         else:
                             result_list.append((child.tag, result, xsd_element))
                     if cdata_index and elem.tail is not None:
@@ -311,7 +305,6 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                             result_list.append((cdata_index, tail, None))
                             cdata_index += 1
                 elif obj < len(elem) - 1:
-                    print("Invalid", obj, index)
                     yield XMLSchemaValidationError(
                         self, elem,
                         reason="Invalid content was found starting with element %r. "
@@ -329,17 +322,16 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                 #print("Niente numero!!!")
         yield result_list
 
-    def iter_encode(self, data, validate=True, **kwargs):
-        skip_errors = kwargs.get('skip_errors', False)
+    def iter_encode(self, data, validation='lax', **kwargs):
         children = []
         children_map = {}
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', None)
         padding = (u'\n' + u' ' * indent * level) if indent is not None else None
         text = padding
-        listify_update(children_map, [(e.name, e) for e in self.elements])
+        listify_update(children_map, [(e.name, e) for e in self.iter_elements()])
         if self.target_namespace:
-            listify_update(children_map, [(local_name(e.name), e) for e in self.elements if not e.qualified])
+            listify_update(children_map, [(local_name(e.name), e) for e in self.iter_elements() if not e.qualified])
 
         try:
             for name, value in data:
@@ -356,7 +348,7 @@ class XsdGroup(MutableSequence, XsdComponent, ParticleMixin):
                             self, obj=value, reason='%r does not match any declared element.' % name
                         )
                     else:
-                        for result in xsd_element.iter_encode(value, validate, **kwargs):
+                        for result in xsd_element.iter_encode(value, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
                                 yield result
                             else:

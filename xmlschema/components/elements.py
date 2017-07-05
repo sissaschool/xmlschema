@@ -53,8 +53,8 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None):
-        super(XsdElement, self).__init__(elem, schema, is_global, parent, name)
+    def __init__(self, elem, schema, is_global=False, name=None):
+        super(XsdElement, self).__init__(elem, schema, is_global, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
@@ -223,13 +223,11 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
     def has_name(self, name):
         return self.name == name or (not self.qualified and local_name(self.name) == name)
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding elements. A data structure is returned, eventually
-        preceded by a sequence of validation or decode errors (decode errors only if the
-        optional argument *validate* is `False`).
+        preceded by a sequence of validation or decode errors.
         """
-        # skip_errors = kwargs.get('skip_errors', False)
         element_decode_hook = kwargs.get('element_decode_hook')
         if element_decode_hook is None:
             element_decode_hook = self.schema.get_converter().element_decode
@@ -239,7 +237,7 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
         if self.type.is_complex():
             if use_defaults and self.type.has_simple_content():
                 kwargs['default'] = self.default
-            for result in self.type.iter_decode(elem, validate, **kwargs):
+            for result in self.type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     if result.schema_elem is None:
                         if self.type.name is not None and self.target_namespace == self.type.target_namespace:
@@ -254,15 +252,22 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
                     del result
         else:
             if elem.attrib:
-                yield XMLSchemaValidationError(self, elem, "a simpleType element can't has attributes.")
+                err = XMLSchemaValidationError(self, elem, "a simpleType element can't has attributes.")
+                if validation == 'strict':
+                    raise err
+                yield err
+
             if len(elem):
-                yield XMLSchemaValidationError(self, elem, "a simpleType element can't has child elements.")
+                err = XMLSchemaValidationError(self, elem, "a simpleType element can't has child elements.")
+                if validation == 'strict':
+                    raise err
+                yield err
 
             if elem.text is None:
                 yield None
             else:
                 text = elem.text or self.default if use_defaults else elem.text
-                for result in self.type.iter_decode(text, validate, **kwargs):
+                for result in self.type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         if result.schema_elem is None:
                             if self.type.name is not None and \
@@ -272,12 +277,14 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
                                 result.schema_elem = self.elem
                         if result.elem is None:
                             result.elem = elem
+                        if validation == 'strict':
+                            raise result
                         yield result
                     else:
                         yield element_decode_hook(ElementData(elem.tag, result, None, None), self)
                         del result
 
-    def iter_encode(self, data, validate=True, **kwargs):
+    def iter_encode(self, data, validation='lax', **kwargs):
         element_encode_hook = kwargs.get('element_encode_hook')
         if element_encode_hook is None:
             element_encode_hook = self.schema.get_converter().element_encode
@@ -288,15 +295,19 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
         indent = kwargs.get('indent', None)
         tail = (u'\n' + u' ' * indent * level) if indent is not None else None
 
-        element_data, errors = element_encode_hook(data, self)
+        element_data, errors = element_encode_hook(data, self, validation)
         for e in errors:
+            if validation == 'strict':
+                raise e
             yield e
 
         if self.type.is_complex():
-            for result in self.type.iter_encode(element_data, validate, level=level + 1, **kwargs):
+            for result in self.type.iter_encode(element_data, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     if result.schema_elem is None:
                         result.obj, result.schema_elem = data, self.elem
+                    if validation == 'strict':
+                        raise result
                     yield result
                 else:
                     elem = _etree_element(self.name, attrib=dict(result.attributes))
@@ -307,9 +318,15 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
         else:
             # Encode a simpleType
             if element_data.attributes:
-                yield XMLSchemaValidationError(self, data, "a simpleType element can't has attributes.")
+                err = XMLSchemaValidationError(self, data, "a simpleType element can't has attributes.")
+                if validation == 'strict':
+                    raise err
+                yield err
             if element_data.content:
-                yield XMLSchemaValidationError(self, data, "a simpleType element can't has child elements.")
+                err = XMLSchemaValidationError(self, data, "a simpleType element can't has child elements.")
+                if validation == 'strict':
+                    raise err
+                yield err
 
             if element_data.text is None:
                 elem = _etree_element(self.name, attrib={})
@@ -317,10 +334,12 @@ class XsdElement(Sequence, XsdComponent, ParticleMixin, XPathMixin):
                 elem.tail = tail
                 yield elem
             else:
-                for result in self.type.iter_encode(element_data.text, validate, **kwargs):
+                for result in self.type.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         if result.elem is None:
                             result.obj, result.schema_elem = data, self.elem
+                        if validation == 'strict':
+                            raise result
                         yield result
                     else:
                         elem = _etree_element(self.name, attrib={})

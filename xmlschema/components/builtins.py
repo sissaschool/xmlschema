@@ -415,8 +415,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     # Special builtin types.
     #
     # xs:anyType
-    # Ref. XSD 1.1: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-    # Ref. XSD 1.0: https://www.w3.org/TR/xmlschema-1/#d0e9252
+    # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
     xsd_types[XSD_ANY_TYPE] = XsdComplexType(
         schema=meta_schema,
         elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
@@ -425,6 +424,8 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         attributes=xsd_build_any_attribute_group(meta_schema),
         mixed=True,
     )
+    # xs:anySimpleType
+    # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
         schema=meta_schema,
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
@@ -432,6 +433,8 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         facets={k: None for k in XSD11_FACETS},
         name=XSD_ANY_SIMPLE_TYPE
     )
+    # xs:anyAtomicType
+    # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_ATOMIC_TYPE] = XsdAtomicRestriction(
         schema=meta_schema,
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),

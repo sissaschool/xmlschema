@@ -31,8 +31,8 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
       Content: (annotation?)
     </any>
     """
-    def __init__(self, elem, schema, parent=None):
-        super(XsdAnyElement, self).__init__(elem, schema, is_global=False, parent=parent)
+    def __init__(self, elem, schema):
+        super(XsdAnyElement, self).__init__(elem, schema, is_global=False)
 
     @property
     def admitted_tags(self):
@@ -55,7 +55,7 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
         if self.process_contents != 'strict' and self.elem is not None:
             self._valid = True
 
-    def iter_decode(self, elem, validate=True, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -64,13 +64,13 @@ class XsdAnyElement(XsdComponent, ParticleMixin):
             try:
                 xsd_element = self.maps.lookup_base_element(elem.tag)
             except LookupError:
-                if self.process_contents == 'strict' and validate:
+                if self.process_contents == 'strict' and validation != 'skip':
                     yield XMLSchemaValidationError(self, elem, "element %r not found." % elem.tag)
             else:
-                for result in xsd_element.iter_decode(elem, validate, **kwargs):
+                for result in xsd_element.iter_decode(elem, validation, **kwargs):
                     yield result
 
-        elif validate:
+        elif validation != 'skip':
             yield XMLSchemaValidationError(self, elem, "element %r not allowed here." % elem.tag)
 
     def iter_decode_children(self, elem, index=0):
@@ -138,8 +138,8 @@ class XsdAnyAttribute(XsdComponent):
       Content: (annotation?)
     </anyAttribute>
     """
-    def __init__(self, elem, schema, parent=None):
-        super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False, parent=parent)
+    def __init__(self, elem, schema):
+        super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False)
 
     @property
     def admitted_tags(self):
@@ -162,7 +162,7 @@ class XsdAnyAttribute(XsdComponent):
         if self.process_contents != 'strict' and self.elem is not None:
             self._valid = True
 
-    def iter_decode(self, obj, validate=True, **kwargs):
+    def iter_decode(self, obj, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -175,7 +175,7 @@ class XsdAnyAttribute(XsdComponent):
                     if self.process_contents == 'strict':
                         yield XMLSchemaValidationError(self, obj, "attribute %r not found." % name)
                 else:
-                    for result in xsd_attribute.iter_decode(value, validate, **kwargs):
+                    for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                         yield result
             else:
                 yield XMLSchemaValidationError(self, obj, "attribute %r not allowed." % name)

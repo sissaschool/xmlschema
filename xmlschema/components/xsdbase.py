@@ -274,11 +274,13 @@ class XsdBase(object):
     def admitted_tags(self):
         raise NotImplementedError
 
-    def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
-        if self.elem is None:
-            return str(None)
-        else:
+    def to_string(self, elem=None, indent='', max_lines=None, spaces_for_tab=4):
+        if elem is not None:
             return etree_tostring(self.elem, indent, max_lines, spaces_for_tab)
+        elif self.elem is not None:
+            return etree_tostring(self.elem, indent, max_lines, spaces_for_tab)
+        else:
+            return str(None)
 
 
 class XsdAnnotation(XsdBase):
@@ -338,16 +340,10 @@ class XsdComponent(XsdBase, XMLSchemaValidator):
     :param schema: The XMLSchema object that owns the definition.
     :param is_global: `True` if the component is a global declaration/definition, \
     `False` if it's local.
-    :param parent: Parent XSD component. For global components the default parent \
-    is the argument `schema`.
-    :param name: Name of the component, overwritten by the parse of the `elem` argument.
+    :param name: Name of the component, maybe overwritten by the parse of the `elem` argument.
     """
-    def __init__(self, elem, schema, is_global=False, parent=None, name=None):
+    def __init__(self, elem, schema, is_global=False, name=None):
         self.is_global = is_global
-        if is_global:
-            self.parent = schema or parent
-        else:
-            self.parent = parent
         self.name = name
         self.errors = []  # Component parsing errors
         super(XsdComponent, self).__init__(elem, schema)
