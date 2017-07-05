@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="http://example.com/derivations"
+           targetNamespace="http://example.com/derivations">
+	<!-- Case 1: Illegal complexContent extension (base cannot be a simpleType
+    or a complexType with a simpleContent).-->
+	<xs:complexType name="word">
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attribute name="language" type="xs:string"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<xs:complexType name="external-word">
+		<xs:complexContent>
+			<xs:extension base="word">
+				<xs:attribute name="other-language" default="italian"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Case 2: complexContent extension with different content type -->
+	<xs:complexType name="personType" mixed="true">
+		<xs:sequence>
+			<xs:element name="firstName" type="xs:string"/>
+			<xs:element name="lastName" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="extPersonType">
+		<xs:complexContent>
+			<xs:extension base="personType">
+				<xs:sequence>
+					<xs:element name="birthDate" type="xs:date"/>
+					<xs:element name="age" type="xs:short"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+</xs:schema>

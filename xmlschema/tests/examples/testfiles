@@ -5,6 +5,7 @@ collection/collection.xsd
 collection/collection.xml
 decoder/decoder.xsd
 decoder/data2.xml 1
+derivations/complex-extensions.xsd 2
 model/model.xsd 2
 model/model-2_errors.xsd 2
 patterns/patterns.xsd

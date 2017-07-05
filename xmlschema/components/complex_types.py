@@ -176,7 +176,7 @@ class XsdComplexType(XsdComponent):
         if base_type.is_simple():
             self._parse_error("a complexType ancestor required: %r" % base_type, elem)
             self.content_type = self.BUILDERS.build_any_content_group(self.schema)
-        elif base_type.admit_simple_restriction():
+        elif base_type.has_simple_content() or base_type.mixed and base_type.is_emptiable():
             self.content_type = self.BUILDERS.restriction_class(elem, self.schema)
         else:
             self._parse_error("with simple content cannot restrict an empty or "
@@ -279,8 +279,8 @@ class XsdComplexType(XsdComponent):
 
             if base_type.mixed != self.mixed:
                 self._parse_error(
-                    "base has a different content type (mixed=%r)." % base_type.mixed, elem
-                )
+                    "base has a different content type (mixed=%r)." % base_type.mixed, elem)
+                self.mixed = base_type.mixed
 
         self.attributes = self.BUILDERS.attribute_group_class(
             elem=elem,
@@ -378,7 +378,7 @@ class XsdComplexType(XsdComponent):
         if 'restriction' in self.final:
             return False
         else:
-            return self.mixed and (self.has_simple_content() or self.is_emptiable())
+            return self.has_simple_content() or self.mixed and self.is_emptiable()
 
     def has_restriction(self):
         return self.derivation is False

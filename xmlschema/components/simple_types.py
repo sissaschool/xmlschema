@@ -719,7 +719,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 self._parse_error(base_qname)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
-            if base_type.is_complex() and base_type.admit_simple_restriction():
+            if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
                 if get_xsd_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                     # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                     self._parse_error(

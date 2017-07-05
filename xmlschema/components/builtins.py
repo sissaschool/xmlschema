@@ -358,9 +358,8 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
 def xsd_build_any_content_group(schema):
     return XsdGroup(
         schema=schema,
-        elem=etree_element(XSD_GROUP_TAG),
-        model=XSD_SEQUENCE_TAG,
-        mixed=True,
+        elem=etree_element(XSD_SEQUENCE_TAG),
+            mixed=True,
         initlist=[XsdAnyElement(
             schema=schema,
             elem=etree_element(

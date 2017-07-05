@@ -30,7 +30,7 @@ def create_schema_tests(pathname):
             errors = [] # str(e) for e in meta_schema.iter_errors(xsd_file)]
 
             try:
-                xs = xmlschema.XMLSchema(xsd_file, validation='skip')
+                xs = xmlschema.XMLSchema(xsd_file, validation='lax')
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
                 num_errors = len(errors) + 1
                 errors.append(str(err))
@@ -38,9 +38,8 @@ def create_schema_tests(pathname):
                 num_errors = len(errors) + len(xs.errors)
                 errors = xs.errors
 
-            if num_errors > 0:
-                print(num_errors, self.id()[:-3])
             if num_errors != expected_errors:
+                print("\nTest n.%r: %r errors, expected %r." % (self.id()[-3:], num_errors, expected_errors))
                 raise ValueError(
                     "n.%d errors expected, found %d: %s" % (
                         expected_errors, num_errors, '\n++++++\n'.join(errors[:3])
