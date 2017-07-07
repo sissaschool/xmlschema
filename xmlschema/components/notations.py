@@ -8,12 +8,11 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from ..exceptions import XMLSchemaParseError
 from ..qnames import get_qname, XSD_NOTATION_TAG
-from .xsdbase import XsdComponent
+from .component import XsdAnnotated
 
 
-class XsdNotation(XsdComponent):
+class XsdNotation(XsdAnnotated):
     """
     Class for XSD 'notation' definitions.
 
@@ -27,7 +26,11 @@ class XsdNotation(XsdComponent):
     </notation>
     """
     def __init__(self, elem, schema, is_global=True):
-        super(XsdNotation, self).__init__(elem, schema, is_global)
+        super(XsdNotation, self).__init__(elem, schema, is_global=is_global)
+
+    @property
+    def built(self):
+        return True
 
     @property
     def admitted_tags(self):

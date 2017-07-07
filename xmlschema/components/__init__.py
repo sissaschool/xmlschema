@@ -11,9 +11,7 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from .xsdbase import XsdAnnotation, XsdComponent, check_tag, \
-    get_xsd_attribute, get_xsd_derivation_attribute, iterchildren_xsd_import, \
-    iterchildren_xsd_include, iterchildren_xsd_redefine, iterchildren_by_tag
+from .component import XsdComponent, XsdAnnotation, XsdAnnotated, ParticleMixin
 from .notations import XsdNotation
 from .wildcards import XsdAnyElement, XsdAnyAttribute
 from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup

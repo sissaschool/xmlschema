@@ -17,9 +17,8 @@ from collections import MutableSequence
 from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from ..qnames import *
 from ..regex import get_python_regex
-from .xsdbase import (
-    XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
-)
+from ..xsdbase import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .component import XsdAnnotated
 
 XSD_FACETS = {
     XSD_LENGTH_TAG,
@@ -76,19 +75,28 @@ UNION_FACETS = {
 }
 
 
-class XsdFacet(XsdComponent):
+class XsdFacet(XsdAnnotated):
     """
     XML Schema constraining facets base class.
     """
-    def __init__(self, base_type, elem=None, schema=None):
+    def __init__(self, base_type, elem, schema):
         super(XsdFacet, self).__init__(elem=elem, schema=schema)
         self.base_type = base_type
 
-    def iter_decode(self, text, validation='lax', namespaces=None, use_defaults=True):
-        return self.base_type.iter_decode(text, validation, namespaces, use_defaults)
+    @property
+    def built(self):
+        return self.base_type.is_global or self.base_type.built
 
-    def iter_encode(self, text, validation='lax', **kwargs):
-        return self.base_type.iter_encode(text, validation, **kwargs)
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        else:
+            return self.base_type.validation_attempted
+
+    @property
+    def admitted_tags(self):
+        return XSD_FACETS
 
     def __call__(self, *args, **kwargs):
         return
@@ -96,7 +104,7 @@ class XsdFacet(XsdComponent):
 
 class XsdUniqueFacet(XsdFacet):
 
-    def __init__(self, base_type, elem=None, schema=None):
+    def __init__(self, base_type, elem, schema):
         super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
         self.name = '%s(value=%r)' % (local_name(elem.tag), elem.attrib['value'])
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
@@ -131,7 +139,9 @@ class XsdUniqueFacet(XsdFacet):
             self.validator = self.total_digits_validator
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
             if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
-                raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
+                raise XMLSchemaParseError(
+                    "fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH, self
+                )
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
 
@@ -145,27 +155,29 @@ class XsdUniqueFacet(XsdFacet):
             if base_facet is not None:
                 if base_facet.fixed and value != base_facet.value:
                     raise XMLSchemaParseError(
-                        "%r facet value is fixed to %r." % (self.elem.tag, base_facet.value), self.elem
+                        "%r facet value is fixed to %r." % (self.elem.tag, base_facet.value), self
                     )
                 elif self.elem.tag == XSD_WHITE_SPACE_TAG:
                     if base_facet.value == 'collapse' and value in ('preserve', 'replace'):
-                        XMLSchemaParseError("facet value can be only 'collapse'.", self.elem)
+                        raise XMLSchemaParseError("facet value can be only 'collapse'.", self)
                     elif base_facet.value == 'replace' and value == 'preserve':
-                        XMLSchemaParseError("facet value can be only 'replace' or 'collapse'.", self.elem)
+                        raise XMLSchemaParseError(
+                            "facet value can be only 'replace' or 'collapse'.", self
+                        )
                 elif self.elem.tag == XSD_LENGTH_TAG:
                     if base_facet is not None and value != base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has different 'length': %r" % base_facet.value, self.elem
+                            "base type has different 'length': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MIN_LENGTH_TAG:
                     if value < base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has greater 'minLength': %r" % base_facet.value, self.elem
+                            "base type has greater 'minLength': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MAX_LENGTH_TAG:
                     if value > base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has lesser 'maxLength': %r" % base_facet.value, self.elem
+                            "base type has lesser 'maxLength': %r" % base_facet.value, self
                         )
         super(XsdUniqueFacet, self).__setattr__(name, value)
 
@@ -237,7 +249,7 @@ class XsdUniqueFacet(XsdFacet):
 
 class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
-    def __init__(self, base_type, elem, schema=None):
+    def __init__(self, base_type, elem, schema):
         XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(values=%r)'.format(local_name(elem.tag))
         self._elements = []
@@ -289,7 +301,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
 class XsdPatternsFacet(MutableSequence, XsdFacet):
 
-    def __init__(self, base_type, elem, schema=None):
+    def __init__(self, base_type, elem, schema):
         XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(patterns=%r)'.format(local_name(elem.tag))
         self._elements = [elem]

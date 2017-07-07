@@ -17,7 +17,7 @@ import string
 from .core import ElementData
 from .exceptions import XMLSchemaValueError
 from .utils import NamespaceMapper
-from .validator import XSD_VALIDATION_MODES
+from .xsdbase import XSD_VALIDATION_MODES
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -103,19 +103,15 @@ class XMLSchemaConverter(NamespaceMapper):
         element, the decoded value and the `XsdElement` instance associated.
         """
         map_qname = self.map_qname
-        try:
-            for name, value, xsd_child in content:
-                try:
-                    if name[0] == '{':
-                        yield map_qname(name), value, xsd_child
-                    else:
-                        yield name, value, xsd_child
-                except TypeError:
-                    if self.cdata_prefix is not None:
-                        yield u'%s%s' % (self.cdata_prefix, name), value, xsd_child
-        except ValueError:
-            import pdb
-            pdb.set_trace()
+        for name, value, xsd_child in content:
+            try:
+                if name[0] == '{':
+                    yield map_qname(name), value, xsd_child
+                else:
+                    yield name, value, xsd_child
+            except TypeError:
+                if self.cdata_prefix is not None:
+                    yield u'%s%s' % (self.cdata_prefix, name), value, xsd_child
 
     def element_decode(self, data, xsd_element):
         """

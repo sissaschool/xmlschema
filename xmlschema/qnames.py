@@ -108,7 +108,7 @@ def qname_to_prefixed(qname, namespaces):
     :return: String with a prefixed or local reference.
     """
     qname_uri = get_namespace(qname)
-    for prefix, uri in namespaces.items():
+    for prefix, uri in sorted(namespaces.items(), reverse=True):
         if uri != qname_uri:
             continue
         if prefix:
@@ -269,4 +269,3 @@ XSI_NIL = get_qname(XSI_NAMESPACE_PATH, 'nil')
 XSI_TYPE = get_qname(XSI_NAMESPACE_PATH, 'type')
 XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
 XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
-

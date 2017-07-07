@@ -11,7 +11,7 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 
 from ..core import unicode_type
 from ..exceptions import (
@@ -19,15 +19,17 @@ from ..exceptions import (
     XMLSchemaParseError, XMLSchemaAttributeError,
     XMLSchemaTypeError, XMLSchemaValueError)
 from ..qnames import (
-    get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE,
-    XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
-    XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_LENGTH_TAG,
-    XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name, XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE,
-    XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG)
+    get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
+    XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
+    XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
+    XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG
+)
 from ..utils import check_type, check_value
-from .xsdbase import get_xsd_derivation_attribute, XsdComponent, get_xsd_component, iter_xsd_declarations
+from ..xsdbase import get_xsd_derivation_attribute, ValidatorMixin
+from .component import XsdAnnotated
 from .facets import (
-    XsdFacet, XSD11_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdUniqueFacet, XsdEnumerationFacet
+    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdUniqueFacet, XsdEnumerationFacet
 )
 
 
@@ -40,7 +42,17 @@ def xsd_simple_type_factory(elem, schema, is_global=False):
         if name == XSD_ANY_SIMPLE_TYPE:
             return
 
-    child = get_xsd_component(elem)
+    try:
+        child = elem[0]
+    except IndexError:
+        return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+    else:
+        if child.tag == XSD_ANNOTATION_TAG:
+            try:
+                child = elem[1]
+            except IndexError:
+                return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+
     if child.tag == XSD_RESTRICTION_TAG:
         return XsdAtomicRestriction(child, schema, is_global=is_global, name=name)
     elif child.tag == XSD_LIST_TAG:
@@ -48,11 +60,10 @@ def xsd_simple_type_factory(elem, schema, is_global=False):
     elif child.tag == XSD_UNION_TAG:
         return XsdUnion(child, schema, is_global=is_global, name=name)
     else:
-        # Return an error for the caller
-        return XMLSchemaValueError('(restriction|list|union) expected', child)
+        return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
 
-class XsdSimpleType(XsdComponent):
+class XsdSimpleType(XsdAnnotated, ValidatorMixin):
     """
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
@@ -65,12 +76,12 @@ class XsdSimpleType(XsdComponent):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
-    def __init__(self, elem, schema=None, is_global=False, name=None, facets=None):
-        self.min_length = self.max_length = self.min_value = self.max_value = None
-        self.white_space = None
-        self.patterns = None
-        self.validators = []
-        super(XsdSimpleType, self).__init__(elem, schema, is_global, name)
+    def __init__(self, elem, schema, name=None, facets=None, is_global=False):
+        if facets is not None:
+            # Only for xs:anySimpleType
+            self.schema = schema
+            self.facets = facets
+        super(XsdSimpleType, self).__init__(elem, schema, name, is_global)
 
     def __setattr__(self, name, value):
         if name == 'facets':
@@ -78,10 +89,14 @@ class XsdSimpleType(XsdComponent):
             try:
                 self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
             except XMLSchemaParseError as err:
-                if hasattr(self, 'error'):
+                if hasattr(self, 'errors'):
                     self._parse_error(err)
                 else:
                     raise
+                self.min_length = self.max_length = self.min_value = self.max_value = None
+                self.white_space = None
+                self.patterns = None
+                self.validators = []
             else:
                 self.white_space = getattr(value.get(XSD_WHITE_SPACE_TAG), 'value', None)
                 self.patterns = value.get(XSD_PATTERN_TAG)
@@ -90,6 +105,10 @@ class XsdSimpleType(XsdComponent):
                     if k not in (XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG) and callable(v)
                 ]
         super(XsdSimpleType, self).__setattr__(name, value)
+
+    @property
+    def built(self):
+        return True
 
     @property
     def admitted_tags(self):
@@ -278,9 +297,8 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
-    def __init__(self, elem, schema=None, is_global=False, name=None,
-                 facets=None, base_type=None):
-        super(XsdAtomic, self).__init__(elem, schema, is_global, name, facets)
+    def __init__(self, elem, schema, name=None, facets=None, base_type=None, is_global=False):
+        super(XsdAtomic, self).__init__(elem, schema, name, is_global=is_global)
         if not hasattr(self, 'base_type'):
             if base_type is None and not isinstance(self, XsdAtomicBuiltin):
                 raise XMLSchemaAttributeError("undefined 'base_type' attribute for %r." % self)
@@ -303,15 +321,18 @@ class XsdAtomic(XsdSimpleType):
                         self.white_space = white_space
 
     @property
-    def primitive_type(self):
+    def built(self):
         if self.base_type is None:
-            return self
+            return True
         else:
-            try:
-                return self.base_type.primitive_type
-            except AttributeError:
-                # List or Union base_type.
-                return self.base_type
+            return self.base_type.is_global or self.base_type.built
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        else:
+            return self.base_type.validation_attempted
 
     @property
     def admitted_tags(self):
@@ -325,28 +346,23 @@ class XsdAtomic(XsdSimpleType):
         try:
             facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return XSD11_FACETS.union({None})
+            return XSD_FACETS.union({None})
         else:
             try:
                 return self.schema.FACETS.intersection(facets)
             except AttributeError:
                 return set(primitive_type.facets.keys()).union({None})
 
-    def check(self):
-        if self.checked:
-            return
-        super(XsdAtomic, self).check()
-
-        if self.name != XSD_ANY_ATOMIC_TYPE:
+    @property
+    def primitive_type(self):
+        if self.base_type is None:
+            return self
+        else:
             try:
-                self.base_type.check()
+                return self.base_type.primitive_type
             except AttributeError:
-                return  # For primitive atomic built-in types
-
-            if self.base_type.valid is False:
-                self._valid = False
-            elif self.valid is not False and self.base_type.valid is None:
-                self._valid = None
+                # List or Union base_type.
+                return self.base_type
 
 
 class XsdAtomicBuiltin(XsdAtomic):
@@ -360,8 +376,8 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    def __init__(self, elem, schema, name, python_type, base_type=None,
-                 facets=None, to_python=None, from_python=None):
+    def __init__(self, elem, schema, name, python_type, base_type=None, facets=None,
+                 to_python=None, from_python=None):
         """
         :param name: The XSD type's qualified name.
         :param python_type: The correspondent Python's type.
@@ -372,8 +388,8 @@ class XsdAtomicBuiltin(XsdAtomic):
         """
         if not callable(python_type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
-        super(XsdAtomicBuiltin, self).__init__(elem, schema, is_global=True, facets=facets, base_type=base_type)
-        self.name = name
+
+        super(XsdAtomicBuiltin, self).__init__(elem, schema, name, facets, base_type, is_global=True)
         self.python_type = python_type
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
@@ -389,9 +405,12 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         try:
             result = self.to_python(_text)
-        except ValueError as err:
-            yield XMLSchemaDecodeError(self, text, self.to_python, reason=str(err))
-            yield unicode_type(_text) if validation == 'skip' else None
+        except (ValueError, DecimalException) as err:
+            if validation == 'skip':
+                yield unicode_type(_text)
+            else:
+                yield XMLSchemaDecodeError(self, text, self.to_python, reason=str(err))
+                yield None
             return
 
         if validation != 'skip':
@@ -415,8 +434,11 @@ class XsdAtomicBuiltin(XsdAtomic):
                 elif self.python_type(obj) != obj:
                     raise ValueError()
         except ValueError:
-            yield XMLSchemaEncodeError(self, obj, self.from_python)
-            yield unicode_type(obj) if validation == 'skip' else None
+            if validation == 'skip':
+                yield unicode_type(obj)
+            else:
+                yield XMLSchemaEncodeError(self, obj, self.from_python)
+                yield None
             return
 
         if validation != 'skip':
@@ -439,9 +461,8 @@ class XsdList(XsdSimpleType):
     </list>
     """
 
-    def __init__(self, elem, schema=None, is_global=False, name=None,
-                 facets=None, item_type=None):
-        super(XsdList, self).__init__(elem, schema, is_global, name, facets)
+    def __init__(self, elem, schema, name=None, facets=None, item_type=None, is_global=False):
+        super(XsdList, self).__init__(elem, schema, name, is_global=is_global)
         if not hasattr(self, 'item_type'):
             if item_type is None:
                 raise XMLSchemaAttributeError("undefined 'item_type' for %r." % self)
@@ -454,11 +475,9 @@ class XsdList(XsdSimpleType):
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if value.tag != XSD_LIST_TAG:
-                value = get_xsd_component(value)
-                if value.tag != XSD_LIST_TAG:
-                    raise XMLSchemaValueError(
-                        "a %r definition required for %r." % (XSD_LIST_TAG, self)
-                    )
+                raise XMLSchemaValueError(
+                    "a %r definition required for %r." % (XSD_LIST_TAG, self)
+                )
         elif name == 'item_type':
             check_type(value, XsdSimpleType)
         elif name == 'white_space' and value is None:
@@ -470,7 +489,7 @@ class XsdList(XsdSimpleType):
         elem = self.elem
         item_type = None
 
-        child = get_xsd_component(elem, required=False)
+        child = self._parse_component(elem, required=False)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             item_type = xsd_simple_type_factory(child, self.schema, item_type)
@@ -492,23 +511,23 @@ class XsdList(XsdSimpleType):
         self.item_type = item_type
 
     @property
+    def built(self):
+        return self.item_type.is_global or self.item_type.built
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        else:
+            return self.item_type.validation_attempted
+
+    @property
     def admitted_tags(self):
         return {XSD_LIST_TAG}
 
     @property
     def admitted_facets(self):
         return self.schema.FACETS.intersection(LIST_FACETS)
-
-    def check(self):
-        if self.checked:
-            return
-        super(XsdList, self).check()
-
-        self.item_type.check()
-        if self.item_type.valid is False:
-            self._valid = False
-        elif self.valid is not False and self.item_type.valid is None:
-            self._valid = None
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -571,9 +590,8 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
-    def __init__(self, elem, schema=None, is_global=False, name=None,
-                 facets=None, member_types=None):
-        super(XsdUnion, self).__init__(elem, schema, is_global, name, facets)
+    def __init__(self, elem, schema, name=None, facets=None, member_types=None, is_global=False):
+        super(XsdUnion, self).__init__(elem, schema, name, is_global=is_global)
         if not hasattr(self, 'member_types'):
             if member_types is None:
                 raise XMLSchemaAttributeError("undefined 'member_types' for %r." % self)
@@ -586,11 +604,9 @@ class XsdUnion(XsdSimpleType):
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if value.tag != XSD_UNION_TAG:
-                value = get_xsd_component(value)
-                if value.tag != XSD_UNION_TAG:
-                    raise XMLSchemaValueError(
-                        "a %r definition required for %r." % (XSD_UNION_TAG, self)
-                    )
+                raise XMLSchemaValueError(
+                    "a %r definition required for %r." % (XSD_UNION_TAG, self)
+                )
         elif name == "member_types":
             for member_type in value:
                 check_type(member_type, XsdSimpleType)
@@ -606,7 +622,7 @@ class XsdUnion(XsdSimpleType):
         elem = self.elem
         member_types = []
 
-        for child in iter_xsd_declarations(elem):
+        for child in self._iterparse_components(elem):
             mt = xsd_simple_type_factory(child, self.schema)
             if isinstance(mt, XMLSchemaParseError):
                 self._parse_error(mt)
@@ -630,25 +646,25 @@ class XsdUnion(XsdSimpleType):
         self.member_types = member_types
 
     @property
+    def built(self):
+        return all([mt.is_global or mt.built for mt in self.member_types])
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        elif any([mt.validation_attempted == 'partial' for mt in self.member_types]):
+            return 'partial'
+        else:
+            return 'none'
+
+    @property
     def admitted_tags(self):
         return {XSD_UNION_TAG}
 
     @property
     def admitted_facets(self):
         return self.schema.FACETS.intersection(UNION_FACETS)
-
-    def check(self):
-        if self.checked:
-            return
-        super(XsdUnion, self).check()
-
-        for member_type in self.member_types:
-            member_type.check()
-
-        if any([mt.valid is False for mt in self.member_types]):
-            self._valid = False
-        elif self.valid is not False and any([mt.valid is None for mt in self.member_types]):
-            self._valid = None
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -712,11 +728,9 @@ class XsdAtomicRestriction(XsdAtomic):
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION_TAG:
-                value = get_xsd_component(value)
-                if value.tag != XSD_RESTRICTION_TAG:
-                    raise XMLSchemaValueError(
-                        "a %r definition required for %r." % (XSD_RESTRICTION_TAG, self)
-                    )
+                raise XMLSchemaValueError(
+                    "a %r definition required for %r." % (XSD_RESTRICTION_TAG, self)
+                )
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):
@@ -737,7 +751,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
             if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
-                if get_xsd_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
+                if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                     # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                     self._parse_error(
                         "when a complexType with simpleContent restricts a complexType "
@@ -745,7 +759,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         "declaration is required.", elem
                     )
 
-        for child in iter_xsd_declarations(elem):
+        for child in self._iterparse_components(elem):
             if child.tag in {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
@@ -822,7 +836,7 @@ class XsdAtomicRestriction(XsdAtomic):
         for result in self.base_type.iter_encode(obj, validation):
             if isinstance(result, XMLSchemaEncodeError):
                 yield result
-                yield unicode_type(obj) if validation == 'skip'  else None
+                yield unicode_type(obj) if validation == 'skip' else None
                 return
             elif isinstance(result, XMLSchemaValidationError):
                 yield result

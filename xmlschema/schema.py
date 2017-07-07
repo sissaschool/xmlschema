@@ -26,19 +26,21 @@ from .utils import URIDict, listify_update
 from .resources import (
     open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
-from . import xpath
-from .validator import XSD_VALIDATION_MODES, XMLSchemaValidator
+from .xsdbase import (
+    XSD_VALIDATION_MODES, XsdBaseComponent, ValidatorMixin,
+    get_xsd_derivation_attribute, get_xsd_attribute
+)
+from .xpath import XPathMixin, relative_path
 from .components import (
-    check_tag, get_xsd_attribute, XSD_FACETS, get_xsd_derivation_attribute,
-    iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine,
-    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
+    XSD_FACETS, XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
-    xsd_build_any_content_group, xsd_build_any_attribute_group
+    xsd_build_any_content_group, xsd_build_any_attribute_group, XsdAnnotated
 )
 from . import qnames
 from .utils import check_value
 from .converters import XMLSchemaConverter
-from .namespaces import XsdGlobals, NamespaceView
+from .namespaces import XsdGlobals, NamespaceView, iterchildren_xsd_import, \
+    iterchildren_xsd_include, iterchildren_xsd_redefine
 
 DEFAULT_BUILDERS = {
     'notation_class': XsdNotation,
@@ -59,7 +61,7 @@ DEFAULT_BUILDERS = {
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 
-def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **kwargs):
+def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **options):
 
     meta_schema = os.path.join(SCHEMAS_DIR, meta_schema)
     if base_schemas is None:
@@ -68,9 +70,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
         base_schemas = {k: os.path.join(SCHEMAS_DIR, v) for k, v in base_schemas.items()}
 
     builders = dict(DEFAULT_BUILDERS.items())
-    builders.update(kwargs)
+    builders.update(options)
 
-    class _XMLSchema(XMLSchemaValidator, xpath.XPathMixin):
+    class _XMLSchema(XsdBaseComponent, ValidatorMixin, XPathMixin):
         """
         Class to wrap an XML Schema for components lookups and conversion.
         """
@@ -100,7 +102,6 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             if validation not in XSD_VALIDATION_MODES:
                 raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
             self.validation = validation
-            self.errors = []  # Schema errors (validation with meta-schema and parsing)
 
             # Determine the targetNamespace
             self.target_namespace = self.root.get('targetNamespace', '')
@@ -126,9 +127,12 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             # Create or set the XSD global maps instance
             if global_maps is None:
                 try:
-                    self.maps = self.META_SCHEMA.maps.copy()
+                    if not self.META_SCHEMA.maps.built:
+                        self.META_SCHEMA.maps.build()
                 except AttributeError:
                     self.maps = XsdGlobals(_XMLSchema)
+                else:
+                    self.maps = self.META_SCHEMA.maps.copy()
             elif isinstance(global_maps, XsdGlobals):
                 self.maps = global_maps
             else:
@@ -168,8 +172,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
 
         def __setattr__(self, name, value):
-            if name == 'root':
-                check_tag(value, qnames.XSD_SCHEMA_TAG)
+            if name == 'root' and value.tag != qnames.XSD_SCHEMA_TAG:
+                raise XMLSchemaValueError("schema root element must has %r tag." % qnames.XSD_SCHEMA_TAG)
             elif name == 'validation':
                 check_value(value, 'strict', 'lax', 'skip')
             elif name == 'maps':
@@ -241,54 +245,37 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 raise error
 
         @property
-        def check_token(self):
-            return self.maps.check_token
+        def built(self):
+            xsd_global = None
+            for xsd_global in self.iter_globals():
+                if not isinstance(xsd_global, XsdAnnotated):
+                    return False
+                if not xsd_global.built:
+                    return False
+            if xsd_global is not None:
+                return True
+            else:
+                return False
 
+        @property
         def validation_attempted(self):
-            if self.checked:
+            if self.built:
                 return 'full'
-            elif any([xsd_global.checked for xsd_global in self.iter_globals()]):
+            elif any([comp.validation_attempted == 'partial' for comp in self.iter_globals()]):
                 return 'partial'
             else:
                 return 'none'
 
-        def check(self):
-            if not self.maps.built:
-                raise XMLSchemaNotBuiltError("global maps are not built!", self)
-
-            if not self.checked:
-                if self.errors:
-                    self._valid = False
-
-                for xsd_global in self.iter_globals():
-                    xsd_global.check()
-                    if xsd_global.valid is False:
-                        self._valid = False
-                        break
-                    elif xsd_global.valid is None:
-                        self._valid = None
-                super(_XMLSchema, self).check()
-
-            if self.valid is not True and self.validation == 'strict':
-                if self.valid is False:
-                    try:
-                        if len(self.errors) == 2:
-                            raise self.errors[0]
-                        else:
-                            err = self.errors[0]
-                            msg = "found %d errors parsing the schema: %s"
-                            raise XMLSchemaParseError(
-                                msg % (len(self.errors), err.message),
-                                obj=self.errors[0].obj
-                            )
-                    except IndexError:
-                        raise XMLSchemaValueError("%r: at least an error expected." % self)
-                else:
-                    raise XMLSchemaValueError('%r: schema validity is not known.' % self)
-
         def iter_globals(self):
             for global_map in self.global_maps:
                 for obj in global_map.values():
+                    yield obj
+
+        def iter_components(self, xsd_classes=None):
+            if xsd_classes is None or isinstance(self, xsd_classes):
+                yield self
+            for xsd_global in self.iter_globals():
+                for obj in xsd_global.iter_components(xsd_classes):
                     yield obj
 
         def get_locations(self, namespace):
@@ -391,7 +378,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
 
             if not self.maps.built:
-                raise XMLSchemaNotBuiltError("%r: XSD globals maps are not built.")
+                raise XMLSchemaNotBuiltError("schema %r is not built." % self)
 
             if process_namespaces:
                 # Considers namespaces extracted from the XML document first,
@@ -421,7 +408,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                     msg = "the path %r doesn't match any element of the schema!" % path
                     obj = xml_root.findall(path, namespaces=_namespaces) or xml_root
                     yield XMLSchemaValidationError(self, obj, reason=msg)
-                rel_path = xpath.relative_path(path, 1, _namespaces)
+                rel_path = relative_path(path, 1, _namespaces)
                 for elem in xml_root.findall(rel_path, namespaces=_namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation, use_defaults=use_defaults,

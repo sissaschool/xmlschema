@@ -13,18 +13,39 @@ This module contains functions and classes for managing namespaces's
 XSD declarations/definitions.
 """
 import logging as _logging
-import uuid
 from collections import Mapping
 
-from .exceptions import XMLSchemaKeyError, XMLSchemaParseError
-from .qnames import *
-from .utils import get_namespace, URIDict
+from .core import XSD_NAMESPACE_PATH
+from .exceptions import XMLSchemaKeyError, XMLSchemaParseError, XMLSchemaTypeError, XMLSchemaValueError
+from .qnames import (
+    get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
+    XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
+    XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG
+)
+from .utils import get_namespace, URIDict, camel_case_split
+from .xsdbase import get_xsd_attribute, XsdBaseComponent
 from .components import (
-    get_xsd_attribute, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement,
-    XsdAttributeGroup, XsdGroup, XsdNotation, iterchildren_by_tag, iterchildren_xsd_redefine
+    XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
+    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
 
 _logger = _logging.getLogger(__name__)
+
+
+def iterchildren_by_tag(tag):
+    """
+    Defines a generator that produce all child elements that have a specific tag.
+    """
+    def iterfind_function(root):
+        for elem in root:
+            if elem.tag == tag:
+                yield elem
+    iterfind_function.__name__ = str('iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower())
+    return iterfind_function
+
+iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
+iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
+iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
 
 
 #
@@ -70,7 +91,7 @@ load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
 load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
 
 
-class XsdGlobals(object):
+class XsdGlobals(XsdBaseComponent):
     """
     Mediator class for related XML schema instances. It stores the global 
     declarations defined in the registered schemas. Register a schema to 
@@ -81,6 +102,7 @@ class XsdGlobals(object):
     """
 
     def __init__(self, validator):
+        super(XsdGlobals, self).__init__()
         self.validator = validator
 
         self.namespaces = URIDict()     # Registered schemas by namespace URI
@@ -98,7 +120,6 @@ class XsdGlobals(object):
 
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
-        self.check_token = uuid.uuid4()
 
     def copy(self):
         """Makes a copy of the object."""
@@ -161,6 +182,9 @@ class XsdGlobals(object):
             try:
                 obj = global_map[qname]
             except KeyError:
+                import pdb
+                pdb.set_trace()
+
                 raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
             else:
                 if isinstance(obj, xsd_classes):
@@ -204,9 +228,59 @@ class XsdGlobals(object):
                     )
         return lookup
 
+    @property
+    def built(self):
+        if not self.namespaces:
+            return False
+        xsd_global = None
+        for xsd_global in self.iter_globals():
+            if not isinstance(xsd_global, XsdAnnotated):
+                return False
+            for obj in xsd_global.iter_components():
+                if not isinstance(obj, XsdAnnotated):
+                    return False
+        if xsd_global is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        elif any([schema.validation_attempted == 'partial' for schema in self.iter_schemas()]):
+            return 'partial'
+        else:
+            return 'none'
+
+    @property
+    def validity(self):
+        if not self.namespaces:
+            return False
+        return all([schema.valid for schema in self.iter_schemas()])
+
+    def iter_schemas(self):
+        """Creates an iterator for the schemas registered in the instance."""
+        for ns_schemas in self.namespaces.values():
+            for schema in ns_schemas:
+                yield schema
+
+    def iter_globals(self):
+        """Creates an iterator for XSD global definitions/declarations."""
+        for global_map in self.global_maps:
+            for obj in global_map.values():
+                yield obj
+
+    def iter_components(self, xsd_classes=None):
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
+        for xsd_global in self.iter_globals():
+            for obj in xsd_global.iter_components(xsd_classes):
+                yield obj
+
     def register(self, schema):
         """
-        Registers an XMLSchema instance.         
+        Registers an XMLSchema instance.
         """
         if schema.uri:
             if schema.uri not in self.resources:
@@ -224,18 +298,6 @@ class XsdGlobals(object):
             if not any([schema.uri == obj.uri for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
-
-    def iter_globals(self):
-        """Creates an iterator for XSD global definitions/declarations."""
-        for global_map in self.global_maps:
-            for obj in global_map.values():
-                yield obj
-
     def clear(self, remove_schemas=False):
         """
         Clears the instance maps, removing also all the registered schemas 
@@ -250,7 +312,7 @@ class XsdGlobals(object):
             self.namespaces = URIDict()
             self.resources = URIDict()
 
-    def build(self, skip_check=True):
+    def build(self):
         """
         Builds the schemas registered in the instance, excluding
         those that are already built.
@@ -261,20 +323,19 @@ class XsdGlobals(object):
             raise XMLSchemaValueError(
                 "%r: %r namespace is not registered." % (self, XSD_NAMESPACE_PATH))
 
-        self.clear()
-        if any([d for d in self.global_maps]) or self.base_elements or self.substitution_groups:
-            raise XMLSchemaValueError("%r is not cleared." % self)
+        not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
 
         # Load and build global declarations
-        load_xsd_notations(self.notations, self.iter_schemas())
-        load_xsd_simple_types(self.types, self.iter_schemas())
-        load_xsd_attributes(self.attributes, self.iter_schemas())
-        load_xsd_attribute_groups(self.attribute_groups, self.iter_schemas())
-        load_xsd_complex_types(self.types, self.iter_schemas())
-        load_xsd_elements(self.elements, self.iter_schemas())
-        load_xsd_groups(self.groups, self.iter_schemas())
+        load_xsd_notations(self.notations, not_built_schemas)
+        load_xsd_simple_types(self.types, not_built_schemas)
+        load_xsd_attributes(self.attributes, not_built_schemas)
+        load_xsd_attribute_groups(self.attribute_groups, not_built_schemas)
+        load_xsd_complex_types(self.types, not_built_schemas)
+        load_xsd_elements(self.elements, not_built_schemas)
+        load_xsd_groups(self.groups, not_built_schemas)
 
-        meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
+        if not meta_schema.built:
+            meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
 
         for qname in self.notations:
             self.lookup_notation(qname)
@@ -291,14 +352,19 @@ class XsdGlobals(object):
 
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
+        group_class = meta_schema.BUILDERS.group_class
         for xsd_global in self.iter_globals():
             for obj in xsd_global.iter_components(XsdGroup):
                 for k in range(len(obj)):
                     if isinstance(obj[k], tuple):
                         elem, schema = obj[k]
-                        obj[k] = element_class(elem, schema)
+                        if elem.tag == XSD_GROUP_TAG:
+                            obj[k] = group_class(elem, schema, mixed=obj.mixed)
+                        else:
+                            obj[k] = element_class(elem, schema)
 
-        # Build substitution groups from element declarations
+        # Rebuild substitution groups from element declarations
+        self.substitution_groups.clear()
         for xsd_element in self.elements.values():
             if xsd_element.substitution_group:
                 name = reference_to_qname(xsd_element.substitution_group, xsd_element.namespaces)
@@ -309,41 +375,11 @@ class XsdGlobals(object):
                 except KeyError:
                     self.substitution_groups[name] = {xsd_element}
 
-        # Update base_elements
+        # Rebuild base_elements
+        self.base_elements.clear()
         self.base_elements.update(self.elements)
         for group in self.groups.values():
             self.base_elements.update({e.name: e for e in group.iter_elements()})
-
-        if not skip_check:
-            self.check()
-
-    @property
-    def built(self):
-        if not self.namespaces:
-            return False
-        xsd_global = None
-        for xsd_global in self.iter_globals():
-            if not isinstance(xsd_global, XsdComponent):
-                return False
-            for xsd_group in xsd_global.iter_components(XsdGroup):
-                for item in xsd_group:
-                    if not isinstance(item, XsdComponent):
-                        return False
-        if xsd_global is not None:
-            return True
-        else:
-            return False
-
-    def check(self):
-        self.check_token = uuid.uuid4()
-        for schema in self.iter_schemas():
-            schema.check()
-
-    @property
-    def valid(self):
-        if not self.namespaces:
-            return False
-        return all([schema.valid for schema in self.iter_schemas()])
 
 
 class NamespaceView(Mapping):
@@ -368,7 +404,7 @@ class NamespaceView(Mapping):
         return iter(self.as_dict())
 
     def __repr__(self):
-        return '<%s %r at %#x>' % (self.__class__.__name__, self.as_dict(), id(self))
+        return '<%s %s at %#x>' % (self.__class__.__name__, str(self.as_dict()), id(self))
 
     def __contains__(self, key):
         return self.key_fmt % key in self.target_dict

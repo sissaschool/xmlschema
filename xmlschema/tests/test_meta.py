@@ -14,9 +14,11 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 from _test_common import *
 
+import time
 from sys import maxunicode
 from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.codepoints import UNICODE_CATEGORIES
+from xmlschema.components import XsdAnnotated
 from xmlschema import XMLSchema
 
 meta_schema = XMLSchema.META_SCHEMA
@@ -126,31 +128,25 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertTrue(len(meta_schema.maps.base_elements) == 48)
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
 
-    def test_rebuild(self):
-        meta_schema.maps.clear()
+    def test_build(self):
         meta_schema.maps.build()
         self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(meta_schema.maps.built)
+        meta_schema.maps.clear()
+        meta_schema.maps.build()
+        self.assertTrue(meta_schema.maps.built)
 
     def test_components(self):
-        container = set()
         total_counter = 0
         global_counter = 0
-        repetition_counter = 0
         for g in meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
-                if id(c) in container:
-                    repetition_counter += 1
-                else:
-                    if c.is_global:
-                        global_counter +=1
-                    container.add(id(c))
-        print (len(container), total_counter, repetition_counter)
-        print(global_counter)
+                if c.is_global:
+                    global_counter +=1
         self.assertTrue(global_counter == 199)
         self.assertTrue(total_counter == 1199)
-        # self.assertTrue(len(container) == 817)
-        # self.assertTrue(repetition_counter == 382)
+
 
 # TODO: Add test for base schemas files.
 

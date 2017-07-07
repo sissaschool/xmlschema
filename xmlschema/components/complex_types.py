@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..core import ElementData, etree_element
-from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError, XMLSchemaTypeError
+from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError
 from ..utils import check_type
 from ..qnames import (
     get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
@@ -17,16 +17,16 @@ from ..qnames import (
     XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
-from .xsdbase import (
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_component,
-    get_xsd_derivation_attribute, XsdComponent
+from ..xsdbase import (
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
 )
+from .component import XsdAnnotated
 from .attributes import XsdAttributeGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
 
-class XsdComplexType(XsdComponent):
+class XsdComplexType(XsdAnnotated, ValidatorMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
     
@@ -42,16 +42,13 @@ class XsdComplexType(XsdComponent):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    def __init__(self, elem, schema, is_global=False, name=None,
-                 content_type=None, attributes=None, derivation=None, mixed=None):
+    def __init__(self, elem, schema, name=None, content_type=None, attributes=None,
+                 derivation=None, mixed=None, is_global=False):
         self.derivation = derivation
-        super(XsdComplexType, self).__init__(elem, schema, is_global, name)
+        super(XsdComplexType, self).__init__(elem, schema, name, is_global)
 
         if not hasattr(self, 'content_type'):
             if content_type is None:
-                import pdb
-                pdb.set_trace()
-                self._parse()
                 raise XMLSchemaAttributeError("undefined 'content_type' attribute for %r." % self)
             self.content_type = content_type
         if not hasattr(self, 'attributes'):
@@ -67,7 +64,7 @@ class XsdComplexType(XsdComponent):
         if name == 'content_type':
             check_type(value, self.BUILDERS.simple_type_class, self.BUILDERS.group_class)
         elif name == 'attributes':
-            check_type(value, self.BUILDERS.attribute_group_class)
+            check_type(value, XsdAttributeGroup)
         super(XsdComplexType, self).__setattr__(name, value)
 
     def _parse(self):
@@ -77,9 +74,7 @@ class XsdComplexType(XsdComponent):
             return  # a local restriction is already parsed by the caller
 
         self.mixed = get_xsd_bool_attribute(elem, 'mixed', default=False)
-        getattr(self, 'abstract')
-        getattr(self, 'block')
-        getattr(self, 'final')
+        self._parse_properties('abstract', 'block', 'final')
 
         try:
             self.name = get_qname(self.target_namespace, elem.attrib['name'])
@@ -92,7 +87,7 @@ class XsdComplexType(XsdComponent):
         self.derivation = None
         self.mixed = elem.get('mixed') in ('true', '1')
 
-        content_elem = get_xsd_component(elem, required=False, strict=False)
+        content_elem = self._parse_component(elem, required=False, strict=False)
         if content_elem is None or content_elem.tag in \
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
@@ -137,16 +132,16 @@ class XsdComplexType(XsdComponent):
                 self._parse_complex_content_extension(derivation_elem, base_type)
 
         else:
-            import pdb
-            pdb.set_trace()
-            self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
+            # self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
+            self.content_type = self.BUILDERS.build_any_content_group(self.schema)
+            self.attributes = self.BUILDERS.build_any_attribute_group(self.schema)
 
     def _parse_derivation_elem(self, elem):
-        derivation_elem = get_xsd_component(elem, required=False)
+        derivation_elem = self._parse_component(elem, required=False)
         if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG):
             self._parse_error("restriction or extension tag expected", derivation_elem)
-            self.attributes = self.BUILDERS.build_any_attribute_group(self.schema)
             self.content_type = self.BUILDERS.build_any_content_group(self.schema)
+            self.attributes = self.BUILDERS.build_any_attribute_group(self.schema)
             return
 
         self.derivation = local_name(derivation_elem.tag)
@@ -195,7 +190,7 @@ class XsdComplexType(XsdComponent):
     def _parse_simple_content_extension(self, elem, base_type):
         # simpleContent extension: the base type must be a simpleType or a complexType
         # with simple content.
-        child = get_xsd_component(elem, required=False, strict=False)
+        child = self._parse_component(elem, required=False, strict=False)
         if child is not None and child.tag not in \
                 {XSD_ATTRIBUTE_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             self._parse_error("unexpected tag %r." % child.tag, child)
@@ -220,16 +215,16 @@ class XsdComplexType(XsdComponent):
     def _parse_complex_content_restriction(self, elem, base_type):
         # complexContent restriction: the base type must be a complexType with a complex
         # content.
-        group_elem = get_xsd_component(elem, required=False, strict=False)
+        group_elem = self._parse_component(elem, required=False, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-            self.content_type = self.BUILDERS.group_class(group_elem, self.schema, self.mixed)
+            self.content_type = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
             if self.content_type.model != base_type.content_type.model:
                 self._parse_error(
                     "content model differ from base type: %r" % base_type.content_type.model, elem
                 )
         else:
             # Empty content model
-            self.content_type = self.BUILDERS.group_class(elem, self.schema, self.mixed)
+            self.content_type = self.BUILDERS.group_class(elem, self.schema, mixed=self.mixed)
 
         if base_type.is_element_only() and self.content_type.mixed:
             self._parse_error(
@@ -266,19 +261,19 @@ class XsdComplexType(XsdComponent):
         if base_type.content_type.model == XSD_ALL_TAG:
             self._parse_error("XSD 1.0 do not allows 'ALL' group extensions", elem)
 
-        group_elem = get_xsd_component(elem, required=False, strict=False)
+        group_elem = self._parse_component(elem, required=False, strict=False)
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-                self.content_type = self.BUILDERS.group_class(group_elem, self.schema, self.mixed)
+                self.content_type = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
             else:
                 # Empty content model
-                self.content_type = self.BUILDERS.group_class(elem, self.schema, self.mixed)
+                self.content_type = self.BUILDERS.group_class(elem, self.schema, mixed=self.mixed)
         else:
             dummy_elem = etree_element(XSD_SEQUENCE_TAG)
             self.content_type = self.BUILDERS.group_class(dummy_elem, self.schema)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-                xsd_group = self.BUILDERS.group_class(group_elem, self.schema, self.mixed)
+                xsd_group = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
                 self.content_type.append(base_type.content_type)
                 self.content_type.append(xsd_group)
             else:
@@ -295,6 +290,21 @@ class XsdComplexType(XsdComponent):
             derivation='extension',
             base_attributes=base_type.attributes
         )
+
+    @property
+    def built(self):
+        return self.content_type.built and self.attributes.built
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        elif self.attributes.validation_attempted == 'partial':
+            return 'partial'
+        elif self.content_type.validation_attempted == 'partial':
+            return 'partial'
+        else:
+            return 'none'
 
     @property
     def admitted_tags(self):
@@ -356,29 +366,6 @@ class XsdComplexType(XsdComponent):
         if not self.content_type.is_global:
             for obj in self.content_type.iter_components(xsd_classes):
                 yield obj
-
-    def validation_attempted(self):
-        if self.checked:
-            return 'full'
-        elif self.attributes.checked or self.content_type.checked:
-            return 'partial'
-        else:
-            return 'none'
-
-    def check(self):
-        if self.checked:
-            return
-        super(XsdComplexType, self).check()
-
-        if self.name != XSD_ANY_TYPE:
-            self.content_type.check()
-            self.attributes.check()
-
-            if self.content_type.valid is False or self.attributes.valid is False:
-                self._valid = False
-            elif self.valid is not False:
-                if self.content_type.valid is None and self.attributes.valid is None:
-                    self._valid = None
 
     @staticmethod
     def get_facet(*args, **kwargs):
