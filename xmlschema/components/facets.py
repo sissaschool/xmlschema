@@ -17,9 +17,8 @@ from collections import MutableSequence
 from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from ..qnames import *
 from ..regex import get_python_regex
-from .xsdbase import (
-    XsdComponent, get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
-)
+from ..xsdbase import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .component import XsdAnnotated
 
 XSD_FACETS = {
     XSD_LENGTH_TAG,
@@ -76,19 +75,28 @@ UNION_FACETS = {
 }
 
 
-class XsdFacet(XsdComponent):
+class XsdFacet(XsdAnnotated):
     """
     XML Schema constraining facets base class.
     """
-    def __init__(self, base_type, elem=None, schema=None):
+    def __init__(self, base_type, elem, schema):
         super(XsdFacet, self).__init__(elem=elem, schema=schema)
         self.base_type = base_type
 
-    def iter_decode(self, text, validate=True, namespaces=None, use_defaults=True):
-        return self.base_type.iter_decode(text, validate, namespaces, use_defaults)
+    @property
+    def built(self):
+        return self.base_type.is_global or self.base_type.built
 
-    def iter_encode(self, text, validate=True, **kwargs):
-        return self.base_type.iter_encode(text, validate, **kwargs)
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        else:
+            return self.base_type.validation_attempted
+
+    @property
+    def admitted_tags(self):
+        return XSD_FACETS
 
     def __call__(self, *args, **kwargs):
         return
@@ -96,7 +104,7 @@ class XsdFacet(XsdComponent):
 
 class XsdUniqueFacet(XsdFacet):
 
-    def __init__(self, base_type, elem=None, schema=None):
+    def __init__(self, base_type, elem, schema):
         super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
         self.name = '%s(value=%r)' % (local_name(elem.tag), elem.attrib['value'])
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
@@ -131,7 +139,9 @@ class XsdUniqueFacet(XsdFacet):
             self.validator = self.total_digits_validator
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
             if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
-                raise XMLSchemaParseError("fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH)
+                raise XMLSchemaParseError(
+                    "fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH, self
+                )
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
 
@@ -145,29 +155,37 @@ class XsdUniqueFacet(XsdFacet):
             if base_facet is not None:
                 if base_facet.fixed and value != base_facet.value:
                     raise XMLSchemaParseError(
-                        "%r facet value is fixed to %r." % (self.elem.tag, base_facet.value), self.elem
+                        "%r facet value is fixed to %r." % (self.elem.tag, base_facet.value), self
                     )
                 elif self.elem.tag == XSD_WHITE_SPACE_TAG:
                     if base_facet.value == 'collapse' and value in ('preserve', 'replace'):
-                        XMLSchemaParseError("facet value can be only 'collapse'.", self.elem)
+                        raise XMLSchemaParseError("facet value can be only 'collapse'.", self)
                     elif base_facet.value == 'replace' and value == 'preserve':
-                        XMLSchemaParseError("facet value can be only 'replace' or 'collapse'.", self.elem)
+                        raise XMLSchemaParseError(
+                            "facet value can be only 'replace' or 'collapse'.", self
+                        )
                 elif self.elem.tag == XSD_LENGTH_TAG:
                     if base_facet is not None and value != base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has different 'length': %r" % base_facet.value, self.elem
+                            "base type has different 'length': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MIN_LENGTH_TAG:
                     if value < base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has greater 'minLength': %r" % base_facet.value, self.elem
+                            "base type has greater 'minLength': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MAX_LENGTH_TAG:
                     if value > base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has lesser 'maxLength': %r" % base_facet.value, self.elem
+                            "base type has lesser 'maxLength': %r" % base_facet.value, self
                         )
         super(XsdUniqueFacet, self).__setattr__(name, value)
+
+    @property
+    def admitted_tags(self):
+        return {XSD_WHITE_SPACE_TAG, XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG,
+                XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG,
+                XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG}
 
     def get_base_facet(self, tag):
         """
@@ -231,8 +249,8 @@ class XsdUniqueFacet(XsdFacet):
 
 class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
-    def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
+    def __init__(self, base_type, elem, schema):
+        XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(values=%r)'.format(local_name(elem.tag))
         self._elements = []
         self.enumeration = []
@@ -276,11 +294,15 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
                 self, value, reason="invalid value %r, it must be one of %r" % (value, self.enumeration)
             )
 
+    @property
+    def admitted_tags(self):
+        return {XSD_ENUMERATION_TAG}
+
 
 class XsdPatternsFacet(MutableSequence, XsdFacet):
 
-    def __init__(self, base_type, elem, schema=None):
-        XsdFacet.__init__(self, base_type, schema=schema)
+    def __init__(self, base_type, elem, schema):
+        XsdFacet.__init__(self, base_type, elem, schema=schema)
         self.name = '{}(patterns=%r)'.format(local_name(elem.tag))
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
@@ -320,103 +342,6 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
             msg = "value don't match any pattern of %r."
             yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
 
-
-def check_facets_group(facets, admitted_facets, elem=None):
-    """
-    Verify the applicability and the mutual incompatibility of a group of facets.
-
-    :param facets: Dictionary of facets.
-    :param admitted_facets: A set including the qualified names
-    of admitted facets.
-    :param elem: Restriction element including the facets group.
-    """
-    # Checks the applicability of the facets
-    if not admitted_facets.issuperset(set(facets.keys())):
-        admitted_facets = {local_name(e) for e in admitted_facets if e}
-        msg = "one or more facets are not applicable, admitted set is %r:"
-        raise XMLSchemaParseError(msg % admitted_facets, elem)
-
-    # Check group base_type
-    base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
-    if len(base_type) > 1:
-        raise XMLSchemaValueError("facet group must have the same base_type: %r" % base_type)
-    base_type = base_type.pop() if base_type else None
-
-    # Checks length based facets
-    length = getattr(facets.get(XSD_LENGTH_TAG), 'value', None)
-    min_length = getattr(facets.get(XSD_MIN_LENGTH_TAG), 'value', None)
-    max_length = getattr(facets.get(XSD_MAX_LENGTH_TAG), 'value', None)
-    if length is not None:
-        if length < 0:
-            raise XMLSchemaParseError("'length' value must be non negative integer.", elem)
-        if min_length is not None:
-            if min_length > length:
-                raise XMLSchemaParseError("'minLength' value must be less or equal to 'length'.", elem)
-            min_length_facet = base_type.get_facet(XSD_MIN_LENGTH_TAG, recursive=True)
-            length_facet = base_type.get_facet(XSD_LENGTH_TAG, recursive=True)
-            if min_length_facet is None or \
-                    (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
-                raise XMLSchemaParseError("cannot specify both 'length' and 'minLength'.", elem)
-        if max_length is not None:
-            if max_length < length:
-                raise XMLSchemaParseError("'maxLength' value must be greater or equal to 'length'.", elem)
-            max_length_facet = base_type.get_facet(XSD_MAX_LENGTH_TAG, recursive=True)
-            length_facet = base_type.get_facet(XSD_LENGTH_TAG, recursive=True)
-            if max_length_facet is None or \
-                    (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
-                raise XMLSchemaParseError("cannot specify both 'length' and 'maxLength'.", elem)
-    elif min_length is not None:
-        if min_length < 0:
-            raise XMLSchemaParseError("'minLength' value must be non negative integer.", elem)
-        if max_length is not None and max_length < min_length:
-            raise XMLSchemaParseError("'maxLength' value is lesser than 'minLength'.", elem)
-        min_length_facet = base_type.get_facet(XSD_MIN_LENGTH_TAG)
-        if min_length_facet is not None and min_length_facet.value > min_length:
-            raise XMLSchemaParseError("parent 'minLength' has a lesser value.", elem)
-    elif max_length is not None:
-        if max_length < 0:
-            raise XMLSchemaParseError("'maxLength' value must be non negative integer.", elem)
-        max_length_facet = base_type.get_facet(XSD_MAX_LENGTH_TAG)
-        if max_length_facet is not None and max_length_facet.value > min_length:
-            raise XMLSchemaParseError("parent 'maxLength' has a greater value.", elem)
-
-    # Checks max/min
-    min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE_TAG), 'value', None)
-    min_exclusive = getattr(facets.get(XSD_MIN_EXCLUSIVE_TAG), 'value', None)
-    max_inclusive = getattr(facets.get(XSD_MAX_INCLUSIVE_TAG), 'value', None)
-    max_exclusive = getattr(facets.get(XSD_MAX_EXCLUSIVE_TAG), 'value', None)
-    if min_inclusive is not None and min_exclusive is not None:
-        raise XMLSchemaParseError("cannot specify both 'minInclusive' and 'minExclusive.", elem)
-    if max_inclusive is not None and max_exclusive is not None:
-        raise XMLSchemaParseError("cannot specify both 'maxInclusive' and 'maxExclusive.", elem)
-
-    if min_inclusive is not None:
-        if max_inclusive is not None and min_inclusive > max_inclusive:
-            raise XMLSchemaParseError("'minInclusive' must be less or equal to 'maxInclusive'", elem)
-        elif max_exclusive is not None and min_inclusive >= max_exclusive:
-            raise XMLSchemaParseError("'minInclusive' must be lesser than 'maxExclusive'", elem)
-        min_value = max_inclusive
-    elif min_exclusive is not None:
-        if max_inclusive is not None and min_exclusive >= max_inclusive:
-            raise XMLSchemaParseError("'minExclusive' must be lesser than 'maxInclusive'", elem)
-        elif max_exclusive is not None and min_exclusive > max_exclusive:
-            raise XMLSchemaParseError("'minExclusive' must be less or equal to 'maxExclusive'", elem)
-        min_value = min_exclusive + 1
-    else:
-        min_value = None
-
-    if max_inclusive is not None:
-        max_value = max_inclusive
-    elif max_exclusive is not None:
-        max_value = max_exclusive - 1
-    else:
-        max_value = None
-
-    base_min_value = getattr(base_type, 'min_value', None)
-    base_max_value = getattr(base_type, 'max_value', None)
-    if base_min_value is not None and min_value is not None and base_min_value > min_value:
-        raise XMLSchemaParseError("minimum value of base_type is greater.", elem)
-    if base_max_value is not None and max_value is not None and base_max_value < max_value:
-        raise XMLSchemaParseError("maximum value of base_type is lesser.", elem)
-
-    return min_value, max_value
+    @property
+    def admitted_tags(self):
+        return {XSD_PATTERN_TAG}

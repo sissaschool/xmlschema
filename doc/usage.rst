@@ -85,13 +85,13 @@ dictionary attributes of the schema instance:
     >>> from pprint import pprint
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> my_schema.types
-    {u'vehicleType': <XsdComplexType u'{http://example.com/vehicles}vehicleType' at 0x...>}
-    >>> pprint(my_schema.elements)
+    <NamespaceView {u'vehicleType': <XsdComplexType u'{http://example.com/vehicles}vehicleType' at 0x...>} at 0x...>
+    >>> pprint(dict(my_schema.elements))
     {u'bikes': <XsdElement u'{http://example.com/vehicles}bikes' at 0x...>,
      u'cars': <XsdElement u'{http://example.com/vehicles}cars' at 0x...>,
      u'vehicles': <XsdElement u'{http://example.com/vehicles}vehicles' at 0x...>}
     >>> my_schema.attributes
-    {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>}
+    <NamespaceView {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>} at 0x...>
 
 Those declarations are local views of the XSD global maps shared between related
 schema instances, that can be accessed through :attr:`XMLSchema.maps` attribute:
@@ -314,7 +314,7 @@ Validation and decode API works also with XML data loaded in ElementTree structu
     >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
     >>> xs.is_valid(xt)
     True
-    >>> pprint(xs.to_dict(xt), depth=2)
+    >>> pprint(xs.to_dict(xt, process_namespaces=False), depth=2)
     {u'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      '{http://example.com/vehicles}bikes': {'{http://example.com/vehicles}bike': [...]},
      '{http://example.com/vehicles}cars': {'{http://example.com/vehicles}car': [...]}}

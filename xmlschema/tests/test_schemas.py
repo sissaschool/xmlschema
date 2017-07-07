@@ -24,23 +24,23 @@ def create_schema_tests(pathname):
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
             # print("Run %s" % self.id())
-            meta_schema = xmlschema.XMLSchema.META_SCHEMA
-            errors = [str(e) for e in meta_schema.iter_errors(xsd_file)]
-
             try:
-                xs = xmlschema.XMLSchema(xsd_file, validation='skip')
+                xs = xmlschema.XMLSchema(xsd_file, validation='lax')
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
-                num_errors = len(errors) + 1
-                errors.append(str(err))
+                num_errors = 1
+                errors = [str(err)]
             else:
-                num_errors = len(errors) + len(xs.errors)
+                num_errors = len(xs.all_errors)
+                errors = xs.all_errors
 
             if num_errors != expected_errors:
-                raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (
-                        expected_errors, num_errors, '\n++++++\n'.join(errors[:3])
+                print("\nTest n.%r: %r errors, %r expected." % (self.id()[-3:], num_errors, expected_errors))
+                if num_errors == 0:
+                    raise ValueError("found no errors when %d expected." % expected_errors)
+                else:
+                    raise ValueError(
+                        "n.%d errors expected, found %d: %s" % (expected_errors, num_errors, errors[0])
                     )
-                )
             else:
                 self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
         return test_schema

@@ -55,49 +55,31 @@ class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
 
 
-class XMLSchemaNotBuiltError(XMLSchemaException, TypeError):
-    """Raised when a not built XSD object is found."""
-
-    def __init__(self, message, obj=None, qname=None):
-        self.message = message or ''
-        self.obj = obj
-        self.qname = qname
-
-    def __str__(self):
-        # noinspection PyCompatibility
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return self.message
-
-    if PY3:
-        __str__ = __unicode__
+class XMLSchemaNotBuiltError(XMLSchemaException, RuntimeError):
+    """Raised when a not built XSD component or schema is used."""
+    pass
 
 
 class XMLSchemaParseError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XML Schema definition/declaration."""
+    """Raised when an error is found when parsing an XML Schema component."""
 
-    def __init__(self, message, obj=None):
+    def __init__(self, message, component=None, elem=None):
         self.message = message or u''
-        self.obj = obj
-        if etree_iselement(obj):
-            self.elem = obj
-        elif etree_iselement(getattr(obj, 'elem', None)):
-            self.elem = getattr(obj, 'elem')
-        else:
-            self.elem = None
+        self.component = component
+        self.elem = elem or getattr(component, 'elem', None)
 
     def __str__(self):
         # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        return u''.join([
-            self.message,
-            u"\n\n  %s\n" % etree_tostring(
-                self.elem, max_lines=20
-            ) if self.elem is not None else '',
-        ])
+        if etree_iselement(self.elem):
+            return u''.join([
+                self.message,
+                u"\n\n  %s\n" % etree_tostring(self.elem, max_lines=20)
+            ])
+        else:
+            return self.message
 
     if PY3:
         __str__ = __unicode__
@@ -147,7 +129,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
 class XMLSchemaDecodeError(XMLSchemaValidationError):
     """Raised when an XML data string is not decodable to a Python object."""
 
-    def __init__(self, validator, obj, decoder, reason=None, schema_elem=None, elem=None):
+    def __init__(self, validator, obj, decoder, reason=None):
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason)
         self.decoder = decoder
         self.message = u"failed decoding %r with %r.\n" % (obj, validator)
@@ -156,7 +138,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
 class XMLSchemaEncodeError(XMLSchemaValidationError):
     """Raised when an object is not encodable to an XML data string."""
 
-    def __init__(self, validator, obj, encoder, reason=None, schema_elem=None, elem=None):
+    def __init__(self, validator, obj, encoder, reason=None):
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason)
         self.encoder = encoder
         self.message = u"failed encoding %r with %r.\n" % (obj, validator)

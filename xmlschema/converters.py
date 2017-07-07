@@ -17,6 +17,7 @@ import string
 from .core import ElementData
 from .exceptions import XMLSchemaValueError
 from .utils import NamespaceMapper
+from .xsdbase import XSD_VALIDATION_MODES
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -121,7 +122,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: A dictionary-based data structure containing the decoded data.
         """
         result_dict = self.dict([t for t in self.map_attributes(data.attributes)])
-        if xsd_element.type.is_simple():
+        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if result_dict:
                 if data.text is not None and data.text != '':
                     result_dict[self.text_key] = data.text
@@ -141,15 +142,18 @@ class XMLSchemaConverter(NamespaceMapper):
                     result_dict[name] = self.list([result_dict[name], value])
             return result_dict if result_dict else None
 
-    def element_encode(self, data, xsd_element, skip_errors=True):
+    def element_encode(self, data, xsd_element, validation='lax'):
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
         Uses the XSD element for recognizing errors.
 
         :param data: Decoded data structure.
         :param xsd_element: The `XsdElement` associated to the decoded data structure.
+        :param validation: The XSD validation mode ('strict'/'lax'/'skip').
         :return: A couple with encoded ElementData and a list of errors.
         """
+        if validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
         attributes = []
         errors = []
         unmap_qname = self.unmap_qname
@@ -188,7 +192,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     continue
                 if attr_prefix is not None and name.startswith(attr_prefix):
                     attributes.append((unmap_qname(name[len(attr_prefix):]), value))
-                elif not skip_errors:
+                elif validation != 'skip':
                     errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
         return ElementData(xsd_element.name, text, content, attributes), errors
 
@@ -217,7 +221,7 @@ class ParkerConverter(XMLSchemaConverter):
     def element_decode(self, data, xsd_element):
         map_qname = self.map_qname
         preserve_root = self.preserve_root
-        if xsd_element.type.is_simple():
+        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if preserve_root:
                 return self.dict([(map_qname(data.tag), data.text)])
             else:
@@ -271,7 +275,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         if has_local_root:
             result_dict[u'@xmlns'] = dict_class()
 
-        if xsd_element.type.is_simple():
+        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if data.text is not None and data.text != '':
                 result_dict[self.text_key] = data.text
         else:
@@ -331,7 +335,7 @@ class AbderaConverter(XMLSchemaConverter):
         )
 
     def element_decode(self, data, xsd_element):
-        if xsd_element.type.is_simple():
+        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             children = data.text if data.text is not None and data.text != '' else None
         else:
             children = self.dict()
@@ -385,7 +389,7 @@ class JsonMLConverter(XMLSchemaConverter):
         result_list = self.list([self.map_qname(data.tag)])
         element_dict = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
 
-        if xsd_element.type.is_simple():
+        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if data.text is not None and data.text != '':
                 result_list.append(data.text)
         else:

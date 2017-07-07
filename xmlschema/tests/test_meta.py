@@ -14,13 +14,14 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 from _test_common import *
 
+import time
 from sys import maxunicode
 from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.codepoints import UNICODE_CATEGORIES
+from xmlschema.components import XsdAnnotated
 from xmlschema import XMLSchema
 
 meta_schema = XMLSchema.META_SCHEMA
-meta_schema.maps.build()
 
 
 class TestUnicodeCategories(unittest.TestCase):
@@ -115,17 +116,36 @@ class TestBuiltinTypes(unittest.TestCase):
 
 class TestGlobalMaps(unittest.TestCase):
 
-    def test_number(self):
+    def test_globals(self):
         self.assertTrue(len(meta_schema.maps.notations) == 2)
         self.assertTrue(len(meta_schema.maps.types) == 105)
         self.assertTrue(len(meta_schema.maps.attributes) == 18)
         self.assertTrue(len(meta_schema.maps.attribute_groups) == 9)
         self.assertTrue(len(meta_schema.maps.groups) == 18)
         self.assertTrue(len(meta_schema.maps.elements) == 47)
-        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 199)
 
         self.assertTrue(len(meta_schema.maps.base_elements) == 48)
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
+
+    def test_build(self):
+        meta_schema.maps.build()
+        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(meta_schema.maps.built)
+        meta_schema.maps.clear()
+        meta_schema.maps.build()
+        self.assertTrue(meta_schema.maps.built)
+
+    def test_components(self):
+        total_counter = 0
+        global_counter = 0
+        for g in meta_schema.maps.iter_globals():
+            for c in g.iter_components():
+                total_counter += 1
+                if c.is_global:
+                    global_counter +=1
+        self.assertTrue(global_counter == 199)
+        self.assertTrue(total_counter == 1199)
 
 
 # TODO: Add test for base schemas files.

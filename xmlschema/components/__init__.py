@@ -11,60 +11,20 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from ..exceptions import XMLSchemaParseError
-from ..qnames import XSD_NOTATION_TAG
-
-from .xsdbase import (
-    check_tag, get_xsd_annotation,
-    get_xsd_component, get_xsd_attribute, get_xsd_bool_attribute,
-    get_xsd_int_attribute, get_xsd_derivation_attribute, iter_xsd_declarations,
-    iterchildren_by_tag, iterchildren_xsd_import, iterchildren_xsd_include,
-    iterchildren_xsd_redefine, XsdAnnotation, XsdComponent, XMLSchemaValidator
-)
-from xmlschema.utils import check_type, check_value
+from .component import XsdComponent, XsdAnnotation, XsdAnnotated, ParticleMixin
+from .notations import XsdNotation
+from .wildcards import XsdAnyElement, XsdAnyAttribute
 from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
-from .datatypes import (
-    XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+from .simple_types import (
+    xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin,
+    XsdAtomicRestriction, XsdList, XsdUnion
 )
-from .elements import XsdElement, XsdAnyElement, XsdComplexType, XsdGroup
+from .complex_types import XsdComplexType
+from .groups import XsdGroup
+from .elements import XsdElement
 from .facets import (
     XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-
-
-class XsdNotation(XsdComponent):
-    """
-    Class for XSD 'notation' definitions.
-
-    <notation
-      id = ID
-      name = NCName
-      public = token
-      system = anyURI
-      {any attributes with non-schema namespace}...>
-      Content: (annotation?)
-    </notation>
-    """
-    FACTORY_KWARG = 'notation_factory'
-    XSD_GLOBAL_TAG = XSD_NOTATION_TAG
-
-    def __init__(self, name, elem, schema):
-        super(XsdNotation, self).__init__(name, elem, schema, is_global=True)
-        for key in self._attrib:
-            if key not in {'id', 'name', 'public', 'system'}:
-                schema.errors.append(XMLSchemaParseError(
-                    "wrong attribute %r for notation definition." % key, elem
-                ))
-        if 'public' not in elem.attrib and 'system' not in elem.attrib:
-            schema.errors.append(XMLSchemaParseError(
-                "a notation may have 'public' or 'system' attribute.", elem
-            ))
-
-    @property
-    def public(self):
-        return self._attrib.get('public')
-
-    @property
-    def system(self):
-        return self._attrib.get('system')
+from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, \
+    xsd_build_any_content_group

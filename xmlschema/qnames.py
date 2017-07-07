@@ -75,24 +75,28 @@ def reference_to_qname(ref, namespaces):
     :return: String with a FQN or a local name.
     """
     if ref and ref[0] == '{':
-        return ref  # the argument is already a QName
+        return ref
 
     try:
         prefix, name = ref.split(':')
     except ValueError:
         if ':' in ref:
             raise XMLSchemaValueError("wrong format for reference name %r" % ref)
-        elif '' in namespaces:
-            return u'{%s}%s' % (namespaces[''], ref)
-        else:
+        try:
+            uri = namespaces['']
+        except KeyError:
             return ref
+        else:
+            return u'{%s}%s' % (uri, ref) if uri else ref
     else:
         if not prefix or not name:
             raise XMLSchemaValueError("wrong format for reference name %r" % ref)
         try:
-            return u'{%s}%s' % (namespaces[prefix], name)
+            uri = namespaces[prefix]
         except KeyError:
             raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
+        else:
+            return u'{%s}%s' % (uri, name) if uri else name
 
 
 def qname_to_prefixed(qname, namespaces):
@@ -104,7 +108,7 @@ def qname_to_prefixed(qname, namespaces):
     :return: String with a prefixed or local reference.
     """
     qname_uri = get_namespace(qname)
-    for prefix, uri in namespaces.items():
+    for prefix, uri in sorted(namespaces.items(), reverse=True):
         if uri != qname_uri:
             continue
         if prefix:
@@ -265,4 +269,3 @@ XSI_NIL = get_qname(XSI_NAMESPACE_PATH, 'nil')
 XSI_TYPE = get_qname(XSI_NAMESPACE_PATH, 'type')
 XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
 XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
-

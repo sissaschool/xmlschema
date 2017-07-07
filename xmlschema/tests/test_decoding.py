@@ -360,6 +360,20 @@ class TestDecoding(unittest.TestCase):
             xs.to_dict(xt1, path, namespaces=self.namespaces) == _VEHICLES_DICT['vh:bikes']
         )
 
+    def test_validation_strict(self):
+        xt1 = _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml')
+        self.assertRaises(
+            xmlschema.XMLSchemaValidationError,
+            self.vehicles_schema.to_dict,
+            xt1, validation='strict', namespaces=self.namespaces
+        )
+
+    def test_validation_skip(self):
+        xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
+        xt = _ElementTree.parse('examples/decoder/data3.xml')
+        d = xs.decode(xt, validation='skip', namespaces=self.namespaces)
+        self.assertTrue(d['decimal_value'] == ['abc'])
+
     def test_datatypes3(self):
         xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
         xt1 = _ElementTree.parse('examples/decoder/data.xml')

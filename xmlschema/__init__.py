@@ -12,7 +12,7 @@ from .core import set_logger, etree_get_namespaces
 from .exceptions import (
     XMLSchemaException, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
-    XMLSchemaRegexError
+    XMLSchemaRegexError, XMLSchemaNotBuiltError
 )
 from .resources import open_resource, load_xml_resource, fetch_schema
 from .schema import XsdGlobals, XMLSchema
