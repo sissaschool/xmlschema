@@ -75,19 +75,28 @@ def reference_to_qname(ref, namespaces):
     :return: String with a FQN or a local name.
     """
     if ref and ref[0] == '{':
-        return ref  # the argument is already a QName
+        return ref
 
     try:
         prefix, name = ref.split(':')
     except ValueError:
         if ':' in ref:
             raise XMLSchemaValueError("wrong format for reference name %r" % ref)
-        return ref
-    else:
         try:
-            return u'{%s}%s' % (namespaces[prefix], name)
+            uri = namespaces['']
+        except KeyError:
+            return ref
+        else:
+            return u'{%s}%s' % (uri, ref) if uri else ref
+    else:
+        if not prefix or not name:
+            raise XMLSchemaValueError("wrong format for reference name %r" % ref)
+        try:
+            uri = namespaces[prefix]
         except KeyError:
             raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
+        else:
+            return u'{%s}%s' % (uri, name) if uri else name
 
 
 def qname_to_prefixed(qname, namespaces):
@@ -99,7 +108,7 @@ def qname_to_prefixed(qname, namespaces):
     :return: String with a prefixed or local reference.
     """
     qname_uri = get_namespace(qname)
-    for prefix, uri in namespaces.items():
+    for prefix, uri in sorted(namespaces.items(), reverse=True):
         if uri != qname_uri:
             continue
         if prefix:
@@ -240,9 +249,23 @@ XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
 XSD_ASSERTIONS_TAG = xsd_qname('assertions')
 XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
 
+# Special XSD built-in types.
+XSD_ANY_TYPE = xsd_qname('anyType')
+XSD_ANY_SIMPLE_TYPE = xsd_qname('anySimpleType')
+XSD_ANY_ATOMIC_TYPE = xsd_qname('anyAtomicType')
+XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 #
-# Attributes of other namespaces
+# XML attributes
 XML_LANG = get_qname(XML_NAMESPACE_PATH, 'lang')
+XML_SPACE = get_qname(XML_NAMESPACE_PATH, 'space')
+XML_BASE = get_qname(XML_NAMESPACE_PATH, 'base')
+XML_ID = get_qname(XML_NAMESPACE_PATH, 'id')
+XML_SPECIAL_ATTRS = get_qname(XML_NAMESPACE_PATH, 'specialAttrs')
+
+#
+# XML Schema Instance attributes
+XSI_NIL = get_qname(XSI_NAMESPACE_PATH, 'nil')
+XSI_TYPE = get_qname(XSI_NAMESPACE_PATH, 'type')
 XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
 XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')

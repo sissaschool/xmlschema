@@ -6,6 +6,10 @@
     <xs:element name="tagB" type="xs:string"/>
 
     <xs:group name="groupA">
+        <xs:annotation>
+            <xs:annotation>test</xs:annotation>
+        </xs:annotation>
+
         <xs:sequence>
             <xs:element ref="tagA"/>
             <xs:group ref="groupB"/>

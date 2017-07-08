@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains an XPath expressions parser.
+This module contains an XPath parser and other XPath related classes and functions.
 """
 import re
 from decimal import Decimal
@@ -831,3 +831,45 @@ def relative_path(path, levels, namespaces=None):
             levels -= 1
         i += 1
     return ''.join(path_parts[i:])
+
+
+#
+# XPathMixin class for XMLSchema and XsdElement
+class XPathMixin(object):
+
+    def iterfind(self, path, namespaces=None):
+        """
+        Generate all matching XML Schema element declarations by path.
+
+        :param path: a string having an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        """
+        return xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None))
+
+    def find(self, path, namespaces=None):
+        """
+        Find first matching XML Schema element declaration by path.
+
+        :param path: a string having an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        :return: The first matching XML Schema element declaration or None if a
+        matching declaration is not found.
+        """
+        return next(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)), None)
+
+    def findall(self, path, namespaces=None):
+        """
+        Find all matching XML Schema element declarations by path.
+
+        :param path: a string having an XPath expression.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        :return: A list of matching XML Schema element declarations or None if a
+        matching declaration is not found.
+        """
+        return list(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)))
+
+    def iter(self, name=None):
+        raise NotImplementedError
+
+    def iterchildren(self, name=None):
+        raise NotImplementedError

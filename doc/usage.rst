@@ -85,13 +85,13 @@ dictionary attributes of the schema instance:
     >>> from pprint import pprint
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
     >>> my_schema.types
-    {u'vehicleType': <XsdComplexType u'{http://example.com/vehicles}vehicleType' at 0x...>}
-    >>> pprint(my_schema.elements)
+    <NamespaceView {u'vehicleType': <XsdComplexType u'{http://example.com/vehicles}vehicleType' at 0x...>} at 0x...>
+    >>> pprint(dict(my_schema.elements))
     {u'bikes': <XsdElement u'{http://example.com/vehicles}bikes' at 0x...>,
      u'cars': <XsdElement u'{http://example.com/vehicles}cars' at 0x...>,
      u'vehicles': <XsdElement u'{http://example.com/vehicles}vehicles' at 0x...>}
     >>> my_schema.attributes
-    {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>}
+    <NamespaceView {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>} at 0x...>
 
 Those declarations are local views of the XSD global maps shared between related
 schema instances, that can be accessed through :attr:`XMLSchema.maps` attribute:
@@ -133,7 +133,7 @@ defining the search criteria:
 Validation
 ----------
 
-The library provides several modes to validate an XML document with a schema.
+The library provides several methods to validate an XML document with a schema.
 
 The first mode is the method :meth:`XMLSchema.is_valid`. This method returns ``True``
 if the XML argument is validated by the schema loaded in the instance,
@@ -314,7 +314,7 @@ Validation and decode API works also with XML data loaded in ElementTree structu
     >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
     >>> xs.is_valid(xt)
     True
-    >>> pprint(xs.to_dict(xt), depth=2)
+    >>> pprint(xs.to_dict(xt, process_namespaces=False), depth=2)
     {u'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      '{http://example.com/vehicles}bikes': {'{http://example.com/vehicles}bike': [...]},
      '{http://example.com/vehicles}cars': {'{http://example.com/vehicles}car': [...]}}
@@ -475,3 +475,29 @@ using the keyword argument *decimal_type*:
         ],
         "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd"
     }
+
+
+XSD validation modes
+--------------------
+
+Starting from the version 0.9.10 the library uses XSD validation modes *strict*/*lax*/*skip*,
+both for schemas and for XML instances. Each validation mode defines a specific behaviour:
+
+strict
+    Schemas are validated against the meta-schema. The processor stops when an error is
+    found in a schema or during the validation/decode of XML data.
+
+lax
+    Schemas are validated against the meta-schema. The processor collects the errors
+    and continues, eventually replacing missing parts with wildcards.
+    Undecodable XML data are replaced with `None`.
+
+skip
+    Schemas are not validated against the meta-schema. The processor doesn't collect
+    any error. Undecodable XML data are replaced with the original text.
+
+The default mode is *strict*, both for schemas and for XML data. The mode is set with
+*validation* argument, provided when creating the schema instance or when you want to
+validate/decode XML data.
+For example you can build a schema using a *strict* mode and then decode XML data
+using a *validation* argument set to 'lax'.

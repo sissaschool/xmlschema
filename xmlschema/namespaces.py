@@ -13,64 +13,50 @@ This module contains functions and classes for managing namespaces's
 XSD declarations/definitions.
 """
 import logging as _logging
+from collections import Mapping
 
-from .exceptions import XMLSchemaKeyError, XMLSchemaNotBuiltError, XMLSchemaParseError
-from .qnames import *
-from .utils import camel_case_split, get_namespace, URIDict
+from .core import XSD_NAMESPACE_PATH
+from .exceptions import XMLSchemaKeyError, XMLSchemaParseError, XMLSchemaTypeError, XMLSchemaValueError
+from .qnames import (
+    get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
+    XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
+    XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG
+)
+from .utils import get_namespace, URIDict, camel_case_split
+from .xsdbase import get_xsd_attribute, XsdBaseComponent
 from .components import (
-    get_xsd_attribute, XsdComponent, XsdAttribute, XsdSimpleType,
-    XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
+    XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
+    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
 
 _logger = _logging.getLogger(__name__)
 
 
-#
-# Defines the iterfind functions for XML Schema declarations
-def create_iterfind_by_tag(tag):
+def iterchildren_by_tag(tag):
     """
-    Defines a generator that produce all subelements that have a specific tag.
+    Defines a generator that produce all child elements that have a specific tag.
     """
-    tag = str(tag)
-
-    def iterfind_function(elements, path=None, namespaces=None):
-        if isinstance(elements, list):
-            for _elem in elements:
-                for elem in _elem.iterfind(path or tag, namespaces or {}):
-                    if elem.tag == tag:
-                        yield _elem
-        else:
-            for elem in elements.iterfind(path or tag, namespaces or {}):
-                if elem.tag == tag:
-                    yield elem
-    iterfind_function.__name__ = 'iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower()
-
+    def iterfind_function(root):
+        for elem in root:
+            if elem.tag == tag:
+                yield elem
+    iterfind_function.__name__ = str('iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower())
     return iterfind_function
 
-iterfind_xsd_import = create_iterfind_by_tag(XSD_IMPORT_TAG)
-iterfind_xsd_include = create_iterfind_by_tag(XSD_INCLUDE_TAG)
-iterfind_xsd_redefine = create_iterfind_by_tag(XSD_REDEFINE_TAG)
-iterfind_xsd_simple_types = create_iterfind_by_tag(XSD_SIMPLE_TYPE_TAG)
-iterfind_xsd_complex_types = create_iterfind_by_tag(XSD_COMPLEX_TYPE_TAG)
-iterfind_xsd_attributes = create_iterfind_by_tag(XSD_ATTRIBUTE_TAG)
-iterfind_xsd_attribute_groups = create_iterfind_by_tag(XSD_ATTRIBUTE_GROUP_TAG)
-iterfind_xsd_elements = create_iterfind_by_tag(XSD_ELEMENT_TAG)
-iterfind_xsd_groups = create_iterfind_by_tag(XSD_GROUP_TAG)
-iterfind_xsd_notations = create_iterfind_by_tag(XSD_NOTATION_TAG)
+iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
+iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
+iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
 
 
 #
-# Defines the update functions for XML Schema structures
+# Defines the load functions for XML Schema structures
 def create_load_function(filter_function):
 
     def load_xsd_globals(xsd_globals, schemas):
         redefinitions = []
         for schema in schemas:
-            if schema.built:
-                continue
-
             target_namespace = schema.target_namespace
-            for elem in iterfind_xsd_redefine(schema.root):
+            for elem in iterchildren_xsd_redefine(schema.root):
                 for child in filter_function(elem):
                     qname = get_qname(target_namespace, get_xsd_attribute(child, 'name'))
                     redefinitions.append((qname, (child, schema)))
@@ -96,135 +82,16 @@ def create_load_function(filter_function):
 
     return load_xsd_globals
 
-load_xsd_simple_types = create_load_function(iterfind_xsd_simple_types)
-load_xsd_attributes = create_load_function(iterfind_xsd_attributes)
-load_xsd_attribute_groups = create_load_function(iterfind_xsd_attribute_groups)
-load_xsd_complex_types = create_load_function(iterfind_xsd_complex_types)
-load_xsd_elements = create_load_function(iterfind_xsd_elements)
-load_xsd_groups = create_load_function(iterfind_xsd_groups)
-load_xsd_notations = create_load_function(iterfind_xsd_notations)
+load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE_TAG))
+load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_TAG))
+load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP_TAG))
+load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE_TAG))
+load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT_TAG))
+load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
+load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
 
 
-#
-# Defines the builder function for maps lookup functions.
-def create_lookup_function(map_name, xsd_classes):
-    if isinstance(xsd_classes, tuple):
-        types_desc = ' or '.join([c.__name__ for c in xsd_classes])
-    else:
-        types_desc = xsd_classes.__name__
-
-    def lookup(global_maps, qname):
-        try:
-            obj = getattr(global_maps, map_name)[qname]
-        except KeyError:
-            raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
-        else:
-            if isinstance(obj, xsd_classes):
-                return obj
-            elif isinstance(obj, list) and isinstance(obj[0], xsd_classes):
-                return obj[0]
-            elif isinstance(obj, (tuple, list)):
-                raise XMLSchemaNotBuiltError(
-                    "a %s object for %r not built!" % (types_desc, qname), obj, qname
-                )
-            else:
-                raise XMLSchemaTypeError(
-                    "wrong type %s for %r, a %s required." % (type(obj), qname, types_desc)
-                )
-    return lookup
-
-
-#
-# Defines the builder functions for XML Schema structures
-def create_builder_function(factory_key):
-
-    def build_xsd_map(xsd_globals, tag, **kwargs):
-        global_names = set(xsd_globals.keys())
-        factory_function = kwargs.get(factory_key)
-        last_not_built = 0
-        i = 0
-        while True:
-            i += 1
-            not_built = {}
-            for qname in global_names:
-                obj = xsd_globals[qname]
-                try:
-                    if isinstance(obj, XsdComponent):
-                        elem, schema = obj.elem, obj.schema
-                        if elem is None or elem.tag != tag or schema.built:
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, obj, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, tuple):
-                        elem, schema = obj
-                        if elem.tag != tag:
-                            continue
-                        res_qname, xsd_instance = factory_function(
-                            elem, schema, is_global=True, **kwargs
-                        )
-                    elif isinstance(obj, list):
-                        start = int(isinstance(obj[0], XsdComponent))
-                        xsd_instance = obj[0] if start else None
-                        for k in range(start, len(obj)):
-                            elem, schema = obj[k]
-                            if elem.tag != tag:
-                                break
-                            res_qname, xsd_instance = factory_function(
-                                elem, schema, xsd_instance, is_global=True, **kwargs
-                            )
-                            obj[0] = xsd_instance
-                    else:
-                        raise XMLSchemaTypeError(
-                            "unexpected type %r for XSD global %r" % (type(obj), qname)
-                        )
-
-                except XMLSchemaNotBuiltError as err:
-                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
-                    not_built[qname] = err.qname
-                    if len(not_built) == last_not_built:
-                        raise XMLSchemaParseError(str(err), elem)
-
-                except (XMLSchemaTypeError, XMLSchemaKeyError) as err:
-                    _logger.debug("%s: elem.attrib=%r", err, elem.attrib)
-                    raise
-                else:
-                    if elem.tag != tag:
-                        continue
-                    if res_qname != qname:
-                        raise XMLSchemaValueError(
-                            "wrong result name: %r != %r" % (res_qname, qname)
-                        )
-                    _logger.debug("Build xsd_globals[%r] = %r", res_qname, xsd_instance)
-                    xsd_globals[qname] = xsd_instance
-
-            if not not_built:
-                break
-
-            last_not_built = len(not_built)
-
-            # Defines not-built element list from dependencies
-            global_names = [k for k, v in not_built.items() if v not in not_built]
-            while True:
-                names = [
-                    k for k, v in not_built.items() if k not in global_names and v in global_names
-                ]
-                if not names:
-                    break
-                global_names.extend(names)
-
-    return build_xsd_map
-
-build_xsd_simple_types = create_builder_function('simple_type_factory')
-build_xsd_attributes = create_builder_function('attribute_factory')
-build_xsd_attribute_groups = create_builder_function('attribute_group_factory')
-build_xsd_complex_types = create_builder_function('complex_type_factory')
-build_xsd_elements = create_builder_function('element_factory')
-build_xsd_groups = create_builder_function('group_factory')
-build_xsd_notations = create_builder_function('notation_factory')
-
-
-class XsdGlobals(object):
+class XsdGlobals(XsdBaseComponent):
     """
     Mediator class for related XML schema instances. It stores the global 
     declarations defined in the registered schemas. Register a schema to 
@@ -235,7 +102,9 @@ class XsdGlobals(object):
     """
 
     def __init__(self, validator):
+        super(XsdGlobals, self).__init__()
         self.validator = validator
+
         self.namespaces = URIDict()     # Registered schemas by namespace URI
         self.resources = URIDict()      # Registered schemas by resource URI
 
@@ -243,13 +112,14 @@ class XsdGlobals(object):
         self.attributes = {}            # Global attributes
         self.attribute_groups = {}      # Attribute groups
         self.groups = {}                # Model groups
-        self.substitution_groups = {}   # Substitution groups
         self.notations = {}             # Notations
         self.elements = {}              # Global elements
-        self.base_elements = {}         # Global elements + global groups expansion
-        self._view_cache = {}           # Cache for namespace views
 
-        self.types.update(validator.BUILTIN_TYPES)
+        self.substitution_groups = {}   # Substitution groups
+        self.base_elements = {}         # Global elements + global groups expansion
+
+        self.global_maps = (self.notations, self.types, self.attributes,
+                            self.attribute_groups, self.groups, self.elements)
 
     def copy(self):
         """Makes a copy of the object."""
@@ -260,17 +130,154 @@ class XsdGlobals(object):
         obj.attributes.update(self.attributes)
         obj.attribute_groups.update(self.attribute_groups)
         obj.groups.update(self.groups)
-        obj.substitution_groups.update(self.substitution_groups)
         obj.notations.update(self.notations)
         obj.elements.update(self.elements)
+        obj.substitution_groups.update(self.substitution_groups)
         obj.base_elements.update(self.base_elements)
         return obj
 
     __copy__ = copy
 
+    def __setattr__(self, name, value):
+        if name == 'notations':
+            self.lookup_notation = self._create_lookup_function(
+                value, XsdNotation, **{XSD_NOTATION_TAG: self.validator.BUILDERS.notation_class}
+            )
+        elif name == 'types':
+            self.lookup_type = self._create_lookup_function(
+                value, (XsdSimpleType, XsdComplexType), **{
+                    XSD_SIMPLE_TYPE_TAG: self.validator.BUILDERS.simple_type_factory,
+                    XSD_COMPLEX_TYPE_TAG: self.validator.BUILDERS.complex_type_class
+                }
+            )
+        elif name == 'attributes':
+            self.lookup_attribute = self._create_lookup_function(
+                value, XsdAttribute, **{XSD_ATTRIBUTE_TAG: self.validator.BUILDERS.attribute_class}
+            )
+        elif name == 'attribute_groups':
+            self.lookup_attribute_group = self._create_lookup_function(
+                value, XsdAttributeGroup,
+                **{XSD_ATTRIBUTE_GROUP_TAG: self.validator.BUILDERS.attribute_group_class}
+            )
+        elif name == 'groups':
+            self.lookup_group = self._create_lookup_function(
+                value, XsdGroup, **{XSD_GROUP_TAG: self.validator.BUILDERS.group_class}
+            )
+        elif name == 'elements':
+            self.lookup_element = self._create_lookup_function(
+                value, XsdElement, **{XSD_ELEMENT_TAG: self.validator.BUILDERS.element_class}
+            )
+        elif name == 'base_elements':
+            self.lookup_base_element = self._create_lookup_function(value, XsdElement)
+        super(XsdGlobals, self).__setattr__(name, value)
+
+    @staticmethod
+    def _create_lookup_function(global_map, xsd_classes, **tag_map):
+        if isinstance(xsd_classes, tuple):
+            types_desc = ' or '.join([c.__name__ for c in xsd_classes])
+        else:
+            types_desc = xsd_classes.__name__
+
+        def lookup(qname):
+            try:
+                obj = global_map[qname]
+            except KeyError:
+                raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
+            else:
+                if isinstance(obj, xsd_classes):
+                    return obj
+
+                elif isinstance(obj, tuple):
+                    # Not built XSD global component without redefinitions
+                    elem, schema = obj
+                    try:
+                        factory_or_class = tag_map[elem.tag]
+                    except KeyError:
+                        raise XMLSchemaKeyError(
+                            "wrong element %r for map %r." % (elem, global_map)
+                        )
+                    global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                    return global_map[qname]
+
+                elif isinstance(obj, list):
+                    if not isinstance(obj[0], xsd_classes):
+                        # Not built XSD global component with redefinitions
+                        elem, schema = obj[0]
+                        try:
+                            factory_or_class = tag_map[elem.tag]
+                        except KeyError:
+                            raise XMLSchemaKeyError(
+                                "wrong element %r for map %r." % (elem, global_map)
+                            )
+                        global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                    else:
+                        # Built-in type
+                        global_map[qname] = obj[0]
+
+                    for elem, schema in obj[1:]:
+                        global_map[qname].schema = schema
+                        global_map[qname].elem = elem
+                    return global_map[qname]
+
+                else:
+                    raise XMLSchemaTypeError(
+                        "wrong instance %s for XSD global %r, a %s required." % (obj, qname, types_desc)
+                    )
+        return lookup
+
+    @property
+    def built(self):
+        if not self.namespaces:
+            return False
+        xsd_global = None
+        for xsd_global in self.iter_globals():
+            if not isinstance(xsd_global, XsdAnnotated):
+                return False
+            for obj in xsd_global.iter_components():
+                if not isinstance(obj, XsdAnnotated):
+                    return False
+        if xsd_global is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        elif any([schema.validation_attempted == 'partial' for schema in self.iter_schemas()]):
+            return 'partial'
+        else:
+            return 'none'
+
+    @property
+    def validity(self):
+        if not self.namespaces:
+            return False
+        return all([schema.valid for schema in self.iter_schemas()])
+
+    def iter_schemas(self):
+        """Creates an iterator for the schemas registered in the instance."""
+        for ns_schemas in self.namespaces.values():
+            for schema in ns_schemas:
+                yield schema
+
+    def iter_globals(self):
+        """Creates an iterator for XSD global definitions/declarations."""
+        for global_map in self.global_maps:
+            for obj in global_map.values():
+                yield obj
+
+    def iter_components(self, xsd_classes=None):
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
+        for xsd_global in self.iter_globals():
+            for obj in xsd_global.iter_components(xsd_classes):
+                yield obj
+
     def register(self, schema):
         """
-        Registers an XMLSchema instance.         
+        Registers an XMLSchema instance.
         """
         if schema.uri:
             if schema.uri not in self.resources:
@@ -288,66 +295,15 @@ class XsdGlobals(object):
             if not any([schema.uri == obj.uri for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
-    def get_globals(self, map_name, namespace, fqn_keys=True):
-        """
-        Get a global map for a namespace. The map is cached by the instance.
-
-        :param map_name: can be the name of one of the XSD global maps \
-        (``'attributes'``, ``'attribute_groups'``, ``'elements'``, \
-        ``'groups'``, ``'elements'``).
-        :param namespace: is an optional mapping from namespace prefix \
-        to full qualified name. 
-        :param fqn_keys: if ``True`` the returned map's keys are fully \
-        qualified names, if ``False`` the returned map's keys are local names.
-        :return: a dictionary.
-        """
-        try:
-            return self._view_cache[(map_name, namespace, fqn_keys)]
-        except KeyError:
-            if fqn_keys:
-                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
-                    k: v for k, v in getattr(self, map_name).items()
-                    if namespace == get_namespace(k)
-                }
-            else:
-                view = self._view_cache[(map_name, namespace, fqn_keys)] = {
-                    local_name(k): v for k, v in getattr(self, map_name).items()
-                    if namespace == get_namespace(k)
-                }
-            return view
-
-    lookup_type = create_lookup_function('types', (XsdSimpleType, XsdComplexType))
-    lookup_attribute = create_lookup_function('attributes', XsdAttribute)
-    lookup_attribute_group = create_lookup_function('attribute_groups', XsdAttributeGroup)
-    lookup_group = create_lookup_function('groups', XsdGroup)
-    lookup_notation = create_lookup_function('notations', XsdNotation)
-    lookup_element = create_lookup_function('elements', XsdElement)
-    lookup_base_element = create_lookup_function('base_elements', XsdElement)
-
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
-
     def clear(self, remove_schemas=False):
         """
         Clears the instance maps, removing also all the registered schemas 
         and cleaning the cache.
         """
-        self.types.clear()
-        self.attributes.clear()
-        self.attribute_groups.clear()
-        self.groups.clear()
-        self.substitution_groups.clear()
-        self.notations.clear()
-        self.elements.clear()
+        for global_map in self.global_maps:
+            global_map.clear()
         self.base_elements.clear()
-        self._view_cache.clear()
-
-        self.types.update(self.validator.BUILTIN_TYPES)
-        for schema in self.iter_schemas():
-            schema.built = False
+        self.substitution_groups.clear()
 
         if remove_schemas:
             self.namespaces = URIDict()
@@ -358,25 +314,54 @@ class XsdGlobals(object):
         Builds the schemas registered in the instance, excluding
         those that are already built.
         """
-        kwargs = self.validator.OPTIONS.copy()
+        try:
+            meta_schema = self.namespaces[XSD_NAMESPACE_PATH][0]
+        except KeyError:
+            raise XMLSchemaValueError(
+                "%r: %r namespace is not registered." % (self, XSD_NAMESPACE_PATH))
+
+        not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
 
         # Load and build global declarations
-        load_xsd_notations(self.notations, self.iter_schemas())
-        build_xsd_notations(self.notations, XSD_NOTATION_TAG, **kwargs)
-        load_xsd_simple_types(self.types, self.iter_schemas())
-        build_xsd_simple_types(self.types, XSD_SIMPLE_TYPE_TAG, **kwargs)
-        load_xsd_attributes(self.attributes, self.iter_schemas())
-        build_xsd_attributes(self.attributes, XSD_ATTRIBUTE_TAG, **kwargs)
-        load_xsd_attribute_groups(self.attribute_groups, self.iter_schemas())
-        build_xsd_attribute_groups(self.attribute_groups, XSD_ATTRIBUTE_GROUP_TAG, **kwargs)
-        load_xsd_complex_types(self.types, self.iter_schemas())
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, **kwargs)
-        load_xsd_elements(self.elements, self.iter_schemas())
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, **kwargs)
-        load_xsd_groups(self.groups, self.iter_schemas())
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, **kwargs)
+        load_xsd_notations(self.notations, not_built_schemas)
+        load_xsd_simple_types(self.types, not_built_schemas)
+        load_xsd_attributes(self.attributes, not_built_schemas)
+        load_xsd_attribute_groups(self.attribute_groups, not_built_schemas)
+        load_xsd_complex_types(self.types, not_built_schemas)
+        load_xsd_elements(self.elements, not_built_schemas)
+        load_xsd_groups(self.groups, not_built_schemas)
 
-        # Build substitution groups from element declarations
+        if not meta_schema.built:
+            meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
+
+        for qname in self.notations:
+            self.lookup_notation(qname)
+        for qname in self.attributes:
+            self.lookup_attribute(qname)
+        for qname in self.attribute_groups:
+            self.lookup_attribute_group(qname)
+        for qname in self.types:
+            self.lookup_type(qname)
+        for qname in self.elements:
+            self.lookup_element(qname)
+        for qname in self.groups:
+            self.lookup_group(qname)
+
+        # Builds element declarations inside model groups.
+        element_class = meta_schema.BUILDERS.element_class
+        group_class = meta_schema.BUILDERS.group_class
+        for xsd_global in self.iter_globals():
+            for obj in xsd_global.iter_components(XsdGroup):
+                for k in range(len(obj)):
+                    if isinstance(obj[k], tuple):
+                        elem, schema = obj[k]
+                        if elem.tag == XSD_GROUP_TAG:
+                            obj[k] = group_class(elem, schema, mixed=obj.mixed)
+                        else:
+                            obj[k] = element_class(elem, schema)
+
+        # Rebuild substitution groups from element declarations
+        self.substitution_groups.clear()
         for xsd_element in self.elements.values():
             if xsd_element.substitution_group:
                 name = reference_to_qname(xsd_element.substitution_group, xsd_element.namespaces)
@@ -387,15 +372,54 @@ class XsdGlobals(object):
                 except KeyError:
                     self.substitution_groups[name] = {xsd_element}
 
-        # Build all local declarations
-        build_xsd_groups(self.groups, XSD_GROUP_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_complex_types(self.types, XSD_COMPLEX_TYPE_TAG, parse_local_groups=True, **kwargs)
-        build_xsd_elements(self.elements, XSD_ELEMENT_TAG, parse_local_groups=True, **kwargs)
-
-        # Update base_elements
+        # Rebuild base_elements
+        self.base_elements.clear()
         self.base_elements.update(self.elements)
         for group in self.groups.values():
             self.base_elements.update({e.name: e for e in group.iter_elements()})
 
-        for schema in self.iter_schemas():
-            schema.built = True
+
+class NamespaceView(Mapping):
+    """
+    A read-only map for filtered access to a dictionary that stores objects mapped from QNames.
+    """
+    def __init__(self, qname_dict, namespace_uri):
+        self.target_dict = qname_dict
+        self.namespace = namespace_uri
+        if namespace_uri:
+            self.key_fmt = '{' + namespace_uri + '}%s'
+        else:
+            self.key_fmt = '%s'
+
+    def __getitem__(self, key):
+        return self.target_dict[self.key_fmt % key]
+
+    def __len__(self):
+        return len(self.as_dict())
+
+    def __iter__(self):
+        return iter(self.as_dict())
+
+    def __repr__(self):
+        return '<%s %s at %#x>' % (self.__class__.__name__, str(self.as_dict()), id(self))
+
+    def __contains__(self, key):
+        return self.key_fmt % key in self.target_dict
+
+    def __eq__(self, other):
+        return self.as_dict() == dict(other.items())
+
+    def copy(self, **kwargs):
+        return self.__class__(self, **kwargs)
+
+    def as_dict(self, fqn_keys=False):
+        if fqn_keys:
+            return {
+                k: v for k, v in self.target_dict.items()
+                if self.namespace == get_namespace(k)
+            }
+        else:
+            return {
+                local_name(k): v for k, v in self.target_dict.items()
+                if self.namespace == get_namespace(k)
+            }

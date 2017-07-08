@@ -11,52 +11,20 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from .xsdbase import (
-    check_tag, check_attrs, check_type, check_value, get_xsd_annotation,
-    get_xsd_component, iter_xsd_declarations, get_xsd_attribute,
-    get_xsd_bool_attribute, get_xsd_int_attribute, XsdAnnotation, XsdComponent
-)
+from .component import XsdComponent, XsdAnnotation, XsdAnnotated, ParticleMixin
+from .notations import XsdNotation
+from .wildcards import XsdAnyElement, XsdAnyAttribute
 from .attributes import XsdAttribute, XsdAnyAttribute, XsdAttributeGroup
-from .datatypes import (
-    XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, XsdAtomicRestriction, XsdList, XsdUnion
+from .simple_types import (
+    xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin,
+    XsdAtomicRestriction, XsdList, XsdUnion
 )
-from .elements import XsdElement, XsdAnyElement, XsdComplexType, XsdGroup
+from .complex_types import XsdComplexType
+from .groups import XsdGroup
+from .elements import XsdElement
 from .facets import (
     XSD_FACETS, XSD11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdUniqueFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-from ..exceptions import XMLSchemaParseError
-
-
-class XsdNotation(XsdComponent):
-    """
-    Class for XSD 'notation' definitions.
-
-    <notation
-      id = ID
-      name = NCName
-      public = token
-      system = anyURI
-      {any attributes with non-schema namespace}...>
-      Content: (annotation?)
-    </notation>
-    """
-    def __init__(self, name, elem, schema):
-        super(XsdNotation, self).__init__(name, elem, schema)
-        for key in self._attrib:
-            if key not in {'id', 'name', 'public', 'system'}:
-                schema.errors.append(XMLSchemaParseError(
-                    "wrong attribute %r for notation definition." % key, elem
-                ))
-        if 'public' not in elem.attrib and 'system' not in elem.attrib:
-            schema.errors.append(XMLSchemaParseError(
-                "a notation may have 'public' or 'system' attribute.", elem
-            ))
-
-    @property
-    def public(self):
-        return self._attrib.get('public')
-
-    @property
-    def system(self):
-        return self._attrib.get('system')
+from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, \
+    xsd_build_any_content_group

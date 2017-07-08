@@ -14,6 +14,8 @@ This module contains utility functions and classes.
 import re
 from collections import Mapping, MutableMapping
 
+from xmlschema.exceptions import XMLSchemaTypeError, XMLSchemaValueError
+
 try:
     from urllib.request import urlsplit
 except ImportError:
@@ -66,6 +68,20 @@ def listify_update(obj, pairs, force_list=False):
             obj[k] = [obj[k], v]
         else:
             obj[k].append(v)
+
+
+def check_type(obj, *types):
+    if not isinstance(obj, types):
+        raise XMLSchemaTypeError(
+            "wrong type %s, it must be one of %r." % (type(obj), types)
+        )
+
+
+def check_value(value, *values):
+    if value not in values:
+        raise XMLSchemaValueError(
+            "wrong value %r, it must be one of %r." % (value, values)
+        )
 
 
 class URIDict(MutableMapping):

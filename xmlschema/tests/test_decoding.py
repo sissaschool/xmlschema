@@ -15,7 +15,7 @@ This module runs tests concerning the decoding of XML files with the 'xmlschema'
 from _test_common import *
 import glob
 import fileinput
-import xmlschema
+from collections import OrderedDict
 from decimal import Decimal
 from xml.etree import ElementTree as _ElementTree
 try:
@@ -23,6 +23,8 @@ try:
 except ImportError:
     _etree = None
 
+import xmlschema
+from xmlschema.qnames import local_name
 
 _VEHICLES_DICT = {
     'vh:cars': {
@@ -358,6 +360,20 @@ class TestDecoding(unittest.TestCase):
             xs.to_dict(xt1, path, namespaces=self.namespaces) == _VEHICLES_DICT['vh:bikes']
         )
 
+    def test_validation_strict(self):
+        xt1 = _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml')
+        self.assertRaises(
+            xmlschema.XMLSchemaValidationError,
+            self.vehicles_schema.to_dict,
+            xt1, validation='strict', namespaces=self.namespaces
+        )
+
+    def test_validation_skip(self):
+        xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
+        xt = _ElementTree.parse('examples/decoder/data3.xml')
+        d = xs.decode(xt, validation='skip', namespaces=self.namespaces)
+        self.assertTrue(d['decimal_value'] == ['abc'])
+
     def test_datatypes3(self):
         xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
         xt1 = _ElementTree.parse('examples/decoder/data.xml')
@@ -386,6 +402,18 @@ class TestDecoding(unittest.TestCase):
 
         json_ml_dict = self.collection_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
         self.assertTrue(json_ml_dict == _COLLECTION_JSON_ML)
+
+    def test_encoding(self):
+        filename = 'examples/collection/collection.xml'
+        xt = _ElementTree.parse(filename)
+        d = self.collection_schema.to_dict(filename, dict_class=OrderedDict)
+        elem = self.collection_schema.encode(d, path='./collection', namespaces=self.namespaces)
+        self.assertTrue(len([e for e in elem.iter()]) == 20,
+                        msg="The encoded tree must have 20 elements as the origin.")
+        self.assertTrue(all([
+            local_name(e1.tag) == local_name(e2.tag)
+            for e1, e2 in zip(elem.iter(), xt.getroot().iter())
+        ]))
 
 
 if __name__ == '__main__':

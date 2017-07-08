@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root" type="root"/>
+  <xs:complexType name="root">
+      <xs:element name="empno" type="xs:string"/>
+      <xs:element name="age" type="xs:unsignedByte" />
+  </xs:complexType>
+</xs:schema>
