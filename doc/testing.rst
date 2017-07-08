@@ -9,7 +9,7 @@ library. The test scripts are located in under the installation base into ``test
 subdirectory. There are several test scripts, each dedicated to one topic:
 
 **test_meta.py**
-    Tests for the XSD meta-schema builtins
+    Tests for the XSD meta-schema and XSD builtins
 
 **test_xpath.py**
     Tests for XPath parsing and selectors

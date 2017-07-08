@@ -182,9 +182,6 @@ class XsdGlobals(XsdBaseComponent):
             try:
                 obj = global_map[qname]
             except KeyError:
-                import pdb
-                pdb.set_trace()
-
                 raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
             else:
                 if isinstance(obj, xsd_classes):

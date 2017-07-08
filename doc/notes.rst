@@ -11,3 +11,10 @@ Support
 
 The project is hosted on GitHub, refer to the `xmlschema's project page <https://github.com/brunato/xmlschema>`_
 for source code and for an issue tracker.
+
+Roadmap
+-------
+
+* Full XSD 1.0 support
+* Validated XML data encoding
+* XSD 1.1

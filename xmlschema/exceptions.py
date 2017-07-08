@@ -66,7 +66,7 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
     def __init__(self, message, component=None, elem=None):
         self.message = message or u''
         self.component = component
-        self.elem = elem or getattr(component, 'elem', None)
+        self.elem = elem if elem is not None else getattr(component, 'elem', None)
 
     def __str__(self):
         # noinspection PyCompatibility

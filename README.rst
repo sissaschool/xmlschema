@@ -21,10 +21,11 @@ Features
 
 The xmlschema library includes the following features:
 
-* Builds XML schema objects from XSD files
-* Validates the XML instances with the XSD schema
-* Converts XML instances into Python nested dictionaries
-* Provides decoding and encoding APIs for XML's elements and attributes
+* Building of XML schema objects from XSD files
+* Validation of XML instances with XSD schemas
+* Decoding of XML data into Python data structures
+* An XPath based API for finding schema's elements and attributes
+* Support of XSD validation modes
 
 Installation
 ============
@@ -116,3 +117,10 @@ License
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present
 distribution, or http://opensource.org/licenses/MIT.
+
+Roadmap
+-------
+
+* Full XSD 1.0 support
+* Validated XML data encoding
+* XSD 1.1

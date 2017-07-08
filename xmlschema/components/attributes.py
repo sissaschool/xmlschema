@@ -92,11 +92,6 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         xsd_declaration = self._parse_component(elem, required=False)
         try:
             type_qname = reference_to_qname(elem.attrib['type'], self.namespaces)
-            xsd_type = self.maps.lookup_type(type_qname)
-            if xsd_type.name != type_qname:
-                # must implement substitution groups before!?
-                # raise XMLSchemaParseError("wrong name for %r: %r." % (xsd_type, type_qname), elem)
-                pass
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
@@ -105,6 +100,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
         else:
+            xsd_type = self.maps.lookup_type(type_qname)
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
                 raise XMLSchemaParseError("ambiguous type declaration for XSD attribute", elem)
             elif xsd_declaration:

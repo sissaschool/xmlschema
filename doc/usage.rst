@@ -133,7 +133,7 @@ defining the search criteria:
 Validation
 ----------
 
-The library provides several modes to validate an XML document with a schema.
+The library provides several methods to validate an XML document with a schema.
 
 The first mode is the method :meth:`XMLSchema.is_valid`. This method returns ``True``
 if the XML argument is validated by the schema loaded in the instance,
@@ -475,3 +475,29 @@ using the keyword argument *decimal_type*:
         ],
         "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd"
     }
+
+
+XSD validation modes
+--------------------
+
+Starting from the version 0.9.10 the library uses XSD validation modes *strict*/*lax*/*skip*,
+both for schemas and for XML instances. Each validation mode defines a specific behaviour:
+
+strict
+    Schemas are validated against the meta-schema. The processor stops when an error is
+    found in a schema or during the validation/decode of XML data.
+
+lax
+    Schemas are validated against the meta-schema. The processor collects the errors
+    and continues, eventually replacing missing parts with wildcards.
+    Undecodable XML data are replaced with `None`.
+
+skip
+    Schemas are not validated against the meta-schema. The processor doesn't collect
+    any error. Undecodable XML data are replaced with the original text.
+
+The default mode is *strict*, both for schemas and for XML data. The mode is set with
+*validation* argument, provided when creating the schema instance or when you want to
+validate/decode XML data.
+For example you can build a schema using a *strict* mode and then decode XML data
+using a *validation* argument set to 'lax'.
