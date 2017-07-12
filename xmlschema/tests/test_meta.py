@@ -14,11 +14,9 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 from _test_common import *
 
-import time
 from sys import maxunicode
 from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.codepoints import UNICODE_CATEGORIES
-from xmlschema.components import XsdAnnotated
 from xmlschema import XMLSchema
 
 meta_schema = XMLSchema.META_SCHEMA

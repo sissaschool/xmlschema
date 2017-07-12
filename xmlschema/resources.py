@@ -22,7 +22,8 @@ except ImportError:
     from urlparse import urlsplit, urljoin, uses_relative, urlparse
 
 from .core import (
-    PY3, etree_fromstring, etree_tostring, etree_parse_error, etree_iselement, unicode_type
+    PY3, StringIO, etree_iterparse, etree_fromstring, etree_parse_error,
+    etree_iselement, unicode_type
 )
 from .exceptions import (
     XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError,
@@ -50,29 +51,16 @@ def get_xsi_no_namespace_schema_location(elem):
 
 def load_xml_resource(source, element_only=True):
     """
-    Examines the source and returns the root Element, the XML text and an uri 
+    Examines the source and returns the root Element, the XML text and an url
     if available. Returns only the root Element if the optional argument 
     "element_only" is True. This function is usable for XML data files of small 
     or medium sizes, as XSD schemas.
 
-    :param source: An Element or an Element Tree with XML data or an URI or a 
-    file-like object.
+    :param source: an URL, a filename path or a file-like object.
     :param element_only: If True the function returns only the root Element of the tree.
-    :return: a tuple with three items (root Element, XML text and XML URI) or
+    :return: a tuple with three items (root Element, XML text and XML URL) or
     only the root Element if 'element_only' argument is True.
     """
-    # source argument is an Element/ElementTree object.
-    if etree_iselement(source):
-        return source if element_only else (source, etree_tostring(source), None)
-    else:
-        try:
-            xml_root = source.getroot()
-        except AttributeError:
-            pass
-        else:
-            if etree_iselement(xml_root):
-                return xml_root if element_only else (xml_root, etree_tostring(xml_root), None)
-
     # source argument is a string
     if isinstance(source, (str, bytes, unicode_type)):
         try:
@@ -83,7 +71,7 @@ def load_xml_resource(source, element_only=True):
         else:
             return xml_root if element_only else (xml_root, source, None)
 
-        xml_data, xml_uri = load_resource(source)
+        xml_data, xml_url = load_resource(source)
     else:
         try:
             # source is a file-like object containing XML data
@@ -94,119 +82,191 @@ def load_xml_resource(source, element_only=True):
                 "is required, not %r." % source.__class__.__name__
             )
         else:
-            xml_uri = getattr(source, 'name', getattr(source, 'uri', None))
+            xml_url = getattr(source, 'name', getattr(source, 'url', None))
             source.close()
 
     try:
         xml_root = etree_fromstring(xml_data)
     except (etree_parse_error, UnicodeEncodeError) as err:
         raise XMLSchemaParseError(
-            "error parsing XML data from %r: %s" % (xml_uri or type(xml_data), err)
+            "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
         )
     else:
-        return xml_root if element_only else (xml_root, xml_data, xml_uri)
+        return xml_root if element_only else (xml_root, xml_data, xml_url)
 
 
-def fetch_schema(source):
+def load_resource(url):
     """
-    Fetch the schema URI from an XML resource. If no schema location is found
-    raises a ValueError.
+    Load resource from an URL, decoding into a UTF-8 string.
 
-    :param source: An Element or an Element Tree with XML data or an URI or a
-    file-like object.
-    :return: An URI referring to the schema resource.
-    """
-    xml_root, xml_source, xml_uri = load_xml_resource(source, element_only=False)
-    namespace = get_namespace(xml_root.tag)
-    if namespace:
-        uri_list = get_xsi_schema_location(xml_root).split()
-        for ns, schema_location in zip(uri_list[0::2], uri_list[1::2]):
-            if ns == namespace:
-                return urljoin(xml_uri, schema_location)
-    else:
-        schema_location = get_xsi_no_namespace_schema_location(xml_root)
-        if schema_location:
-            return urljoin(xml_uri, schema_location)
-    raise XMLSchemaValueError("schema not found for the XML resource %r." % source)
-
-
-def load_resource(uri):
-    """
-    Load resource from an URI, decoding into a UTF-8 string.
-
-    :param uri: Resource URIs.
-    :return: Resource as unicode string ad the loaded URI.
+    :param url: Resource URLs.
+    :return: Resource as unicode string ad the loaded URL.
     """
     msg = "cannot load resource from %r: %s"
     try:
-        source, uri = open_resource(uri)
-    except XMLSchemaURLError as err:
-        raise XMLSchemaURLError(reason=msg % (uri, err))
+        source = urlopen(normalize_url(url))
+    except URLError as err:
+        raise XMLSchemaURLError(reason=msg % (url, err.reason))
     else:
         try:
             data = source.read()
         except (OSError, IOError) as err:
-            raise XMLSchemaOSError(msg % (uri, err))
+            raise XMLSchemaOSError(msg % (url, err))
         finally:
             source.close()
 
     if PY3:
         try:
-            return data.decode('utf-8'), uri
+            return data.decode('utf-8'), url
         except UnicodeDecodeError:
-            return data.decode('iso-8859-1'), uri
+            return data.decode('iso-8859-1'), url
     else:
         try:
-            return data.encode('utf-8'), uri
+            return data.encode('utf-8'), url
         except UnicodeDecodeError:
             import codecs
-            with codecs.open(urlsplit(uri).path, mode='rb', encoding='iso-8859-1') as text_file:
-                return text_file.read().encode('iso-8859-1'), uri
+            with codecs.open(urlsplit(url).path, mode='rb', encoding='iso-8859-1') as text_file:
+                return text_file.read().encode('iso-8859-1'), url
 
 
-def open_resource(locations, base_uri=None):
+def normalize_url(url, base_url=None):
     """
-    Open the first available resource from a space-separated list of locations.
+    Returns a normalized url. If URL scheme is missing the 'file' scheme is set.
 
-    :param locations: Space-separated list of locations.
-    :param base_uri: Reference path for completing local URIs.
-    :return: A couple of opened file-like object and a normalized URI.
+    :param url: An relative or absolute URL.
+    :param base_url: A reference base URL to join.
+    :return: A normalized URL.
     """
-    if locations is None or not locations.strip():
-        raise XMLSchemaValueError("No locations")
+    url_parts = urlsplit(url)
+    if url_parts.scheme and url_parts.scheme in uses_relative:
+        if base_url is None:
+            return url_parts.geturl()
+        else:
+            url_parts = urlsplit(urljoin(base_url, os.path.basename(url_parts.path)))
+            return url_parts.geturl()
+    elif base_url is None:
+        pathname = os.path.abspath(url_parts.geturl())
+        return urljoin(u'file:', pathname2url(pathname))
+    else:
+        url_parts = urlsplit(urljoin(base_url, pathname2url(url)))
+        if url_parts.scheme and url_parts.scheme in uses_relative:
+            return url_parts.geturl()
+        else:
+            pathname = os.path.abspath(url_parts.geturl())
+            return urljoin(u'file:', pathname)
+
+
+def fetch_resource(locations, base_url=None):
+    """
+    Fetch the first available resource from a space-separated list of locations.
+
+    :param locations: A location or a space-separated list of locations.
+    :param base_url: Reference path for completing local URLs.
+    :return: A normalized URL.
+    """
+    try:
+        locations = locations.split()
+    except AttributeError:
+        raise XMLSchemaTypeError(
+            "'locations' argument must be a string-like object: %r" % locations
+        )
+    else:
+        if not locations:
+            raise XMLSchemaValueError("'locations' argument must contains at least an URL.")
 
     errors = []
-    for location in locations.split():
-        uri_parts = urlsplit(location)
-        uri = uri_parts.geturl()
-        if uri_parts.scheme and uri_parts.scheme in uses_relative:
-            # The location is a well formed uri
-            try:
-                return urlopen(uri), uri
-            except URLError as err:
-                errors.append(err.reason)
-                uri_parts = urlsplit(urljoin(base_uri, os.path.basename(uri_parts.path)))
-        else:
-            # The location is a file path
-            absolute_uri = urljoin(u'file:', pathname2url(os.path.abspath(uri)))
-            try:
-                return urlopen(absolute_uri), absolute_uri
-            except URLError as err:
-                errors.append(err.reason)
-                if base_uri is None:
-                    uri_parts = urlsplit(urljoin(__file__, uri))
-                else:
-                    uri_parts = urlsplit(urljoin(base_uri, uri))
-
-        # Fallback tentative using a specific base_uri
-        uri = uri_parts.geturl()
-        if not uri_parts.scheme:
-            uri = urljoin(u'file:', os.path.abspath(uri))
+    for location in locations:
+        url = normalize_url(location, base_url)
         try:
-            return urlopen(uri), uri
+            resource = urlopen(url)
+        except URLError as err:
+            errors.append(err.reason)
+        else:
+            resource.close()
+            return url
+
+        # fallback joining the path without a base URL
+        url = normalize_url(location)
+        try:
+            resource = urlopen(url)
         except URLError:
             pass
+        else:
+            resource.close()
+            return url
     else:
         raise XMLSchemaURLError(
             reason="cannot access resource from %r: %s" % (locations, errors)
         )
+
+
+def get_xml_root(source):
+    """
+    Returns the root Element and an URL, if available.
+
+    :param source: an ElementTree structure, a string containing XML data, \
+    an URL or a file-like object.
+    :return: A 2-tuple with root Element and the source URL or `None`.
+    """
+    if isinstance(source, (str, bytes, unicode_type)):
+        # source argument is a string
+        if '\n' not in source:
+            try:
+                for _, xml_root in etree_iterparse(StringIO(source), events=('start',)):
+                    return xml_root, None
+            except (etree_parse_error, UnicodeEncodeError):
+                xml_url = normalize_url(source)
+                for _, xml_root in etree_iterparse(urlopen(xml_url), events=('start',)):
+                    return xml_root, xml_url
+        else:
+            for _, xml_root in etree_iterparse(StringIO(source), events=('start',)):
+                return xml_root, None
+    else:
+        # source is a file-like object containing XML data
+        try:
+            xml_url = source.uri
+        except AttributeError:
+            try:
+                xml_url = normalize_url(source.file)
+            except AttributeError:
+                raise XMLSchemaTypeError(
+                    "an ElementTree structure, a string containing XML data, "
+                    "an URL or a file-like object is required, not %r." % type(source)
+                )
+
+        for _, xml_root in etree_iterparse(urlopen(xml_url), events=('start',)):
+            return xml_root, xml_url
+
+
+def fetch_schema(xml_document):
+    """
+    Fetch the schema URL from an XML document. If no schema location is found
+    raises a ValueError.
+
+    :param xml_document: An Element or an Element Tree with XML data or an URL or a
+    file-like object.
+    :return: An URL referring to the schema resource.
+    """
+    try:
+        xml_root, xml_url = xml_document.getroot(), None
+    except (AttributeError, TypeError):
+        if etree_iselement(xml_document):
+            xml_root, xml_url = xml_document, None
+        else:
+            xml_root, xml_url = get_xml_root(xml_document)
+    else:
+        if not etree_iselement(xml_root):
+            raise XMLSchemaTypeError(
+                "wrong type %r for 'xml_document' argument." % type(xml_document)
+            )
+
+    namespace = get_namespace(xml_root.tag)
+    if namespace:
+        uri_list = get_xsi_schema_location(xml_root).split()
+        locations = [url for uri, url in zip(uri_list[0::2], uri_list[1::2]) if uri == namespace]
+        return fetch_resource(' '.join(locations), xml_url)
+    else:
+        schema_location = get_xsi_no_namespace_schema_location(xml_root)
+        if schema_location:
+            return fetch_resource(schema_location, xml_url)
+    raise XMLSchemaValueError("schema for XML document %r not found." % xml_document)

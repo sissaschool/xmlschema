@@ -42,10 +42,7 @@ def create_validation_tests(pathname):
 
         return test_validation
 
-    # Two optional int arguments: [<test_only> [<log_level>]]
-    if len(sys.argv) > 2:
-        log_level = int(sys.argv.pop())
-        xmlschema.set_logger('xmlschema', loglevel=log_level)
+    # Optional int arguments: [<test_only>]
     if len(sys.argv) > 1:
         test_only = int(sys.argv.pop())
     else:

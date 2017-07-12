@@ -1,0 +1,25 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:simpleType name="SecIdType">
+        <xs:restriction base="xs:token">
+            <xs:maxLength value="10"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="SecIdAttrType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="_Id" type="SecIdType" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:element name="LegalType">
+        <xs:complexType>
+            <xs:simpleContent>
+                <xs:restriction base="SecIdAttrType">
+                    <xs:maxLength value="30"/>
+                </xs:restriction>
+            </xs:simpleContent>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

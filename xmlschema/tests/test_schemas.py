@@ -16,11 +16,11 @@ from _test_common import *
 import fileinput
 import glob
 
+import xmlschema
+from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError
+
 
 def create_schema_tests(pathname):
-    import xmlschema
-    from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError
-
     def make_test_schema_function(xsd_file, expected_errors):
         def test_schema(self):
             # print("Run %s" % self.id())
@@ -45,10 +45,7 @@ def create_schema_tests(pathname):
                 self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
         return test_schema
 
-    # Two optional int arguments: [<test_only> [<log_level>]]
-    if len(sys.argv) > 2:
-        log_level = int(sys.argv.pop())
-        xmlschema.set_logger('xmlschema', loglevel=log_level)
+    # Optional int argument: [<test_only>]
     if len(sys.argv) > 1:
         test_only = int(sys.argv.pop())
     else:

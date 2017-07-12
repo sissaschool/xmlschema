@@ -178,14 +178,21 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         if base_type.is_simple():
             self._parse_error("a complexType ancestor required: %r" % base_type, elem)
             self.content_type = self.BUILDERS.build_any_content_group(self.schema)
-        elif base_type.has_simple_content() or base_type.mixed and base_type.is_emptiable():
-            self.content_type = self.BUILDERS.restriction_class(elem, self.schema)
+            self.attributes = self.BUILDERS.attribute_group_class(elem, self.schema)
         else:
-            self._parse_error("with simple content cannot restrict an empty or "
-                              "an element-only content type ", base_type.elem)
-            self.content_type = self.BUILDERS.build_any_content_group(self.schema)
+            if base_type.has_simple_content() or base_type.mixed and base_type.is_emptiable():
+                self.content_type = self.BUILDERS.restriction_class(elem, self.schema)
+            else:
+                self._parse_error("with simple content cannot restrict an empty or "
+                                  "an element-only content type ", base_type.elem)
+                self.content_type = self.BUILDERS.build_any_content_group(self.schema)
 
-        self.attributes = self.BUILDERS.attribute_group_class(elem, self.schema)
+            self.attributes = self.BUILDERS.attribute_group_class(
+                elem=elem,
+                schema=self.schema,
+                derivation='restriction',
+                base_attributes=base_type.attributes
+            )
 
     def _parse_simple_content_extension(self, elem, base_type):
         # simpleContent extension: the base type must be a simpleType or a complexType
@@ -276,13 +283,13 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 xsd_group = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
                 self.content_type.append(base_type.content_type)
                 self.content_type.append(xsd_group)
+
+                if base_type.mixed != self.mixed and not xsd_group.is_empty():
+                    self._parse_error("base has a different content type (mixed=%r) and the "
+                                      "extension group is not empty." % base_type.mixed, elem)
+                    self.mixed = base_type.mixed
             else:
                 self.content_type.append(base_type.content_type)
-
-            if base_type.mixed != self.mixed:
-                self._parse_error(
-                    "base has a different content type (mixed=%r)." % base_type.mixed, elem)
-                self.mixed = base_type.mixed
 
         self.attributes = self.BUILDERS.attribute_group_class(
             elem=elem,
@@ -390,7 +397,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         preceded by a sequence of validation/decode errors.
         """
         # Decode attributes
-        for result in self.attributes.iter_decode(elem, validation, **kwargs):
+        for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
