@@ -818,7 +818,18 @@ class XsdAtomicRestriction(XsdAtomic):
             for error in self.patterns(text):
                 yield error
 
-        for result in self.base_type.iter_decode(text, validation, **kwargs):
+        if self.base_type.is_simple():
+            base_type = self.base_type
+        elif self.base_type.has_simple_content():
+            base_type = self.base_type.content_type
+        elif self.base_type.mixed:
+            yield text
+            return
+        else:
+            raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
+                                      "simple or mixed content required." % self.base_type)
+
+        for result in base_type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaDecodeError):
                 yield result
                 yield unicode_type(result) if validation == 'skip' else None

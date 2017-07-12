@@ -16,15 +16,15 @@ from collections import namedtuple
 
 from .core import (
     XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH, HFP_NAMESPACE_PATH,
-    etree_get_namespaces, etree_register_namespace
+    etree_get_namespaces, etree_register_namespace, etree_iselement
 )
 from .exceptions import (
-    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError,
+    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaKeyError,
     XMLSchemaURLError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaValueError
 )
 from .utils import URIDict, listify_update
 from .resources import (
-    open_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
+    fetch_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
 from .xsdbase import (
     XSD_VALIDATION_MODES, XsdBaseComponent, ValidatorMixin,
@@ -83,7 +83,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 
         _parent_map = None
 
-        def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None):
+        def __init__(self, source, namespace=None, validation='strict', global_maps=None,
+                     converter=None, build=True):
             """
             Initialize an XML schema instance.
 
@@ -92,7 +93,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             the schema or a file-like object containing the schema.
             """
             try:
-                self.root, self.text, self.uri = load_xml_resource(source, element_only=False)
+                self.root, self.text, self.url = load_xml_resource(source, element_only=False)
             except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
                 raise type(err)('cannot create schema: %s' % err)
             else:
@@ -100,7 +101,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 
             # Schema validity assessments
             if validation not in XSD_VALIDATION_MODES:
-                raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
+                raise XMLSchemaValueError(
+                    "'validation' argument can be 'strict', 'lax' or 'skip'.")
             self.validation = validation
 
             # Determine the targetNamespace
@@ -109,10 +111,13 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 if self.target_namespace:
                     raise XMLSchemaParseError(
                         "wrong namespace (%r instead of %r) for XSD resource %r." %
-                        (self.target_namespace, namespace, self.uri)
+                        (self.target_namespace, namespace, self.url)
                     )
                 else:
                     self.target_namespace = namespace
+
+            # Set the default converter class
+            self.converter = self.get_converter(converter)
 
             # Get schema location hints
             try:
@@ -138,35 +143,56 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             else:
                 raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
-            # Extract namespaces from schema and include subschemas
+            # Extract namespaces from schema root
+            # TODO: build a nsmap for each schema element ...
             self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the XML namespace is implicit
             self.namespaces.update(etree_get_namespaces(self.text))
             if '' not in self.namespaces:
                 # For default local names are mapped to targetNamespace
                 self.namespaces[''] = self.target_namespace
 
-            # Set the default converter class
-            self.converter = self.get_converter(converter)
+            # Validate the schema document
+            if self.META_SCHEMA is None:
+                # Base schemas use single file and don't have to be checked
+                return
+            elif validation == 'strict':
+                self.check_schema(self.root)
+            elif validation == 'lax':
+                self.errors.extend([e for e in self.META_SCHEMA.iter_errors(self.root)])
 
-            if self.META_SCHEMA is not None:
-                self.include_schemas(self.root, validation)
-                self.import_schemas(self.root, validation)
-                self.redefine_schemas(self.root, validation)
+            # Includes
+            for child in iterchildren_xsd_include(self.root):
+                try:
+                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), self.url)
+                except XMLSchemaKeyError:
+                    pass
+                except (OSError, IOError) as err:
+                    if self.validation != 'skip':
+                        self.errors.append(err)
 
-                if validation == 'strict':
-                    self.check_schema(self.root)
-                elif validation == 'lax':
-                    self.errors.extend([e for e in self.META_SCHEMA.iter_errors(self.root)])
+            # Redefines
+            for child in iterchildren_xsd_redefine(self.root):
+                try:
+                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), self.url)
+                except XMLSchemaKeyError:
+                    pass
+                except (OSError, IOError) as err:
+                    if self.validation != 'skip':
+                        self.errors.append(err)
 
-                # Builds the XSD objects only if the instance is
-                # the creator of the XSD globals maps.
-                if global_maps is None:
-                    self.maps.build()
-            else:
-                # If the meta_schema is not instantiated do not import
-                # other namespaces and do not build maps.
-                self.include_schemas(self.root)
-                self.redefine_schemas(self.root, validation)
+            # Imports
+            for child in iterchildren_xsd_import(self.root):
+                namespace = child.get('namespace', '').strip()
+                location = child.get('schemaLocation', self.get_locations(namespace))
+                if location:
+                    try:
+                        self.import_schema(namespace, location, self.url)
+                    except (OSError, IOError) as err:
+                        if self.validation != 'skip':
+                            self.errors.append(err)
+
+            if build:
+                self.maps.build()
 
         def __repr__(self):
             return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
@@ -244,6 +270,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             for error in cls.META_SCHEMA.iter_errors(schema):
                 raise error
 
+        def build(self):
+            self.maps.build()
+
         @property
         def built(self):
             xsd_global = None
@@ -296,8 +325,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             if converter is None:
                 converter = getattr(self, 'converter', XMLSchemaConverter)
             if namespaces:
-                for prefix, uri in namespaces.items():
-                    etree_register_namespace(prefix, uri)
+                for prefix, _uri in namespaces.items():
+                    etree_register_namespace(prefix, _uri)
 
             if isinstance(converter, XMLSchemaConverter):
                 converter = converter.copy()
@@ -314,62 +343,35 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 msg = "'converter' argument must be a %r subclass or instance: %r"
                 raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
 
-        def import_schemas(self, elem, validation='strict'):
-            for child in iterchildren_xsd_import(elem):
-                namespace = child.get('namespace', '').strip()
-                if namespace in self.maps.namespaces:
-                    continue
+        def import_schema(self, namespace, location, base_url=None, force=False):
+            if namespace in self.maps.namespaces and not force:
+                return
+            try:
+                schema_url = fetch_resource(location, base_url)
+            except XMLSchemaURLError as err:
+                raise XMLSchemaURLError(
+                    reason="cannot import namespace %r: %s" % (namespace, err.reason)
+                )
+            try:
+                self.create_schema(
+                    schema_url, namespace or self.target_namespace, self.validation, self.maps, self.converter, False
+                )
+            except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+                raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
-                locations = child.get('schemaLocation', self.get_locations(namespace))
-                if locations:
-                    try:
-                        schema_res, schema_uri = open_resource(locations, self.uri)
-                        schema_res.close()
-                    except XMLSchemaURLError as err:
-                        raise XMLSchemaURLError(
-                            reason="cannot import namespace %r: %s" % (namespace, err.reason)
-                        )
-
-                    try:
-                        self.create_schema(
-                            schema_uri, namespace or self.target_namespace, validation, self.maps
-                        )
-                    except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
-                        raise type(err)('cannot import namespace %r: %s' % (namespace, err))
-
-        def include_schemas(self, elem, validation='strict'):
-            for child in iterchildren_xsd_include(elem):
-                location = get_xsd_attribute(child, 'schemaLocation')
-                try:
-                    schema_res, schema_uri = open_resource(location, self.uri)
-                    schema_res.close()
-                except XMLSchemaURLError as err:
-                    raise XMLSchemaURLError(
-                        reason="cannot include %r: %s" % (location, err.reason)
-                    )
-
-                if schema_uri not in self.maps.resources:
-                    try:
-                        self.create_schema(schema_uri, self.target_namespace, validation, self.maps)
-                    except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
-                        raise type(err)('cannot include %r: %s' % (schema_uri, err))
-
-        def redefine_schemas(self, elem, validation='strict'):
-            for child in iterchildren_xsd_redefine(elem):
-                location = get_xsd_attribute(child, 'schemaLocation')
-                try:
-                    schema_res, schema_uri = open_resource(location, self.uri)
-                    schema_res.close()
-                except XMLSchemaURLError as err:
-                    raise XMLSchemaURLError(
-                        reason="cannot redefine %r: %s" % (location, err.reason)
-                    )
-
-                if schema_uri not in self.maps.resources:
-                    try:
-                        self.create_schema(schema_uri, self.target_namespace, validation, self.maps)
-                    except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
-                        raise type(err)('cannot redefine %r: %s' % (schema_uri, err))
+        def include_schema(self, location, base_url=None):
+            try:
+                schema_url = fetch_resource(location, base_url)
+            except XMLSchemaURLError as err:
+                raise XMLSchemaURLError(reason="cannot include %r: %s." % (location, err.reason))
+            else:
+                if schema_url in self.maps.resources:
+                    return
+            try:
+                self.create_schema(
+                    schema_url, self.target_namespace, self.validation, self.maps, self.converter, False)
+            except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+                raise type(err)('cannot include %r: %s' % (schema_url, err))
 
         def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
                         namespaces=None, use_defaults=True, decimal_type=None,
@@ -377,7 +379,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             if validation not in XSD_VALIDATION_MODES:
                 raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
 
-            if not self.maps.built:
+            if not self.built:
                 raise XMLSchemaNotBuiltError("schema %r is not built." % self)
 
             if process_namespaces:
@@ -392,7 +394,19 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             _converter = self.get_converter(converter, _namespaces, dict_class, list_class)
             element_decode_hook = _converter.element_decode
 
-            xml_root = load_xml_resource(xml_document)
+            try:
+                xml_root = xml_document.getroot()
+            except (AttributeError, TypeError):
+                if etree_iselement(xml_document):
+                    xml_root = xml_document
+                else:
+                    xml_root = load_xml_resource(xml_document)
+            else:
+                if not etree_iselement(xml_root):
+                    raise XMLSchemaTypeError(
+                        "wrong type %r for 'xml_document' argument." % type(xml_document)
+                    )
+
             if path is None:
                 xsd_element = self.find(xml_root.tag, namespaces=_namespaces)
                 if not isinstance(xsd_element, XsdElement):
@@ -450,9 +464,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 
     # Create the meta schema
     if meta_schema is not None:
-        meta_schema = _XMLSchema(meta_schema)
-        for k, v in list(base_schemas.items()):
-            _XMLSchema(v, global_maps=meta_schema.maps)
+        meta_schema = _XMLSchema(meta_schema, build=False)
+        for uri, pathname in list(base_schemas.items()):
+            meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
         _XMLSchema.META_SCHEMA = meta_schema
 

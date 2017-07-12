@@ -8,26 +8,24 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .core import set_logger, etree_get_namespaces
+from .core import etree_get_namespaces
 from .exceptions import (
     XMLSchemaException, XMLSchemaParseError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
     XMLSchemaRegexError, XMLSchemaNotBuiltError
 )
-from .resources import open_resource, load_xml_resource, fetch_schema
+from .resources import fetch_resource, load_xml_resource, fetch_schema
 from .schema import XsdGlobals, XMLSchema
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 
-__version__ = '0.9.10'
+__version__ = '0.9.11'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2017, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
-
-set_logger(__name__)
 
 
 def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True):

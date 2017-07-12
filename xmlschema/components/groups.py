@@ -194,12 +194,16 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
     def built(self):
         for item in self:
             try:
-                if not item.is_global and not item.built:
+                if not item.ref and not item.built:
                     return False
             except AttributeError:
                 if isinstance(item, tuple):
                     return False
-                raise
+                elif isinstance(item, XsdAnyElement):
+                    if not item.built:
+                        return False
+                else:
+                    raise
         return True
 
     @property

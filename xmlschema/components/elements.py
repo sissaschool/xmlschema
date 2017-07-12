@@ -115,6 +115,15 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             except KeyError:
                 self._parse_error("invalid element declaration in XSD schema", elem)
             self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
+            if self.is_global:
+                if 'minOccurs' in elem.attrib:
+                    self._parse_error(
+                        "attribute 'minOccurs' not allowed for a global element", self
+                    )
+                if 'maxOccurs' in elem.attrib:
+                    self._parse_error(
+                        "attribute 'maxOccurs' not allowed for a global element", self
+                    )
         else:
             # Reference to a global element
             if self.is_global:

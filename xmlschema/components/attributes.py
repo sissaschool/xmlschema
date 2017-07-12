@@ -329,7 +329,6 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
         result_list = []
-
         required_attributes = self.required.copy()
         for name, value in attrs.items():
             qname = get_qname(self.target_namespace, name)

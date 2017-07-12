@@ -61,16 +61,9 @@ because the package cannot knows anything about the schema's source location:
     >>> schema_xsd = open('xmlschema/tests/examples/vehicles/vehicles.xsd').read()
     >>> my_schema = xmlschema.XMLSchema(schema_xsd)
     Traceback (most recent call last):
-      File "/usr/lib64/python2.7/doctest.py", line 1315, in __run
-        compileflags, 1) in test.globs
-      File "<doctest default[2]>", line 1, in <module>
-        my_schema = xmlschema.XMLSchema(schema_xsd)
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 270, in __init__
-        self.include_schemas(self.root, check_schema)
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 380, in include_schemas
-        reason="cannot include %r: %s" % (location, err.reason)
-    XMLSchemaURLError: <urlopen error cannot include 'cars.xsd': cannot access resource from 'cars.xsd': [OSError(2, 'No such file or directory')]>
-
+    ...
+    ...
+    XMLSchemaKeyError: "missing a XsdElement object for u'{http://example.com/vehicles}cars'!"
 
 XSD declarations
 ----------------
@@ -91,7 +84,7 @@ dictionary attributes of the schema instance:
      u'cars': <XsdElement u'{http://example.com/vehicles}cars' at 0x...>,
      u'vehicles': <XsdElement u'{http://example.com/vehicles}vehicles' at 0x...>}
     >>> my_schema.attributes
-    <NamespaceView {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...>} at 0x...>
+    <NamespaceView {u'step': <XsdAttribute u'{http://example.com/vehicles}step' at 0x...
 
 Those declarations are local views of the XSD global maps shared between related
 schema instances, that can be accessed through :attr:`XMLSchema.maps` attribute:
@@ -315,7 +308,7 @@ Validation and decode API works also with XML data loaded in ElementTree structu
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt, process_namespaces=False), depth=2)
-    {u'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {u'@{http://www.w3.org/2001/XMLSchema-instance}schemaLocation': 'http://...',
      '{http://example.com/vehicles}bikes': {'{http://example.com/vehicles}bike': [...]},
      '{http://example.com/vehicles}cars': {'{http://example.com/vehicles}car': [...]}}
 
@@ -380,8 +373,8 @@ For instance, for use a Badgerfish convention converter for a schema instance:
     >>> pprint(xs.to_dict(xml_document, dict_class=dict), indent=4)
     {   '@xmlns': {   u'vh': 'http://example.com/vehicles',
                       u'xsi': 'http://www.w3.org/2001/XMLSchema-instance'},
-        u'vh:vehicles': {   u'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
-                            u'vh:bikes': {   u'vh:bike': [   {   u'@make': u'Harley-Davidson',
+        u'vh:vehicles': {   u'@xsi:schemaLocation': 'http://example.com/vehicles ...',
+                            u'vh:bikes': {   u'vh:bike': [   {   u'@make': u'Harley-...',
                                                                  u'@model': u'WL'},
                                                              {   u'@make': u'Yamaha',
                                                                  u'@model': u'XS650'}]},

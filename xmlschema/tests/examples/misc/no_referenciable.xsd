@@ -1,0 +1,7 @@
+<!-- Invalid: targetNamespace has the same empty prefix of the XSD namespace. -->
+<schema xmlns="http://www.w3.org/2001/XMLSchema">
+  <element name="dimension" type="dimensionType"/>
+  <simpleType name="dimensionType">
+      <restriction base="short"/>
+  </simpleType>
+</schema>

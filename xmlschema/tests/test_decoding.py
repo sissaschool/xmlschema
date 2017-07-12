@@ -280,10 +280,7 @@ def create_decoding_tests(pathname):
 
         return test_decoding
 
-    # Two optional int arguments: [<test_only> [<log_level>]]
-    if len(sys.argv) > 2:
-        log_level = int(sys.argv.pop())
-        xmlschema.set_logger('xmlschema', loglevel=log_level)
+    # Optional int argument: [<test_only>]
     if len(sys.argv) > 1:
         test_only = int(sys.argv.pop())
     else:
@@ -335,7 +332,7 @@ class TestDecoding(unittest.TestCase):
     def test_lxml(self):
         xt1 = _etree.parse('examples/vehicles/vehicles.xml')
         self.assertTrue(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
-        self.assertTrue(xmlschema.to_dict(xt1, self.vehicles_schema.uri) == _VEHICLES_DICT)
+        self.assertTrue(xmlschema.to_dict(xt1, self.vehicles_schema.url) == _VEHICLES_DICT)
 
     def test_to_dict_python3(self):
         xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
@@ -344,12 +341,12 @@ class TestDecoding(unittest.TestCase):
         self.assertTrue(
             self.vehicles_schema.to_dict(xt1, namespaces=self.namespaces) == _VEHICLES_DICT)
         self.assertTrue(
-            xmlschema.to_dict(xt1, self.vehicles_schema.uri,
+            xmlschema.to_dict(xt1, self.vehicles_schema.url,
                               namespaces=self.namespaces) == _VEHICLES_DICT)
         self.assertTrue(
             self.collection_schema.to_dict(xt2, namespaces=self.namespaces) == _COLLECTION_DICT)
         self.assertTrue(
-            xmlschema.to_dict(xt2, self.collection_schema.uri,
+            xmlschema.to_dict(xt2, self.collection_schema.url,
                               namespaces=self.namespaces) == _COLLECTION_DICT)
 
     def test_path(self):

@@ -18,8 +18,8 @@ Module level API
     the instance (default is :class:`XMLSchema`). *use_defaults* defines when to
     use elements and attribute defaults for filling missing required values.
 
-.. function:: to_dict(xml_document, schema=None, cls=None, path=None, \process_namespaces=True, \
-              **kwargs)
+.. function:: to_dict(xml_document, schema=None, cls=None, path=None, \
+              process_namespaces=True, **kwargs)
 
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
@@ -43,19 +43,21 @@ Module level API
 Schema level API
 ----------------
 
-.. class:: XMLSchema(source, namespace=None, validation='strict', global_maps=None, converter=None)
+.. class:: XMLSchema(source, namespace=None, validation='strict', global_maps=None, \
+           converter=None, build=True)
 
-    The class for an XML Schema instance, created using :class:`XMLSchemaValidator`.
+    The class for an XML Schema instance.
     *source* can be an URI that reference to a resource or a file path or a file-like
     object or a string containing the schema. *namespace* is an optional argument
     that contains the URI of the namespace. When specified it must be equal to the
     *targetNamespace* declared in the schema. *validation* defines the XSD validation
     mode to use for build the schema, can be 'strict', 'lax' or 'skip'.
-    *global_maps* is an optional argument containing an :class:`XsdGlobal`
+    *global_maps* is an optional argument containing an :class:`XsdGlobals`
     instance, a mediator object for sharing declaration data between dependents
     schema instances. *converter* is an optional argument that can be an
     :class:`XMLSchemaConverter` subclass or instance, used for defining the default
-    XML data converter for XML Schema instance.
+    XML data converter for XML Schema instance. *build* is a boolean value that defines
+    whether build the schema maps.
 
     .. attribute::root
 
@@ -65,9 +67,9 @@ Schema level API
 
         The XML schema source text.
 
-    .. attribute:: uri
+    .. attribute:: url
 
-        The schema resource URI. It's None if the schema is built from a string.
+        The schema resource URL. It's `None` if the schema is built from a string.
 
     .. attribute:: target_namespace
 
@@ -131,6 +133,25 @@ Schema level API
         Validates the given schema against the XSD :attr:`META_SCHEMA`.
 
         :raises: :exc:`XMLSchemaValidationError` if the schema is invalid.
+
+    .. method:: import_schema(namespace, location, base_url=None, force=False)
+
+        Imports a schema for an external namespace, from a specific URL.
+        *namespace* is the URI of the external namespace.
+        *location* is the URL of the schema.
+        *base_url* is an optional base URL for fetching the schema resource.
+        If *force* is set to `True` imports the schema also if the namespace
+        is already imported.
+
+    .. method:: include_schema(location, base_url=None)
+
+        Include a schema for the namespace, from a specific URL.
+        *location* is the URL of the schema.
+        *base_url* is an optional base URL for fetching the schema resource.
+
+    .. method:: build()
+
+        Builds the schema maps.
 
     .. method:: validate(xml_document, use_defaults=True)
 

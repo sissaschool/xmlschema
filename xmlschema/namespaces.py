@@ -12,11 +12,13 @@
 This module contains functions and classes for managing namespaces's  
 XSD declarations/definitions.
 """
-import logging as _logging
 from collections import Mapping
 
 from .core import XSD_NAMESPACE_PATH
-from .exceptions import XMLSchemaKeyError, XMLSchemaParseError, XMLSchemaTypeError, XMLSchemaValueError
+from .exceptions import (
+    XMLSchemaKeyError, XMLSchemaParseError, XMLSchemaTypeError,
+    XMLSchemaValueError, XMLSchemaNotBuiltError
+)
 from .qnames import (
     get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
     XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
@@ -28,8 +30,6 @@ from .components import (
     XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
-
-_logger = _logging.getLogger(__name__)
 
 
 def iterchildren_by_tag(tag):
@@ -233,9 +233,8 @@ class XsdGlobals(XsdBaseComponent):
         for xsd_global in self.iter_globals():
             if not isinstance(xsd_global, XsdAnnotated):
                 return False
-            for obj in xsd_global.iter_components():
-                if not isinstance(obj, XsdAnnotated):
-                    return False
+            if not xsd_global.built:
+                return False
         if xsd_global is not None:
             return True
         else:
@@ -279,10 +278,10 @@ class XsdGlobals(XsdBaseComponent):
         """
         Registers an XMLSchema instance.
         """
-        if schema.uri:
-            if schema.uri not in self.resources:
-                self.resources[schema.uri] = schema
-            elif self.resources[schema.uri] != schema:
+        if schema.url:
+            if schema.url not in self.resources:
+                self.resources[schema.url] = schema
+            elif self.resources[schema.url] != schema:
                 return
 
         try:
@@ -292,7 +291,7 @@ class XsdGlobals(XsdBaseComponent):
         else:
             if schema in ns_schemas:
                 return
-            if not any([schema.uri == obj.uri for obj in ns_schemas]):
+            if not any([schema.url == obj.url for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
     def clear(self, remove_schemas=False):
@@ -377,6 +376,9 @@ class XsdGlobals(XsdBaseComponent):
         self.base_elements.update(self.elements)
         for group in self.groups.values():
             self.base_elements.update({e.name: e for e in group.iter_elements()})
+
+        if not self.built:
+            raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
 
 
 class NamespaceView(Mapping):
