@@ -136,6 +136,9 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
     def is_emptiable(self):
         return self.min_length is None or self.min_length == 0
 
+    def is_derived(self, other):
+        return False
+
     def check_facets(self, facets):
         """
         Verifies the applicability and the mutual incompatibility of a group of facets.
@@ -363,6 +366,14 @@ class XsdAtomic(XsdSimpleType):
             except AttributeError:
                 # List or Union base_type.
                 return self.base_type
+
+    def is_derived(self, other):
+        if self.base_type == other:
+            return True
+        elif self.base_type is not None:
+            return self.base_type.is_derived(other)
+        else:
+            return False
 
 
 class XsdAtomicBuiltin(XsdAtomic):

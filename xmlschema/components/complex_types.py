@@ -84,6 +84,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if not self.is_global:
                 self._parse_error("attribute 'name' not allowed for a local complexType", elem)
 
+        self.base_type = None
         self.derivation = None
         self.mixed = elem.get('mixed') in ('true', '1')
 
@@ -109,11 +110,11 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if derivation_elem is None:
                 return
 
-            base_type = self._parse_base_type(derivation_elem)
+            self.base_type = self._parse_base_type(derivation_elem)
             if derivation_elem.tag == XSD_RESTRICTION_TAG:
-                self._parse_simple_content_restriction(derivation_elem, base_type)
+                self._parse_simple_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_simple_content_extension(derivation_elem, base_type)
+                self._parse_simple_content_extension(derivation_elem, self.base_type)
 
         elif content_elem.tag == XSD_COMPLEX_CONTENT_TAG:
             #
@@ -125,11 +126,11 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if derivation_elem is None:
                 return
 
-            base_type = self._parse_base_type(derivation_elem, complex_content=True)
+            self.base_type = self._parse_base_type(derivation_elem, complex_content=True)
             if derivation_elem.tag == XSD_RESTRICTION_TAG:
-                self._parse_complex_content_restriction(derivation_elem, base_type)
+                self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_complex_content_extension(derivation_elem, base_type)
+                self._parse_complex_content_extension(derivation_elem, self.base_type)
 
         else:
             # self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
@@ -350,6 +351,14 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         try:
             return not self.content_type.mixed
         except AttributeError:
+            return False
+
+    def is_derived(self, other):
+        if self.base_type == other:
+            return True
+        elif self.base_type is not None:
+            return self.base_type.is_derived(other)
+        else:
             return False
 
     @property

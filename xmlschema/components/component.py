@@ -277,3 +277,5 @@ class ParticleMixin(object):
 
     def is_restriction(self, other):
         return True   # raise NotImplementedError  TODO: implement concrete methods
+
+

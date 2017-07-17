@@ -359,7 +359,7 @@ class XsdGlobals(XsdBaseComponent):
                         else:
                             obj[k] = element_class(elem, schema)
 
-        # Rebuild substitution groups from element declarations
+        # Build substitution groups from global element declarations
         self.substitution_groups.clear()
         for xsd_element in self.elements.values():
             if xsd_element.substitution_group:
