@@ -13,13 +13,13 @@ import os.path
 try:
     # Python 3 specific imports
     from urllib.request import urlopen, urljoin, urlsplit, pathname2url
-    from urllib.parse import uses_relative, urlparse
+    from urllib.parse import uses_relative, urlparse, urlunsplit
     from urllib.error import URLError
 except ImportError:
     # Python 2 fallback
     from urllib import pathname2url
     from urllib2 import urlopen, URLError
-    from urlparse import urlsplit, urljoin, uses_relative, urlparse
+    from urlparse import urlsplit, urljoin, uses_relative, urlparse, urlunsplit
 
 from .core import (
     PY3, StringIO, etree_iterparse, etree_fromstring, etree_parse_error,
@@ -148,12 +148,22 @@ def normalize_url(url, base_url=None):
         pathname = os.path.abspath(url_parts.geturl())
         return urljoin(u'file:', pathname2url(pathname))
     else:
-        url_parts = urlsplit(urljoin(base_url, pathname2url(url)))
-        if url_parts.scheme and url_parts.scheme in uses_relative:
-            return url_parts.geturl()
+        base_url_parts = urlsplit(base_url)
+        if base_url_parts.scheme and base_url_parts.scheme in uses_relative:
+            return urlunsplit((
+                base_url_parts.scheme,
+                base_url_parts.netloc,
+                os.path.join(base_url_parts.path, pathname2url(url)),
+                base_url_parts.query,
+                base_url_parts.fragment
+            ))
         else:
-            pathname = os.path.abspath(url_parts.geturl())
-            return urljoin(u'file:', pathname)
+            pathname = os.path.abspath(os.path.join(base_url, url))
+            url_parts = urlsplit(pathname2url(pathname))
+            if url_parts.scheme and url_parts.scheme in uses_relative:
+                return url_parts.geturl()
+            else:
+                return urljoin(u'file:', url_parts.geturl())
 
 
 def fetch_resource(locations, base_url=None):
@@ -196,7 +206,8 @@ def fetch_resource(locations, base_url=None):
             return url
     else:
         raise XMLSchemaURLError(
-            reason="cannot access resource from %r: %s" % (locations, errors)
+            reason="cannot access resource from %r: %s" %
+                   (' '.join(locations), '; '.join([str(err) for err in errors]))
         )
 
 
@@ -261,12 +272,13 @@ def fetch_schema(xml_document):
             )
 
     namespace = get_namespace(xml_root.tag)
+    base_url = None if xml_url is None else os.path.dirname(xml_url)
     if namespace:
         uri_list = get_xsi_schema_location(xml_root).split()
         locations = [url for uri, url in zip(uri_list[0::2], uri_list[1::2]) if uri == namespace]
-        return fetch_resource(' '.join(locations), xml_url)
+        return fetch_resource(' '.join(locations), base_url)
     else:
         schema_location = get_xsi_no_namespace_schema_location(xml_root)
         if schema_location:
-            return fetch_resource(schema_location, xml_url)
+            return fetch_resource(schema_location, base_url)
     raise XMLSchemaValueError("schema for XML document %r not found." % xml_document)

@@ -25,7 +25,7 @@ from ..qnames import (
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
 )
 from .facets import (
-    XsdUniqueFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
+    XsdSingleFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
     BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction
@@ -365,8 +365,8 @@ def xsd_build_facets(items, base_type, schema, keys):
                 if obj.tag == XSD_PATTERN_TAG:
                     facets[obj.tag] = XsdPatternsFacet(base_type, obj, schema)
                 else:
-                    facets[obj.tag] = XsdUniqueFacet(base_type, obj, schema)
-        elif isinstance(obj, (XsdUniqueFacet, XsdPatternsFacet)):
+                    facets[obj.tag] = XsdSingleFacet(base_type, obj, schema)
+        elif isinstance(obj, (XsdSingleFacet, XsdPatternsFacet)):
             if obj.name in keys:
                 facets[obj.name] = obj
         elif callable(obj):

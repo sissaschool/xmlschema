@@ -22,7 +22,8 @@ from .exceptions import (
 from .qnames import (
     get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
     XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
-    XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG
+    XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG, XSD_GROUP_TAG,
+    XSD_ANY_TYPE
 )
 from .utils import get_namespace, URIDict, camel_case_split
 from .xsdbase import get_xsd_attribute, XsdBaseComponent
@@ -116,6 +117,7 @@ class XsdGlobals(XsdBaseComponent):
         self.elements = {}              # Global elements
 
         self.substitution_groups = {}   # Substitution groups
+        self.constraints = {}           # Constraints (uniqueness, keys, keyref)
         self.base_elements = {}         # Global elements + global groups expansion
 
         self.global_maps = (self.notations, self.types, self.attributes,
@@ -133,6 +135,7 @@ class XsdGlobals(XsdBaseComponent):
         obj.notations.update(self.notations)
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
+        obj.constraints.update(self.constraints)
         obj.base_elements.update(self.base_elements)
         return obj
 
@@ -303,6 +306,7 @@ class XsdGlobals(XsdBaseComponent):
             global_map.clear()
         self.base_elements.clear()
         self.substitution_groups.clear()
+        self.constraints.clear()
 
         if remove_schemas:
             self.namespaces = URIDict()
@@ -363,13 +367,15 @@ class XsdGlobals(XsdBaseComponent):
         self.substitution_groups.clear()
         for xsd_element in self.elements.values():
             if xsd_element.substitution_group:
-                name = reference_to_qname(xsd_element.substitution_group, xsd_element.namespaces)
-                if name[0] != '{':
-                    name = get_qname(xsd_element.target_namespace, name)
                 try:
-                    self.substitution_groups[name].add(xsd_element)
+                    self.substitution_groups[qname].add(xsd_element)
                 except KeyError:
-                    self.substitution_groups[name] = {xsd_element}
+                    self.substitution_groups[qname] = {xsd_element}
+
+        # Build constraints's contexts
+        for name, xsd_element in self.constraints.items():
+            constraint = xsd_element.constraints[name]
+            constraint.set_context(xsd_element)
 
         # Rebuild base_elements
         self.base_elements.clear()

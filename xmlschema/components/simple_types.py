@@ -23,13 +23,14 @@ from ..qnames import (
     XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
     XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
-    XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG
+    XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG,
+    XSD_ANY_TYPE
 )
 from ..utils import check_type, check_value
 from ..xsdbase import get_xsd_derivation_attribute, ValidatorMixin
 from .component import XsdAnnotated
 from .facets import (
-    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdUniqueFacet, XsdEnumerationFacet
+    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 )
 
 
@@ -368,7 +369,7 @@ class XsdAtomic(XsdSimpleType):
                 return self.base_type
 
     def is_derived(self, other):
-        if self.base_type == other:
+        if other.name == XSD_ANY_TYPE or self.base_type == other:
             return True
         elif self.base_type is not None:
             return self.base_type.is_derived(other)
@@ -807,7 +808,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     else:
                         facets[child.tag] = XsdPatternsFacet(base_type, child, self.schema)
             elif child.tag not in facets:
-                facets[child.tag] = XsdUniqueFacet(base_type, child, self.schema)
+                facets[child.tag] = XsdSingleFacet(base_type, child, self.schema)
             else:
                 raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
 

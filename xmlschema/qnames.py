@@ -249,6 +249,13 @@ XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
 XSD_ASSERTIONS_TAG = xsd_qname('assertions')
 XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
 
+# Identity constraints
+XSD_UNIQUE_TAG = xsd_qname('unique')
+XSD_KEY_TAG = xsd_qname('key')
+XSD_KEYREF_TAG = xsd_qname('keyref')
+XSD_SELECTOR_TAG = xsd_qname('selector')
+XSD_FIELD_TAG = xsd_qname('field')
+
 # Special XSD built-in types.
 XSD_ANY_TYPE = xsd_qname('anyType')
 XSD_ANY_SIMPLE_TYPE = xsd_qname('anySimpleType')
