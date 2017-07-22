@@ -18,7 +18,7 @@ from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
-    local_name, reference_to_qname
+    local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG
 )
 from ..xpath import XPathMixin
 from ..utils import check_type
@@ -26,6 +26,7 @@ from ..xsdbase import (
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
 )
 from .component import XsdAnnotated, ParticleMixin
+from .constraints import XsdConstraint
 
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -138,9 +139,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             self.type = xsd_element.type
             self.qualified = xsd_element.qualified
 
-        if 'substitutionGroup' in elem.attrib and not self.is_global:
-            self._parse_error("'substitutionGroup' attribute in a local element declaration", elem)
-
+        skip = 0
         if self.ref:
             if self._parse_component(elem, required=False, strict=False) is not None:
                 self._parse_error("element reference declaration can't has children", elem)
@@ -158,8 +157,61 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     self.type = self.BUILDERS.complex_type_class(child, self.schema)
                 elif child.tag == XSD_SIMPLE_TYPE_TAG:
                     self.type = self.BUILDERS.simple_type_factory(child, self.schema)
+                skip = 1
             else:
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+
+        self.constraints = {}
+        for child in self._iterparse_components(elem, skip=skip):
+            if child.tag in {XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG}:
+                constraint = XsdConstraint(child, self.schema, self)
+                if constraint.name in self.constraints:
+                    self._parse_error("duplicated identity constraint %r:" % constraint.name , child)
+                else:
+                    self.constraints[constraint.name] = constraint
+
+        self._parse_substitution_group()
+
+
+    def _parse_substitution_group(self):
+        substitution_group = self.substitution_group
+        if substitution_group is None:
+            return
+
+        if not self.is_global:
+            self._parse_error("'substitutionGroup' attribute in a local element declaration")
+
+        qname = reference_to_qname(substitution_group, self.namespaces)
+        if qname[0] != '{':
+            qname = get_qname(self.target_namespace, qname)
+        try:
+            head_element = self.maps.lookup_element(qname)
+        except KeyError:
+            self._parse_error("unknown substitutionGroup %r" % substitution_group)
+        else:
+            final = head_element.final
+            if final is None:
+                final = self.schema.final_default
+
+            if final == '#all' or 'extension' in final and 'restriction' in final:
+                self._parse_error("head element %r cannot be substituted." % head_element)
+            elif self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
+                pass
+            elif 'extension' in final and not self.type.is_derived(head_element.type, 'extension'):
+                self._parse_error(
+                    "%r type is not of the same or an extension of the head element %r type."
+                    % (self, head_element)
+                )
+            elif 'restriction' in final and not self.type.is_derived(head_element.type, 'restriction'):
+                self._parse_error(
+                    "%r type is not of the same or a restriction of the head element %r type."
+                    % (self, head_element)
+                )
+            elif not self.type.is_derived(head_element.type):
+                self._parse_error(
+                    "%r type is not of the same or a derivation of the head element %r type."
+                    % (self, head_element)
+                )
 
     @property
     def built(self):
@@ -361,14 +413,16 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield index
                 return
             else:
-                if qname != self.name:
+                if qname == self.name or self.is_global and \
+                        self.name in self.maps.substitution_group and \
+                        any([qname == e.name for e in self.maps.substitution_groups[self.name]]):
+                    yield self, elem[index]
+                else:
                     if model_occurs == 0 and self.min_occurs > 0:
                         yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
                     else:
                         yield index
                     return
-                else:
-                    yield self, elem[index]
 
             index += 1
             model_occurs += 1

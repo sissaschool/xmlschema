@@ -56,7 +56,7 @@ def get_xsd_component(elem, required=True, strict=True):
             raise XMLSchemaValueError("too many XSD components")
 
 
-def iter_xsd_components(elem):
+def iter_xsd_components(elem, skip=0):
     """
     Returns an iterator for XSD child components, excluding the annotation.
     """
@@ -66,7 +66,10 @@ def iter_xsd_components(elem):
             if counter > 0:
                 raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
         else:
-            yield child
+            if skip > 0:
+                skip -= 1
+            else:
+                yield child
             counter += 1
 
 

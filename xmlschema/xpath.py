@@ -32,8 +32,8 @@ def split_path(path):
 def get_xpath_tokenizer_pattern(symbols):
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
-        (%s | [%s]) |                                   # Symbols
-        ((?:{[^}]+\})?[^/\[\]()@=\s]+) |                # References and other names   
+        (%s|[%s]) |                                   # Symbols
+        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                # References and other names   
         \s+                                             # Skip extra spaces
         """
 
@@ -434,12 +434,13 @@ class XPathParser(object):
     :param path: XPath expression.
     :param namespaces: optional prefix to namespace map.
     """
+    NOT_ALLOWED_OPERATORS = set()
 
     def __init__(self, token_table, path, namespaces=None):
         if not path:
-            raise XMLSchemaXPathError("Empty XPath expression.")
+            raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
-            raise XMLSchemaXPathError("Invalid path: %r" % path)
+            raise XMLSchemaXPathError("invalid path: %r" % path)
         if path[:1] == "/":
             path = "." + path
 
@@ -476,7 +477,10 @@ class XPathParser(object):
                     try:
                         next_token = self.token_table[operator.replace(' ', '')]()
                     except KeyError:
-                        raise XMLSchemaXPathError("Unknown operator %r." % operator)
+                        raise XMLSchemaXPathError("unknown operator %r." % operator)
+                    else:
+                        if operator in self.NOT_ALLOWED_OPERATORS:
+                            raise XMLSchemaXPathError("not allowed operator %r." % operator)
                     break
                 elif literal is not None:
                     if literal[0] in '\'"':
@@ -490,8 +494,8 @@ class XPathParser(object):
                     value = reference_to_qname(ref, self.namespaces)
                     next_token = self.token_table['(ref)'](value)
                     break
-                elif match.group().strip():
-                    raise XMLSchemaXPathError("Unexpected token: %r" % match)
+                elif str(match.group()).strip():
+                    raise XMLSchemaXPathError("unexpected token: %r" % match)
 
         return current_token
 

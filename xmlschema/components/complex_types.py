@@ -353,13 +353,20 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         except AttributeError:
             return False
 
-    def is_derived(self, other):
-        if self.base_type == other:
-            return True
+    def is_derived(self, other, derivation=None):
+        if other.name == XSD_ANY_TYPE or self.base_type == other:
+            if derivation is None:
+                return True
+            else:
+                return derivation == self.derivation
         elif self.base_type is not None:
-            return self.base_type.is_derived(other)
+            if derivation is None:
+                return self.base_type.is_derived(other)
+            else:
+                return self.base_type.is_derived(other) and self.base_type.derivation == derivation
         else:
             return False
+
 
     @property
     def abstract(self):
