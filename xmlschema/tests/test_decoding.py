@@ -404,7 +404,7 @@ class TestDecoding(unittest.TestCase):
         filename = 'examples/collection/collection.xml'
         xt = _ElementTree.parse(filename)
         d = self.collection_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.collection_schema.encode(d, path='./collection', namespaces=self.namespaces)
+        elem = self.collection_schema.encode(d, path='./col:collection', namespaces=self.namespaces)
         self.assertTrue(len([e for e in elem.iter()]) == 20,
                         msg="The encoded tree must have 20 elements as the origin.")
         self.assertTrue(all([

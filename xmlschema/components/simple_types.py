@@ -30,7 +30,7 @@ from ..utils import check_type, check_value
 from ..xsdbase import get_xsd_derivation_attribute, ValidatorMixin
 from .component import XsdAnnotated
 from .facets import (
-    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdUniqueFacet, XsdEnumerationFacet
+    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 )
 
 
@@ -808,7 +808,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     else:
                         facets[child.tag] = XsdPatternsFacet(base_type, child, self.schema)
             elif child.tag not in facets:
-                facets[child.tag] = XsdUniqueFacet(base_type, child, self.schema)
+                facets[child.tag] = XsdSingleFacet(base_type, child, self.schema)
             else:
                 raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
 

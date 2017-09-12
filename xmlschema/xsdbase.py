@@ -56,7 +56,7 @@ def get_xsd_component(elem, required=True, strict=True):
             raise XMLSchemaValueError("too many XSD components")
 
 
-def iter_xsd_components(elem, skip=0):
+def iter_xsd_components(elem, start=0):
     """
     Returns an iterator for XSD child components, excluding the annotation.
     """
@@ -66,8 +66,8 @@ def iter_xsd_components(elem, skip=0):
             if counter > 0:
                 raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
         else:
-            if skip > 0:
-                skip -= 1
+            if start > 0:
+                start -= 1
             else:
                 yield child
             counter += 1
@@ -190,6 +190,8 @@ class XsdBaseComponent(object):
         """
         Ref: https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
+
+        :return: 'full', 'partial' or 'none'.
         """
         raise NotImplementedError
 
@@ -218,6 +220,8 @@ class XsdBaseComponent(object):
         """
         Ref: https://www.w3.org/TR/xmlschema-1/#e-validity
         Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
+
+        :return: 'valid', 'invalid' or 'notKnown'.
         """
         if self.errors or any([comp.errors for comp in self.iter_components()]):
             return 'invalid'

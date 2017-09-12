@@ -1,0 +1,8 @@
+
+Schema:
+
+    <xs:element xmlns:xs="http://www.w3.org/2001/XMLSchema" name="lastTicketDateTime" type="xs:dateTime" />
+
+Instance:
+
+    <lastTicketDateTime>2017-09-06T23:59:00.000+03:00</lastTicketDateTime>

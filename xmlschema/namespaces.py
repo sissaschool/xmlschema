@@ -117,6 +117,7 @@ class XsdGlobals(XsdBaseComponent):
         self.elements = {}              # Global elements
 
         self.substitution_groups = {}   # Substitution groups
+        self.constraints = {}           # Constraints (uniqueness, keys, keyref)
         self.base_elements = {}         # Global elements + global groups expansion
 
         self.global_maps = (self.notations, self.types, self.attributes,
@@ -134,6 +135,7 @@ class XsdGlobals(XsdBaseComponent):
         obj.notations.update(self.notations)
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
+        obj.constraints.update(self.constraints)
         obj.base_elements.update(self.base_elements)
         return obj
 
@@ -304,6 +306,7 @@ class XsdGlobals(XsdBaseComponent):
             global_map.clear()
         self.base_elements.clear()
         self.substitution_groups.clear()
+        self.constraints.clear()
 
         if remove_schemas:
             self.namespaces = URIDict()
@@ -368,6 +371,11 @@ class XsdGlobals(XsdBaseComponent):
                     self.substitution_groups[qname].add(xsd_element)
                 except KeyError:
                     self.substitution_groups[qname] = {xsd_element}
+
+        # Build constraints's contexts
+        for name, xsd_element in self.constraints.items():
+            constraint = xsd_element.constraints[name]
+            constraint.set_context(xsd_element)
 
         # Rebuild base_elements
         self.base_elements.clear()

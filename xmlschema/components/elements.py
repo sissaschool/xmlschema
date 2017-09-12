@@ -26,7 +26,7 @@ from ..xsdbase import (
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
 )
 from .component import XsdAnnotated, ParticleMixin
-from .constraints import XsdConstraint
+from .constraints import XsdUnique, XsdKey, XsdKeyref
 
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -162,16 +162,21 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
 
         self.constraints = {}
-        for child in self._iterparse_components(elem, skip=skip):
-            if child.tag in {XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG}:
-                constraint = XsdConstraint(child, self.schema, self)
-                if constraint.name in self.constraints:
-                    self._parse_error("duplicated identity constraint %r:" % constraint.name , child)
-                else:
-                    self.constraints[constraint.name] = constraint
+        for child in self._iterparse_components(elem, start=skip):
+            if child.tag == XSD_UNIQUE_TAG:
+                constraint = XsdUnique(child, self.schema)
+            elif child.tag == XSD_KEY_TAG:
+                constraint = XsdKey(child, self.schema)
+            elif child.tag == XSD_KEYREF_TAG:
+                constraint = XsdKeyref(child, self.schema)
+
+            if constraint.name in self.maps.constraints:
+                self._parse_error("duplicated identity constraint %r:" % constraint.name, child)
+            else:
+                self.maps.constraints[constraint.name] = self
+                self.constraints[constraint.name] = constraint
 
         self._parse_substitution_group()
-
 
     def _parse_substitution_group(self):
         substitution_group = self.substitution_group
@@ -271,7 +276,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def has_name(self, name):
+    def match(self, name):
         return self.name == name or (not self.qualified and local_name(self.name) == name)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
@@ -334,6 +339,14 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     else:
                         yield element_decode_hook(ElementData(elem.tag, result, None, None), self)
                         del result
+
+        if validation != 'skip':
+            for constraint in self.constraints.values():
+                for error in constraint(elem):
+                    if validation == 'strict':
+                        raise error
+                    else:
+                        yield error
 
     def iter_encode(self, data, validation='lax', **kwargs):
         element_encode_hook = kwargs.get('element_encode_hook')
@@ -440,15 +453,18 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             yield self
         try:
             for xsd_element in self.type.content_type.iter_elements():
-                for e in xsd_element.iter(tag):
-                    yield e
+                if xsd_element.ref is None:
+                    for e in xsd_element.iter(tag):
+                        yield e
+                elif tag is None or xsd_element.name == tag:
+                    yield xsd_element
         except (TypeError, AttributeError):
             return
 
     def iterchildren(self, tag=None):
         try:
             for xsd_element in self.type.content_type.iter_elements():
-                if tag is None or xsd_element.has_name(tag):
+                if tag is None or xsd_element.match(tag):
                     yield xsd_element
         except (TypeError, AttributeError):
             return

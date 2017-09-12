@@ -111,9 +111,9 @@ class XsdComponent(XsdBaseComponent):
         except XMLSchemaValueError as err:
             self._parse_error(str(err), elem)
 
-    def _iterparse_components(self, elem, skip=0):
+    def _iterparse_components(self, elem, start=0):
         try:
-            for obj in iter_xsd_components(elem, skip):
+            for obj in iter_xsd_components(elem, start):
                 yield obj
         except XMLSchemaValueError as err:
             self._parse_error(str(err), elem)
