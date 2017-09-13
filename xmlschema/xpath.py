@@ -245,8 +245,9 @@ class Token(MutableSequence):
                         for attr in elem.attrib.values():
                             try:
                                 # a XsdAttribute/XsdAnyAttribute
-                                if attr.match(attr.name):
+                                if attr.match(key):
                                     yield attr
+                                    break  # Avoid two matches
                             except AttributeError:
                                 # an etree's Element attribute
                                 break

@@ -377,6 +377,8 @@ class XsdGlobals(XsdBaseComponent):
             constraint = xsd_element.constraints[name]
             constraint.set_context(xsd_element)
 
+        # TODO: check keyref field types (now there is a lighter check during validation)
+
         # Rebuild base_elements
         self.base_elements.clear()
         self.base_elements.update(self.elements)
