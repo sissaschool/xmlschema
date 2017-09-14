@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.12
+=======
+* Added identity constraints
+* Some bug fix
+
 v0.9.10
 =======
 * Factories code moved to XsdComponent subclasses for simplify parsing and debugging

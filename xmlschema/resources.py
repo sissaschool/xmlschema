@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -139,11 +139,7 @@ def normalize_url(url, base_url=None):
     """
     url_parts = urlsplit(url)
     if url_parts.scheme and url_parts.scheme in uses_relative:
-        if base_url is None:
-            return url_parts.geturl()
-        else:
-            url_parts = urlsplit(urljoin(base_url, os.path.basename(url_parts.path)))
-            return url_parts.geturl()
+        return url_parts.geturl()
     elif base_url is None:
         pathname = os.path.abspath(url_parts.geturl())
         return urljoin(u'file:', pathname2url(pathname))

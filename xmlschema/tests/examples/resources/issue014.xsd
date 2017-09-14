@@ -1,0 +1,10 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://www.w3.org/2001/XMLSchema"
+            xmlns:platformCore="urn:core_2017_1.platform.webservices.netsuite.com"
+            targetNamespace="urn:sales_2017_1.transactions.webservices.netsuite.com" elementFormDefault="qualified">
+
+    <xsd:import namespace="urn:core_2017_1.platform.webservices.netsuite.com"
+                schemaLocation="https://webservices.netsuite.com/xsd/platform/v2017_1_0/core.xsd"/>
+
+    <element name="Opportunity" type="platformCore:RecordRef"/>
+
+</xsd:schema>
