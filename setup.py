@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.11',
+    version='0.9.12',
     packages=['xmlschema', 'xmlschema.components', 'xmlschema.tests'],
     package_data={'xmlschema': [
         'unicode_categories.json',

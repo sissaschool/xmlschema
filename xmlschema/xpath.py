@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -32,8 +32,8 @@ def split_path(path):
 def get_xpath_tokenizer_pattern(symbols):
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
-        (%s | [%s]) |                                   # Symbols
-        ((?:{[^}]+\})?[^/\[\]()@=\s]+) |                # References and other names   
+        (%s|[%s]) |                                   # Symbols
+        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                # References and other names   
         \s+                                             # Skip extra spaces
         """
 
@@ -68,6 +68,10 @@ XPATH_SYMBOLS = [
     # added in XPath 2.0
     'union'
 ]
+
+RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
+    '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
+}
 
 xpath_tokens_regex = re.compile(get_xpath_tokenizer_pattern(XPATH_SYMBOLS), re.VERBOSE)
 
@@ -150,8 +154,12 @@ class Token(MutableSequence):
         """Null denotation method"""
         raise XMLSchemaSyntaxError("Undefined operator for %r." % self.name)
 
-    def led(self, selector):
+    def led(self, left):
         """Left denotation method"""
+        raise XMLSchemaSyntaxError("Undefined operator for %r." % self.name)
+
+    def sed(self, context, results):
+        """Select denotation method"""
         raise XMLSchemaSyntaxError("Undefined operator for %r." % self.name)
 
     def iter(self):
@@ -163,16 +171,8 @@ class Token(MutableSequence):
             for token in t.iter():
                 yield token
 
-    def iter_selectors(self):
-        for t in self[:1]:
-            for sed in t.iter_selectors():
-                yield sed
-        if hasattr(self, 'sed'):
-            yield self.sed
-        if self.name != '[':
-            for t in self[1:]:
-                for sed in t.iter_selectors():
-                    yield sed
+    def iter_select(self, context):
+        return self.sed(context, [context])
 
     def expected(self, name):
         if self.name != name:
@@ -193,17 +193,29 @@ class Token(MutableSequence):
 
     def descendant_selector(self):
         def select(context, results):
+            results = self[0].sed(context, results)
             for elem in results:
-                for e in elem.iter(self.value):
+                for e in elem.iter(self[1].value):
                     if e is not elem:
                         yield e
+        return select
+
+    def child_selector(self):
+        def select(context, results):
+            results = self[0].sed(context, results)
+            return self[1].sed(context, results)
         return select
 
     def children_selector(self):
         def select(context, results):
             for elem in results:
-                for e in elem.iterchildren(self.value):
-                    yield e
+                try:
+                    for e in elem.iterchildren(self.value):
+                        yield e
+                except AttributeError:
+                    for e in elem:
+                        if self.value is None or e.tag == self.value:
+                            yield e
         return select
 
     def value_selector(self):
@@ -217,14 +229,28 @@ class Token(MutableSequence):
         key = self.value
 
         def select(context, results):
-            if key is not None:
+            if key is None:
                 for elem in results:
-                    if key in elem.attributes:
-                        yield elem.attributes[key]
+                    for attr in elem.attrib.values():
+                        yield attr
+            elif '{' == key[0]:
+                for elem in results:
+                    if key in elem.attrib:
+                        yield elem.attrib[key]
             else:
                 for elem in results:
-                    for attr in elem.attributes.values():
-                        yield attr
+                    if key in elem.attrib:
+                        yield elem.attrib[key]
+                    else:
+                        for attr in elem.attrib.values():
+                            try:
+                                # a XsdAttribute/XsdAnyAttribute
+                                if attr.match(key):
+                                    yield attr
+                                    break  # Avoid two matches
+                            except AttributeError:
+                                # an etree's Element attribute
+                                break
         return select
 
     # @attribute='value'
@@ -238,7 +264,7 @@ class Token(MutableSequence):
                     yield elem.get(key) == value
             else:
                 for elem in results:
-                    for attr in elem.attributes.values():
+                    for attr in elem.attrib.values():
                         yield attr == value
         return select
 
@@ -250,14 +276,16 @@ class Token(MutableSequence):
         return select
 
     def subscript_selector(self):
-        if self.value > 0:
-            index = self.value - 1
-        elif self.value == 0 or self.name not in ('last(', 'position('):
+        value = self[1].value
+        if value > 0:
+            index = value - 1
+        elif value == 0 or self[1].name not in ('last(', 'position('):
             index = None
         else:
-            index = self.value
+            index = value
 
         def select(context, results):
+            results = self[0].sed(context, results)
             if index is not None:
                 try:
                     yield [elem for elem in results][index]
@@ -266,14 +294,10 @@ class Token(MutableSequence):
         return select
 
     def predicate_selector(self):
-        selectors = [f for f in self.iter_selectors()]
-
         def select(context, results):
+            results = self[0].sed(context, results)
             for elem in results:
-                predicate_results = [elem]
-                for selector in selectors:
-                    predicate_results = selector(context, predicate_results)
-                predicate_results = list(predicate_results)
+                predicate_results = list(self[1].sed(context, [elem]))
                 if predicate_results and any(predicate_results):
                     yield elem
         return select
@@ -306,29 +330,20 @@ class Token(MutableSequence):
 
     def disjunction_selector(self):
         def select(context, results):
-            for elem in results:
-                for token in self:
-                    for selector in token.iter_selectors():
-                        for e in selector(context, elem):
-                            yield e
+            left_results = list(self[0].sed(context, results))
+            right_results = list(self[1].sed(context, results))
+            for elem in left_results:
+                yield elem
+            for elem in right_results:
+                yield elem
         return select
 
     def conjunction_selector(self):
         def select(context, results):
-            for elem in results:
-                result_set = {
-                    e for selector in self[1].iter_selectors()
-                    for e in selector(context, elem)
-                }
-                for token in self[2:]:
-                    result_set &= {
-                        e for selector in token.iter_selectors()
-                        for e in selector(context, elem)
-                    }
-                for selector in self[0].iter_selectors():
-                    for e in selector(context, elem):
-                        if e in result_set:
-                            yield e
+            right_results = set(self[1].sed(context, results))
+            for elem in self[0].sed(context, results):
+                if elem in right_results:
+                    yield elem
         return select
 
 
@@ -366,7 +381,6 @@ def register_nud(*names, **kwargs):
 
     :param names: A tuple of identifiers for token classes and for their objects.
     """
-
     def nud_decorator(func):
         lbp = kwargs.pop('lbp', 0)
         for name in names:
@@ -383,7 +397,6 @@ def register_led(*names, **kwargs):
 
     :param names: A tuple of identifiers for token classes and for their objects.
     """
-
     def led_decorator(func):
         lbp = kwargs.get('lbp', 0)
         for name in names:
@@ -394,12 +407,7 @@ def register_led(*names, **kwargs):
 
 
 #
-# XPath parser
-RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
-    '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
-}
-
-
+# XPath parser globals and main cycle
 def dummy_advance(name=None):
     return symbol('(end)')
 
@@ -426,86 +434,8 @@ def expression(rbp=0):
     return left
 
 
-class XPathParser(object):
-    """
-    XPath expression iterator parser class.
-
-    :param token_table: Dictionary with XPath grammar's tokens.
-    :param path: XPath expression.
-    :param namespaces: optional prefix to namespace map.
-    """
-
-    def __init__(self, token_table, path, namespaces=None):
-        if not path:
-            raise XMLSchemaXPathError("Empty XPath expression.")
-        elif path[-1] == '/':
-            raise XMLSchemaXPathError("Invalid path: %r" % path)
-        if path[:1] == "/":
-            path = "." + path
-
-        self.token_table = token_table
-        self.path = path
-        self.namespaces = namespaces if namespaces is not None else {}
-
-    def __iter__(self):
-        self._tokens = iter(xpath_tokens_regex.finditer(self.path))
-
-    def __next__(self):
-        token = self.advance()
-        if token.name == '(end)':
-            raise StopIteration()
-        return token
-
-    next = __next__
-
-    def advance(self, name=None):
-        global current_token, next_token
-        if name:
-            next_token.expected(name)
-
-        while True:
-            try:
-                match = next(self._tokens)
-            except StopIteration:
-                current_token, next_token = next_token, self.token_table['(end)']()
-                break
-            else:
-                current_token = next_token
-                literal, operator, ref = match.groups()
-                if operator is not None:
-                    try:
-                        next_token = self.token_table[operator.replace(' ', '')]()
-                    except KeyError:
-                        raise XMLSchemaXPathError("Unknown operator %r." % operator)
-                    break
-                elif literal is not None:
-                    if literal[0] in '\'"':
-                        next_token = self.token_table['(string)'](literal.strip("'\""))
-                    elif '.' in literal:
-                        next_token = self.token_table['(decimal)'](Decimal(literal))
-                    else:
-                        next_token = self.token_table['(integer)'](int(literal))
-                    break
-                elif ref is not None:
-                    value = reference_to_qname(ref, self.namespaces)
-                    next_token = self.token_table['(ref)'](value)
-                    break
-                elif match.group().strip():
-                    raise XMLSchemaXPathError("Unexpected token: %r" % match)
-
-        return current_token
-
-    def parse(self):
-        global advance
-        advance = self.advance
-        self.__iter__()
-        advance()
-        root_token = expression()
-        if next_token.name != '(end)':
-            next_token.unexpected()
-        return root_token
-
-
+#
+# XPath parser token registration
 @register_nud('(end)')
 def end_nud(self):
     return self
@@ -555,7 +485,7 @@ def attribute_token_nud(self):
 
 
 @register_led('or', lbp=20)
-def or_token_nud(self, left):
+def or_token_led(self, left):
     self.insert(0, left)
     self.insert(1, expression(20))
     self.sed = self.disjunction_selector()
@@ -662,6 +592,7 @@ def child_led(self, left):
     self.insert(1, expression(100))
     if self[1].name not in RELATIVE_PATH_TOKENS:
         raise XMLSchemaXPathError("invalid child %r." % self[1])
+    self.sed = self.child_selector()
     return self
 
 
@@ -669,8 +600,8 @@ def child_led(self, left):
 def child_axis_nud(self):
     if next_token.name not in ('(ref)', '*'):
         raise XMLSchemaXPathError("invalid child axis %r." % next_token)
-    else:
-        self.insert(0, expression(80))
+    self.insert(0, expression(80))
+    self.sed = self[0].sed
     return self
 
 
@@ -714,9 +645,9 @@ def predicate_token_led(self, left):
     self.insert(0, left)
     self.insert(1, expression())
     if isinstance(self[1].value, int):
-        self.sed = self[1].subscript_selector()
+        self.sed = self.subscript_selector()
     else:
-        self.sed = self[1].predicate_selector()
+        self.sed = self.predicate_selector()
     advance(']')
     return self
 
@@ -751,37 +682,93 @@ def position_token_nud(self):
 
 
 #
-# XPath selector class and functions
-class XPathSelector(MutableSequence):
+# XPath parser classes
+class XPathParser(object):
+    """
+    XPath expression iterator parser class.
 
-    def __init__(self, context, path, initlist=None):
-        self.context = context
+    :param path: XPath expression.
+    :param namespaces: optional prefix to namespace map.
+    :param token_table: Dictionary with XPath grammar's tokens. \
+    If `None` use the module registered token table.
+    """
+    NOT_ALLOWED_OPERATORS = set()
+
+    def __init__(self, path, namespaces=None, token_table=None):
+        if not path:
+            raise XMLSchemaXPathError("empty XPath expression.")
+        elif path[-1] == '/':
+            raise XMLSchemaXPathError("invalid path: %r" % path)
+        if path[:1] == "/":
+            path = "." + path
+
         self.path = path
-        if initlist is not None:
-            self._selector = [f for f in initlist]
-        else:
-            self._selector = []
+        self.namespaces = namespaces if namespaces is not None else {}
+        self.token_table = token_table or TokenMeta.registry
 
-    def __getitem__(self, i):
-        return self._selector[i]
+    def __iter__(self):
+        self._tokens = iter(xpath_tokens_regex.finditer(self.path))
 
-    def __setitem__(self, i, item):
-        self._selector[i] = item
+    def __next__(self):
+        token = self.advance()
+        if token.name == '(end)':
+            raise StopIteration()
+        return token
 
-    def __delitem__(self, i):
-        del self._selector[i]
+    next = __next__
 
-    def __len__(self):
-        return len(self._selector)
+    def advance(self, name=None):
+        global current_token, next_token
+        if name:
+            next_token.expected(name)
 
-    def insert(self, i, item):
-        self._selector.insert(i, item)
+        while True:
+            try:
+                match = next(self._tokens)
+            except StopIteration:
+                current_token, next_token = next_token, self.token_table['(end)']()
+                break
+            else:
+                current_token = next_token
+                literal, operator, ref = match.groups()
+                if operator is not None:
+                    try:
+                        next_token = self.token_table[operator.replace(' ', '')]()
+                    except KeyError:
+                        raise XMLSchemaXPathError("unknown operator %r." % operator)
+                    else:
+                        if operator in self.NOT_ALLOWED_OPERATORS:
+                            raise XMLSchemaXPathError("not allowed operator %r." % operator)
+                    break
+                elif literal is not None:
+                    if literal[0] in '\'"':
+                        next_token = self.token_table['(string)'](literal.strip("'\""))
+                    elif '.' in literal:
+                        next_token = self.token_table['(decimal)'](Decimal(literal))
+                    else:
+                        next_token = self.token_table['(integer)'](int(literal))
+                    break
+                elif ref is not None:
+                    if ':' in ref:
+                        value = reference_to_qname(ref, self.namespaces)
+                    else:
+                        value = ref  # default namespace can't be applied to paths
+                    next_token = self.token_table['(ref)'](value)
+                    break
+                elif str(match.group()).strip():
+                    raise XMLSchemaXPathError("unexpected token: %r" % match)
 
-    def iter_results(self):
-        results = [self.context]
-        for selector in self:
-            results = selector(self.context, results)
-        return results
+        return current_token
+
+    def parse(self):
+        global advance
+        advance = self.advance
+        self.__iter__()
+        advance()
+        root_token = expression()
+        if next_token.name != '(end)':
+            next_token.unexpected()
+        return root_token
 
 
 _selector_cache = {}
@@ -793,17 +780,16 @@ def xsd_iterfind(context, path, namespaces=None):
 
     path_key = (id(context), path)
     try:
-        return _selector_cache[path_key].iter_results()
+        return _selector_cache[path_key].iter_select(context)
     except KeyError:
         pass
 
-    parser = XPathParser(TokenMeta.registry, path, namespaces)
-    token_tree = parser.parse()
-    selector = XPathSelector(context, path, token_tree.iter_selectors())
+    parser = XPathParser(path, namespaces)
+    selector = parser.parse()
     if len(_selector_cache) > 100:
         _selector_cache.clear()
     _selector_cache[path] = selector
-    return selector.iter_results()
+    return selector.iter_select(context)
 
 
 def relative_path(path, levels, namespaces=None):
@@ -816,7 +802,7 @@ def relative_path(path, levels, namespaces=None):
     prefix to full qualified name.
     :return: a string with a relative XPath expression.
     """
-    parser = XPathParser(TokenMeta.registry, path, namespaces)
+    parser = XPathParser(path, namespaces)
     token_tree = parser.parse()
     path_parts = [t.value for t in token_tree.iter()]
     i = 0
@@ -836,6 +822,10 @@ def relative_path(path, levels, namespaces=None):
 #
 # XPathMixin class for XMLSchema and XsdElement
 class XPathMixin(object):
+
+    @property
+    def attrib(self):
+        return getattr(self, 'attributes')
 
     def iterfind(self, path, namespaces=None):
         """

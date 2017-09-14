@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -16,9 +16,9 @@ from collections import MutableMapping
 from ..core import XSI_NAMESPACE_PATH
 from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaAttributeError
 from ..qnames import (
-    reference_to_qname, XSD_ATTRIBUTE_TAG, get_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
+    get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG
+    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
 from ..utils import check_type, get_namespace
 from ..xsdbase import get_xsd_attribute, ValidatorMixin
@@ -60,7 +60,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
     def _parse(self):
         super(XsdAttribute, self)._parse()
         elem = self.elem
-        self.qualified = elem.attrib.get('form', self.schema.attribute_form_default)
+        self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
         if self.default and self.fixed:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive")
@@ -83,7 +83,6 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
                 self.name = attribute_name
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
-                # self.schema = xsd_attribute.schema  TODO: Check this
                 return
         else:
             attribute_name = get_qname(self.target_namespace, name)
@@ -152,6 +151,9 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
 
     def is_optional(self):
         return self.use == 'optional'
+
+    def match(self, name):
+        return self.name == name or (not self.qualified and local_name(self.name) == name)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -234,7 +236,11 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         self.required.discard(key)
 
     def __iter__(self):
-        return iter(self._attribute_group)
+        if None in self._attribute_group:
+            # Put AnyAttribute ('None' key) at the end of iteration
+            return iter(sorted(self._attribute_group, key=lambda x: (x is None, x)))
+        else:
+            return iter(self._attribute_group)
 
     def __len__(self):
         return len(self._attribute_group)

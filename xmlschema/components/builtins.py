@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -25,7 +25,7 @@ from ..qnames import (
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
 )
 from .facets import (
-    XsdUniqueFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
+    XsdSingleFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
     BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction
@@ -99,13 +99,13 @@ def non_negative_int_validator(x):
         yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
 
 
-def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
+def datetime_iso8601_validator(date_string, *date_formats):
     """
     Validate a string represents a valid datetime ISO 8601 like, according to the
     specified formatting, plus optional timezone specification as suffix.
 
     :param date_string: The string containing the datetime
-    :param date_format: The reference formatting for datetime
+    :param date_formats: The reference formatting for datetime
     :return: True if the string is a valid datetime, False if not.
     """
     try:
@@ -113,11 +113,19 @@ def datetime_iso8601_validator(date_string, date_format='%Y-%m-%d'):
     except ValueError:
         pass
 
-    try:
-        datetime.datetime.strptime(date_string, date_format)
-    except ValueError:
+    if not date_formats:
+        date_formats = ('%Y-%m-%d',)
+
+    for fmt in date_formats:
+        try:
+            datetime.datetime.strptime(date_string, fmt)
+        except ValueError:
+            pass
+        else:
+            break
+    else:
         yield XMLSchemaValidationError(
-            non_negative_int_validator, date_string, "invalid datetime for format %r." % date_format
+            non_negative_int_validator, date_string, "invalid datetime for formats {}.".format(date_formats)
         )
 
 
@@ -174,7 +182,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
         'python_type': unicode_type,
         'facets': (
             DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x)
+            lambda x: datetime_iso8601_validator(x, '%Y-%m-%d', '-%Y-%m-%d')
         )
     },  # CCYY-MM-DD
     {
@@ -182,7 +190,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
         'python_type': unicode_type,
         'facets': (
             DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%Y-%m-%dT%H:%M:%S')
+            lambda x: datetime_iso8601_validator(x, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
         )
     },  # CCYY-MM-DDThh:mm:ss
     {
@@ -230,7 +238,7 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
         'python_type': unicode_type,
         'facets': (
             DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%H:%M:%S')
+            lambda x: datetime_iso8601_validator(x, '%H:%M:%S', '%H:%M:%S.%f')
         )
     },  # hh:mm:ss
     {
@@ -365,8 +373,8 @@ def xsd_build_facets(items, base_type, schema, keys):
                 if obj.tag == XSD_PATTERN_TAG:
                     facets[obj.tag] = XsdPatternsFacet(base_type, obj, schema)
                 else:
-                    facets[obj.tag] = XsdUniqueFacet(base_type, obj, schema)
-        elif isinstance(obj, (XsdUniqueFacet, XsdPatternsFacet)):
+                    facets[obj.tag] = XsdSingleFacet(base_type, obj, schema)
+        elif isinstance(obj, (XsdSingleFacet, XsdPatternsFacet)):
             if obj.name in keys:
                 facets[obj.name] = obj
         elif callable(obj):

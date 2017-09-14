@@ -1,8 +1,14 @@
 # ../../schemas/XSD_1.0/XMLSchema.xsd
 # ../../schemas/XSD_1.1/XMLSchema.xsd
 
+builtins/builtins.xsd
+builtins/builtins.xml
 collection/collection.xsd
 collection/collection.xml
+collection/collection2.xsd      # key constraint
+collection/collection2.xml 1
+collection/collection3.xsd      # key and keyref constraints
+collection/collection3.xml 1
 decoder/decoder.xsd
 decoder/data2.xml 1
 derivations/complex-extensions.xsd 2

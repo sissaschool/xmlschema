@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -141,7 +141,7 @@ class TestGlobalMaps(unittest.TestCase):
             for c in g.iter_components():
                 total_counter += 1
                 if c.is_global:
-                    global_counter +=1
+                    global_counter += 1
         self.assertTrue(global_counter == 199)
         self.assertTrue(total_counter == 1199)
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -24,6 +24,7 @@ from .component import XsdAnnotated
 from .attributes import XsdAttributeGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
 
 
 class XsdComplexType(XsdAnnotated, ValidatorMixin):
@@ -84,15 +85,15 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if not self.is_global:
                 self._parse_error("attribute 'name' not allowed for a local complexType", elem)
 
+        self.base_type = None
         self.derivation = None
-        self.mixed = elem.get('mixed') in ('true', '1')
 
         content_elem = self._parse_component(elem, required=False, strict=False)
         if content_elem is None or content_elem.tag in \
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
             # complexType with empty content
-            self.content_type = self.BUILDERS.build_any_content_group(self.schema)
+            self.content_type = self.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema)
             self.attributes = self.BUILDERS.attribute_group_class(elem, self.schema)
 
         elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
@@ -109,11 +110,11 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if derivation_elem is None:
                 return
 
-            base_type = self._parse_base_type(derivation_elem)
+            self.base_type = self._parse_base_type(derivation_elem)
             if derivation_elem.tag == XSD_RESTRICTION_TAG:
-                self._parse_simple_content_restriction(derivation_elem, base_type)
+                self._parse_simple_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_simple_content_extension(derivation_elem, base_type)
+                self._parse_simple_content_extension(derivation_elem, self.base_type)
 
         elif content_elem.tag == XSD_COMPLEX_CONTENT_TAG:
             #
@@ -125,14 +126,15 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             if derivation_elem is None:
                 return
 
-            base_type = self._parse_base_type(derivation_elem, complex_content=True)
+            self.base_type = self._parse_base_type(derivation_elem, complex_content=True)
             if derivation_elem.tag == XSD_RESTRICTION_TAG:
-                self._parse_complex_content_restriction(derivation_elem, base_type)
+                self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
-                self._parse_complex_content_extension(derivation_elem, base_type)
+                self._parse_complex_content_extension(derivation_elem, self.base_type)
 
         else:
-            # self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
+            if self.schema.validation == 'skip':
+                self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
             self.content_type = self.BUILDERS.build_any_content_group(self.schema)
             self.attributes = self.BUILDERS.build_any_attribute_group(self.schema)
 
@@ -278,7 +280,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 self.content_type = self.BUILDERS.group_class(elem, self.schema, mixed=self.mixed)
         else:
             dummy_elem = etree_element(XSD_SEQUENCE_TAG)
-            self.content_type = self.BUILDERS.group_class(dummy_elem, self.schema)
+            self.content_type = self.BUILDERS.group_class(dummy_elem, self.schema, mixed=self.mixed)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
                 xsd_group = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
                 self.content_type.append(base_type.content_type)
@@ -350,6 +352,20 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         try:
             return not self.content_type.mixed
         except AttributeError:
+            return False
+
+    def is_derived(self, other, derivation=None):
+        if other.name == XSD_ANY_TYPE or self.base_type == other:
+            if derivation is None:
+                return True
+            else:
+                return derivation == self.derivation
+        elif self.base_type is not None:
+            if derivation is None:
+                return self.base_type.is_derived(other)
+            else:
+                return self.base_type.is_derived(other) and self.base_type.derivation == derivation
+        else:
             return False
 
     @property

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -57,12 +57,14 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
+    def match(self, name):
+        return self._is_namespace_allowed(get_namespace(name), self.namespace)
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
-        namespace = get_namespace(elem.tag)
-        if self._is_namespace_allowed(namespace, self.namespace):
+        if self.match(elem.tag):
             try:
                 xsd_element = self.maps.lookup_base_element(elem.tag)
             except LookupError:
@@ -161,13 +163,15 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
         )
 
+    def match(self, name):
+        return self._is_namespace_allowed(get_namespace(name), self.namespace)
+
     def iter_decode(self, attrs, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
         for name, value in attrs.items():
-            namespace = get_namespace(name)
-            if self._is_namespace_allowed(namespace, self.namespace):
+            if self.match(name):
                 try:
                     xsd_attribute = self.maps.lookup_attribute(name)
                 except LookupError:

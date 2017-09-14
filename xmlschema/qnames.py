@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -248,6 +248,13 @@ XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
 # XSD 1.1 facets
 XSD_ASSERTIONS_TAG = xsd_qname('assertions')
 XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
+
+# Identity constraints
+XSD_UNIQUE_TAG = xsd_qname('unique')
+XSD_KEY_TAG = xsd_qname('key')
+XSD_KEYREF_TAG = xsd_qname('keyref')
+XSD_SELECTOR_TAG = xsd_qname('selector')
+XSD_FIELD_TAG = xsd_qname('field')
 
 # Special XSD built-in types.
 XSD_ANY_TYPE = xsd_qname('anyType')

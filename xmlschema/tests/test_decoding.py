@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -404,7 +404,7 @@ class TestDecoding(unittest.TestCase):
         filename = 'examples/collection/collection.xml'
         xt = _ElementTree.parse(filename)
         d = self.collection_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.collection_schema.encode(d, path='./collection', namespaces=self.namespaces)
+        elem = self.collection_schema.encode(d, path='./col:collection', namespaces=self.namespaces)
         self.assertTrue(len([e for e in elem.iter()]) == 20,
                         msg="The encoded tree must have 20 elements as the origin.")
         self.assertTrue(all([

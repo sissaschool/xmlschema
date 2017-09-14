@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -102,10 +102,17 @@ class XsdFacet(XsdAnnotated):
         return
 
 
-class XsdUniqueFacet(XsdFacet):
+class XsdSingleFacet(XsdFacet):
+    """
+    Class for XSD facets that are singular for each restriction,
+    the facets for whom the repetition is an error.
+    The facets of this group are: whiteSpace, length, minLength,
+    maxLength, minInclusive, minExclusive, maxInclusive, maxExclusive,
+    totalDigits, fractionDigits.
+    """
 
     def __init__(self, base_type, elem, schema):
-        super(XsdUniqueFacet, self).__init__(base_type, elem=elem, schema=schema)
+        super(XsdSingleFacet, self).__init__(base_type, elem=elem, schema=schema)
         self.name = '%s(value=%r)' % (local_name(elem.tag), elem.attrib['value'])
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
 
@@ -179,7 +186,7 @@ class XsdUniqueFacet(XsdFacet):
                         raise XMLSchemaParseError(
                             "base type has lesser 'maxLength': %r" % base_facet.value, self
                         )
-        super(XsdUniqueFacet, self).__setattr__(name, value)
+        super(XsdSingleFacet, self).__setattr__(name, value)
 
     @property
     def admitted_tags(self):

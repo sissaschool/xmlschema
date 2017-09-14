@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -160,10 +160,15 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             elif validation == 'lax':
                 self.errors.extend([e for e in self.META_SCHEMA.iter_errors(self.root)])
 
+            if self.url is None:
+                base_url = None
+            else:
+                base_url = os.path.dirname(self.url)
+
             # Includes
             for child in iterchildren_xsd_include(self.root):
                 try:
-                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), self.url)
+                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), base_url)
                 except XMLSchemaKeyError:
                     pass
                 except (OSError, IOError) as err:
@@ -173,7 +178,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             # Redefines
             for child in iterchildren_xsd_redefine(self.root):
                 try:
-                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), self.url)
+                    self.include_schema(get_xsd_attribute(child, 'schemaLocation'), base_url)
                 except XMLSchemaKeyError:
                     pass
                 except (OSError, IOError) as err:
@@ -186,7 +191,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 location = child.get('schemaLocation', self.get_locations(namespace))
                 if location:
                     try:
-                        self.import_schema(namespace, location, self.url)
+                        self.import_schema(namespace, location, base_url)
                     except (OSError, IOError) as err:
                         if self.validation != 'skip':
                             self.errors.append(err)
@@ -212,6 +217,7 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 self.elements = NamespaceView(value.elements, self.target_namespace)
                 self.base_elements = NamespaceView(value.base_elements, self.target_namespace)
                 self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
+                self.constraints = NamespaceView(value.constraints, self.target_namespace)
                 self.global_maps = (self.notations, self.types, self.attributes,
                                     self.attribute_groups, self.groups, self.elements)
             super(_XMLSchema, self).__setattr__(name, value)

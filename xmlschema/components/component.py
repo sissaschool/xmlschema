@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -37,7 +37,7 @@ class XsdComponent(XsdBaseComponent):
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
-    def __init__(self, elem, schema, name=None, is_global=None):
+    def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__()
         self.is_global = is_global
         self.name = name
@@ -111,9 +111,9 @@ class XsdComponent(XsdBaseComponent):
         except XMLSchemaValueError as err:
             self._parse_error(str(err), elem)
 
-    def _iterparse_components(self, elem):
+    def _iterparse_components(self, elem, start=0):
         try:
-            for obj in iter_xsd_components(elem):
+            for obj in iter_xsd_components(elem, start):
                 yield obj
         except XMLSchemaValueError as err:
             self._parse_error(str(err), elem)
@@ -277,3 +277,5 @@ class ParticleMixin(object):
 
     def is_restriction(self, other):
         return True   # raise NotImplementedError  TODO: implement concrete methods
+
+
