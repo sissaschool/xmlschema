@@ -188,7 +188,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
             elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
                 self.append(XsdGroup(child, self.schema, mixed=self.mixed))
             else:
-                raise XMLSchemaParseError("unexpected element:", elem)
+                raise XMLSchemaParseError("unexpected element:", elem=elem)
 
     @property
     def built(self):

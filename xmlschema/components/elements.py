@@ -14,7 +14,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 from collections import Sequence
 
 from ..core import etree_element, ElementData
-from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError
+from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError, XMLSchemaParseError
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
@@ -164,16 +164,21 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         self.constraints = {}
         for child in self._iterparse_components(elem, start=skip):
             if child.tag == XSD_UNIQUE_TAG:
-                constraint = XsdUnique(child, self.schema)
+                constraint = XsdUnique(child, self.schema, parent=self)
             elif child.tag == XSD_KEY_TAG:
-                constraint = XsdKey(child, self.schema)
+                constraint = XsdKey(child, self.schema, parent=self)
             elif child.tag == XSD_KEYREF_TAG:
-                constraint = XsdKeyref(child, self.schema)
-
-            if constraint.name in self.maps.constraints:
-                self._parse_error("duplicated identity constraint %r:" % constraint.name, child)
+                constraint = XsdKeyref(child, self.schema, parent=self)
             else:
-                self.maps.constraints[constraint.name] = self
+                raise XMLSchemaParseError(
+                    "unexpected child element %r:" % child, self)
+
+            try:
+                if child != self.maps.constraints[constraint.name]:
+                    self._parse_error("duplicated identity constraint %r:" % constraint.name, child)
+            except KeyError:
+                self.maps.constraints[constraint.name] = child
+            finally:
                 self.constraints[constraint.name] = constraint
 
         self._parse_substitution_group()
@@ -270,8 +275,17 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         return self.elem.get('substitutionGroup')
 
     def iter_components(self, xsd_classes=None):
-        if xsd_classes is None or isinstance(self, xsd_classes):
+        if xsd_classes is None:
             yield self
+            for obj in self.constraints.values():
+                yield obj
+        else:
+            if isinstance(self, xsd_classes):
+                yield self
+            for obj in self.constraints.values():
+                if isinstance(obj, xsd_classes):
+                    yield obj
+
         if self.ref is None and not self.type.is_global:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj

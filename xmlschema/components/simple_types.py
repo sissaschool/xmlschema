@@ -798,7 +798,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         )
                 has_simple_type_child = True
             elif child.tag not in self.schema.FACETS:
-                raise XMLSchemaParseError("unexpected tag in restriction", child)
+                raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:
                     facets[child.tag].append(child)
@@ -810,7 +810,7 @@ class XsdAtomicRestriction(XsdAtomic):
             elif child.tag not in facets:
                 facets[child.tag] = XsdSingleFacet(base_type, child, self.schema)
             else:
-                raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), elem)
+                raise XMLSchemaParseError("multiple %r constraint facet" % local_name(child.tag), self)
 
         if base_type is None:
             self._parse_error("missing base type in restriction:", self)

@@ -10,15 +10,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests URL based access to resources.
+This module runs tests concerning resources.
 """
 from _test_common import *
 
 from xmlschema import XMLSchema
-from xmlschema.resources import normalize_url
+from xmlschema.exceptions import XMLSchemaURLError
+from xmlschema.resources import normalize_url, fetch_resource
 
 
-class TestURL(unittest.TestCase):
+class TestResources(unittest.TestCase):
     xs1 = XMLSchema("examples/vehicles/vehicles.xsd")
     xs2 = XMLSchema("examples/collection/collection.xsd")
     cars = xs1.elements['vehicles'].type.content_type[0]
@@ -28,6 +29,11 @@ class TestURL(unittest.TestCase):
         url1 = "https://example.com/xsd/other_schema.xsd"
         self.assertTrue(normalize_url(url1, base_url="/path_my_schema/schema.xsd") == url1)
 
+    def test_fetch_resource(self):
+        self.assertRaises(
+            XMLSchemaURLError, fetch_resource, 'examples/resources/issue017.txt'
+        )
+        self.assertTrue(fetch_resource('examples/resources/issue 017.txt').endswith('e%20017.txt'))
 
 if __name__ == '__main__':
     unittest.main()

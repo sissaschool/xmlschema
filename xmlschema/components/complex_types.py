@@ -262,12 +262,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
     def _parse_complex_content_extension(self, elem, base_type):
         # complexContent extension: base type must be a complex type with complex content.
         # A dummy sequence group is added if the base type has not empty content model.
-        # Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
-        if base_type.is_simple() or base_type.has_simple_content():
-            self._parse_error("base %r is simple or has a simple content." % base_type, elem)
-            base_type = self.maps.lookup_type(XSD_ANY_TYPE)
-
-        if base_type.content_type.model == XSD_ALL_TAG:
+        if getattr(base_type.content_type, 'model', None) == XSD_ALL_TAG:
             self._parse_error("XSD 1.0 do not allows 'ALL' group extensions", elem)
 
         group_elem = self._parse_component(elem, required=False, strict=False)
@@ -282,6 +277,13 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             dummy_elem = etree_element(XSD_SEQUENCE_TAG)
             self.content_type = self.BUILDERS.group_class(dummy_elem, self.schema, mixed=self.mixed)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
+                # Illegal derivation form a simple content. Applies to both XSD 1.0 and XSD 1.1.
+                # For the detailed rule refer to XSD 1.1 documentation:
+                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
+                if base_type.is_simple() or base_type.has_simple_content():
+                    self._parse_error("base %r is simple or has a simple content." % base_type, elem)
+                    base_type = self.maps.lookup_type(XSD_ANY_TYPE)
+
                 xsd_group = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
                 self.content_type.append(base_type.content_type)
                 self.content_type.append(xsd_group)
@@ -290,7 +292,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                     self._parse_error("base has a different content type (mixed=%r) and the "
                                       "extension group is not empty." % base_type.mixed, elem)
                     self.mixed = base_type.mixed
-            else:
+            elif not base_type.is_simple() and not base_type.has_simple_content():
                 self.content_type.append(base_type.content_type)
 
         self.attributes = self.BUILDERS.attribute_group_class(
@@ -340,11 +342,14 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         try:
             return self.content_type.is_simple()
         except AttributeError:
-            return False
+            if self.content_type or self.content_type.mixed or self.base_type is None:
+                return False
+            else:
+                return self.base_type.is_simple() or self.base_type.has_simple_content()
 
     def has_mixed_content(self):
         try:
-            return self.content_type.mixed
+            return self.content_type.mixed  # and self.content_type
         except AttributeError:
             return False
 
