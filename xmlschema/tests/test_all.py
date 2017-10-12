@@ -22,7 +22,7 @@ if __name__ == '__main__':
     from test_xpath import *
     from test_schemas import *
     from test_decoding import *
-    from test_url import *
+    from test_resources import *
     from test_validation import *
 
     pkg_folder = os.path.dirname(os.getcwd())

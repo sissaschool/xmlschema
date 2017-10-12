@@ -43,6 +43,7 @@ def iterchildren_by_tag(tag):
     iterfind_function.__name__ = str('iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower())
     return iterfind_function
 
+
 iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
 iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
 iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
@@ -81,6 +82,7 @@ def create_load_function(filter_function):
                 xsd_globals[qname] = [xsd_globals[qname], obj]
 
     return load_xsd_globals
+
 
 load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE_TAG))
 load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_TAG))
@@ -372,9 +374,10 @@ class XsdGlobals(XsdBaseComponent):
                     self.substitution_groups[qname] = {xsd_element}
 
         # Build constraints's contexts
-        for name, xsd_element in self.constraints.items():
-            constraint = xsd_element.constraints[name]
-            constraint.set_context(xsd_element)
+        for xsd_global in self.iter_globals():
+            for xsd_element in xsd_global.iter_components(XsdElement):
+                for constraint in xsd_element.constraints.values():
+                    constraint.set_context()
 
         # TODO: check keyref field types (now there is a lighter check during validation)
 

@@ -101,11 +101,11 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         else:
             xsd_type = self.maps.lookup_type(type_qname)
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
-                raise XMLSchemaParseError("ambiguous type declaration for XSD attribute", elem)
+                raise XMLSchemaParseError("ambiguous type declaration for XSD attribute", elem=elem)
             elif xsd_declaration:
                 raise XMLSchemaParseError(
                     "not allowed element in XSD attribute declaration: {}".format(xsd_declaration[0]),
-                    elem
+                    elem=elem
                 )
         self.name = attribute_name
         self.type = xsd_type
@@ -275,7 +275,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                 self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
                 self.errors.append(XMLSchemaParseError(
-                    "an attribute group declaration requires a 'name' attribute.", elem
+                    "an attribute group declaration requires a 'name' attribute.", elem=elem
                 ))
                 return
 
@@ -283,10 +283,10 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
             if any_attribute:
                 if child.tag == XSD_ANY_ATTRIBUTE_TAG:
                     self.errors.append(XMLSchemaParseError(
-                        "more anyAttribute declarations in the same attribute group", child))
+                        "more anyAttribute declarations in the same attribute group:", elem=elem))
                 else:
                     self.errors.append(XMLSchemaParseError(
-                        "another declaration after anyAttribute", child))
+                        "another declaration after anyAttribute:", elem=elem))
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
                 self.update({None: XsdAnyAttribute(elem=child, schema=self.schema)})
@@ -299,7 +299,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                 self.update(ref_attribute_group.items())
             elif self.name is not None:
                 self.errors.append(XMLSchemaParseError(
-                    "(attribute | attributeGroup) expected, found", child
+                    "(attribute | attributeGroup) expected, found %r:" % child, elem=elem
                 ))
 
     @property

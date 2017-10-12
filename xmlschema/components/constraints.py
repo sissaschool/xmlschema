@@ -56,10 +56,11 @@ class XsdPathSelector(XsdAnnotated):
 
 
 class XsdConstraint(XsdAnnotated):
-    def __init__(self, elem, schema):
+    def __init__(self, elem, schema, parent):
         super(XsdConstraint, self).__init__(elem, schema)
         self.context = []
         self.context_fields = []
+        self.parent = parent
 
     def _parse(self):
         super(XsdConstraint, self)._parse()
@@ -84,25 +85,29 @@ class XsdConstraint(XsdAnnotated):
             else:
                 self._parse_error("element %r not allowed here:" % child.tag, elem)
 
-    def set_context(self, xsd_element):
-        if not isinstance(xsd_element, XsdComponent):
-            raise XMLSchemaTypeError("an XsdElement required: %r" % xsd_element)
+    def set_context(self):
+        if not isinstance(self.parent, XsdComponent):
+            raise XMLSchemaTypeError("an XsdElement required: %r" % self.parent)
         del self.context[:]
         try:
-            self.context = self.get_context(xsd_element)
+            self.context = self.get_context(self.parent)
         except XMLSchemaValueError as err:
             self.context = []
-            self._parse_error(str(err), elem=xsd_element)
+            self._parse_error(str(err), self.parent)
 
         del self.context_fields[:]
         for e in self.context:
             try:
                 fields = self.get_fields(e)
-            except XMLSchemaValueError as err:
+            except XMLSchemaValueError:
                 self.context_fields.append(None)
-                self._parse_error(str(err), elem=e)
             else:
                 self.context_fields.append(tuple(fields))
+
+        if self.context_fields and all([fields is None for fields in self.context_fields]):
+            import pdb
+            pdb.set_trace()
+            self._parse_error("empty context fields for %r:" % self, self.elem)
 
     def get_context(self, elem=None):
         if elem is None:
@@ -209,8 +214,8 @@ class XsdKey(XsdConstraint):
 
 class XsdKeyref(XsdConstraint):
 
-    def __init__(self, elem, schema):
-        super(XsdKeyref, self).__init__(elem, schema)
+    def __init__(self, elem, schema, parent):
+        super(XsdKeyref, self).__init__(elem, schema, parent)
         self.refer_elem = None
         self.refer_path = []
 
@@ -226,26 +231,31 @@ class XsdKeyref(XsdConstraint):
             self._parse_error("missing required attribute 'refer'", self.elem)
             self.refer = None
 
-    def set_context(self, xsd_element):
-        super(XsdKeyref, self).set_context(xsd_element)
-        self.refer_elem = refer_elem = self.maps.constraints[self.refer]
+    def set_context(self):
+        super(XsdKeyref, self).set_context()
         del self.refer_path[:]
-        if xsd_element is not refer_elem:
-            parent_map = self.schema.parent_map
-            self.refer_path.append(refer_elem)
-            while True:
-                try:
-                    refer_elem = parent_map[refer_elem]
-                except KeyError:
-                    del self.refer_path[:]
+        if self.refer in self.parent.constraints:
+            self.refer_elem = self.parent
+        else:
+            for descendant in self.parent.iter():
+                if self.refer in descendant.constraints():
+                    self.refer_elem = refer_elem = descendant
+                    self.refer_path.append(refer_elem)
+                    parent_map = self.schema.parent_map
+                    while True:
+                        try:
+                            refer_elem = parent_map[refer_elem]
+                        except KeyError:
+                            del self.refer_path[:]
+                            break
+                        else:
+                            if refer_elem is self.parent:
+                                break
+                            else:
+                                self.refer_path.append(refer_elem)
                     break
-                else:
-                    if refer_elem is xsd_element:
-                        break
-                    else:
-                        self.refer_path.append(refer_elem)
             if not self.refer_path:
-                self._parse_error("attribute 'refer' doesn't refer to a descendant element.", xsd_element)
+                self._parse_error("attribute 'refer' doesn't refer to a descendant element.", self.parent)
             else:
                 self.refer_path.reverse()
 
@@ -253,6 +263,7 @@ class XsdKeyref(XsdConstraint):
         if self.refer is None:
             return
 
+        # Find XML subelement
         refer_elem = elem
         for xsd_element in self.refer_path:
             for child in refer_elem:

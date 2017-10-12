@@ -411,6 +411,7 @@ def register_led(*names, **kwargs):
 def dummy_advance(name=None):
     return symbol('(end)')
 
+
 advance = dummy_advance  # Replaced by active parser
 current_token = None
 next_token = None

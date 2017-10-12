@@ -162,49 +162,36 @@ def normalize_url(url, base_url=None):
                 return urljoin(u'file:', url_parts.geturl())
 
 
-def fetch_resource(locations, base_url=None):
+def fetch_resource(location, base_url=None):
     """
-    Fetch the first available resource from a space-separated list of locations.
+    Fetch a resource trying to open it. If the resource is accessible
+    returns the URL, otherwise raises an error (XMLSchemaURLError).
 
-    :param locations: A location or a space-separated list of locations.
+    :param location: An URL or a file path.
     :param base_url: Reference path for completing local URLs.
     :return: A normalized URL.
     """
+    if not location:
+        raise XMLSchemaValueError("'location' argument must contains a not empty string.")
+
+    url = normalize_url(location, base_url)
     try:
-        locations = locations.split()
-    except AttributeError:
-        raise XMLSchemaTypeError(
-            "'locations' argument must be a string-like object: %r" % locations
-        )
-    else:
-        if not locations:
-            raise XMLSchemaValueError("'locations' argument must contains at least an URL.")
-
-    errors = []
-    for location in locations:
-        url = normalize_url(location, base_url)
-        try:
-            resource = urlopen(url)
-        except URLError as err:
-            errors.append(err.reason)
-        else:
-            resource.close()
-            return url
-
+        resource = urlopen(url)
+    except URLError as err:
         # fallback joining the path without a base URL
         url = normalize_url(location)
         try:
             resource = urlopen(url)
         except URLError:
-            pass
+            raise XMLSchemaURLError(
+                reason="cannot access resource from %r: %s" % (location, str(err))
+            )
         else:
             resource.close()
             return url
     else:
-        raise XMLSchemaURLError(
-            reason="cannot access resource from %r: %s" %
-                   (' '.join(locations), '; '.join([str(err) for err in errors]))
-        )
+        resource.close()
+        return url
 
 
 def get_xml_root(source):
@@ -271,8 +258,12 @@ def fetch_schema(xml_document):
     base_url = None if xml_url is None else os.path.dirname(xml_url)
     if namespace:
         uri_list = get_xsi_schema_location(xml_root).split()
-        locations = [url for uri, url in zip(uri_list[0::2], uri_list[1::2]) if uri == namespace]
-        return fetch_resource(' '.join(locations), base_url)
+        for uri, url in zip(uri_list[0::2], uri_list[1::2]):
+            if uri == namespace:
+                try:
+                    return fetch_resource(url, base_url)
+                except XMLSchemaURLError:
+                    pass
     else:
         schema_location = get_xsi_no_namespace_schema_location(xml_root)
         if schema_location:

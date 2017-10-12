@@ -11,7 +11,7 @@ collection/collection3.xsd      # key and keyref constraints
 collection/collection3.xml 1
 decoder/decoder.xsd
 decoder/data2.xml 1
-derivations/complex-extensions.xsd 2
+derivations/complex-extensions.xsd 1
 misc/issue008.xsd
 misc/issue008_1.xml 1
 misc/issue009.xsd 2
