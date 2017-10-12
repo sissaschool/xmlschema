@@ -91,6 +91,7 @@ class XsdConstraint(XsdAnnotated):
         del self.context[:]
         try:
             self.context = self.get_context(self.parent)
+            # FIXME: Descendant paths (//) doesn't work on XSD structures, a context expansion is needed.
         except XMLSchemaValueError as err:
             self.context = []
             self._parse_error(str(err), self.parent)
@@ -105,8 +106,6 @@ class XsdConstraint(XsdAnnotated):
                 self.context_fields.append(tuple(fields))
 
         if self.context_fields and all([fields is None for fields in self.context_fields]):
-            import pdb
-            pdb.set_trace()
             self._parse_error("empty context fields for %r:" % self, self.elem)
 
     def get_context(self, elem=None):

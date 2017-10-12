@@ -282,7 +282,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
                 if base_type.is_simple() or base_type.has_simple_content():
                     self._parse_error("base %r is simple or has a simple content." % base_type, elem)
-                    base_type = self.maps.lookup_type(XSD_ANY_TYPE) 
+                    base_type = self.maps.lookup_type(XSD_ANY_TYPE)
 
                 xsd_group = self.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
                 self.content_type.append(base_type.content_type)

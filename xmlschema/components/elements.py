@@ -275,8 +275,17 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         return self.elem.get('substitutionGroup')
 
     def iter_components(self, xsd_classes=None):
-        if xsd_classes is None or isinstance(self, xsd_classes):
+        if xsd_classes is None:
             yield self
+            for obj in self.constraints.values():
+                yield obj
+        else:
+            if isinstance(self, xsd_classes):
+                yield self
+            for obj in self.constraints.values():
+                if isinstance(obj, xsd_classes):
+                    yield obj
+
         if self.ref is None and not self.type.is_global:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj

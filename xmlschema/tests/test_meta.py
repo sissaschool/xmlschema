@@ -143,7 +143,7 @@ class TestGlobalMaps(unittest.TestCase):
                 if c.is_global:
                     global_counter += 1
         self.assertTrue(global_counter == 199)
-        self.assertTrue(total_counter == 1199)
+        self.assertTrue(total_counter == 1206)
 
 
 # TODO: Add test for base schemas files.
