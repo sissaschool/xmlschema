@@ -325,29 +325,61 @@ class TestDecoding(unittest.TestCase):
         'col': 'http://example.com/ns/collection',
         'dt': 'http://example.com/decoder'
     }
-    vehicles_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
-    collection_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
+
+    vh_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
+    vh_xml_etree = _etree.parse('examples/vehicles/vehicles.xml')
+    col_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
+    col_xml_etree = _ElementTree.parse('examples/collection/collection.xml')
+
+    with open('examples/vehicles/vehicles.xml') as f:
+        vh_xml_string = f.read()
+
+    with open('examples/collection/collection.xml') as f:
+        col_xml_string = f.read()
 
     @unittest.skipIf(_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        xt1 = _etree.parse('examples/vehicles/vehicles.xml')
-        self.assertTrue(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
-        self.assertTrue(xmlschema.to_dict(xt1, self.vehicles_schema.url) == _VEHICLES_DICT)
+        self.assertTrue(
+            self.vh_schema.to_dict(self.vh_xml_etree) == _VEHICLES_DICT
+        )
+        self.assertTrue(
+            xmlschema.to_dict(self.vh_xml_etree, self.vh_schema.url) == _VEHICLES_DICT
+        )
 
-    def test_to_dict_python3(self):
-        xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
-        xt2 = _ElementTree.parse('examples/collection/collection.xml')
-        self.assertFalse(self.vehicles_schema.to_dict(xt1) == _VEHICLES_DICT)
+    def test_to_dict_from_etree(self):
+        vh_xml_etree = _etree.parse('examples/vehicles/vehicles.xml')
+
+        print(self.vh_schema.to_dict(vh_xml_etree) )
+
+        xml_dict = self.vh_schema.to_dict(self.vh_xml_etree)
+        self.assertEqual(xml_dict, _VEHICLES_DICT)  # XSI NS unmapped
+
+        xml_dict = self.vh_schema.to_dict(self.vh_xml_etree, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _VEHICLES_DICT)
+
+        xml_dict = xmlschema.to_dict(self.vh_xml_etree, self.vh_schema.url, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _VEHICLES_DICT)
+
+        xml_dict = self.col_schema.to_dict(self.col_xml_etree, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _COLLECTION_DICT)
+
+        xml_dict = xmlschema.to_dict(self.col_xml_etree, self.col_schema.url, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _COLLECTION_DICT)
+
+    def test_to_dict_from_string(self):
+        self.assertTrue(self.vh_schema.to_dict(self.vh_xml_string) == _VEHICLES_DICT)
         self.assertTrue(
-            self.vehicles_schema.to_dict(xt1, namespaces=self.namespaces) == _VEHICLES_DICT)
+            self.vh_schema.to_dict(self.vh_xml_string, namespaces=self.namespaces) == _VEHICLES_DICT
+        )
         self.assertTrue(
-            xmlschema.to_dict(xt1, self.vehicles_schema.url,
-                              namespaces=self.namespaces) == _VEHICLES_DICT)
+            xmlschema.to_dict(self.vh_xml_string, self.vh_schema.url, namespaces=self.namespaces) == _VEHICLES_DICT
+        )
         self.assertTrue(
-            self.collection_schema.to_dict(xt2, namespaces=self.namespaces) == _COLLECTION_DICT)
+            self.col_schema.to_dict(self.col_xml_string, namespaces=self.namespaces) == _COLLECTION_DICT
+        )
         self.assertTrue(
-            xmlschema.to_dict(xt2, self.collection_schema.url,
-                              namespaces=self.namespaces) == _COLLECTION_DICT)
+            xmlschema.to_dict(self.col_xml_string, self.col_schema.url, namespaces=self.namespaces) == _COLLECTION_DICT
+        )
 
     def test_path(self):
         xs = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
@@ -361,7 +393,7 @@ class TestDecoding(unittest.TestCase):
         xt1 = _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml')
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
-            self.vehicles_schema.to_dict,
+            self.vh_schema.to_dict,
             xt1, validation='strict', namespaces=self.namespaces
         )
 
@@ -379,32 +411,32 @@ class TestDecoding(unittest.TestCase):
             xs.to_dict('examples/decoder/data.xml', namespaces=self.namespaces.copy()) == _DATA_DICT
         )
 
-    def test_formats(self):
+    def test_converters(self):
         filename = 'examples/collection/collection.xml'
 
-        parker_dict = self.collection_schema.to_dict(filename, converter=xmlschema.ParkerConverter)
+        parker_dict = self.col_schema.to_dict(filename, converter=xmlschema.ParkerConverter)
         self.assertTrue(parker_dict == _COLLECTION_PARKER)
 
-        parker_dict_root = self.collection_schema.to_dict(
+        parker_dict_root = self.col_schema.to_dict(
             filename, converter=xmlschema.ParkerConverter(preserve_root=True), decimal_type=float)
         self.assertTrue(parker_dict_root == _COLLECTION_PARKER_ROOT)
 
-        badgerfish_dict = self.collection_schema.to_dict(
+        badgerfish_dict = self.col_schema.to_dict(
             filename, converter=xmlschema.BadgerFishConverter, decimal_type=float)
         self.assertTrue(badgerfish_dict == _COLLECTION_BADGERFISH)
 
-        abdera_dict = self.collection_schema.to_dict(
+        abdera_dict = self.col_schema.to_dict(
             filename, converter=xmlschema.AbderaConverter, decimal_type=float, dict_class=dict)
         self.assertTrue(abdera_dict == _COLLECTION_ABDERA)
 
-        json_ml_dict = self.collection_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
+        json_ml_dict = self.col_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
         self.assertTrue(json_ml_dict == _COLLECTION_JSON_ML)
 
     def test_encoding(self):
         filename = 'examples/collection/collection.xml'
         xt = _ElementTree.parse(filename)
-        d = self.collection_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.collection_schema.encode(d, path='./col:collection', namespaces=self.namespaces)
+        d = self.col_schema.to_dict(filename, dict_class=OrderedDict)
+        elem = self.col_schema.encode(d, path='./col:collection', namespaces=self.namespaces)
         self.assertTrue(len([e for e in elem.iter()]) == 20,
                         msg="The encoded tree must have 20 elements as the origin.")
         self.assertTrue(all([

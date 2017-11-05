@@ -104,12 +104,19 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaDecodeError, xsd_types['double'].decode, ' alpha  \n')
 
     def test_float_encode(self):
-        xsd_types = meta_schema.types
-        self.assertTrue(xsd_types['float'].encode(1000.0) == '1000.0')
-        self.assertTrue(xsd_types['float'].encode(-19.0) == '-19.0')
-        self.assertTrue(xsd_types['float'].encode(0.0) == '0.0')
-        self.assertRaises(XMLSchemaEncodeError, xsd_types['float'].encode, True)
-        self.assertRaises(XMLSchemaEncodeError, xsd_types['float'].encode, 'alpha')
+        float_type = meta_schema.types['float']
+        self.assertTrue(float_type.encode(1000.0) == '1000.0')
+        self.assertTrue(float_type.encode(-19.0) == '-19.0')
+        self.assertTrue(float_type.encode(0.0) == '0.0')
+        self.assertRaises(XMLSchemaEncodeError, float_type.encode, True)
+        self.assertRaises(XMLSchemaEncodeError, float_type.encode, 'alpha')
+
+    def test_time_type(self):
+        time_type = meta_schema.types['time']
+        print(time_type)
+        # import pdb
+        # pdb.set_trace()
+        print(time_type.decode('3:10:0'))
 
 
 class TestGlobalMaps(unittest.TestCase):

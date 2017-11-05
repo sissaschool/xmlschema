@@ -25,7 +25,10 @@ def create_schema_tests(pathname):
         def test_schema(self):
             # print("Run %s" % self.id())
             try:
-                xs = xmlschema.XMLSchema(xsd_file, validation='lax')
+                if expected_errors > 0:
+                    xs = xmlschema.XMLSchema(xsd_file, validation='lax')
+                else:
+                    xs = xmlschema.XMLSchema(xsd_file)
             except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
                 num_errors = 1
                 errors = [str(err)]
