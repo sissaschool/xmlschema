@@ -134,7 +134,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if xsd_child is not None and xsd_child.is_single():
+                    if xsd_child.is_single() and xsd_element.type.content_type.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
