@@ -12,16 +12,17 @@
 """
 This module runs tests concerning the decoding of XML files with the 'xmlschema' package.
 """
-from _test_common import *
-import glob
-import fileinput
+from _test_common import tests_factory
+import unittest
+import os
+import sys
 from collections import OrderedDict
 from decimal import Decimal
 from xml.etree import ElementTree as _ElementTree
 try:
-    import lxml.etree as _etree
+    import lxml.etree as _lxml_etree
 except ImportError:
-    _etree = None
+    _lxml_etree = None
 
 import xmlschema
 from xmlschema.qnames import local_name
@@ -51,7 +52,6 @@ _VEHICLES_DICT_ALT = [
         ]},
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'}
 ]
-
 
 _COLLECTION_DICT = {
     '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
@@ -101,7 +101,6 @@ _COLLECTION_PARKER = {
                 'position': 2,
                 'title': None,
                 'year': '1925'}]}
-
 
 _COLLECTION_PARKER_ROOT = {
     'col:collection': {'object': [{'author': {'born': '1841-02-25',
@@ -251,71 +250,33 @@ _DATA_DICT = {
 }
 
 
-def create_decoding_tests(pathname):
-
-    def make_test_decoding_function(xml_file, schema, expected_errors):
-        def test_decoding(self):
-            xs = xmlschema.XMLSchema(schema)
-            errors = []
-            chunks = []
-            for obj in xs.iter_decode(xml_file):
-                if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
-                    errors.append(obj)
-                else:
-                    chunks.append(obj)
-            if len(errors) != expected_errors:
-                raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (
-                        expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:]])
-                    )
-                )
-            if not chunks:
-                raise ValueError("No decoded object returned!!")
-            elif len(chunks) > 1:
-                raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
-            elif not isinstance(chunks[0], dict):
-                raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
+def make_test_decoding_function(xml_file, expected_errors):
+    def test_decoding(self):
+        schema = xmlschema.fetch_schema(xml_file)
+        xs = xmlschema.XMLSchema(schema)
+        errors = []
+        chunks = []
+        for obj in xs.iter_decode(xml_file):
+            if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                errors.append(obj)
             else:
-                self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
-
-        return test_decoding
-
-    # Optional int argument: [<test_only>]
-    if len(sys.argv) > 1:
-        test_only = int(sys.argv.pop())
-    else:
-        test_only = None
-
-    tests = {}
-    test_num = 0
-    for line in fileinput.input(glob.iglob(pathname)):
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        test_args = get_test_args(line)
-        filename = test_args[0]
-        try:
-            tot_errors = int(test_args[1])
-        except (IndexError, ValueError):
-            tot_errors = 0
-
-        test_file = os.path.join(os.path.dirname(fileinput.filename()), filename)
-        if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
-            continue
-
-        schema_file = xmlschema.fetch_schema(test_file)
-        test_func = make_test_decoding_function(test_file, schema_file, tot_errors)
-        test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
-        test_num += 1
-        if test_only is None or test_num == test_only:
-            klassname = 'Test_decoding_{0}_{1}'.format(test_num, test_name)
-            tests[klassname] = type(
-                klassname, (XMLSchemaTestCase,),
-                {'test_decoding_{0}'.format(test_num): test_func}
+                chunks.append(obj)
+        if len(errors) != expected_errors:
+            raise ValueError(
+                "n.%d errors expected, found %d: %s" % (
+                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:]])
+                )
             )
+        if not chunks:
+            raise ValueError("No decoded object returned!!")
+        elif len(chunks) > 1:
+            raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
+        elif not isinstance(chunks[0], dict):
+            raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
+        else:
+            self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-    return tests
+    return test_decoding
 
 
 class TestDecoding(unittest.TestCase):
@@ -327,89 +288,79 @@ class TestDecoding(unittest.TestCase):
     }
 
     vh_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
-    vh_xml_etree = _etree.parse('examples/vehicles/vehicles.xml')
     col_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
-    col_xml_etree = _ElementTree.parse('examples/collection/collection.xml')
+    decoder_schema = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
 
-    with open('examples/vehicles/vehicles.xml') as f:
-        vh_xml_string = f.read()
-
-    with open('examples/collection/collection.xml') as f:
-        col_xml_string = f.read()
-
-    @unittest.skipIf(_etree is None, "Skip if lxml library is not installed.")
+    @unittest.skipIf(_lxml_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        self.assertTrue(
-            self.vh_schema.to_dict(self.vh_xml_etree) == _VEHICLES_DICT
-        )
-        self.assertTrue(
-            xmlschema.to_dict(self.vh_xml_etree, self.vh_schema.url) == _VEHICLES_DICT
-        )
+        vh_xml_tree = _lxml_etree.parse('examples/vehicles/vehicles.xml')
+        self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
+        self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_etree = _etree.parse('examples/vehicles/vehicles.xml')
+        vh_xml_tree = _ElementTree.parse('examples/vehicles/vehicles.xml')
+        col_xml_tree = _ElementTree.parse('examples/collection/collection.xml')
 
-        print(self.vh_schema.to_dict(vh_xml_etree) )
+        xml_dict = self.vh_schema.to_dict(vh_xml_tree)
+        self.assertNotEqual(xml_dict, _VEHICLES_DICT)  # XSI namespace unmapped
 
-        xml_dict = self.vh_schema.to_dict(self.vh_xml_etree)
-        self.assertEqual(xml_dict, _VEHICLES_DICT)  # XSI NS unmapped
-
-        xml_dict = self.vh_schema.to_dict(self.vh_xml_etree, namespaces=self.namespaces)
+        xml_dict = self.vh_schema.to_dict(vh_xml_tree, namespaces=self.namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = xmlschema.to_dict(self.vh_xml_etree, self.vh_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(vh_xml_tree, self.vh_schema.url, namespaces=self.namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = self.col_schema.to_dict(self.col_xml_etree, namespaces=self.namespaces)
+        xml_dict = self.col_schema.to_dict(col_xml_tree)
+        self.assertNotEqual(xml_dict, _COLLECTION_DICT)
+
+        xml_dict = self.col_schema.to_dict(col_xml_tree, namespaces=self.namespaces)
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
-        xml_dict = xmlschema.to_dict(self.col_xml_etree, self.col_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(col_xml_tree, self.col_schema.url, namespaces=self.namespaces)
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
     def test_to_dict_from_string(self):
-        self.assertTrue(self.vh_schema.to_dict(self.vh_xml_string) == _VEHICLES_DICT)
-        self.assertTrue(
-            self.vh_schema.to_dict(self.vh_xml_string, namespaces=self.namespaces) == _VEHICLES_DICT
-        )
-        self.assertTrue(
-            xmlschema.to_dict(self.vh_xml_string, self.vh_schema.url, namespaces=self.namespaces) == _VEHICLES_DICT
-        )
-        self.assertTrue(
-            self.col_schema.to_dict(self.col_xml_string, namespaces=self.namespaces) == _COLLECTION_DICT
-        )
-        self.assertTrue(
-            xmlschema.to_dict(self.col_xml_string, self.col_schema.url, namespaces=self.namespaces) == _COLLECTION_DICT
-        )
+        with open('examples/vehicles/vehicles.xml') as f:
+            vh_xml_string = f.read()
+
+        with open('examples/collection/collection.xml') as f:
+            col_xml_string = f.read()
+
+        xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _VEHICLES_DICT)
+
+        xml_dict = xmlschema.to_dict(vh_xml_string, self.vh_schema.url, namespaces=self.namespaces)
+        self.assertEqual(xml_dict, _VEHICLES_DICT)
+
+        xml_dict = self.col_schema.to_dict(col_xml_string, namespaces=self.namespaces)
+        self.assertTrue(xml_dict, _COLLECTION_DICT)
+
+        xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.namespaces)
+        self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_path(self):
-        xs = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
-        xt1 = _ElementTree.parse('examples/vehicles/vehicles.xml')
-        path = './vh:vehicles/vh:bikes'
-        self.assertTrue(
-            xs.to_dict(xt1, path, namespaces=self.namespaces) == _VEHICLES_DICT['vh:bikes']
-        )
+        xt = _ElementTree.parse('examples/vehicles/vehicles.xml')
+        xd = self.vh_schema.to_dict(xt, './vh:vehicles/vh:bikes', namespaces=self.namespaces)
+        self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
 
     def test_validation_strict(self):
-        xt1 = _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml')
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            xt1, validation='strict', namespaces=self.namespaces
+            _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml'),
+            validation='strict',
+            namespaces=self.namespaces
         )
 
     def test_validation_skip(self):
-        xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
         xt = _ElementTree.parse('examples/decoder/data3.xml')
-        d = xs.decode(xt, validation='skip', namespaces=self.namespaces)
-        self.assertTrue(d['decimal_value'] == ['abc'])
+        xd = self.decoder_schema.decode(xt, validation='skip', namespaces=self.namespaces)
+        self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes3(self):
-        xs = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
-        xt1 = _ElementTree.parse('examples/decoder/data.xml')
-        self.assertTrue(xs.to_dict(xt1, namespaces=self.namespaces) == _DATA_DICT)
-        self.assertTrue(
-            xs.to_dict('examples/decoder/data.xml', namespaces=self.namespaces.copy()) == _DATA_DICT
-        )
+        xt = _ElementTree.parse('examples/decoder/data.xml')
+        xd = self.decoder_schema.to_dict(xt, namespaces=self.namespaces)
+        self.assertEqual(xd, _DATA_DICT)
 
     def test_converters(self):
         filename = 'examples/collection/collection.xml'
@@ -435,10 +386,13 @@ class TestDecoding(unittest.TestCase):
     def test_encoding(self):
         filename = 'examples/collection/collection.xml'
         xt = _ElementTree.parse(filename)
-        d = self.col_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.col_schema.encode(d, path='./col:collection', namespaces=self.namespaces)
-        self.assertTrue(len([e for e in elem.iter()]) == 20,
-                        msg="The encoded tree must have 20 elements as the origin.")
+        xd = self.col_schema.to_dict(filename, dict_class=OrderedDict)
+        elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.namespaces)
+
+        self.assertEqual(
+            len([e for e in elem.iter()]), 20,
+            msg="The encoded tree must have 20 elements as the origin."
+        )
         self.assertTrue(all([
             local_name(e1.tag) == local_name(e2.tag)
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
@@ -448,5 +402,7 @@ class TestDecoding(unittest.TestCase):
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    globals().update(create_decoding_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
+    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    decoding_tests = tests_factory(make_test_decoding_function, path, 'decoding', 'xml')
+    globals().update(decoding_tests)
     unittest.main()

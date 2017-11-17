@@ -29,21 +29,21 @@ class XMLSchemaConverter(NamespaceMapper):
     :param namespaces: Map from namespace prefixes to URI.
     :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
     :param list_class: List class to use for decoded data. Default is `list`.
-    :param kwargs: Contains other optional converter parameters. The argument \
-    `attr_prefix` controls the mapping of XML attributes, to the same name or \
-    with a prefix. If `None` the converter ignores attributes. \
-    The argument `cdata_prefix` is used for including and prefixing the CDATA \
-    parts of a mixed content, that are labeled with an integer instead of a string. \
-    If `None` the CDATA parts are ignored by the converter. \
-    The argument 'content_key' is the key to apply to element's decoded text data \
-    (only for simple content elements).
+    :param text_key: is the key to apply to element's decoded text data.
+    :param attr_prefix: controls the mapping of XML attributes, to the same name or \
+    with a prefix. If `None` the converter ignores attributes.
+    :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
+    mixed content, that are labeled with an integer instead of a string. \
+    CDATA parts are ignored if this argument is `None`.
+    :param force_list: if `True` a list of subelements is forced also if minOccurs is 1.
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None,
+                 text_key='$', attr_prefix='@', cdata_prefix=None):
         self.dict = dict_class or dict
         self.list = list_class or list
-        self.text_key = kwargs.get('text_key', '$')
-        self.attr_prefix = kwargs.get('attr_prefix', '@')
-        self.cdata_prefix = kwargs.get('cdata_prefix')
+        self.text_key = text_key
+        self.attr_prefix = attr_prefix
+        self.cdata_prefix = cdata_prefix
         super(XMLSchemaConverter, self).__init__(namespaces)
 
     def __setattr__(self, name, value):
@@ -134,7 +134,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if xsd_child is not None and xsd_child.is_single():
+                    if xsd_child.is_single() and xsd_element.type.content_type.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])

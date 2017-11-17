@@ -29,6 +29,5 @@ if __name__ == '__main__':
     sys.path.insert(0, pkg_folder)
     pathname = os.path.join(pkg_folder, "tests/*/testfiles")
     globals().update(create_schema_tests(pathname))
-    globals().update(create_decoding_tests(pathname))
     globals().update(create_validation_tests(pathname))
     unittest.main()
