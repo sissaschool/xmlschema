@@ -290,7 +290,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __repr__(self):
         if len(self.enumeration) > 5:
-            enum_repr = '[%s, ...]' % ', '.join(self.enumeration[:5])
+            enum_repr = '[%s, ...]' % ', '.join(map(repr, self.enumeration[:5]))
         else:
             enum_repr = repr(self.enumeration)
         return u"<%s %r at %#x>" % (self.__class__.__name__, enum_repr, id(self))
