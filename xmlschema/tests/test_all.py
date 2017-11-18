@@ -12,22 +12,23 @@
 """
 This module runs all tests of the 'xmlschema' package.
 """
-from _test_common import *
-
-pkg_folder = os.path.dirname(os.getcwd())
-sys.path.insert(0, pkg_folder)
-
 if __name__ == '__main__':
-    from test_meta import *
-    from test_xpath import *
-    from test_schemas import *
-    from test_decoding import *
-    from test_resources import *
-    from test_validation import *
+    import unittest
+    import os
+    import sys
+    from _test_common import tests_factory
+
+    from test_meta import TestUnicodeCategories, TestBuiltinTypes, TestGlobalMaps
+    from test_xpath import TestXPath
+    from test_resources import TestResources
+    from test_schemas import make_test_schema_function
+    from test_decoding import make_test_decoding_function, TestDecoding
+    from test_validation import make_test_validation_function, TestValidation
 
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    pathname = os.path.join(pkg_folder, "tests/*/testfiles")
-    globals().update(create_schema_tests(pathname))
-    globals().update(create_validation_tests(pathname))
+    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    globals().update(tests_factory(make_test_schema_function, path, 'schema', 'xsd'))
+    globals().update(tests_factory(make_test_validation_function, path, 'validation', 'xml'))
+    globals().update(tests_factory(make_test_decoding_function, path, 'decoding', 'xml'))
     unittest.main()

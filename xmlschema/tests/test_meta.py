@@ -12,17 +12,17 @@
 """
 This module runs tests on XSD meta schema and builtins of the 'xmlschema' package.
 """
-from _test_common import *
-
+import unittest
 from sys import maxunicode
 from xmlschema.exceptions import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.codepoints import UNICODE_CATEGORIES
 from xmlschema import XMLSchema
+from _test_common import XMLSchemaTestCase
 
 meta_schema = XMLSchema.META_SCHEMA
 
 
-class TestUnicodeCategories(unittest.TestCase):
+class TestUnicodeCategories(XMLSchemaTestCase):
     """
     Test the subsets of Unicode categories, mainly to check the loaded JSON file.
     """
@@ -56,7 +56,7 @@ class TestUnicodeCategories(unittest.TestCase):
         )
 
 
-class TestBuiltinTypes(unittest.TestCase):
+class TestBuiltinTypes(XMLSchemaTestCase):
 
     def test_boolean_decode(self):
         xsd_type = meta_schema.types['boolean']
@@ -119,7 +119,7 @@ class TestBuiltinTypes(unittest.TestCase):
         print(time_type.decode('3:10:0'))
 
 
-class TestGlobalMaps(unittest.TestCase):
+class TestGlobalMaps(XMLSchemaTestCase):
 
     def test_globals(self):
         self.assertTrue(len(meta_schema.maps.notations) == 2)
@@ -153,7 +153,7 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertTrue(total_counter == 1206)
 
 
-# TODO: Add test for base schemas files.
+# TODO: Add tests for base schemas files.
 
 if __name__ == '__main__':
     unittest.main()

@@ -12,75 +12,39 @@
 """
 This module runs tests concerning the validation of XML files with the 'xmlschema' package.
 """
-from _test_common import *
-import glob
-import fileinput
+import unittest
+import os
+import sys
 import xmlschema
 try:
     import lxml.etree as etree
 except ImportError:
     etree = None
 
+from _test_common import XMLSchemaTestCase, tests_factory
 
-def create_validation_tests(pathname):
 
-    def make_test_validation_function(xml_file, schema, expected_errors):
-        def test_validation(self):
-            xs = xmlschema.XMLSchema(schema)
-            errors = [str(e) for e in xs.iter_errors(xml_file)]
-            if len(errors) != expected_errors:
-                raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
-                )
-            if expected_errors == 0:
-                self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))
-            else:
-                self.assertTrue(
-                    True,
-                    "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, expected_errors)
-                )
-
-        return test_validation
-
-    # Optional int arguments: [<test_only>]
-    if len(sys.argv) > 1:
-        test_only = int(sys.argv.pop())
-    else:
-        test_only = None
-
-    tests = {}
-    test_num = 0
-    for line in fileinput.input(glob.iglob(pathname)):
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        test_args = get_test_args(line)
-        filename = test_args[0]
-        try:
-            tot_errors = int(test_args[1])
-        except (IndexError, ValueError):
-            tot_errors = 0
-
-        test_file = os.path.join(os.path.dirname(fileinput.filename()), filename)
-        if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.xml':
-            continue
-
-        schema_file = xmlschema.fetch_schema(test_file)
-        test_func = make_test_validation_function(test_file, schema_file, tot_errors)
-        test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
-        test_num += 1
-        if test_only is None or test_num == test_only:
-            klassname = 'Test_validation_{0}_{1}'.format(test_num, test_name)
-            tests[klassname] = type(
-                klassname, (XMLSchemaTestCase,),
-                {'test_validation_{0}'.format(test_num): test_func}
+def make_test_validation_function(xml_file, expected_errors):
+    def test_validation(self):
+        schema = xmlschema.fetch_schema(xml_file)
+        xs = xmlschema.XMLSchema(schema)
+        errors = [str(e) for e in xs.iter_errors(xml_file)]
+        if len(errors) != expected_errors:
+            raise ValueError(
+                "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
+            )
+        if expected_errors == 0:
+            self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))
+        else:
+            self.assertTrue(
+                True,
+                "Validation of {} under the schema {} with n.{} errors".format(xml_file, schema, expected_errors)
             )
 
-    return tests
+    return test_validation
 
 
-class TestValidation(unittest.TestCase):
+class TestValidation(XMLSchemaTestCase):
 
     @unittest.skipIf(etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
@@ -96,5 +60,7 @@ class TestValidation(unittest.TestCase):
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
-    globals().update(create_validation_tests(os.path.join(pkg_folder, "tests/*/testfiles")))
+    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    validation_tests = tests_factory(make_test_validation_function, path, 'validation', 'xml')
+    globals().update(validation_tests)
     unittest.main()

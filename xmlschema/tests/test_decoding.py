@@ -12,7 +12,6 @@
 """
 This module runs tests concerning the decoding of XML files with the 'xmlschema' package.
 """
-from _test_common import tests_factory
 import unittest
 import os
 import sys
@@ -26,6 +25,7 @@ except ImportError:
 
 import xmlschema
 from xmlschema.qnames import local_name
+from _test_common import XMLSchemaTestCase, tests_factory
 
 _VEHICLES_DICT = {
     'vh:cars': {
@@ -279,7 +279,7 @@ def make_test_decoding_function(xml_file, expected_errors):
     return test_decoding
 
 
-class TestDecoding(unittest.TestCase):
+class TestDecoding(XMLSchemaTestCase):
     namespaces = {
         'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
         'vh': 'http://example.com/vehicles',
