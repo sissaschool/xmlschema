@@ -15,6 +15,6 @@ for source code and for an issue tracker.
 Roadmap
 -------
 
-* Full XSD 1.0 support
+* Full XSD 1.0 support (almost done)
 * Validated XML data encoding
 * XSD 1.1

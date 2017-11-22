@@ -21,8 +21,6 @@ Features
 
 The xmlschema library includes the following features:
 
-The xmlschema library includes the following features:
-
 * Building of XML schema objects from XSD files
 * Validation of XML instances with XSD schemas
 * Decoding of XML data into Python data structures

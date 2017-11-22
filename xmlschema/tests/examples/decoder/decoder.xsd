@@ -10,6 +10,7 @@
                 <xs:element name="menù" type="xs:string"/>
                 <xs:element name="complex_boolean" type="TYPE_ATTR_BOOLEAN" minOccurs="0" maxOccurs="4"/>
                 <xs:element name="simple_boolean" type="xs:boolean" minOccurs="0" maxOccurs="4"/>
+                <xs:element name="date_and_time" type="xs:dateTime" minOccurs="0"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>

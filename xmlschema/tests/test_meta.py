@@ -113,10 +113,122 @@ class TestBuiltinTypes(XMLSchemaTestCase):
 
     def test_time_type(self):
         time_type = meta_schema.types['time']
-        print(time_type)
-        # import pdb
-        # pdb.set_trace()
-        print(time_type.decode('3:10:0'))
+        self.assertTrue(time_type.is_valid('14:35:00'))
+        self.assertTrue(time_type.is_valid('14:35:20.5345'))
+        self.assertTrue(time_type.is_valid('14:35:00-01:00'))
+        self.assertTrue(time_type.is_valid('14:35:00Z'))
+        self.assertTrue(time_type.is_valid('00:00:00'))
+        self.assertTrue(time_type.is_valid('24:00:00'))
+        self.assertFalse(time_type.is_valid('4:20:00'))
+        self.assertFalse(time_type.is_valid('14:35:0'))
+        self.assertFalse(time_type.is_valid('14:35'))
+        self.assertFalse(time_type.is_valid('14:35.5:00'))
+
+    def test_datetime_type(self):
+        datetime_type = meta_schema.types['dateTime']
+        self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00'))
+        self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:20.6'))
+        self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00-03:00'))
+        self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00Z'))
+        self.assertFalse(datetime_type.is_valid('2007-05-10T14:35'))
+        self.assertFalse(datetime_type.is_valid('2007-05-10t14:35:00'))
+        self.assertFalse(datetime_type.is_valid('2007-05-1014:35:00'))
+        self.assertFalse(datetime_type.is_valid('07-05-10T14:35:00'))
+        self.assertFalse(datetime_type.is_valid('2007-05-10'))
+
+    def test_date_type(self):
+        date_type = meta_schema.types['date']
+        self.assertTrue(date_type.is_valid('2012-05-31'))
+        self.assertTrue(date_type.is_valid('-0065-10-15'))
+        self.assertTrue(date_type.is_valid('12012-05-31'))
+        self.assertTrue(date_type.is_valid('2012-05-31-05:00'))
+        self.assertTrue(date_type.is_valid('2015-06-30Z'))
+        if meta_schema.version > '1.0':
+            self.assertTrue(date_type.is_valid('0000-01-01'))
+        else:
+            self.assertFalse(date_type.is_valid('0000-01-01'))
+        self.assertFalse(date_type.is_valid('12-05-31'))
+        self.assertFalse(date_type.is_valid('2012-5-31'))
+        self.assertFalse(date_type.is_valid('31-05-2012'))
+        self.assertFalse(date_type.is_valid('1999-06-31'))
+        self.assertFalse(date_type.is_valid('+2012-05-31'))
+        self.assertFalse(date_type.is_valid(''))
+
+    def test_g_year_type(self):
+        g_year_type = meta_schema.types['gYear']
+        self.assertTrue(g_year_type.is_valid('2007'))
+        self.assertTrue(g_year_type.is_valid('2013-01:00'))
+        self.assertTrue(g_year_type.is_valid('102013-01:00'))
+        self.assertTrue(g_year_type.is_valid('0821'))
+        self.assertTrue(g_year_type.is_valid('0014'))
+        self.assertTrue(g_year_type.is_valid('-0044'))
+        self.assertTrue(g_year_type.is_valid('13999'))
+        self.assertFalse(g_year_type.is_valid('045'))
+        self.assertFalse(g_year_type.is_valid('800'))
+        self.assertFalse(g_year_type.is_valid(''))
+
+    def test_g_year_month_type(self):
+        g_year_month_type = meta_schema.types['gYearMonth']
+        self.assertTrue(g_year_month_type.is_valid('2010-07'))
+        self.assertTrue(g_year_month_type.is_valid('2020-01-05:00'))
+        self.assertFalse(g_year_month_type.is_valid('99-02'))
+        self.assertFalse(g_year_month_type.is_valid('1999'))
+        self.assertFalse(g_year_month_type.is_valid('1995-3'))
+        self.assertFalse(g_year_month_type.is_valid('1860-14'))
+        self.assertFalse(g_year_month_type.is_valid(''))
+
+    def test_g_month_type(self):
+        g_month_type = meta_schema.types['gMonth']
+        self.assertTrue(g_month_type.is_valid('--08'))
+        self.assertTrue(g_month_type.is_valid('--05-03:00'))
+        self.assertFalse(g_month_type.is_valid('03'))
+        self.assertFalse(g_month_type.is_valid('3'))
+        self.assertFalse(g_month_type.is_valid('--13'))
+        self.assertFalse(g_month_type.is_valid('--3'))
+        self.assertFalse(g_month_type.is_valid(''))
+
+    def test_g_month_day_type(self):
+        g_month_day_type = meta_schema.types['gMonthDay']
+        self.assertTrue(g_month_day_type.is_valid('--12-24'))
+        self.assertTrue(g_month_day_type.is_valid('--04-25Z'))
+        self.assertFalse(g_month_day_type.is_valid('12-24'))
+        self.assertFalse(g_month_day_type.is_valid('--11-31'))
+        self.assertFalse(g_month_day_type.is_valid('--2-11'))
+        self.assertFalse(g_month_day_type.is_valid('--02-1'))
+        self.assertFalse(g_month_day_type.is_valid(''))
+
+    def test_g_day_type(self):
+        g_day_type = meta_schema.types['gDay']
+        self.assertTrue(g_day_type.is_valid('---19'))
+        self.assertTrue(g_day_type.is_valid('---07'))
+        self.assertFalse(g_day_type.is_valid('---32'))
+        self.assertFalse(g_day_type.is_valid('07'))
+        self.assertFalse(g_day_type.is_valid('--07'))
+        self.assertFalse(g_day_type.is_valid('---7'))
+        self.assertFalse(g_day_type.is_valid(''))
+
+    def test_duration_type(self):
+        duration_type = meta_schema.types['duration']
+        self.assertTrue(duration_type.is_valid('-P809YT3H5M5S'))
+        self.assertTrue(duration_type.is_valid('P5Y7M20DT3H5M5S'))
+        self.assertTrue(duration_type.is_valid('P1DT6H'))
+        self.assertTrue(duration_type.is_valid('P15M'))
+        self.assertTrue(duration_type.is_valid('PT30M'))
+        self.assertTrue(duration_type.is_valid('P0Y15M0D'))
+        self.assertTrue(duration_type.is_valid('P0Y'))
+        self.assertTrue(duration_type.is_valid('-P10D'))
+        self.assertTrue(duration_type.is_valid('PT5M30.5S'))
+        self.assertTrue(duration_type.is_valid('PT10.5S'))
+        self.assertFalse(duration_type.is_valid('P-50M'))
+        self.assertFalse(duration_type.is_valid('P50MT'))
+        self.assertFalse(duration_type.is_valid('P1YM7D'))
+        self.assertFalse(duration_type.is_valid('P10.8Y'))
+        self.assertFalse(duration_type.is_valid('P3D5H'))
+        self.assertFalse(duration_type.is_valid('1Y'))
+        self.assertFalse(duration_type.is_valid('P3D4M'))
+        self.assertFalse(duration_type.is_valid('P'))
+        self.assertFalse(duration_type.is_valid('PT10.S'))
+        self.assertFalse(duration_type.is_valid(''))
 
 
 class TestGlobalMaps(XMLSchemaTestCase):

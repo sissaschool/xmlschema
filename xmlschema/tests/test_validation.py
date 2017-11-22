@@ -24,10 +24,10 @@ except ImportError:
 from _test_common import XMLSchemaTestCase, tests_factory
 
 
-def make_test_validation_function(xml_file, expected_errors):
+def make_test_validation_function(xml_file, schema_class=xmlschema.XMLSchema, expected_errors=0, inspect=False):
     def test_validation(self):
         schema = xmlschema.fetch_schema(xml_file)
-        xs = xmlschema.XMLSchema(schema)
+        xs = schema_class(schema)
         errors = [str(e) for e in xs.iter_errors(xml_file)]
         if len(errors) != expected_errors:
             raise ValueError(

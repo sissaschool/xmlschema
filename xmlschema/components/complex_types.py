@@ -22,6 +22,8 @@ from ..xsdbase import (
 )
 from .component import XsdAnnotated
 from .attributes import XsdAttributeGroup
+from .simple_types import XsdSimpleType
+from .groups import XsdGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
@@ -63,7 +65,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == 'content_type':
-            check_type(value, self.BUILDERS.simple_type_class, self.BUILDERS.group_class)
+            check_type(value, XsdSimpleType, XsdGroup)
         elif name == 'attributes':
             check_type(value, XsdAttributeGroup)
         super(XsdComplexType, self).__setattr__(name, value)

@@ -27,6 +27,7 @@ import xmlschema
 from xmlschema.qnames import local_name
 from _test_common import XMLSchemaTestCase, tests_factory
 
+
 _VEHICLES_DICT = {
     'vh:cars': {
         'vh:car': [
@@ -250,10 +251,10 @@ _DATA_DICT = {
 }
 
 
-def make_test_decoding_function(xml_file, expected_errors):
+def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False):
     def test_decoding(self):
         schema = xmlschema.fetch_schema(xml_file)
-        xs = xmlschema.XMLSchema(schema)
+        xs = schema_class(schema)
         errors = []
         chunks = []
         for obj in xs.iter_decode(xml_file):

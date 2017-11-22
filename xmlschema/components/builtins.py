@@ -35,6 +35,7 @@ from .complex_types import XsdComplexType
 from .groups import XsdGroup
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
+_RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
 
 
 #
@@ -97,6 +98,105 @@ def non_positive_int_validator(x):
 def non_negative_int_validator(x):
     if x < 0:
         yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
+
+
+def time_validator(x):
+    for e in datetime_iso8601_validator(x, '%H:%M:%S', '%H:%M:%S.%f', '24:00:00'):
+        yield e
+        return
+
+    # Additional XSD restrictions
+    try:
+        h, m, s = x[:8].split(':')
+    except ValueError:
+        yield XMLSchemaValidationError(time_validator, x, "wrong format for time (hh:mm:ss.sss required).")
+    else:
+        if len(h) < 2 or len(m) < 2 or len(s) < 2:
+            yield XMLSchemaValidationError(time_validator, x, "hours, minutes and seconds must be two digits each.")
+
+
+def date_validator(x):
+    k = 1 if x.startswith('-') else 0
+    try:
+        while x[k].isnumeric():
+            k += 1
+    except IndexError:
+        pass
+
+    for e in datetime_iso8601_validator(x[k-4:], '%Y-%m-%d', '-%Y-%m-%d'):
+        yield e
+        return
+
+    _, m, d = x[k-4:k+6].split('-')
+    if len(m) < 2 or len(d) < 2:
+        yield XMLSchemaValidationError(date_validator, x, "months and days must be two digits each.")
+
+
+def datetime_validator(x):
+    for e in datetime_iso8601_validator(x, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'):
+        yield e
+        return
+
+    if 'T' not in x:
+        yield XMLSchemaValidationError(datetime_validator, x, "T separator must be uppercase.")
+
+
+def g_year_validator(x):
+    k = 1 if x.startswith('-') else 0
+    try:
+        while x[k].isnumeric():
+            k += 1
+    except IndexError:
+        pass
+
+    for e in datetime_iso8601_validator(x[k-4:], '%Y'):
+        yield e
+
+
+def g_year_month_validator(x):
+    for e in datetime_iso8601_validator(x, '%Y-%m'):
+        yield e
+        return
+
+    # Additional XSD restrictions
+    if len(x.strip()[:7].split('-')[1]) < 2:
+        yield XMLSchemaValidationError(g_year_month_validator, x, "the month must be two digits.")
+
+
+def g_month_validator(x):
+    for e in datetime_iso8601_validator(x, '--%m'):
+        yield e
+        return
+
+    # Additional XSD restrictions
+    if len(x) < 4:
+        yield XMLSchemaValidationError(g_month_validator, x, "the month must be two digits.")
+
+
+def g_month_day_validator(x):
+    for e in datetime_iso8601_validator(x, '--%m-%d'):
+        yield e
+        return
+
+    # Additional XSD restrictions
+    m, d = x[2:].split('-')
+    if len(m) < 2 or len(d) < 2:
+        yield XMLSchemaValidationError(g_month_day_validator, x, "months and days must be two digits each.")
+
+
+def g_day_validator(x):
+    for e in datetime_iso8601_validator(x, '---%d'):
+        yield e
+        return
+
+    # Additional XSD restrictions
+    if len(x) < 5:
+        yield XMLSchemaValidationError(g_day_validator, x, "the day must be two digits.")
+
+
+def duration_validator(x):
+    if _RE_DURATION.match(x) is None:
+        yield XMLSchemaValidationError(duration_validator, x, "wrong format (PnYnMnDTnHnMnS required).")
 
 
 def datetime_iso8601_validator(date_string, *date_formats):
@@ -180,71 +280,49 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     {
         'name': xsd_qname('date'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%Y-%m-%d', '-%Y-%m-%d')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, date_validator)
     },  # CCYY-MM-DD
     {
         'name': xsd_qname('dateTime'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, datetime_validator)
     },  # CCYY-MM-DDThh:mm:ss
     {
         'name': xsd_qname('gDay'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%d')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_day_validator)
     },  # DD
     {
         'name': xsd_qname('gMonth'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%m')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_validator)
     },  # MM
     {
         'name': xsd_qname('gMonthDay'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%m-%d')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_day_validator)
     },  # MM-DD
     {
         'name': xsd_qname('gYear'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%Y')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_validator)
     },  # CCYY
     {
         'name': xsd_qname('gYearMonth'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%Y-%m')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_month_validator)
     },  # CCYY-MM
     {
         'name': xsd_qname('time'),
         'python_type': unicode_type,
-        'facets': (
-            DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT,
-            lambda x: datetime_iso8601_validator(x, '%H:%M:%S', '%H:%M:%S.%f')
-        )
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, time_validator)
     },  # hh:mm:ss
     {
         'name': xsd_qname('duration'),
         'python_type': unicode_type,
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (
+            FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, duration_validator
+        )
     },  # PnYnMnDTnHnMnS
 
     # Other primitive types

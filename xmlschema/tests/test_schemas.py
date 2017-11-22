@@ -15,26 +15,32 @@ This module runs tests concerning the building of XSD schemas with the 'xmlschem
 import unittest
 import os
 import sys
-
-import xmlschema
 from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError
-from _test_common import tests_factory
+from _test_common import tests_factory, SchemaObserver
 
 
-def make_test_schema_function(xsd_file, expected_errors):
+def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False):
     def test_schema(self):
+        if inspect:
+            SchemaObserver.clear()
         # print("Run %s" % self.id())
         try:
             if expected_errors > 0:
-                xs = xmlschema.XMLSchema(xsd_file, validation='lax')
+                xs = schema_class(xsd_file, validation='lax')
             else:
-                xs = xmlschema.XMLSchema(xsd_file)
+                xs = schema_class(xsd_file)
         except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
             num_errors = 1
             errors = [str(err)]
         else:
             num_errors = len(xs.all_errors)
             errors = xs.all_errors
+
+            if inspect:
+                components_ids = set([id(c) for c in xs.iter_components()])
+                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                if any([c for c in missing]):
+                    raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
         if num_errors != expected_errors:
             print("\nTest n.%r: %r errors, %r expected." % (self.id()[-3:], num_errors, expected_errors))
@@ -54,6 +60,6 @@ if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
     sys.path.insert(0, pkg_folder)
     path = os.path.join(pkg_folder, "tests/*/testfiles")
-    schema_tests = tests_factory(make_test_schema_function, path, 'schema', 'xsd')
+    schema_tests = tests_factory(make_test_schema_function, path, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()
