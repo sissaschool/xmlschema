@@ -2,10 +2,10 @@
 xmlschema
 *********
 
-This package is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
+This is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
 for Python (supports versions 2.7 and Python 3.3+).
 
-This is a library that arises from the needs of a solid Python layer for processing XML
+This library arises from the needs of a solid Python layer for processing XML
 Schema based files for
 `MaX (Materials design at the Exascale) <http://www.max-centre.eu>`_  European project.
 A significant problem is the encoding and the decoding of the XML data files
@@ -41,7 +41,7 @@ offline and to speed-up the building of schema instances.
 Usage
 =====
 
-Import the library and then create an instance of a schema using the path of
+Import the library and then create a schema instance using the path of
 the file containing the schema as argument:
 
 .. code-block:: pycon
@@ -81,7 +81,7 @@ The schema can be used to validate XML documents:
       </ns0:cars>
 
 Using a schema you can also decode the XML documents to nested dictionaries, with
-values that corresponds to the data types declared by the schema:
+values that match to the data types declared by the schema:
 
 .. code-block:: pycon
 
@@ -121,6 +121,6 @@ distribution, or http://opensource.org/licenses/MIT.
 Roadmap
 -------
 
-* Full XSD 1.0 support
+* Full XSD 1.0 support (almost done)
 * Validated XML data encoding
 * XSD 1.1
