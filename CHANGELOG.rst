@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.14
+=======
+* Improved test scripts with a *SchemaObserver* class and test line arguments
+* Full support for date and time XSD builtin types
+
 v0.9.12
 =======
 * Added identity constraints

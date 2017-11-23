@@ -399,6 +399,17 @@ class TestDecoding(XMLSchemaTestCase):
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
         ]))
 
+    def test_dict_granularity(self):
+        """Based on Issue #22, test to make sure an xsd indicating list with
+        dictionaries, returns just that even when it has a single dict. """
+        xsd_string   = 'examples/issue_22/xsd_string.xsd'
+        xml_string_1 = 'examples/issue_22/xml_string_1.xml'
+        xml_string_2 = 'examples/issue_22/xml_string_2.xml'
+        xsd_schema = xmlschema.XMLSchema(xsd_string)
+        xml_data_1 = xsd_schema.to_dict(xml_string_1)
+        xml_data_2 = xsd_schema.to_dict(xml_string_2)
+        self.assertTrue(type(xml_data_1['bar']) == type(xml_data_2['bar']),
+                        msg="XSD with an array that return a single element from xml must still yield a list.")
 
 if __name__ == '__main__':
     pkg_folder = os.path.dirname(os.getcwd())
