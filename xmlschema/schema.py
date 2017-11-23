@@ -59,6 +59,13 @@ DEFAULT_BUILDERS = {
 """Default options for building XSD schema elements."""
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+XSD_1_0_META_SCHEMA_PATH = 'XSD_1.0/XMLSchema.xsd'
+BASE_SCHEMAS = {
+    XML_NAMESPACE_PATH: 'xml_minimal.xsd',
+    HFP_NAMESPACE_PATH: 'XMLSchema-hasFacetAndProperty_minimal.xsd',
+    XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
+    XLINK_NAMESPACE_PATH: 'xlink.xsd'
+}
 
 
 def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **options):
@@ -485,13 +492,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 # Define classes for generic XML schemas
 XMLSchema_v1_0 = create_validator(
     xsd_version='1.0',
-    meta_schema='XSD_1.0/XMLSchema.xsd',
-    base_schemas={
-        XML_NAMESPACE_PATH: 'xml_minimal.xsd',
-        HFP_NAMESPACE_PATH: 'XMLSchema-hasFacetAndProperty_minimal.xsd',
-        XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
-        XLINK_NAMESPACE_PATH: 'xlink.xsd'
-    },
+    meta_schema=XSD_1_0_META_SCHEMA_PATH,
+    base_schemas=BASE_SCHEMAS,
     facets=XSD_FACETS
 )
 XMLSchema = XMLSchema_v1_0

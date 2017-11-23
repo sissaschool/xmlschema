@@ -12,14 +12,15 @@
 """
 This module runs tests concerning resources.
 """
-from _test_common import *
+import unittest
 
 from xmlschema import XMLSchema
 from xmlschema.exceptions import XMLSchemaURLError
 from xmlschema.resources import normalize_url, fetch_resource
+from _test_common import XMLSchemaTestCase
 
 
-class TestResources(unittest.TestCase):
+class TestResources(XMLSchemaTestCase):
     xs1 = XMLSchema("examples/vehicles/vehicles.xsd")
     xs2 = XMLSchema("examples/collection/collection.xsd")
     cars = xs1.elements['vehicles'].type.content_type[0]
@@ -34,6 +35,7 @@ class TestResources(unittest.TestCase):
             XMLSchemaURLError, fetch_resource, 'examples/resources/issue017.txt'
         )
         self.assertTrue(fetch_resource('examples/resources/issue 017.txt').endswith('e%20017.txt'))
+
 
 if __name__ == '__main__':
     unittest.main()

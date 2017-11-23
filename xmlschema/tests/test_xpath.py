@@ -78,5 +78,6 @@ class TestXPath(unittest.TestCase):
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 17)
 
+
 if __name__ == '__main__':
     unittest.main()

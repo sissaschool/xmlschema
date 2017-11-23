@@ -2,15 +2,12 @@
 *.pyo
 *~
 *.so
-*.swp
 *.egg-info
 .idea/
-.vscode/
 .ipynb_checkpoints/
 xmlschema/tests/extra-schemas/
 doc/_*
-xmlschema/__pycache__/
-xmlschema/tests/__pycache__/
+__pycache__/
 dist/
 build/
 tmp/

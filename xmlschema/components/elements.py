@@ -26,6 +26,8 @@ from ..xsdbase import (
     get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
 )
 from .component import XsdAnnotated, ParticleMixin
+from .simple_types import XsdSimpleType
+from .complex_types import XsdComplexType
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 
 
@@ -86,7 +88,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
 
     def __setattr__(self, name, value):
         if name == "type":
-            check_type(value, self.BUILDERS.simple_type_class, self.BUILDERS.complex_type_class)
+            check_type(value, XsdSimpleType, XsdComplexType)
             try:
                 self.attributes = value.attributes
             except AttributeError:

@@ -3,9 +3,9 @@
 
 builtins/builtins.xsd
 builtins/builtins.xml
-collection/collection.xsd
+collection/collection.xsd -i
 collection/collection.xml
-collection/collection2.xsd      # key constraint
+collection/collection2.xsd -i   # key constraint
 collection/collection2.xml 1
 collection/collection3.xsd      # key and keyref constraints
 collection/collection3.xml 1
@@ -17,12 +17,13 @@ misc/issue008_1.xml 1
 misc/issue009.xsd 2
 misc/issue013.xml
 misc/issue013-1.xml
+misc/issue013-2.xml 1           # String too long
 misc/no_referenciable.xsd 1
 model/model.xsd 1
 model/model-2_errors.xsd 2
 patterns/patterns.xsd
 patterns/patterns.xml 5
-vehicles/vehicles.xsd
+vehicles/vehicles.xsd -i
 vehicles/vehicles.xml
 vehicles/vehicles-1_error.xml 1
 vehicles/vehicles-2_errors.xml 2

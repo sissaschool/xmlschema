@@ -22,6 +22,8 @@ from ..xsdbase import (
 )
 from .component import XsdAnnotated
 from .attributes import XsdAttributeGroup
+from .simple_types import XsdSimpleType
+from .groups import XsdGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
@@ -63,7 +65,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == 'content_type':
-            check_type(value, self.BUILDERS.simple_type_class, self.BUILDERS.group_class)
+            check_type(value, XsdSimpleType, XsdGroup)
         elif name == 'attributes':
             check_type(value, XsdAttributeGroup)
         super(XsdComplexType, self).__setattr__(name, value)
@@ -244,11 +246,11 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 "derived an empty content from base type that has not empty content.", elem
             )
 
-        if not base_type.is_empty():
+        if base_type.name != XSD_ANY_TYPE and not base_type.is_empty():
             for item in self.content_type:
                 try:
                     if not any([item.is_restriction(other) for other in base_type.content_type]):
-                        self._parse_error("% is not a restriction.", elem)
+                        self._parse_error("%r is not a restriction." % elem, elem)
                 except AttributeError:
                     continue
 
@@ -277,7 +279,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             dummy_elem = etree_element(XSD_SEQUENCE_TAG)
             self.content_type = self.BUILDERS.group_class(dummy_elem, self.schema, mixed=self.mixed)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-                # Illegal derivation form a simple content. Applies to both XSD 1.0 and XSD 1.1.
+                # Illegal derivation from a simple content. Applies to both XSD 1.0 and XSD 1.1.
                 # For the detailed rule refer to XSD 1.1 documentation:
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
                 if base_type.is_simple() or base_type.has_simple_content():
@@ -333,6 +335,8 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         return True
 
     def is_empty(self):
+        if self.name == XSD_ANY_TYPE:
+            return False
         return self.content_type.is_empty()
 
     def is_emptiable(self):
@@ -354,6 +358,8 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             return False
 
     def is_element_only(self):
+        if self.name == XSD_ANY_TYPE:
+            return False
         try:
             return not self.content_type.mixed
         except AttributeError:

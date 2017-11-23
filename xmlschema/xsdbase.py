@@ -260,7 +260,7 @@ class ValidatorMixin(object):
         :param path:
         :param use_defaults: Use schema's default values for filling missing data.
         """
-        for chunk in self.iter_decode(data, path, validation='lax', use_defaults=use_defaults):
+        for chunk in self.iter_decode(data, path, use_defaults=use_defaults):
             if isinstance(chunk, XMLSchemaValidationError):
                 yield chunk
 

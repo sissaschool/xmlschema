@@ -210,8 +210,12 @@ def get_xml_root(source):
                     return xml_root, None
             except (etree_parse_error, UnicodeEncodeError):
                 xml_url = normalize_url(source)
-                for _, xml_root in etree_iterparse(urlopen(xml_url), events=('start',)):
-                    return xml_root, xml_url
+                resource = urlopen(xml_url)
+                try:
+                    for _, xml_root in etree_iterparse(resource, events=('start',)):
+                        return xml_root, xml_url
+                finally:
+                    resource.close()
         else:
             for _, xml_root in etree_iterparse(StringIO(source), events=('start',)):
                 return xml_root, None
