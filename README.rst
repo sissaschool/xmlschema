@@ -16,7 +16,7 @@ the schema-based decoding of XML data has led to build this library. Obviously
 this library can be useful for other cases related to XML Schema based processing,
 not only for the original scope.
 
-For more infoformation read the `xmlschema documentation on readthedocs <http://xmlschema.readthedocs.io/en/latest/>`_.
+For more information read the `xmlschema documentation on readthedocs <http://xmlschema.readthedocs.io/en/latest/>`_.
 
 Features
 ========
