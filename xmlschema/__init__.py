@@ -20,7 +20,7 @@ from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 
-__version__ = '0.9.14'
+__version__ = '0.9.15'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2017, SISSA"

@@ -140,6 +140,10 @@ class XsdComponent(XsdBaseComponent):
                 return namespace in any_namespaces
 
     @property
+    def local_name(self):
+        return local_name(self.name)
+
+    @property
     def id(self):
         """The ``'id'`` attribute of the component tag, ``None`` if missing."""
         return self.elem.get('id')

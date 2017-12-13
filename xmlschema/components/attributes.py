@@ -165,6 +165,9 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
+        if self.fixed and text != self.fixed:
+            yield XMLSchemaValidationError(self, text, "value differs from fixed value")
+
         for result in self.type.iter_decode(text, validation, **kwargs):
             yield result
             if not isinstance(result, XMLSchemaValidationError):
@@ -371,7 +374,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
 
         if required_attributes:
             yield XMLSchemaValidationError(
-                self, attrs, "missing required attributes %r" % required_attributes,
+                self, attrs, "missing required attributes: %r" % required_attributes
             )
         yield result_list
 

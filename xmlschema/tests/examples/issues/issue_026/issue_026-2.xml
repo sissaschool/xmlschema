@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="issue_026.xsd">
+    <bar name="RAB">
+        <subject_name>Bar</subject_name>
+    </bar>
+</foo>
