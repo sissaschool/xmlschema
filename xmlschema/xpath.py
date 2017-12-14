@@ -186,7 +186,7 @@ class Token(MutableSequence):
     # XPath selectors
     @staticmethod
     def self_selector():
-        def select(context, results):
+        def select(_context, results):
             for elem in results:
                 yield elem
         return select
@@ -207,7 +207,7 @@ class Token(MutableSequence):
         return select
 
     def children_selector(self):
-        def select(context, results):
+        def select(_context, results):
             for elem in results:
                 try:
                     for e in elem.iterchildren(self.value):
@@ -219,7 +219,7 @@ class Token(MutableSequence):
         return select
 
     def value_selector(self):
-        def select(context, results):
+        def select(_context, results):
             for _ in results:
                 yield self.value
         return select
@@ -228,7 +228,7 @@ class Token(MutableSequence):
     def attribute_selector(self):
         key = self.value
 
-        def select(context, results):
+        def select(_context, results):
             if key is None:
                 for elem in results:
                     for attr in elem.attrib.values():
@@ -258,7 +258,7 @@ class Token(MutableSequence):
         key = self.value
         value = self[0].value
 
-        def select(context, results):
+        def select(_context, results):
             if key is not None:
                 for elem in results:
                     yield elem.get(key) == value
@@ -269,7 +269,7 @@ class Token(MutableSequence):
         return select
 
     def find_selector(self):
-        def select(context, results):
+        def select(_context, results):
             for elem in results:
                 if elem.find(self.value) is not None:
                     yield elem
@@ -320,7 +320,7 @@ class Token(MutableSequence):
 
     # [tag='value']
     def tag_value_selector(self):
-        def select(context, results):
+        def select(_context, results):
             for elem in results:
                 for e in elem.findall(self.name):
                     if "".join(e.itertext()) == self.value:
@@ -408,7 +408,7 @@ def register_led(*names, **kwargs):
 
 #
 # XPath parser globals and main cycle
-def dummy_advance(name=None):
+def dummy_advance(_name=None):
     return symbol('(end)')
 
 
@@ -583,7 +583,7 @@ def parent_token_nud(self):
 
 
 @register_nud('/')
-def child_nud(self):
+def child_nud(_self):
     current_token.unexpected()
 
 
@@ -631,12 +631,12 @@ def group_token_nud(self):
 
 @register_nud(')')
 @register_led(')')
-def right_round_bracket_token(*args, **kwargs):
+def right_round_bracket_token(*_args, **_kwargs):
     current_token.unexpected()
 
 
 @register_nud('[', lbp=90)
-def predicate_token_nud(self):
+def predicate_token_nud(_self):
     current_token.unexpected()
 
 
@@ -655,7 +655,7 @@ def predicate_token_led(self, left):
 
 @register_nud(']')
 @register_led(']')
-def predicate_close_token(*args, **kwargs):
+def predicate_close_token(*_args, **_kwargs):
     current_token.unexpected(']')
 
 

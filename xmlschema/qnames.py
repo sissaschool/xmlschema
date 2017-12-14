@@ -11,8 +11,7 @@
 """
 This module contains functions for manipulating fully qualified names and XML Schema tags.
 """
-from .core import XML_NAMESPACE_PATH, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
-from .utils import get_namespace
+from .namespaces import get_namespace, XML_NAMESPACE_PATH, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
 

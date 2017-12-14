@@ -17,13 +17,16 @@ import datetime
 import re
 from decimal import Decimal
 
-from ..core import long_type, unicode_type, etree_element, etree_iselement
-from ..exceptions import XMLSchemaValidationError, XMLSchemaValueError
+from ..compat import long_type, unicode_type
+from ..exceptions import XMLSchemaValueError
+from ..etree import etree_element, etree_iselement
 from ..qnames import (
     xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ANY_TAG,
     XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ANY_TYPE,
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
 )
+
+from .exceptions import XMLSchemaValidationError
 from .facets import (
     XsdSingleFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
     BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS

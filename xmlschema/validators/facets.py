@@ -14,11 +14,19 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from ..exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from ..qnames import *
+from ..namespaces import XSD_NAMESPACE_PATH
+from ..qnames import (
+    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
+    XSD_PATTERN_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
+    XSD_MIN_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG,
+    XSD_ASSERTIONS_TAG, XSD_EXPLICIT_TIMEZONE_TAG,
+    XSD_WHITE_SPACE_ENUM, XSD_NOTATION_TYPE, local_name, get_qname
+)
 from ..regex import get_python_regex
-from ..xsdbase import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
-from .component import XsdAnnotated
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .parseutils import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
+from .xsdbase import XsdAnnotated
+
 
 XSD_FACETS = {
     XSD_LENGTH_TAG,

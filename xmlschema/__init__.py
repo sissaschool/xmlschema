@@ -8,17 +8,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .core import etree_get_namespaces
-from .exceptions import (
-    XMLSchemaException, XMLSchemaParseError, XMLSchemaValidationError,
-    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaXPathError,
-    XMLSchemaRegexError, XMLSchemaNotBuiltError
-)
+from .exceptions import XMLSchemaException, XMLSchemaXPathError, XMLSchemaRegexError, XMLSchemaURLError
+from .etree import etree_get_namespaces
 from .resources import fetch_resource, load_xml_resource, fetch_schema
-from .schema import XsdGlobals, XMLSchema
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
+
+from .validators.exceptions import (
+    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
+    XMLSchemaEncodeError, XMLSchemaNotBuiltError
+)
+from .validators.schema import XsdGlobals, XMLSchema, create_validator
 
 __version__ = '0.9.15'
 __author__ = "Davide Brunato"

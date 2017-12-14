@@ -10,26 +10,12 @@
 #
 import os.path
 
-try:
-    # Python 3 specific imports
-    from urllib.request import urlopen, urljoin, urlsplit, pathname2url
-    from urllib.parse import uses_relative, urlparse, urlunsplit
-    from urllib.error import URLError
-except ImportError:
-    # Python 2 fallback
-    from urllib import pathname2url
-    from urllib2 import urlopen, URLError
-    from urlparse import urlsplit, urljoin, uses_relative, urlparse, urlunsplit
-
-from .core import (
-    PY3, StringIO, etree_iterparse, etree_fromstring, etree_parse_error,
-    etree_iselement, unicode_type
+from .compat import (
+    PY3, StringIO, unicode_type, urlopen, urlsplit, urljoin, uses_relative, urlunsplit, pathname2url, URLError
 )
-from .exceptions import (
-    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValueError,
-    XMLSchemaURLError, XMLSchemaOSError
-)
-from .utils import get_namespace
+from .etree import etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
+from .namespaces import get_namespace
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 
@@ -88,7 +74,7 @@ def load_xml_resource(source, element_only=True):
     try:
         xml_root = etree_fromstring(xml_data)
     except (etree_parse_error, UnicodeEncodeError) as err:
-        raise XMLSchemaParseError(
+        raise XMLSchemaValueError(
             "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
         )
     else:

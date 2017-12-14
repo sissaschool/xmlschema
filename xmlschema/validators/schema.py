@@ -14,33 +14,32 @@ This module contains XMLSchema class creator for xmlschema package.
 import os.path
 from collections import namedtuple
 
-from .core import (
-    XML_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH, HFP_NAMESPACE_PATH,
-    etree_get_namespaces, etree_register_namespace, etree_iselement
+from ..exceptions import (
+    XMLSchemaTypeError, XMLSchemaKeyError, XMLSchemaURLError, XMLSchemaValueError
 )
-from .exceptions import (
-    XMLSchemaTypeError, XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaKeyError,
-    XMLSchemaURLError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaValueError
-)
-from .utils import URIDict, listify_update
-from .resources import (
+from ..namespaces import XML_NAMESPACE_PATH, HFP_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH
+from ..etree import etree_get_namespaces, etree_register_namespace, etree_iselement
+
+from ..namespaces import URIDict, NamespaceView
+from ..qnames import XSD_SCHEMA_TAG
+from ..resources import (
     fetch_resource, load_xml_resource, get_xsi_schema_location, get_xsi_no_namespace_schema_location
 )
-from .xsdbase import (
-    XSD_VALIDATION_MODES, XsdBaseComponent, ValidatorMixin,
-    get_xsd_derivation_attribute, get_xsd_attribute
+from ..converters import XSD_VALIDATION_MODES, XMLSchemaConverter
+from ..xpath import XPathMixin, relative_path
+from .exceptions import (
+    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
-from .xpath import XPathMixin, relative_path
-from .components import (
+from .parseutils import check_value, get_xsd_derivation_attribute, get_xsd_attribute
+from .xsdbase import XsdBaseComponent, ValidatorMixin
+from . import (
     XSD_FACETS, XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
     xsd_build_any_content_group, xsd_build_any_attribute_group, XsdAnnotated
 )
-from . import qnames
-from .utils import check_value
-from .converters import XMLSchemaConverter
-from .namespaces import XsdGlobals, NamespaceView, iterchildren_xsd_import, \
-    iterchildren_xsd_include, iterchildren_xsd_redefine
+from .globals_ import (
+    XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
+)
 
 DEFAULT_BUILDERS = {
     'notation_class': XsdNotation,
@@ -58,24 +57,22 @@ DEFAULT_BUILDERS = {
 }
 """Default options for building XSD schema elements."""
 
+
+# Schemas paths
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-XSD_1_0_META_SCHEMA_PATH = 'XSD_1.0/XMLSchema.xsd'
+
+XSD_1_0_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+XSD_1_1_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+
 BASE_SCHEMAS = {
-    XML_NAMESPACE_PATH: 'xml_minimal.xsd',
-    HFP_NAMESPACE_PATH: 'XMLSchema-hasFacetAndProperty_minimal.xsd',
-    XSI_NAMESPACE_PATH: 'XMLSchema-instance_minimal.xsd',
-    XLINK_NAMESPACE_PATH: 'xlink.xsd'
+    XML_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+    HFP_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    XSI_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+    XLINK_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'xlink.xsd')
 }
 
 
 def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **options):
-
-    meta_schema = os.path.join(SCHEMAS_DIR, meta_schema)
-    if base_schemas is None:
-        base_schemas = {}
-    else:
-        base_schemas = {k: os.path.join(SCHEMAS_DIR, v) for k, v in base_schemas.items()}
-
     builders = dict(DEFAULT_BUILDERS.items())
     builders.update(options)
 
@@ -133,7 +130,13 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
                 self.schema_location = URIDict()
             else:
                 self.schema_location = URIDict()
-                listify_update(self.schema_location, zip(schema_location[0::2], schema_location[1::2]))
+                for k, v in zip(schema_location[0::2], schema_location[1::2]):
+                    try:
+                        self.schema_location[k].append(v)
+                    except AttributeError:
+                        self.schema_location[k] = [self.schema_location[k], v]
+                    except KeyError:
+                        self.schema_location[k] = v
             self.no_namespace_schema_location = get_xsi_no_namespace_schema_location(self.root)
 
             # Create or set the XSD global maps instance
@@ -210,8 +213,8 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
 
         def __setattr__(self, name, value):
-            if name == 'root' and value.tag != qnames.XSD_SCHEMA_TAG:
-                raise XMLSchemaValueError("schema root element must has %r tag." % qnames.XSD_SCHEMA_TAG)
+            if name == 'root' and value.tag != XSD_SCHEMA_TAG:
+                raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA_TAG)
             elif name == 'validation':
                 check_value(value, 'strict', 'lax', 'skip')
             elif name == 'maps':

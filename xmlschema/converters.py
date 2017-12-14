@@ -11,13 +11,21 @@
 """
 This module contains classes for converting XML elements with XMLSchema support.
 """
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import string
 
-from .core import ElementData
 from .exceptions import XMLSchemaValueError
-from .utils import NamespaceMapper
-from .xsdbase import XSD_VALIDATION_MODES
+from .namespaces import NamespaceMapper
+
+
+XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
+"""
+XML Schema validation modes
+Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
+"""
+
+# Namedtuple for a generic Element data representation.
+ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -35,7 +43,6 @@ class XMLSchemaConverter(NamespaceMapper):
     :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
-    :param force_list: if `True` a list of subelements is forced also if minOccurs is 1.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  text_key='$', attr_prefix='@', cdata_prefix=None):
@@ -51,7 +58,7 @@ class XMLSchemaConverter(NamespaceMapper):
             if any(c in string.letters or c == '_' for c in value):
                 raise XMLSchemaValueError(
                     '%r cannot include letters or underscores: %r' % (name, value))
-        super(XMLSchemaConverter, self).__setattr__(name, value)
+        super(NamespaceMapper, self).__setattr__(name, value)
 
     def copy(self):
         return type(self)(self.namespaces, self.dict, self.list)

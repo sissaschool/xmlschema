@@ -13,15 +13,75 @@ This module contains base functions and classes XML Schema components.
 """
 import re
 
-from ..core import PY3, etree_tostring, etree_iselement
-from ..exceptions import (
-    XMLSchemaParseError, XMLSchemaValueError, XMLSchemaTypeError
-)
+from ..compat import PY3
+from ..etree import etree_tostring, etree_iselement
+from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, XSD_ANNOTATION_TAG, XSI_NAMESPACE_PATH, XSD_APPINFO_TAG,
-    XSD_DOCUMENTATION_TAG, XML_LANG
+    local_name, qname_to_prefixed, XSD_ANNOTATION_TAG, XSI_NAMESPACE_PATH,
+    XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
 )
-from ..xsdbase import XsdBaseComponent, get_xsd_int_attribute, get_xsd_component, iter_xsd_components
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
+
+
+class XsdBaseComponent(object):
+    """
+    Common base class for representing XML Schema components. A concrete XSD component have
+    to report its validity collecting building errors and implementing the properties.
+
+    Ref: https://www.w3.org/TR/xmlschema-ref/
+    """
+    def __init__(self):
+        self.errors = []  # component errors
+
+    @property
+    def built(self):
+        raise NotImplementedError
+
+    @property
+    def validation_attempted(self):
+        """
+        Ref: https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
+        Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
+
+        :return: 'full', 'partial' or 'none'.
+        """
+        raise NotImplementedError
+
+    def iter_components(self, xsd_classes=None):
+        """
+        Returns an iterator for traversing all descendant XSD components.
+
+        :param xsd_classes: Returns only a specific class/classes of components, \
+        otherwise returns all components.
+        """
+        raise NotImplementedError
+
+    @property
+    def all_errors(self):
+        """
+        Returns a list with the errors of the component and of its descendants.
+        """
+        errors = []
+        for comp in self.iter_components():
+            if comp.errors:
+                errors.extend(comp.errors)
+        return errors
+
+    @property
+    def validity(self):
+        """
+        Ref: https://www.w3.org/TR/xmlschema-1/#e-validity
+        Ref: https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
+
+        :return: 'valid', 'invalid' or 'notKnown'.
+        """
+        if self.errors or any([comp.errors for comp in self.iter_components()]):
+            return 'invalid'
+        elif self.built:
+            return 'valid'
+        else:
+            return 'notKnown'
 
 
 class XsdComponent(XsdBaseComponent):
@@ -144,6 +204,10 @@ class XsdComponent(XsdBaseComponent):
         return local_name(self.name)
 
     @property
+    def prefixed_name(self):
+        return qname_to_prefixed(self.name, self.namespaces)
+
+    @property
     def id(self):
         """The ``'id'`` attribute of the component tag, ``None`` if missing."""
         return self.elem.get('id')
@@ -177,19 +241,19 @@ class XsdComponent(XsdBaseComponent):
 class XsdAnnotation(XsdComponent):
     """
     Class for XSD 'annotation' definitions.
-    
+
     <annotation
       id = ID
       {any attributes with non-schema namespace . . .}>
       Content: (appinfo | documentation)*
     </annotation>
-    
+
     <appinfo
       source = anyURI
       {any attributes with non-schema namespace . . .}>
       Content: ({any})*
     </appinfo>
-    
+
     <documentation
       source = anyURI
       xml:lang = language
@@ -197,6 +261,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
+
     @property
     def admitted_tags(self):
         return {XSD_ANNOTATION_TAG}
@@ -223,7 +288,6 @@ class XsdAnnotation(XsdComponent):
 
 
 class XsdAnnotated(XsdComponent):
-
     def _parse(self):
         super(XsdAnnotated, self)._parse()
         try:
@@ -250,6 +314,7 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
+
     def _parse_particle(self):
         max_occurs = self.max_occurs
         if max_occurs is not None and self.min_occurs > max_occurs:
@@ -280,6 +345,90 @@ class ParticleMixin(object):
         return self.max_occurs == 1
 
     def is_restriction(self, other):
-        return True   # raise NotImplementedError  TODO: implement concrete methods
+        return True  # raise NotImplementedError  TODO: implement concrete methods
 
 
+class ValidatorMixin(object):
+    """
+    Mixin for implementing XML Schema validators. A derived class must implement the
+    methods `iter_decode` and `iter_encode`.
+    """
+    def validate(self, data, use_defaults=True):
+        """
+        Validates XML data using the XSD component.
+
+        :param data: the data source containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        :param use_defaults: Use schema's default values for filling missing data.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not valid.
+        """
+        for error in self.iter_errors(data, use_defaults=use_defaults):
+            raise error
+
+    def iter_errors(self, data, path=None, use_defaults=True):
+        """
+        Creates an iterator for errors generated validating XML data with
+        the XSD component.
+
+        :param data: the object containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        :param path:
+        :param use_defaults: Use schema's default values for filling missing data.
+        """
+        for chunk in self.iter_decode(data, path, use_defaults=use_defaults):
+            if isinstance(chunk, XMLSchemaValidationError):
+                yield chunk
+
+    def is_valid(self, data, use_defaults=True):
+        error = next(self.iter_errors(data, use_defaults=use_defaults), None)
+        return error is None
+
+    def decode(self, data, *args, **kwargs):
+        """
+        Decodes XML data using the XSD component.
+
+        :param data: the object containing the XML data. Can be a string for an \
+        attribute or a simple type definition, or an ElementTree's Element for \
+        other XSD components.
+        :param args: arguments that maybe passed to :func:`XMLSchema.iter_decode`.
+        :param kwargs: keyword arguments from the ones included in the optional \
+        arguments of the :func:`XMLSchema.iter_decode`.
+        :return: A dictionary like object if the XSD component is an element, a \
+        group or a complex type; a list if the XSD component is an attribute group; \
+         a simple data type object otherwise.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
+        the XSD component, or also if it's invalid when ``validate='strict'`` is provided.
+        """
+        validation = kwargs.pop('validation', 'strict')
+        for chunk in self.iter_decode(data, validation=validation, *args, **kwargs):
+            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
+                raise chunk
+            return chunk
+    to_dict = decode
+
+    def encode(self, data, *args, **kwargs):
+        validation = kwargs.pop('validation', 'strict')
+        for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
+            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
+                raise chunk
+            return chunk
+    to_etree = encode
+
+    def iter_decode(self, data, path=None, validation='lax', process_namespaces=True,
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
+                    dict_class=None, list_class=None):
+        """
+        Generator method for decoding XML data using the XSD component. Returns a data
+        structure after a sequence, possibly empty, of validation or decode errors.
+
+        Like the method *decode* except that it does not raise any exception. Yields
+        decoded values. Also :exc:`XMLSchemaValidationError` errors are yielded during
+        decoding process if the *obj* is invalid.
+        """
+        raise NotImplementedError
+
+    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
+                    element_class=None, converter=None):
+        raise NotImplementedError

@@ -11,11 +11,11 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from ..exceptions import XMLSchemaValidationError
-from ..utils import get_namespace
+from ..namespaces import get_namespace
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
-from ..xsdbase import get_xsd_attribute, get_xsd_namespace_attribute, ValidatorMixin
-from .component import XsdAnnotated, ParticleMixin
+from .exceptions import XMLSchemaValidationError
+from .parseutils import get_xsd_attribute, get_xsd_namespace_attribute
+from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
 
 
 class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):

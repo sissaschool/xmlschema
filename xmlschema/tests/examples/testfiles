@@ -22,6 +22,11 @@ issues/issue_018/issue_018.xsd 1
 issues/issue_026/issue_026-1.xml
 issues/issue_026/issue_026-2.xml 1
 issues/issue_026/issue_026-3.xml 1
+issues/issue_028/issue_028-1.xml
+issues/issue_028/issue_028-2.xml 1
+issues/issue_029/issue_029-1.xml
+issues/issue_029/issue_029-2.xml 1
+issues/issue_029/issue_029-3.xml 1
 namespaces/no_referenciable.xsd 1
 model/model.xsd 1
 model/model-2_errors.xsd 2

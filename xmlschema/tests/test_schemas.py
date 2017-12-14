@@ -15,7 +15,8 @@ This module runs tests concerning the building of XSD schemas with the 'xmlschem
 import unittest
 import os
 import sys
-from xmlschema.exceptions import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError
+
+from xmlschema import XMLSchemaParseError, XMLSchemaURLError
 from _test_common import tests_factory, SchemaObserver
 
 
@@ -29,7 +30,7 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
                 xs = schema_class(xsd_file, validation='lax')
             else:
                 xs = schema_class(xsd_file)
-        except (XMLSchemaParseError, XMLSchemaURLError, XMLSchemaKeyError) as err:
+        except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
             num_errors = 1
             errors = [str(err)]
         else:

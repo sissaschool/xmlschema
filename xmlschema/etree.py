@@ -9,54 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains base classes, functions and constants for the package.
+This module contains ElementTree setup for xmlschema package.
 """
-import sys
-from collections import namedtuple
 from xml.etree import ElementTree
-
-try:
-    # Python 2 import
-    # noinspection PyCompatibility
-    from StringIO import StringIO  # the io.StringIO accepts only unicode type
-except ImportError:
-    # Python 3 fallback
-    from io import StringIO
-
-PY3 = sys.version_info[0] >= 3
-
-# Aliases for data types changed from version 2 to 3.
-long_type = int if PY3 else long
-unicode_type = str if PY3 else unicode
-unicode_chr = chr if PY3 else unichr
-
-
-# Namespaces for standards
-XSD_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema'
-"URI of the XML Schema Definition namespace (xs|xsd)"
-
-XSI_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema-instance'
-"URI of the XML Schema Instance namespace (xsi)"
-
-XML_NAMESPACE_PATH = 'http://www.w3.org/XML/1998/namespace'
-"URI of the XML namespace (xml)"
-
-XHTML_NAMESPACE_PATH = 'http://www.w3.org/1999/xhtml'
-XHTML_DATATYPES_NAMESPACE_PATH = "http://www.w3.org/1999/xhtml/datatypes/"
-"URIs of the Extensible Hypertext Markup Language namespace (html)"
-
-XLINK_NAMESPACE_PATH = 'http://www.w3.org/1999/xlink'
-"URI of the XML Linking Language (XLink)"
-
-XSLT_NAMESPACE_PATH = "http://www.w3.org/1999/XSL/Transform"
-"URI of the XSL Transformations namespace (xslt)"
-
-HFP_NAMESPACE_PATH = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
-"URI of the XML Schema has Facet and Property namespace (hfp)"
-
-VC_NAMESPACE_PATH = "http://www.w3.org/2007/XMLSchema-versioning"
-"URI of the XML Schema Versioning namespace (vc)"
-
+from .compat import PY3, StringIO
+from .namespaces import XSLT_NAMESPACE_PATH, HFP_NAMESPACE_PATH, VC_NAMESPACE_PATH
 
 # Register missing namespaces into imported ElementTree module
 ElementTree.register_namespace('xslt', XSLT_NAMESPACE_PATH)
@@ -71,9 +28,6 @@ etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
 etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
-
-# Namedtuple for a generic Element data representation.
-ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):

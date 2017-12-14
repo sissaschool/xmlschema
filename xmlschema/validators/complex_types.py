@@ -8,19 +8,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from ..core import ElementData, etree_element
-from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError
-from ..utils import check_type
+from ..etree import etree_element
+from ..exceptions import XMLSchemaAttributeError
+from ..converters import ElementData
 from ..qnames import (
     get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
-from ..xsdbase import (
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
-)
-from .component import XsdAnnotated
+from .exceptions import XMLSchemaValidationError
+from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .xsdbase import XsdAnnotated, ValidatorMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
@@ -402,7 +401,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 yield obj
 
     @staticmethod
-    def get_facet(*args, **kwargs):
+    def get_facet(*_args, **_kwargs):
         return None
 
     def admit_simple_restriction(self):
