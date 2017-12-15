@@ -33,6 +33,9 @@ except ImportError:
 else:
     os.chdir(os.path.dirname(__file__))
 
+header = "Test %r" % xmlschema
+print("*" * len(header) + '\n' + header + '\n' + "*" * len(header))
+
 
 class XMLSchemaTestCase(unittest.TestCase):
     longMessage = True
@@ -64,13 +67,13 @@ class SchemaObserver(object):
         del cls.components[:]
 
 
-ObservedXMLSchema = xmlschema.schema.create_validator(
+ObservedXMLSchema = xmlschema.create_validator(
     xsd_version='1.0',
-    meta_schema=xmlschema.schema.XSD_1_0_META_SCHEMA_PATH,
-    base_schemas=xmlschema.schema.BASE_SCHEMAS,
-    facets=xmlschema.schema.XSD_FACETS,
+    meta_schema=xmlschema.validators.schema.XSD_1_0_META_SCHEMA_PATH,
+    base_schemas=xmlschema.validators.schema.BASE_SCHEMAS,
+    facets=xmlschema.validators.XSD_FACETS,
     **{k: SchemaObserver.observe_builder(v)
-       for k, v in xmlschema.schema.DEFAULT_BUILDERS.items() if k != 'simple_type_class'}
+       for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items() if k != 'simple_type_class'}
 )
 
 
@@ -123,7 +126,7 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
         if test_args.inspect:
             schema_class = ObservedXMLSchema
         else:
-            schema_class = xmlschema.schema.XMLSchema
+            schema_class = xmlschema.XMLSchema
 
         test_func = test_function_builder(test_file, schema_class, test_args.tot_errors, test_args.inspect)
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))

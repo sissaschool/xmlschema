@@ -13,11 +13,8 @@ This module contains classes for XML Schema simple data types.
 """
 from decimal import Decimal, DecimalException
 
-from ..core import unicode_type
-from ..exceptions import (
-    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError,
-    XMLSchemaParseError, XMLSchemaAttributeError,
-    XMLSchemaTypeError, XMLSchemaValueError)
+from ..compat import unicode_type
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
     get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
@@ -26,9 +23,11 @@ from ..qnames import (
     XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG,
     XSD_ANY_TYPE
 )
-from ..utils import check_type, check_value
-from ..xsdbase import get_xsd_derivation_attribute, ValidatorMixin
-from .component import XsdAnnotated
+from .exceptions import (
+    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
+)
+from .parseutils import get_xsd_derivation_attribute, check_type, check_value
+from .xsdbase import XsdAnnotated, ValidatorMixin
 from .facets import (
     XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 )

@@ -13,19 +13,20 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from collections import MutableSequence
 
-from ..core import unicode_type
-from ..exceptions import (
-    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaValueError,
-    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaTypeError
-)
+from ..compat import unicode_type
+from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from ..namespaces import XSD_NAMESPACE_PATH
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-    local_name, qname_to_prefixed
 )
-from ..utils import check_type, check_value, listify_update
-from ..xsdbase import ValidatorMixin
-from ..components import XsdAnnotated, ParticleMixin
+from .parseutils import check_type, check_value
+
+from .exceptions import (
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError,
+    XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
+)
+from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -284,7 +285,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
 
         # Decode child elements
         index = 0
-        while index < len(elem):
+        while index <= len(elem):
             obj = index
             for obj in self.iter_decode_children(elem, index=index):
                 if isinstance(obj, XMLSchemaValidationError):
@@ -311,18 +312,50 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                     raise XMLSchemaTypeError(
                         "the iteration cannot ends with a validation error, an integer expected.")
                 break
+
+        if not len(elem) and not self.is_emptiable():
+            if self.target_namespace != XSD_NAMESPACE_PATH:
+                if self.model == XSD_SEQUENCE_TAG:
+                    expected = []
+                    for e in self.iter_elements():
+                        expected.append(e.prefixed_name)
+                        if not e.is_emptiable():
+                            break
+                    yield XMLSchemaChildrenValidationError(self, elem, 0, expected=expected)
+                else:
+                    yield XMLSchemaChildrenValidationError(
+                        self, elem, 0, expected=[e.prefixed_name for e in self.iter_elements()]
+                    )
+
         yield result_list
 
     def iter_encode(self, data, validation='lax', **kwargs):
         children = []
-        children_map = {}
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', None)
         padding = (u'\n' + u' ' * indent * level) if indent is not None else None
         text = padding
-        listify_update(children_map, [(e.name, e) for e in self.iter_elements()])
+
+        children_map = {}
+        for e in self.iter_elements():
+            key = e.name
+            try:
+                children_map[key].append(e)
+            except AttributeError:
+                children_map[key] = [children_map[key], e]
+            except KeyError:
+                children_map[key] = e
         if self.target_namespace:
-            listify_update(children_map, [(local_name(e.name), e) for e in self.iter_elements() if not e.qualified])
+            for e in self.iter_elements():
+                if e.qualified:
+                    continue
+                key = e.prefixed_name
+                try:
+                    children_map[key].append(e)
+                except AttributeError:
+                    children_map[key] = [children_map[key], e]
+                except KeyError:
+                    children_map[key] = e
 
         try:
             for name, value in data:
@@ -380,9 +413,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                             model_index = obj
 
             elif self.model == XSD_ALL_TAG:
-                group = [e for e in self]
-                while group:
-                    for item in group:
+                elements = [e for e in self]
+                while elements:
+                    for item in elements:
                         for obj in item.iter_decode_children(elem, model_index):
                             if isinstance(obj, tuple):
                                 yield obj
@@ -394,16 +427,12 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                         break
                     else:
                         if self.min_occurs > model_occurs:
-                            yield XMLSchemaValidationError(
-                                self, elem,
-                                reason="child n.%d has a unexpected tag %r, must be one of %r." % (
-                                    index + 1,
-                                    qname_to_prefixed(elem[model_index].tag, self.namespaces),
-                                    [qname_to_prefixed(e.name, self.namespaces) for e in group]
-                                ))
+                            yield XMLSchemaChildrenValidationError(
+                                self, elem, model_index, expected=[e.prefixed_name for e in elements]
+                            )
                         yield index
                         return
-                    group.remove(item)
+                    elements.remove(item)
 
             elif self.model == XSD_CHOICE_TAG:
                 matched_choice = False
@@ -421,13 +450,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                         break
                 else:
                     if self.min_occurs > model_occurs:
-                        yield XMLSchemaValidationError(
-                            self, elem,
-                            reason="child n.%d has a unexpected tag %r, must be one of %r." % (
-                                index + 1,
-                                qname_to_prefixed(elem[model_index].tag, self.namespaces),
-                                [qname_to_prefixed(e.name, self.namespaces) for e in self.iter_elements()]
-                            ))
+                        yield XMLSchemaChildrenValidationError(
+                            self, elem, model_index, expected=[e.prefixed_name for e in self.iter_elements()]
+                        )
                     yield index
                     return
             else:

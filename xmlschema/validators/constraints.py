@@ -11,13 +11,13 @@
 """
 This module contains classes for other XML Schema constraints.
 """
-from ..exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaValueError, XMLSchemaTypeError
-)
+from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 from ..xpath import XPathParser
-from .component import XsdAnnotated, XsdComponent
+
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .xsdbase import XsdAnnotated, XsdComponent
 
 
 class XsdPathSelector(XsdAnnotated):

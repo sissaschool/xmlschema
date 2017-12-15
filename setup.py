@@ -15,12 +15,12 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.14',
-    packages=['xmlschema', 'xmlschema.components', 'xmlschema.tests'],
+    version='0.9.15',
+    packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [
         'unicode_categories.json',
-        'schemas/*.xsd', 'schemas/*/*.xsd',
-        'tests/test_all.sh', 'tests/examples/*', 'tests/examples/*/*'
+        'validators/schemas/*.xsd', 'validators/schemas/*/*.xsd',
+        'tests/test_all.sh', 'tests/examples/*', 'tests/examples/*/*', 'tests/examples/*/*/*'
     ]},
     author='Davide Brunato',
     author_email='brunato@sissa.it',

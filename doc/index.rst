@@ -15,10 +15,3 @@ Welcome to xmlschema's documentation!
     testing
     notes
 
-Indices and tables
-==================
-
-* :ref:`General Index <genindex>`
-* :ref:`Module Index <modindex>`
-* :ref:`search`
-

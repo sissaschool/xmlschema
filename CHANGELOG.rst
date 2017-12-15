@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+v0.9.15
+=======
+* Some bug fixes
+* Code cleaning
+* XSD components modules has been merged with schema's modules into 'validators' subpackage
+
 v0.9.14
 =======
 * Improved test scripts with a *SchemaObserver* class and test line arguments

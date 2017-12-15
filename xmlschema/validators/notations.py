@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..qnames import get_qname, XSD_NOTATION_TAG
-from .component import XsdAnnotated
+from .xsdbase import XsdAnnotated
 
 
 class XsdNotation(XsdAnnotated):

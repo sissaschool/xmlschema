@@ -13,16 +13,16 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from collections import MutableMapping
 
-from ..core import XSI_NAMESPACE_PATH
-from ..exceptions import XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaAttributeError
+from ..namespaces import get_namespace, XSI_NAMESPACE_PATH
+from ..exceptions import XMLSchemaAttributeError
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
-from ..utils import check_type, get_namespace
-from ..xsdbase import get_xsd_attribute, ValidatorMixin
-from .component import XsdAnnotated
+from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
+from .parseutils import check_type, get_xsd_attribute
+from .xsdbase import XsdAnnotated, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
@@ -165,6 +165,9 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
+        if self.fixed and text != self.fixed:
+            yield XMLSchemaValidationError(self, text, "value differs from fixed value")
+
         for result in self.type.iter_decode(text, validation, **kwargs):
             yield result
             if not isinstance(result, XMLSchemaValidationError):
@@ -371,7 +374,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
 
         if required_attributes:
             yield XMLSchemaValidationError(
-                self, attrs, "missing required attributes %r" % required_attributes,
+                self, attrs, "missing required attributes: %r" % required_attributes
             )
         yield result_list
 

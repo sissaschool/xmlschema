@@ -13,19 +13,20 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from collections import Sequence
 
-from ..core import etree_element, ElementData
-from ..exceptions import XMLSchemaValidationError, XMLSchemaAttributeError, XMLSchemaParseError
+from ..exceptions import XMLSchemaAttributeError
+from ..etree import etree_element
+from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
     local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG
 )
 from ..xpath import XPathMixin
-from ..utils import check_type
-from ..xsdbase import (
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute, ValidatorMixin
+from .exceptions import (
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
-from .component import XsdAnnotated, ParticleMixin
+from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .xsdbase import XsdAnnotated, ParticleMixin, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .complex_types import XsdComplexType
 from .constraints import XsdUnique, XsdKey, XsdKeyref
@@ -437,7 +438,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 qname = get_qname(self.target_namespace, elem[index].tag)
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
-                    yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
+                    yield XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                 else:
                     yield index
                 return
@@ -448,7 +449,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield self, elem[index]
                 else:
                     if model_occurs == 0 and self.min_occurs > 0:
-                        yield XMLSchemaValidationError(self, elem, "tag %r expected." % self.name)
+                        yield XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                     else:
                         yield index
                     return

@@ -16,7 +16,7 @@ from collections import MutableSet
 from itertools import chain
 from sys import maxunicode
 
-from .core import PY3, unicode_type, unicode_chr
+from .compat import PY3, unicode_type, unicode_chr
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaRegexError, XMLSchemaKeyError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS
 

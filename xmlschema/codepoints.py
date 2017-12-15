@@ -15,7 +15,7 @@ import json
 import os.path
 from sys import maxunicode
 
-from .core import unicode_chr
+from .compat import unicode_chr
 
 UNICODE_BLOCKS = {
     'IsBasicLatin': frozenset(range(0x80)),  # u'\u0000-\u007F',
