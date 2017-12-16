@@ -47,16 +47,21 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
         __str__ = __unicode__
 
 
+class XMLSchemaValidationContext(object):
+    pass
+
+
 class XMLSchemaValidationError(XMLSchemaException, ValueError):
     """Raised when the XML data is not validated with the XSD component or schema."""
 
-    def __init__(self, validator, obj, reason=None, schema_elem=None, elem=None):
+    def __init__(self, validator, obj, reason=None, schema_elem=None, elem=None, context=None):
         self.validator = validator
         self.obj = obj
         self.reason = reason
         self.schema_elem = schema_elem or getattr(validator, 'elem', None)
         self.elem = elem or obj if etree_iselement(obj) else None
         self.message = None
+        self.context = context
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -115,4 +120,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         elif expected is not None:
             reason += " Tag %r expected." % expected
 
-        super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason)
+        context = XMLSchemaValidationContext()
+        context.index = index
+        context.expected = expected
+        super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, context=context)
