@@ -16,10 +16,11 @@ from collections import MutableSet
 from itertools import chain
 from sys import maxunicode
 
-from .compat import PY3, unicode_type, unicode_chr
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaRegexError, XMLSchemaKeyError
-from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS
-
+from .compat import PY3, unicode_type
+from .exceptions import XMLSchemaRegexError, XMLSchemaKeyError
+from .codepoints import (
+    UNICODE_CATEGORIES, UNICODE_BLOCKS, parse_character_group, generate_character_group, UnicodeSubset
+)
 I_SHORTCUT_REPLACE = (
     u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
     u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
@@ -29,206 +30,6 @@ C_SHORTCUT_REPLACE = (
     u"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
     u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
-
-
-def parse_character_group(s):
-    """
-    Parse a regex character group part, generating a sequence that expands
-    the escape sequences and the character ranges. An unescaped hyphen (-)
-    that is not at the start or at the and is interpreted as range specifier.
-
-    :param s: A string representing a character group part.
-    """
-    escaped = False
-    string_iter = iter(range(len(s)))
-    for i in string_iter:
-        if i == 0:
-            char = s[0]
-            if char == '\\':
-                escaped = True
-            elif char in r'[]' and len(s) > 1:
-                raise XMLSchemaRegexError("bad character %r at position 0" % char)
-            else:
-                yield char
-        elif s[i] == '-':
-            if escaped or (i == len(s) - 1):
-                char = s[i]
-                yield char
-                escaped = False
-            else:
-                i = next(string_iter)
-                end_char = s[i]
-                if end_char == '\\' and (i < len(s) - 1) and s[i + 1] in r'-|.^?*+{}()[]':
-                    i = next(string_iter)
-                    end_char = s[i]
-                if ord(char) > ord(end_char):
-                    raise XMLSchemaRegexError(
-                        "bad character range %r-%r at position %d: %r" % (char, end_char, i - 2, s)
-                    )
-                for cp in range(ord(char) + 1, ord(end_char) + 1):
-                    yield unicode_chr(cp)
-        elif s[i] in r'|.^?*+{}()':
-            if escaped:
-                escaped = False
-            char = s[i]
-            yield char
-        elif s[i] in r'[]':
-            if not escaped and len(s) > 1:
-                raise XMLSchemaRegexError("bad character %r at position %d" % (s[i], i))
-            escaped = False
-            char = s[i]
-            yield char
-        elif s[i] == '\\':
-            if escaped:
-                escaped = False
-                char = '\\'
-                yield char
-            else:
-                escaped = True
-        else:
-            if escaped:
-                escaped = False
-                yield '\\'
-            char = s[i]
-            yield char
-    if escaped:
-        yield '\\'
-
-
-def generate_character_group(s):
-    """
-    Generate a character group representation of a sequence of Unicode code points.
-    A duplicated code point ends the generation of the group with a character range
-    that reaches the maxunicode.
-
-    :param s: An iterable with unicode code points.
-    """
-    def character_group_repr(cp):
-        char = unicode_chr(cp)
-        if char in r'-|.^?*+{}()[]':
-            return u'\%s' % char
-        return char
-
-    range_code_point = -1
-    range_len = 1
-    for code_point in sorted(s):
-        if range_code_point < 0:
-            range_code_point = code_point
-        elif code_point == (range_code_point + range_len):
-            # Next character --> range extension
-            range_len += 1
-        elif code_point == (range_code_point + range_len - 1):
-            # Duplicated character!
-            yield character_group_repr(range_code_point)
-            yield u'-'
-            yield character_group_repr(maxunicode)
-            return
-        elif range_len <= 2:
-            # Ending of a range of two length.
-            for k in range(range_len):
-                yield character_group_repr(range_code_point + k)
-            range_code_point = code_point
-            range_len = 1
-        else:
-            # Ending of a range of three or more length.
-            yield character_group_repr(range_code_point)
-            yield u'-'
-            yield character_group_repr(range_code_point + range_len - 1)
-            range_code_point = code_point
-            range_len = 1
-    else:
-        if range_code_point < 0:
-            return
-        if range_len <= 2:
-            for k in range(range_len):
-                yield character_group_repr(range_code_point + k)
-        else:
-            yield character_group_repr(range_code_point)
-            yield u'-'
-            yield character_group_repr(range_code_point + range_len - 1)
-
-
-class UnicodeSubset(MutableSet):
-    """
-    A set of Unicode code points. It manages character ranges for adding or for
-    discarding elements from a string and for a compressed representation.
-    """
-    def __init__(self, *args, **kwargs):
-        if len(args) > 1:
-            raise XMLSchemaTypeError(
-                '%s expected at most 1 arguments, got %d' % (self.__class__.__name__, len(args))
-            )
-        if kwargs:
-            raise XMLSchemaTypeError(
-                '%s does not take keyword arguments' % self.__class__.__name__
-            )
-
-        if not args:
-            self._store = set()
-        elif isinstance(args[0], (set, UnicodeSubset)):
-            self._store = args[0].copy()
-        else:
-            self._store = set()
-            if isinstance(args[0], (unicode_type, str)):
-                self.add_string(args[0])
-            else:
-                for item in args[0]:
-                    self.add(item)
-
-    def __repr__(self):
-        return u"<%s %r at %d>" % (self.__class__.__name__, str(self), id(self))
-
-    def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return u''.join(generate_character_group(self._store))
-
-    if PY3:
-        __str__ = __unicode__
-
-    def __contains__(self, code_point):
-        return code_point in self._store
-
-    def __iter__(self):
-        return iter(self._store)
-
-    def __len__(self):
-        return len(self._store)
-
-    def complement(self):
-        return (cp for cp in range(maxunicode + 1) if cp not in self._store)
-
-    def add(self, code_point):
-        if 0 <= code_point <= maxunicode:
-            self._store.add(code_point)
-        else:
-            raise XMLSchemaValueError(
-                "Unicode code point must be in range [0 .. %d]: %r" % (maxunicode, code_point)
-            )
-
-    def discard(self, code_point):
-        if 0 <= code_point <= maxunicode:
-            self._store.discard(code_point)
-        else:
-            raise XMLSchemaValueError(
-                "Unicode code point must be in range [0 .. %d]: %r" % (maxunicode, code_point)
-            )
-
-    def add_string(self, s):
-        for char in parse_character_group(s):
-            self._store.add(ord(char))
-
-    def discard_string(self, s):
-        for char in parse_character_group(s):
-            self._store.discard(ord(char))
-
-    def copy(self):
-        return self.__copy__()
-
-    def __copy__(self):
-        return self._store.copy()
-
 
 S_SHORTCUT_SET = {ord(e) for e in parse_character_group(' \n\t\r')}
 D_SHORTCUT_SET = {ord(e) for e in parse_character_group('0-9')}
@@ -264,6 +65,7 @@ class XsdRegexCharGroup(MutableSet):
         return u"<%s %r at %d>" % (self.__class__.__name__, self.get_char_class(), id(self))
 
     def __str__(self):
+        # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
