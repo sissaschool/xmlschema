@@ -295,6 +295,87 @@ def parse_character_group(s):
         yield '\\'
 
 
+def parse_character_group2(s, expand_ranges=False):
+    """
+    Parse a regex character group part, generating a sequence of code points
+    and code points ranges. An unescaped hyphen (-) that is not at the start
+    or at the and is interpreted as range specifier.
+
+    :param s: A string representing a character group part.
+    :param expand_ranges: Do not expand ranges, returns as couples of integers. \
+    This is the default.
+    :return: Sequence of integers or couple of integers.
+    """
+    escaped = False
+    start_char = None
+    last_index = len(s) - 1
+    string_iter = iter(range(len(s)))
+    for i in string_iter:
+        if i == 0:
+            char = s[0]
+            if char == '\\':
+                escaped = True
+            elif char in r'[]' and len(s) > 1:
+                raise XMLSchemaRegexError("bad character %r at position 0" % char)
+            elif expand_ranges:
+                yield ord(char)
+            elif last_index == 0 or s[1] != '-':
+                yield ord(char)
+            else:
+                start_char = char
+        elif s[i] == '-':
+            if escaped or (i == len(s) - 1):
+                char = s[i]
+                yield ord(char)
+                escaped = False
+            else:
+                i = next(string_iter)
+                end_char = s[i]
+                if end_char == '\\' and (i < len(s) - 1) and s[i + 1] in r'-|.^?*+{}()[]':
+                    i = next(string_iter)
+                    end_char = s[i]
+                if ord(char) > ord(end_char):
+                    raise XMLSchemaRegexError(
+                        "bad character range %r-%r at position %d: %r" % (char, end_char, i - 2, s)
+                    )
+                if expand_ranges:
+                    for cp in range(ord(char) + 1, ord(end_char) + 1):
+                        yield cp
+                else:
+                    yield [ord(start_char), ord(end_char)]
+        elif s[i] in r'|.^?*+{}()':
+            if escaped:
+                escaped = False
+            char = s[i]
+            yield ord(char)
+        elif s[i] in r'[]':
+            if not escaped and len(s) > 1:
+                raise XMLSchemaRegexError("bad character %r at position %d" % (s[i], i))
+            escaped = False
+            char = s[i]
+            yield ord(char)
+        elif s[i] == '\\':
+            if escaped:
+                escaped = False
+                char = '\\'
+                yield ord(char)
+            else:
+                escaped = True
+        else:
+            if escaped:
+                escaped = False
+                yield ord('\\')
+            char = s[i]
+            if expand_ranges:
+                yield ord(char)
+            elif last_index > i and s[i + 1] == '-':
+                start_char = char
+            else:
+                yield ord(char)
+    if escaped:
+        yield ord('\\')
+
+
 def generate_character_group(s):
     """
     Generate a character group representation of a sequence of Unicode code points.
@@ -429,3 +510,219 @@ class UnicodeSubset(MutableSet):
 
     def __copy__(self):
         return self._store.copy()
+
+
+class CodePointSet(MutableSet):
+    """
+    A set of Unicode code points, implemented with a list of values and ranges.
+    It manages character ranges for adding or for discarding elements from a
+    string and for a compressed representation.
+    """
+    def __init__(self, *args, **kwargs):
+        if len(args) > 1:
+            raise XMLSchemaTypeError(
+                '%s expected at most 1 arguments, got %d' % (self.__class__.__name__, len(args))
+            )
+        if kwargs:
+            raise XMLSchemaTypeError(
+                '%s does not take keyword arguments' % self.__class__.__name__
+            )
+
+        if not args:
+            self._code_points = list()
+        elif isinstance(args[0], UnicodeSubset):
+            self._code_points = args[0].copy()
+        else:
+            self._code_points = list()
+            if isinstance(args[0], (unicode_type, str)):
+                for item in parse_character_group2(args[0]):
+                    self.add(item)
+            else:
+                for item in args[0]:
+                    self.add(item)
+
+    def __repr__(self):
+        return u"<%s %r at %d>" % (self.__class__.__name__, str(self), id(self))
+
+    def __str__(self):
+        # noinspection PyCompatibility
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return str(self._code_points)
+
+    if PY3:
+        __str__ = __unicode__
+
+    def __contains__(self, code_point):
+        for cp in self._code_points:
+            if isinstance(cp, tuple):
+                if cp[0] > code_point:
+                    return False
+                elif cp[1] < code_point:
+                    continue
+                else:
+                    return True
+            elif cp > code_point:
+                return False
+            elif cp == code_point:
+                return True
+        return False
+
+    def __iter__(self):
+        for item in self._code_points:
+            if isinstance(item, tuple):
+                for cp in range(item[0], item[1] + 1):
+                    yield cp
+            else:
+                yield item
+
+    def __len__(self):
+        i = 0
+        for _ in self:
+            i += 1
+        return i
+
+    def complement(self):
+        last = 0
+        for cp in self._code_points:
+            if last > maxunicode:
+                break
+            if isinstance(cp, int):
+                diff = cp - last
+                start_cp = end_cp = cp
+            else:
+                start_cp, end_cp = cp
+                diff = start_cp - last
+
+            if diff > 2:
+                yield last, start_cp - 1
+            elif diff == 2:
+                yield last
+                yield last + 1
+            elif diff == 1:
+                yield last
+            elif diff != 0:
+                raise XMLSchemaValueError("code points unordered")
+            last = end_cp + 1
+
+        if last == maxunicode:
+            yield maxunicode
+        elif last < maxunicode:
+            yield last, maxunicode
+
+    def add(self, value):
+        if isinstance(value, (list, tuple)):
+            if len(value) > 2 or value[0] > value[1] or value[0] < 0 or value[1] > maxunicode:
+                raise XMLSchemaValueError("not a code point range: %r" % value)
+            start_value, end_value = value
+            if start_value == end_value:
+                value = start_value
+            elif isinstance(value, list):
+                value = tuple(value)
+        else:
+            start_value = end_value = value
+            if not (0 <= value <= maxunicode):
+                raise XMLSchemaValueError(
+                    "Unicode code point must be in range [0 .. %d]: %r" % (maxunicode, value)
+                )
+
+        code_points = self._code_points
+        for pos in range(len(code_points)):
+            if isinstance(code_points[pos], tuple):
+                start_cp, end_cp = code_points[pos]
+            else:
+                start_cp = end_cp = code_points[pos]
+
+            try:
+                higher_limit = code_points[pos + 1]
+            except IndexError:
+                higher_limit = maxunicode + 1
+            else:
+                if isinstance(higher_limit, tuple):
+                    higher_limit = higher_limit[0]
+
+            if start_value < start_cp:
+                if start_value == start_cp - 1 or end_value >= start_cp - 1:
+                    if end_cp > start_cp:
+                        code_points[pos] = start_value, max(min(end_value, higher_limit - 1), end_cp)
+                    else:
+                        code_points[pos] = start_value, max(min(end_value, higher_limit - 1), end_cp)
+                    break
+                else:
+                    code_points.insert(pos, value)
+                    break
+            elif start_value > end_cp + 1:
+                continue
+            elif end_cp > start_cp:
+                code_points[pos] = start_cp, max(min(end_value, higher_limit - 1), end_cp)
+            elif end_value > start_cp:
+                code_points[pos] = start_cp, min(end_value, higher_limit - 1)
+            break
+        else:
+            self._code_points.append(value)
+
+    def discard(self, value):
+        if isinstance(value, (list, tuple)):
+            if len(value) > 2 or value[0] > value[1] or value[0] < 0 or value[1] > maxunicode:
+                raise XMLSchemaValueError("not a code point range: %r" % value)
+            start_value, end_value = value
+        else:
+            start_value = end_value = value
+            if not (0 <= value <= maxunicode):
+                raise XMLSchemaValueError(
+                    "Unicode code point must be in range [0 .. %d]: %r" % (maxunicode, value)
+                )
+
+        code_points = self._code_points
+        for pos in reversed(range(len(code_points))):
+            if isinstance(code_points[pos], tuple):
+                start_cp, end_cp = code_points[pos]
+            else:
+                start_cp = end_cp = code_points[pos]
+
+            if start_value > end_cp:
+                break
+            elif end_value >= end_cp:
+                if start_value <= start_cp:
+                    del code_points[pos]
+                elif start_value - start_cp > 1:
+                    code_points[pos] = start_cp, start_value - 1
+                else:
+                    code_points[pos] = start_cp
+                continue
+            elif end_value >= start_cp:
+                if start_value <= start_cp:
+                    if end_cp - end_value > 1:
+                        code_points[pos] = end_value + 1, end_cp
+                    else:
+                        code_points[pos] = end_cp
+                else:
+                    if end_cp - end_value > 1:
+                        code_points.insert(pos + 1, (end_value + 1, end_cp))
+                    else:
+                        code_points.insert(pos + 1, end_cp)
+                    if start_value - start_cp > 1:
+                        code_points[pos] = start_cp, start_value - 1
+                    else:
+                        code_points[pos] = start_cp
+
+    def add_string(self, s):
+        for cp in parse_character_group2(s):
+            self.add(cp)
+
+    def discard_string(self, s):
+        for cp in parse_character_group2(s):
+            self.discard(cp)
+
+    def copy(self):
+        return self.__copy__()
+
+    def __copy__(self):
+        return list(self._code_points)
+
+    def __eq__(self, other):
+        if isinstance(other, CodePointSet):
+            return self._code_points == other._code_points
+        else:
+            return self._code_points == other

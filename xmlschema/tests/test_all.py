@@ -19,6 +19,7 @@ if __name__ == '__main__':
     from _test_common import tests_factory
 
     from test_meta import TestUnicodeCategories, TestBuiltinTypes, TestGlobalMaps
+    from test_regex import TestCodePointSet
     from test_xpath import TestXPath
     from test_resources import TestResources
     from test_schemas import make_test_schema_function
