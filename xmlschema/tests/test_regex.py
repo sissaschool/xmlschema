@@ -15,8 +15,10 @@ This module runs tests on XML Schema regular expressions.
 from _test_common import *
 
 from sys import maxunicode
+from unicodedata import category
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.codepoints import CodePointSet
+from xmlschema.compat import unicode_chr
+from xmlschema.codepoints import CodePointSet, UNICODE_CATEGORIES
 
 
 class TestCodePointSet(unittest.TestCase):
@@ -68,6 +70,58 @@ class TestCodePointSet(unittest.TestCase):
         cds2 = CodePointSet([10, 51, (89, 150), 90])
         self.assertEqual(cds1 | cds2, [10, (50, 51), (89, 200)])
         self.assertEqual(cds1 & cds2, [10, (90, 150)])
+
+    def test_max_and_min(self):
+        cds1 = CodePointSet([10, 51, (89, 150), 90])
+        cds2 = CodePointSet([0, 2, (80, 200), 10000])
+        cds3 = CodePointSet([1])
+        self.assertEqual((min(cds1), max(cds1)), (10, 150))
+        self.assertEqual((min(cds2), max(cds2)), (0, 10000))
+        self.assertEqual((min(cds3), max(cds3)), (1, 1))
+
+
+class TestUnicodeCategories(XMLSchemaTestCase):
+    """
+    Test the subsets of Unicode categories, mainly to check the loaded JSON file.
+    """
+
+    def test_disjunction(self):
+        base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
+        self.assertFalse(
+            any([s.intersection(t) for s in base_sets for t in base_sets if s != t]),
+            "The Unicode categories are not mutually disjoined."
+        )
+
+    def test_conjunctions(self):
+        n_code_points = sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1)
+        self.assertTrue(
+            n_code_points == maxunicode + 1,
+            "The Unicode categories have a wrong number of elements: %d (!= %d) " % (n_code_points, maxunicode + 1)
+        )
+
+    def test_max_value(self):
+        max_code_point = max([max(s) for s in UNICODE_CATEGORIES.values()])
+        self.assertTrue(
+            max_code_point <= maxunicode,
+            "The Unicode categories have a code point greater than %d: %d" % (maxunicode, max_code_point)
+        )
+
+    def test_min_value(self):
+        min_code_point = min([min(s) for s in UNICODE_CATEGORIES.values()])
+        self.assertTrue(
+            min_code_point >= 0,
+            "The Unicode categories have negative code points: %d" % min_code_point
+        )
+
+    def test_unicodedata_category(self):
+        for key in UNICODE_CATEGORIES:
+            for cp in UNICODE_CATEGORIES[key]:
+                uc = category(unicode_chr(cp))
+                if key == uc or len(key) == 1 and key == uc[0]:
+                    continue
+                self.assertTrue(
+                    False, "Wrong category %r for code point %d (should be %r)." % (uc, cp, key)
+                )
 
 
 if __name__ == '__main__':

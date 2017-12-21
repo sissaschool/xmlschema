@@ -19,7 +19,7 @@ from sys import maxunicode
 from .compat import PY3, unicode_type
 from .exceptions import XMLSchemaRegexError, XMLSchemaKeyError
 from .codepoints import (
-    UNICODE_CATEGORIES, UNICODE_BLOCKS, parse_character_group, generate_character_group, UnicodeSubset
+    UNICODE_CATEGORIES, UNICODE_BLOCKS, generate_character_group, UnicodeSubset, CodePointSet
 )
 I_SHORTCUT_REPLACE = (
     u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
@@ -31,12 +31,17 @@ C_SHORTCUT_REPLACE = (
     u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
-S_SHORTCUT_SET = {ord(e) for e in parse_character_group(' \n\t\r')}
-D_SHORTCUT_SET = {ord(e) for e in parse_character_group('0-9')}
-I_SHORTCUT_SET = {ord(e) for e in parse_character_group(I_SHORTCUT_REPLACE)}
-C_SHORTCUT_SET = {ord(e) for e in parse_character_group(C_SHORTCUT_REPLACE)}
-W_SHORTCUT_SET = UNICODE_CATEGORIES['P'] | UNICODE_CATEGORIES['Z'] | UNICODE_CATEGORIES['C']
+S_SHORTCUT_SET = CodePointSet(' \n\t\r')
+D_SHORTCUT_SET = CodePointSet('0-9')
+I_SHORTCUT_SET = CodePointSet(I_SHORTCUT_REPLACE)
+C_SHORTCUT_SET = CodePointSet(C_SHORTCUT_REPLACE)
+# W_SHORTCUT_SET = UNICODE_CATEGORIES['P'] | UNICODE_CATEGORIES['Z'] | UNICODE_CATEGORIES['C']
 
+W_SHORTCUT_SET = CodePointSet()
+W_SHORTCUT_SET._code_points = sorted(
+    UNICODE_CATEGORIES['P']._code_points + UNICODE_CATEGORIES['Z']._code_points +
+    UNICODE_CATEGORIES['C']._code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
+)
 
 def get_unicode_subset(key):
     try:

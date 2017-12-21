@@ -122,15 +122,15 @@ UNICODE_BLOCKS = {
 }
 
 
-def save_unicode_categories(filename=None):
+def get_compacted_code_points(code_points, sort=False):
     """
-    Save Unicode categories to a JSON file.
+    Get a compacted representation of a list of numerical code points.
 
-    :param filename: Name of the JSON file to save. If None use the predefined
-    filename 'unicode_categories.json' and try to save in the directory of this
-    module.
+    :param code_points: Sequence of numerical code points.
+    :param sort: Sort the sequence before compacting.
+    :return: A list with a compacted representation of code points.
     """
-    def gen_ranges():
+    def generate_code_points(items):
         """
         Generates values or ranges in order to compress the code points representation.
         """
@@ -153,7 +153,7 @@ def save_unicode_categories(filename=None):
                 range_len = 1
             else:
                 # Ending of a range of three or more length.
-                yield [range_code_point, range_code_point + range_len - 1]
+                yield range_code_point, range_code_point + range_len - 1
                 range_code_point = code_point
                 range_len = 1
         else:
@@ -163,75 +163,88 @@ def save_unicode_categories(filename=None):
                 yield range_code_point
                 yield range_code_point + 1
             else:
-                yield [range_code_point, range_code_point + range_len - 1]
+                yield range_code_point, range_code_point + range_len - 1
 
+    if sort:
+        code_points = sorted(code_points)
+    return [cp for cp in generate_code_points(code_points)]
+
+
+def unicode_category_sequencer(code_points):
+    """
+    Generate a sequence of unicode categories associations.
+
+    :param code_point_range:
+    :return: Yields integers value or 2-tuple with integers items.
+    """
     from unicodedata import category
+
+    code_points_iter = iter(code_points)
+
+    try:
+        prev_cp = next(code_points_iter)
+    except StopIteration:
+        return
+    prev_cat = category(unicode_chr(prev_cp))
+    next_cp = None
+
+    while True:
+        try:
+            next_cp = next(code_points_iter)
+        except StopIteration:
+            if next_cp is None:
+                yield prev_cat, prev_cp
+            else:
+                diff = next_cp - prev_cp
+                if diff > 1:
+                    yield prev_cat, (prev_cp, next_cp)
+                elif diff == 1:
+                    yield prev_cat, prev_cp
+                    yield prev_cat, next_cp
+                else:
+                    yield prev_cat, prev_cp
+            break
+        else:
+            next_cat = category(unicode_chr(next_cp))
+            if next_cat != prev_cat:
+                diff = next_cp - prev_cp
+                if diff > 2:
+                    yield prev_cat, (prev_cp, next_cp - 1)
+                elif diff == 2:
+                    yield prev_cat, prev_cp
+                    yield prev_cat, next_cp - 1
+                else:
+                    yield prev_cat, prev_cp
+                prev_cp = next_cp
+                prev_cat = next_cat
+
+
+def code_point_sorter(x):
+    return x[0] if isinstance(x, tuple) else x
+
+
+def save_unicode_categories(filename=None):
+    """
+    Save Unicode categories to a JSON file.
+
+    :param filename: Name of the JSON file to save. If None use the predefined
+    filename 'unicode_categories.json' and try to save in the directory of this
+    module.
+    """
     from collections import defaultdict
 
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
 
     categories = defaultdict(list)
-    for cp in range(maxunicode + 1):
-        categories[category(unicode_chr(cp))].append(cp)
-
-    for name, items in categories.items():
-        categories[name] = [cp for cp in gen_ranges()]
+    for key, cp in unicode_category_sequencer(range(maxunicode + 1)):
+        categories[key].append(cp)
 
     with open(filename, 'w') as fp:
         json.dump(categories, fp)
 
 
-def get_unicode_categories(filename=None):
-    """
-    Get the Unicode categories.
-
-    :param filename: Name of the JSON file to read. If None use the predefined
-    filename 'unicode_categories.json' and try to save in the directory of this
-    module.
-    """
-    if filename is None:
-        filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
-
-    try:
-        with open(filename, 'r') as fp:
-            categories = json.load(fp)
-    except (IOError, SystemError):
-        from unicodedata import category
-        from collections import defaultdict
-
-        categories = defaultdict(set)
-        for cp in range(maxunicode + 1):
-            categories[category(unicode_chr(cp))].add(cp)
-        categories = dict(categories)
-    else:
-        for key, values in categories.items():
-            categories[key] = {
-                cp for cp1, cp2 in map(
-                    lambda x: x if isinstance(x, list) else (x, x), values
-                ) for cp in range(cp1, cp2 + 1)
-            }
-
-    categories['C'] = categories['Cc'] | categories['Cf'] | categories['Cs'] | \
-        categories['Co'] | categories['Cn']
-    categories['L'] = categories['Lu'] | categories['Ll'] | categories['Lt'] | \
-        categories['Lm'] | categories['Lo']
-    categories['M'] = categories['Mn'] | categories['Mc'] | categories['Me']
-    categories['N'] = categories['Nd'] | categories['Nl'] | categories['No']
-    categories['P'] = (
-        categories['Pc'] | categories['Pd'] | categories['Ps'] |
-        categories['Pe'] | categories['Pi'] | categories['Pf'] | categories['Po']
-    )
-    categories['S'] = categories['Sm'] | categories['Sc'] | categories['Sk'] | categories['So']
-    categories['Z'] = categories['Zs'] | categories['Zl'] | categories['Zp']
-
-    return categories
-
-
-UNICODE_CATEGORIES = get_unicode_categories()
-
-
-def parse_character_group(s):
+def _parse_character_group(s):
     """
     Parse a regex character group part, generating a sequence that expands
     the escape sequences and the character ranges. An unescaped hyphen (-)
@@ -295,7 +308,7 @@ def parse_character_group(s):
         yield '\\'
 
 
-def parse_character_group2(s, expand_ranges=False):
+def parse_character_group(s, expand_ranges=False):
     """
     Parse a regex character group part, generating a sequence of code points
     and code points ranges. An unescaped hyphen (-) that is not at the start
@@ -498,11 +511,11 @@ class UnicodeSubset(MutableSet):
             )
 
     def add_string(self, s):
-        for char in parse_character_group(s):
+        for char in _parse_character_group(s):
             self._store.add(ord(char))
 
     def discard_string(self, s):
-        for char in parse_character_group(s):
+        for char in _parse_character_group(s):
             self._store.discard(ord(char))
 
     def copy(self):
@@ -531,14 +544,14 @@ class CodePointSet(MutableSet):
         if not args:
             self._code_points = list()
         elif isinstance(args[0], UnicodeSubset):
-            self._code_points = args[0].copy()
+            self._code_points = args[0]._code_points.copy()
         else:
             self._code_points = list()
             if isinstance(args[0], (unicode_type, str)):
-                for item in parse_character_group2(args[0]):
+                for item in parse_character_group(args[0]):
                     self.add(item)
             else:
-                for item in args[0]:
+                for item in reversed(sorted(args[0], key=code_point_sorter)):
                     self.add(item)
 
     def __repr__(self):
@@ -708,21 +721,82 @@ class CodePointSet(MutableSet):
                         code_points[pos] = start_cp
 
     def add_string(self, s):
-        for cp in parse_character_group2(s):
+        for cp in parse_character_group(s):
             self.add(cp)
 
     def discard_string(self, s):
-        for cp in parse_character_group2(s):
+        for cp in parse_character_group(s):
             self.discard(cp)
 
     def copy(self):
         return self.__copy__()
 
     def __copy__(self):
-        return list(self._code_points)
+        return CodePointSet(self._code_points)
 
     def __eq__(self, other):
         if isinstance(other, CodePointSet):
             return self._code_points == other._code_points
         else:
             return self._code_points == other
+
+    def __or__(self, other):
+        if isinstance(other, CodePointSet):
+            obj = self.copy()
+            for cp in other._code_points:
+                obj.add(cp)
+            return obj
+        else:
+            return self._code_points == other
+
+
+def get_unicode_categories(filename=None):
+    """
+    Get the Unicode categories.
+
+    :param filename: Name of the JSON file to read. If None use the predefined
+    filename 'unicode_categories.json' and try to save in the directory of this
+    module.
+    """
+    if filename is None:
+        filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
+
+    try:
+        with open(filename, 'r') as fp:
+            categories = json.load(fp)
+    except (IOError, SystemError):
+        from collections import defaultdict
+        categories = defaultdict(list)
+        for key, cp in unicode_category_sequencer(range(maxunicode + 1)):
+            categories[key].append(cp)
+    else:
+        for values in categories.values():
+            for k in range(len(values)):
+                if isinstance(values[k], list):
+                    values[k] = tuple(values[k])
+
+    # Build general categories code points
+    categories['C'] = sorted(categories['Cc'] + categories['Cf'] + categories['Cs'] +
+                             categories['Co'] + categories['Cn'], key=code_point_sorter)
+    categories['L'] = sorted(categories['Lu'] + categories['Ll'] + categories['Lt'] +
+                             categories['Lm'] + categories['Lo'], key=code_point_sorter)
+    categories['M'] = sorted(categories['Mn'] + categories['Mc'] + categories['Me'], key=code_point_sorter)
+    categories['N'] = sorted(categories['Nd'] + categories['Nl'] + categories['No'], key=code_point_sorter)
+    categories['P'] = sorted(
+        categories['Pc'] + categories['Pd'] + categories['Ps'] + categories['Pe'] + categories['Pi'] +
+        categories['Pf'] + categories['Po'], key=code_point_sorter
+    )
+    categories['S'] = sorted(
+        categories['Sm'] + categories['Sc'] + categories['Sk'] + categories['So'], key=code_point_sorter
+    )
+    categories['Z'] = sorted(categories['Zs'] + categories['Zl'] + categories['Zp'], key=code_point_sorter)
+
+    for k, v in categories.items():
+        cds = CodePointSet()
+        cds._code_points = v
+        categories[k] = cds
+
+    return dict(categories)
+
+
+UNICODE_CATEGORIES = get_unicode_categories()
