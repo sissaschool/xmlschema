@@ -13,14 +13,23 @@ This module parse and translate XML regular expressions to Python regex syntax.
 """
 import re
 from collections import MutableSet
-from itertools import chain
 from sys import maxunicode
 
 from .compat import PY3, unicode_type
-from .exceptions import XMLSchemaRegexError, XMLSchemaKeyError
-from .codepoints import (
-    UNICODE_CATEGORIES, UNICODE_BLOCKS, generate_character_group, UnicodeSubset, CodePointSet
-)
+from .exceptions import XMLSchemaRegexError
+from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
+
+_UNICODE_SUBSETS = UNICODE_CATEGORIES.copy()
+_UNICODE_SUBSETS.update(UNICODE_BLOCKS)
+
+
+def get_unicode_subset(key):
+    try:
+        return _UNICODE_SUBSETS[key]
+    except KeyError:
+        raise XMLSchemaRegexError("%r don't match to any Unicode category or block.")
+
+
 I_SHORTCUT_REPLACE = (
     u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
     u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
@@ -31,26 +40,15 @@ C_SHORTCUT_REPLACE = (
     u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
-S_SHORTCUT_SET = CodePointSet(' \n\t\r')
-D_SHORTCUT_SET = CodePointSet('0-9')
-I_SHORTCUT_SET = CodePointSet(I_SHORTCUT_REPLACE)
-C_SHORTCUT_SET = CodePointSet(C_SHORTCUT_REPLACE)
-# W_SHORTCUT_SET = UNICODE_CATEGORIES['P'] | UNICODE_CATEGORIES['Z'] | UNICODE_CATEGORIES['C']
-
-W_SHORTCUT_SET = CodePointSet()
+S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
+D_SHORTCUT_SET = UnicodeSubset('0-9')
+I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
+C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
+W_SHORTCUT_SET = UnicodeSubset()
 W_SHORTCUT_SET._code_points = sorted(
-    UNICODE_CATEGORIES['P']._code_points + UNICODE_CATEGORIES['Z']._code_points +
-    UNICODE_CATEGORIES['C']._code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
+    UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points +
+    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
 )
-
-def get_unicode_subset(key):
-    try:
-        return UNICODE_CATEGORIES[key]
-    except KeyError:
-        try:
-            return UNICODE_BLOCKS[key]
-        except KeyError:
-            raise XMLSchemaKeyError("%r don't match to any Unicode category or block.")
 
 
 class XsdRegexCharGroup(MutableSet):
@@ -74,20 +72,12 @@ class XsdRegexCharGroup(MutableSet):
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        if self.negative:
-            if self.positive:
-                max_code_point = max(max(self.positive), max(self.negative))
-            else:
-                max_code_point = max(self.negative)
-            if max_code_point < maxunicode:
-                gen_char_group = (
-                    cp for cp in range(max_code_point + 1)
-                    if cp in self.positive or cp not in self.negative
-                )
-                return u''.join(generate_character_group(
-                    chain(gen_char_group, (cp for cp in [max_code_point + 1] * 2))
-                ))
-        return u''.join(generate_character_group(iter(self)))
+        if not self.negative:
+            return unicode_type(self.positive)
+        elif self.positive:
+            return u'{0, ..., maxunicode} - %s + %s' % (self.negative, self.positive)
+        else:
+            return u'{0, ..., maxunicode} - %s' % self.negative
 
     if PY3:
         __str__ = __unicode__
@@ -147,7 +137,7 @@ class XsdRegexCharGroup(MutableSet):
                 else:
                     self.negative |= get_unicode_subset(part[3:-1])
             else:
-                self.positive.add_string(part)
+                self.positive.update(part)
 
     def discard(self, s):
         for part in self._re_char_group.split(s):
@@ -177,7 +167,7 @@ class XsdRegexCharGroup(MutableSet):
                 else:
                     self.negative -= get_unicode_subset(part[3:-1])
             else:
-                self.positive.discard_string(part)
+                self.positive.difference_update(part)
 
     def clear(self):
         self.positive.clear()
@@ -264,15 +254,15 @@ def get_python_regex(xml_regex, debug=False):
         elif ch == '\\':
             pos += 1
             if pos >= len(xml_regex):
-                regex.append('\\')
+                regex.append(u'\\')
             elif xml_regex[pos] == 'i':
-                regex.append('[%s]' % I_SHORTCUT_REPLACE)
+                regex.append(u'[%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'I':
-                regex.append('[^%s]' % I_SHORTCUT_REPLACE)
+                regex.append(u'[^%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'c':
-                regex.append('[%s]' % C_SHORTCUT_REPLACE)
+                regex.append(u'[%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'C':
-                regex.append('[^%s]' % C_SHORTCUT_REPLACE)
+                regex.append(u'[^%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] in 'pP':
                 start_pos = pos - 1
                 try:
@@ -282,16 +272,15 @@ def get_python_regex(xml_regex, debug=False):
                         pos += 1
                 except (IndexError, ValueError):
                     raise XMLSchemaRegexError(
-                        "truncated unicode block escape at position %d: %r" % (start_pos, xml_regex)
-                    )
+                        "truncated unicode block escape at position %d: %r" % (start_pos, xml_regex))
+
                 p_shortcut_set = get_unicode_subset(xml_regex[start_pos + 3:pos])
-                p_shortcut_replace = ''.join(generate_character_group(p_shortcut_set))
                 if xml_regex[start_pos + 1] == 'p':
-                    regex.append('[%s]' % p_shortcut_replace)
+                    regex.append(u'[%s]' % p_shortcut_set)
                 else:
-                    regex.append('[^%s]' % p_shortcut_replace)
+                    regex.append(u'[^%s]' % p_shortcut_set)
             else:
-                regex.append('\\%s' % xml_regex[pos])
+                regex.append(u'\\%s' % xml_regex[pos])
         else:
             regex.append(ch)
         pos += 1

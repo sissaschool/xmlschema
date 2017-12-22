@@ -10,11 +10,12 @@ if [ -z $TESTS_DIR ]; then
     TESTS_DIR="."
 fi
 
-for PYTHON_CMD in python{2.7,3.3,3.4,3.5,3.6}; do
+for VERSION in {2.7,3.3,3.4,3.5,3.6}; do
+    PYTHON_CMD=$(which python$VERSION)
     if hash $PYTHON_CMD 2>/dev/null; then
         CMD="$PYTHON_CMD $TESTS_DIR/test_all.py"
         echo "# $CMD"
-        $($CMD)
+        $CMD
     	echo
     fi
 done;

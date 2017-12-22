@@ -297,7 +297,8 @@ Errors and exceptions
 
 .. autoexception:: xmlschema.XMLSchemaValidationError
 
+.. autoexception:: xmlschema.XMLSchemaChildrenValidationError
+
 .. autoexception:: xmlschema.XMLSchemaDecodeError
 
 .. autoexception:: xmlschema.XMLSchemaEncodeError
-

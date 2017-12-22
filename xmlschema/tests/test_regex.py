@@ -18,25 +18,44 @@ from sys import maxunicode
 from unicodedata import category
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import unicode_chr
-from xmlschema.codepoints import CodePointSet, UNICODE_CATEGORIES
+from xmlschema.codepoints import iter_code_points, UnicodeSubset, UNICODE_CATEGORIES
 
 
-class TestCodePointSet(unittest.TestCase):
+class TestCodePoints(unittest.TestCase):
+
+    def test_iter_code_points(self):
+        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 21), 25])
+        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 21), 25])
+        self.assertEqual(list(iter_code_points({2, 120, 121, (150, 260)})), [2, (120, 121), (150, 260)])
+        self.assertEqual(
+            list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0])),
+            [0, (8, 22), 25]
+        )
+        self.assertEqual(
+            list(e for e in iter_code_points([10, 20, 11, 12, 25, (9, 20)], reverse=True)), [25, (9, 20)]
+        )
+        self.assertEqual(
+            list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0], reverse=True)),
+            [25, (8, 22), 0]
+        )
+
+
+class TestUnicodeSubset(unittest.TestCase):
 
     def test_modify(self):
-        cds = CodePointSet([50, 90, 10, 90])
+        cds = UnicodeSubset([50, 90, 10, 90])
         self.assertEqual(cds, [10, 50, 90])
         self.assertRaises(XMLSchemaValueError, cds.add, -1)
         self.assertRaises(XMLSchemaValueError, cds.add, maxunicode + 1)
-        cds.add([100, 20000])
-        cds.discard([100, 19000])
+        cds.add((100, 20000))
+        cds.discard((100, 19000))
         self.assertEqual(cds, [10, 50, 90, (19001, 20000)])
         cds.add(0)
         cds.discard(1)
         self.assertEqual(cds, [0, 10, 50, 90, (19001, 20000)])
         cds.discard(0)
         self.assertEqual(cds, [10, 50, 90, (19001, 20000)])
-        cds.discard([10, 100])
+        cds.discard((10, 100))
         self.assertEqual(cds, [(19001, 20000)])
         cds.add(20)
         cds.add(19)
@@ -49,35 +68,39 @@ class TestCodePointSet(unittest.TestCase):
         cds.add(21)
         cds.add(22)
         self.assertEqual(cds, [(19, 21), 22, (30, 33), (19001, 20000), (30000, 30001)])
-        cds.discard([90, 50000])
+        cds.discard((90, 50000))
         self.assertEqual(cds, [(19, 21), 22, (30, 33)])
         cds.discard(21)
         cds.discard(19)
         self.assertEqual(cds, [20, 22, (30, 33)])
-        cds.discard([0, 200])
+        cds.discard((0, 200))
         self.assertEqual(cds, [])
 
     def test_complement(self):
-        cds = CodePointSet([50, 90, 10, 90])
+        cds = UnicodeSubset([50, 90, 10, 90])
         self.assertEqual(list(cds.complement()), [(0, 9), (11, 49), (51, 89), (91, 1114111)])
         cds.add(11)
         self.assertEqual(list(cds.complement()), [(0, 9), (12, 49), (51, 89), (91, 1114111)])
-        cds.add([0, 9])
+        cds.add((0, 9))
         self.assertEqual(list(cds.complement()), [(12, 49), (51, 89), (91, 1114111)])
 
     def test_union_and_intersection(self):
-        cds1 = CodePointSet([50, (90, 200), 10])
-        cds2 = CodePointSet([10, 51, (89, 150), 90])
+        cds1 = UnicodeSubset([50, (90, 200), 10])
+        cds2 = UnicodeSubset([10, 51, (89, 150), 90])
         self.assertEqual(cds1 | cds2, [10, (50, 51), (89, 200)])
         self.assertEqual(cds1 & cds2, [10, (90, 150)])
 
     def test_max_and_min(self):
-        cds1 = CodePointSet([10, 51, (89, 150), 90])
-        cds2 = CodePointSet([0, 2, (80, 200), 10000])
-        cds3 = CodePointSet([1])
+        cds1 = UnicodeSubset([10, 51, (89, 150), 90])
+        cds2 = UnicodeSubset([0, 2, (80, 200), 10000])
+        cds3 = UnicodeSubset([1])
         self.assertEqual((min(cds1), max(cds1)), (10, 150))
         self.assertEqual((min(cds2), max(cds2)), (0, 10000))
         self.assertEqual((min(cds3), max(cds3)), (1, 1))
+
+    def test_subtraction(self):
+        cds = UnicodeSubset([0, 2, (80, 200), 10000])
+        self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 119), (122, 149), 10000])
 
 
 class TestUnicodeCategories(XMLSchemaTestCase):
@@ -113,6 +136,7 @@ class TestUnicodeCategories(XMLSchemaTestCase):
             "The Unicode categories have negative code points: %d" % min_code_point
         )
 
+    @unittest.skipIf(sys.version_info < (3, 6), "Test only for latest version.")
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:

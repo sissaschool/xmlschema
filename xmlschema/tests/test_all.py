@@ -18,7 +18,7 @@ if __name__ == '__main__':
     import sys
     from _test_common import tests_factory
 
-    from test_regex import TestCodePointSet, TestUnicodeCategories
+    from test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories
     from test_xpath import TestXPath
     from test_resources import TestResources
     from test_meta import TestBuiltinTypes, TestGlobalMaps
