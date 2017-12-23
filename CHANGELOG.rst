@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+v0.9.16
+=======
+* UnicodeSubset class rewritten (more speed, less memory)
+* Updated unicode_categories.json to Python 3.6 unicodedata 
+* Added XMLSchemaChildrenValidationError exception
+
 v0.9.15
 =======
 * Some bug fixes
