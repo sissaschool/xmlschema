@@ -13,6 +13,7 @@ This module contains ElementTree setup for xmlschema package.
 """
 from xml.etree import ElementTree
 from .compat import PY3, StringIO
+from .exceptions import XMLSchemaValueError
 from .namespaces import XSLT_NAMESPACE_PATH, HFP_NAMESPACE_PATH, VC_NAMESPACE_PATH
 
 # Register missing namespaces into imported ElementTree module
@@ -108,3 +109,16 @@ def etree_iterpath(elem, tag=None, path='.'):
 
         for _child, _child_path in etree_iterpath(child, tag, path=child_path):
             yield _child, _child_path
+
+
+def etree_getpath(elem, root):
+    """
+    Returns the relative XPath path from *root* to descendant *elem* element.
+
+    :param elem: Descendant element.
+    :param root: Root element.
+    :return: A path string or `None` if *elem* is not a descendant of *root*.
+    """
+    for e, path in etree_iterpath(root, tag=elem.tag):
+        if e is elem:
+            return path

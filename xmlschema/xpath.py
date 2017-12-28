@@ -186,28 +186,28 @@ class Token(MutableSequence):
     # XPath selectors
     @staticmethod
     def self_selector():
-        def select(_context, results):
+        def select_self(_context, results):
             for elem in results:
                 yield elem
-        return select
+        return select_self
 
     def descendant_selector(self):
-        def select(context, results):
+        def select_descendants(context, results):
             results = self[0].sed(context, results)
             for elem in results:
                 for e in elem.iter(self[1].value):
                     if e is not elem:
                         yield e
-        return select
+        return select_descendants
 
     def child_selector(self):
-        def select(context, results):
+        def select_child(context, results):
             results = self[0].sed(context, results)
             return self[1].sed(context, results)
-        return select
+        return select_child
 
     def children_selector(self):
-        def select(_context, results):
+        def select_children(_context, results):
             for elem in results:
                 try:
                     for e in elem.iterchildren(self.value):
@@ -216,19 +216,19 @@ class Token(MutableSequence):
                     for e in elem:
                         if self.value is None or e.tag == self.value:
                             yield e
-        return select
+        return select_children
 
     def value_selector(self):
-        def select(_context, results):
+        def select_value(_context, results):
             for _ in results:
                 yield self.value
-        return select
+        return select_value
 
     # @attribute
     def attribute_selector(self):
         key = self.value
 
-        def select(_context, results):
+        def select_attribute(_context, results):
             if key is None:
                 for elem in results:
                     for attr in elem.attrib.values():
@@ -251,14 +251,14 @@ class Token(MutableSequence):
                             except AttributeError:
                                 # an etree's Element attribute
                                 break
-        return select
+        return select_attribute
 
     # @attribute='value'
     def attribute_value_selector(self):
         key = self.value
         value = self[0].value
 
-        def select(_context, results):
+        def select_attribute_value(_context, results):
             if key is not None:
                 for elem in results:
                     yield elem.get(key) == value
@@ -266,14 +266,14 @@ class Token(MutableSequence):
                 for elem in results:
                     for attr in elem.attrib.values():
                         yield attr == value
-        return select
+        return select_attribute_value
 
     def find_selector(self):
-        def select(_context, results):
+        def select_find(_context, results):
             for elem in results:
                 if elem.find(self.value) is not None:
                     yield elem
-        return select
+        return select_find
 
     def subscript_selector(self):
         value = self[1].value
@@ -284,27 +284,27 @@ class Token(MutableSequence):
         else:
             index = value
 
-        def select(context, results):
+        def select_subscript(context, results):
             results = self[0].sed(context, results)
             if index is not None:
                 try:
                     yield [elem for elem in results][index]
                 except IndexError:
                     return
-        return select
+        return select_subscript
 
     def predicate_selector(self):
-        def select(context, results):
+        def select_predicate(context, results):
             results = self[0].sed(context, results)
             for elem in results:
                 predicate_results = list(self[1].sed(context, [elem]))
                 if predicate_results and any(predicate_results):
                     yield elem
-        return select
+        return select_predicate
 
     @staticmethod
     def parent_selector():
-        def select(context, results):
+        def select_parent(context, results):
             parent_map = context.parent_map
             results_parents = []
             for elem in results:
@@ -316,35 +316,35 @@ class Token(MutableSequence):
                     if parent not in results_parents:
                         results_parents.append(parent)
                         yield parent
-        return select
+        return select_parent
 
     # [tag='value']
     def tag_value_selector(self):
-        def select(_context, results):
+        def select_tag_value(_context, results):
             for elem in results:
                 for e in elem.findall(self.name):
                     if "".join(e.itertext()) == self.value:
                         yield elem
                         break
-        return select
+        return select_tag_value
 
     def disjunction_selector(self):
-        def select(context, results):
+        def select_disjunction(context, results):
             left_results = list(self[0].sed(context, results))
             right_results = list(self[1].sed(context, results))
             for elem in left_results:
                 yield elem
             for elem in right_results:
                 yield elem
-        return select
+        return select_disjunction
 
     def conjunction_selector(self):
-        def select(context, results):
+        def select_conjunction(context, results):
             right_results = set(self[1].sed(context, results))
             for elem in self[0].sed(context, results):
                 if elem in right_results:
                     yield elem
-        return select
+        return select_conjunction
 
 
 #

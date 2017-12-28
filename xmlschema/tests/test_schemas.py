@@ -44,7 +44,7 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
         if num_errors != expected_errors:
-            print("\nTest n.%r: %r errors, %r expected." % (self.id()[-3:], num_errors, expected_errors))
+            print("\n%s: %r errors, %r expected." % (self.id()[13:], num_errors, expected_errors))
             if num_errors == 0:
                 raise ValueError("found no errors when %d expected." % expected_errors)
             else:

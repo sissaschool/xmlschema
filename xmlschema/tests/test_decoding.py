@@ -265,7 +265,7 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
         if len(errors) != expected_errors:
             raise ValueError(
                 "n.%d errors expected, found %d: %s" % (
-                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:]])
+                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors[:3]])
                 )
             )
         if not chunks:

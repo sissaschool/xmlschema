@@ -311,16 +311,16 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
             else:
                 return 'none'
 
-        def iter_globals(self):
-            for global_map in self.global_maps:
-                for obj in global_map.values():
-                    yield obj
-
         def iter_components(self, xsd_classes=None):
             if xsd_classes is None or isinstance(self, xsd_classes):
                 yield self
             for xsd_global in self.iter_globals():
                 for obj in xsd_global.iter_components(xsd_classes):
+                    yield obj
+
+        def iter_globals(self):
+            for global_map in self.global_maps:
+                for obj in global_map.values():
                     yield obj
 
         def get_locations(self, namespace):

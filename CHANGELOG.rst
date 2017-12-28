@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.17
+=======
+* Key/Unique/Keyref constraints partially rewritten
+* Fixed ad issue with UCS-2/4 and maxunicode
+
 v0.9.16
 =======
 * UnicodeSubset class rewritten (more speed, less memory)

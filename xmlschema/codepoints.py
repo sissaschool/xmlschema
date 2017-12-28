@@ -22,13 +22,7 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexE
 CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
 """Code Points of escaped chars in a character group."""
 
-
-def code_point_sorter(x):
-    return (x[0], x[1]) if isinstance(x, (tuple, list)) else (x, 0)
-
-
-def code_point_reverse_sorter(x):
-    return (-x[1], -x[0]) if isinstance(x, (tuple, list)) else (-x, 0)
+UCS4_MAXUNICODE = 1114111
 
 
 def code_point_repr(cp):
@@ -135,8 +129,13 @@ def parse_character_group(s, expand_ranges=False):
 
 
 def iter_code_points(items, reverse=False):
+    if reverse:
+        items = sorted(items, reverse=reverse, key=lambda x: x if isinstance(x, int) else x[1])
+    else:
+        items = sorted(items, key=lambda x: x if isinstance(x, int) else x[0])
+
     prev_start_cp = prev_end_cp = None
-    for cp in sorted(items, key=code_point_reverse_sorter if reverse else code_point_sorter):
+    for cp in items:
         if isinstance(cp, (tuple, list)):
             start_cp, end_cp = cp
         else:
@@ -544,9 +543,11 @@ def get_unicode_categories(filename=None):
         filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
 
     try:
+        if maxunicode < UCS4_MAXUNICODE:
+            raise ValueError()
         with open(filename, 'r') as fp:
             categories = json.load(fp)
-    except (IOError, SystemError):
+    except (IOError, SystemError, ValueError):
         from collections import defaultdict
         categories = defaultdict(list)
         for key, cp in unicode_category_sequencer(range(maxunicode + 1)):
@@ -650,7 +651,7 @@ UNICODE_BLOCKS = {
     'IsHighSurrogates': UnicodeSubset(u'\uD800-\uDB7F'),
     'IsHighPrivateUseSurrogates': UnicodeSubset(u'\uDB80-\uDBFF'),
     'IsLowSurrogates': UnicodeSubset(u'\uDC00-\uDFFF'),
-    'IsPrivateUse': UnicodeSubset(u'\uE000-\uF8FF\U000F0000-\U0010FFFD'),
+    'IsPrivateUse': UnicodeSubset(u'\uE000-\uF8FF'),
     'IsCJKCompatibilityIdeographs': UnicodeSubset(u'\uF900-\uFAFF'),
     'IsAlphabeticPresentationForms': UnicodeSubset(u'\uFB00-\uFB4F'),
     'IsArabicPresentationForms-A': UnicodeSubset(u'\uFB50-\uFDFF'),
@@ -659,14 +660,19 @@ UNICODE_BLOCKS = {
     'IsSmallFormVariants': UnicodeSubset(u'\uFE50-\uFE6F'),
     'IsArabicPresentationForms-B': UnicodeSubset(u'\uFE70-\uFEFE'),
     'IsSpecials': UnicodeSubset(u'\uFEFF\uFFF0-\uFFFD'),
-    'IsHalfwidthandFullwidthForms': UnicodeSubset(u'\uFF00-\uFFEF'),
-    'IsOldItalic': UnicodeSubset(u'\U00010300-\U0001032F'),
-    'IsGothic': UnicodeSubset(u'\U00010330-\U0001034F'),
-    'IsDeseret': UnicodeSubset(u'\U00010400-\U0001044F'),
-    'IsByzantineMusicalSymbols': UnicodeSubset(u'\U0001D000-\U0001D0FF'),
-    'IsMusicalSymbols': UnicodeSubset(u'\U0001D100-\U0001D1FF'),
-    'IsMathematicalAlphanumericSymbols': UnicodeSubset(u'\U0001D400-\U0001D7FF'),
-    'IsCJKUnifiedIdeographsExtensionB': UnicodeSubset(u'\U00020000-\U0002A6D6'),
-    'IsCJKCompatibilityIdeographsSupplement': UnicodeSubset(u'\U0002F800-\U0002FA1F'),
-    'IsTags': UnicodeSubset(u'\U000E0000-\U000E007F')
+    'IsHalfwidthandFullwidthForms': UnicodeSubset(u'\uFF00-\uFFEF')
 }
+
+if maxunicode == UCS4_MAXUNICODE:
+    UNICODE_BLOCKS['IsPrivateUse'].update(u'\U000F0000-\U0010FFFD'),
+    UNICODE_BLOCKS.update({
+        'IsOldItalic': UnicodeSubset(u'\U00010300-\U0001032F'),
+        'IsGothic': UnicodeSubset(u'\U00010330-\U0001034F'),
+        'IsDeseret': UnicodeSubset(u'\U00010400-\U0001044F'),
+        'IsByzantineMusicalSymbols': UnicodeSubset(u'\U0001D000-\U0001D0FF'),
+        'IsMusicalSymbols': UnicodeSubset(u'\U0001D100-\U0001D1FF'),
+        'IsMathematicalAlphanumericSymbols': UnicodeSubset(u'\U0001D400-\U0001D7FF'),
+        'IsCJKUnifiedIdeographsExtensionB': UnicodeSubset(u'\U00020000-\U0002A6D6'),
+        'IsCJKCompatibilityIdeographsSupplement': UnicodeSubset(u'\U0002F800-\U0002FA1F'),
+        'IsTags': UnicodeSubset(u'\U000E0000-\U000E007F')
+    })
