@@ -380,7 +380,7 @@ class XsdGlobals(XsdBaseComponent):
         # Set referenced key/unique constraints for keyrefs
         for xsd_global in self.iter_globals():
             for constraint in xsd_global.iter_components(XsdKeyref):
-                constraint.setup_refer()
+                constraint.parse_refer()
 
         # Rebuild base_elements
         self.base_elements.clear()

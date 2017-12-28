@@ -113,14 +113,12 @@ def etree_iterpath(elem, tag=None, path='.'):
 
 def etree_getpath(elem, root):
     """
-    Returns the relative XPath path from `root` to descendant `elem` element.
+    Returns the relative XPath path from *root* to descendant *elem* element.
 
     :param elem: Descendant element.
     :param root: Root element.
-    :return: A path string.
+    :return: A path string or `None` if *elem* is not a descendant of *root*.
     """
     for e, path in etree_iterpath(root, tag=elem.tag):
         if e is elem:
             return path
-    else:
-        raise XMLSchemaValueError("%r is not a descendant element of %r." % (elem, root))
