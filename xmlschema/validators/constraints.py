@@ -11,13 +11,14 @@
 """
 This module contains classes for other XML Schema constraints.
 """
-from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from ..exceptions import XMLSchemaValueError
+from ..etree import etree_getpath
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 from ..xpath import XPathParser
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .xsdbase import XsdAnnotated, XsdComponent
+from .xsdbase import XsdAnnotated
 
 
 class XsdPathSelector(XsdAnnotated):
@@ -58,8 +59,6 @@ class XsdPathSelector(XsdAnnotated):
 class XsdConstraint(XsdAnnotated):
     def __init__(self, elem, schema, parent):
         super(XsdConstraint, self).__init__(elem, schema)
-        self.context = []
-        self.context_fields = []
         self.parent = parent
 
     def _parse(self):
@@ -85,62 +84,49 @@ class XsdConstraint(XsdAnnotated):
             else:
                 self._parse_error("element %r not allowed here:" % child.tag, elem)
 
-    def set_context(self):
-        if not isinstance(self.parent, XsdComponent):
-            raise XMLSchemaTypeError("an XsdElement required: %r" % self.parent)
-        del self.context[:]
-        try:
-            self.context = self.get_context(self.parent)
-            # FIXME: Descendant paths (//) doesn't work on XSD structures, a context expansion is needed.
-        except XMLSchemaValueError as err:
-            self.context = []
-            self._parse_error(str(err), self.parent)
-
-        del self.context_fields[:]
-        for e in self.context:
-            try:
-                fields = self.get_fields(e)
-            except XMLSchemaValueError:
-                self.context_fields.append(None)
-            else:
-                self.context_fields.append(tuple(fields))
-
-        if self.context_fields and all([fields is None for fields in self.context_fields]):
-            self._parse_error("empty context fields for %r:" % self, self.elem)
-
-    def get_context(self, elem=None):
-        if elem is None:
-            return self.context
-
-        if self.selector is None:
-            return []
-        context = []
-        for e in self.selector.iter_select(elem):
-            if type(e) is not type(elem):
-                raise XMLSchemaValueError("wrong type for context element %r." % e)
-            context.append(e)
-        return context
-
     def get_fields(self, elem, is_key=True, decoders=None):
         """
         Get fields generating the context from selector.
         """
-        values = []
+        fields = []
         for k, field in enumerate(self.fields):
             result = list(field.iter_select(elem))
             if not result:
                 if is_key:
                     raise XMLSchemaValueError("%r key field must have a value!" % field)
                 else:
-                    values.append(None)
+                    fields.append(None)
             elif len(result) == 1:
                 if decoders is None or decoders[k] is None:
-                    values.append(result[0])
+                    fields.append(result[0])
                 else:
-                    values.append(decoders[k].decode(result[0], validation="skip"))
+                    fields.append(decoders[k].decode(result[0], validation="skip"))
             else:
                 raise XMLSchemaValueError("%r field must identify a single value!" % field)
-        return tuple(values)
+        return tuple(fields)
+
+    def iter_values(self, elem, is_key=False):
+        """
+        Iterate field values, excluding empty values (tuples with all `None` values).
+
+        :param elem: Instance XML element.
+        :param is_key: If `True` consider an error if a single field is `None`.
+        :return: N-Tuple with value fields.
+        """
+        for e in self.selector.iter_select(elem):
+            path = etree_getpath(e, elem)
+            context = self.parent.find(path)
+            context_fields = self.get_fields(context, is_key=is_key)
+            if all(fld is None for fld in context_fields):
+                continue
+
+            try:
+                fields = self.get_fields(e, is_key=is_key, decoders=context_fields)
+            except XMLSchemaValueError as err:
+                yield XMLSchemaValidationError(self, e, reason=str(err))
+            else:
+                if any(fld is not None for fld in fields):
+                    yield fields
 
     @property
     def built(self):
@@ -175,13 +161,16 @@ class XsdUnique(XsdConstraint):
 
     def validator(self, elem):
         values = []
-        for e in self.get_context(elem):
-            for i in range(len(self.context)):
-                if self.context[i].match(e.tag):
-                    try:
-                        values.append(self.get_fields(e, is_key=False, decoders=self.context_fields[i]))
-                    except XMLSchemaValueError as err:
-                        yield XMLSchemaValidationError(self, e, reason=str(err))
+        for e in self.selector.iter_select(elem):
+            if type(e) is not type(elem):
+                raise XMLSchemaValueError("wrong type for context element %r." % e)
+            path = etree_getpath(e, root=elem)
+            context = self.parent.find(path)
+            context_fields = self.get_fields(context, is_key=False)
+            try:
+                values.append(self.get_fields(e, is_key=False, decoders=context_fields))
+            except XMLSchemaValueError as err:
+                yield XMLSchemaValidationError(self, e, reason=str(err))
 
         for v in values:
             if values.count(v) > 1:
@@ -197,13 +186,11 @@ class XsdKey(XsdConstraint):
 
     def validator(self, elem):
         values = []
-        for e in self.get_context(elem):
-            for i in range(len(self.context)):
-                if self.context[i].match(e.tag):
-                    try:
-                        values.append(self.get_fields(e, is_key=True, decoders=self.context_fields[i]))
-                    except XMLSchemaValueError as err:
-                        yield XMLSchemaValidationError(self, e, reason=str(err))
+        for v in self.iter_values(elem, is_key=True):
+            if isinstance(v, XMLSchemaValidationError):
+                yield v
+            else:
+                values.append(v)
 
         for v in values:
             if values.count(v) > 1:
@@ -214,9 +201,9 @@ class XsdKey(XsdConstraint):
 class XsdKeyref(XsdConstraint):
 
     def __init__(self, elem, schema, parent):
+        self.refer = None
+        self.refer_walk = None
         super(XsdKeyref, self).__init__(elem, schema, parent)
-        self.refer_elem = None
-        self.refer_path = []
 
     @property
     def admitted_tags(self):
@@ -228,43 +215,58 @@ class XsdKeyref(XsdConstraint):
             self.refer = reference_to_qname(self.elem.attrib['refer'], self.namespaces)
         except KeyError:
             self._parse_error("missing required attribute 'refer'", self.elem)
-            self.refer = None
 
-    def set_context(self):
-        super(XsdKeyref, self).set_context()
-        del self.refer_path[:]
-        if self.refer in self.parent.constraints:
-            self.refer_elem = self.parent
-        else:
-            for descendant in self.parent.iter():
-                if self.refer in descendant.constraints():
-                    self.refer_elem = refer_elem = descendant
-                    self.refer_path.append(refer_elem)
-                    parent_map = self.schema.parent_map
-                    while True:
-                        try:
-                            refer_elem = parent_map[refer_elem]
-                        except KeyError:
-                            del self.refer_path[:]
-                            break
-                        else:
-                            if refer_elem is self.parent:
-                                break
-                            else:
-                                self.refer_path.append(refer_elem)
-                    break
-            if not self.refer_path:
-                self._parse_error("attribute 'refer' doesn't refer to a descendant element.", self.parent)
+    def setup_refer(self):
+        if self.refer is None:
+            return  # attribute or key/unique constraint missing
+        elif isinstance(self.refer, XsdConstraint):
+            return  # referenced key/unique constraint already set
+
+        try:
+            refer = self.parent.constraints[self.refer]
+            self.refer_walk = []
+        except KeyError:
+            try:
+                refer = self.schema.constraints[self.refer]
+            except KeyError:
+                refer = None
             else:
-                self.refer_path.reverse()
+                self.refer_walk = []
+                parent_map = self.schema.parent_map
+                xsd_element = parent_map[refer.parent]
+                while True:
+                    if self.refer_walk.append(xsd_element):
+                        if xsd_element is self.parent:
+                            self.refer_walk.reverse()
+                            break
+                        elif xsd_element is self.schema:
+                            self.refer_walk = None
+                            self._parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
+
+        if not isinstance(refer, (XsdKey, XsdUnique)):
+            self._parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
+            self.refer = None
+        else:
+            self.refer = refer
 
     def validator(self, elem):
         if self.refer is None:
             return
 
-        # Find XML subelement
+        # Get
+        values = []
+        for v in self.iter_values(elem, is_key=False):
+            if isinstance(v, XMLSchemaValidationError):
+                yield v
+            else:
+                values.append(v)
+
+        if not values:
+            return
+
+        # Get key/unique values
         refer_elem = elem
-        for xsd_element in self.refer_path:
+        for xsd_element in self.refer_walk:
             for child in refer_elem:
                 if xsd_element.match(child.tag):
                     refer_elem = child
@@ -273,25 +275,16 @@ class XsdKeyref(XsdConstraint):
                 yield XMLSchemaValidationError(self, elem, reason="Missing key reference %r" % self.refer)
                 return
 
-        # Get the keyref values
-        key_constraint = self.refer_elem.constraints[self.refer]
-        keys = set()
-        for e in key_constraint.get_context(refer_elem):
-            for i in range(len(key_constraint.context)):
-                if key_constraint.context[i].match(e.tag):
-                    try:
-                        keys.add(key_constraint.get_fields(e, is_key=True, decoders=key_constraint.context_fields[i]))
-                    except XMLSchemaValueError:
-                        pass
+        key_values = set()
+        for v in self.refer.iter_values(refer_elem, is_key=isinstance(refer_elem, XsdKey)):
+            if not isinstance(v, XMLSchemaValidationError):
+                key_values.add(v)
 
-        # Check values with keys
-        for e in self.get_context(elem):
-            for i in range(len(self.context)):
-                if self.context[i].match(e.tag):
-                    try:
-                        value = self.get_fields(e, is_key=False, decoders=self.context_fields[i])
-                    except XMLSchemaValueError as err:
-                        yield XMLSchemaValidationError(self, e, reason=str(err))
-                    else:
-                        if value not in keys:
-                            yield XMLSchemaValidationError(self, elem, reason="not a key reference %r" % value)
+        for v in values:
+            if v not in key_values:
+                yield XMLSchemaValidationError(
+                    validator=self,
+                    obj=elem,
+                    reason="Key %r with value %r not found for identity constraint "
+                           "of element %r." % (self.name, v, elem.tag)
+                )

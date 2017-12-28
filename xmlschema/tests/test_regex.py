@@ -78,11 +78,11 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_complement(self):
         cds = UnicodeSubset([50, 90, 10, 90])
-        self.assertEqual(list(cds.complement()), [(0, 9), (11, 49), (51, 89), (91, 1114111)])
+        self.assertEqual(list(cds.complement()), [(0, 9), (11, 49), (51, 89), (91, sys.maxunicode)])
         cds.add(11)
-        self.assertEqual(list(cds.complement()), [(0, 9), (12, 49), (51, 89), (91, 1114111)])
+        self.assertEqual(list(cds.complement()), [(0, 9), (12, 49), (51, 89), (91, sys.maxunicode)])
         cds.add((0, 9))
-        self.assertEqual(list(cds.complement()), [(12, 49), (51, 89), (91, 1114111)])
+        self.assertEqual(list(cds.complement()), [(12, 49), (51, 89), (91, sys.maxunicode)])
 
     def test_union_and_intersection(self):
         cds1 = UnicodeSubset([50, (90, 200), 10])

@@ -24,9 +24,10 @@ from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import XsdBaseComponent
 from . import (
-    XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
+    XsdKeyref, XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
+
 
 def camel_case_split(s):
     """
@@ -268,17 +269,17 @@ class XsdGlobals(XsdBaseComponent):
             for schema in ns_schemas:
                 yield schema
 
-    def iter_globals(self):
-        """Creates an iterator for XSD global definitions/declarations."""
-        for global_map in self.global_maps:
-            for obj in global_map.values():
-                yield obj
-
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals():
             for obj in xsd_global.iter_components(xsd_classes):
+                yield obj
+
+    def iter_globals(self):
+        """Creates an iterator for XSD global definitions/declarations."""
+        for global_map in self.global_maps:
+            for obj in global_map.values():
                 yield obj
 
     def register(self, schema):
@@ -376,13 +377,10 @@ class XsdGlobals(XsdBaseComponent):
                 except KeyError:
                     self.substitution_groups[qname] = {xsd_element}
 
-        # Build constraints's contexts
+        # Set referenced key/unique constraints for keyrefs
         for xsd_global in self.iter_globals():
-            for xsd_element in xsd_global.iter_components(XsdElement):
-                for constraint in xsd_element.constraints.values():
-                    constraint.set_context()
-
-        # TODO: check keyref field types (now there is a lighter check during validation)
+            for constraint in xsd_global.iter_components(XsdKeyref):
+                constraint.setup_refer()
 
         # Rebuild base_elements
         self.base_elements.clear()
