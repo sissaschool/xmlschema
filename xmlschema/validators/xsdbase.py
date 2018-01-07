@@ -13,7 +13,7 @@ This module contains base functions and classes XML Schema components.
 """
 import re
 
-from ..compat import PY3
+from ..compat import PY3, unicode_type
 from ..etree import etree_tostring, etree_iselement
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
@@ -139,7 +139,7 @@ class XsdComponent(XsdBaseComponent):
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -164,6 +164,19 @@ class XsdComponent(XsdBaseComponent):
             self.errors.append(error)
         else:
             raise error
+
+    def _validation_error(self, error, validation, obj=None):
+        if validation == 'skip':
+            raise XMLSchemaValueError("'skip' validation mode incompatible with error handling.")
+        elif not isinstance(error, XMLSchemaValidationError):
+            error = XMLSchemaValidationError(self, obj, reason=unicode_type(error))
+        elif obj and error.elem is None and etree_iselement(obj):
+            error.elem = obj
+
+        if validation == 'strict':
+            raise error
+        else:
+            return error
 
     def _parse_component(self, elem, required=True, strict=True):
         try:

@@ -435,9 +435,10 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
         if self.has_simple_content():
             # Decode a simple content element
             if len(elem):
-                yield XMLSchemaValidationError(
-                    self, elem, "a simple content element can't has child elements."
+                yield self._validation_error(
+                    "a simple content element can't has child elements.", validation, elem,
                 )
+
             if elem.text is not None:
                 text = elem.text or kwargs.pop('default', '')
                 for result in self.content_type.iter_decode(text, validation, **kwargs):

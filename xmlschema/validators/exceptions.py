@@ -31,7 +31,7 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
         self.elem = elem if elem is not None else getattr(component, 'elem', None)
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -59,7 +59,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
         self.message = None
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
