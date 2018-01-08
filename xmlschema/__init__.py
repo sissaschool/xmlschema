@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -21,10 +21,10 @@ from .validators.exceptions import (
 )
 from .validators.schema import XsdGlobals, XMLSchema, create_validator
 
-__version__ = '0.9.17'
+__version__ = '0.9.18'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2016-2017, SISSA"
+__copyright__ = "Copyright 2016-2018, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 

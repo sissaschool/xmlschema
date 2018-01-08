@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.18
+=======
+* Fixed issue #34 (min_occurs == 0 check in XsdGroup.is_emptiable)
+* Updated copyright information
+
 v0.9.17
 =======
 * Key/Unique/Keyref constraints partially rewritten
