@@ -16,19 +16,26 @@ if __name__ == '__main__':
     import unittest
     import os
     import sys
-    from _test_common import tests_factory
 
-    from test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories
-    from test_xpath import TestXPath
-    from test_resources import TestResources
-    from test_meta import TestBuiltinTypes, TestGlobalMaps
-    from test_schemas import make_test_schema_function
-    from test_decoding import make_test_decoding_function, TestDecoding
-    from test_validation import make_test_validation_function, TestValidation
+    try:
+        import xmlschema
+    except ImportError:
+        # Adds the package base dir path as first search path for imports
+        pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        sys.path.insert(0, pkg_base_dir)
+        import xmlschema
 
-    pkg_folder = os.path.dirname(os.getcwd())
-    sys.path.insert(0, pkg_folder)
-    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    from xmlschema.tests import tests_factory, print_test_header
+    from xmlschema.tests.test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories
+    from xmlschema.tests.test_xpath import TestXPath
+    from xmlschema.tests.test_resources import TestResources
+    from xmlschema.tests.test_meta import TestBuiltinTypes, TestGlobalMaps
+    from xmlschema.tests.test_schemas import make_test_schema_function
+    from xmlschema.tests.test_decoding import make_test_decoding_function, TestDecoding
+    from xmlschema.tests.test_validation import make_test_validation_function, TestValidation
+
+    print_test_header()
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
     globals().update(tests_factory(make_test_schema_function, path, 'schema', 'xsd'))
     globals().update(tests_factory(make_test_validation_function, path, 'validation', 'xml'))
     globals().update(tests_factory(make_test_decoding_function, path, 'decoding', 'xml'))

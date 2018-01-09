@@ -13,29 +13,41 @@
 This module runs tests concerning resources.
 """
 import unittest
+import os
+import sys
 
-from xmlschema import XMLSchema
-from xmlschema.exceptions import XMLSchemaURLError
-from xmlschema.resources import normalize_url, fetch_resource
-from _test_common import XMLSchemaTestCase
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
 
 
-class TestResources(XMLSchemaTestCase):
-    xs1 = XMLSchema("examples/vehicles/vehicles.xsd")
-    xs2 = XMLSchema("examples/collection/collection.xsd")
-    cars = xs1.elements['vehicles'].type.content_type[0]
-    bikes = xs1.elements['vehicles'].type.content_type[1]
+class TestResources(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = os.path.dirname(__file__)
+        cls.xs1 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "examples/vehicles/vehicles.xsd"))
+        cls.xs2 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "examples/collection/collection.xsd"))
+        cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
+        cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
     def test_absolute_path(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
-        self.assertTrue(normalize_url(url1, base_url="/path_my_schema/schema.xsd") == url1)
+        self.assertTrue(xmlschema.normalize_url(url1, base_url="/path_my_schema/schema.xsd") == url1)
 
     def test_fetch_resource(self):
-        self.assertRaises(
-            XMLSchemaURLError, fetch_resource, 'examples/resources/issue017.txt'
-        )
-        self.assertTrue(fetch_resource('examples/resources/issue 017.txt').endswith('e%20017.txt'))
+        wrong_path = os.path.join(self.test_dir, 'examples/resources/issue017.txt')
+        self.assertRaises(xmlschema.XMLSchemaURLError, xmlschema.fetch_resource, wrong_path)
+        right_path = os.path.join(self.test_dir, 'examples/resources/issue 017.txt')
+        self.assertTrue(xmlschema.fetch_resource(right_path).endswith('e%20017.txt'))
 
 
 if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
     unittest.main()

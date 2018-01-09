@@ -10,7 +10,7 @@
 #
 from .exceptions import XMLSchemaException, XMLSchemaXPathError, XMLSchemaRegexError, XMLSchemaURLError
 from .etree import etree_get_namespaces
-from .resources import fetch_resource, load_xml_resource, fetch_schema
+from .resources import fetch_resource, load_xml_resource, fetch_schema, normalize_url
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )

@@ -12,10 +12,19 @@
 """
 This module runs tests on XML Schema regular expressions.
 """
-from _test_common import *
-
-from sys import maxunicode
+import unittest
+import sys
+import os
 from unicodedata import category
+
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
+
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import unicode_chr
 from xmlschema.codepoints import iter_code_points, UnicodeSubset, UNICODE_CATEGORIES
@@ -46,7 +55,7 @@ class TestUnicodeSubset(unittest.TestCase):
         cds = UnicodeSubset([50, 90, 10, 90])
         self.assertEqual(cds, [10, 50, 90])
         self.assertRaises(XMLSchemaValueError, cds.add, -1)
-        self.assertRaises(XMLSchemaValueError, cds.add, maxunicode + 1)
+        self.assertRaises(XMLSchemaValueError, cds.add, sys.maxunicode + 1)
         cds.add((100, 20000))
         cds.discard((100, 19000))
         self.assertEqual(cds, [10, 50, 90, (19001, 20000)])
@@ -103,7 +112,7 @@ class TestUnicodeSubset(unittest.TestCase):
         self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 119), (122, 149), 10000])
 
 
-class TestUnicodeCategories(XMLSchemaTestCase):
+class TestUnicodeCategories(unittest.TestCase):
     """
     Test the subsets of Unicode categories, mainly to check the loaded JSON file.
     """
@@ -118,15 +127,15 @@ class TestUnicodeCategories(XMLSchemaTestCase):
     def test_conjunctions(self):
         n_code_points = sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1)
         self.assertTrue(
-            n_code_points == maxunicode + 1,
-            "The Unicode categories have a wrong number of elements: %d (!= %d) " % (n_code_points, maxunicode + 1)
+            n_code_points == sys.maxunicode + 1,
+            "The Unicode categories have a wrong number of elements: %d (!= %d) " % (n_code_points, sys.maxunicode + 1)
         )
 
     def test_max_value(self):
         max_code_point = max([max(s) for s in UNICODE_CATEGORIES.values()])
         self.assertTrue(
-            max_code_point <= maxunicode,
-            "The Unicode categories have a code point greater than %d: %d" % (maxunicode, max_code_point)
+            max_code_point <= sys.maxunicode,
+            "The Unicode categories have a code point greater than %d: %d" % (sys.maxunicode, max_code_point)
         )
 
     def test_min_value(self):
@@ -149,4 +158,7 @@ class TestUnicodeCategories(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
     unittest.main()

@@ -16,8 +16,16 @@ import unittest
 import os
 import sys
 
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
+
 from xmlschema import XMLSchemaParseError, XMLSchemaURLError
-from _test_common import tests_factory, SchemaObserver
+from xmlschema.tests import SchemaObserver
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False):
@@ -58,9 +66,10 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
 
 
 if __name__ == '__main__':
-    pkg_folder = os.path.dirname(os.getcwd())
-    sys.path.insert(0, pkg_folder)
-    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    from xmlschema.tests import print_test_header, tests_factory
+
+    print_test_header()
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
     schema_tests = tests_factory(make_test_schema_function, path, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()
