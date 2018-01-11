@@ -100,6 +100,8 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
     def __init__(self, validator, elem, index, expected=None):
         elem_ref = qname_to_prefixed(elem.tag, validator.namespaces)
+        self.index = index
+        self.expected = expected
 
         if index >= len(elem):
             reason = "The content of element %r is not complete." % elem_ref

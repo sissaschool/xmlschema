@@ -1,0 +1,6 @@
+# Requirements for setup a development environment for the xmlschema package.
+setuptools
+lxml
+Sphinx
+sphinx_rtd_theme
+-e .

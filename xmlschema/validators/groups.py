@@ -249,7 +249,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
 
     def iter_elements(self):
         for item in self:
-            if isinstance(item, (self.BUILDERS.element_class, XsdAnyElement)):
+            if isinstance(item, (self._BUILDERS.element_class, XsdAnyElement)):
                 yield item
             elif isinstance(item, XsdGroup):
                 for e in item.iter_elements():

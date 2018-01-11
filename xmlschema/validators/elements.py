@@ -94,7 +94,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             try:
                 self.attributes = value.attributes
             except AttributeError:
-                self.attributes = self.BUILDERS.attribute_group_class(
+                self.attributes = self._BUILDERS.attribute_group_class(
                     etree_element(XSD_ATTRIBUTE_GROUP_TAG), schema=self.schema
                 )
         super(XsdElement, self).__setattr__(name, value)
@@ -158,9 +158,9 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             child = self._parse_component(elem, required=False, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE_TAG:
-                    self.type = self.BUILDERS.complex_type_class(child, self.schema)
+                    self.type = self._BUILDERS.complex_type_class(child, self.schema)
                 elif child.tag == XSD_SIMPLE_TYPE_TAG:
-                    self.type = self.BUILDERS.simple_type_factory(child, self.schema)
+                    self.type = self._BUILDERS.simple_type_factory(child, self.schema)
                 skip = 1
             else:
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)

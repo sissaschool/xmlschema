@@ -19,7 +19,7 @@ from .validators.exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
 )
-from .validators.schema import XsdGlobals, XMLSchema, create_validator
+from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema_v1_0, create_validator
 
 __version__ = '0.9.18'
 __author__ = "Davide Brunato"

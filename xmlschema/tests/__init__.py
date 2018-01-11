@@ -94,8 +94,10 @@ def get_args_parser():
         "-v", dest="version", metavar='VERSION', type=xsd_version_number, default='1.0',
         help="XSD version to use for schema (default is 1.0)."
     )
+    parser.add_argument(
+        '-l', dest='locations', nargs=2, type=str, default=None, action='append'
+    )
     return parser
-
 
 test_line_parser = get_args_parser()
 
@@ -109,6 +111,9 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
             continue
 
         test_args = test_line_parser.parse_args(get_test_args(line))
+        if test_args.locations is not None:
+            test_args.locations = dict(test_args.locations)
+
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
             continue
@@ -118,7 +123,9 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
         else:
             schema_class = xmlschema.XMLSchema
 
-        test_func = test_function_builder(test_file, schema_class, test_args.tot_errors, test_args.inspect)
+        test_func = test_function_builder(
+            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations
+        )
         test_name = os.path.join(os.path.dirname(sys.argv[0]), os.path.relpath(test_file))
         test_num += 1
         class_name = 'Test{0}{1:03}'.format(label.title(), test_num)

@@ -19,20 +19,31 @@ from .namespaces import get_namespace
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 
-def get_xsi_schema_location(elem):
-    """Retrieve the attribute xsi:schemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).attrib.get(XSI_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
+def iter_schema_location_hints(elem, namespace=None):
+    """
+    Generates a sequence of location hints from xsi:schemaLocation and
+    xsi:noNamespaceSchemaLocation attributes of an Element object.
 
+    :param elem: An ElementTree element.
+    :param namespace: If not `None` limits hints to a specific namespace.
+    :return: Generate couples of namespace URI and resource URL.
+    """
+    if namespace != '':
+        try:
+            locations = elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).get(XSI_SCHEMA_LOCATION)
+        except AttributeError:
+            pass  # elem has no xsi:schemaLocation attribute
+        else:
+            locations = locations.split()
+            for uri, url in zip(locations[0::2], locations[1::2]):
+                if namespace is None or uri == namespace:
+                    yield uri, url
 
-def get_xsi_no_namespace_schema_location(elem):
-    """Retrieve the attribute xsi:noNamespaceSchemaLocation from an XML document node."""
-    try:
-        return elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).attrib.get(XSI_NONS_SCHEMA_LOCATION)
-    except AttributeError:
-        return None
+    if not namespace:
+        try:
+            yield '', elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).get(XSI_NONS_SCHEMA_LOCATION)
+        except AttributeError:
+            pass
 
 
 def load_xml_resource(source, element_only=True):
@@ -246,16 +257,10 @@ def fetch_schema(xml_document):
 
     namespace = get_namespace(xml_root.tag)
     base_url = None if xml_url is None else os.path.dirname(xml_url)
-    if namespace:
-        uri_list = get_xsi_schema_location(xml_root).split()
-        for uri, url in zip(uri_list[0::2], uri_list[1::2]):
-            if uri == namespace:
-                try:
-                    return fetch_resource(url, base_url)
-                except XMLSchemaURLError:
-                    pass
-    else:
-        schema_location = get_xsi_no_namespace_schema_location(xml_root)
-        if schema_location:
-            return fetch_resource(schema_location, base_url)
+    for uri, url in iter_schema_location_hints(xml_root, namespace):
+        try:
+            return fetch_resource(url, base_url)
+        except XMLSchemaURLError:
+            pass
+
     raise XMLSchemaValueError("schema for XML document %r not found." % xml_document)

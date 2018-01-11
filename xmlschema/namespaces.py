@@ -81,6 +81,22 @@ class URIDict(MutableMapping):
     def __repr__(self):
         return repr(self._store)
 
+    def clear(self):
+        self._store.clear()
+
+
+class NamespaceResourcesMap(URIDict):
+
+    def __setitem__(self, uri, value):
+        uri = self.normalize(uri)
+        if isinstance(value, list):
+            self._store[uri] = value
+        else:
+            try:
+                self._store[uri].append(value)
+            except KeyError:
+                self._store[uri] = [value]
+
 
 class NamespaceMapper(MutableMapping):
     """

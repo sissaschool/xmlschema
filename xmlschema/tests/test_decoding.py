@@ -257,10 +257,10 @@ _DATA_DICT = {
 }
 
 
-def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False):
+def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False, locations=None):
     def test_decoding(self):
         schema = xmlschema.fetch_schema(xml_file)
-        xs = schema_class(schema)
+        xs = schema_class(schema, locations=locations)
         errors = []
         chunks = []
         for obj in xs.iter_decode(xml_file):

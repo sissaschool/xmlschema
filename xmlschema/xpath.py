@@ -830,32 +830,35 @@ class XPathMixin(object):
 
     def iterfind(self, path, namespaces=None):
         """
-        Generate all matching XML Schema element declarations by path.
+        Generates all matching XML Schema element declarations by path.
 
-        :param path: a string having an XPath expression.
-        :param namespaces: an optional mapping from namespace prefix to full name.
+        :param path: is an XPath expression that considers the schema as the root element \
+        with global elements as its children.
+        :param namespaces: is an optional mapping from namespace prefix to full name.
+        :return: an iterable yielding all matching declarations in the XSD/XML order.
         """
         return xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None))
 
     def find(self, path, namespaces=None):
         """
-        Find first matching XML Schema element declaration by path.
+        Finds the first XSD/XML element or attribute matching the path.
 
-        :param path: a string having an XPath expression.
+        :param path: is an XPath expression that considers the schema as the root element \
+        with global elements as its children.
         :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: The first matching XML Schema element declaration or None if a
-        matching declaration is not found.
+        :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
         return next(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)), None)
 
     def findall(self, path, namespaces=None):
         """
-        Find all matching XML Schema element declarations by path.
+        Finds all matching XSD/XML elements or attributes.
 
-        :param path: a string having an XPath expression.
+        :param path: is an XPath expression that considers the schema as the root element \
+        with global elements as its children.
         :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: A list of matching XML Schema element declarations or None if a
-        matching declaration is not found.
+        :return: a list containing all matching XSD/XML elements or attributes. An empty list \
+        is returned if there is no match.
         """
         return list(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)))
 

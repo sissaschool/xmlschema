@@ -116,7 +116,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS
+        return self.schema._FACETS
 
     @property
     def final(self):
@@ -355,7 +355,7 @@ class XsdAtomic(XsdSimpleType):
             return XSD_FACETS.union({None})
         else:
             try:
-                return self.schema.FACETS.intersection(facets)
+                return self.schema._FACETS.intersection(facets)
             except AttributeError:
                 return set(primitive_type.facets.keys()).union({None})
 
@@ -544,7 +544,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS.intersection(LIST_FACETS)
+        return self.schema._FACETS.intersection(LIST_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -682,7 +682,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS.intersection(UNION_FACETS)
+        return self.schema._FACETS.intersection(UNION_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -792,7 +792,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 else:
                     if base_type.is_complex() and base_type.admit_simple_restriction():
                         content_type = xsd_simple_type_factory(child, self.schema)
-                        base_type = self.BUILDERS.complex_type_class(
+                        base_type = self._BUILDERS.complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             content_type=content_type,
@@ -801,7 +801,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             mixed=base_type.mixed
                         )
                 has_simple_type_child = True
-            elif child.tag not in self.schema.FACETS:
+            elif child.tag not in self.schema._FACETS:
                 raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:
