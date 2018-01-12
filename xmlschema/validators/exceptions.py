@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -31,7 +31,7 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
         self.elem = elem if elem is not None else getattr(component, 'elem', None)
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -59,7 +59,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
         self.message = None
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -100,6 +100,8 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
     def __init__(self, validator, elem, index, expected=None):
         elem_ref = qname_to_prefixed(elem.tag, validator.namespaces)
+        self.index = index
+        self.expected = expected
 
         if index >= len(elem):
             reason = "The content of element %r is not complete." % elem_ref

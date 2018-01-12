@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -45,6 +45,32 @@ def get_xsd_annotation(elem):
         return None
 
 
+def iter_xsd_components(elem, start=0):
+    """
+    Returns an iterator for XSD child components, excluding the annotation.
+    """
+    counter = 0
+    for child in elem:
+        if child.tag == XSD_ANNOTATION_TAG:
+            if counter > 0:
+                raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
+        else:
+            if start > 0:
+                start -= 1
+            else:
+                yield child
+            counter += 1
+
+
+def has_xsd_components(elem, start=0):
+    try:
+        next(iter_xsd_components(elem, start=0))
+    except StopIteration:
+        return False
+    else:
+        return True
+
+
 def get_xsd_component(elem, required=True, strict=True):
     """
     Returns the first XSD component child, excluding the annotation.
@@ -65,23 +91,6 @@ def get_xsd_component(elem, required=True, strict=True):
             return xsd_component
         else:
             raise XMLSchemaValueError("too many XSD components")
-
-
-def iter_xsd_components(elem, start=0):
-    """
-    Returns an iterator for XSD child components, excluding the annotation.
-    """
-    counter = 0
-    for child in elem:
-        if child.tag == XSD_ANNOTATION_TAG:
-            if counter > 0:
-                raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
-        else:
-            if start > 0:
-                start -= 1
-            else:
-                yield child
-            counter += 1
 
 
 def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):

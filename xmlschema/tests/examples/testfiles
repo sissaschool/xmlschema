@@ -12,6 +12,7 @@ collection/collection3.xml 1
 decoder/decoder.xsd
 decoder/data2.xml 1
 derivations/complex-extensions.xsd 1
+elements/test-imports.xsd
 issues/issue_008/issue_008.xsd
 issues/issue_008/issue_008.xml 1
 issues/issue_009/issue_009.xsd 2

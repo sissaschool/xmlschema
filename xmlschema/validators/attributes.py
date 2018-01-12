@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -94,7 +94,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = self.BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
+                xsd_type = self._BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
             else:
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
@@ -166,7 +166,10 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
         if self.fixed and text != self.fixed:
-            yield XMLSchemaValidationError(self, text, "value differs from fixed value")
+            error = XMLSchemaValidationError(self, text, "value differs from fixed value")
+            if validation == 'strict':
+                raise error
+            yield error
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             yield result
@@ -349,18 +352,26 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                     try:
                         xsd_attribute = self.maps.lookup_attribute(qname)
                     except LookupError:
-                        yield XMLSchemaValidationError(
-                            self, attrs, "% is not an attribute of the XSI namespace." % name
-                        )
+                        if validation != 'skip':
+                            error = XMLSchemaValidationError(
+                                self, attrs, "% is not an attribute of the XSI namespace." % name
+                            )
+                            if validation == 'strict':
+                                raise error
+                            yield error
                         continue
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
                         value = {qname: value}
                     except KeyError:
-                        yield XMLSchemaValidationError(
-                            self, attrs, "%r attribute not allowed for element." % name
-                        )
+                        if validation != 'skip':
+                            error = XMLSchemaValidationError(
+                                self, attrs, "%r attribute not allowed for element." % name
+                            )
+                            if validation == 'strict':
+                                raise error
+                            yield error
                         continue
             else:
                 required_attributes.discard(qname)
@@ -373,9 +384,13 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                     break
 
         if required_attributes:
-            yield XMLSchemaValidationError(
+            error = XMLSchemaValidationError(
                 self, attrs, "missing required attributes: %r" % required_attributes
             )
+            if validation == 'strict':
+                raise error
+            yield error
+
         yield result_list
 
     def iter_encode(self, attributes, validation='lax', **kwargs):
@@ -397,9 +412,12 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                     try:
                         xsd_attribute = self.maps.lookup_attribute(qname)
                     except LookupError:
-                        yield XMLSchemaValidationError(
+                        error = XMLSchemaValidationError(
                             self, attributes, "% is not an attribute of the XSI namespace." % name
                         )
+                        if validation == 'strict':
+                            raise error
+                        yield error
                         continue
                 else:
                     try:

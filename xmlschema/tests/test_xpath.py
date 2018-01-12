@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,7 +12,17 @@
 """
 This module runs tests on XPath selector and find functions.
 """
-from _test_common import *
+import unittest
+import os
+import sys
+
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
 
 from xmlschema.exceptions import XMLSchemaXPathError
 from xmlschema import XMLSchema
@@ -20,10 +30,14 @@ from xmlschema.xpath import XPathParser
 
 
 class TestXPath(unittest.TestCase):
-    xs1 = XMLSchema("examples/vehicles/vehicles.xsd")
-    xs2 = XMLSchema("examples/collection/collection.xsd")
-    cars = xs1.elements['vehicles'].type.content_type[0]
-    bikes = xs1.elements['vehicles'].type.content_type[1]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = os.path.dirname(__file__)
+        cls.xs1 = XMLSchema(os.path.join(cls.test_dir, "examples/vehicles/vehicles.xsd"))
+        cls.xs2 = XMLSchema(os.path.join(cls.test_dir, "examples/collection/collection.xsd"))
+        cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
+        cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
     def test_wrong_syntax(self):
         self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*[')
@@ -80,4 +94,7 @@ class TestXPath(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
     unittest.main()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2017, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -23,9 +23,15 @@ try:
 except ImportError:
     _lxml_etree = None
 
-import xmlschema
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
+
 from xmlschema.qnames import local_name
-from _test_common import XMLSchemaTestCase, tests_factory
 
 
 _VEHICLES_DICT = {
@@ -251,10 +257,10 @@ _DATA_DICT = {
 }
 
 
-def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False):
+def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False, locations=None):
     def test_decoding(self):
         schema = xmlschema.fetch_schema(xml_file)
-        xs = schema_class(schema)
+        xs = schema_class(schema, locations=locations)
         errors = []
         chunks = []
         for obj in xs.iter_decode(xml_file):
@@ -280,27 +286,30 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
     return test_decoding
 
 
-class TestDecoding(XMLSchemaTestCase):
-    namespaces = {
-        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'vh': 'http://example.com/vehicles',
-        'col': 'http://example.com/ns/collection',
-        'dt': 'http://example.com/decoder'
-    }
+class TestDecoding(unittest.TestCase):
 
-    vh_schema = xmlschema.XMLSchema('examples/vehicles/vehicles.xsd')
-    col_schema = xmlschema.XMLSchema('examples/collection/collection.xsd')
-    decoder_schema = xmlschema.XMLSchema('examples/decoder/decoder.xsd')
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = os.path.dirname(__file__)
+        cls.namespaces = {
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'vh': 'http://example.com/vehicles',
+            'col': 'http://example.com/ns/collection',
+            'dt': 'http://example.com/decoder'
+        }
+        cls.vh_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'examples/vehicles/vehicles.xsd'))
+        cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'examples/collection/collection.xsd'))
+        cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'examples/decoder/decoder.xsd'))
 
     @unittest.skipIf(_lxml_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        vh_xml_tree = _lxml_etree.parse('examples/vehicles/vehicles.xml')
+        vh_xml_tree = _lxml_etree.parse(os.path.join(self.test_dir, 'examples/vehicles/vehicles.xml'))
         self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
         self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_tree = _ElementTree.parse('examples/vehicles/vehicles.xml')
-        col_xml_tree = _ElementTree.parse('examples/collection/collection.xml')
+        vh_xml_tree = _ElementTree.parse(os.path.join(self.test_dir, 'examples/vehicles/vehicles.xml'))
+        col_xml_tree = _ElementTree.parse(os.path.join(self.test_dir, 'examples/collection/collection.xml'))
 
         xml_dict = self.vh_schema.to_dict(vh_xml_tree)
         self.assertNotEqual(xml_dict, _VEHICLES_DICT)  # XSI namespace unmapped
@@ -321,10 +330,10 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
     def test_to_dict_from_string(self):
-        with open('examples/vehicles/vehicles.xml') as f:
+        with open(os.path.join(self.test_dir, 'examples/vehicles/vehicles.xml')) as f:
             vh_xml_string = f.read()
 
-        with open('examples/collection/collection.xml') as f:
+        with open(os.path.join(self.test_dir, 'examples/collection/collection.xml')) as f:
             col_xml_string = f.read()
 
         xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.namespaces)
@@ -340,7 +349,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_path(self):
-        xt = _ElementTree.parse('examples/vehicles/vehicles.xml')
+        xt = _ElementTree.parse(os.path.join(self.test_dir, 'examples/vehicles/vehicles.xml'))
         xd = self.vh_schema.to_dict(xt, './vh:vehicles/vh:bikes', namespaces=self.namespaces)
         self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
 
@@ -348,23 +357,23 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            _ElementTree.parse('examples/vehicles/vehicles-2_errors.xml'),
+            _ElementTree.parse(os.path.join(self.test_dir, 'examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
             namespaces=self.namespaces
         )
 
     def test_validation_skip(self):
-        xt = _ElementTree.parse('examples/decoder/data3.xml')
+        xt = _ElementTree.parse(os.path.join(self.test_dir, 'examples/decoder/data3.xml'))
         xd = self.decoder_schema.decode(xt, validation='skip', namespaces=self.namespaces)
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes3(self):
-        xt = _ElementTree.parse('examples/decoder/data.xml')
+        xt = _ElementTree.parse(os.path.join(self.test_dir, 'examples/decoder/data.xml'))
         xd = self.decoder_schema.to_dict(xt, namespaces=self.namespaces)
         self.assertEqual(xd, _DATA_DICT)
 
     def test_converters(self):
-        filename = 'examples/collection/collection.xml'
+        filename = os.path.join(self.test_dir, 'examples/collection/collection.xml')
 
         parker_dict = self.col_schema.to_dict(filename, converter=xmlschema.ParkerConverter)
         self.assertTrue(parker_dict == _COLLECTION_PARKER)
@@ -385,7 +394,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(json_ml_dict == _COLLECTION_JSON_ML)
 
     def test_encoding(self):
-        filename = 'examples/collection/collection.xml'
+        filename = os.path.join(self.test_dir, 'examples/collection/collection.xml')
         xt = _ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=OrderedDict)
         elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.namespaces)
@@ -402,19 +411,21 @@ class TestDecoding(XMLSchemaTestCase):
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with
         dictionaries, returns just that even when it has a single dict. """
-        xsd_string   = 'examples/issues/issue_022/xsd_string.xsd'
-        xml_string_1 = 'examples/issues/issue_022/xml_string_1.xml'
-        xml_string_2 = 'examples/issues/issue_022/xml_string_2.xml'
+        xsd_string   = os.path.join(self.test_dir, 'examples/issues/issue_022/xsd_string.xsd')
+        xml_string_1 = os.path.join(self.test_dir, 'examples/issues/issue_022/xml_string_1.xml')
+        xml_string_2 = os.path.join(self.test_dir, 'examples/issues/issue_022/xml_string_2.xml')
         xsd_schema = xmlschema.XMLSchema(xsd_string)
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
         self.assertTrue(type(xml_data_1['bar']) == type(xml_data_2['bar']),
                         msg="XSD with an array that return a single element from xml must still yield a list.")
 
+
 if __name__ == '__main__':
-    pkg_folder = os.path.dirname(os.getcwd())
-    sys.path.insert(0, pkg_folder)
-    path = os.path.join(pkg_folder, "tests/*/testfiles")
+    from xmlschema.tests import print_test_header, tests_factory
+
+    print_test_header()
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
     decoding_tests = tests_factory(make_test_decoding_function, path, 'decoding', 'xml')
     globals().update(decoding_tests)
     unittest.main()
