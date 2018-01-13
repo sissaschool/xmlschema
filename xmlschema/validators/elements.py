@@ -20,7 +20,7 @@ from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
-    local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG
+    local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE
 )
 from ..xpath import XPathMixin
 from .exceptions import (
@@ -319,10 +319,16 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             kwargs['element_decode_hook'] = element_decode_hook
         use_defaults = kwargs.get('use_defaults', False)
 
-        if self.type.is_complex():
-            if use_defaults and self.type.has_simple_content():
+        # Get the instance type: xsi:type or the schema's declaration
+        if XSI_TYPE in elem.attrib:
+            type_ = self.maps.lookup_type(reference_to_qname(elem.attrib[XSI_TYPE], self.namespaces))
+        else:
+            type_ = self.type
+
+        if type_.is_complex():
+            if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
-            for result in self.type.iter_decode(elem, validation, **kwargs):
+            for result in type_.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
@@ -339,7 +345,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 yield None
             else:
                 text = elem.text or self.default if use_defaults else elem.text
-                for result in self.type.iter_decode(text, validation, **kwargs):
+                for result in type_.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
