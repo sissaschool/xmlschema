@@ -325,6 +325,17 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         else:
             type_ = self.type
 
+        # Check the xsi:nil attribute of the instance
+        if XSI_NIL in elem.attrib:
+            if self.nillable:
+                try:
+                    if get_xsd_bool_attribute(elem, XSI_NIL):
+                        self._validation_error('xsi:nil="true" but the element is not empty.', validation, elem)
+                except TypeError:
+                    self._validation_error("xsi:nil attribute must has a boolean value.", validation, elem)
+            else:
+                self._validation_error("element is not nillable.", validation, elem)
+
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default

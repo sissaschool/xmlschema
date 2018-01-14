@@ -35,7 +35,14 @@ if __name__ == '__main__':
     from xmlschema.tests.test_validation import make_test_validation_function, TestValidation
 
     print_test_header()
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+
+    try:
+        sys.argv.remove('--extra')
+    except ValueError:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+
     globals().update(tests_factory(make_test_schema_function, path, 'schema', 'xsd'))
     globals().update(tests_factory(make_test_validation_function, path, 'validation', 'xml'))
     globals().update(tests_factory(make_test_decoding_function, path, 'decoding', 'xml'))

@@ -69,7 +69,14 @@ if __name__ == '__main__':
     from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+
+    try:
+        sys.argv.remove('--extra')
+    except ValueError:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+
     schema_tests = tests_factory(make_test_schema_function, path, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()
