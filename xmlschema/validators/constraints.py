@@ -98,10 +98,7 @@ class XsdConstraint(XsdAnnotated):
         for k, field in enumerate(self.fields):
             result = list(field.iter_select(context))
             if not result:
-                if isinstance(self, XsdKey):
-                    raise XMLSchemaValueError("%r key field must have a value!" % field)
-                else:
-                    fields.append(None)
+                fields.append(None)
             elif len(result) == 1:
                 if decoders is None or decoders[k] is None:
                     fields.append(result[0])
