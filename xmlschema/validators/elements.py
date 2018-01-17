@@ -346,8 +346,19 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield element_decode_hook(ElementData(elem.tag, *result), self)
                     del result
         else:
-            if elem.attrib:
-                yield self._validation_error("a simpleType element can't has attributes.", validation, elem)
+            # simpleType
+            if not elem.attrib:
+                attributes = None
+            else:
+                # Decode with an empty XsdAttributeGroup validator (only XML and XSD default attrs)
+                for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield self._validation_error(result, validation, elem)
+                    else:
+                        attributes = result
+                        break
+                else:
+                    attributes = None
 
             if len(elem):
                 yield self._validation_error("a simpleType element can't has child elements.", validation, elem)
@@ -360,7 +371,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
-                        yield element_decode_hook(ElementData(elem.tag, result, None, None), self)
+                        yield element_decode_hook(ElementData(elem.tag, result, None, attributes), self)
                         del result
 
         if validation != 'skip':
