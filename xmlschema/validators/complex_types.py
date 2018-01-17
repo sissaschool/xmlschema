@@ -17,7 +17,7 @@ from ..qnames import (
     XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
-from .exceptions import XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdAnnotated, ValidatorMixin
 from .attributes import XsdAttributeGroup
@@ -415,6 +415,14 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
     def has_extension(self):
         return self.derivation is True
+
+    def decode(self, data, *args, **kwargs):
+        if hasattr(data, 'attrib') or self.is_simple():
+            return super(XsdComplexType, self).decode(data, *args, **kwargs)
+        elif self.has_simple_content():
+            return self.content_type.decode(data, *args, **kwargs)
+        else:
+            raise XMLSchemaDecodeError(self, data, "cannot decode %r data with %r" % (data, self))
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
