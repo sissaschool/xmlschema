@@ -10,7 +10,7 @@
 #
 from .exceptions import XMLSchemaException, XMLSchemaXPathError, XMLSchemaRegexError, XMLSchemaURLError
 from .etree import etree_get_namespaces
-from .resources import fetch_resource, load_xml_resource, fetch_schema, normalize_url
+from .resources import fetch_resource, load_xml_resource, fetch_schema, fetch_schema_locations, normalize_url
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
@@ -29,15 +29,15 @@ __license__ = "MIT"
 __status__ = "Production/Stable"
 
 
-def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True):
+def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locations=None):
     if schema is None:
-        schema = fetch_schema(xml_document)
-    cls(schema, validation='strict').validate(xml_document, use_defaults)
+        schema, locations = fetch_schema_locations(xml_document)
+    cls(schema, validation='strict', locations=locations).validate(xml_document, use_defaults)
 
 
-def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True, **kwargs):
+def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True, locations=None, **kwargs):
     if schema is None:
-        schema = fetch_schema(xml_document)
-    return cls(schema, validation='strict').to_dict(
+        schema, locations = fetch_schema_locations(xml_document)
+    return cls(schema, validation='strict', locations=locations).to_dict(
         xml_document, path=path, process_namespaces=process_namespaces, **kwargs
     )
