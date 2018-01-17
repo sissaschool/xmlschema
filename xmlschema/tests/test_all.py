@@ -36,12 +36,14 @@ if __name__ == '__main__':
 
     print_test_header()
 
-    try:
-        sys.argv.remove('--extra')
-    except ValueError:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
-    else:
+    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
         path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
+        try:
+            sys.argv.remove('-s')
+        except ValueError:
+            sys.argv.remove('--skip-extra')
 
     globals().update(tests_factory(make_test_schema_function, path, 'schema', 'xsd'))
     globals().update(tests_factory(make_test_validation_function, path, 'validation', 'xml'))

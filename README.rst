@@ -21,8 +21,9 @@ Features
 
 The xmlschema library includes the following features:
 
+* Full XSD 1.0 support
 * Building of XML schema objects from XSD files
-* Validation of XML instances with XSD schemas
+* Validation of XML instances against XSD schemas
 * Decoding of XML data into Python data structures
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
@@ -89,28 +90,28 @@ values that match to the data types declared by the schema:
     >>> from pprint import pprint
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
-    {u'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+    {'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
      'object': [{'@available': True,
-                 '@id': u'b0836217462',
-                 'author': {'@id': u'PAR',
-                            'born': u'1841-02-25',
-                            'dead': u'1919-12-03',
-                            'name': u'Pierre-Auguste Renoir',
-                            'qualification': u'painter'},
+                 '@id': 'b0836217462',
+                 'author': {'@id': 'PAR',
+                            'born': '1841-02-25',
+                            'dead': '1919-12-03',
+                            'name': 'Pierre-Auguste Renoir',
+                            'qualification': 'painter'},
                  'estimation': Decimal('10000.00'),
                  'position': 1,
-                 'title': u'The Umbrellas',
-                 'year': u'1886'},
+                 'title': 'The Umbrellas',
+                 'year': '1886'},
                 {'@available': True,
-                 '@id': u'b0836217463',
-                 'author': {'@id': u'JM',
-                            'born': u'1893-04-20',
-                            'dead': u'1983-12-25',
-                            'name': u'Joan Mir\xf3',
-                            'qualification': u'painter, sculptor and ceramicist'},
+                 '@id': 'b0836217463',
+                 'author': {'@id': 'JM',
+                            'born': '1893-04-20',
+                            'dead': '1983-12-25',
+                            'name': 'Joan Mir\xf3',
+                            'qualification': 'painter, sculptor and ceramicist'},
                  'position': 2,
                  'title': None,
-                 'year': u'1925'}]}
+                 'year': '1925'}]}
 
 License
 -------
@@ -121,6 +122,5 @@ distribution, or http://opensource.org/licenses/MIT.
 Roadmap
 -------
 
-* Full XSD 1.0 support (almost done)
 * Validated XML data encoding
 * XSD 1.1

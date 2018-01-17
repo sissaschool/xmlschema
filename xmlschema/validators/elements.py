@@ -424,6 +424,11 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         while True:
             try:
                 qname = get_qname(self.target_namespace, elem[index].tag)
+            except TypeError:
+                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
+                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
+                # decode nothing and take the next.
+                pass
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
                     yield XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)

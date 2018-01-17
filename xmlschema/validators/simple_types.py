@@ -214,7 +214,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
                 raise XMLSchemaParseError("'minInclusive' must be less or equal to 'maxInclusive'", self)
             elif max_exclusive is not None and min_inclusive >= max_exclusive:
                 raise XMLSchemaParseError("'minInclusive' must be lesser than 'maxExclusive'", self)
-            min_value = max_inclusive
+            min_value = min_inclusive
         elif min_exclusive is not None:
             if max_inclusive is not None and min_exclusive >= max_inclusive:
                 raise XMLSchemaParseError("'minExclusive' must be lesser than 'maxInclusive'", self)
@@ -234,6 +234,8 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
         base_min_value = getattr(base_type, 'min_value', None)
         base_max_value = getattr(base_type, 'max_value', None)
         if base_min_value is not None and min_value is not None and base_min_value > min_value:
+            import pdb
+            pdb.set_trace()
             raise XMLSchemaParseError("minimum value of base_type is greater.", self)
         if base_max_value is not None and max_value is not None and base_max_value < max_value:
             raise XMLSchemaParseError("maximum value of base_type is lesser.", self)

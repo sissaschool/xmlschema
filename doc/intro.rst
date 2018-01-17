@@ -16,16 +16,19 @@ the schema-based decoding of XML data has led to build this library. Obviously
 this library can be useful for other cases related to XML Schema based processing,
 not only for the original scope.
 
+
 Features
 ========
 
 The xmlschema library includes the following features:
 
+* Full XSD 1.0 support
 * Building of XML schema objects from XSD files
-* Validation of XML instances with XSD schemas
+* Validation of XML instances against XSD schemas
 * Decoding of XML data into Python data structures
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
+
 
 Installation
 ============
