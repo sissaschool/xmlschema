@@ -106,7 +106,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         elem = self.elem
         self.name = None
 
-        if self.default and self.fixed:
+        if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
         self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
 
@@ -267,7 +267,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
 
     @property
     def default(self):
-        return self.elem.get('default', '')
+        return self.elem.get('default')
 
     @property
     def final(self):
@@ -275,7 +275,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
 
     @property
     def fixed(self):
-        return self.elem.get('fixed', '')
+        return self.elem.get('fixed')
 
     @property
     def form(self):
@@ -363,10 +363,15 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             if len(elem):
                 yield self._validation_error("a simpleType element can't has child elements.", validation, elem)
 
-            if elem.text is None:
+            text = elem.text
+            if not text and use_defaults:
+                default = self.default
+                if default is not None:
+                    text = default
+
+            if text is None:
                 yield None
             else:
-                text = elem.text or self.default if use_defaults else elem.text
                 for result in type_.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)

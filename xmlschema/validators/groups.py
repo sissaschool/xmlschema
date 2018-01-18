@@ -432,6 +432,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
 
             elif self.model == XSD_CHOICE_TAG:
                 matched_choice = False
+                obj = None
                 for item in self:
                     for obj in item.iter_decode_children(elem, model_index, validation):
                         if not isinstance(obj, XMLSchemaValidationError):
@@ -445,6 +446,12 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                     if matched_choice:
                         break
                 else:
+                    try:
+                        if isinstance(obj.validator, XsdAnyElement):
+                            yield obj
+                    except AttributeError:
+                        pass
+
                     if self.min_occurs > model_occurs:
                         yield XMLSchemaChildrenValidationError(
                             self, elem, model_index, expected=[e.prefixed_name for e in self.iter_elements()]

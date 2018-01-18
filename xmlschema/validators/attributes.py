@@ -62,7 +62,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         elem = self.elem
         self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
-        if self.default and self.fixed:
+        if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive")
         self._parse_properties('form', 'use')
 
@@ -127,11 +127,11 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
 
     @property
     def default(self):
-        return self.elem.get('default', '')
+        return self.elem.get('default')
 
     @property
     def fixed(self):
-        return self.elem.get('fixed', '')
+        return self.elem.get('fixed')
 
     @property
     def ref(self):
@@ -165,7 +165,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
-        if self.fixed and text != self.fixed:
+        if self.fixed is not None and text != self.fixed:
             error = XMLSchemaValidationError(self, text, "value differs from fixed value")
             if validation == 'strict':
                 raise error

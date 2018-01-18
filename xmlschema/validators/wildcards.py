@@ -13,6 +13,7 @@ This module contains classes for XML Schema wildcards.
 """
 from ..namespaces import get_namespace
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+from .exceptions import XMLSchemaChildrenValidationError
 from .parseutils import get_xsd_attribute, get_xsd_namespace_attribute
 from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
 
@@ -60,6 +61,7 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
+        print(elem.tag)
         if self.process_contents == 'skip':
             return
 
@@ -85,13 +87,14 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
                     yield self._validation_error(
-                        "a tag from %r expected." % self.namespaces, validation, elem
+                        "a tag from %r expected." % self.namespaces, validation, elem[index]
                     )
                 yield index
                 return
             else:
                 if not self._is_namespace_allowed(namespace, self.namespace):
-                    yield self._validation_error("%r not allowed." % namespace, validation, elem)
+                    error = XMLSchemaChildrenValidationError(self, elem, index)
+                    yield self._validation_error(error, validation)
 
                 try:
                     xsd_element = self.maps.lookup_element(elem[index].tag)
