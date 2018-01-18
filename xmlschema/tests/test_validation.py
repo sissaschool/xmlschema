@@ -80,6 +80,8 @@ if __name__ == '__main__':
         except ValueError:
             sys.argv.remove('--skip-extra')
 
+    # Validation test cases: those test don't run with the test_all.py script because are
+    # a duplication of similar decoding tests.
     validation_tests = tests_factory(make_test_validation_function, path, 'validation', 'xml')
     globals().update(validation_tests)
     unittest.main()

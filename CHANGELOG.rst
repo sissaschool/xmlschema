@@ -2,12 +2,18 @@
 CHANGELOG
 *********
 
+v0.9.19
+=======
+* Added *fetch_schema_locations* function to API
+* Added *locations* argument to *fetch_schema*, *validate* and *to_dict* API functions
+
 v0.9.18
 =======
 * Fixed issue #34 (min_occurs == 0 check in XsdGroup.is_emptiable)
 * Updated copyright information
 * Updated schema class creation (now use a metaclass)
 * Added index and expected attributes to XMLSchemaChildrenValidationError
+* Added *locations* optional argument to XMLSchema class
 
 v0.9.17
 =======
