@@ -18,6 +18,7 @@ import sys
 from collections import OrderedDict
 from decimal import Decimal
 from xml.etree import ElementTree as _ElementTree
+
 try:
     import lxml.etree as _lxml_etree
 except ImportError:
@@ -259,9 +260,7 @@ _DATA_DICT = {
 
 def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False, locations=None):
     def test_decoding(self):
-        schema, _locations = xmlschema.fetch_schema_locations(xml_file)
-        if locations is not None:
-            _locations.update(locations)
+        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
         xs = schema_class(schema, locations=_locations)
         errors = []
         chunks = []

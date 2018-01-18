@@ -233,27 +233,28 @@ def get_xml_root(source):
             return xml_root, xml_url
 
 
-def fetch_schema(source):
+def fetch_schema(source, locations=None):
     """
     Fetch the schema URL from an XML data source. If no accessible schema location
     is found raises a ValueError.
 
     :param source: An Element or an Element Tree with XML data or an URL or a
     file-like object.
+    :param locations: A dictionary or dictionary items with Schema location hints.
     :return: An URL referring to a reachable schema resource.
     """
-    return fetch_schema_locations(source)[0]
+    return fetch_schema_locations(source, locations)[0]
 
 
-def fetch_schema_locations(source):
+def fetch_schema_locations(source, locations=None):
     """
     Fetch the schema URL and other location hints from an XML data source. If no
-    accessible schema location is found raises a ValueError.
+    accessible schema location is found for source root's namespace raises a ValueError.
 
-    :param source: An Element or an Element Tree with XML data or an URL or a
-    file-like object.
-    :return: An couple with the URL referring to the first reachable schema resource
-    and a dictionary with location hints for other namespaces.
+    :param source: An Element or an Element Tree with XML data or an URL or a file-like object.
+    :param locations: A dictionary or dictionary items with Schema location hints.
+    :return: An couple with the URL referring to the first reachable schema resource \
+    and a list of dictionary items with location hints.
     """
     try:
         xml_root, xml_url = source.getroot(), None
@@ -267,15 +268,23 @@ def fetch_schema_locations(source):
             raise XMLSchemaTypeError(
                 "wrong type %r for 'source' argument." % type(source)
             )
-
     namespace = get_namespace(xml_root.tag)
-    locations = {k: v for k, v in iter_schema_location_hints(xml_root) if k != namespace}
+
+    try:
+        locations = list(locations.items())
+    except AttributeError:
+        if locations is None:
+            locations = []
+        else:
+            locations = list(locations)
+    locations.extend([(k, v) for k, v in iter_schema_location_hints(xml_root)])
 
     base_url = None if xml_url is None else os.path.dirname(xml_url)
-    for uri, url in iter_schema_location_hints(xml_root, namespace):
-        try:
-            return fetch_resource(url, base_url), locations
-        except XMLSchemaURLError:
-            pass
+    for uri, url in locations:
+        if namespace == uri:
+            try:
+                return fetch_resource(url, base_url), locations
+            except XMLSchemaURLError:
+                pass
 
     raise XMLSchemaValueError("schema for XML data source %r not found." % source)

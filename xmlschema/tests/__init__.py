@@ -13,7 +13,6 @@ Tests subpackage imports and methods for unittest scripts of the 'xmlschema' pac
 """
 import unittest
 import re
-import sys
 import os
 import glob
 import fileinput
@@ -99,6 +98,7 @@ def get_args_parser():
     )
     return parser
 
+
 test_line_parser = get_args_parser()
 
 
@@ -112,7 +112,7 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
 
         test_args = test_line_parser.parse_args(get_test_args(line))
         if test_args.locations is not None:
-            test_args.locations = dict(test_args.locations)
+            test_args.locations = {k.strip('\'"'): v for k, v in test_args.locations}
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
         if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
