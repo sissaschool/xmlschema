@@ -149,31 +149,31 @@ class XsdGlobals(XsdBaseComponent):
     def __setattr__(self, name, value):
         if name == 'notations':
             self.lookup_notation = self._create_lookup_function(
-                value, XsdNotation, **{XSD_NOTATION_TAG: self.validator._BUILDERS.notation_class}
+                value, XsdNotation, **{XSD_NOTATION_TAG: self.validator.BUILDERS.notation_class}
             )
         elif name == 'types':
             self.lookup_type = self._create_lookup_function(
                 value, (XsdSimpleType, XsdComplexType), **{
-                    XSD_SIMPLE_TYPE_TAG: self.validator._BUILDERS.simple_type_factory,
-                    XSD_COMPLEX_TYPE_TAG: self.validator._BUILDERS.complex_type_class
+                    XSD_SIMPLE_TYPE_TAG: self.validator.BUILDERS.simple_type_factory,
+                    XSD_COMPLEX_TYPE_TAG: self.validator.BUILDERS.complex_type_class
                 }
             )
         elif name == 'attributes':
             self.lookup_attribute = self._create_lookup_function(
-                value, XsdAttribute, **{XSD_ATTRIBUTE_TAG: self.validator._BUILDERS.attribute_class}
+                value, XsdAttribute, **{XSD_ATTRIBUTE_TAG: self.validator.BUILDERS.attribute_class}
             )
         elif name == 'attribute_groups':
             self.lookup_attribute_group = self._create_lookup_function(
                 value, XsdAttributeGroup,
-                **{XSD_ATTRIBUTE_GROUP_TAG: self.validator._BUILDERS.attribute_group_class}
+                **{XSD_ATTRIBUTE_GROUP_TAG: self.validator.BUILDERS.attribute_group_class}
             )
         elif name == 'groups':
             self.lookup_group = self._create_lookup_function(
-                value, XsdGroup, **{XSD_GROUP_TAG: self.validator._BUILDERS.group_class}
+                value, XsdGroup, **{XSD_GROUP_TAG: self.validator.BUILDERS.group_class}
             )
         elif name == 'elements':
             self.lookup_element = self._create_lookup_function(
-                value, XsdElement, **{XSD_ELEMENT_TAG: self.validator._BUILDERS.element_class}
+                value, XsdElement, **{XSD_ELEMENT_TAG: self.validator.BUILDERS.element_class}
             )
         elif name == 'base_elements':
             self.lookup_base_element = self._create_lookup_function(value, XsdElement)
@@ -340,7 +340,7 @@ class XsdGlobals(XsdBaseComponent):
         load_xsd_groups(self.groups, not_built_schemas)
 
         if not meta_schema.built:
-            meta_schema._BUILDERS.builtin_types_factory(meta_schema, self.types)
+            meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
 
         for qname in self.notations:
             self.lookup_notation(qname)
@@ -356,8 +356,8 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_group(qname)
 
         # Builds element declarations inside model groups.
-        element_class = meta_schema._BUILDERS.element_class
-        group_class = meta_schema._BUILDERS.group_class
+        element_class = meta_schema.BUILDERS.element_class
+        group_class = meta_schema.BUILDERS.group_class
         for xsd_global in self.iter_globals():
             for obj in xsd_global.iter_components(XsdGroup):
                 for k in range(len(obj)):

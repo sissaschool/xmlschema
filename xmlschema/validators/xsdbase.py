@@ -130,7 +130,7 @@ class XsdComponent(XsdBaseComponent):
                     "cannot change 'schema' attribute of %r: the actual %r has a different "
                     "target namespace than %r." % (self, self.schema, value)
                 )
-            self._BUILDERS = value._BUILDERS
+            self._BUILDERS = value.BUILDERS
             self.target_namespace = value.target_namespace
             self.namespaces = value.namespaces
             self.maps = value.maps

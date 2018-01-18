@@ -116,7 +116,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS
+        return self.schema.FACETS
 
     @property
     def final(self):
@@ -355,7 +355,7 @@ class XsdAtomic(XsdSimpleType):
             return XSD_FACETS.union({None})
         else:
             try:
-                return self.schema._FACETS.intersection(facets)
+                return self.schema.FACETS.intersection(facets)
             except AttributeError:
                 return set(primitive_type.facets.keys()).union({None})
 
@@ -544,7 +544,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS.intersection(LIST_FACETS)
+        return self.schema.FACETS.intersection(LIST_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -682,7 +682,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS.intersection(UNION_FACETS)
+        return self.schema.FACETS.intersection(UNION_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -801,7 +801,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             mixed=base_type.mixed
                         )
                 has_simple_type_child = True
-            elif child.tag not in self.schema._FACETS:
+            elif child.tag not in self.schema.FACETS:
                 raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:

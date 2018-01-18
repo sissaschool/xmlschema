@@ -77,8 +77,8 @@ class XMLSchemaMeta(type):
         builders = dict_.pop('builders')
         meta_schema = dict_.pop('meta_schema')
         dict_['XSD_VERSION'] = dict_.pop('xsd_version')
-        dict_['_FACETS'] = dict_.pop('facets') or ()
-        dict_['_BUILDERS'] = namedtuple('Builders', builders)(**builders)
+        dict_['FACETS'] = dict_.pop('facets') or ()
+        dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
 
         # Build the meta-schema class
         meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, '%s_META_SCHEMA' % name, (XMLSchemaBase,), dict_)
@@ -162,8 +162,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
     """
     XSD_VERSION = None
     META_SCHEMA = None
-    _FACETS = None
-    _BUILDERS = ()
+    FACETS = None
+    BUILDERS = ()
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
