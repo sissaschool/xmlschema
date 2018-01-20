@@ -256,6 +256,13 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 for e in item.iter_elements():
                     yield e
 
+    def raw_validation(self, elem, validation='lax', start=0):
+        elements = [xsd_element for xsd_element in self.iter_elements()]
+        for index in range(start, len(elem)):
+            if not any([xsd_element.match(elem[index].tag) for xsd_element in elements]):
+                error = XMLSchemaChildrenValidationError(self, elem, index)
+                yield self._validation_error(error, validation)
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding complex content elements. A list of 3-tuples
@@ -326,11 +333,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 elements = [xsd_element for xsd_element in self.iter_elements()]
                 if child is not None or all([not isinstance(e, XsdAnyElement) for e in elements]):
                     start_index = etree_child_index(elem, child) + 1 if child is not None else 0
-                    for k in range(start_index, len(elem)):
-                        if k == start_index or not \
-                                any([xsd_element.match(elem[k].tag) for xsd_element in elements]):
-                            error = XMLSchemaChildrenValidationError(self, elem, k)
-                            yield self._validation_error(error, validation)
+                    self.raw_validation(elem, validation, start=start_index)
 
         elif not self.is_emptiable() and validation != 'skip':
             # no child elements: generate errors if the model is not emptiable
