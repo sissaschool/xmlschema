@@ -17,6 +17,9 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_resources.py**
     Tests about XML/XSD resources access
 
+**test_resources.py**
+    Tests about XSD regular expressions
+
 **test_schemas.py**
     Tests about parsing of XSD Schemas
 

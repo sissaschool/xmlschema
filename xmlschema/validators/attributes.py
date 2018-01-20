@@ -94,7 +94,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = self._BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
+                xsd_type = self.schema.BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
             else:
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)

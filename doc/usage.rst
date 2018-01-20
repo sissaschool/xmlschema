@@ -31,14 +31,14 @@ the file containing the schema as argument:
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
 
 Otherwise the argument can be also an opened file-like object:
 
 .. doctest::
 
     >>> import xmlschema
-    >>> schema_file = open('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> schema_file = open('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
     >>> my_schema = xmlschema.XMLSchema(schema_file)
 
 Alternatively you can pass a string containing the schema definition:
@@ -58,7 +58,7 @@ cannot knows anything about the schema's source location:
 .. doctest::
 
     >>> import xmlschema
-    >>> schema_xsd = open('xmlschema/tests/examples/vehicles/vehicles.xsd').read()
+    >>> schema_xsd = open('xmlschema/tests/cases/examples/vehicles/vehicles.xsd').read()
     >>> my_schema = xmlschema.XMLSchema(schema_xsd)
     Traceback (most recent call last):
     ...
@@ -76,7 +76,7 @@ attributes of the schema instance:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
     >>> my_schema.types
     <NamespaceView {'vehicleType': <XsdComplexType '{http://example.com/vehicles}vehicleType' at 0x...>} at 0x...>
     >>> pprint(dict(my_schema.elements))
@@ -135,10 +135,10 @@ returns ``False`` if the document is invalid.
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     True
-    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     False
     >>> my_schema.is_valid("""<?xml version="1.0" encoding="UTF-8"?><fancy_tag/>""")
     False
@@ -150,9 +150,9 @@ to the schema:
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> my_schema.validate('xmlschema/tests/examples/vehicles/vehicles.xml')
-    >>> my_schema.validate('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
+    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 220, in validate
@@ -183,12 +183,12 @@ typically the schema location and the namespace, directly from the XML document:
 .. doctest::
 
     >>> import xmlschema
-    >>> xmlschema.validate('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xmlschema.validate('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
 
 .. doctest:: vehicles
 
     >>> import xmlschema
-    >>> os.chdir('xmlschema/tests/examples/vehicles/')
+    >>> os.chdir('xmlschema/tests/cases/examples/vehicles/')
     >>> xmlschema.validate('vehicles.xml', 'vehicles.xsd')
 
 
@@ -200,7 +200,7 @@ Each schema component includes methods for data conversion:
 .. doctest::
 
     >>> my_schema.types['vehicleType'].decode
-    <bound method ValidatorMixin.decode of <XsdComplexType ...>>
+    <bound method XsdComplexType.decode of <XsdComplexType ...>>
     >>> my_schema.elements['cars'].encode
     <bound method ValidatorMixin.encode of <XsdElement ...>>
 
@@ -216,8 +216,8 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> import xmlschema
     >>> from pprint import pprint
     >>> from xml.etree import ElementTree
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
     {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
                                           {'@make': 'Porsche', '@model': '911'}]}
@@ -234,8 +234,8 @@ You can also decode the entire XML document to a nested dictionary:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml'))
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/vehicles/vehicles.xml'))
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
@@ -248,8 +248,8 @@ The decoded values coincide with the datatypes declared in the XSD schema:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/collection/collection.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/collection/collection.xml'))
     {'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
      'object': [{'@available': True,
                  '@id': 'b0836217462',
@@ -278,8 +278,8 @@ expression using in the *path* argument.
 
 .. doctest::
 
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/examples/vehicles/vehicles.xml', './vh:vehicles/vh:bikes'))
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/vehicles/vehicles.xml', './vh:vehicles/vh:bikes'))
     {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                  {'@make': 'Yamaha', '@model': 'XS650'}]}
 
@@ -300,8 +300,8 @@ Validation and decode API works also with XML data loaded in ElementTree structu
     >>> import xmlschema
     >>> from pprint import pprint
     >>> from xml.etree import ElementTree
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt, process_namespaces=False), depth=2)
@@ -328,8 +328,8 @@ namespace information is associated within each node of the trees:
     >>> import xmlschema
     >>> from pprint import pprint
     >>> import lxml.etree as ElementTree
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
-    >>> xt = ElementTree.parse('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> xt = ElementTree.parse('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt))
@@ -338,7 +338,7 @@ namespace information is associated within each node of the trees:
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
                             {'@make': 'Porsche', '@model': '911'}]}}
-    >>> pprint(xmlschema.to_dict(xt, 'xmlschema/tests/examples/vehicles/vehicles.xsd'))
+    >>> pprint(xmlschema.to_dict(xt, 'xmlschema/tests/cases/examples/vehicles/vehicles.xsd'))
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
@@ -364,8 +364,8 @@ For instance you can use the Badgerfish converter for a schema instance:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> xml_schema = 'xmlschema/tests/examples/vehicles/vehicles.xsd'
-    >>> xml_document = 'xmlschema/tests/examples/vehicles/vehicles.xml'
+    >>> xml_schema = 'xmlschema/tests/cases/examples/vehicles/vehicles.xsd'
+    >>> xml_document = 'xmlschema/tests/cases/examples/vehicles/vehicles.xml'
     >>> xs = xmlschema.XMLSchema(xml_schema, converter=xmlschema.BadgerFishConverter)
     >>> pprint(xs.to_dict(xml_document, dict_class=dict), indent=4)
     {   '@xmlns': {   'vh': 'http://example.com/vehicles',
@@ -399,7 +399,7 @@ include `Decimal` values (for *decimal* XSD built-in type) you cannot convert th
 
     >>> import xmlschema
     >>> import json
-    >>> xml_document = 'xmlschema/tests/examples/collection/collection.xml'
+    >>> xml_document = 'xmlschema/tests/cases/examples/collection/collection.xml'
     >>> print(json.dumps(xmlschema.to_dict(xml_document), indent=4))
     Traceback (most recent call last):
       File "/usr/lib64/python2.7/doctest.py", line 1315, in __run

@@ -792,7 +792,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 else:
                     if base_type.is_complex() and base_type.admit_simple_restriction():
                         content_type = xsd_simple_type_factory(child, self.schema)
-                        base_type = self._BUILDERS.complex_type_class(
+                        base_type = self.schema.BUILDERS.complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             content_type=content_type,

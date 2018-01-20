@@ -55,7 +55,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
     def __setattr__(self, name, value):
         if name == ('attr_prefix', 'text_key', 'cdata_prefix') and value is not None:
-            if any(c in string.letters or c == '_' for c in value):
+            if any(c in string.ascii_letters or c == '_' for c in value):
                 raise XMLSchemaValueError(
                     '%r cannot include letters or underscores: %r' % (name, value))
         super(NamespaceMapper, self).__setattr__(name, value)

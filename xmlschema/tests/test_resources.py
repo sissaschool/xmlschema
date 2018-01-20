@@ -45,6 +45,9 @@ class TestResources(unittest.TestCase):
         right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
         self.assertTrue(xmlschema.fetch_resource(right_path).endswith('y%20file.txt'))
 
+    def test_get_namespace(self):
+        self.assertFalse(xmlschema.etree_get_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

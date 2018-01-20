@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="dates">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="row" minOccurs="1" maxOccurs="unbounded">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="string" type="xs:string"/>
+							<xs:element name="day1" type="xs:int" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="day2" type="xs:int" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="month1" type="xs:string" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="month2" type="xs:string" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="year1" type="xs:int" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="year2" type="xs:int" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="periodicity" type="xs:string" minOccurs="0" maxOccurs="1"/>
+							<xs:element name="interim_number" type="xs:int" minOccurs="0" maxOccurs="1"/>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>
