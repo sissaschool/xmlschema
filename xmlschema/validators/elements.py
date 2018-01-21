@@ -454,10 +454,21 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield index
                 return
             else:
-                if qname == self.name or self.is_global and \
-                        self.name in self.maps.substitution_group and \
-                        any([qname == e.name for e in self.maps.substitution_groups[self.name]]):
+                if qname == self.name:
                     yield self, elem[index]
+                elif self.name in self.maps.substitution_groups:
+                    for e in self.schema.substitution_groups[self.name]:
+                        if qname == e.name:
+                            yield e, elem[index]
+                            break
+                    else:
+                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                            error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                            yield self._validation_error(error, validation)
+                        else:
+                            yield index
+                        return
+
                 else:
                     if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                         error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)

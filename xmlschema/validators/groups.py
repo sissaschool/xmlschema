@@ -9,14 +9,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for XML Schema elements, complex types and model groups.
+This module contains classes for XML Schema model groups.
 """
 from collections import MutableSequence
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..etree import etree_child_index
-from ..namespaces import XSD_NAMESPACE_PATH
 from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
@@ -263,14 +262,6 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 for e in item.iter_elements():
                     yield e
 
-    def iter_raw_decode(self, elem, validation='lax', start=0):
-        elements = [xsd_element for xsd_element in self.iter_elements()]
-        for index in range(start, len(elem)):
-            if not any([xsd_element.match(elem[index].tag) for xsd_element in elements]):
-                if validation != 'skip':
-                    error = XMLSchemaChildrenValidationError(self, elem, index)
-                    yield self._validation_error(error, validation)
-
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding complex content elements. A list of 3-tuples
@@ -320,8 +311,8 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                                     yield self._validation_error(result, validation)
                                 else:
                                     result_list.append((child.tag, result, xsd_element))
-                            if cdata_index and elem.tail is not None:
-                                tail = unicode_type(elem.tail.strip())
+                            if cdata_index and child.tail is not None:
+                                tail = unicode_type(child.tail.strip())
                                 if tail:
                                     result_list.append((cdata_index, tail, None))
                                     cdata_index += 1
@@ -337,14 +328,33 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                             "the iteration cannot ends with a validation error, an integer expected.")
                     break
 
+
             if elem[-1] is not child:
                 # residual content not validated by the model: generate an error and perform a raw decoding
                 start_index = 0 if child is None else etree_child_index(elem, child) + 1
                 if validation != 'skip':
                     error = XMLSchemaChildrenValidationError(self, elem, start_index)
                     yield self._validation_error(error, validation)
-                for obj in self.iter_raw_decode(elem, validation, start=start_index + 1):
-                    yield obj
+
+                # raw children decoding
+                for index in range(start_index, len(elem)):
+                    for xsd_element in self.iter_elements():
+                        if xsd_element.match(elem[index].tag):
+                            for result in xsd_element.iter_decode(elem[index], validation, **kwargs):
+                                if isinstance(result, XMLSchemaValidationError):
+                                    yield self._validation_error(result, validation)
+                                else:
+                                    result_list.append((elem[index].tag, result, xsd_element))
+                            if cdata_index and elem[index].tail is not None:
+                                tail = unicode_type(elem[index].tail.strip())
+                                if tail:
+                                    result_list.append((cdata_index, tail, None))
+                                    cdata_index += 1
+                            break
+                    else:
+                        if validation != 'skip' and index > start_index:
+                            error = XMLSchemaChildrenValidationError(self, elem, index)
+                            yield self._validation_error(error, validation)
 
         elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable
