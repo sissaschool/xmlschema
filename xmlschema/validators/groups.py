@@ -250,7 +250,10 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
         return not self.mixed and not self
 
     def is_emptiable(self):
-        return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
+        if self.model == XSD_CHOICE_TAG:
+            return self.min_occurs == 0 or not self or any([item.is_emptiable() for item in self])
+        else:
+            return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
     def iter_elements(self):
         for item in self:
@@ -343,20 +346,11 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 for obj in self.iter_raw_decode(elem, validation, start=start_index + 1):
                     yield obj
 
-        elif not self.is_emptiable() and validation != 'skip':
+        elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable
-            if self.target_namespace != XSD_NAMESPACE_PATH:
-                if self.model == XSD_SEQUENCE_TAG:
-                    expected = []
-                    for e in self.iter_elements():
-                        expected.append(e.prefixed_name)
-                        if not e.is_emptiable():
-                            break
-                else:
-                    expected = [e.prefixed_name for e in self.iter_elements()]
-
-                error = XMLSchemaChildrenValidationError(self, elem, 0, expected=expected)
-                yield self._validation_error(error, validation)
+            expected = [e.prefixed_name for e in self.iter_elements() if e.min_occurs]
+            error = XMLSchemaChildrenValidationError(self, elem, 0, expected=expected)
+            yield self._validation_error(error, validation)
 
         yield result_list
 
