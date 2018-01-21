@@ -35,6 +35,11 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
     def __init__(self, elem, schema):
         super(XsdAnyElement, self).__init__(elem, schema, is_global=False)
 
+    def __repr__(self):
+        return u"XsdAnyElement(namespace=%r, process_contents=%r, min_occurs=%r, max_occurs=%r)" % (
+            self.namespace, self.process_contents, self.min_occurs, self.max_occurs
+        )
+
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle()
@@ -61,7 +66,6 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
-        print(elem.tag)
         if self.process_contents == 'skip':
             return
 
@@ -84,12 +88,19 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
         while True:
             try:
                 namespace = get_namespace(elem[index].tag)
+            except TypeError:
+                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
+                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
+                # decode nothing and take the next.
+                pass
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
-                    yield self._validation_error(
-                        "a tag from %r expected." % self.namespaces, validation, elem[index]
+                    error = XMLSchemaChildrenValidationError(
+                        self, elem, index, expected="from %r namespace" % self.namespaces
                     )
-                yield index
+                    yield self._validation_error(error, validation)
+                else:
+                    yield index
                 return
             else:
                 if not self._is_namespace_allowed(namespace, self.namespace):
@@ -103,10 +114,12 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
                         yield self._validation_error(
                             "cannot retrieve the schema for %r" % elem[index], validation, elem
                         )
+                    yield None, elem[index]
                 else:
                     if process_contents != 'skip':
-                        for obj in xsd_element.iter_decode_children(elem, index, validation):
-                            yield obj
+                        yield xsd_element, elem[index]
+                    else:
+                        yield None, elem[index]
 
             index += 1
             model_occurs += 1

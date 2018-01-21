@@ -146,7 +146,7 @@ class XsdComponent(XsdBaseComponent):
 
     def __repr__(self):
         if self.name:
-            return u"<%s %r at %#x>" % (self.__class__.__name__, self.name, id(self))
+            return u"<%s %r at %#x>" % (self.__class__.__name__, self.prefixed_name, id(self))
         else:
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
 

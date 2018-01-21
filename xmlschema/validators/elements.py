@@ -447,7 +447,8 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 pass
             except IndexError:
                 if model_occurs == 0 and self.min_occurs > 0:
-                    yield XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                    error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                    yield self._validation_error(error, validation)
                 else:
                     yield index
                 return
@@ -458,7 +459,8 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield self, elem[index]
                 else:
                     if model_occurs == 0 and self.min_occurs > 0:
-                        yield XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                        error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                        yield self._validation_error(error, validation)
                     else:
                         yield index
                     return

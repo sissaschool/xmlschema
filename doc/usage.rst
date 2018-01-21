@@ -221,7 +221,7 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
     {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
                                           {'@make': 'Porsche', '@model': '911'}]}
-    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1]))
+    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='lax'))
     None
     >>> pprint(xs.elements['bikes'].decode(xt.getroot()[1]))
     {'{http://example.com/vehicles}bike': [{'@make': 'Harley-Davidson',
