@@ -270,7 +270,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
         yield text
 
     def iter_encode(self, text, validation='lax', **kwargs):
-        if not isinstance(text, (str, unicode_type)):
+        if not isinstance(text, (str, unicode_type)) and validation != 'skip':
             error = XMLSchemaEncodeError(self, text, unicode_type)
             yield self._validation_error(error, validation)
 
@@ -729,9 +729,12 @@ class XsdUnion(XsdSimpleType):
                     yield result
                     return
 
-        error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
-        yield self._validation_error(error, validation)
-        yield unicode_type(text) if validation == 'skip' else None
+        if validation != 'skip':
+            error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
+            yield self._validation_error(error, validation)
+            yield None
+        else:
+            yield unicode_type(text)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for member_type in self.member_types:
@@ -744,9 +747,12 @@ class XsdUnion(XsdSimpleType):
                     yield result
                     return
 
-        error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")
-        yield self._validation_error(error, validation)
-        yield unicode_type(obj) if validation == 'skip' else None
+        if validation != 'skip':
+            error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")
+            yield self._validation_error(error, validation)
+            yield None
+        else:
+            yield unicode_type(obj)
 
 
 class XsdAtomicRestriction(XsdAtomic):

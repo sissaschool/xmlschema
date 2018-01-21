@@ -326,7 +326,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             type_ = self.type
 
         # Check the xsi:nil attribute of the instance
-        if XSI_NIL in elem.attrib:
+        if validation != 'skip' and XSI_NIL in elem.attrib:
             if self.nillable:
                 try:
                     if get_xsd_bool_attribute(elem, XSI_NIL):
@@ -360,7 +360,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 else:
                     attributes = None
 
-            if len(elem):
+            if len(elem) and validation != 'skip':
                 yield self._validation_error("a simpleType element can't has child elements.", validation, elem)
 
             text = elem.text
@@ -396,8 +396,9 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         tail = (u'\n' + u' ' * indent * level) if indent is not None else None
 
         element_data, errors = element_encode_hook(data, self, validation)
-        for e in errors:
-            yield self._validation_error(e, validation)
+        if validation != 'skip':
+            for e in errors:
+                yield self._validation_error(e, validation)
 
         if self.type.is_complex():
             for result in self.type.iter_encode(element_data, validation, level=level + 1, **kwargs):
@@ -446,7 +447,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 # decode nothing and take the next.
                 pass
             except IndexError:
-                if model_occurs == 0 and self.min_occurs > 0:
+                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                     error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                     yield self._validation_error(error, validation)
                 else:
@@ -458,7 +459,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                         any([qname == e.name for e in self.maps.substitution_groups[self.name]]):
                     yield self, elem[index]
                 else:
-                    if model_occurs == 0 and self.min_occurs > 0:
+                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                         error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                         yield self._validation_error(error, validation)
                     else:

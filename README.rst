@@ -48,22 +48,22 @@ the file containing the schema as argument:
 .. code-block:: pycon
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/examples/vehicles/vehicles.xsd')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
 
 The schema can be used to validate XML documents:
 
 .. code-block:: pycon
 
-    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles.xml')
+    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     True
-    >>> my_schema.is_valid('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     False
-    >>> my_schema.validate('xmlschema/tests/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
-      File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 220, in validate
+      File "/home/brunato/Development/projects/xmlschema/xmlschema/validators/xsdbase.py", line 393, in validate
         raise error
-    xmlschema.exceptions.XMLSchemaValidationError: failed validating <Element ...
+    xmlschema.validators.exceptions.XMLSchemaValidationError: failed validating <Element '{http://example.com/vehicles}cars' at 0x7f8032768458> with XsdGroup(model='sequence').
 
     Reason: character data between child elements not allowed!
 
@@ -75,11 +75,11 @@ The schema can be used to validate XML documents:
 
     Instance:
 
-      <ns0:cars xmlns:ns0="http://example.com/vehicles">
+      <vh:cars xmlns:vh="http://example.com/vehicles">
         NOT ALLOWED CHARACTER DATA
-        <ns0:car make="Porsche" model="911" />
-        <ns0:car make="Porsche" model="911" />
-      </ns0:cars>
+        <vh:car make="Porsche" model="911" />
+        <vh:car make="Porsche" model="911" />
+      </vh:cars>
 
 Using a schema you can also decode the XML documents to nested dictionaries, with
 values that match to the data types declared by the schema:
@@ -88,8 +88,8 @@ values that match to the data types declared by the schema:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/examples/collection/collection.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/examples/collection/collection.xml'))
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/collection/collection.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/collection/collection.xml'))
     {'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
      'object': [{'@available': True,
                  '@id': 'b0836217462',
@@ -107,7 +107,7 @@ values that match to the data types declared by the schema:
                  'author': {'@id': 'JM',
                             'born': '1893-04-20',
                             'dead': '1983-12-25',
-                            'name': 'Joan Mir\xf3',
+                            'name': 'Joan Miró',
                             'qualification': 'painter, sculptor and ceramicist'},
                  'position': 2,
                  'title': None,

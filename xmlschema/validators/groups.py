@@ -264,8 +264,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
         elements = [xsd_element for xsd_element in self.iter_elements()]
         for index in range(start, len(elem)):
             if not any([xsd_element.match(elem[index].tag) for xsd_element in elements]):
-                error = XMLSchemaChildrenValidationError(self, elem, index)
-                yield self._validation_error(error, validation)
+                if validation != 'skip':
+                    error = XMLSchemaChildrenValidationError(self, elem, index)
+                    yield self._validation_error(error, validation)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
@@ -283,7 +284,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
             if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
-                else:
+                elif validation != 'skip':
                     if validation == 'lax':
                         cdata_index = 0
                     cdata_msg = "character data between child elements not allowed!"
@@ -336,8 +337,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
             if elem[-1] is not child:
                 # residual content not validated by the model: generate an error and perform a raw decoding
                 start_index = 0 if child is None else etree_child_index(elem, child) + 1
-                error = XMLSchemaChildrenValidationError(self, elem, start_index)
-                yield self._validation_error(error, validation)
+                if validation != 'skip':
+                    error = XMLSchemaChildrenValidationError(self, elem, start_index)
+                    yield self._validation_error(error, validation)
                 for obj in self.iter_raw_decode(elem, validation, start=start_index + 1):
                     yield obj
 
@@ -397,9 +399,10 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                     try:
                         xsd_element = children_map[name]
                     except KeyError:
-                        yield self._validation_error(
-                            '%r does not match any declared element.' % name, validation, obj=value
-                        )
+                        if validation != 'skip':
+                            yield self._validation_error(
+                                '%r does not match any declared element.' % name, validation, obj=value
+                            )
                     else:
                         for result in xsd_element.iter_encode(value, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
@@ -407,8 +410,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                             else:
                                 children.append(result)
         except ValueError:
-            error = XMLSchemaEncodeError(self, data, self, '%r does not match content.' % data)
-            yield self._validation_error(error, validation)
+            if validation != 'skip':
+                error = XMLSchemaEncodeError(self, data, self, '%r does not match content.' % data)
+                yield self._validation_error(error, validation)
 
         if indent and level:
             if children:

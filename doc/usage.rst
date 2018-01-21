@@ -78,13 +78,13 @@ attributes of the schema instance:
     >>> from pprint import pprint
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
     >>> my_schema.types
-    <NamespaceView {'vehicleType': <XsdComplexType '{http://example.com/vehicles}vehicleType' at 0x...>} at 0x...>
+    NamespaceView({'vehicleType': XsdComplexType(name='vehicleType')})
     >>> pprint(dict(my_schema.elements))
-    {'bikes': <XsdElement '{http://example.com/vehicles}bikes' at 0x...>,
-     'cars': <XsdElement '{http://example.com/vehicles}cars' at 0x...>,
-     'vehicles': <XsdElement '{http://example.com/vehicles}vehicles' at 0x...>}
+    {'bikes': XsdElement(name='vh:bikes'),
+     'cars': XsdElement(name='vh:cars'),
+     'vehicles': XsdElement(name='vh:vehicles')}
     >>> my_schema.attributes
-    <NamespaceView {'step': <XsdAttribute '{http://example.com/vehicles}step' at 0x...
+    NamespaceView({'step': XsdAttribute(name='vh:step')})
 
 Those declarations are local views of *XSD global maps* shared between related schema instances.
 The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
@@ -117,10 +117,9 @@ defining the search criteria:
 .. doctest::
 
     >>> my_schema.find('vh:vehicles/vh:bikes')
-    <XsdElement '{http://example.com/vehicles}bikes' at 0x...>
+    XsdElement(name='vh:bikes')
     >>> pprint(my_schema.findall('vh:vehicles/*'))
-    [<XsdElement '{http://example.com/vehicles}cars' at 0x...>,
-     <XsdElement '{http://example.com/vehicles}bikes' at 0x...>]
+    [XsdElement(name='vh:cars'), XsdElement(name='vh:bikes')]
 
 
 Validation
@@ -200,9 +199,9 @@ Each schema component includes methods for data conversion:
 .. doctest::
 
     >>> my_schema.types['vehicleType'].decode
-    <bound method XsdComplexType.decode of <XsdComplexType ...>>
+    <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
     >>> my_schema.elements['cars'].encode
-    <bound method ValidatorMixin.encode of <XsdElement ...>>
+    <bound method ValidatorMixin.encode of XsdElement(name='vh:cars')>
 
 .. warning::
 
@@ -221,7 +220,7 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
     {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
                                           {'@make': 'Porsche', '@model': '911'}]}
-    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='lax'))
+    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
     None
     >>> pprint(xs.elements['bikes'].decode(xt.getroot()[1]))
     {'{http://example.com/vehicles}bike': [{'@make': 'Harley-Davidson',

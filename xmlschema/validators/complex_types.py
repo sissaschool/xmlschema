@@ -463,7 +463,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
         if self.has_simple_content():
             # Decode a simple content element
-            if len(elem):
+            if len(elem) and validation != 'skip':
                 yield self._validation_error(
                     "a simple content element can't has child elements.", validation, elem,
                 )

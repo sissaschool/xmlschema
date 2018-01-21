@@ -88,7 +88,7 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
                 # decode nothing and take the next.
                 pass
             except IndexError:
-                if model_occurs == 0 and self.min_occurs > 0:
+                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                     error = XMLSchemaChildrenValidationError(
                         self, elem, index, expected="from %r namespace" % self.namespaces
                     )
@@ -97,14 +97,14 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
                     yield index
                 return
             else:
-                if not self._is_namespace_allowed(namespace, self.namespace):
+                if validation != 'skip' and not self._is_namespace_allowed(namespace, self.namespace):
                     error = XMLSchemaChildrenValidationError(self, elem, index)
                     yield self._validation_error(error, validation)
 
                 try:
                     xsd_element = self.maps.lookup_element(elem[index].tag)
                 except LookupError:
-                    if process_contents == 'strict':
+                    if validation != 'skip' and process_contents == 'strict':
                         yield self._validation_error(
                             "cannot retrieve the schema for %r" % elem[index], validation, elem
                         )
@@ -185,12 +185,12 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
                 try:
                     xsd_attribute = self.maps.lookup_attribute(name)
                 except LookupError:
-                    if self.process_contents == 'strict':
+                    if self.process_contents == 'strict' and validation != 'skip':
                         yield self._validation_error("attribute %r not found." % name, validation, attrs)
                 else:
                     for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                         yield result
-            else:
+            elif validation != 'skip':
                 yield self._validation_error("attribute %r not allowed." % name, validation, attrs)
 
 
