@@ -17,6 +17,7 @@ from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..etree import etree_child_index
 from ..namespaces import XSD_NAMESPACE_PATH
+from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
@@ -86,6 +87,12 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 self._group = list(initlist)
         XsdAnnotated.__init__(self, elem, schema, name, is_global)
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(model=%r)' % (self.__class__.__name__, local_name(self.model))
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
         return self._group[i]
@@ -103,9 +110,6 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
     def insert(self, i, item):
         check_type(item, tuple, ParticleMixin)
         self._group.insert(i, item)
-
-    def __repr__(self):
-        return XsdAnnotated.__repr__(self)
 
     def __setattr__(self, name, value):
         if name == 'model':

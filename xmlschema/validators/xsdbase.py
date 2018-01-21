@@ -145,10 +145,10 @@ class XsdComponent(XsdBaseComponent):
         return self.schema.maps
 
     def __repr__(self):
-        if self.name:
-            return u"<%s %r at %#x>" % (self.__class__.__name__, self.prefixed_name, id(self))
-        else:
+        if self.name is None:
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences

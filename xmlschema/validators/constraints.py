@@ -44,7 +44,7 @@ class XsdPathSelector(XsdAnnotated):
             self._selector = XPathParser("*").parse()
 
     def __repr__(self):
-        return u"<%s %r at %#x>" % (self.__class__.__name__, self.path, id(self))
+        return u'%s(path=%r)' % (self.__class__.__name__, self.path)
 
     @property
     def built(self):
@@ -193,6 +193,11 @@ class XsdKeyref(XsdConstraint):
         self.refer = None
         self.refer_walk = None
         super(XsdKeyref, self).__init__(elem, schema, parent)
+
+    def __repr__(self):
+        return u'%s(name=%r, refer=%r)' % (
+            self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
+        )
 
     @property
     def admitted_tags(self):

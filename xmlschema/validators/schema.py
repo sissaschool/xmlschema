@@ -286,7 +286,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
             self.maps.build()
 
     def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
+        return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
         if name == 'root' and value.tag != XSD_SCHEMA_TAG:

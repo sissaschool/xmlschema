@@ -314,6 +314,12 @@ class XsdAtomic(XsdSimpleType):
         elif not self.facets and facets:
             self.facets = facets
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(primitive_type=%r)' % (self.__class__.__name__, self.primitive_type.local_name)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         super(XsdAtomic, self).__setattr__(name, value)
         if name in ('base_type', 'white_space'):
@@ -408,6 +414,9 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
 
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def _parse(self):
         return
 
@@ -488,6 +497,12 @@ class XsdList(XsdSimpleType):
             self.facets = facets or {}
         elif not self.facets and facets:
             self.facets = facets
+
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(item_type=%r)' % (self.__class__.__name__, self.item_type)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
@@ -618,6 +633,12 @@ class XsdUnion(XsdSimpleType):
             self.facets = facets or {}
         elif not self.facets and facets:
             self.facets = facets
+
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(member_types=%r)' % (self.__class__.__name__, self.member_types)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:

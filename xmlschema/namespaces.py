@@ -203,7 +203,7 @@ class NamespaceView(Mapping):
         return iter(self.as_dict())
 
     def __repr__(self):
-        return '<%s %s at %#x>' % (self.__class__.__name__, str(self.as_dict()), id(self))
+        return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key):
         return self.key_fmt % key in self.target_dict

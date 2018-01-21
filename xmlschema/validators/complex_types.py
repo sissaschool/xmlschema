@@ -62,6 +62,15 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 raise XMLSchemaAttributeError("undefined 'mixed' attribute for %r." % self)
             self.mixed = mixed
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(content=%r, attributes=%r)' % (
+                self.__class__.__name__, self._content_type(),
+                [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
+            )
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         if name == 'content_type':
             check_type(value, XsdSimpleType, XsdGroup)
@@ -352,7 +361,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
     def has_mixed_content(self):
         try:
-            return self.content_type.mixed  # and self.content_type
+            return self.content_type.mixed
         except AttributeError:
             return False
 
@@ -377,6 +386,18 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 return self.base_type.is_derived(other) and self.base_type.derivation == derivation
         else:
             return False
+
+    def _content_type(self):
+        if self.is_empty():
+            return 'empty'
+        elif self.has_simple_content():
+            return 'simple'
+        elif self.is_element_only():
+            return 'element-only'
+        elif self.has_mixed_content():
+            return 'mixed'
+        else:
+            return 'unknown'
 
     @property
     def abstract(self):

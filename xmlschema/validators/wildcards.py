@@ -34,10 +34,14 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
     """
     def __init__(self, elem, schema):
         super(XsdAnyElement, self).__init__(elem, schema, is_global=False)
+        self.namespace = get_xsd_namespace_attribute(self.elem)
+        self.process_contents = get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
+        )
 
     def __repr__(self):
-        return u"XsdAnyElement(namespace=%r, process_contents=%r, min_occurs=%r, max_occurs=%r)" % (
-            self.namespace, self.process_contents, self.min_occurs, self.max_occurs
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
         )
 
     def _parse(self):
@@ -51,16 +55,6 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
     @property
     def admitted_tags(self):
         return {XSD_ANY_TAG}
-
-    @property
-    def namespace(self):
-        return get_xsd_namespace_attribute(self.elem)
-
-    @property
-    def process_contents(self):
-        return get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
-        )
 
     def match(self, name):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)
@@ -161,6 +155,15 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
     """
     def __init__(self, elem, schema):
         super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False)
+        self.namespace = get_xsd_namespace_attribute(self.elem)
+        self.process_contents = get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
+        )
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
 
     @property
     def built(self):
@@ -169,16 +172,6 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
     @property
     def admitted_tags(self):
         return {XSD_ANY_ATTRIBUTE_TAG}
-
-    @property
-    def namespace(self):
-        return get_xsd_namespace_attribute(self.elem)
-
-    @property
-    def process_contents(self):
-        return get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
-        )
 
     def match(self, name):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)

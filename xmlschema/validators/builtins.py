@@ -455,13 +455,12 @@ def xsd_build_facets(items, base_type, schema, keys):
                     facets[obj.tag] = XsdPatternsFacet(base_type, obj, schema)
                 else:
                     facets[obj.tag] = XsdSingleFacet(base_type, obj, schema)
-        elif isinstance(obj, (XsdSingleFacet, XsdPatternsFacet)):
-            if obj.name in keys:
-                facets[obj.name] = obj
         elif callable(obj):
             if None in facets:
                 raise XMLSchemaValueError("Almost one callable required!!")
             facets[None] = obj
+        else:
+            raise XMLSchemaValueError("Wrong type for item %r" % obj)
     return facets
 
 

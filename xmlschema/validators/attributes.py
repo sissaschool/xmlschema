@@ -224,6 +224,16 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         self.base_attributes = base_attributes
         XsdAnnotated.__init__(self, elem, schema, name, is_global)
 
+    def __repr__(self):
+        if self.name is not None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        elif self:
+            return u'%s(%r)' % (
+                self.__class__.__name__, [a if a.name is None else a.prefixed_name for a in self.values()]
+            )
+        else:
+            return u'%s()' % self.__class__.__name__
+
     # Implements the abstract methods of MutableMapping
     def __getitem__(self, key):
         return self._attribute_group[key]
