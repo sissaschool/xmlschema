@@ -17,6 +17,11 @@ import os
 import sys
 
 try:
+    import lxml.etree as _lxml_etree
+except ImportError:
+    _lxml_etree = None
+
+try:
     import xmlschema
 except ImportError:
     # Adds the package base dir path as first search path for imports
@@ -51,6 +56,16 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
                 if any([c for c in missing]):
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
+        # Check with lxml.etree.XMLSchema if it's installed
+        if False and _lxml_etree is not None and not num_errors:
+            xsd = _lxml_etree.parse(xsd_file)
+            try:
+                _lxml_etree.XMLSchema(xsd.getroot())
+            except _lxml_etree.XMLSchemaParseError as err:
+                self.assertTrue(
+                    False, "Schema without errors but lxml's validator report an error: {}".format(err)
+                )
+
         if num_errors != expected_errors:
             print("\n%s: %r errors, %r expected." % (self.id()[13:], num_errors, expected_errors))
             if num_errors == 0:
@@ -69,7 +84,16 @@ if __name__ == '__main__':
     from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+
+    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
+    else:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
+        try:
+            sys.argv.remove('-s')
+        except ValueError:
+            sys.argv.remove('--skip-extra')
+
     schema_tests = tests_factory(make_test_schema_function, path, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()

@@ -121,7 +121,6 @@ class XsdSingleFacet(XsdFacet):
 
     def __init__(self, base_type, elem, schema):
         super(XsdSingleFacet, self).__init__(base_type, elem=elem, schema=schema)
-        self.name = '%s(value=%r)' % (local_name(elem.tag), elem.attrib['value'])
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
 
         # TODO: Add checks with base_type's constraints.
@@ -159,6 +158,11 @@ class XsdSingleFacet(XsdFacet):
                 )
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
+
+    def __repr__(self):
+        return u'%s(%r, value=%r, fixed=%r)' % (
+            self.__class__.__name__, local_name(self.elem.tag), self.value, self.fixed
+        )
 
     def __call__(self, *args, **kwargs):
         for error in self.validator(*args, **kwargs):
@@ -266,7 +270,6 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema):
         XsdFacet.__init__(self, base_type, elem, schema=schema)
-        self.name = '{}(values=%r)'.format(local_name(elem.tag))
         self._elements = []
         self.enumeration = []
         self.append(elem)
@@ -298,10 +301,11 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     def __repr__(self):
         if len(self.enumeration) > 5:
-            enum_repr = '[%s, ...]' % ', '.join(map(repr, self.enumeration[:5]))
+            return u'%s(%r)' % (
+                self.__class__.__name__, '[%s, ...]' % ', '.join(map(repr, self.enumeration[:5]))
+            )
         else:
-            enum_repr = repr(self.enumeration)
-        return u"<%s %r at %#x>" % (self.__class__.__name__, enum_repr, id(self))
+            return u'%s(%r)' % (self.__class__.__name__, self.enumeration)
 
     def __call__(self, value):
         if value not in self.enumeration:
@@ -318,7 +322,6 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     def __init__(self, base_type, elem, schema):
         XsdFacet.__init__(self, base_type, elem, schema=schema)
-        self.name = '{}(patterns=%r)'.format(local_name(elem.tag))
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
         regex = get_python_regex(value)
@@ -350,7 +353,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         self.regexps.insert(i, value)
 
     def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.name % self.regexps, id(self))
+        return u'%s(%r)' % (self.__class__.__name__, self.regexps)
 
     def __call__(self, text):
         if all(pattern.search(text) is None for pattern in self.patterns):

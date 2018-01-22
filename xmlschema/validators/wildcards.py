@@ -13,6 +13,7 @@ This module contains classes for XML Schema wildcards.
 """
 from ..namespaces import get_namespace
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+from .exceptions import XMLSchemaChildrenValidationError
 from .parseutils import get_xsd_attribute, get_xsd_namespace_attribute
 from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
 
@@ -33,6 +34,15 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
     """
     def __init__(self, elem, schema):
         super(XsdAnyElement, self).__init__(elem, schema, is_global=False)
+        self.namespace = get_xsd_namespace_attribute(self.elem)
+        self.process_contents = get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
+        )
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
 
     def _parse(self):
         super(XsdAnyElement, self)._parse()
@@ -45,16 +55,6 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
     @property
     def admitted_tags(self):
         return {XSD_ANY_TAG}
-
-    @property
-    def namespace(self):
-        return get_xsd_namespace_attribute(self.elem)
-
-    @property
-    def process_contents(self):
-        return get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
-        )
 
     def match(self, name):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)
@@ -82,28 +82,38 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
         while True:
             try:
                 namespace = get_namespace(elem[index].tag)
+            except TypeError:
+                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
+                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
+                # decode nothing and take the next.
+                pass
             except IndexError:
-                if model_occurs == 0 and self.min_occurs > 0:
-                    yield self._validation_error(
-                        "a tag from %r expected." % self.namespaces, validation, elem
+                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                    error = XMLSchemaChildrenValidationError(
+                        self, elem, index, expected="from %r namespace" % self.namespaces
                     )
-                yield index
+                    yield self._validation_error(error, validation)
+                else:
+                    yield index
                 return
             else:
-                if not self._is_namespace_allowed(namespace, self.namespace):
-                    yield self._validation_error("%r not allowed." % namespace, validation, elem)
+                if validation != 'skip' and not self._is_namespace_allowed(namespace, self.namespace):
+                    error = XMLSchemaChildrenValidationError(self, elem, index)
+                    yield self._validation_error(error, validation)
 
                 try:
                     xsd_element = self.maps.lookup_element(elem[index].tag)
                 except LookupError:
-                    if process_contents == 'strict':
+                    if validation != 'skip' and process_contents == 'strict':
                         yield self._validation_error(
                             "cannot retrieve the schema for %r" % elem[index], validation, elem
                         )
+                    yield None, elem[index]
                 else:
                     if process_contents != 'skip':
-                        for obj in xsd_element.iter_decode_children(elem, index, validation):
-                            yield obj
+                        yield xsd_element, elem[index]
+                    else:
+                        yield None, elem[index]
 
             index += 1
             model_occurs += 1
@@ -145,6 +155,15 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
     """
     def __init__(self, elem, schema):
         super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False)
+        self.namespace = get_xsd_namespace_attribute(self.elem)
+        self.process_contents = get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
+        )
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
 
     @property
     def built(self):
@@ -153,16 +172,6 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
     @property
     def admitted_tags(self):
         return {XSD_ANY_ATTRIBUTE_TAG}
-
-    @property
-    def namespace(self):
-        return get_xsd_namespace_attribute(self.elem)
-
-    @property
-    def process_contents(self):
-        return get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
-        )
 
     def match(self, name):
         return self._is_namespace_allowed(get_namespace(name), self.namespace)
@@ -176,12 +185,12 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
                 try:
                     xsd_attribute = self.maps.lookup_attribute(name)
                 except LookupError:
-                    if self.process_contents == 'strict':
+                    if self.process_contents == 'strict' and validation != 'skip':
                         yield self._validation_error("attribute %r not found." % name, validation, attrs)
                 else:
                     for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                         yield result
-            else:
+            elif validation != 'skip':
                 yield self._validation_error("attribute %r not allowed." % name, validation, attrs)
 
 

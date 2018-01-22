@@ -30,8 +30,8 @@ class TestResources(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_dir = os.path.dirname(__file__)
-        cls.xs1 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "examples/vehicles/vehicles.xsd"))
-        cls.xs2 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "examples/collection/collection.xsd"))
+        cls.xs1 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "cases/examples/vehicles/vehicles.xsd"))
+        cls.xs2 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "cases/examples/collection/collection.xsd"))
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
@@ -40,10 +40,13 @@ class TestResources(unittest.TestCase):
         self.assertTrue(xmlschema.normalize_url(url1, base_url="/path_my_schema/schema.xsd") == url1)
 
     def test_fetch_resource(self):
-        wrong_path = os.path.join(self.test_dir, 'examples/resources/issue017.txt')
+        wrong_path = os.path.join(self.test_dir, 'resources/dummy_file.txt')
         self.assertRaises(xmlschema.XMLSchemaURLError, xmlschema.fetch_resource, wrong_path)
-        right_path = os.path.join(self.test_dir, 'examples/resources/issue 017.txt')
-        self.assertTrue(xmlschema.fetch_resource(right_path).endswith('e%20017.txt'))
+        right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
+        self.assertTrue(xmlschema.fetch_resource(right_path).endswith('y%20file.txt'))
+
+    def test_get_namespace(self):
+        self.assertFalse(xmlschema.etree_get_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
 
 
 if __name__ == '__main__':

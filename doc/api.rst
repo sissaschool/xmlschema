@@ -4,40 +4,8 @@ API Documentation
 Module level API
 ----------------
 
-.. function:: validate(xml_document, schema=None, cls=None, use_defaults=True)
-
-    Validates an XML document against a schema instance. This function builds an
-    :class:`XMLSchema` object for validating the XML document. Raises an
-    :exc:`XMLSchemaValidationError` if the XML document is not validated against
-    the schema.
-
-    *xml_document* can be a file-like object or a string containing the XML data
-    or a file path or an URI of a resource or an ElementTree/Element instance.
-    *schema* can be a file-like object or a file path or an URI of a resource or
-    a string containing the schema. *cls* is the schema class to use for building
-    the instance (default is :class:`XMLSchema`). *use_defaults* defines when to
-    use elements and attribute defaults for filling missing required values.
-
-.. function:: to_dict(xml_document, schema=None, cls=None, path=None, \
-              process_namespaces=True, **kwargs)
-
-    Decodes an XML document to a Python's nested dictionary. The decoding is based
-    on an XML Schema class instance. For default the document is validated during
-    the decode phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
-    is not validated against the schema.
-
-    *xml_document* can be a file-like object or a string containing the XML data
-    or a file path or an URI of a resource or an ElementTree/Element instance.
-    *schema* can be a file-like object or a file path or an URI of a resource or
-    a string containing the schema. *cls* is the schema class to use for building
-    the instance (default is :class:`XMLSchema`). *path* is an optional XPath
-    expression that matches the subelement of the document that have to be decoded.
-    The XPath expression considers the schema as the root element with global elements
-    as its children.
-    *process_namespaces* indicates whether to get the namespaces from the XML
-    document and use them in the decoding process. With *kwargs* you can provide
-    the optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments
-    to variate the decoding process.
+.. autofunction:: xmlschema.validate
+.. autofunction:: xmlschema.to_dict
 
 
 Schema level API
@@ -125,23 +93,25 @@ to JSON data.
     Converter class for JsonML convention.
 
 
+Resource access API
+-------------------
+
+.. autofunction:: xmlschema.fetch_resource
+.. autofunction:: xmlschema.fetch_schema
+.. autofunction:: xmlschema.fetch_schema_locations
+.. autofunction:: xmlschema.load_xml_resource
+.. autofunction:: xmlschema.normalize_url
+
+
 Errors and exceptions
 ---------------------
 
 .. autoexception:: xmlschema.XMLSchemaException
-
 .. autoexception:: xmlschema.XMLSchemaNotBuiltError
-
 .. autoexception:: xmlschema.XMLSchemaParseError
-
 .. autoexception:: xmlschema.XMLSchemaRegexError
-
 .. autoexception:: xmlschema.XMLSchemaXPathError
-
 .. autoexception:: xmlschema.XMLSchemaValidationError
-
-.. autoexception:: xmlschema.XMLSchemaChildrenValidationError
-
 .. autoexception:: xmlschema.XMLSchemaDecodeError
-
 .. autoexception:: xmlschema.XMLSchemaEncodeError
+.. autoexception:: xmlschema.XMLSchemaChildrenValidationError

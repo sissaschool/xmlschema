@@ -198,7 +198,7 @@ class UnicodeSubset(MutableSet):
         return u"<%s %r at %d>" % (self.__class__.__name__, str(self._code_points), id(self))
 
     def __str__(self):
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):

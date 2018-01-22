@@ -32,10 +32,10 @@ def split_path(path):
 def get_xpath_tokenizer_pattern(symbols):
     tokenizer_pattern_template = r"""
         ('[^']*' | "[^"]*" | \d+(?:\.\d?)? | \.\d+) |   # Literals (strings or numbers)
-        (%s|[%s]) |                                   # Symbols
-        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |                # References and other names   
+        (%s|[%s]) |                                     # Symbols
+        ((?:{[^}]+\})?[^/\[\]()@=|\s]+) |               # References and other names   
         \s+                                             # Skip extra spaces
-        """
+    """
 
     def tokens_escape(s):
         s = re.escape(s)

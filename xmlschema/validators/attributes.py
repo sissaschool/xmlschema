@@ -62,7 +62,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         elem = self.elem
         self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
-        if self.default and self.fixed:
+        if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive")
         self._parse_properties('form', 'use')
 
@@ -94,7 +94,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = self._BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
+                xsd_type = self.schema.BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
             else:
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
@@ -127,11 +127,11 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
 
     @property
     def default(self):
-        return self.elem.get('default', '')
+        return self.elem.get('default')
 
     @property
     def fixed(self):
-        return self.elem.get('fixed', '')
+        return self.elem.get('fixed')
 
     @property
     def ref(self):
@@ -165,7 +165,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
-        if self.fixed and text != self.fixed:
+        if self.fixed is not None and text != self.fixed:
             error = XMLSchemaValidationError(self, text, "value differs from fixed value")
             if validation == 'strict':
                 raise error
@@ -223,6 +223,16 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         self._attribute_group = dict()
         self.base_attributes = base_attributes
         XsdAnnotated.__init__(self, elem, schema, name, is_global)
+
+    def __repr__(self):
+        if self.name is not None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        elif self:
+            return u'%s(%r)' % (
+                self.__class__.__name__, [a if a.name is None else a.prefixed_name for a in self.values()]
+            )
+        else:
+            return u'%s()' % self.__class__.__name__
 
     # Implements the abstract methods of MutableMapping
     def __getitem__(self, key):

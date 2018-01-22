@@ -77,8 +77,8 @@ class XMLSchemaMeta(type):
         builders = dict_.pop('builders')
         meta_schema = dict_.pop('meta_schema')
         dict_['XSD_VERSION'] = dict_.pop('xsd_version')
-        dict_['_FACETS'] = dict_.pop('facets') or ()
-        dict_['_BUILDERS'] = namedtuple('Builders', builders)(**builders)
+        dict_['FACETS'] = dict_.pop('facets') or ()
+        dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
 
         # Build the meta-schema class
         meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, '%s_META_SCHEMA' % name, (XMLSchemaBase,), dict_)
@@ -162,15 +162,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
     """
     XSD_VERSION = None
     META_SCHEMA = None
-    _FACETS = None
-    _BUILDERS = ()
+    FACETS = None
+    BUILDERS = ()
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, build=True):
-        if locations is True or locations is False:
-            raise RuntimeError()
-
         try:
             self.root, self.text, self.url = load_xml_resource(source, element_only=False)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
@@ -289,7 +286,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
             self.maps.build()
 
     def __repr__(self):
-        return u"<%s '%s' at %#x>" % (self.__class__.__name__, self.target_namespace, id(self))
+        return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
         if name == 'root' and value.tag != XSD_SCHEMA_TAG:
@@ -581,22 +578,24 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
             if not isinstance(xsd_element, XsdElement):
                 msg = "%r is not a global element of the schema!" % xml_root.tag
                 yield XMLSchemaValidationError(self, xml_root, reason=msg)
-            for obj in xsd_element.iter_decode(
-                    xml_root, validation, use_defaults=use_defaults,
-                    decimal_type=decimal_type, element_decode_hook=element_decode_hook):
-                yield obj
+            else:
+                for obj in xsd_element.iter_decode(
+                        xml_root, validation, use_defaults=use_defaults,
+                        decimal_type=decimal_type, element_decode_hook=element_decode_hook):
+                    yield obj
         else:
             xsd_element = self.find(path, namespaces=_namespaces)
             if not isinstance(xsd_element, XsdElement):
                 msg = "the path %r doesn't match any element of the schema!" % path
                 obj = xml_root.findall(path, namespaces=_namespaces) or xml_root
                 yield XMLSchemaValidationError(self, obj, reason=msg)
-            rel_path = relative_path(path, 1, _namespaces)
-            for elem in xml_root.findall(rel_path, namespaces=_namespaces):
-                for obj in xsd_element.iter_decode(
-                        elem, validation, use_defaults=use_defaults,
-                        decimal_type=decimal_type, element_decode_hook=element_decode_hook):
-                    yield obj
+            else:
+                rel_path = relative_path(path, 1, _namespaces)
+                for elem in xml_root.findall(rel_path, namespaces=_namespaces):
+                    for obj in xsd_element.iter_decode(
+                            elem, validation, use_defaults=use_defaults,
+                            decimal_type=decimal_type, element_decode_hook=element_decode_hook):
+                        yield obj
 
     def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
                     element_class=None, converter=None):

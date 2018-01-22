@@ -116,7 +116,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS
+        return self.schema.FACETS
 
     @property
     def final(self):
@@ -214,7 +214,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
                 raise XMLSchemaParseError("'minInclusive' must be less or equal to 'maxInclusive'", self)
             elif max_exclusive is not None and min_inclusive >= max_exclusive:
                 raise XMLSchemaParseError("'minInclusive' must be lesser than 'maxExclusive'", self)
-            min_value = max_inclusive
+            min_value = min_inclusive
         elif min_exclusive is not None:
             if max_inclusive is not None and min_exclusive >= max_inclusive:
                 raise XMLSchemaParseError("'minExclusive' must be lesser than 'maxInclusive'", self)
@@ -270,7 +270,7 @@ class XsdSimpleType(XsdAnnotated, ValidatorMixin):
         yield text
 
     def iter_encode(self, text, validation='lax', **kwargs):
-        if not isinstance(text, (str, unicode_type)):
+        if not isinstance(text, (str, unicode_type)) and validation != 'skip':
             error = XMLSchemaEncodeError(self, text, unicode_type)
             yield self._validation_error(error, validation)
 
@@ -314,6 +314,12 @@ class XsdAtomic(XsdSimpleType):
         elif not self.facets and facets:
             self.facets = facets
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(primitive_type=%r)' % (self.__class__.__name__, self.primitive_type.local_name)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         super(XsdAtomic, self).__setattr__(name, value)
         if name in ('base_type', 'white_space'):
@@ -355,7 +361,7 @@ class XsdAtomic(XsdSimpleType):
             return XSD_FACETS.union({None})
         else:
             try:
-                return self.schema._FACETS.intersection(facets)
+                return self.schema.FACETS.intersection(facets)
             except AttributeError:
                 return set(primitive_type.facets.keys()).union({None})
 
@@ -407,6 +413,9 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.python_type = python_type
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
+
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def _parse(self):
         return
@@ -489,6 +498,12 @@ class XsdList(XsdSimpleType):
         elif not self.facets and facets:
             self.facets = facets
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(item_type=%r)' % (self.__class__.__name__, self.item_type)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if value.tag != XSD_LIST_TAG:
@@ -544,7 +559,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS.intersection(LIST_FACETS)
+        return self.schema.FACETS.intersection(LIST_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -619,6 +634,12 @@ class XsdUnion(XsdSimpleType):
         elif not self.facets and facets:
             self.facets = facets
 
+    def __repr__(self):
+        if self.name is None:
+            return u'%s(member_types=%r)' % (self.__class__.__name__, self.member_types)
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if value.tag != XSD_UNION_TAG:
@@ -682,7 +703,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._FACETS.intersection(UNION_FACETS)
+        return self.schema.FACETS.intersection(UNION_FACETS)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -708,9 +729,12 @@ class XsdUnion(XsdSimpleType):
                     yield result
                     return
 
-        error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
-        yield self._validation_error(error, validation)
-        yield unicode_type(text) if validation == 'skip' else None
+        if validation != 'skip':
+            error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
+            yield self._validation_error(error, validation)
+            yield None
+        else:
+            yield unicode_type(text)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for member_type in self.member_types:
@@ -723,9 +747,12 @@ class XsdUnion(XsdSimpleType):
                     yield result
                     return
 
-        error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")
-        yield self._validation_error(error, validation)
-        yield unicode_type(obj) if validation == 'skip' else None
+        if validation != 'skip':
+            error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")
+            yield self._validation_error(error, validation)
+            yield None
+        else:
+            yield unicode_type(obj)
 
 
 class XsdAtomicRestriction(XsdAtomic):
@@ -792,7 +819,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 else:
                     if base_type.is_complex() and base_type.admit_simple_restriction():
                         content_type = xsd_simple_type_factory(child, self.schema)
-                        base_type = self._BUILDERS.complex_type_class(
+                        base_type = self.schema.BUILDERS.complex_type_class(
                             elem=elem,
                             schema=self.schema,
                             content_type=content_type,
@@ -801,7 +828,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             mixed=base_type.mixed
                         )
                 has_simple_type_child = True
-            elif child.tag not in self.schema._FACETS:
+            elif child.tag not in self.schema.FACETS:
                 raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:

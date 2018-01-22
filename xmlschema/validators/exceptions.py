@@ -107,7 +107,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             reason = "The content of element %r is not complete." % elem_ref
         else:
             child_ref = qname_to_prefixed(elem[index].tag, validator.namespaces)
-            reason = "The child n.%d of element %r has a unexpected tag %r." % (index, elem_ref, child_ref)
+            reason = "The child n.%d of element %r has a unexpected tag %r." % (index+1, elem_ref, child_ref)
 
         if isinstance(expected, (list, tuple)):
             if len(expected) > 1:

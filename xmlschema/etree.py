@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains ElementTree setup for xmlschema package.
+This module contains ElementTree setup and helpers for xmlschema package.
 """
 from xml.etree import ElementTree
 from .compat import PY3, StringIO
@@ -35,7 +35,7 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
     if PY3:
         lines = ElementTree.tostring(elem, encoding="unicode").splitlines()
     else:
-        # noinspection PyCompatibility
+        # noinspection PyCompatibility,PyUnresolvedReferences
         lines = unicode(ElementTree.tostring(elem)).splitlines()
     while lines and not lines[-1].strip():
         lines.pop(-1)
@@ -80,7 +80,7 @@ def etree_get_namespaces(source):
                     if node[0] not in nsmap:
                         nsmap[node[0]] = node[1]
         return nsmap
-    except TypeError:
+    except (TypeError, ElementTree.ParseError):
         try:
             if hasattr(source, 'getroot'):
                 return {k if k is not None else '': v for k, v in source.getroot().nsmap.items()}
@@ -122,3 +122,11 @@ def etree_getpath(elem, root):
     for e, path in etree_iterpath(root, tag=elem.tag):
         if e is elem:
             return path
+
+
+def etree_child_index(elem, child):
+    """Return the index or raise ValueError if it is not a *child* of *elem*."""
+    for index in range(len(elem)):
+        if elem[index] is child:
+            return index
+    raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))

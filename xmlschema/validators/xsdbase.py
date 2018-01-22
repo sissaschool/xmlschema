@@ -130,17 +130,25 @@ class XsdComponent(XsdBaseComponent):
                     "cannot change 'schema' attribute of %r: the actual %r has a different "
                     "target namespace than %r." % (self, self.schema, value)
                 )
-            self._BUILDERS = value._BUILDERS
-            self.target_namespace = value.target_namespace
-            self.namespaces = value.namespaces
-            self.maps = value.maps
         super(XsdComponent, self).__setattr__(name, value)
 
+    @property
+    def target_namespace(self):
+        return self.schema.target_namespace
+
+    @property
+    def namespaces(self):
+        return self.schema.namespaces
+
+    @property
+    def maps(self):
+        return self.schema.maps
+
     def __repr__(self):
-        if self.name:
-            return u"<%s %r at %#x>" % (self.__class__.__name__, self.name, id(self))
-        else:
+        if self.name is None:
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
+        else:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
