@@ -20,7 +20,8 @@ setup(
     package_data={'xmlschema': [
         'unicode_categories.json',
         'validators/schemas/*.xsd', 'validators/schemas/*/*.xsd',
-        'tests/test_all.sh', 'tests/examples/*', 'tests/examples/*/*', 'tests/examples/*/*/*'
+        'tests/test_all.sh', 'tests/cases/*', 'tests/cases/*/*',
+        'tests/cases/*/*/*', 'tests/resources/*'
     ]},
     author='Davide Brunato',
     author_email='brunato@sissa.it',

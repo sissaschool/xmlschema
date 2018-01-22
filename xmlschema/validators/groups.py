@@ -328,11 +328,10 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                             "the iteration cannot ends with a validation error, an integer expected.")
                     break
 
-
             if elem[-1] is not child:
                 # residual content not validated by the model: generate an error and perform a raw decoding
                 start_index = 0 if child is None else etree_child_index(elem, child) + 1
-                if validation != 'skip':
+                if validation != 'skip' and self:
                     error = XMLSchemaChildrenValidationError(self, elem, start_index)
                     yield self._validation_error(error, validation)
 
@@ -352,7 +351,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                                     cdata_index += 1
                             break
                     else:
-                        if validation != 'skip' and index > start_index:
+                        if validation != 'skip' and self and index > start_index:
                             error = XMLSchemaChildrenValidationError(self, elem, index)
                             yield self._validation_error(error, validation)
 

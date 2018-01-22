@@ -60,7 +60,7 @@ author = 'Davide Brunato'
 # built documents.
 #
 # The short X.Y version.
-version = '0.9'
+version = '0.9.19'
 # The full version, including alpha/beta/rc tags.
 release = '0.9.19'
 

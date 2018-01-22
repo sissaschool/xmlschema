@@ -4,8 +4,11 @@ CHANGELOG
 
 v0.9.19
 =======
+* Substitution groups support
 * Added *fetch_schema_locations* function to API
 * Added *locations* argument to *fetch_schema*, *validate* and *to_dict* API functions
+* A more useful __repr__ for XSD component classes
+* Fixes for issues #35, #38, #39
 
 v0.9.18
 =======

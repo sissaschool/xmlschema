@@ -421,6 +421,13 @@ class TestDecoding(unittest.TestCase):
         self.assertTrue(type(xml_data_1['bar']) == type(xml_data_2['bar']),
                         msg="XSD with an array that return a single element from xml must still yield a list.")
 
+    def test_any_type(self):
+        any_type = xmlschema.XMLSchema.META_SCHEMA.types['anyType']
+        xml_data_1 = _ElementTree.Element('dummy')
+        self.assertEqual(any_type.decode(xml_data_1), (None, [], []))
+        xml_data_2 = _ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
+        self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header, tests_factory
