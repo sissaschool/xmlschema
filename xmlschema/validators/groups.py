@@ -351,9 +351,17 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                                     cdata_index += 1
                             break
                     else:
-                        if validation != 'skip' and self and index > start_index:
+                        if validation == 'skip':
+                            pass
+                            # yield "puppet decoder" nel caso che non sia specificato un namespace
+                            # Se specificato uno schema via xsi tenta di recuperarlo ...
+                            print(elem[index])
+                        elif self and index > start_index:
                             error = XMLSchemaChildrenValidationError(self, elem, index)
                             yield self._validation_error(error, validation)
+                            # yield None....
+
+
 
         elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable

@@ -313,10 +313,15 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         Generator method for decoding elements. A data structure is returned, eventually
         preceded by a sequence of validation or decode errors.
         """
-        element_decode_hook = kwargs.get('element_decode_hook')
-        if element_decode_hook is None:
-            element_decode_hook = self.schema.get_converter().element_decode
-            kwargs['element_decode_hook'] = element_decode_hook
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.schema.get_converter(
+                namespaces=kwargs.get('namespaces'),
+                dict_class=kwargs.get('dict_class'),
+                list_class=kwargs.get('list_class'),
+            )
+
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
@@ -343,7 +348,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
-                    yield element_decode_hook(ElementData(elem.tag, *result), self)
+                    yield converter.element_decode(ElementData(elem.tag, *result), self)
                     del result
         else:
             # simpleType
@@ -376,7 +381,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
-                        yield element_decode_hook(ElementData(elem.tag, result, None, attributes), self)
+                        yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
                         del result
 
         if validation != 'skip':

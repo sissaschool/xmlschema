@@ -204,8 +204,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
-        self.converter = self.get_converter(converter)
-
         self.locations = NamespaceResourcesMap()
         if locations:
             self.locations.update(locations)  # Insert locations argument first
@@ -217,6 +215,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
         if '' not in self.namespaces:
             # For default local names are mapped to targetNamespace
             self.namespaces[''] = self.target_namespace
+
+        self.converter = self.get_converter(converter)
 
         # Validate the schema document
         if self.META_SCHEMA is None:
@@ -447,9 +447,11 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
     def get_converter(self, converter=None, namespaces=None, dict_class=None, list_class=None):
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
-        if namespaces:
-            for prefix, _uri in namespaces.items():
-                etree_register_namespace(prefix, _uri)
+        if namespaces is None:
+            namespaces = self.namespaces
+
+        for prefix, _uri in namespaces.items():
+            etree_register_namespace(prefix, _uri)
 
         if isinstance(converter, XMLSchemaConverter):
             converter = converter.copy()
@@ -461,7 +463,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
                 converter.list = list_class
             return converter
         elif issubclass(converter, XMLSchemaConverter):
-                return converter(namespaces, dict_class, list_class)
+            return converter(namespaces, dict_class, list_class)
         else:
             msg = "'converter' argument must be a %r subclass or instance: %r"
             raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
@@ -549,16 +551,11 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
 
         if process_namespaces:
-            # Considers namespaces extracted from the XML document first,
-            # then from the argument and at last from the schema.
-            _namespaces = {k: v for k, v in self.namespaces.items() if k != ''}
-            if namespaces:
-                _namespaces.update(namespaces)
-            _namespaces.update(etree_get_namespaces(xml_document))
+            namespaces = {} if namespaces is None else namespaces.copy()
+            namespaces.update(etree_get_namespaces(xml_document))
+            converter = self.get_converter(converter, namespaces, dict_class, list_class)
         else:
-            _namespaces = {}
-        _converter = self.get_converter(converter, _namespaces, dict_class, list_class)
-        element_decode_hook = _converter.element_decode
+            converter = self.get_converter(converter, {}, dict_class, list_class)
 
         try:
             xml_root = xml_document.getroot()
@@ -574,27 +571,39 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
                 )
 
         if path is None:
-            xsd_element = self.find(xml_root.tag, namespaces=_namespaces)
+            xsd_element = self.find(xml_root.tag, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
                 msg = "%r is not a global element of the schema!" % xml_root.tag
                 yield XMLSchemaValidationError(self, xml_root, reason=msg)
             else:
                 for obj in xsd_element.iter_decode(
-                        xml_root, validation, use_defaults=use_defaults,
-                        decimal_type=decimal_type, element_decode_hook=element_decode_hook):
+                        xml_root, validation,
+                        process_namespaces=process_namespaces,
+                        namespaces=namespaces,
+                        use_defaults=use_defaults,
+                        decimal_type=decimal_type,
+                        converter=converter,
+                        dict_class=dict_class,
+                        list_class=list_class):
                     yield obj
         else:
-            xsd_element = self.find(path, namespaces=_namespaces)
+            xsd_element = self.find(path, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
                 msg = "the path %r doesn't match any element of the schema!" % path
-                obj = xml_root.findall(path, namespaces=_namespaces) or xml_root
+                obj = xml_root.findall(path, namespaces=namespaces) or xml_root
                 yield XMLSchemaValidationError(self, obj, reason=msg)
             else:
-                rel_path = relative_path(path, 1, _namespaces)
-                for elem in xml_root.findall(rel_path, namespaces=_namespaces):
+                rel_path = relative_path(path, 1, namespaces)
+                for elem in xml_root.findall(rel_path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
-                            elem, validation, use_defaults=use_defaults,
-                            decimal_type=decimal_type, element_decode_hook=element_decode_hook):
+                            elem, validation,
+                            process_namespaces=process_namespaces,
+                            namespaces=namespaces,
+                            use_defaults=use_defaults,
+                            decimal_type=decimal_type,
+                            converter=converter,
+                            dict_class=dict_class,
+                            list_class=list_class):
                         yield obj
 
     def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
