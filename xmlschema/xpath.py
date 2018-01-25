@@ -16,7 +16,7 @@ from decimal import Decimal
 from collections import MutableSequence
 from abc import ABCMeta
 
-from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError
+from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError, XMLSchemaValueError
 from .qnames import reference_to_qname
 
 
@@ -53,6 +53,10 @@ def get_xpath_tokenizer_pattern(symbols):
     )
 
 
+XPATH_2_ADDITIONAL_SYMBOLS = [
+    'union'
+]
+
 XPATH_SYMBOLS = [
     'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
     'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
@@ -64,10 +68,8 @@ XPATH_SYMBOLS = [
     # XPath Core function library
     'last(', 'position(',  # Node set functions
     'not(', 'true(', 'false('  # Boolean functions
-    
-    # added in XPath 2.0
-    'union'
-]
+] + XPATH_2_ADDITIONAL_SYMBOLS
+
 
 RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
     '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
@@ -85,16 +87,16 @@ class TokenMeta(ABCMeta):
     """
     registry = {}
 
-    def __new__(mcs, name, bases, _dict):
-        _dict['name'] = name
-        lbp = _dict['lbp'] = _dict.pop('lbp', 0)
-        nud = _dict.pop('nud', None)
-        led = _dict.pop('led', None)
+    def __new__(mcs, name, bases, dict_):
+        dict_['name'] = name
+        lbp = dict_['lbp'] = dict_.pop('lbp', 0)
+        nud = dict_.pop('nud', None)
+        led = dict_.pop('led', None)
 
         try:
             token_class = mcs.registry[name]
         except KeyError:
-            token_class = super(TokenMeta, mcs).__new__(mcs, "_%s_Token" % name, bases, _dict)
+            token_class = super(TokenMeta, mcs).__new__(mcs, "_%s_Token" % name, bases, dict_)
         else:
             if lbp > token_class.lbp:
                 token_class.lbp = lbp
@@ -106,9 +108,9 @@ class TokenMeta(ABCMeta):
 
         return token_class
 
-    def __init__(cls, name, bases, _dict):
-        cls.registry[_dict['name']] = cls
-        super(TokenMeta, cls).__init__(name, bases, _dict)
+    def __init__(cls, name, bases, dict_):
+        cls.registry[dict_['name']] = cls
+        super(TokenMeta, cls).__init__(name, bases, dict_)
 
 
 class Token(MutableSequence):
@@ -690,12 +692,12 @@ class XPathParser(object):
 
     :param path: XPath expression.
     :param namespaces: optional prefix to namespace map.
-    :param token_table: Dictionary with XPath grammar's tokens. \
-    If `None` use the module registered token table.
+    :param version: XPath version to use.
+    :param exclude: A sequence of token symbols to be excluded from parsing.
     """
     NOT_ALLOWED_OPERATORS = set()
 
-    def __init__(self, path, namespaces=None, token_table=None):
+    def __init__(self, path, namespaces=None, version=2, exclude=None):
         if not path:
             raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
@@ -705,7 +707,14 @@ class XPathParser(object):
 
         self.path = path
         self.namespaces = namespaces if namespaces is not None else {}
-        self.token_table = token_table or TokenMeta.registry
+        self.version = version
+
+        exclude = list(exclude) if exclude is not None else []
+        if version == 1:
+            exclude = exclude + XPATH_2_ADDITIONAL_SYMBOLS
+        elif version != 2:
+            raise XMLSchemaValueError("argument 'version' can be 1 or 2.")
+        self.token_table = {k: v for k, v in TokenMeta.registry.items() if k not in exclude}
 
     def __iter__(self):
         self._tokens = iter(xpath_tokens_regex.finditer(self.path))
