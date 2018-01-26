@@ -53,11 +53,7 @@ def get_xpath_tokenizer_pattern(symbols):
     )
 
 
-XPATH_2_ADDITIONAL_SYMBOLS = [
-    'union'
-]
-
-XPATH_SYMBOLS = [
+XPATH_1_RESTRICTED_SYMBOLS = [
     'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
     'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
     'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
@@ -66,16 +62,27 @@ XPATH_SYMBOLS = [
     '-', '=', '+', '<', '>',
 
     # XPath Core function library
-    'last(', 'position(',  # Node set functions
+    'last(', 'position(',      # Node set functions
     'not(', 'true(', 'false('  # Boolean functions
-] + XPATH_2_ADDITIONAL_SYMBOLS
+]
+
+XPATH_1_SYMBOLS = XPATH_1_RESTRICTED_SYMBOLS + [
+    'count(', 'id(', 'local-name(', 'namespace-uri(', 'name(',  # Node set functions
+    'string(', 'concat(', 'starts-with(', 'contains(',          # String functions
+    'substring-before(', 'substring-after(', 'substring(',
+    'string-length(', 'normalize-space(', 'translate(',
+    'boolean(',                                                 # Boolean functions
+
+]
+
+XPATH_2_SYMBOLS = XPATH_1_SYMBOLS + [
+    'union', 'intersect',
+]
 
 
-RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
+RELATIVE_PATH_TOKENS = {s for s in XPATH_2_SYMBOLS if s.endswith("::")} | {
     '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
 }
-
-xpath_tokens_regex = re.compile(get_xpath_tokenizer_pattern(XPATH_SYMBOLS), re.VERBOSE)
 
 
 #
@@ -684,20 +691,32 @@ def position_token_nud(self):
     return self
 
 
+class XPathParserMeta(ABCMeta):
+    """
+    XPathParser metaclass for creating versioned parsers.
+    """
+    def __init__(cls, name, bases, dict_):
+        cls.VERSION = dict_.pop('version', 1)
+        cls.token_table = dict_.pop('token_table', None)
+        cls._tokenizer_pattern = re.compile(get_xpath_tokenizer_pattern(XPATH_2_SYMBOLS), re.VERBOSE)
+        cls._NOT_ALLOWED_OPERATORS = {k for k in TokenMeta.registry if k not in cls.token_table}
+        super(XPathParserMeta, cls).__init__(name, bases, dict_)
+
 #
 # XPath parser classes
-class XPathParser(object):
+class XPathParserBase(object):
     """
     XPath expression iterator parser class.
 
     :param path: XPath expression.
     :param namespaces: optional prefix to namespace map.
-    :param version: XPath version to use.
-    :param exclude: A sequence of token symbols to be excluded from parsing.
     """
-    NOT_ALLOWED_OPERATORS = set()
+    __metaclass__ = XPathParserMeta
+    token_table = None
+    _tokenizer_pattern = None
+    _NOT_ALLOWED_OPERATORS = None
 
-    def __init__(self, path, namespaces=None, version=2, exclude=None):
+    def __init__(self, path, namespaces=None):
         if not path:
             raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
@@ -707,17 +726,9 @@ class XPathParser(object):
 
         self.path = path
         self.namespaces = namespaces if namespaces is not None else {}
-        self.version = version
-
-        exclude = list(exclude) if exclude is not None else []
-        if version == 1:
-            exclude = exclude + XPATH_2_ADDITIONAL_SYMBOLS
-        elif version != 2:
-            raise XMLSchemaValueError("argument 'version' can be 1 or 2.")
-        self.token_table = {k: v for k, v in TokenMeta.registry.items() if k not in exclude}
 
     def __iter__(self):
-        self._tokens = iter(xpath_tokens_regex.finditer(self.path))
+        self._tokens = iter(self._tokenizer_pattern.finditer(self.path))
 
     def __next__(self):
         token = self.advance()
@@ -747,7 +758,7 @@ class XPathParser(object):
                     except KeyError:
                         raise XMLSchemaXPathError("unknown operator %r." % operator)
                     else:
-                        if operator in self.NOT_ALLOWED_OPERATORS:
+                        if operator in self._NOT_ALLOWED_OPERATORS:
                             raise XMLSchemaXPathError("not allowed operator %r." % operator)
                     break
                 elif literal is not None:
@@ -780,6 +791,22 @@ class XPathParser(object):
             next_token.unexpected()
         return root_token
 
+
+def create_xpath_parser(version, symbols):
+    return XPathParserMeta(
+        'XPath1Parser',
+        (XPathParserBase,),
+        {
+            'version': version,
+            'token_table': {
+                k: v for k, v in TokenMeta.registry.items()
+                if k in symbols or k in {'(integer)', '(string)', '(decimal)', '(ref)', '(end)'}
+            }
+        }
+    )
+
+
+XPathParser = create_xpath_parser(version=1, symbols=XPATH_1_RESTRICTED_SYMBOLS)
 
 _selector_cache = {}
 
