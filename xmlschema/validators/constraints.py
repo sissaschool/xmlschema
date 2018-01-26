@@ -17,31 +17,44 @@ from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
-from ..xpath import XPathParser
+from ..xpath import create_xpath_parser
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .xsdbase import XsdAnnotated
 
 
-class XsdPathSelector(XsdAnnotated):
+XsdSelectorXPathParser = create_xpath_parser(
+    name='XsdSelectorXPathParser',
+    version=1,
+    symbols=[
+        'processing-instruction(', 'descendant-or-self::', 'following-sibling::', 'preceding-sibling::',
+        'ancestor-or-self::', 'descendant::', 'attribute::', 'following::', 'namespace::', 'preceding::',
+        'ancestor::', 'position(', 'comment(', 'parent::', 'child::', 'self::', 'false(', 'text(', 'node(',
+        'true(', 'last(', 'not(', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[',
+        ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>'
+    ]
+)
+
+
+class XsdSelector(XsdAnnotated):
 
     def __init__(self, elem, schema):
-        super(XsdPathSelector, self).__init__(elem, schema)
+        super(XsdSelector, self).__init__(elem, schema)
 
     def _parse(self):
-        super(XsdPathSelector, self)._parse()
+        super(XsdSelector, self)._parse()
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
             self._parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
 
-        parser = XPathParser(self.path, self.namespaces)
+        parser = XsdSelectorXPathParser(self.path, self.namespaces)
         try:
             self._selector = parser.parse()
         except XMLSchemaParseError as err:
             self._parse_error("invalid XPath expression: %s" % str(err), self.elem)
-            self._selector = XPathParser("*").parse()
+            self._selector = XsdSelectorXPathParser("*").parse()
 
     def __repr__(self):
         return u'%s(path=%r)' % (self.__class__.__name__, self.path)
@@ -52,10 +65,17 @@ class XsdPathSelector(XsdAnnotated):
 
     @property
     def admitted_tags(self):
-        return {XSD_SELECTOR_TAG, XSD_FIELD_TAG}
+        return {XSD_SELECTOR_TAG}
 
     def iter_select(self, context):
         return self._selector.iter_select(context)
+
+
+class XsdFieldSelector(XsdSelector):
+
+    @property
+    def admitted_tags(self):
+        return {XSD_FIELD_TAG}
 
 
 class XsdConstraint(XsdAnnotated):
@@ -77,12 +97,12 @@ class XsdConstraint(XsdAnnotated):
             self._parse_error("missing 'selector' declaration.", elem)
             self.selector = None
         else:
-            self.selector = XsdPathSelector(child, self.schema)
+            self.selector = XsdSelector(child, self.schema)
 
         self.fields = []
         for child in self._iterparse_components(elem, start=int(self.selector is not None)):
             if child.tag == XSD_FIELD_TAG:
-                self.fields.append(XsdPathSelector(child, self.schema))
+                self.fields.append(XsdFieldSelector(child, self.schema))
             else:
                 self._parse_error("element %r not allowed here:" % child.tag, elem)
 

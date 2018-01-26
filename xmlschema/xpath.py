@@ -16,7 +16,7 @@ from decimal import Decimal
 from collections import MutableSequence
 from abc import ABCMeta
 
-from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError, XMLSchemaValueError
+from .exceptions import XMLSchemaXPathError, XMLSchemaSyntaxError
 from .qnames import reference_to_qname
 
 
@@ -53,7 +53,10 @@ def get_xpath_tokenizer_pattern(symbols):
     )
 
 
-XPATH_1_RESTRICTED_SYMBOLS = [
+##
+# XPath 1.0 and 2.0 symbols (functions are followed by '(' and axis are followed by '::'
+#
+XPATH_1_SYMBOLS = [
     'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
     'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
     'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
@@ -62,23 +65,17 @@ XPATH_1_RESTRICTED_SYMBOLS = [
     '-', '=', '+', '<', '>',
 
     # XPath Core function library
-    'last(', 'position(',      # Node set functions
-    'not(', 'true(', 'false('  # Boolean functions
-]
-
-XPATH_1_SYMBOLS = XPATH_1_RESTRICTED_SYMBOLS + [
-    'count(', 'id(', 'local-name(', 'namespace-uri(', 'name(',  # Node set functions
-    'string(', 'concat(', 'starts-with(', 'contains(',          # String functions
+    'last(', 'position(', 'count(', 'id(', 'local-name(',   # Node set functions
+    'namespace-uri(', 'name(',
+    'string(', 'concat(', 'starts-with(', 'contains(',      # String functions
     'substring-before(', 'substring-after(', 'substring(',
     'string-length(', 'normalize-space(', 'translate(',
-    'boolean(',                                                 # Boolean functions
-
+    'boolean(', 'not(', 'true(', 'false('                   # Boolean functions
 ]
 
 XPATH_2_SYMBOLS = XPATH_1_SYMBOLS + [
     'union', 'intersect',
 ]
-
 
 RELATIVE_PATH_TOKENS = {s for s in XPATH_2_SYMBOLS if s.endswith("::")} | {
     '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
@@ -691,6 +688,10 @@ def position_token_nud(self):
     return self
 
 
+##
+# XPath parsers
+#
+
 class XPathParserMeta(ABCMeta):
     """
     XPathParser metaclass for creating versioned parsers.
@@ -702,8 +703,7 @@ class XPathParserMeta(ABCMeta):
         cls._NOT_ALLOWED_OPERATORS = {k for k in TokenMeta.registry if k not in cls.token_table}
         super(XPathParserMeta, cls).__init__(name, bases, dict_)
 
-#
-# XPath parser classes
+
 class XPathParserBase(object):
     """
     XPath expression iterator parser class.
@@ -792,9 +792,9 @@ class XPathParserBase(object):
         return root_token
 
 
-def create_xpath_parser(version, symbols):
+def create_xpath_parser(name, version, symbols):
     return XPathParserMeta(
-        'XPath1Parser',
+        name,
         (XPathParserBase,),
         {
             'version': version,
@@ -806,7 +806,9 @@ def create_xpath_parser(version, symbols):
     )
 
 
-XPathParser = create_xpath_parser(version=1, symbols=XPATH_1_RESTRICTED_SYMBOLS)
+XPath1Parser = create_xpath_parser('XPath1Parser', version=1, symbols=XPATH_1_SYMBOLS)
+XPath2Parser = create_xpath_parser('XPath2Parser', version=2, symbols=XPATH_2_SYMBOLS)
+
 
 _selector_cache = {}
 
@@ -821,7 +823,7 @@ def xsd_iterfind(context, path, namespaces=None):
     except KeyError:
         pass
 
-    parser = XPathParser(path, namespaces)
+    parser = XPath1Parser(path, namespaces)
     selector = parser.parse()
     if len(_selector_cache) > 100:
         _selector_cache.clear()
@@ -839,7 +841,7 @@ def relative_path(path, levels, namespaces=None):
     prefix to full qualified name.
     :return: a string with a relative XPath expression.
     """
-    parser = XPathParser(path, namespaces)
+    parser = XPath1Parser(path, namespaces)
     token_tree = parser.parse()
     path_parts = [t.value for t in token_tree.iter()]
     i = 0
@@ -854,6 +856,29 @@ def relative_path(path, levels, namespaces=None):
             levels -= 1
         i += 1
     return ''.join(path_parts[i:])
+
+
+class XPathSelector(object):
+
+    def __init__(self, path, namespaces=None, parser=XPath2Parser):
+        self.parser = parser(path, namespaces)
+        self._selector = self.parser.parse()
+
+    def __repr__(self):
+        return u'%s(path=%r, namespaces=%r, parser=%s)' % (
+            self.__class__.__name__, self.path, self.namespaces, self.parser.__class__.__name__
+        )
+
+    @property
+    def path(self):
+        return self.parser.path
+
+    @property
+    def namespaces(self):
+        return self.parser.path
+
+    def iter_select(self, context):
+        return self._selector.iter_select(context)
 
 
 #

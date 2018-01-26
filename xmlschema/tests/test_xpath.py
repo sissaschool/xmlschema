@@ -26,7 +26,7 @@ except ImportError:
 
 from xmlschema.exceptions import XMLSchemaXPathError
 from xmlschema import XMLSchema
-from xmlschema.xpath import XPathParser
+from xmlschema.xpath import XPath1Parser
 
 
 class TestXPath(unittest.TestCase):
@@ -85,10 +85,10 @@ class TestXPath(unittest.TestCase):
         self.assertTrue(self.xs1.findall("./vh:vehicles/*['']") == [])
 
     def test_descendants(self):
-        selector = XPathParser('.//xs:element', self.xs2.namespaces).parse()
+        selector = XPath1Parser('.//xs:element', self.xs2.namespaces).parse()
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 14)
-        selector = XPathParser('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces).parse()
+        selector = XPath1Parser('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces).parse()
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 17)
 
