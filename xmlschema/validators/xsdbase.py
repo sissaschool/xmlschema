@@ -21,7 +21,9 @@ from ..qnames import (
     XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
+from .parseutils import (
+    get_xsd_component, iter_xsd_components, get_xsd_int_attribute, get_xpath_default_namespace_attribute
+)
 
 
 class XsdBaseComponent(object):
@@ -31,8 +33,42 @@ class XsdBaseComponent(object):
 
     See: https://www.w3.org/TR/xmlschema-ref/
     """
-    def __init__(self):
+    def __init__(self, validation='strict'):
+        self.validation = validation
         self.errors = []  # component errors
+
+    def _parse(self):
+        if self.errors:
+            del self.errors[:]
+
+    def _parse_error(self, error, elem=None):
+        if self.validation == 'skip':
+            return
+        if isinstance(error, XMLSchemaParseError):
+            error.component = self
+            error.elem = elem
+        else:
+            error = XMLSchemaParseError(error, self, elem)
+        if self.validation == 'lax':
+            self.errors.append(error)
+        else:
+            raise error
+
+    def _parse_xpath_default_namespace_attribute(self, elem, namespaces, target_namespace):
+        try:
+            xpath_default_namespace = get_xpath_default_namespace_attribute(elem)
+        except XMLSchemaValueError as error:
+            self._parse_error(error, elem)
+            self.xpath_default_namespace = namespaces['']
+        else:
+            if xpath_default_namespace == '##local':
+                self.xpath_default_namespace = ''
+            elif xpath_default_namespace == '##defaultNamespace':
+                self.xpath_default_namespace = namespaces['']
+            elif xpath_default_namespace == '##targetNamespace':
+                self.xpath_default_namespace = target_namespace
+            else:
+                self.xpath_default_namespace = xpath_default_namespace
 
     @property
     def built(self):
@@ -102,7 +138,7 @@ class XsdComponent(XsdBaseComponent):
     _REGEX_SPACES = re.compile(r'\s+')
 
     def __init__(self, elem, schema, name=None, is_global=False):
-        super(XsdComponent, self).__init__()
+        super(XsdComponent, self).__init__(schema.validation)
         self.is_global = is_global
         self.name = name
         self.schema = schema
@@ -159,23 +195,6 @@ class XsdComponent(XsdBaseComponent):
 
     if PY3:
         __str__ = __unicode__
-
-    def _parse(self):
-        if self.errors:
-            del self.errors[:]
-
-    def _parse_error(self, error, elem=None):
-        if self.schema.validation == 'skip':
-            return
-        if isinstance(error, XMLSchemaParseError):
-            error.component = self
-            error.elem = elem
-        else:
-            error = XMLSchemaParseError(error, self, elem)
-        if self.schema.validation == 'lax':
-            self.errors.append(error)
-        else:
-            raise error
 
     def _validation_error(self, error, validation, obj=None):
         if validation == 'skip':

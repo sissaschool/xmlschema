@@ -882,8 +882,8 @@ class XPathSelector(object):
 
 
 #
-# XPathMixin class for XMLSchema and XsdElement
-class XPathMixin(object):
+# ElementPathMixin class for XMLSchema and XsdElement classes
+class ElementPathMixin(object):
 
     @property
     def attrib(self):

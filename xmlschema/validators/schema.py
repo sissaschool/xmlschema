@@ -24,7 +24,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import XSD_SCHEMA_TAG
 from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XSD_VALIDATION_MODES, XMLSchemaConverter
-from ..xpath import XPathMixin, relative_path
+from ..xpath import ElementPathMixin, relative_path
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
@@ -94,7 +94,7 @@ class XMLSchemaMeta(type):
         super(XMLSchemaMeta, cls).__init__(name, bases, dict_)
 
 
-class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
+class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     """
     Base class for an XML Schema instance.
 
@@ -226,6 +226,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, XPathMixin):
             self.check_schema(self.root)
         elif validation == 'lax':
             self.errors.extend([e for e in self.META_SCHEMA.iter_errors(self.root)])
+
+        # XSD 1.1 xpathDefaultNamespace attribute
+        if self.XSD_VERSION > '1.0':
+            self.xpath_default_namespace = self._parse_xpath_default_namespace_attribute(
+                self.root, self.namespaces, self.target_namespace
+            )
 
         # Includes
         for child in iterchildren_xsd_include(self.root):

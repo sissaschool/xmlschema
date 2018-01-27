@@ -22,7 +22,7 @@ from ..qnames import (
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
     local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE
 )
-from ..xpath import XPathMixin
+from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
@@ -36,7 +36,7 @@ from .constraints import XsdUnique, XsdKey, XsdKeyref
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
 
-class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMixin):
+class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
