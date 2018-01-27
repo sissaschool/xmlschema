@@ -186,7 +186,7 @@ class XsdConstraint(XsdAnnotated):
             if isinstance(v, XMLSchemaValidationError):
                 yield v
             else:
-                values.update(v)
+                values[v] += 1
 
         for value, count in values.items():
             if count > 1:
