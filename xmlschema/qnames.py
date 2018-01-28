@@ -244,8 +244,11 @@ XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
 XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
 XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
 
-# XSD 1.1 facets
-XSD_ASSERTIONS_TAG = xsd_qname('assertions')
+# XSD 1.1 elements
+XSD_OPEN_CONTENT_TAG = xsd_qname('openContent')      # open content model
+XSD_ALTERNATIVE_TAG = xsd_qname('alternative')      # conditional type assignment
+XSD_ASSERT_TAG = xsd_qname('assert')            # complex type assertions
+XSD_ASSERTION_TAG = xsd_qname('assertion')      # facets
 XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
 
 # Identity constraints

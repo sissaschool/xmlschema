@@ -540,3 +540,11 @@ class Xsd11Element(XsdElement):
     </element>
     """
     pass
+
+
+class XsdAlternative(XsdAnnotated):
+    pass
+
+    @property
+    def admitted_tags(self):
+        return {XSD_ELEMENT_TAG}

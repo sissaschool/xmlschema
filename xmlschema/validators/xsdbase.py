@@ -17,8 +17,7 @@ from ..compat import PY3, unicode_type
 from ..etree import etree_tostring, etree_iselement
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, qname_to_prefixed, XSD_ANNOTATION_TAG, XSI_NAMESPACE_PATH,
-    XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
+    local_name, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .parseutils import (
@@ -228,20 +227,6 @@ class XsdComponent(XsdBaseComponent):
                 getattr(self, name)
             except (ValueError, TypeError) as err:
                 self._parse_error(str(err))
-
-    def _is_namespace_allowed(self, namespace, any_namespace):
-        if any_namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
-            return True
-        elif any_namespace == '##other':
-            return namespace != self.target_namespace
-        else:
-            any_namespaces = any_namespace.split()
-            if '##local' in any_namespaces and namespace == '':
-                return True
-            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
-                return True
-            else:
-                return namespace in any_namespaces
 
     @property
     def local_name(self):

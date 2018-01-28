@@ -178,20 +178,6 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     return value
 
 
-def get_xsd_namespace_attribute(elem):
-    """
-    Get the namespace attribute value for anyAttribute and anyElement declarations,
-    checking if the value is conforming to the specification.
-    """
-    value = get_xsd_attribute(elem, 'namespace', default='##any')
-    items = value.split()
-    if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
-        return value
-    elif not all([s not in ('##any', '##other') for s in items]):
-        XMLSchemaValueError("wrong value %r for 'namespace' attribute." % value)
-    return value
-
-
 def get_xpath_default_namespace_attribute(elem):
     """
     Get the xpathDefaultNamespace attribute value for alternative, assert, assertion, selector

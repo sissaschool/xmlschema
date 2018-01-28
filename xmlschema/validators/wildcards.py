@@ -11,14 +11,64 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from ..namespaces import get_namespace
+from ..namespaces import get_namespace, XSI_NAMESPACE_PATH
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from .exceptions import XMLSchemaChildrenValidationError
-from .parseutils import get_xsd_attribute, get_xsd_namespace_attribute
+from .parseutils import get_xsd_attribute
 from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
 
 
-class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
+class XsdWildcard(XsdAnnotated, ValidatorMixin):
+
+    def __init__(self, elem, schema):
+        super(XsdWildcard, self).__init__(elem, schema, is_global=False)
+
+    def _parse(self):
+        super(XsdWildcard, self)._parse()
+
+        # Parse namespace and processContents
+        namespace = get_xsd_attribute(self.elem, 'namespace', default='##any')
+        items = namespace.strip().split()
+        if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
+            self.namespace = namespace.strip()
+        elif not all([s not in ('##any', '##other') for s in items]):
+            self._parse_error("wrong value %r for 'namespace' attribute." % namespace)
+            self.namespace = '##any'
+        else:
+            self.namespace = namespace.strip()
+
+        self.process_contents = get_xsd_attribute(
+            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
+        )
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
+
+    @property
+    def built(self):
+        return True
+
+    def match(self, name):
+        return self.is_namespace_allowed(get_namespace(name))
+
+    def is_namespace_allowed(self, namespace):
+        if self.namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
+            return True
+        elif self.namespace == '##other':
+            return namespace != self.target_namespace
+        else:
+            any_namespaces = self.namespace.split()
+            if '##local' in any_namespaces and namespace == '':
+                return True
+            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
+                return True
+            else:
+                return namespace in any_namespaces
+
+
+class XsdAnyElement(XsdWildcard, ParticleMixin):
     """
     Class for XSD 1.0 'any' declarations.
 
@@ -32,32 +82,13 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
       Content: (annotation?)
     </any>
     """
-    def __init__(self, elem, schema):
-        super(XsdAnyElement, self).__init__(elem, schema, is_global=False)
-        self.namespace = get_xsd_namespace_attribute(self.elem)
-        self.process_contents = get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
-        )
-
-    def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents
-        )
-
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle()
 
     @property
-    def built(self):
-        return True
-
-    @property
     def admitted_tags(self):
         return {XSD_ANY_TAG}
-
-    def match(self, name):
-        return self._is_namespace_allowed(get_namespace(name), self.namespace)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
@@ -97,7 +128,7 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
                     yield index
                 return
             else:
-                if validation != 'skip' and not self._is_namespace_allowed(namespace, self.namespace):
+                if validation != 'skip' and not self.is_namespace_allowed(namespace):
                     error = XMLSchemaChildrenValidationError(self, elem, index)
                     yield self._validation_error(error, validation)
 
@@ -122,26 +153,7 @@ class XsdAnyElement(XsdAnnotated, ValidatorMixin, ParticleMixin):
                 return
 
 
-class Xsd11AnyElement(XsdAnyElement):
-    """
-    Class for XSD 1.1 'any' declarations.
-
-    <any
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
-      notNamespace = List of (anyURI | (##targetNamespace | ##local))
-      notQName = List of (QName | (##defined | ##definedSibling))
-      processContents = (lax | skip | strict) : strict
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </any>
-    """
-    pass
-
-
-class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
+class XsdAnyAttribute(XsdWildcard):
     """
     Class for XSD 1.0 'anyAttribute' declarations.
     
@@ -153,28 +165,9 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
       Content: (annotation?)
     </anyAttribute>
     """
-    def __init__(self, elem, schema):
-        super(XsdAnyAttribute, self).__init__(elem, schema, is_global=False)
-        self.namespace = get_xsd_namespace_attribute(self.elem)
-        self.process_contents = get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict',
-        )
-
-    def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents
-        )
-
-    @property
-    def built(self):
-        return True
-
     @property
     def admitted_tags(self):
         return {XSD_ANY_ATTRIBUTE_TAG}
-
-    def match(self, name):
-        return self._is_namespace_allowed(get_namespace(name), self.namespace)
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
         if self.process_contents == 'skip':
@@ -194,6 +187,75 @@ class XsdAnyAttribute(XsdAnnotated, ValidatorMixin):
                 yield self._validation_error("attribute %r not allowed." % name, validation, attrs)
 
 
+class Xsd11Wildcard(XsdWildcard):
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
+
+    def _parse(self):
+        super(Xsd11Wildcard, self)._parse()
+
+        # Parse notNamespace attribute
+        try:
+            not_namespace = self.elem.attrib['notNamespace'].strip()
+        except KeyError:
+            self.not_namespace = None
+        else:
+            if 'namespace' in self.elem.attrib:
+                self.not_namespace = None
+                self._parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
+            elif not_namespace in ('##local', '##targetNamespace'):
+                self.not_namespace = not_namespace
+            else:
+                self.not_namespace = not_namespace.split()
+
+        # Parse notQName attribute
+        try:
+            not_qname = self.elem.attrib['notQName'].strip()
+        except:
+            self.not_qname = None
+        else:
+            if not_qname in ('##defined', '##definedSibling'):
+                self.not_qname = not_qname
+            else:
+                self.not_qname = not_qname.split()
+
+    def is_namespace_allowed(self, namespace):
+        if self.namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
+            return True
+        elif self.namespace == '##other':
+            return namespace != self.target_namespace
+        else:
+            any_namespaces = self.namespace.split()
+            if '##local' in any_namespaces and namespace == '':
+                return True
+            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
+                return True
+            else:
+                return namespace in any_namespaces
+
+
+class Xsd11AnyElement(XsdAnyElement):
+    """
+    Class for XSD 1.1 'any' declarations.
+
+    <any
+      id = ID
+      maxOccurs = (nonNegativeInteger | unbounded)  : 1
+      minOccurs = nonNegativeInteger : 1
+      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
+      notNamespace = List of (anyURI | (##targetNamespace | ##local))
+      notQName = List of (QName | (##defined | ##definedSibling))
+      processContents = (lax | skip | strict) : strict
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </any>
+    """
+    pass
+
+
 class Xsd11AnyAttribute(XsdAnyAttribute):
     """
     Class for XSD 1.1 'anyAttribute' declarations.
@@ -209,3 +271,21 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
     </anyAttribute>
     """
     pass
+
+
+class XsdOpenContent(XsdAnnotated):
+    """
+    Class for XSD 1.1 'openContent' model definitions.
+
+    <openContent
+      id = ID
+      mode = (none | interleave | suffix) : interleave
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?), (any?)
+    </openContent>
+    """
+    def __init__(self, elem, schema):
+        super(XsdOpenContent, self).__init__(elem, schema, is_global=False)
+        self.mode = get_xsd_attribute(
+            self.elem, 'mode', enumerate=('none', 'interleave', 'suffix'), default='interleave'
+        )

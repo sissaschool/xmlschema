@@ -56,6 +56,12 @@ class XsdSelector(XsdAnnotated):
             self._parse_error("invalid XPath expression: %s" % str(err), self.elem)
             self._selector = XsdSelectorXPathParser("*").parse()
 
+        # XSD 1.1 xpathDefaultNamespace attribute
+        if self.schema.XSD_VERSION > '1.0':
+            self.xpath_default_namespace = self._parse_xpath_default_namespace_attribute(
+                self.elem, self.namespaces, self.target_namespace
+            )
+
     def __repr__(self):
         return u'%s(path=%r)' % (self.__class__.__name__, self.path)
 
