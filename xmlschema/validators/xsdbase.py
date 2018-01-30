@@ -43,11 +43,14 @@ class XsdBaseComponent(object):
     def _parse_error(self, error, elem=None):
         if self.validation == 'skip':
             return
+
+        elem = elem or getattr(self, 'elem', None)
         if isinstance(error, XMLSchemaParseError):
             error.component = self
             error.elem = elem
         else:
-            error = XMLSchemaParseError(error, self, elem)
+            error = XMLSchemaParseError(str(error), self, elem)
+
         if self.validation == 'lax':
             self.errors.append(error)
         else:
