@@ -66,27 +66,31 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
+        if hasattr(self.type, 'content_type') and hasattr(self.type.content_type, 'elements'):
+            print(len(self), self.type.content_type.elements)
+
     def __getitem__(self, i):
         try:
-            return self.type.content_type.elements[i]
-        except (AttributeError, IndexError):
+            elements = [e for e in self.type.content_type.iter_elements()]
+        except AttributeError:
             raise IndexError('child index out of range')
-        except TypeError:
-            content_type = self.type.content_type
-            content_type.elements = [e for e in content_type.iter_elements()]
-            try:
-                content_type.elements[i]
-            except IndexError:
-                raise IndexError('child index out of range')
+        return elements[i]
+
+    def __iter__(self):
+        try:
+            for xsd_element in self.type.content_type.iter_elements():
+                yield xsd_element
+        except (TypeError, AttributeError):
+            return
+
+    def __reversed__(self):
+        return reversed([e for e in self.type.content_type.iter_elements()])
 
     def __len__(self):
         try:
-            return len(self.type.content_type.elements)
+            return len([e for e in self.type.content_type.iter_elements()])
         except AttributeError:
             return 0
-        except TypeError:
-            content_type = self.type.content_type
-            content_type.elements = [e for e in content_type.iter_elements()]
 
     def __setattr__(self, name, value):
         if name == "type":
