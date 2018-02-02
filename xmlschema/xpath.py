@@ -215,10 +215,7 @@ class Token(MutableSequence):
     def children_selector(self):
         def select_children(_context, results):
             for elem in results:
-                try:
-                    for e in elem.iterchildren(self.value):
-                        yield e
-                except AttributeError:
+                if elem is not None:
                     for e in elem:
                         if self.value is None or e.tag == self.value:
                             yield e
@@ -237,15 +234,18 @@ class Token(MutableSequence):
         def select_attribute(_context, results):
             if key is None:
                 for elem in results:
-                    for attr in elem.attrib.values():
-                        yield attr
+                    if elem is not None:
+                        for attr in elem.attrib.values():
+                            yield attr
             elif '{' == key[0]:
                 for elem in results:
-                    if key in elem.attrib:
+                    if elem is not None and key in elem.attrib:
                         yield elem.attrib[key]
             else:
                 for elem in results:
-                    if key in elem.attrib:
+                    if elem is None:
+                        continue
+                    elif key in elem.attrib:
                         yield elem.attrib[key]
                     else:
                         for attr in elem.attrib.values():
@@ -884,6 +884,10 @@ class XPathSelector(object):
 #
 # ElementPathMixin class for XMLSchema and XsdElement classes
 class ElementPathMixin(object):
+
+    @property
+    def tag(self):
+        return getattr(self, 'name')
 
     @property
     def attrib(self):

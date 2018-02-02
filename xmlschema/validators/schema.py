@@ -644,6 +644,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             for e in xsd_element.iter(name):
                 yield e
 
+    def __iter__(self):
+        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
+            yield xsd_element
+
+    @property
+    def name(self):
+        return self.root.tag
+
     def iterchildren(self, name=None):
         """
         Creates an iterator for child XSD/XML elements, sorted by name. If *name* is not ``None``

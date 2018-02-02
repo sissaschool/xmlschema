@@ -20,7 +20,7 @@ from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
-    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, local_name, reference_to_qname, get_qname
+    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, reference_to_qname, get_qname
 )
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -262,6 +262,10 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         return self.elem.get('ref')
 
     @property
+    def tag(self):
+        return self.name
+
+    @property
     def abstract(self):
         return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
 
@@ -310,7 +314,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
                 yield obj
 
     def match(self, name):
-        return self.name == name or (not self.qualified and local_name(self.name) == name)
+        return self.name == name or (not self.qualified and self.local_name == name)
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
