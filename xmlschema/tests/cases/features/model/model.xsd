@@ -4,7 +4,7 @@
            targetNamespace="http://example.com/model" >
     <xs:anyattribute notNamespace="#all">
     </xs:anyattribute>
-    <xs:annotation ciao="10"/>
+    <xs:annotation ciao="10" xml:lang="en"/>
     <xs:element name="data">
         <xs:complexType>
             <xs:sequence>

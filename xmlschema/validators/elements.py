@@ -125,11 +125,15 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
             element_name = reference_to_qname(self.elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
+            self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
             try:
-                self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
+                if self.is_global or self.qualified:
+                    self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
+                else:
+                    self.name = self.elem.attrib['name']
             except KeyError:
                 self._parse_error("missing both 'name' and 'ref' attributes.")
-            self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
+
             if self.is_global:
                 if 'minOccurs' in self.elem.attrib:
                     self._parse_error("attribute 'minOccurs' not allowed for a global element.")
@@ -139,10 +143,9 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
             # Reference to a global element
             if self.is_global:
                 self._parse_error("an element reference can't be global.")
-            if 'name' in self.elem.attrib:
-                self._parse_error("attribute 'name' is not allowed when element reference is used.")
-            elif 'type' in self.elem.attrib:
-                self._parse_error("attribute 'type' is not allowed when element reference is used.")
+            for attribute in ('name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'):
+                if attribute in self.elem.attrib:
+                    self._parse_error("attribute %r is not allowed when element reference is used." % attribute)
             xsd_element = self.maps.lookup_element(element_name)
             self.name = xsd_element.name
             self.type = xsd_element.type
@@ -260,10 +263,6 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
     @property
     def ref(self):
         return self.elem.get('ref')
-
-    @property
-    def tag(self):
-        return self.name
 
     @property
     def abstract(self):
@@ -453,7 +452,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         model_occurs = 0
         while True:
             try:
-                qname = get_qname(self.target_namespace, elem[index].tag)
+                tag = elem[index].tag
             except TypeError:
                 # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
                 # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
@@ -467,11 +466,13 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
                     yield index
                 return
             else:
-                if qname == self.name:
+                if tag == self.name:
+                    yield self, elem[index]
+                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
                     yield self, elem[index]
                 elif self.name in self.maps.substitution_groups:
                     for e in self.schema.substitution_groups[self.name]:
-                        if qname == e.name:
+                        if tag == e.name:
                             yield e, elem[index]
                             break
                     else:

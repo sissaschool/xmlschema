@@ -14,7 +14,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections import MutableMapping
 
 from ..namespaces import get_namespace, XSI_NAMESPACE_PATH
-from ..exceptions import XMLSchemaAttributeError
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
@@ -44,10 +44,9 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    def __init__(self, elem, schema, name=None, xsd_type=None, qualified=False, is_global=False):
+    def __init__(self, elem, schema, name=None, xsd_type=None, is_global=False):
         if xsd_type is not None:
             self.type = xsd_type
-        self.qualified = qualified
         super(XsdAttribute, self).__init__(elem, schema, name, is_global)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
@@ -67,7 +66,10 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         self._parse_properties('form', 'use')
 
         try:
-            name = elem.attrib['name']
+            if self.is_global or self.qualified:
+                self.name = get_qname(self.target_namespace, elem.attrib['name'])
+            else:
+                self.name = elem.attrib['name']
         except KeyError:
             # No 'name' attribute, must be a reference
             try:
@@ -83,9 +85,10 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
                 self.name = attribute_name
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
+                for attribute in ('form', 'type'):
+                    if attribute in self.elem.attrib:
+                        self._parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
                 return
-        else:
-            attribute_name = get_qname(self.target_namespace, name)
 
         xsd_type = None
         xsd_declaration = self._parse_component(elem, required=False)
@@ -107,7 +110,6 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
                     "not allowed element in XSD attribute declaration: {}".format(xsd_declaration[0]),
                     elem=elem
                 )
-        self.name = attribute_name
         self.type = xsd_type
 
     @property
@@ -236,16 +238,37 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
 
     # Implements the abstract methods of MutableMapping
     def __getitem__(self, key):
-        return self._attribute_group[key]
+        try:
+            return self._attribute_group[key]
+        except KeyError:
+            if key is None or key[:1] != '{' or get_namespace(key) != self.target_namespace:
+                raise
+            else:
+                # Unqualified form lookup if key is in targetNamespace
+                try:
+                    return self._attribute_group[local_name(key)]
+                except KeyError:
+                    pass
+                raise
 
     def __setitem__(self, key, value):
         if key is None:
             check_type(value, XsdAnyAttribute)
+            self._attribute_group[key] = value
         else:
             check_type(value, XsdAttribute)
-        self._attribute_group[key] = value
-        if key is not None and value.use == 'required':
-            self.required.add(key)
+            if key[0] != '{':
+                if value.local_name != key:
+                    raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
+                if value.target_namespace != self.target_namespace:
+                    # Qualify attributes of other namespaces
+                    key = value.qualified_name
+            elif value.qualified_name != key:
+                raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
+
+            self._attribute_group[key] = value
+            if value.use == 'required':
+                self.required.add(key)
 
     def __delitem__(self, key):
         del self._attribute_group[key]
@@ -283,7 +306,6 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         if self.base_attributes is not None:
             self._attribute_group.update(self.base_attributes.items())
 
-        self.name = None
         if elem.tag == XSD_ATTRIBUTE_GROUP_TAG:
             if not self.is_global:
                 return  # Skip dummy definitions
@@ -353,14 +375,12 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         result_list = []
         required_attributes = self.required.copy()
         for name, value in attrs.items():
-            qname = get_qname(self.target_namespace, name)
             try:
-                xsd_attribute = self[qname]
+                xsd_attribute = self[name]
             except KeyError:
-                namespace = get_namespace(name) or self.target_namespace
-                if namespace == XSI_NAMESPACE_PATH:
+                if get_namespace(name) == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = self.maps.lookup_attribute(qname)
+                        xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         if validation != 'skip':
                             error = XMLSchemaValidationError(
@@ -373,7 +393,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {qname: value}
+                        value = {name: value}
                     except KeyError:
                         if validation != 'skip':
                             error = XMLSchemaValidationError(
@@ -384,7 +404,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                             yield error
                         continue
             else:
-                required_attributes.discard(qname)
+                required_attributes.discard(name)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
@@ -412,15 +432,13 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
             pass
 
         for name, value in attributes:
-            qname = reference_to_qname(name, self.namespaces)
-            # qname = get_qname(self.target_namespace, name)
             try:
-                xsd_attribute = self[qname]
+                xsd_attribute = self[name]
             except KeyError:
                 namespace = get_namespace(name) or self.target_namespace
                 if namespace == XSI_NAMESPACE_PATH:
                     try:
-                        xsd_attribute = self.maps.lookup_attribute(qname)
+                        xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         error = XMLSchemaValidationError(
                             self, attributes, "% is not an attribute of the XSI namespace." % name
@@ -432,14 +450,14 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {qname: value}
+                        value = {name: value}
                     except KeyError:
                         yield XMLSchemaValidationError(
                             self, attributes, "%r attribute not allowed for element." % name
                         )
                         continue
             else:
-                required_attributes.discard(qname)
+                required_attributes.discard(name)
 
             for result in xsd_attribute.iter_encode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):

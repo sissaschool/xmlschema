@@ -17,7 +17,7 @@ from ..compat import PY3, unicode_type
 from ..etree import etree_tostring, etree_iselement
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
+    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .parseutils import (
@@ -141,6 +141,8 @@ class XsdComponent(XsdBaseComponent):
 
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__(schema.validation)
+        if name == '':
+            raise XMLSchemaValueError("'name' cannot be an empty string!")
         self.is_global = is_global
         self.name = name
         self.schema = schema
@@ -234,6 +236,10 @@ class XsdComponent(XsdBaseComponent):
     @property
     def local_name(self):
         return local_name(self.name)
+
+    @property
+    def qualified_name(self):
+        return get_qname(self.target_namespace, self.name)
 
     @property
     def prefixed_name(self):

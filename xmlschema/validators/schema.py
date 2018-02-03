@@ -316,6 +316,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     # Schema element attributes
     @property
+    def tag(self):
+        return self.root.tag
+
+    @property
     def id(self):
         """The schema's *id* attribute, defaults to ``None``."""
         return self.root.get('id')

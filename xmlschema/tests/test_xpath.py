@@ -79,7 +79,7 @@ class TestXPath(unittest.TestCase):
 
     def test_predicate(self):
         car = self.xs1.elements['cars'].type.content_type[0]
-        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@vh:make]") == [car])
+        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
         self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
         self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars['ciao']") == [self.cars])
         self.assertTrue(self.xs1.findall("./vh:vehicles/*['']") == [])

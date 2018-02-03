@@ -215,10 +215,16 @@ class Token(MutableSequence):
     def children_selector(self):
         def select_children(_context, results):
             for elem in results:
-                if elem is not None:
-                    for e in elem:
-                        if self.value is None or e.tag == self.value:
-                            yield e
+                if hasattr(elem, 'iterchildren'):
+                    for e in elem.iterchildren(self.value):
+                        # if self.value is None or e.tag == self.value:
+                        # print("Iterato: %r" % e, e.tag, self.value)
+                        yield e
+                else:
+                    if elem is not None:
+                        for e in elem:
+                            if self.value is None or e.tag == self.value:
+                                yield e
         return select_children
 
     def value_selector(self):
@@ -716,7 +722,7 @@ class XPathParserBase(object):
     _tokenizer_pattern = None
     _NOT_ALLOWED_OPERATORS = None
 
-    def __init__(self, path, namespaces=None):
+    def __init__(self, path, namespaces=None, default_namespace=''):
         if not path:
             raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
@@ -725,7 +731,8 @@ class XPathParserBase(object):
             path = "." + path
 
         self.path = path
-        self.namespaces = namespaces if namespaces is not None else {}
+        self.namespaces = namespaces.copy() if namespaces is not None else {}
+        self.namespaces[''] = default_namespace
 
     def __iter__(self):
         self._tokens = iter(self._tokenizer_pattern.finditer(self.path))

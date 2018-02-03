@@ -387,17 +387,6 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 children_map[key] = [children_map[key], e]
             except KeyError:
                 children_map[key] = e
-        if self.target_namespace:
-            for e in self.iter_elements():
-                if e.qualified:
-                    continue
-                key = e.prefixed_name
-                try:
-                    children_map[key].append(e)
-                except AttributeError:
-                    children_map[key] = [children_map[key], e]
-                except KeyError:
-                    children_map[key] = e
 
         try:
             for name, value in data:
