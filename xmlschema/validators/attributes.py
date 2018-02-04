@@ -155,7 +155,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
         return self.use == 'optional'
 
     def match(self, name):
-        return self.name == name or (not self.qualified and local_name(self.name) == name)
+        return self.name == name or not self.qualified and self.local_name == name
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

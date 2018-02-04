@@ -201,9 +201,10 @@ class Token(MutableSequence):
         def select_descendants(context, results):
             results = self[0].sed(context, results)
             for elem in results:
-                for e in elem.iter(self[1].value):
-                    if e is not elem:
-                        yield e
+                if elem is not None:
+                    for e in elem.iter(self[1].value):
+                        if e is not elem:
+                            yield e
         return select_descendants
 
     def child_selector(self):
@@ -215,22 +216,17 @@ class Token(MutableSequence):
     def children_selector(self):
         def select_children(_context, results):
             for elem in results:
-                if hasattr(elem, 'iterchildren'):
-                    for e in elem.iterchildren(self.value):
-                        # if self.value is None or e.tag == self.value:
-                        # print("Iterato: %r" % e, e.tag, self.value)
-                        yield e
-                else:
-                    if elem is not None:
-                        for e in elem:
-                            if self.value is None or e.tag == self.value:
-                                yield e
+                if elem is not None:
+                    for e in elem:
+                        if self.value is None or e.tag == self.value:
+                            yield e
         return select_children
 
     def value_selector(self):
         def select_value(_context, results):
-            for _ in results:
-                yield self.value
+            for elem in results:
+                if elem is not None:
+                    yield self.value
         return select_value
 
     # @attribute
@@ -253,16 +249,7 @@ class Token(MutableSequence):
                         continue
                     elif key in elem.attrib:
                         yield elem.attrib[key]
-                    else:
-                        for attr in elem.attrib.values():
-                            try:
-                                # a XsdAttribute/XsdAnyAttribute
-                                if attr.match(key):
-                                    yield attr
-                                    break  # Avoid two matches
-                            except AttributeError:
-                                # an etree's Element attribute
-                                break
+
         return select_attribute
 
     # @attribute='value'
@@ -273,18 +260,21 @@ class Token(MutableSequence):
         def select_attribute_value(_context, results):
             if key is not None:
                 for elem in results:
-                    yield elem.get(key) == value
+                    if elem is not None:
+                        yield elem.get(key) == value
             else:
                 for elem in results:
-                    for attr in elem.attrib.values():
-                        yield attr == value
+                    if elem is not None:
+                        for attr in elem.attrib.values():
+                            yield attr == value
         return select_attribute_value
 
     def find_selector(self):
         def select_find(_context, results):
             for elem in results:
-                if elem.find(self.value) is not None:
-                    yield elem
+                if elem is not None:
+                    if elem.find(self.value) is not None:
+                        yield elem
         return select_find
 
     def subscript_selector(self):
@@ -309,9 +299,10 @@ class Token(MutableSequence):
         def select_predicate(context, results):
             results = self[0].sed(context, results)
             for elem in results:
-                predicate_results = list(self[1].sed(context, [elem]))
-                if predicate_results and any(predicate_results):
-                    yield elem
+                if elem is not None:
+                    predicate_results = list(self[1].sed(context, [elem]))
+                    if predicate_results and any(predicate_results):
+                        yield elem
         return select_predicate
 
     @staticmethod
@@ -334,10 +325,11 @@ class Token(MutableSequence):
     def tag_value_selector(self):
         def select_tag_value(_context, results):
             for elem in results:
-                for e in elem.findall(self.name):
-                    if "".join(e.itertext()) == self.value:
-                        yield elem
-                        break
+                if elem is not None:
+                    for e in elem.findall(self.name):
+                        if "".join(e.itertext()) == self.value:
+                            yield elem
+                            break
         return select_tag_value
 
     def disjunction_selector(self):
@@ -888,10 +880,10 @@ class XPathSelector(object):
         return self._selector.iter_select(context)
 
 
-#
-# ElementPathMixin class for XMLSchema and XsdElement classes
 class ElementPathMixin(object):
-
+    """
+    Mixin class that defines the ElementPath API.
+    """
     @property
     def tag(self):
         return getattr(self, 'name')
@@ -902,7 +894,7 @@ class ElementPathMixin(object):
 
     def iterfind(self, path, namespaces=None):
         """
-        Generates all matching XML Schema element declarations by path.
+        Generates all matching XSD/XML element declarations by path.
 
         :param path: is an XPath expression that considers the schema as the root element \
         with global elements as its children.

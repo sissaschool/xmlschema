@@ -313,7 +313,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
                 yield obj
 
     def match(self, name):
-        return self.name == name or (not self.qualified and self.local_name == name)
+        return self.name == name or not self.qualified and self.local_name == name
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
