@@ -96,6 +96,10 @@ def get_args_parser():
     parser.add_argument(
         '-l', dest='locations', nargs=2, type=str, default=None, action='append'
     )
+    parser.add_argument(
+        '--validation', dest="validation", choices=['lax', 'strict'], default=None,
+        help="force validation level."
+    )
     return parser
 
 
@@ -124,7 +128,7 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
             schema_class = xmlschema.XMLSchema
 
         test_func = test_function_builder(
-            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations
+            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations, test_args.validation
         )
         test_name = os.path.relpath(test_file)
         test_num += 1
