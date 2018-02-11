@@ -471,17 +471,20 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 matched_choice = False
                 obj = None
                 for item in self:
-                    for obj in item.iter_decode_children(elem, child_index, validation):
-                        if not isinstance(obj, XMLSchemaValidationError):
-                            if isinstance(obj, tuple):
-                                yield obj
-                                continue
-                            if child_index < obj:
-                                matched_choice = True
-                                child_index = obj
-                        break
-                    if matched_choice:
-                        break
+                    try:
+                        for obj in item.iter_decode_children(elem, child_index, validation):
+                            if not isinstance(obj, XMLSchemaValidationError):
+                                if isinstance(obj, tuple):
+                                    yield obj
+                                    continue
+                                if child_index < obj:
+                                    matched_choice = True
+                                    child_index = obj
+                            break
+                        if matched_choice:
+                            break
+                    except XMLSchemaValidationError:  # see #41
+                        pass
                 else:
                     try:
                         if isinstance(obj.validator, XsdAnyElement):

@@ -258,13 +258,16 @@ _DATA_DICT = {
 }
 
 
-def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False, locations=None):
+def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False, locations=None, validation=None):
+    if validation is None:
+        validation = 'lax'
+
     def test_decoding(self):
         schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
         xs = schema_class(schema, locations=_locations)
         errors = []
         chunks = []
-        for obj in xs.iter_decode(xml_file):
+        for obj in xs.iter_decode(xml_file, validation=validation):
             if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
                 errors.append(obj)
             else:

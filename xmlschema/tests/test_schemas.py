@@ -33,16 +33,17 @@ from xmlschema import XMLSchemaParseError, XMLSchemaURLError
 from xmlschema.tests import SchemaObserver
 
 
-def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
+def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None, validation=None):
     def test_schema(self):
         if inspect:
             SchemaObserver.clear()
         # print("Run %s" % self.id())
+        if validation is None:
+            local_validation = 'lax' if expected_errors > 0 else 'strict'
+        else:
+            local_validation = validation
         try:
-            if expected_errors > 0:
-                xs = schema_class(xsd_file, validation='lax', locations=locations)
-            else:
-                xs = schema_class(xsd_file, locations=locations)
+            xs = schema_class(xsd_file, validation=local_validation, locations=locations)
         except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
             num_errors = 1
             errors = [str(err)]
