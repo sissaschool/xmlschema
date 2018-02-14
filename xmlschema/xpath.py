@@ -586,6 +586,12 @@ def parent_token_nud(self):
     return self
 
 
+@register_nud('ancestor::', lbp=60)
+def parent_token_nud(self):
+    self.sed = self.parent_selector()
+    return self
+
+
 @register_nud('/')
 def child_nud(_self):
     current_token.unexpected()
@@ -663,8 +669,8 @@ def predicate_close_token(*_args, **_kwargs):
     current_token.unexpected(']')
 
 
-@register_nud('last(', )
-def last_token_nud(self):
+@register_nud('last(')
+def last_function_token_nud(self):
     advance(')')
     if next_token.name == '-':
         advance('-')
@@ -676,7 +682,7 @@ def last_token_nud(self):
 
 
 @register_nud('position(')
-def position_token_nud(self):
+def position_function_token_nud(self):
     advance(')')
     advance('=')
     self.insert(0, expression(90))
@@ -714,7 +720,7 @@ class XPathParserBase(object):
     _tokenizer_pattern = None
     _NOT_ALLOWED_OPERATORS = None
 
-    def __init__(self, path, namespaces=None, default_namespace=''):
+    def __init__(self, path, namespaces=None):
         if not path:
             raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
@@ -723,8 +729,7 @@ class XPathParserBase(object):
             path = "." + path
 
         self.path = path
-        self.namespaces = namespaces.copy() if namespaces is not None else {}
-        self.namespaces[''] = default_namespace
+        self.namespaces = namespaces if namespaces is not None else {}
 
     def __iter__(self):
         self._tokens = iter(self._tokenizer_pattern.finditer(self.path))
@@ -874,7 +879,7 @@ class XPathSelector(object):
 
     @property
     def namespaces(self):
-        return self.parser.path
+        return self.parser.namespaces
 
     def iter_select(self, context):
         return self._selector.iter_select(context)
@@ -901,7 +906,7 @@ class ElementPathMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching declarations in the XSD/XML order.
         """
-        return xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None))
+        return xsd_iterfind(self, path, namespaces or self.xpath_namespaces)
 
     def find(self, path, namespaces=None):
         """
@@ -912,7 +917,7 @@ class ElementPathMixin(object):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
-        return next(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)), None)
+        return next(xsd_iterfind(self, path, namespaces or self.xpath_namespaces), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -924,7 +929,15 @@ class ElementPathMixin(object):
         :return: a list containing all matching XSD/XML elements or attributes. An empty list \
         is returned if there is no match.
         """
-        return list(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)))
+        return list(xsd_iterfind(self, path, namespaces or self.xpath_namespaces))
+
+    @property
+    def xpath_namespaces(self):
+        if hasattr(self, 'namespaces'):
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+            if hasattr(self, 'xpath_default_namespace'):
+                namespaces[''] = self.xpath_default_namespace
+            return namespaces
 
     def iter(self, name=None):
         raise NotImplementedError

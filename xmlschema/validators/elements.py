@@ -66,9 +66,6 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
-        if hasattr(self.type, 'content_type') and hasattr(self.type.content_type, 'elements'):
-            print(len(self), self.type.content_type.elements)
-
     def __getitem__(self, i):
         try:
             elements = [e for e in self.type.content_type.iter_elements()]
