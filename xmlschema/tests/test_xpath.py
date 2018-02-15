@@ -15,6 +15,7 @@ This module runs tests on XPath selector and find functions.
 import unittest
 import os
 import sys
+from xml.etree import ElementTree as et
 
 try:
     import xmlschema
@@ -26,10 +27,10 @@ except ImportError:
 
 from xmlschema.exceptions import XMLSchemaXPathError
 from xmlschema import XMLSchema
-from xmlschema.xpath import XPathParser
+from xmlschema.xpath import XPath1Parser, XPathSelector
 
 
-class TestXPath(unittest.TestCase):
+class XsdXPathTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -39,17 +40,17 @@ class TestXPath(unittest.TestCase):
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
-    def test_wrong_syntax(self):
+    def test_xpath_wrong_syntax(self):
         self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*[')
         self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*)')
         self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*3')
         self.assertRaises(XMLSchemaXPathError, self.xs1.find, './@3')
 
-    def test_correct_syntax(self):
+    def test_xpath_extra_spaces(self):
         self.assertTrue(self.xs1.find('./ *') is not None)
         self.assertTrue(self.xs1.find("\t\n vh:vehicles / vh:cars / .. /  vh:cars") == self.cars)
 
-    def test_location_path(self):
+    def test_xpath_location_path(self):
         elements = sorted(self.xs1.elements.values(), key=lambda x: x.name)
         self.assertTrue(self.xs1.findall('.'))
         self.assertTrue(isinstance(self.xs1.find('.'), XMLSchema))
@@ -63,34 +64,48 @@ class TestXPath(unittest.TestCase):
         self.assertTrue(self.xs1.find("vh:vehicles/*/..") == self.xs1.elements['vehicles'])
         self.assertTrue(self.xs1.find("vh:vehicles/vh:cars/../vh:cars") == self.xs1.find("vh:vehicles/vh:cars"))
 
-    def test_axis(self):
+    def test_xpath_axis(self):
         self.assertTrue(self.xs1.find("vh:vehicles/child::vh:cars/..") == self.xs1.elements['vehicles'])
 
-    def test_subscription(self):
+    def test_xpath_subscription(self):
         self.assertTrue(len(self.xs1.findall("./vh:vehicles/*")) == 2)
         self.assertTrue(self.xs1.findall("./vh:vehicles/*[2]") == [self.bikes])
         self.assertTrue(self.xs1.findall("./vh:vehicles/*[3]") == [])
         self.assertTrue(self.xs1.findall("./vh:vehicles/*[last()-1]") == [self.cars])
         self.assertTrue(self.xs1.findall("./vh:vehicles/*[position()=last()]") == [self.bikes])
 
-    def test_group(self):
+    def test_xpath_group(self):
         self.assertTrue(self.xs1.findall("/(vh:vehicles/*/*)") == self.xs1.findall("/vh:vehicles/*/*"))
         self.assertTrue(self.xs1.findall("/(vh:vehicles/*/*)[1]") == self.xs1.findall("/vh:vehicles/*/*[1]"))
 
-    def test_predicate(self):
+    def test_xpath_predicate(self):
         car = self.xs1.elements['cars'].type.content_type[0]
-        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@vh:make]") == [car])
+        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
         self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
         self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars['ciao']") == [self.cars])
         self.assertTrue(self.xs1.findall("./vh:vehicles/*['']") == [])
 
-    def test_descendants(self):
-        selector = XPathParser('.//xs:element', self.xs2.namespaces).parse()
+    def test_xpath_descendants(self):
+        selector = XPath1Parser('.//xs:element', self.xs2.namespaces).parse()
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 14)
-        selector = XPathParser('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces).parse()
+        selector = XPath1Parser('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces).parse()
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 17)
+
+
+class ElementTreeXPathTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = os.path.dirname(__file__)
+
+    def test_rel_xpath_boolean(self):
+        root = et.XML('<A><B><C/></B></A>')
+        el = root[0]
+        print(list(XPathSelector('boolean(D)').iter_select(el)))
+        self.assertTrue(XPathSelector('boolean(C)').iter_select(el))
+        self.assertFalse(next(XPathSelector('boolean(D)').iter_select(el)))
 
 
 if __name__ == '__main__':

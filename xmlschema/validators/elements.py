@@ -19,10 +19,10 @@ from ..etree import etree_element
 from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, get_qname, XSD_ANY_TYPE, XSD_SIMPLE_TYPE_TAG,
-    local_name, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE
+    XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
+    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, reference_to_qname, get_qname
 )
-from ..xpath import XPathMixin
+from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
@@ -36,7 +36,7 @@ from .constraints import XsdUnique, XsdKey, XsdKeyref
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
 
-class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMixin):
+class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -68,29 +68,30 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
 
     def __getitem__(self, i):
         try:
-            return self.type.content_type.elements[i]
-        except (AttributeError, IndexError):
+            elements = [e for e in self.type.content_type.iter_elements()]
+        except AttributeError:
             raise IndexError('child index out of range')
-        except TypeError:
-            content_type = self.type.content_type
-            content_type.elements = [e for e in content_type.iter_elements()]
-            try:
-                content_type.elements[i]
-            except IndexError:
-                raise IndexError('child index out of range')
+        return elements[i]
+
+    def __iter__(self):
+        try:
+            for xsd_element in self.type.content_type.iter_elements():
+                yield xsd_element
+        except (TypeError, AttributeError):
+            return
+
+    def __reversed__(self):
+        return reversed([e for e in self.type.content_type.iter_elements()])
 
     def __len__(self):
         try:
-            return len(self.type.content_type.elements)
+            return len([e for e in self.type.content_type.iter_elements()])
         except AttributeError:
             return 0
-        except TypeError:
-            content_type = self.type.content_type
-            content_type.elements = [e for e in content_type.iter_elements()]
 
     def __setattr__(self, name, value):
         if name == "type":
-            check_type(value, XsdSimpleType, XsdComplexType)
+            check_type(value, XsdSimpleType, XsdComplexType, type(None))
             try:
                 self.attributes = value.attributes
             except AttributeError:
@@ -100,73 +101,79 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         super(XsdElement, self).__setattr__(name, value)
 
     def _parse(self):
-        super(XsdElement, self)._parse()
+        XsdAnnotated._parse(self)
+        self._parse_attributes()
+        index = self._parse_type()
+        if self.type is None:
+            self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+
+        self._parse_constraints(index)
+        self._parse_substitution_group()
+
+    def _parse_attributes(self):
         self._parse_particle()
-
-        elem = self.elem
         self.name = None
-
         if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
         self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
 
         # Parse element attributes
         try:
-            element_name = reference_to_qname(elem.attrib['ref'], self.namespaces)
+            element_name = reference_to_qname(self.elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
-            try:
-                self.name = get_qname(self.target_namespace, elem.attrib['name'])
-            except KeyError:
-                self._parse_error("invalid element declaration in XSD schema", elem)
             self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
+            try:
+                if self.is_global or self.qualified:
+                    self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
+                else:
+                    self.name = self.elem.attrib['name']
+            except KeyError:
+                self._parse_error("missing both 'name' and 'ref' attributes.")
+
             if self.is_global:
-                if 'minOccurs' in elem.attrib:
-                    self._parse_error(
-                        "attribute 'minOccurs' not allowed for a global element", self
-                    )
-                if 'maxOccurs' in elem.attrib:
-                    self._parse_error(
-                        "attribute 'maxOccurs' not allowed for a global element", self
-                    )
+                if 'minOccurs' in self.elem.attrib:
+                    self._parse_error("attribute 'minOccurs' not allowed for a global element.")
+                if 'maxOccurs' in self.elem.attrib:
+                    self._parse_error("attribute 'maxOccurs' not allowed for a global element.")
         else:
             # Reference to a global element
             if self.is_global:
-                self._parse_error("an element reference can't be global", elem)
-            msg = "attribute %r is not allowed when element reference is used"
-            if 'name' in elem.attrib:
-                self._parse_error(msg % 'name', elem)
-            elif 'type' in elem.attrib:
-                self._parse_error(msg % 'type', elem)
+                self._parse_error("an element reference can't be global.")
+            for attribute in ('name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'):
+                if attribute in self.elem.attrib:
+                    self._parse_error("attribute %r is not allowed when element reference is used." % attribute)
             xsd_element = self.maps.lookup_element(element_name)
             self.name = xsd_element.name
             self.type = xsd_element.type
             self.qualified = xsd_element.qualified
 
-        skip = 0
+    def _parse_type(self):
         if self.ref:
-            if self._parse_component(elem, required=False, strict=False) is not None:
-                self._parse_error("element reference declaration can't has children", elem)
-        elif 'type' in elem.attrib:
-            type_qname = reference_to_qname(elem.attrib['type'], self.namespaces)
+            if self._parse_component(self.elem, required=False, strict=False) is not None:
+                self._parse_error("element reference declaration can't has children.")
+        elif 'type' in self.elem.attrib:
+            type_qname = reference_to_qname(self.elem.attrib['type'], self.namespaces)
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
-                self._parse_error('unknown type %r' % elem.attrib['type'], elem)
+                self._parse_error('unknown type %r' % self.elem.attrib['type'])
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         else:
-            child = self._parse_component(elem, required=False, strict=False)
+            child = self._parse_component(self.elem, required=False, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE_TAG:
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema)
                 elif child.tag == XSD_SIMPLE_TYPE_TAG:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema)
-                skip = 1
+                return 1
             else:
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = None
+        return 0
 
+    def _parse_constraints(self, index=0):
         self.constraints = {}
-        for child in self._iterparse_components(elem, start=skip):
+        for child in self._iterparse_components(self.elem, start=index):
             if child.tag == XSD_UNIQUE_TAG:
                 constraint = XsdUnique(child, self.schema, parent=self)
             elif child.tag == XSD_KEY_TAG:
@@ -174,8 +181,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
             elif child.tag == XSD_KEYREF_TAG:
                 constraint = XsdKeyref(child, self.schema, parent=self)
             else:
-                raise XMLSchemaParseError(
-                    "unexpected child element %r:" % child, self)
+                raise XMLSchemaParseError("unexpected child element %r:" % child, self)
 
             try:
                 if child != self.maps.constraints[constraint.name]:
@@ -184,8 +190,6 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 self.maps.constraints[constraint.name] = child
             finally:
                 self.constraints[constraint.name] = constraint
-
-        self._parse_substitution_group()
 
     def _parse_substitution_group(self):
         substitution_group = self.substitution_group
@@ -306,17 +310,22 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 yield obj
 
     def match(self, name):
-        return self.name == name or (not self.qualified and local_name(self.name) == name)
+        return self.name == name or not self.qualified and self.local_name == name
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Generator method for decoding elements. A data structure is returned, eventually
         preceded by a sequence of validation or decode errors.
         """
-        element_decode_hook = kwargs.get('element_decode_hook')
-        if element_decode_hook is None:
-            element_decode_hook = self.schema.get_converter().element_decode
-            kwargs['element_decode_hook'] = element_decode_hook
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.schema.get_converter(
+                namespaces=kwargs.get('namespaces'),
+                dict_class=kwargs.get('dict_class'),
+                list_class=kwargs.get('list_class'),
+            )
+
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
@@ -343,7 +352,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
-                    yield element_decode_hook(ElementData(elem.tag, *result), self)
+                    yield converter.element_decode(ElementData(elem.tag, *result), self)
                     del result
         else:
             # simpleType
@@ -376,7 +385,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
-                        yield element_decode_hook(ElementData(elem.tag, result, None, attributes), self)
+                        yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
                         del result
 
         if validation != 'skip':
@@ -440,7 +449,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
         model_occurs = 0
         while True:
             try:
-                qname = get_qname(self.target_namespace, elem[index].tag)
+                tag = elem[index].tag
             except TypeError:
                 # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
                 # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
@@ -454,11 +463,13 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, XPathMix
                     yield index
                 return
             else:
-                if qname == self.name:
+                if tag == self.name:
+                    yield self, elem[index]
+                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
                     yield self, elem[index]
                 elif self.name in self.maps.substitution_groups:
                     for e in self.schema.substitution_groups[self.name]:
-                        if qname == e.name:
+                        if tag == e.name:
                             yield e, elem[index]
                             break
                     else:
@@ -534,4 +545,49 @@ class Xsd11Element(XsdElement):
       Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
     </element>
     """
-    pass
+    def _parse(self):
+        XsdAnnotated._parse(self)
+        self._parse_attributes()
+        index = self._parse_type()
+        index = self._parse_alternatives(index)
+        if self.type is None:
+            if not self.alternatives:
+                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+        elif self.alternatives:
+            self._parse_error("types alternatives incompatible with type specification.")
+
+        self._parse_constraints(index)
+        self._parse_substitution_group()
+
+    def _parse_alternatives(self, index=0):
+        self.alternatives = []
+        for child in self._iterparse_components(self.elem, start=index):
+            if child.tag == XSD_ALTERNATIVE_TAG:
+                self.alternatives.append(XsdAlternative(child, self.schema))
+                index += 1
+            else:
+                break
+        return index
+
+    @property
+    def target_namespace(self):
+        try:
+            return self.elem.attrib['targetNamespace']
+        except KeyError:
+            return self.schema.target_namespace
+
+
+class XsdAlternative(XsdAnnotated):
+    """
+    <alternative
+      id = ID
+      test = an XPath expression
+      type = QName
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, (simpleType | complexType)?)
+    </alternative>
+    """
+    @property
+    def admitted_tags(self):
+        return {XSD_ELEMENT_TAG}

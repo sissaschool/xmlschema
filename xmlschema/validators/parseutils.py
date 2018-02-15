@@ -11,6 +11,7 @@
 """
 This module contains utility functions and classes.
 """
+from ..compat import urlparse, URLError
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from ..qnames import XSD_ANNOTATION_TAG
 
@@ -177,15 +178,23 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     return value
 
 
-def get_xsd_namespace_attribute(elem):
+def get_xpath_default_namespace_attribute(elem):
     """
-    Get the namespace attribute value for anyAttribute and anyElement declaration,
-    checking if the value is conforming to the specification.
+    Get the xpathDefaultNamespace attribute value for alternative, assert, assertion, selector
+    and field XSD 1.1 declarations, checking if the value is conforming to the specification.
     """
-    value = get_xsd_attribute(elem, 'namespace', default='##any')
-    items = value.split()
-    if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
+    try:
+        value = get_xsd_attribute(elem, 'xpathDefaultNamespace').strip()
+    except KeyError:
+        return None
+
+    admitted_values = ('##defaultNamespace', '##targerNamespace', '##local')
+    if value == admitted_values:
         return value
-    elif not all([s not in ('##any', '##other') for s in items]):
-        XMLSchemaValueError("wrong value %r for 'namespace' attribute." % value)
-    return value
+    if len(value.split()) == 1:
+        try:
+            return urlparse(value).geturl()
+        except URLError:
+            pass
+    raise XMLSchemaValueError("wrong value %r for 'xpathDefaultNamespace' attribute, "
+                              "can be (anyURI | %r)." % (value, '|'.join(admitted_values)))

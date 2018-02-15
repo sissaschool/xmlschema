@@ -17,11 +17,12 @@ from ..compat import PY3, unicode_type
 from ..etree import etree_tostring, etree_iselement
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, qname_to_prefixed, XSD_ANNOTATION_TAG, XSI_NAMESPACE_PATH,
-    XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
+    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
+from .parseutils import (
+    get_xsd_component, iter_xsd_components, get_xsd_int_attribute, get_xpath_default_namespace_attribute
+)
 
 
 class XsdBaseComponent(object):
@@ -31,8 +32,45 @@ class XsdBaseComponent(object):
 
     See: https://www.w3.org/TR/xmlschema-ref/
     """
-    def __init__(self):
+    def __init__(self, validation='strict'):
+        self.validation = validation
         self.errors = []  # component errors
+
+    def _parse(self):
+        if self.errors:
+            del self.errors[:]
+
+    def _parse_error(self, error, elem=None):
+        if self.validation == 'skip':
+            return
+
+        elem = elem if elem is not None else getattr(self, 'elem', None)
+        if isinstance(error, XMLSchemaParseError):
+            error.component = self
+            error.elem = elem
+        else:
+            error = XMLSchemaParseError(str(error), self, elem)
+
+        if self.validation == 'lax':
+            self.errors.append(error)
+        else:
+            raise error
+
+    def _parse_xpath_default_namespace_attribute(self, elem, namespaces, target_namespace):
+        try:
+            xpath_default_namespace = get_xpath_default_namespace_attribute(elem)
+        except XMLSchemaValueError as error:
+            self._parse_error(error, elem)
+            self.xpath_default_namespace = namespaces['']
+        else:
+            if xpath_default_namespace == '##local':
+                self.xpath_default_namespace = ''
+            elif xpath_default_namespace == '##defaultNamespace':
+                self.xpath_default_namespace = namespaces['']
+            elif xpath_default_namespace == '##targetNamespace':
+                self.xpath_default_namespace = target_namespace
+            else:
+                self.xpath_default_namespace = xpath_default_namespace
 
     @property
     def built(self):
@@ -102,7 +140,9 @@ class XsdComponent(XsdBaseComponent):
     _REGEX_SPACES = re.compile(r'\s+')
 
     def __init__(self, elem, schema, name=None, is_global=False):
-        super(XsdComponent, self).__init__()
+        super(XsdComponent, self).__init__(schema.validation)
+        if name == '':
+            raise XMLSchemaValueError("'name' cannot be an empty string!")
         self.is_global = is_global
         self.name = name
         self.schema = schema
@@ -138,7 +178,11 @@ class XsdComponent(XsdBaseComponent):
 
     @property
     def namespaces(self):
-        return self.schema.namespaces
+        try:
+            return self.schema.namespaces
+        except AttributeError:
+            import pdb
+            pdb.set_trace()
 
     @property
     def maps(self):
@@ -159,23 +203,6 @@ class XsdComponent(XsdBaseComponent):
 
     if PY3:
         __str__ = __unicode__
-
-    def _parse(self):
-        if self.errors:
-            del self.errors[:]
-
-    def _parse_error(self, error, elem=None):
-        if self.schema.validation == 'skip':
-            return
-        if isinstance(error, XMLSchemaParseError):
-            error.component = self
-            error.elem = elem
-        else:
-            error = XMLSchemaParseError(error, self, elem)
-        if self.schema.validation == 'lax':
-            self.errors.append(error)
-        else:
-            raise error
 
     def _validation_error(self, error, validation, obj=None):
         if validation == 'skip':
@@ -210,23 +237,13 @@ class XsdComponent(XsdBaseComponent):
             except (ValueError, TypeError) as err:
                 self._parse_error(str(err))
 
-    def _is_namespace_allowed(self, namespace, any_namespace):
-        if any_namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
-            return True
-        elif any_namespace == '##other':
-            return namespace != self.target_namespace
-        else:
-            any_namespaces = any_namespace.split()
-            if '##local' in any_namespaces and namespace == '':
-                return True
-            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
-                return True
-            else:
-                return namespace in any_namespaces
-
     @property
     def local_name(self):
         return local_name(self.name)
+
+    @property
+    def qualified_name(self):
+        return get_qname(self.target_namespace, self.name)
 
     @property
     def prefixed_name(self):

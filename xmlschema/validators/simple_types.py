@@ -26,7 +26,7 @@ from ..qnames import (
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 )
-from .parseutils import get_xsd_derivation_attribute, check_type, check_value
+from .parseutils import get_xsd_derivation_attribute, check_type, check_value, get_xsd_component
 from .xsdbase import XsdAnnotated, ValidatorMixin
 from .facets import (
     XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
@@ -771,9 +771,10 @@ class XsdAtomicRestriction(XsdAtomic):
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION_TAG:
-                raise XMLSchemaValueError(
-                    "a %r definition required for %r." % (XSD_RESTRICTION_TAG, self)
-                )
+                if not (value.tag == XSD_SIMPLE_TYPE_TAG and value.get('name') is not None):
+                    raise XMLSchemaValueError(
+                        "a %r definition required for %r." % (XSD_RESTRICTION_TAG, self)
+                    )
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):
@@ -781,12 +782,15 @@ class XsdAtomicRestriction(XsdAtomic):
         elem = self.elem
         if elem.get('name') == XSD_ANY_ATOMIC_TYPE:
             return  # skip special type xs:anyAtomicType
+        elif elem.tag == XSD_SIMPLE_TYPE_TAG and elem.get('name') is not None:
+            elem = get_xsd_component(elem)  # Global simpleType with internal restriction
+
         base_type = None
         facets = {}
         has_attributes = False
         has_simple_type_child = False
 
-        if 'base' in self.elem.attrib:
+        if 'base' in elem.attrib:
             base_qname = reference_to_qname(elem.attrib['base'], self.namespaces)
             base_type = self.maps.lookup_type(base_qname)
             if isinstance(base_type, XMLSchemaParseError):
@@ -831,6 +835,9 @@ class XsdAtomicRestriction(XsdAtomic):
             elif child.tag not in self.schema.FACETS:
                 raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
+                if base_type is None:
+                    import pdb
+                    pdb.set_trace()
                 try:
                     facets[child.tag].append(child)
                 except KeyError:

@@ -422,11 +422,20 @@ class TestDecoding(unittest.TestCase):
                         msg="XSD with an array that return a single element from xml must still yield a list.")
 
     def test_any_type(self):
-        any_type = xmlschema.XMLSchema.META_SCHEMA.types['anyType']
+        any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
         xml_data_1 = _ElementTree.Element('dummy')
         self.assertEqual(any_type.decode(xml_data_1), (None, [], []))
         xml_data_2 = _ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
         self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
+
+    def test_choice_model_decoding(self):
+        schema = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xsd'))
+        d = schema.to_dict(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xml'))
+        self.assertEqual(d, {
+            u'@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
+            'Name': u'SomeNameValueThingy',
+            'Value': {'Integer': 0}
+        })
 
 
 if __name__ == '__main__':

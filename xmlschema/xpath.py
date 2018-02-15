@@ -53,7 +53,10 @@ def get_xpath_tokenizer_pattern(symbols):
     )
 
 
-XPATH_SYMBOLS = [
+##
+# XPath 1.0 and 2.0 symbols (functions are followed by '(' and axis are followed by '::'
+#
+XPATH_1_SYMBOLS = [
     'processing-instruction(', 'descendant-or-self::', 'following-sibling::',
     'preceding-sibling::', 'ancestor-or-self::', 'descendant::', 'attribute::',
     'following::', 'namespace::', 'preceding::', 'ancestor::', 'comment(', 'parent::',
@@ -62,18 +65,21 @@ XPATH_SYMBOLS = [
     '-', '=', '+', '<', '>',
 
     # XPath Core function library
-    'last(', 'position(',  # Node set functions
-    'not(', 'true(', 'false('  # Boolean functions
-    
-    # added in XPath 2.0
-    'union'
+    'last(', 'position(', 'count(', 'id(', 'local-name(',   # Node set functions
+    'namespace-uri(', 'name(',
+    'string(', 'concat(', 'starts-with(', 'contains(',      # String functions
+    'substring-before(', 'substring-after(', 'substring(',
+    'string-length(', 'normalize-space(', 'translate(',
+    'boolean(', 'not(', 'true(', 'false('                   # Boolean functions
 ]
 
-RELATIVE_PATH_TOKENS = {s for s in XPATH_SYMBOLS if s.endswith("::")} | {
+XPATH_2_SYMBOLS = XPATH_1_SYMBOLS + [
+    'union', 'intersect',
+]
+
+RELATIVE_PATH_TOKENS = {s for s in XPATH_2_SYMBOLS if s.endswith("::")} | {
     '(integer)', '(string)', '(decimal)', '(ref)', '*', '@', '..', '.', '(', '/'
 }
-
-xpath_tokens_regex = re.compile(get_xpath_tokenizer_pattern(XPATH_SYMBOLS), re.VERBOSE)
 
 
 #
@@ -85,16 +91,16 @@ class TokenMeta(ABCMeta):
     """
     registry = {}
 
-    def __new__(mcs, name, bases, _dict):
-        _dict['name'] = name
-        lbp = _dict['lbp'] = _dict.pop('lbp', 0)
-        nud = _dict.pop('nud', None)
-        led = _dict.pop('led', None)
+    def __new__(mcs, name, bases, dict_):
+        dict_['name'] = name
+        lbp = dict_['lbp'] = dict_.pop('lbp', 0)
+        nud = dict_.pop('nud', None)
+        led = dict_.pop('led', None)
 
         try:
             token_class = mcs.registry[name]
         except KeyError:
-            token_class = super(TokenMeta, mcs).__new__(mcs, "_%s_Token" % name, bases, _dict)
+            token_class = super(TokenMeta, mcs).__new__(mcs, "_%s_Token" % name, bases, dict_)
         else:
             if lbp > token_class.lbp:
                 token_class.lbp = lbp
@@ -106,9 +112,9 @@ class TokenMeta(ABCMeta):
 
         return token_class
 
-    def __init__(cls, name, bases, _dict):
-        cls.registry[_dict['name']] = cls
-        super(TokenMeta, cls).__init__(name, bases, _dict)
+    def __init__(cls, name, bases, dict_):
+        cls.registry[dict_['name']] = cls
+        super(TokenMeta, cls).__init__(name, bases, dict_)
 
 
 class Token(MutableSequence):
@@ -195,9 +201,10 @@ class Token(MutableSequence):
         def select_descendants(context, results):
             results = self[0].sed(context, results)
             for elem in results:
-                for e in elem.iter(self[1].value):
-                    if e is not elem:
-                        yield e
+                if elem is not None:
+                    for e in elem.iter(self[1].value):
+                        if e is not elem:
+                            yield e
         return select_descendants
 
     def child_selector(self):
@@ -209,10 +216,7 @@ class Token(MutableSequence):
     def children_selector(self):
         def select_children(_context, results):
             for elem in results:
-                try:
-                    for e in elem.iterchildren(self.value):
-                        yield e
-                except AttributeError:
+                if elem is not None:
                     for e in elem:
                         if self.value is None or e.tag == self.value:
                             yield e
@@ -220,8 +224,9 @@ class Token(MutableSequence):
 
     def value_selector(self):
         def select_value(_context, results):
-            for _ in results:
-                yield self.value
+            for elem in results:
+                if elem is not None:
+                    yield self.value
         return select_value
 
     # @attribute
@@ -231,26 +236,20 @@ class Token(MutableSequence):
         def select_attribute(_context, results):
             if key is None:
                 for elem in results:
-                    for attr in elem.attrib.values():
-                        yield attr
+                    if elem is not None:
+                        for attr in elem.attrib.values():
+                            yield attr
             elif '{' == key[0]:
                 for elem in results:
-                    if key in elem.attrib:
+                    if elem is not None and key in elem.attrib:
                         yield elem.attrib[key]
             else:
                 for elem in results:
-                    if key in elem.attrib:
+                    if elem is None:
+                        continue
+                    elif key in elem.attrib:
                         yield elem.attrib[key]
-                    else:
-                        for attr in elem.attrib.values():
-                            try:
-                                # a XsdAttribute/XsdAnyAttribute
-                                if attr.match(key):
-                                    yield attr
-                                    break  # Avoid two matches
-                            except AttributeError:
-                                # an etree's Element attribute
-                                break
+
         return select_attribute
 
     # @attribute='value'
@@ -261,18 +260,21 @@ class Token(MutableSequence):
         def select_attribute_value(_context, results):
             if key is not None:
                 for elem in results:
-                    yield elem.get(key) == value
+                    if elem is not None:
+                        yield elem.get(key) == value
             else:
                 for elem in results:
-                    for attr in elem.attrib.values():
-                        yield attr == value
+                    if elem is not None:
+                        for attr in elem.attrib.values():
+                            yield attr == value
         return select_attribute_value
 
     def find_selector(self):
         def select_find(_context, results):
             for elem in results:
-                if elem.find(self.value) is not None:
-                    yield elem
+                if elem is not None:
+                    if elem.find(self.value) is not None:
+                        yield elem
         return select_find
 
     def subscript_selector(self):
@@ -297,9 +299,10 @@ class Token(MutableSequence):
         def select_predicate(context, results):
             results = self[0].sed(context, results)
             for elem in results:
-                predicate_results = list(self[1].sed(context, [elem]))
-                if predicate_results and any(predicate_results):
-                    yield elem
+                if elem is not None:
+                    predicate_results = list(self[1].sed(context, [elem]))
+                    if predicate_results and any(predicate_results):
+                        yield elem
         return select_predicate
 
     @staticmethod
@@ -322,10 +325,11 @@ class Token(MutableSequence):
     def tag_value_selector(self):
         def select_tag_value(_context, results):
             for elem in results:
-                for e in elem.findall(self.name):
-                    if "".join(e.itertext()) == self.value:
-                        yield elem
-                        break
+                if elem is not None:
+                    for e in elem.findall(self.name):
+                        if "".join(e.itertext()) == self.value:
+                            yield elem
+                            break
         return select_tag_value
 
     def disjunction_selector(self):
@@ -582,6 +586,12 @@ def parent_token_nud(self):
     return self
 
 
+@register_nud('ancestor::', lbp=60)
+def parent_token_nud(self):
+    self.sed = self.parent_selector()
+    return self
+
+
 @register_nud('/')
 def child_nud(_self):
     current_token.unexpected()
@@ -659,8 +669,8 @@ def predicate_close_token(*_args, **_kwargs):
     current_token.unexpected(']')
 
 
-@register_nud('last(', )
-def last_token_nud(self):
+@register_nud('last(')
+def last_function_token_nud(self):
     advance(')')
     if next_token.name == '-':
         advance('-')
@@ -672,7 +682,7 @@ def last_token_nud(self):
 
 
 @register_nud('position(')
-def position_token_nud(self):
+def position_function_token_nud(self):
     advance(')')
     advance('=')
     self.insert(0, expression(90))
@@ -682,20 +692,35 @@ def position_token_nud(self):
     return self
 
 
+##
+# XPath parsers
 #
-# XPath parser classes
-class XPathParser(object):
+
+class XPathParserMeta(ABCMeta):
+    """
+    XPathParser metaclass for creating versioned parsers.
+    """
+    def __init__(cls, name, bases, dict_):
+        cls.VERSION = dict_.pop('version', 1)
+        cls.token_table = dict_.pop('token_table', None)
+        cls._tokenizer_pattern = re.compile(get_xpath_tokenizer_pattern(XPATH_2_SYMBOLS), re.VERBOSE)
+        cls._NOT_ALLOWED_OPERATORS = {k for k in TokenMeta.registry if k not in cls.token_table}
+        super(XPathParserMeta, cls).__init__(name, bases, dict_)
+
+
+class XPathParserBase(object):
     """
     XPath expression iterator parser class.
 
     :param path: XPath expression.
     :param namespaces: optional prefix to namespace map.
-    :param token_table: Dictionary with XPath grammar's tokens. \
-    If `None` use the module registered token table.
     """
-    NOT_ALLOWED_OPERATORS = set()
+    __metaclass__ = XPathParserMeta
+    token_table = ()
+    _tokenizer_pattern = None
+    _NOT_ALLOWED_OPERATORS = None
 
-    def __init__(self, path, namespaces=None, token_table=None):
+    def __init__(self, path, namespaces=None):
         if not path:
             raise XMLSchemaXPathError("empty XPath expression.")
         elif path[-1] == '/':
@@ -705,10 +730,9 @@ class XPathParser(object):
 
         self.path = path
         self.namespaces = namespaces if namespaces is not None else {}
-        self.token_table = token_table or TokenMeta.registry
 
     def __iter__(self):
-        self._tokens = iter(xpath_tokens_regex.finditer(self.path))
+        self._tokens = iter(self._tokenizer_pattern.finditer(self.path))
 
     def __next__(self):
         token = self.advance()
@@ -738,7 +762,7 @@ class XPathParser(object):
                     except KeyError:
                         raise XMLSchemaXPathError("unknown operator %r." % operator)
                     else:
-                        if operator in self.NOT_ALLOWED_OPERATORS:
+                        if operator in self._NOT_ALLOWED_OPERATORS:
                             raise XMLSchemaXPathError("not allowed operator %r." % operator)
                     break
                 elif literal is not None:
@@ -772,6 +796,24 @@ class XPathParser(object):
         return root_token
 
 
+def create_xpath_parser(name, version, symbols):
+    return XPathParserMeta(
+        name,
+        (XPathParserBase,),
+        {
+            'version': version,
+            'token_table': {
+                k: v for k, v in TokenMeta.registry.items()
+                if k in symbols or k in {'(integer)', '(string)', '(decimal)', '(ref)', '(end)'}
+            }
+        }
+    )
+
+
+XPath1Parser = create_xpath_parser('XPath1Parser', version=1, symbols=XPATH_1_SYMBOLS)
+XPath2Parser = create_xpath_parser('XPath2Parser', version=2, symbols=XPATH_2_SYMBOLS)
+
+
 _selector_cache = {}
 
 
@@ -785,7 +827,7 @@ def xsd_iterfind(context, path, namespaces=None):
     except KeyError:
         pass
 
-    parser = XPathParser(path, namespaces)
+    parser = XPath1Parser(path, namespaces)
     selector = parser.parse()
     if len(_selector_cache) > 100:
         _selector_cache.clear()
@@ -803,7 +845,7 @@ def relative_path(path, levels, namespaces=None):
     prefix to full qualified name.
     :return: a string with a relative XPath expression.
     """
-    parser = XPathParser(path, namespaces)
+    parser = XPath1Parser(path, namespaces)
     token_tree = parser.parse()
     path_parts = [t.value for t in token_tree.iter()]
     i = 0
@@ -820,9 +862,36 @@ def relative_path(path, levels, namespaces=None):
     return ''.join(path_parts[i:])
 
 
-#
-# XPathMixin class for XMLSchema and XsdElement
-class XPathMixin(object):
+class XPathSelector(object):
+
+    def __init__(self, path, namespaces=None, parser=XPath2Parser):
+        self.parser = parser(path, namespaces)
+        self._selector = self.parser.parse()
+
+    def __repr__(self):
+        return u'%s(path=%r, namespaces=%r, parser=%s)' % (
+            self.__class__.__name__, self.path, self.namespaces, self.parser.__class__.__name__
+        )
+
+    @property
+    def path(self):
+        return self.parser.path
+
+    @property
+    def namespaces(self):
+        return self.parser.namespaces
+
+    def iter_select(self, context):
+        return self._selector.iter_select(context)
+
+
+class ElementPathMixin(object):
+    """
+    Mixin class that defines the ElementPath API.
+    """
+    @property
+    def tag(self):
+        return getattr(self, 'name')
 
     @property
     def attrib(self):
@@ -830,14 +899,14 @@ class XPathMixin(object):
 
     def iterfind(self, path, namespaces=None):
         """
-        Generates all matching XML Schema element declarations by path.
+        Generates all matching XSD/XML element declarations by path.
 
         :param path: is an XPath expression that considers the schema as the root element \
         with global elements as its children.
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching declarations in the XSD/XML order.
         """
-        return xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None))
+        return xsd_iterfind(self, path, namespaces or self.xpath_namespaces)
 
     def find(self, path, namespaces=None):
         """
@@ -848,7 +917,7 @@ class XPathMixin(object):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
-        return next(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)), None)
+        return next(xsd_iterfind(self, path, namespaces or self.xpath_namespaces), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -860,7 +929,15 @@ class XPathMixin(object):
         :return: a list containing all matching XSD/XML elements or attributes. An empty list \
         is returned if there is no match.
         """
-        return list(xsd_iterfind(self, path, namespaces or getattr(self, 'namespaces', None)))
+        return list(xsd_iterfind(self, path, namespaces or self.xpath_namespaces))
+
+    @property
+    def xpath_namespaces(self):
+        if hasattr(self, 'namespaces'):
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+            if hasattr(self, 'xpath_default_namespace'):
+                namespaces[''] = self.xpath_default_namespace
+            return namespaces
 
     def iter(self, name=None):
         raise NotImplementedError

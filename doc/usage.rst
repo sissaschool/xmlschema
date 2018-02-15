@@ -218,14 +218,13 @@ Those methods can be used to decode the correspondents parts of the XML document
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
     >>> xt = ElementTree.parse('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[0]))
-    {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
-                                          {'@make': 'Porsche', '@model': '911'}]}
+    {'vh:car': [{'@make': 'Porsche', '@model': '911'},
+                {'@make': 'Porsche', '@model': '911'}]}
     >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
     None
     >>> pprint(xs.elements['bikes'].decode(xt.getroot()[1]))
-    {'{http://example.com/vehicles}bike': [{'@make': 'Harley-Davidson',
-                                            '@model': 'WL'},
-                                           {'@make': 'Yamaha', '@model': 'XS650'}]}
+    {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
+                 {'@make': 'Yamaha', '@model': 'XS650'}]}
 
 You can also decode the entire XML document to a nested dictionary:
 

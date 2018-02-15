@@ -2,7 +2,13 @@
 CHANGELOG
 *********
 
-v0.9.19
+v0.9.21
+=======
+* Fixes 'final' derivation attribute for complexType
+* Decoupling of the XPath module from XsdComponent API
+* Fix for issue #41
+
+v0.9.20
 =======
 * Substitution groups support
 * Added *fetch_schema_locations* function to API

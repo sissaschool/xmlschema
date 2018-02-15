@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema">
+    <annotation>
+        <documentation>
+            A schema with puppet types for creating substitute elements.
+        </documentation>
+    </annotation>
+
+    <simpleType name="simple_puppet">
+        <union>
+            <simpleType>
+                <list itemType="float"/>
+            </simpleType>
+            <simpleType>
+                <list itemType="integer"/>
+            </simpleType>
+            <simpleType>
+                <restriction base="float"/>
+            </simpleType>
+            <simpleType>
+                <restriction base="int"/>
+            </simpleType>
+            <simpleType>
+                <restriction base="string"/>
+            </simpleType>
+        </union>
+    </simpleType>
+
+    <complexType name="complex_puppet">
+        <
+    </complexType>
+</schema>

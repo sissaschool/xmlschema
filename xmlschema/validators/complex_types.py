@@ -157,7 +157,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             return
 
         self.derivation = local_name(derivation_elem.tag)
-        if self.derivation in self.final:
+        if self.base_type is not None and self.derivation in self.base_type.final:
             self._parse_error("%r derivation not allowed for %r." % (self.derivation, self))
         return derivation_elem
 
