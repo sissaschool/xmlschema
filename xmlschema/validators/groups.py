@@ -152,6 +152,9 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
                 if not self.is_global:
+                    import pdb
+                    pdb.set_trace()
+                    assert False
                     self._parse_error(
                         "attribute 'name' not allowed for a local group", self
                     )
@@ -421,7 +424,8 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
             return  # Skip empty groups!
 
         model_occurs = 0
-        while index < len(elem):
+        max_occurs = self.max_occurs
+        while index < len(elem) and (not max_occurs or model_occurs < max_occurs):
             child_index = index  # index of the current examined child
 
             if self.model == XSD_SEQUENCE_TAG:
@@ -441,7 +445,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 elements = [e for e in self]
                 while elements:
                     for item in elements:
-                        for obj in item.iter_decode_children(elem, child_index, validation):
+                        for obj in item.iter_decode_children(elem, child_index, validation='lax'):
                             if isinstance(obj, tuple):
                                 yield obj
                             elif isinstance(obj, int):
@@ -463,7 +467,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 matched_choice = False
                 obj = None
                 for item in self:
-                    for obj in item.iter_decode_children(elem, child_index, validation):
+                    for obj in item.iter_decode_children(elem, child_index, validation='lax'):
                         if not isinstance(obj, XMLSchemaValidationError):
                             if isinstance(obj, tuple):
                                 yield obj
@@ -492,11 +496,8 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
 
             model_occurs += 1
             index = child_index
-            if self.max_occurs is not None and model_occurs >= self.max_occurs:
-                yield index
-                return
-        else:
-            yield index
+
+        yield index
 
 
 class Xsd11Group(XsdGroup):

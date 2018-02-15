@@ -716,7 +716,7 @@ class XPathParserBase(object):
     :param namespaces: optional prefix to namespace map.
     """
     __metaclass__ = XPathParserMeta
-    token_table = None
+    token_table = ()
     _tokenizer_pattern = None
     _NOT_ALLOWED_OPERATORS = None
 

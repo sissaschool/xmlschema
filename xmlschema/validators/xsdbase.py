@@ -44,7 +44,7 @@ class XsdBaseComponent(object):
         if self.validation == 'skip':
             return
 
-        elem = elem or getattr(self, 'elem', None)
+        elem = elem if elem is not None else getattr(self, 'elem', None)
         if isinstance(error, XMLSchemaParseError):
             error.component = self
             error.elem = elem
@@ -178,7 +178,11 @@ class XsdComponent(XsdBaseComponent):
 
     @property
     def namespaces(self):
-        return self.schema.namespaces
+        try:
+            return self.schema.namespaces
+        except AttributeError:
+            import pdb
+            pdb.set_trace()
 
     @property
     def maps(self):

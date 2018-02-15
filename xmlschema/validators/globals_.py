@@ -262,7 +262,12 @@ class XsdGlobals(XsdBaseComponent):
     def validity(self):
         if not self.namespaces:
             return False
-        return all([schema.valid for schema in self.iter_schemas()])
+        if all(schema.validity == 'valid' for schema in self.iter_schemas()):
+            return 'valid'
+        elif any(schema.validity == 'invalid' for schema in self.iter_schemas()):
+            return 'invalid'
+        else:
+            return 'notKnown'
 
     def iter_schemas(self):
         """Creates an iterator for the schemas registered in the instance."""
@@ -278,7 +283,9 @@ class XsdGlobals(XsdBaseComponent):
                 yield obj
 
     def iter_globals(self):
-        """Creates an iterator for XSD global definitions/declarations."""
+        """
+        Creates an iterator for XSD global definitions/declarations.
+        """
         for global_map in self.global_maps:
             for obj in global_map.values():
                 yield obj
@@ -364,8 +371,9 @@ class XsdGlobals(XsdBaseComponent):
                 for k in range(len(obj)):
                     if isinstance(obj[k], tuple):
                         elem, schema = obj[k]
+                        is_global = elem in list(schema.root)
                         if elem.tag == XSD_GROUP_TAG:
-                            obj[k] = group_class(elem, schema, mixed=obj.mixed)
+                            obj[k] = group_class(elem, schema, mixed=obj.mixed, is_global=is_global)
                         else:
                             obj[k] = element_class(elem, schema)
 
@@ -393,4 +401,6 @@ class XsdGlobals(XsdBaseComponent):
             self.base_elements.update({e.name: e for e in group.iter_elements()})
 
         if not self.built:
+            import pdb
+            pdb.set_trace()
             raise XMLSchemaNotBuiltError("Global map %r not built!" % self)

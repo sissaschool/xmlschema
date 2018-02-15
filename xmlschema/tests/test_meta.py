@@ -27,7 +27,7 @@ except ImportError:
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 
-meta_schema = xmlschema.XMLSchema.META_SCHEMA
+meta_schema = xmlschema.XMLSchema.meta_schema
 
 
 class TestBuiltinTypes(unittest.TestCase):
