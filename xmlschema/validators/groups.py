@@ -152,9 +152,6 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
                 if not self.is_global:
-                    import pdb
-                    pdb.set_trace()
-                    assert False
                     self._parse_error(
                         "attribute 'name' not allowed for a local group", self
                     )

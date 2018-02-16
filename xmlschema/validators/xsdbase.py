@@ -178,11 +178,7 @@ class XsdComponent(XsdBaseComponent):
 
     @property
     def namespaces(self):
-        try:
-            return self.schema.namespaces
-        except AttributeError:
-            import pdb
-            pdb.set_trace()
+        return self.schema.namespaces
 
     @property
     def maps(self):

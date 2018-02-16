@@ -401,6 +401,4 @@ class XsdGlobals(XsdBaseComponent):
             self.base_elements.update({e.name: e for e in group.iter_elements()})
 
         if not self.built:
-            import pdb
-            pdb.set_trace()
             raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
