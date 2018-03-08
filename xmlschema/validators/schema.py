@@ -18,7 +18,7 @@ from ..exceptions import (
     XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError
 )
 from ..namespaces import (
-    XSD_NAMESPACE_PATH, XML_NAMESPACE_PATH, HFP_NAMESPACE_PATH, XSI_NAMESPACE_PATH, XLINK_NAMESPACE_PATH
+    XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 )
 from ..etree import etree_get_namespaces, etree_register_namespace, etree_iselement
 
@@ -65,10 +65,10 @@ XSD_1_0_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 XSD_1_1_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
 BASE_SCHEMAS = {
-    XML_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-    HFP_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    XSI_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
-    XLINK_NAMESPACE_PATH: os.path.join(SCHEMAS_DIR, 'xlink.xsd')
+    XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+    HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd')
 }
 
 
@@ -180,8 +180,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         # Set and check target namespace
         self.target_namespace = self.root.get('targetNamespace', '')
-        if self.target_namespace == XSD_NAMESPACE_PATH and self.meta_schema is not None:
-            raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE_PATH)
+        if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
+            raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
                 raise XMLSchemaParseError(
@@ -201,7 +201,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             self.locations.update(locations)  # Insert locations argument first
         self.locations.update(iter_schema_location_hints(self.root))
 
-        self.namespaces = {'xml': XML_NAMESPACE_PATH}  # the XML namespace is implicit
+        self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
         self.namespaces.update(etree_get_namespaces(self.text))
         if '' not in self.namespaces:
@@ -483,26 +483,19 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except KeyError:
             return []
 
-    def get_converter(self, converter=None, namespaces=None, dict_class=None, list_class=None):
+    def get_converter(self, converter=None, namespaces=None, dict_class=None, list_class=None, **kwargs):
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
         if namespaces is None:
             namespaces = self.namespaces
 
-        for prefix, _uri in namespaces.items():
-            etree_register_namespace(prefix, _uri)
+        for prefix, uri_ in namespaces.items():
+            etree_register_namespace(prefix, uri_)
 
         if isinstance(converter, XMLSchemaConverter):
-            converter = converter.copy()
-            if namespaces is not None:
-                converter.namespaces = namespaces
-            if dict_class is not None:
-                converter.dict = dict_class
-            if list_class is not None:
-                converter.list = list_class
-            return converter
+            return converter.copy(namespaces, dict_class, list_class, **kwargs)
         elif issubclass(converter, XMLSchemaConverter):
-            return converter(namespaces, dict_class, list_class)
+            return converter(namespaces, dict_class, list_class, **kwargs)
         else:
             msg = "'converter' argument must be a %r subclass or instance: %r"
             raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
@@ -561,8 +554,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
     def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None,
-                    converter=None, dict_class=None, list_class=None):
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
+                    dict_class=None, list_class=None, **kwargs):
         """
         Creates an iterator for decoding an XML document using the schema instance. Yields objects 
         that can be dictionaries or simple data values.
@@ -586,6 +579,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         dictionary class of the :class:`XMLSchemaConverter` subclass/instance.
         :param list_class: the list-like class that have to be used instead of the default \
         list class of the :class:`XMLSchemaConverter` class/instance.
+        :param kwargs: Keyword arguments containing other options for converters and decoding.
         """
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
@@ -596,9 +590,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
             namespaces.update(etree_get_namespaces(xml_document))
-            converter = self.get_converter(converter, namespaces, dict_class, list_class)
+            converter = self.get_converter(converter, namespaces, dict_class, list_class, **kwargs)
         else:
-            converter = self.get_converter(converter, {}, dict_class, list_class)
+            converter = self.get_converter(converter, {}, dict_class, list_class, **kwargs)
 
         try:
             xml_root = xml_document.getroot()

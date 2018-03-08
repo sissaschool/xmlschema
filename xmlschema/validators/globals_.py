@@ -14,7 +14,7 @@ XSD declarations/definitions.
 """
 import re
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
-from ..namespaces import XSD_NAMESPACE_PATH, URIDict
+from ..namespaces import XSD_NAMESPACE, URIDict
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
     XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
@@ -331,10 +331,10 @@ class XsdGlobals(XsdBaseComponent):
         those that are already built.
         """
         try:
-            meta_schema = self.namespaces[XSD_NAMESPACE_PATH][0]
+            meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
             raise XMLSchemaValueError(
-                "%r: %r namespace is not registered." % (self, XSD_NAMESPACE_PATH))
+                "%r: %r namespace is not registered." % (self, XSD_NAMESPACE))
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
 

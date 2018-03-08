@@ -13,7 +13,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from collections import MutableMapping
 
-from ..namespaces import get_namespace, XSI_NAMESPACE_PATH
+from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
@@ -378,7 +378,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
             try:
                 xsd_attribute = self[name]
             except KeyError:
-                if get_namespace(name) == XSI_NAMESPACE_PATH:
+                if get_namespace(name) == XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
@@ -436,7 +436,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
                 xsd_attribute = self[name]
             except KeyError:
                 namespace = get_namespace(name) or self.target_namespace
-                if namespace == XSI_NAMESPACE_PATH:
+                if namespace == XSI_NAMESPACE:
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:

@@ -412,13 +412,13 @@ class TestDecoding(unittest.TestCase):
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with
         dictionaries, returns just that even when it has a single dict. """
-        xsd_string   = os.path.join(self.test_dir, 'cases/issues/issue_022/xsd_string.xsd')
+        xsd_string = os.path.join(self.test_dir, 'cases/issues/issue_022/xsd_string.xsd')
         xml_string_1 = os.path.join(self.test_dir, 'cases/issues/issue_022/xml_string_1.xml')
         xml_string_2 = os.path.join(self.test_dir, 'cases/issues/issue_022/xml_string_2.xml')
         xsd_schema = xmlschema.XMLSchema(xsd_string)
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
-        self.assertTrue(type(xml_data_1['bar']) == type(xml_data_2['bar']),
+        self.assertTrue(isinstance(xml_data_1['bar'], type(xml_data_2['bar'])),
                         msg="XSD with an array that return a single element from xml must still yield a list.")
 
     def test_any_type(self):
@@ -430,12 +430,23 @@ class TestDecoding(unittest.TestCase):
 
     def test_choice_model_decoding(self):
         schema = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xsd'))
-        d = schema.to_dict(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xml'))
-        self.assertEqual(d, {
+        data = schema.to_dict(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xml'))
+        self.assertEqual(data, {
             u'@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
             'Name': u'SomeNameValueThingy',
             'Value': {'Integer': 0}
         })
+
+    def test_cdata_decoding(self):
+        schema = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/issues/issue_046/issue_046.xsd'))
+        xml_file = os.path.join(self.test_dir, 'cases/issues/issue_046/issue_046.xml')
+        self.assertEqual(
+            schema.decode(xml_file, dict_class=OrderedDict, cdata_prefix='#'),
+            OrderedDict([('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
+                         ('#1', 'Dear Mr.'), ('name', 'John Smith'),
+                         ('#2', '.\n  Your order'), ('orderid', 1032),
+                         ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
+        )
 
 
 if __name__ == '__main__':

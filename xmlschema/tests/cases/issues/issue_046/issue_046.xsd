@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="letter">
+        <xs:complexType mixed="true">
+        <xs:sequence>
+            <xs:element name="name" type="xs:string"/>
+            <xs:element name="orderid" type="xs:positiveInteger"/>
+            <xs:element name="shipdate" type="xs:date"/>
+        </xs:sequence>
+    </xs:complexType>
+</xs:element> </xs:schema>

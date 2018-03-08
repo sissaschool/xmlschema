@@ -11,7 +11,7 @@
 """
 This module contains functions for manipulating fully qualified names and XML Schema tags.
 """
-from .namespaces import get_namespace, XML_NAMESPACE_PATH, XSD_NAMESPACE_PATH, XSI_NAMESPACE_PATH
+from .namespaces import get_namespace, XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
 
@@ -58,8 +58,8 @@ def xsd_qname(name):
     :return: fully qualified name for XSD namespace
     """
     if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE_PATH, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE_PATH):
+        return u"{%s}%s" % (XSD_NAMESPACE, name)
+    elif not name.startswith('{%s}' % XSD_NAMESPACE):
         raise XMLSchemaValueError("%r is not a name of the XSD namespace" % name)
     else:
         return name
@@ -266,15 +266,15 @@ XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 #
 # XML attributes
-XML_LANG = get_qname(XML_NAMESPACE_PATH, 'lang')
-XML_SPACE = get_qname(XML_NAMESPACE_PATH, 'space')
-XML_BASE = get_qname(XML_NAMESPACE_PATH, 'base')
-XML_ID = get_qname(XML_NAMESPACE_PATH, 'id')
-XML_SPECIAL_ATTRS = get_qname(XML_NAMESPACE_PATH, 'specialAttrs')
+XML_LANG = get_qname(XML_NAMESPACE, 'lang')
+XML_SPACE = get_qname(XML_NAMESPACE, 'space')
+XML_BASE = get_qname(XML_NAMESPACE, 'base')
+XML_ID = get_qname(XML_NAMESPACE, 'id')
+XML_SPECIAL_ATTRS = get_qname(XML_NAMESPACE, 'specialAttrs')
 
 #
 # XML Schema Instance attributes
-XSI_NIL = get_qname(XSI_NAMESPACE_PATH, 'nil')
-XSI_TYPE = get_qname(XSI_NAMESPACE_PATH, 'type')
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE_PATH, 'noNamespaceSchemaLocation')
+XSI_NIL = get_qname(XSI_NAMESPACE, 'nil')
+XSI_TYPE = get_qname(XSI_NAMESPACE, 'type')
+XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'schemaLocation')
+XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'noNamespaceSchemaLocation')

@@ -14,7 +14,7 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from ..namespaces import XSD_NAMESPACE_PATH
+from ..namespaces import XSD_NAMESPACE
 from ..qnames import (
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
     XSD_PATTERN_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
@@ -152,9 +152,9 @@ class XsdSingleFacet(XsdFacet):
             self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
             self.validator = self.total_digits_validator
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
-            if base_type.name != get_qname(XSD_NAMESPACE_PATH, 'decimal'):
+            if base_type.name != get_qname(XSD_NAMESPACE, 'decimal'):
                 raise XMLSchemaParseError(
-                    "fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE_PATH, self
+                    "fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE, self
                 )
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
