@@ -60,8 +60,16 @@ class XMLSchemaConverter(NamespaceMapper):
                     '%r cannot include letters or underscores: %r' % (name, value))
         super(NamespaceMapper, self).__setattr__(name, value)
 
-    def copy(self):
-        return type(self)(self.namespaces, self.dict, self.list)
+    def copy(self, namespaces=None, dict_class=None, list_class=None,
+             text_key='$', attr_prefix='@', cdata_prefix=None, **kwargs):
+        return type(self)(
+            namespaces=self.namespaces if namespaces is None else namespaces,
+            dict_class=self.dict if dict_class is None else dict_class,
+            list_class=self.list if list_class is None else list_class,
+            text_key=self.text_key if text_key == '$' else text_key,
+            attr_prefix=self.attr_prefix if attr_prefix == '@' else attr_prefix,
+            cdata_prefix=self.cdata_prefix if cdata_prefix is None else cdata_prefix,
+        )
 
     def map_attributes(self, attributes):
         """
@@ -141,7 +149,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if xsd_child.is_single() and xsd_element.type.content_type.is_single():
+                    if xsd_child is None or xsd_child.is_single() and xsd_element.type.content_type.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
@@ -222,8 +230,13 @@ class ParkerConverter(XMLSchemaConverter):
             attr_prefix=None, text_key='', cdata_prefix=None)
         self.preserve_root = preserve_root
 
-    def copy(self):
-        return type(self)(self.namespaces, self.dict, self.list, self.preserve_root)
+    def copy(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
+        return type(self)(
+            namespaces=self.namespaces if namespaces is None else namespaces,
+            dict_class=self.dict if dict_class is None else dict_class,
+            list_class=self.list if list_class is None else list_class,
+            preserve_root=self.preserve_root if preserve_root is False else preserve_root,
+        )
 
     def element_decode(self, data, xsd_element):
         map_qname = self.map_qname
@@ -307,7 +320,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if xsd_child.is_single():
+                    if xsd_child is None or xsd_child.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
@@ -353,7 +366,7 @@ class AbderaConverter(XMLSchemaConverter):
                 try:
                     children[name].append(value)
                 except KeyError:
-                    if xsd_child.is_single():
+                    if xsd_child is None or xsd_child.is_single():
                         children[name] = value
                     else:
                         children[name] = self.list([value])

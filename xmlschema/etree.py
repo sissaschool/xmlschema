@@ -14,12 +14,12 @@ This module contains ElementTree setup and helpers for xmlschema package.
 from xml.etree import ElementTree
 from .compat import PY3, StringIO
 from .exceptions import XMLSchemaValueError
-from .namespaces import XSLT_NAMESPACE_PATH, HFP_NAMESPACE_PATH, VC_NAMESPACE_PATH
+from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
 
 # Register missing namespaces into imported ElementTree module
-ElementTree.register_namespace('xslt', XSLT_NAMESPACE_PATH)
-ElementTree.register_namespace('hfp', HFP_NAMESPACE_PATH)
-ElementTree.register_namespace('vc', VC_NAMESPACE_PATH)
+ElementTree.register_namespace('xslt', XSLT_NAMESPACE)
+ElementTree.register_namespace('hfp', HFP_NAMESPACE)
+ElementTree.register_namespace('vc', VC_NAMESPACE)
 
 
 # Define alias for ElementTree API for internal module imports

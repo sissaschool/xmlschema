@@ -11,7 +11,7 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from ..namespaces import get_namespace, XSI_NAMESPACE_PATH
+from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from .exceptions import XMLSchemaChildrenValidationError
 from .parseutils import get_xsd_attribute
@@ -54,7 +54,7 @@ class XsdWildcard(XsdAnnotated, ValidatorMixin):
         return self.is_namespace_allowed(get_namespace(name))
 
     def is_namespace_allowed(self, namespace):
-        if self.namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
+        if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
             return namespace and namespace != self.target_namespace
@@ -223,7 +223,7 @@ class Xsd11Wildcard(XsdWildcard):
                 self.not_qname = not_qname.split()
 
     def is_namespace_allowed(self, namespace):
-        if self.namespace == '##any' or namespace == XSI_NAMESPACE_PATH:
+        if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
             return namespace and namespace != self.target_namespace
