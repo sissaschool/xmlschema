@@ -56,10 +56,9 @@ def parse_character_group(s, expand_ranges=False):
     :param s: A string representing a character group part.
     :param expand_ranges: Do not expand ranges, returns as couples of integers. \
     This is the default.
-    :return: Sequence of integers or couple of integers.
+    :return: Yields integers or couples of integers.
     """
     escaped = False
-    start_char = None
     last_index = len(s) - 1
     string_iter = iter(range(len(s)))
     for i in string_iter:
@@ -73,8 +72,6 @@ def parse_character_group(s, expand_ranges=False):
                 yield ord(char)
             elif last_index == 0 or s[1] != '-':
                 yield ord(char)
-            else:
-                start_char = char
         elif s[i] == '-':
             if escaped or (i == len(s) - 1):
                 char = s[i]
@@ -94,7 +91,7 @@ def parse_character_group(s, expand_ranges=False):
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
                         yield cp
                 else:
-                    yield ord(start_char), ord(end_char)
+                    yield ord(char), ord(end_char)
         elif s[i] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
@@ -118,12 +115,7 @@ def parse_character_group(s, expand_ranges=False):
                 escaped = False
                 yield ord('\\')
             char = s[i]
-            if expand_ranges:
-                yield ord(char)
-            elif last_index > i and s[i + 1] == '-':
-                start_char = char
-            else:
-                yield ord(char)
+            yield ord(char)
     if escaped:
         yield ord('\\')
 
