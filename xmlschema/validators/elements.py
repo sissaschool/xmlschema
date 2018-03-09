@@ -320,11 +320,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         try:
             converter = kwargs['converter']
         except KeyError:
-            converter = kwargs['converter'] = self.schema.get_converter(
-                namespaces=kwargs.get('namespaces'),
-                dict_class=kwargs.get('dict_class'),
-                list_class=kwargs.get('list_class'),
-            )
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         use_defaults = kwargs.get('use_defaults', False)
 

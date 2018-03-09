@@ -13,6 +13,7 @@ import unittest
 import glob
 import fileinput
 import os
+import re
 
 
 class TestPackage(unittest.TestCase):
@@ -21,7 +22,7 @@ class TestPackage(unittest.TestCase):
     def setUpClass(cls):
         cls.test_dir = os.path.dirname(__file__)
         cls.source_dir = os.path.dirname(cls.test_dir)
-        cls.missing_debug_regex = r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set\_trace\(\s*\)|\bprint\s*\()"
+        cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
 
     def test_missing_debug_statements(self):
         # Exclude explicit debug statements written in the code
@@ -29,7 +30,7 @@ class TestPackage(unittest.TestCase):
             'regex.py': [236, 237],
         }
 
-        message = "\nFound a debug missing statement at line %d or file %r."
+        message = "\nFound a debug missing statement at line %d or file %r: %r"
         filename = None
         file_excluded = []
         files = (
@@ -46,8 +47,8 @@ class TestPackage(unittest.TestCase):
             if lineno in file_excluded:
                 continue
 
-            # noinspection PyCompatibility
-            self.assertNotRegex(line, self.missing_debug_regex, message % (lineno, filename))
+            match = self.missing_debug.search(line)
+            self.assertIsNone(match, message % (lineno, filename, match.group(0) if match else None))
 
 
 if __name__ == '__main__':

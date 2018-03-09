@@ -45,7 +45,7 @@ class XMLSchemaConverter(NamespaceMapper):
     CDATA parts are ignored if this argument is `None`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
-                 text_key='$', attr_prefix='@', cdata_prefix=None):
+                 text_key='$', attr_prefix='@', cdata_prefix=None, **kwargs):
         self.dict = dict_class or dict
         self.list = list_class or list
         self.text_key = text_key
@@ -60,15 +60,14 @@ class XMLSchemaConverter(NamespaceMapper):
                     '%r cannot include letters or underscores: %r' % (name, value))
         super(NamespaceMapper, self).__setattr__(name, value)
 
-    def copy(self, namespaces=None, dict_class=None, list_class=None,
-             text_key='$', attr_prefix='@', cdata_prefix=None, **kwargs):
+    def copy(self, **kwargs):
         return type(self)(
-            namespaces=self.namespaces if namespaces is None else namespaces,
-            dict_class=self.dict if dict_class is None else dict_class,
-            list_class=self.list if list_class is None else list_class,
-            text_key=self.text_key if text_key == '$' else text_key,
-            attr_prefix=self.attr_prefix if attr_prefix == '@' else attr_prefix,
-            cdata_prefix=self.cdata_prefix if cdata_prefix is None else cdata_prefix,
+            namespaces=kwargs.get('namespaces', self.namespaces),
+            dict_class=kwargs.get('dict_class', self.dict),
+            list_class=kwargs.get('list_class', self.list),
+            text_key=kwargs.get('text_key', self.text_key),
+            attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
+            cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
         )
 
     def map_attributes(self, attributes):
@@ -224,18 +223,19 @@ class ParkerConverter(XMLSchemaConverter):
     :param preserve_root: If `True` the root element will be preserved. For default \
     the Parker convention remove the document root element, returning only the value.
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
+        kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class,
-            attr_prefix=None, text_key='', cdata_prefix=None)
+            namespaces, dict_class or OrderedDict, list_class, **kwargs
+        )
         self.preserve_root = preserve_root
 
-    def copy(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
+    def copy(self, **kwargs):
         return type(self)(
-            namespaces=self.namespaces if namespaces is None else namespaces,
-            dict_class=self.dict if dict_class is None else dict_class,
-            list_class=self.list if list_class is None else list_class,
-            preserve_root=self.preserve_root if preserve_root is False else preserve_root,
+            namespaces=kwargs.get('namespaces', self.namespaces),
+            dict_class=kwargs.get('dict_class', self.dict),
+            list_class=kwargs.get('list_class', self.list),
+            preserve_root=kwargs.get('preserve_root', self.preserve_root),
         )
 
     def element_decode(self, data, xsd_element):
@@ -279,10 +279,10 @@ class BadgerFishConverter(XMLSchemaConverter):
     :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+        kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='#')
         super(BadgerFishConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class,
-            attr_prefix='@', text_key='$', cdata_prefix='#'
+            namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element):
@@ -348,10 +348,10 @@ class AbderaConverter(XMLSchemaConverter):
     :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+        kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(AbderaConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class,
-            attr_prefix='', text_key='', cdata_prefix=None
+            namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element):
@@ -398,10 +398,10 @@ class JsonMLConverter(XMLSchemaConverter):
     :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+        kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(JsonMLConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class,
-            attr_prefix='', text_key='', cdata_prefix=None
+            namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element):
