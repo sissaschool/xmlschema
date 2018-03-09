@@ -445,18 +445,19 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                         for obj in item.iter_decode_children(elem, child_index, validation='lax'):
                             if isinstance(obj, tuple):
                                 yield obj
-                            elif isinstance(obj, int):
+                                continue
+                            elif isinstance(obj, int) and child_index < obj:
                                 child_index = obj
                                 break
                         else:
                             continue
                         break
                     else:
-                        if self.min_occurs > model_occurs:
+                        if any(not e.is_optional() for e in elements) and self.min_occurs > model_occurs:
                             yield XMLSchemaChildrenValidationError(
                                 self, elem, child_index, expected=[e.prefixed_name for e in elements]
                             )
-                        yield index
+                        yield child_index
                         return
                     elements.remove(item)
 
@@ -465,13 +466,12 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 obj = None
                 for item in self:
                     for obj in item.iter_decode_children(elem, child_index, validation='lax'):
-                        if not isinstance(obj, XMLSchemaValidationError):
-                            if isinstance(obj, tuple):
-                                yield obj
-                                continue
-                            if child_index < obj:
-                                matched_choice = True
-                                child_index = obj
+                        if isinstance(obj, tuple):
+                            yield obj
+                            continue
+                        elif isinstance(obj, int) and child_index < obj:
+                            child_index = obj
+                            matched_choice = True
                         break
                     if matched_choice:
                         break

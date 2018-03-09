@@ -33,6 +33,7 @@ if __name__ == '__main__':
     from xmlschema.tests.test_schemas import make_test_schema_function
     from xmlschema.tests.test_decoding import make_test_decoding_function, TestDecoding
     from xmlschema.tests.test_validation import TestValidation
+    from xmlschema.tests.test_package import TestPackage
 
     print_test_header()
 
