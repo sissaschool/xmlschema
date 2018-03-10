@@ -76,21 +76,13 @@ to JSON data.
 .. autoclass:: xmlschema.converters.XMLSchemaConverter
     :members: element_decode
 
-.. class:: xmlschema.converters.ParkerConverter
+.. autoclass:: xmlschema.converters.ParkerConverter
 
-    Converter class for Parker convention.
+.. autoclass:: xmlschema.converters.BadgerFishConverter
 
-.. class:: xmlschema.converters.BadgerFishConverter
+.. autoclass:: xmlschema.converters.AbderaConverter
 
-    Converter class for Badgerfish convention.
-
-.. class:: xmlschema.converters.AbderaConverter
-
-    Converter class for Abdera convention.
-
-.. class:: xmlschema.converters.JsonMLConverter
-
-    Converter class for JsonML convention.
+.. autoclass:: xmlschema.converters.JsonMLConverter
 
 
 Resource access API

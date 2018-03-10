@@ -835,9 +835,6 @@ class XsdAtomicRestriction(XsdAtomic):
             elif child.tag not in self.schema.FACETS:
                 raise XMLSchemaParseError("unexpected tag %r in restriction:" % child, self)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
-                if base_type is None:
-                    import pdb
-                    pdb.set_trace()
                 try:
                     facets[child.tag].append(child)
                 except KeyError:
