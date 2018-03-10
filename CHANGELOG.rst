@@ -2,6 +2,14 @@
 CHANGELOG
 *********
 
+v0.9.23
+=======
+* Fixes for issues #45, #46, #51
+* Added kwargs to *iter_decode()*, *dict_class* and *list_class* arguments have
+  been removed
+* Added kwargs to converters initialization in order to push variable keyword
+  arguments from *iter_decode()*
+
 v0.9.21
 =======
 * Fixes 'final' derivation attribute for complexType
