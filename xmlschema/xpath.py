@@ -887,7 +887,7 @@ class XPathSelector(object):
 
 class ElementPathMixin(object):
     """
-    Mixin class that defines the ElementPath API.
+    Mixin class that defines the ElementPath API for XSD classes (schemas and elements).
     """
     @property
     def tag(self):
@@ -896,6 +896,8 @@ class ElementPathMixin(object):
     @property
     def attrib(self):
         return getattr(self, 'attributes')
+
+    text = None
 
     def iterfind(self, path, namespaces=None):
         """
