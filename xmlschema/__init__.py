@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .exceptions import XMLSchemaException, XMLSchemaXPathError, XMLSchemaRegexError, XMLSchemaURLError
+from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .etree import etree_get_namespaces
 from .resources import fetch_resource, load_xml_resource, fetch_schema, fetch_schema_locations, normalize_url
 from .converters import (

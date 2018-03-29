@@ -27,7 +27,6 @@ except ImportError:
 
 from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
 
-from xmlschema.exceptions import XMLSchemaXPathError
 from xmlschema import XMLSchema
 
 
@@ -45,7 +44,7 @@ class XsdXPathTest(unittest.TestCase):
         self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*[')
         self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*)')
         self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*3')
-        self.assertRaises(ElementPathSyntaxError    , self.xs1.find, './@3')
+        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './@3')
 
     def test_xpath_extra_spaces(self):
         self.assertTrue(self.xs1.find('./ *') is not None)
@@ -93,6 +92,12 @@ class XsdXPathTest(unittest.TestCase):
         selector = Selector('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces, parser=XPath1Parser)
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 17)
+
+    def test_xpath_issues(self):
+        namespaces = {'ps': "http://schemas.microsoft.com/powershell/2004/04"}
+        selector = Selector("./ps:Props/*|./ps:MS/*", namespaces=namespaces, parser=XPath1Parser)
+        self.assertTrue(selector.root_token.tree,
+                        '(| (/ (/ (.) (: (ps) (Props))) (*)) (/ (/ (.) (: (ps) (MS))) (*)))')
 
 
 class ElementTreeXPathTest(unittest.TestCase):
