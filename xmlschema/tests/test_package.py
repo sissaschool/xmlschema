@@ -23,6 +23,10 @@ class TestPackage(unittest.TestCase):
         cls.test_dir = os.path.dirname(__file__)
         cls.source_dir = os.path.dirname(cls.test_dir)
         cls.package_dir = os.path.dirname(cls.source_dir)
+        if not os.path.dirname(cls.package_dir).endswith('/xmlschema'):
+            for k in range(5):
+                cls.package_dir = os.path.dirname(cls.package_dir)
+
         cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
         cls.get_version = re.compile(r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 

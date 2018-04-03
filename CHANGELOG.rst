@@ -5,6 +5,7 @@ CHANGELOG
 v0.9.24
 =======
 * Added XPath 1.0/2.0 full parsing with the derived *elementpath* package
+* Fixes for issues #52 and #54
 * Test package improved (tox.ini, other checks with test_package.py)
 
 v0.9.23

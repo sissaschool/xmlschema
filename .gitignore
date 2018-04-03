@@ -4,6 +4,7 @@
 *.so
 *.egg-info
 .idea/
+.tox/
 .ipynb_checkpoints/
 xmlschema/tests/extra-schemas/
 doc/_*
