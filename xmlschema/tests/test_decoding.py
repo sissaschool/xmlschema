@@ -351,7 +351,9 @@ class TestDecoding(unittest.TestCase):
 
     def test_path(self):
         xt = _ElementTree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml'))
-        xd = self.vh_schema.to_dict(xt, './vh:vehicles/vh:bikes', namespaces=self.namespaces)
+        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
+        self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
+        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
         self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
 
     def test_validation_strict(self):

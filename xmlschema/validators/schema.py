@@ -13,6 +13,7 @@ This module contains XMLSchema class creator for xmlschema package.
 """
 import os.path
 from collections import namedtuple
+import elementpath
 
 from ..exceptions import (
     XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError
@@ -26,7 +27,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import XSD_SCHEMA_TAG
 from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XSD_VALIDATION_MODES, XMLSchemaConverter
-from ..xpath import ElementPathMixin, relative_path
+from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
@@ -189,7 +190,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                     (self.target_namespace, namespace, self.url)
                 )
             else:
-                self.target_namespace = namespace
+                self.target_namespace = namespace  # Chameleon schema
 
         # Schema validity assessments
         if validation not in XSD_VALIDATION_MODES:
@@ -307,7 +308,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             self.maps.build()
 
     def __repr__(self):
-        return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
+        if self.url:
+            return u'%s(namespace=%r, url=%r)' % (self.__class__.__name__, self.target_namespace, self.url)
+        else:
+            return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
         if name == 'root' and value.tag != XSD_SCHEMA_TAG:
@@ -519,11 +523,13 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 reason="cannot import namespace %r: %s" % (namespace, err.reason)
             )
         else:
-            if schema_url in self.maps.resources:
-                return self.maps.resources[schema_url]
+            if namespace in self.maps.namespaces:
+                for schema in self.maps.namespaces[namespace]:
+                    if schema_url == schema.url:
+                        return schema
 
         try:
-            self.create_schema(
+            return self.create_schema(
                 schema_url, namespace or self.target_namespace, self.validation, self.maps,
                 self.converter, None, False
             )
@@ -544,8 +550,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except XMLSchemaURLError as err:
             raise XMLSchemaURLError(reason="cannot include %r: %s." % (location, err.reason))
         else:
-            if schema_url in self.maps.resources:
-                return self.maps.resources[schema_url]
+            for schema in self.maps.namespaces[self.target_namespace]:
+                if schema_url == schema.url:
+                    return schema
         try:
             return self.create_schema(
                 schema_url, self.target_namespace, self.validation, self.maps, self.converter, None, False
@@ -621,11 +628,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             xsd_element = self.find(path, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
                 msg = "the path %r doesn't match any element of the schema!" % path
-                obj = xml_root.findall(path, namespaces=namespaces) or xml_root
+                obj = elementpath.select(xml_root, path, namespaces=namespaces) or xml_root
                 yield XMLSchemaValidationError(self, obj, reason=msg)
             else:
-                rel_path = relative_path(path, 1, namespaces)
-                for elem in xml_root.findall(rel_path, namespaces=namespaces):
+                for elem in elementpath.select(xml_root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation,
                             process_namespaces=process_namespaces,

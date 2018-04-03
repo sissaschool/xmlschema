@@ -505,11 +505,13 @@ class XsdList(XsdSimpleType):
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
-        if name == 'elem' and value is not None:
-            if value.tag != XSD_LIST_TAG:
-                raise XMLSchemaValueError(
-                    "a %r definition required for %r." % (XSD_LIST_TAG, self)
-                )
+        if name == 'elem' and value is not None and value.tag != XSD_LIST_TAG:
+            if value.tag == XSD_SIMPLE_TYPE_TAG:
+                for child in value:
+                    if child.tag == XSD_LIST_TAG:
+                        super(XsdList, self).__setattr__(name, child)
+                        return
+            raise XMLSchemaValueError("a %r definition required for %r." % (XSD_LIST_TAG, self))
         elif name == 'item_type':
             check_type(value, XsdSimpleType)
         elif name == 'white_space' and value is None:
@@ -641,11 +643,13 @@ class XsdUnion(XsdSimpleType):
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
-        if name == 'elem' and value is not None:
-            if value.tag != XSD_UNION_TAG:
-                raise XMLSchemaValueError(
-                    "a %r definition required for %r." % (XSD_UNION_TAG, self)
-                )
+        if name == 'elem' and value is not None and value.tag != XSD_UNION_TAG:
+            if value.tag == XSD_SIMPLE_TYPE_TAG:
+                for child in value:
+                    if child.tag == XSD_UNION_TAG:
+                        super(XsdUnion, self).__setattr__(name, child)
+                        return
+            raise XMLSchemaValueError("a %r definition required for %r." % (XSD_UNION_TAG, self))
         elif name == "member_types":
             for member_type in value:
                 check_type(member_type, XsdSimpleType)

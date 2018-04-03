@@ -11,20 +11,12 @@
 """
 This module contains an XPath parser and other XPath related classes and functions.
 """
-import re
 from elementpath import select, iter_select, XPath1Parser
-
-
-_RE_SPLIT_PATH = re.compile(r'/(?![^{}]*})')
-
-
-def split_path(path):
-    return _RE_SPLIT_PATH.split(path)
 
 
 def relative_path(path, levels, namespaces=None):
     """
-    Return a relative XPath expression.
+    Return a relative XPath expression from parsed tree.
     
     :param path: An XPath expression.
     :param levels: Number of path levels to remove.
@@ -33,8 +25,8 @@ def relative_path(path, levels, namespaces=None):
     :return: a string with a relative XPath expression.
     """
     parser = XPath1Parser(namespaces)
-    token_tree = parser.parse(path)
-    path_parts = [t.value for t in token_tree.iter()]
+    root_token = parser.parse(path)
+    path_parts = [t.value for t in root_token.iter()]
     i = 0
     if path_parts[0] == '.':
         i += 1
@@ -75,6 +67,8 @@ class ElementPathMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching declarations in the XSD/XML order.
         """
+        if path.startswith('/'):
+            path = u'.%s' % path  # Avoid document root positioning
         return iter_select(self, path, namespaces or self.xpath_namespaces, strict=False)
 
     def find(self, path, namespaces=None):
@@ -86,6 +80,8 @@ class ElementPathMixin(object):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
+        if path.startswith('/'):
+            path = u'.%s' % path
         return next(iter_select(self, path, namespaces or self.xpath_namespaces, strict=False), None)
 
     def findall(self, path, namespaces=None):
@@ -98,6 +94,8 @@ class ElementPathMixin(object):
         :return: a list containing all matching XSD/XML elements or attributes. An empty list \
         is returned if there is no match.
         """
+        if path.startswith('/'):
+            path = u'.%s' % path
         return select(self, path, namespaces or self.xpath_namespaces, strict=False)
 
     @property

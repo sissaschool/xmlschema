@@ -31,6 +31,30 @@ except ImportError:
 
 from xmlschema import XMLSchemaParseError, XMLSchemaURLError
 from xmlschema.tests import SchemaObserver
+from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
+
+
+class TestXMLSchema1(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = os.path.dirname(__file__)
+        cls.schema_class = xmlschema.XMLSchema
+        cls.namespaces = {
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        }
+
+    def get_schema(self, relative_path):
+        return self.schema_class(os.path.join(self.test_dir, relative_path))
+
+    def test_simple_types(self):
+        xs = self.get_schema('cases/features/elements/test-simple-types.xsd')
+
+        # Issue #54: set list or union element.
+        xs.types['test_list'].elem = xs.root[1]  # elem.tag == xs:simpleType
+        self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST_TAG)
+        xs.types['test_union'].elem = xs.root[2]  # elem.tag == xs:simpleType
+        self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):

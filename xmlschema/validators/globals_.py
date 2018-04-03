@@ -113,7 +113,6 @@ class XsdGlobals(XsdBaseComponent):
         self.validator = validator
 
         self.namespaces = URIDict()     # Registered schemas by namespace URI
-        self.resources = URIDict()      # Registered schemas by resource URI
 
         self.types = {}                 # Global types (both complex and simple)
         self.attributes = {}            # Global attributes
@@ -133,7 +132,6 @@ class XsdGlobals(XsdBaseComponent):
         """Makes a copy of the object."""
         obj = XsdGlobals(self.validator)
         obj.namespaces.update(self.namespaces)
-        obj.resources.update(self.resources)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
         obj.attribute_groups.update(self.attribute_groups)
@@ -269,6 +267,10 @@ class XsdGlobals(XsdBaseComponent):
         else:
             return 'notKnown'
 
+    @property
+    def resources(self):
+        return [(schema.url, schema) for schemas in self.namespaces.values() for schema in schemas]
+
     def iter_schemas(self):
         """Creates an iterator for the schemas registered in the instance."""
         for ns_schemas in self.namespaces.values():
@@ -294,12 +296,6 @@ class XsdGlobals(XsdBaseComponent):
         """
         Registers an XMLSchema instance.
         """
-        if schema.url:
-            if schema.url not in self.resources:
-                self.resources[schema.url] = schema
-            elif self.resources[schema.url] != schema:
-                return
-
         try:
             ns_schemas = self.namespaces[schema.target_namespace]
         except KeyError:
@@ -323,7 +319,6 @@ class XsdGlobals(XsdBaseComponent):
 
         if remove_schemas:
             self.namespaces.clear()
-            self.resources.clear()
 
     def build(self):
         """
