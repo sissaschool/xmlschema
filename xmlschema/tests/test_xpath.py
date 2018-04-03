@@ -25,9 +25,9 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.exceptions import XMLSchemaXPathError
+from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
+
 from xmlschema import XMLSchema
-from xmlschema.xpath import XPath1Parser, XPathSelector
 
 
 class XsdXPathTest(unittest.TestCase):
@@ -41,10 +41,10 @@ class XsdXPathTest(unittest.TestCase):
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
     def test_xpath_wrong_syntax(self):
-        self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*[')
-        self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*)')
-        self.assertRaises(XMLSchemaXPathError, self.xs1.find, './*3')
-        self.assertRaises(XMLSchemaXPathError, self.xs1.find, './@3')
+        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*[')
+        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*)')
+        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*3')
+        self.assertRaises(ElementPathSyntaxError, self.xs1.find, './@3')
 
     def test_xpath_extra_spaces(self):
         self.assertTrue(self.xs1.find('./ *') is not None)
@@ -86,12 +86,18 @@ class XsdXPathTest(unittest.TestCase):
         self.assertTrue(self.xs1.findall("./vh:vehicles/*['']") == [])
 
     def test_xpath_descendants(self):
-        selector = XPath1Parser('.//xs:element', self.xs2.namespaces).parse()
+        selector = Selector('.//xs:element', self.xs2.namespaces, parser=XPath1Parser)
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 14)
-        selector = XPath1Parser('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces).parse()
+        selector = Selector('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces, parser=XPath1Parser)
         elements = list(selector.iter_select(self.xs2.root))
         self.assertTrue(len(elements) == 17)
+
+    def test_xpath_issues(self):
+        namespaces = {'ps': "http://schemas.microsoft.com/powershell/2004/04"}
+        selector = Selector("./ps:Props/*|./ps:MS/*", namespaces=namespaces, parser=XPath1Parser)
+        self.assertTrue(selector.root_token.tree,
+                        '(| (/ (/ (.) (: (ps) (Props))) (*)) (/ (/ (.) (: (ps) (MS))) (*)))')
 
 
 class ElementTreeXPathTest(unittest.TestCase):
@@ -103,9 +109,8 @@ class ElementTreeXPathTest(unittest.TestCase):
     def test_rel_xpath_boolean(self):
         root = et.XML('<A><B><C/></B></A>')
         el = root[0]
-        print(list(XPathSelector('boolean(D)').iter_select(el)))
-        self.assertTrue(XPathSelector('boolean(C)').iter_select(el))
-        self.assertFalse(next(XPathSelector('boolean(D)').iter_select(el)))
+        self.assertTrue(Selector('boolean(C)').iter_select(el))
+        self.assertFalse(next(Selector('boolean(D)').iter_select(el)))
 
 
 if __name__ == '__main__':

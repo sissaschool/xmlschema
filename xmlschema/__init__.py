@@ -8,7 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .exceptions import XMLSchemaException, XMLSchemaXPathError, XMLSchemaRegexError, XMLSchemaURLError
+from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .etree import etree_get_namespaces
 from .resources import fetch_resource, load_xml_resource, fetch_schema, fetch_schema_locations, normalize_url
 from .converters import (
@@ -21,7 +21,7 @@ from .validators.exceptions import (
 )
 from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema_v1_0, create_validator
 
-__version__ = '0.9.23'
+__version__ = '0.9.24'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"

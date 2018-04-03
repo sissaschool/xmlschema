@@ -50,8 +50,3 @@ class XMLSchemaURLError(XMLSchemaException, URLError):
 class XMLSchemaRegexError(XMLSchemaException, ValueError):
     """Raised when an error is found when parsing an XML Schema regular expression."""
     pass
-
-
-class XMLSchemaXPathError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XPath expression."""
-    pass

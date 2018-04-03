@@ -4,6 +4,7 @@
 *.so
 *.egg-info
 .idea/
+.tox/
 .ipynb_checkpoints/
 xmlschema/tests/extra-schemas/
 doc/_*
@@ -11,3 +12,4 @@ __pycache__/
 dist/
 build/
 tmp/
+development/

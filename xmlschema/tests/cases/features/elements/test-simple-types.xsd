@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<xs:schema elementFormDefault="qualified"
+           targetNamespace="http://xmlschema.test/test/"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:annotation>
+        <xs:documentation>
+            This is a schema for testing simple types with the 'xmlschema' package.
+        </xs:documentation>
+    </xs:annotation>
+
+    <xs:simpleType name="test_list">
+        <xs:annotation/>
+        <xs:list itemType="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="test_union">
+        <xs:annotation/>
+        <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
+    </xs:simpleType>
+
+</xs:schema>

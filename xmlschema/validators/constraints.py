@@ -12,28 +12,31 @@
 This module contains classes for other XML Schema constraints.
 """
 from collections import Counter
+from elementpath import Selector, XPath1Parser
 
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
-from ..xpath import create_xpath_parser
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .xsdbase import XsdAnnotated
 
+XSD_CONSTRAINTS_XPATH_SYMBOLS = {
+    'processing-instruction', 'descendant-or-self', 'following-sibling', 'preceding-sibling',
+    'ancestor-or-self', 'descendant', 'attribute', 'following', 'namespace', 'preceding',
+    'ancestor', 'position', 'comment', 'parent', 'child', 'self', 'false', 'text', 'node',
+    'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
+    '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
+    '(string)', '(float)', '(decimal)', '(integer)'
+}
 
-XsdSelectorXPathParser = create_xpath_parser(
-    name='XsdSelectorXPathParser',
-    version=1,
-    symbols=[
-        'processing-instruction(', 'descendant-or-self::', 'following-sibling::', 'preceding-sibling::',
-        'ancestor-or-self::', 'descendant::', 'attribute::', 'following::', 'namespace::', 'preceding::',
-        'ancestor::', 'position(', 'comment(', 'parent::', 'child::', 'self::', 'false(', 'text(', 'node(',
-        'true(', 'last(', 'not(', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')', '[',
-        ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>'
-    ]
-)
+
+class XsdConstraintXPathParser(XPath1Parser):
+    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_CONSTRAINTS_XPATH_SYMBOLS}
+    SYMBOLS = XSD_CONSTRAINTS_XPATH_SYMBOLS
+
+XsdConstraintXPathParser.end()
 
 
 class XsdSelector(XsdAnnotated):
@@ -49,12 +52,11 @@ class XsdSelector(XsdAnnotated):
             self._parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
 
-        parser = XsdSelectorXPathParser(self.path, self.namespaces)
         try:
-            self._selector = parser.parse()
+            self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdConstraintXPathParser)
         except XMLSchemaParseError as err:
             self._parse_error("invalid XPath expression: %s" % str(err), self.elem)
-            self._selector = XsdSelectorXPathParser("*").parse()
+            self.xpath_selector = Selector('*', self.namespaces, parser=XsdConstraintXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -72,9 +74,6 @@ class XsdSelector(XsdAnnotated):
     @property
     def admitted_tags(self):
         return {XSD_SELECTOR_TAG}
-
-    def iter_select(self, context):
-        return self._selector.iter_select(context)
 
 
 class XsdFieldSelector(XsdSelector):
@@ -122,7 +121,7 @@ class XsdConstraint(XsdAnnotated):
         """
         fields = []
         for k, field in enumerate(self.fields):
-            result = list(field.iter_select(context))
+            result = field.xpath_selector.select(context)
             if not result:
                 if isinstance(self, XsdKey):
                     raise XMLSchemaValueError("%r key field must have a value!" % field)
@@ -146,7 +145,7 @@ class XsdConstraint(XsdAnnotated):
         """
         current_path = ''
         xsd_fields = None
-        for e in self.selector.iter_select(elem):
+        for e in self.selector.xpath_selector.iter_select(elem):
             path = etree_getpath(e, elem)
             if current_path != path:
                 # Change the XSD context only if the path is changed

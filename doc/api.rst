@@ -102,7 +102,6 @@ Errors and exceptions
 .. autoexception:: xmlschema.XMLSchemaNotBuiltError
 .. autoexception:: xmlschema.XMLSchemaParseError
 .. autoexception:: xmlschema.XMLSchemaRegexError
-.. autoexception:: xmlschema.XMLSchemaXPathError
 .. autoexception:: xmlschema.XMLSchemaValidationError
 .. autoexception:: xmlschema.XMLSchemaDecodeError
 .. autoexception:: xmlschema.XMLSchemaEncodeError
