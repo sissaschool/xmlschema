@@ -277,7 +277,7 @@ expression using in the *path* argument.
 .. doctest::
 
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/vehicles/vehicles.xml', './vh:vehicles/vh:bikes'))
+    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/vehicles/vehicles.xml', '/vh:vehicles/vh:bikes'))
     {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                  {'@make': 'Yamaha', '@model': 'XS650'}]}
 

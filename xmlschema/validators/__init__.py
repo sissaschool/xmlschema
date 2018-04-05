@@ -11,7 +11,7 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from .xsdbase import XsdBaseComponent, XsdComponent, XsdAnnotation, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdBaseComponent, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdSelector, XsdFieldSelector, XsdConstraint, XsdKeyref, XsdKey, XsdUnique
 from .notations import XsdNotation
 from .wildcards import XsdAnyElement, XsdAnyAttribute

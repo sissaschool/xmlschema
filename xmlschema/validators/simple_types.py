@@ -196,13 +196,13 @@ class XsdSimpleType(XsdType, ValidatorMixin):
                 raise XMLSchemaParseError("'maxLength' value is lesser than 'minLength'.", self)
             min_length_facet = base_type.get_facet(XSD_MIN_LENGTH_TAG)
             if min_length_facet is not None and min_length_facet.value > min_length:
-                raise XMLSchemaParseError("parent 'minLength' has a lesser value.", self)
+                raise XMLSchemaParseError("Child 'minLength' has a lesser value than parent", self)
         elif max_length is not None:
             if max_length < 0:
                 raise XMLSchemaParseError("'maxLength' value must be non negative integer.", self)
             max_length_facet = base_type.get_facet(XSD_MAX_LENGTH_TAG)
-            if max_length_facet is not None and max_length_facet.value > min_length:
-                raise XMLSchemaParseError("parent 'maxLength' has a greater value.", self)
+            if max_length_facet is not None and max_length > max_length_facet.value:
+                raise XMLSchemaParseError("Child 'maxLength' has a greater value than parent", self)
 
         # Checks max/min
         min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE_TAG), 'value', None)

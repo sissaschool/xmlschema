@@ -88,6 +88,7 @@ class TestXMLSchema1(unittest.TestCase):
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
 
     def test_facets(self):
+        # Issue #55 and a near error (derivation from xs:integer)
         self.check_schema("""
             <xs:simpleType name="dtype">
                 <xs:restriction base="xs:decimal">
@@ -111,6 +112,20 @@ class TestXMLSchema1(unittest.TestCase):
                 </xs:restriction>
             </xs:simpleType>
             """, xmlschema.XMLSchemaParseError)
+
+        # Issue #56
+        self.check_schema("""
+            <xs:simpleType name="mlengthparent">
+                <xs:restriction base="xs:string">
+                    <xs:maxLength value="200"/>
+                </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType name="mlengthchild">
+                <xs:restriction base="mlengthparent">
+                    <xs:maxLength value="20"/>
+                </xs:restriction>
+                </xs:simpleType>
+            """)
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
