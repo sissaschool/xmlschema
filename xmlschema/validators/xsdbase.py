@@ -17,7 +17,8 @@ from ..compat import PY3, unicode_type
 from ..etree import etree_tostring, etree_iselement
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG, XSD_DOCUMENTATION_TAG, XML_LANG
+    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG,
+    XSD_DOCUMENTATION_TAG, XML_LANG, XSD_ANY_TYPE
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .parseutils import (
@@ -337,6 +338,9 @@ class XsdAnnotation(XsdComponent):
 
 class XsdType(XsdComponent):
 
+    base_type = None
+    derivation = None
+
     @property
     def built(self):
         raise NotImplementedError
@@ -359,11 +363,43 @@ class XsdType(XsdComponent):
     def is_emptiable(self):
         raise NotImplementedError
 
-    def is_derived(self, other):
+    def has_simple_content(self):
         raise NotImplementedError
 
-    def is_subtype(self, qname):
+    def has_mixed_content(self):
         raise NotImplementedError
+
+    def is_element_only(self):
+        raise NotImplementedError
+
+    @property
+    def content_type_label(self):
+        if self.is_empty():
+            return 'empty'
+        elif self.has_simple_content():
+            return 'simple'
+        elif self.is_element_only():
+            return 'element-only'
+        elif self.has_mixed_content():
+            return 'mixed'
+        else:
+            return 'unknown'
+
+    def is_derived(self, other, derivation=None):
+        if other.name == XSD_ANY_TYPE or self.base_type == other:
+            return True if derivation is None else derivation == self.derivation
+        elif self.base_type is not None:
+            return self.base_type.is_derived(other, derivation)
+        else:
+            return False
+
+    def is_subtype(self, qname):
+        if qname == XSD_ANY_TYPE or self.name == qname:
+            return True
+        elif self.base_type is not None:
+            return self.base_type.is_subtype(qname)
+        else:
+            return False
 
 
 class ParticleMixin(object):

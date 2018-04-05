@@ -21,13 +21,12 @@ from ..qnames import (
     XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
     XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG,
-    XSD_ANY_TYPE,
 )
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 )
-from .parseutils import get_xsd_derivation_attribute, check_type, check_value, get_xsd_component
-from .xsdbase import XsdComponent, ValidatorMixin
+from .parseutils import get_xsd_derivation_attribute, get_xsd_component
+from .xsdbase import XsdType, ValidatorMixin
 from .facets import (
     XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 )
@@ -63,7 +62,7 @@ def xsd_simple_type_factory(elem, schema, is_global=False):
         return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
 
-class XsdSimpleType(XsdComponent, ValidatorMixin):
+class XsdSimpleType(XsdType, ValidatorMixin):
     """
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
@@ -85,7 +84,7 @@ class XsdSimpleType(XsdComponent, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == 'facets':
-            check_type(value, dict)
+            assert isinstance(value, dict), "A dictionary is required for attribute 'facets'."
             try:
                 self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
             except XMLSchemaParseError as err:
@@ -136,7 +135,13 @@ class XsdSimpleType(XsdComponent, ValidatorMixin):
     def is_emptiable(self):
         return self.min_length is None or self.min_length == 0
 
-    def is_derived(self, other):
+    def has_simple_content(self):
+        return True
+
+    def has_mixed_content(self):
+        return False
+
+    def is_element_only(self):
         return False
 
     def check_facets(self, facets):
@@ -305,10 +310,15 @@ class XsdAtomic(XsdSimpleType):
     """
     def __init__(self, elem, schema, name=None, facets=None, base_type=None, is_global=False):
         super(XsdAtomic, self).__init__(elem, schema, name, is_global=is_global)
-        if not hasattr(self, 'base_type'):
+        if self.base_type is None:
             if base_type is None and not isinstance(self, XsdAtomicBuiltin):
                 raise XMLSchemaAttributeError("undefined 'base_type' attribute for %r." % self)
             self.base_type = base_type
+        elif base_type is not None and base_type is not self.base_type:
+            raise XMLSchemaAttributeError(
+                "'base_type' argument and attribute differs: %r is not %r." % (base_type, self.base_type)
+            )
+
         if not hasattr(self, 'facets'):
             self.facets = facets or {}
         elif not self.facets and facets:
@@ -373,24 +383,8 @@ class XsdAtomic(XsdSimpleType):
             try:
                 return self.base_type.primitive_type
             except AttributeError:
-                # List or Union base_type.
+                # The base_type is XsdList or XsdUnion.
                 return self.base_type
-
-    def is_derived(self, other):
-        if other.name == XSD_ANY_TYPE or self.base_type == other:
-            return True
-        elif self.base_type is not None:
-            return self.base_type.is_derived(other)
-        else:
-            return False
-
-    def is_subtype(self, qname):
-        if qname == XSD_ANY_TYPE or self.name == qname:
-            return True
-        elif self.base_type is not None:
-            return self.base_type.is_subtype(qname)
-        else:
-            return False
 
 
 class XsdAtomicBuiltin(XsdAtomic):
@@ -521,7 +515,8 @@ class XsdList(XsdSimpleType):
                         return
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_LIST_TAG, self))
         elif name == 'base_type':
-            check_type(value, XsdSimpleType)
+            assert isinstance(value, XsdSimpleType), \
+                "An XsdSimpleType instance is required for attribute 'base_type'."
         elif name == 'white_space' and value is None:
             value = 'collapse'
         super(XsdList, self).__setattr__(name, value)
@@ -664,11 +659,12 @@ class XsdUnion(XsdSimpleType):
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_UNION_TAG, self))
         elif name == "member_types":
             for member_type in value:
-                check_type(member_type, XsdSimpleType)
+                assert isinstance(member_type, XsdSimpleType), \
+                    "The 'member_types' items must be XsdSimpleType instances."
             if not value:
                 raise XMLSchemaValueError("%r attribute cannot be empty or None." % name)
         elif name == 'white_space':
-            check_value(value, None, 'collapse')
+            assert value is None or value == 'collapse', "Wrong value % for attribute 'white_space'." % value
             value = 'collapse'
         super(XsdUnion, self).__setattr__(name, value)
 

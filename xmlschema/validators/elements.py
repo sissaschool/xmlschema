@@ -26,14 +26,13 @@ from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
-from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdComponent, ParticleMixin, ValidatorMixin
-from .simple_types import XsdSimpleType
-from .complex_types import XsdComplexType
+from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 
 
 class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
@@ -91,12 +90,12 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
     def __setattr__(self, name, value):
         if name == "type":
-            check_type(value, XsdSimpleType, XsdComplexType, type(None))
-            try:
+            assert value is None or isinstance(value, XsdType), "Wrong value %r for attribute 'type'." % value
+            if hasattr(value, 'attributes'):
                 self.attributes = value.attributes
-            except AttributeError:
+            else:
                 self.attributes = self.schema.BUILDERS.attribute_group_class(
-                    etree_element(XSD_ATTRIBUTE_GROUP_TAG), schema=self.schema
+                    elem=XSD_ATTRIBUTE_GROUP_ELEMENT, schema=self.schema
                 )
         super(XsdElement, self).__setattr__(name, value)
 

@@ -31,7 +31,7 @@ from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
-from .parseutils import check_value, has_xsd_components, get_xsd_derivation_attribute
+from .parseutils import has_xsd_components, get_xsd_derivation_attribute
 from .xsdbase import XsdBaseComponent, ValidatorMixin
 from . import (
     XSD_FACETS, XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
@@ -317,7 +317,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if name == 'root' and value.tag != XSD_SCHEMA_TAG:
             raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA_TAG)
         elif name == 'validation':
-            check_value(value, 'strict', 'lax', 'skip')
+            assert value in ('strict', 'lax', 'skip'), "Wrong value %r for attribute 'validation'." % value
         elif name == 'maps':
             value.register(self)
             self.notations = NamespaceView(value.notations, self.target_namespace)

@@ -16,20 +16,6 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyEr
 from ..qnames import XSD_ANNOTATION_TAG
 
 
-def check_type(obj, *types):
-    if not isinstance(obj, types):
-        raise XMLSchemaTypeError(
-            "wrong type %s, it must be one of %r." % (type(obj), types)
-        )
-
-
-def check_value(value, *values):
-    if value not in values:
-        raise XMLSchemaValueError(
-            "wrong value %r, it must be one of %r." % (value, values)
-        )
-
-
 #
 # Functions for parsing XSD components and attributes from etree elements
 def get_xsd_annotation(elem):

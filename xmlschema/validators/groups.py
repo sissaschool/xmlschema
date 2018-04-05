@@ -21,7 +21,6 @@ from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
 )
-from .parseutils import check_type, check_value
 
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError,
@@ -97,7 +96,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         return self._group[i]
 
     def __setitem__(self, i, item):
-        check_type(item, ParticleMixin)
+        assert isinstance(item, (tuple, ParticleMixin)), \
+            "XsdGroup's items must be tuples or ParticleMixin instances."
         self._group[i] = item
 
     def __delitem__(self, i):
@@ -107,21 +107,23 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         return len(self._group)
 
     def insert(self, i, item):
-        check_type(item, tuple, ParticleMixin)
+        assert isinstance(item, (tuple, ParticleMixin)), \
+            "XsdGroup's items must be tuples or ParticleMixin instances."
         self._group.insert(i, item)
 
     def __setattr__(self, name, value):
         if name == 'model':
-            check_value(value, None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
+            assert value in (None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
             model = getattr(self, 'model', None)
             if model is not None and value != model:
                 raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
         elif name == 'mixed':
-            check_value(value, True, False)
+            assert value in (True, False), "A boolean value is required for attribute 'mixed'."
         elif name == '_group':
-            check_type(value, list)
+            assert isinstance(value, list), "A list object is required for attribute '_group'."
             for item in value:
-                check_type(item, ParticleMixin)
+                assert isinstance(item, (tuple, ParticleMixin)), \
+                    "XsdGroup's items must be tuples or ParticleMixin instances."
         super(XsdGroup, self).__setattr__(name, value)
 
     def _parse(self):

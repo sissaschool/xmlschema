@@ -59,6 +59,7 @@ def parse_character_group(s, expand_ranges=False):
     :return: Yields integers or couples of integers.
     """
     escaped = False
+    char = None
     last_index = len(s) - 1
     string_iter = iter(range(len(s)))
     for i in string_iter:
