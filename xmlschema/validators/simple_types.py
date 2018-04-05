@@ -497,10 +497,10 @@ class XsdList(XsdSimpleType):
 
     def __init__(self, elem, schema, name=None, facets=None, item_type=None, is_global=False):
         super(XsdList, self).__init__(elem, schema, name, is_global=is_global)
-        if not hasattr(self, 'item_type'):
+        if not hasattr(self, 'base_type'):
             if item_type is None:
                 raise XMLSchemaAttributeError("undefined 'item_type' for %r." % self)
-            self.item_type = item_type
+            self.base_type = item_type
         if not hasattr(self, 'facets'):
             self.facets = facets or {}
         elif not self.facets and facets:
@@ -508,7 +508,7 @@ class XsdList(XsdSimpleType):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(item_type=%r)' % (self.__class__.__name__, self.item_type)
+            return u'%s(item_type=%r)' % (self.__class__.__name__, self.base_type)
         else:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
@@ -520,7 +520,7 @@ class XsdList(XsdSimpleType):
                         super(XsdList, self).__setattr__(name, child)
                         return
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_LIST_TAG, self))
-        elif name == 'item_type':
+        elif name == 'base_type':
             check_type(value, XsdSimpleType)
         elif name == 'white_space' and value is None:
             value = 'collapse'
@@ -550,18 +550,22 @@ class XsdList(XsdSimpleType):
         else:
             self._parse_error("missing list type declaration", elem)
             item_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
-        self.item_type = item_type
+        self.base_type = item_type
+
+    @property
+    def item_type(self):
+        return self.base_type
 
     @property
     def built(self):
-        return self.item_type.is_global or self.item_type.built
+        return self.base_type.is_global or self.base_type.built
 
     @property
     def validation_attempted(self):
         if self.built:
             return 'full'
         else:
-            return self.item_type.validation_attempted
+            return self.base_type.validation_attempted
 
     @property
     def admitted_tags(self):
@@ -574,8 +578,8 @@ class XsdList(XsdSimpleType):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if not self.item_type.is_global:
-            for obj in self.item_type.iter_components(xsd_classes):
+        if not self.base_type.is_global:
+            for obj in self.base_type.iter_components(xsd_classes):
                 yield obj
 
     def iter_decode(self, text, validation='lax', **kwargs):
@@ -586,7 +590,7 @@ class XsdList(XsdSimpleType):
 
         items = []
         for chunk in text.split():
-            for result in self.item_type.iter_decode(chunk, validation, **kwargs):
+            for result in self.base_type.iter_decode(chunk, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation)
                 else:
@@ -607,7 +611,7 @@ class XsdList(XsdSimpleType):
 
         encoded_items = []
         for item in items:
-            for result in self.item_type.iter_encode(item, validation, **kwargs):
+            for result in self.base_type.iter_encode(item, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation)
                     if isinstance(result, XMLSchemaEncodeError):

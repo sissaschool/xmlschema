@@ -65,7 +65,7 @@ def iter_xsd_components(elem, start=0):
 
 def has_xsd_components(elem, start=0):
     try:
-        next(iter_xsd_components(elem, start=0))
+        next(iter_xsd_components(elem, start))
     except StopIteration:
         return False
     else:

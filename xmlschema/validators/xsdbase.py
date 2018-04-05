@@ -337,6 +337,14 @@ class XsdAnnotation(XsdComponent):
 
 class XsdType(XsdComponent):
 
+    @property
+    def built(self):
+        raise NotImplementedError
+
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
+
     @staticmethod
     def is_simple():
         raise NotImplementedError
