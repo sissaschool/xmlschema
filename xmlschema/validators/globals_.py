@@ -25,7 +25,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import XsdBaseComponent
 from . import (
-    XsdKeyref, XsdAnnotated, XsdAttribute, XsdSimpleType, XsdComplexType,
+    XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType,
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
 
@@ -238,7 +238,7 @@ class XsdGlobals(XsdBaseComponent):
             return False
         xsd_global = None
         for xsd_global in self.iter_globals():
-            if not isinstance(xsd_global, XsdAnnotated):
+            if not isinstance(xsd_global, XsdComponent):
                 return False
             if not xsd_global.built:
                 return False

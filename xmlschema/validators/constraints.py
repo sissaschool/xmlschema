@@ -20,7 +20,7 @@ from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .xsdbase import XsdAnnotated
+from .xsdbase import XsdComponent
 
 XSD_CONSTRAINTS_XPATH_SYMBOLS = {
     'processing-instruction', 'descendant-or-self', 'following-sibling', 'preceding-sibling',
@@ -36,10 +36,11 @@ class XsdConstraintXPathParser(XPath1Parser):
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_CONSTRAINTS_XPATH_SYMBOLS}
     SYMBOLS = XSD_CONSTRAINTS_XPATH_SYMBOLS
 
+
 XsdConstraintXPathParser.end()
 
 
-class XsdSelector(XsdAnnotated):
+class XsdSelector(XsdComponent):
 
     def __init__(self, elem, schema):
         super(XsdSelector, self).__init__(elem, schema)
@@ -83,7 +84,7 @@ class XsdFieldSelector(XsdSelector):
         return {XSD_FIELD_TAG}
 
 
-class XsdConstraint(XsdAnnotated):
+class XsdConstraint(XsdComponent):
     def __init__(self, elem, schema, parent):
         super(XsdConstraint, self).__init__(elem, schema)
         self.parent = parent

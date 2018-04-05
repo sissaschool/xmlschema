@@ -264,6 +264,11 @@ XSD_ANY_SIMPLE_TYPE = xsd_qname('anySimpleType')
 XSD_ANY_ATOMIC_TYPE = xsd_qname('anyAtomicType')
 XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
+# Other XSD built-in types.
+XSD_DECIMAL_TYPE = xsd_qname('decimal')
+XSD_INTEGER_TYPE = xsd_qname('integer')
+
+
 #
 # XML attributes
 XML_LANG = get_qname(XML_NAMESPACE, 'lang')

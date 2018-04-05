@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+v0.9.25
+=======
+* Removed XsdAnnotated class
+* Added XsdType class as common class for XSD types
+* Fixes for issues #55 and #56
+
 v0.9.24
 =======
 * Added XPath 1.0/2.0 full parsing with the derived *elementpath* package

@@ -11,7 +11,7 @@
 """
 This module contains XMLSchema class creator for xmlschema package.
 """
-import os.path
+import os
 from collections import namedtuple
 import elementpath
 
@@ -27,16 +27,16 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import XSD_SCHEMA_TAG
 from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XSD_VALIDATION_MODES, XMLSchemaConverter
-from ..xpath import ElementPathMixin
+from ..xpath import relative_path, ElementPathMixin
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )
-from .parseutils import check_value, has_xsd_components, get_xsd_derivation_attribute
+from .parseutils import has_xsd_components, get_xsd_derivation_attribute
 from .xsdbase import XsdBaseComponent, ValidatorMixin
 from . import (
     XSD_FACETS, XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
-    xsd_build_any_content_group, xsd_build_any_attribute_group, XsdAnnotated
+    xsd_build_any_content_group, xsd_build_any_attribute_group, XsdComponent
 )
 from .globals_ import (
     XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
@@ -317,7 +317,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if name == 'root' and value.tag != XSD_SCHEMA_TAG:
             raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA_TAG)
         elif name == 'validation':
-            check_value(value, 'strict', 'lax', 'skip')
+            assert value in ('strict', 'lax', 'skip'), "Wrong value %r for attribute 'validation'." % value
         elif name == 'maps':
             value.register(self)
             self.notations = NamespaceView(value.notations, self.target_namespace)
@@ -427,7 +427,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     def built(self):
         xsd_global = None
         for xsd_global in self.iter_globals(schema=self):
-            if not isinstance(xsd_global, XsdAnnotated):
+            if not isinstance(xsd_global, XsdComponent):
                 return False
             if not xsd_global.built:
                 return False

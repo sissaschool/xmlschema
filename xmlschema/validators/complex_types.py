@@ -18,8 +18,8 @@ from ..qnames import (
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdAnnotated, ValidatorMixin
+from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .xsdbase import XsdType, ValidatorMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
@@ -28,7 +28,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
 
 
-class XsdComplexType(XsdAnnotated, ValidatorMixin):
+class XsdComplexType(XsdType, ValidatorMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
     
@@ -65,7 +65,7 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
     def __repr__(self):
         if self.name is None:
             return u'%s(content=%r, attributes=%r)' % (
-                self.__class__.__name__, self._content_type(),
+                self.__class__.__name__, self.content_type_label,
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
         else:
@@ -73,9 +73,10 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == 'content_type':
-            check_type(value, XsdSimpleType, XsdGroup)
+            assert isinstance(value, (XsdSimpleType, XsdGroup)), \
+                "The attribute 'content_type' must be a XsdSimpleType or an XsdGroup instance."
         elif name == 'attributes':
-            check_type(value, XsdAttributeGroup)
+            assert isinstance(value, XsdAttributeGroup), "The attribute 'attributes' must be an XsdAttributeGroup."
         super(XsdComplexType, self).__setattr__(name, value)
 
     def _parse(self):
@@ -372,32 +373,6 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
             return not self.content_type.mixed
         except AttributeError:
             return False
-
-    def is_derived(self, other, derivation=None):
-        if other.name == XSD_ANY_TYPE or self.base_type == other:
-            if derivation is None:
-                return True
-            else:
-                return derivation == self.derivation
-        elif self.base_type is not None:
-            if derivation is None:
-                return self.base_type.is_derived(other)
-            else:
-                return self.base_type.is_derived(other) and self.base_type.derivation == derivation
-        else:
-            return False
-
-    def _content_type(self):
-        if self.is_empty():
-            return 'empty'
-        elif self.has_simple_content():
-            return 'simple'
-        elif self.is_element_only():
-            return 'element-only'
-        elif self.has_mixed_content():
-            return 'mixed'
-        else:
-            return 'unknown'
 
     @property
     def abstract(self):

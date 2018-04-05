@@ -12,7 +12,7 @@
 This module defines Unicode character categories and blocks, defined as sets of code points.
 """
 import json
-import os.path
+import os
 from sys import maxunicode
 from collections import Iterable, MutableSet
 
@@ -59,6 +59,7 @@ def parse_character_group(s, expand_ranges=False):
     :return: Yields integers or couples of integers.
     """
     escaped = False
+    char = None
     last_index = len(s) - 1
     string_iter = iter(range(len(s)))
     for i in string_iter:

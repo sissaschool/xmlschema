@@ -21,13 +21,13 @@ from ..qnames import (
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
-from .parseutils import check_type, get_xsd_attribute
-from .xsdbase import XsdAnnotated, ValidatorMixin
+from .parseutils import get_xsd_attribute
+from .xsdbase import XsdComponent, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 
-class XsdAttribute(XsdAnnotated, ValidatorMixin):
+class XsdAttribute(XsdComponent, ValidatorMixin):
     """
     Class for XSD 1.0 'attribute' declarations.
 
@@ -53,7 +53,7 @@ class XsdAttribute(XsdAnnotated, ValidatorMixin):
 
     def __setattr__(self, name, value):
         if name == "type":
-            check_type(value, XsdSimpleType)
+            assert isinstance(value, XsdSimpleType), "An XSD attribute's type must be a simpleType."
         super(XsdAttribute, self).__setattr__(name, value)
 
     def _parse(self):
@@ -207,7 +207,7 @@ class Xsd11Attribute(XsdAttribute):
     pass
 
 
-class XsdAttributeGroup(MutableMapping, XsdAnnotated):
+class XsdAttributeGroup(MutableMapping, XsdComponent):
     """
     Class for XSD 'attributeGroup' definitions.
     
@@ -224,7 +224,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         self.derivation = derivation
         self._attribute_group = dict()
         self.base_attributes = base_attributes
-        XsdAnnotated.__init__(self, elem, schema, name, is_global)
+        XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
         if self.name is not None:
@@ -253,10 +253,10 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
 
     def __setitem__(self, key, value):
         if key is None:
-            check_type(value, XsdAnyAttribute)
+            assert isinstance(value, XsdAnyAttribute), 'An XsdAnyAttribute instance is required.'
             self._attribute_group[key] = value
         else:
-            check_type(value, XsdAttribute)
+            assert isinstance(value, XsdAttribute), 'An XsdAttribute instance is required.'
             if key[0] != '{':
                 if value.local_name != key:
                     raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
@@ -288,12 +288,12 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
     def __setattr__(self, name, value):
         super(XsdAttributeGroup, self).__setattr__(name, value)
         if name == '_attribute_group':
-            check_type(value, dict)
+            assert isinstance(value, dict), 'A dictionary object is required.'
             for k, v in value.items():
                 if k is None:
-                    check_type(v, XsdAnyAttribute)
+                    assert isinstance(value, XsdAnyAttribute), 'An XsdAnyAttribute instance is required.'
                 else:
-                    check_type(v, XsdAttribute)
+                    assert isinstance(value, XsdAttribute), 'An XsdAttribute instance is required.'
             self.required = {
                 k for k, v in self.items() if k is not None and v.use == 'required'
             }

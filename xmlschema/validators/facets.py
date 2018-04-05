@@ -14,18 +14,17 @@ This module contains declarations and classes for XML Schema constraint facets.
 import re
 from collections import MutableSequence
 
-from ..namespaces import XSD_NAMESPACE
 from ..qnames import (
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
     XSD_PATTERN_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
-    XSD_MIN_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG,
-    XSD_ASSERTION_TAG, XSD_EXPLICIT_TIMEZONE_TAG,
-    XSD_WHITE_SPACE_ENUM, XSD_NOTATION_TYPE, local_name, get_qname
+    XSD_MIN_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_ASSERTION_TAG,
+    XSD_EXPLICIT_TIMEZONE_TAG, XSD_WHITE_SPACE_ENUM, XSD_NOTATION_TYPE, XSD_DECIMAL_TYPE,
+    XSD_INTEGER_TYPE, local_name,
 )
 from ..regex import get_python_regex
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .parseutils import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
-from .xsdbase import XsdAnnotated
+from .xsdbase import XsdComponent
 
 
 XSD_FACETS = {
@@ -83,7 +82,7 @@ UNION_FACETS = {
 }
 
 
-class XsdFacet(XsdAnnotated):
+class XsdFacet(XsdComponent):
     """
     XML Schema constraining facets base class.
     """
@@ -152,12 +151,16 @@ class XsdSingleFacet(XsdFacet):
             self.value = get_xsd_int_attribute(elem, 'value', minimum=1)
             self.validator = self.total_digits_validator
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
-            if base_type.name != get_qname(XSD_NAMESPACE, 'decimal'):
+            if not base_type.is_subtype(XSD_DECIMAL_TYPE):
                 raise XMLSchemaParseError(
-                    "fractionDigits require a {%s}decimal base type!" % XSD_NAMESPACE, self
+                    "fractionDigits facet can be applied only to types derived from xs:decimal", self
                 )
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
+            if self.value != 0 and base_type.is_subtype(XSD_INTEGER_TYPE):
+                raise XMLSchemaParseError(
+                    "fractionDigits facet value has to be 0 for types derived from xs:integer.", self
+                )
 
     def __repr__(self):
         return u'%s(%r, value=%r, fixed=%r)' % (

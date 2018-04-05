@@ -34,6 +34,13 @@ from xmlschema.tests import SchemaObserver
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 
 
+SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="http://foo.bar.test" xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+    targetNamespace="http://foo.bar.test" elementFormDefault="qualified" version="{0}">
+{1}
+</xs:schema>"""
+
+
 class TestXMLSchema1(unittest.TestCase):
 
     @classmethod
@@ -44,17 +51,81 @@ class TestXMLSchema1(unittest.TestCase):
             'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
         }
 
-    def get_schema(self, relative_path):
-        return self.schema_class(os.path.join(self.test_dir, relative_path))
+    def check_schema(self, source, expected=None, **kwargs):
+        """
+        Create a schema for a test case.
+
+        :param source: A relative path or a root Element or a portion of schema for a template.
+        :param expected: If it's an Exception class test the schema for raise an error. \
+        Otherwise build the schema and test a condition if expected is a callable, or make \
+        a substring test if it's not `None` (maybe a string). Then returns the schema instance.
+        """
+        try:
+            source = source.strip()
+        except AttributeError:
+            pass
+        else:
+            if source.startswith('<'):
+                source = SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
+            else:
+                source = os.path.join(self.test_dir, source)
+
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, self.schema_class, source, **kwargs)
+        else:
+            schema = self.schema_class(source, **kwargs)
+            if callable(expected):
+                self.assertTrue(expected(schema))
+            return schema
 
     def test_simple_types(self):
-        xs = self.get_schema('cases/features/elements/test-simple-types.xsd')
+        xs = self.check_schema('cases/features/elements/test-simple-types.xsd')
 
         # Issue #54: set list or union element.
         xs.types['test_list'].elem = xs.root[1]  # elem.tag == xs:simpleType
         self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST_TAG)
         xs.types['test_union'].elem = xs.root[2]  # elem.tag == xs:simpleType
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
+
+    def test_facets(self):
+        # Issue #55 and a near error (derivation from xs:integer)
+        self.check_schema("""
+            <xs:simpleType name="dtype">
+                <xs:restriction base="xs:decimal">
+                    <xs:fractionDigits value="3" />
+                    <xs:totalDigits value="20" />
+                </xs:restriction>
+            </xs:simpleType>
+    
+            <xs:simpleType name="ntype">
+                <xs:restriction base="dtype">
+                    <xs:totalDigits value="3" />
+                    <xs:fractionDigits value="1" />
+                </xs:restriction>
+            </xs:simpleType>
+            """)
+        self.check_schema("""
+            <xs:simpleType name="dtype">
+                <xs:restriction base="xs:integer">
+                    <xs:fractionDigits value="3" /> <!-- <<< value must be 0 -->
+                    <xs:totalDigits value="20" />
+                </xs:restriction>
+            </xs:simpleType>
+            """, xmlschema.XMLSchemaParseError)
+
+        # Issue #56
+        self.check_schema("""
+            <xs:simpleType name="mlengthparent">
+                <xs:restriction base="xs:string">
+                    <xs:maxLength value="200"/>
+                </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType name="mlengthchild">
+                <xs:restriction base="mlengthparent">
+                    <xs:maxLength value="20"/>
+                </xs:restriction>
+                </xs:simpleType>
+            """)
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
