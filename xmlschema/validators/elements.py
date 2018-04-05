@@ -27,7 +27,7 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdAnnotated, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdComponent, ParticleMixin, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .complex_types import XsdComplexType
 from .constraints import XsdUnique, XsdKey, XsdKeyref
@@ -36,7 +36,7 @@ from .constraints import XsdUnique, XsdKey, XsdKeyref
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
 
-class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -101,7 +101,7 @@ class XsdElement(Sequence, XsdAnnotated, ValidatorMixin, ParticleMixin, ElementP
         super(XsdElement, self).__setattr__(name, value)
 
     def _parse(self):
-        XsdAnnotated._parse(self)
+        XsdComponent._parse(self)
         self._parse_attributes()
         index = self._parse_type()
         if self.type is None:
@@ -542,7 +542,7 @@ class Xsd11Element(XsdElement):
     </element>
     """
     def _parse(self):
-        XsdAnnotated._parse(self)
+        XsdComponent._parse(self)
         self._parse_attributes()
         index = self._parse_type()
         index = self._parse_alternatives(index)
@@ -573,7 +573,7 @@ class Xsd11Element(XsdElement):
             return self.schema.target_namespace
 
 
-class XsdAlternative(XsdAnnotated):
+class XsdAlternative(XsdComponent):
     """
     <alternative
       id = ID

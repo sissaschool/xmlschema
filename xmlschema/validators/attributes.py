@@ -22,12 +22,12 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from .parseutils import check_type, get_xsd_attribute
-from .xsdbase import XsdAnnotated, ValidatorMixin
+from .xsdbase import XsdComponent, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 
-class XsdAttribute(XsdAnnotated, ValidatorMixin):
+class XsdAttribute(XsdComponent, ValidatorMixin):
     """
     Class for XSD 1.0 'attribute' declarations.
 
@@ -207,7 +207,7 @@ class Xsd11Attribute(XsdAttribute):
     pass
 
 
-class XsdAttributeGroup(MutableMapping, XsdAnnotated):
+class XsdAttributeGroup(MutableMapping, XsdComponent):
     """
     Class for XSD 'attributeGroup' definitions.
     
@@ -224,7 +224,7 @@ class XsdAttributeGroup(MutableMapping, XsdAnnotated):
         self.derivation = derivation
         self._attribute_group = dict()
         self.base_attributes = base_attributes
-        XsdAnnotated.__init__(self, elem, schema, name, is_global)
+        XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
         if self.name is not None:

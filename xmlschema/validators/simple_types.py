@@ -21,13 +21,13 @@ from ..qnames import (
     XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
     XSD_LIST_TAG, XSD_ANY_SIMPLE_TYPE, XSD_UNION_TAG, XSD_RESTRICTION_TAG, XSD_ANNOTATION_TAG,
-    XSD_ANY_TYPE
+    XSD_ANY_TYPE,
 )
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 )
 from .parseutils import get_xsd_derivation_attribute, check_type, check_value, get_xsd_component
-from .xsdbase import XsdAnnotated, ValidatorMixin
+from .xsdbase import XsdComponent, ValidatorMixin
 from .facets import (
     XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 )
@@ -63,7 +63,7 @@ def xsd_simple_type_factory(elem, schema, is_global=False):
         return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
 
-class XsdSimpleType(XsdAnnotated, ValidatorMixin):
+class XsdSimpleType(XsdComponent, ValidatorMixin):
     """
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
@@ -381,6 +381,14 @@ class XsdAtomic(XsdSimpleType):
             return True
         elif self.base_type is not None:
             return self.base_type.is_derived(other)
+        else:
+            return False
+
+    def is_subtype(self, qname):
+        if qname == XSD_ANY_TYPE or self.name == qname:
+            return True
+        elif self.base_type is not None:
+            return self.base_type.is_subtype(qname)
         else:
             return False
 

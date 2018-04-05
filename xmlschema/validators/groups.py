@@ -27,13 +27,13 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError,
     XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
 )
-from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
+from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
 
-class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
+class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
     """
     A class for XSD 'group', 'choice', 'sequence' definitions and
     XSD 1.0 'all' definitions.
@@ -84,7 +84,7 @@ class XsdGroup(MutableSequence, XsdAnnotated, ValidatorMixin, ParticleMixin):
                 self._group[:] = initlist._group[:]
             else:
                 self._group = list(initlist)
-        XsdAnnotated.__init__(self, elem, schema, name, is_global)
+        XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
         if self.name is None:

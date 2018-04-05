@@ -15,10 +15,10 @@ from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from .exceptions import XMLSchemaChildrenValidationError
 from .parseutils import get_xsd_attribute
-from .xsdbase import ValidatorMixin, XsdAnnotated, ParticleMixin
+from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
 
 
-class XsdWildcard(XsdAnnotated, ValidatorMixin):
+class XsdWildcard(XsdComponent, ValidatorMixin):
 
     def __init__(self, elem, schema):
         super(XsdWildcard, self).__init__(elem, schema, is_global=False)
@@ -273,7 +273,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
     pass
 
 
-class XsdOpenContent(XsdAnnotated):
+class XsdOpenContent(XsdComponent):
     """
     Class for XSD 1.1 'openContent' model definitions.
 

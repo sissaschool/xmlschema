@@ -24,8 +24,7 @@ class TestPackage(unittest.TestCase):
         cls.source_dir = os.path.dirname(cls.test_dir)
         cls.package_dir = os.path.dirname(cls.source_dir)
         if not os.path.dirname(cls.package_dir).endswith('/xmlschema'):
-            for k in range(5):
-                cls.package_dir = os.path.dirname(cls.package_dir)
+            cls.package_dir = None
 
         cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
         cls.get_version = re.compile(r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
@@ -59,11 +58,12 @@ class TestPackage(unittest.TestCase):
     def test_version(self):
         message = "\nFound a different version at line %d or file %r: %r (maybe %r)."
 
-        files = [
-            os.path.join(self.source_dir, '__init__.py'),
-            os.path.join(self.package_dir, 'setup.py'),
-            os.path.join(self.package_dir, 'doc/conf.py'),
-        ]
+        files = [os.path.join(self.source_dir, '__init__.py')]
+        if self.package_dir is not None:
+            files.extend([
+                os.path.join(self.package_dir, 'setup.py'),
+                os.path.join(self.package_dir, 'doc/conf.py'),
+            ])
         version = filename = None
         for line in fileinput.input(files):
             if fileinput.isfirstline():

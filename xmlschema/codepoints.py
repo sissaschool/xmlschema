@@ -12,7 +12,7 @@
 This module defines Unicode character categories and blocks, defined as sets of code points.
 """
 import json
-import os.path
+import os
 from sys import maxunicode
 from collections import Iterable, MutableSet
 

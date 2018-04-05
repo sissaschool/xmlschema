@@ -19,7 +19,7 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .parseutils import check_type, get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdAnnotated, ValidatorMixin
+from .xsdbase import XsdComponent, XsdType, ValidatorMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
@@ -28,7 +28,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
 
 
-class XsdComplexType(XsdAnnotated, ValidatorMixin):
+class XsdComplexType(XsdComponent, ValidatorMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
     
@@ -384,6 +384,14 @@ class XsdComplexType(XsdAnnotated, ValidatorMixin):
                 return self.base_type.is_derived(other)
             else:
                 return self.base_type.is_derived(other) and self.base_type.derivation == derivation
+        else:
+            return False
+
+    def is_subtype(self, qname):
+        if qname == XSD_ANY_TYPE or self.name == qname:
+            return True
+        elif self.base_type is not None:
+            return self.base_type.is_subtype(qname)
         else:
             return False
 

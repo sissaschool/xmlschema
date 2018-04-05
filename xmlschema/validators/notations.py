@@ -9,10 +9,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..qnames import get_qname, XSD_NOTATION_TAG
-from .xsdbase import XsdAnnotated
+from .xsdbase import XsdComponent
 
 
-class XsdNotation(XsdAnnotated):
+class XsdNotation(XsdComponent):
     """
     Class for XSD 'notation' definitions.
 

@@ -145,7 +145,7 @@ class TestUnicodeCategories(unittest.TestCase):
             "The Unicode categories have negative code points: %d" % min_code_point
         )
 
-    @unittest.skipIf(sys.version_info < (3, 6), "Test only for latest version.")
+    @unittest.skipIf(not ((3, 6) <= sys.version_info < (3, 7)), "Test only for Python 3.6")
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:

@@ -213,6 +213,16 @@ class XsdComponent(XsdBaseComponent):
         else:
             return error
 
+    def _parse(self):
+        super(XsdComponent, self)._parse()
+        try:
+            if self.elem[0].tag == XSD_ANNOTATION_TAG:
+                self.annotation = XsdAnnotation(self.elem[0], self.schema)
+            else:
+                self.annotation = None
+        except (TypeError, IndexError):
+            self.annotation = None
+
     def _parse_component(self, elem, required=True, strict=True):
         try:
             return get_xsd_component(elem, required, strict)
@@ -309,7 +319,7 @@ class XsdAnnotation(XsdComponent):
         return True
 
     def _parse(self):
-        super(XsdAnnotation, self)._parse()
+        super(XsdComponent, self)._parse()  # Skip parent class method (that parses also annotations)
         self.appinfo = []
         self.documentation = []
         for child in self.elem:
@@ -325,23 +335,26 @@ class XsdAnnotation(XsdComponent):
                 self.documentation.append(child)
 
 
-class XsdAnnotated(XsdComponent):
-    def _parse(self):
-        super(XsdAnnotated, self)._parse()
-        try:
-            if self.elem[0].tag == XSD_ANNOTATION_TAG:
-                self.annotation = XsdAnnotation(self.elem[0], self.schema)
-            else:
-                self.annotation = None
-        except (TypeError, IndexError):
-            self.annotation = None
+class XsdType(XsdComponent):
 
-    @property
-    def built(self):
+    @staticmethod
+    def is_simple():
         raise NotImplementedError
 
-    @property
-    def admitted_tags(self):
+    @staticmethod
+    def is_complex():
+        raise NotImplementedError
+
+    def is_empty(self):
+        raise NotImplementedError
+
+    def is_emptiable(self):
+        raise NotImplementedError
+
+    def is_derived(self, other):
+        raise NotImplementedError
+
+    def is_subtype(self, qname):
         raise NotImplementedError
 
 
