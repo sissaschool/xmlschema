@@ -29,6 +29,7 @@ from .exceptions import (
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
+from .wildcards import XsdAnyElement
 
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -514,6 +515,38 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield xsd_element
         except (TypeError, AttributeError):
             return
+
+    def is_restriction(self, other):
+        if isinstance(other, XsdAnyElement):
+            return False
+        elif isinstance(other, XsdElement):
+            if not ParticleMixin.is_restriction(self, other):
+                return False
+            elif self.name != other.name:
+                return False
+            elif self.type is not other.type and not self.type.is_derived(other.type):
+                return False
+            elif self.fixed != other.fixed:
+                return False
+            elif other.nillable is False and self.nillable:
+                return False
+            elif not all(value in other.block for value in self.block):
+                return False
+            elif not all(k in other.constraints for k in self.constraints):
+                return False
+        elif other.model == XSD_CHOICE_TAG:
+            return any(self.is_restriction(e) for e in other.iter_group())
+        else:
+            match_restriction = False
+            for e in other.iter_group():
+                if match_restriction:
+                    if not e.is_optional():
+                        return False
+                elif self.is_restriction(e):
+                    match_restriction = True
+                elif not e.is_optional():
+                    return False
+        return True
 
 
 class Xsd11Element(XsdElement):

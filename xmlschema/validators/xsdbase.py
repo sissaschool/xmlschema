@@ -440,7 +440,14 @@ class ParticleMixin(object):
         return self.max_occurs == 1
 
     def is_restriction(self, other):
-        return True  # raise NotImplementedError  TODO: implement concrete methods
+        if self.min_occurs < other.min_occurs:
+            return False
+        if other.max_occurs is not None:
+            if self.max_occurs is None:
+                return False
+            elif self.max_occurs > other.max_occurs:
+                return False
+        return True
 
 
 class ValidatorMixin(object):

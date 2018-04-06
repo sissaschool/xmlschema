@@ -15,8 +15,10 @@ This module runs tests concerning the building of XSD schemas with the 'xmlschem
 import unittest
 import os
 import sys
+import re
 
 try:
+    # noinspection PyPackageRequirements
     import lxml.etree as _lxml_etree
 except ImportError:
     _lxml_etree = None
@@ -50,6 +52,7 @@ class TestXMLSchema1(unittest.TestCase):
         cls.namespaces = {
             'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
         }
+        cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
     def check_schema(self, source, expected=None, **kwargs):
         """
@@ -77,6 +80,22 @@ class TestXMLSchema1(unittest.TestCase):
             if callable(expected):
                 self.assertTrue(expected(schema))
             return schema
+
+    def check_complex_restriction(self, base, restriction, expected=None, **kwargs):
+        content = 'complex' if self.content_pattern.search(base) else 'simple'
+        source = """
+            <xs:complexType name="targetType">
+                {0}
+            </xs:complexType>        
+            <xs:complexType name="restrictedType">
+                <xs:{1}Content>
+                    <xs:restriction base="targetType">
+                        {2}                    
+                    </xs:restriction>
+                </xs:{1}Content>
+            </xs:complexType>
+            """.format(base.strip(), content, restriction.strip())
+        self.check_schema(source, expected, **kwargs)
 
     def test_simple_types(self):
         xs = self.check_schema('cases/features/elements/test-simple-types.xsd')
@@ -124,8 +143,130 @@ class TestXMLSchema1(unittest.TestCase):
                 <xs:restriction base="mlengthparent">
                     <xs:maxLength value="20"/>
                 </xs:restriction>
-                </xs:simpleType>
+            </xs:simpleType>
             """)
+
+    def test_element_restrictions(self):
+        base = """
+        <xs:sequence>
+            <xs:element name="A" maxOccurs="7"/>
+            <xs:element name="B" type="xs:string"/>
+            <xs:element name="C" fixed="5"/>
+        </xs:sequence>
+        """
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """)
+
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="8"/> <!-- <<< More occurrences -->
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError)
+
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="xs:float"/> <!-- <<< Not a derived type -->
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError)
+
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="3"/> <!-- <<< Different fixed value -->
+            </xs:sequence>
+            """, expected=XMLSchemaParseError)
+
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6" nillable="true"/> <!-- <<< nillable is True -->
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError)
+
+    def test_group_restrictions(self):
+        # Meaningless sequence group
+        base = """
+        <xs:sequence>
+            <xs:sequence>
+                <xs:element name="A"/>
+                <xs:element name="B"/>
+            </xs:sequence>
+        </xs:sequence>
+        """
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="B"/></xs:sequence>'
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>', XMLSchemaParseError
+        )
+
+        base = """
+        <xs:sequence>
+            <xs:element name="A"/>
+            <xs:element name="B" minOccurs="0"/>
+        </xs:sequence>
+        """
+        self.check_complex_restriction(base, '<xs:sequence><xs:element name="A"/></xs:sequence>')
+        self.check_complex_restriction(base, '<xs:sequence><xs:element name="B"/></xs:sequence>', XMLSchemaParseError)
+        self.check_complex_restriction(base, '<xs:sequence><xs:element name="C"/></xs:sequence>', XMLSchemaParseError)
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="B"/></xs:sequence>'
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A" minOccurs="0"/><xs:element name="B"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="B" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+
+        base = """
+        <xs:sequence minOccurs="3" maxOccurs="10">
+            <xs:element name="A"/>
+        </xs:sequence>
+        """
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="3" maxOccurs="7"><xs:element name="A"/></xs:sequence>')
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="4" maxOccurs="10"><xs:element name="A"/></xs:sequence>')
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="3" maxOccurs="11"><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="2" maxOccurs="10"><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+
+        base = """
+        <xs:all>
+            <xs:element name="A"/>
+            <xs:element name="B" minOccurs="0"/>
+            <xs:element name="C" minOccurs="0"/>
+        </xs:all>
+        """
+        self.check_complex_restriction(base, '<xs:all><xs:element name="A"/><xs:element name="C"/></xs:all>')
+        self.check_complex_restriction(
+            base, '<xs:all><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:all>',
+            XMLSchemaParseError
+        )
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):

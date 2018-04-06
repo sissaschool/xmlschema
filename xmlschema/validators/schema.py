@@ -27,7 +27,7 @@ from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import XSD_SCHEMA_TAG
 from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XSD_VALIDATION_MODES, XMLSchemaConverter
-from ..xpath import relative_path, ElementPathMixin
+from ..xpath import ElementPathMixin
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
 )

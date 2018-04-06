@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+v0.9.26
+=======
+* Added checks for model restrictions
+
 v0.9.25
 =======
 * Removed XsdAnnotated class
