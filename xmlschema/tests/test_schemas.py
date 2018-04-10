@@ -267,6 +267,31 @@ class TestXMLSchema1(unittest.TestCase):
             base, '<xs:all><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:all>',
             XMLSchemaParseError
         )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>'
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+
+        base = """
+        <xs:choice maxOccurs="2">
+            <xs:element name="A"/>
+            <xs:element name="B"/>
+            <xs:element name="C"/>
+        </xs:all>
+        """
+        self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
+        self.check_complex_restriction(
+            base, '<xs:all><xs:element name="C"/><xs:element name="A"/></xs:all>',
+            XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base, '<xs:all><xs:element name="A"/><xs:element name="X"/></xs:all>',
+            XMLSchemaParseError
+        )
+
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
@@ -307,9 +332,9 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
             if num_errors == 0:
                 raise ValueError("found no errors when %d expected." % expected_errors)
             else:
-                raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (expected_errors, num_errors, errors[0])
-                )
+                raise ValueError("n.%d errors expected, found %d: %s" % (
+                    expected_errors, num_errors, '\n++++++\n'.join([str(e) for e in errors])
+                ))
         else:
             self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
 
