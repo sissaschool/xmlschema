@@ -230,9 +230,10 @@ class XsdComplexType(XsdType, ValidatorMixin):
         group_elem = self._parse_component(elem, required=False, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
             self.content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
-            if self.content_type.model != base_type.content_type.model:
+            model = self.content_type.model
+            if model != XSD_SEQUENCE_TAG and model != base_type.content_type.model:
                 self._parse_error(
-                    "content model differ from base type: %r" % base_type.content_type.model, elem
+                    "cannot restrict a %r model to %r." % (base_type.content_type.model, model), elem
                 )
         else:
             # Empty content model

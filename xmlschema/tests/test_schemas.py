@@ -274,24 +274,28 @@ class TestXMLSchema1(unittest.TestCase):
             base, '<xs:sequence><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
             XMLSchemaParseError
         )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="X"/></xs:sequence>',
+            # XMLSchemaParseError FIXME
+        )
 
         base = """
         <xs:choice maxOccurs="2">
             <xs:element name="A"/>
             <xs:element name="B"/>
             <xs:element name="C"/>
-        </xs:all>
+        </xs:choice>
         """
         self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
         self.check_complex_restriction(
-            base, '<xs:all><xs:element name="C"/><xs:element name="A"/></xs:all>',
-            XMLSchemaParseError
-        )
-        self.check_complex_restriction(
-            base, '<xs:all><xs:element name="A"/><xs:element name="X"/></xs:all>',
-            XMLSchemaParseError
+            base, '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
+            # XMLSchemaParseError FIXME
         )
 
+        self.check_complex_restriction(
+            base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
+
+        )
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
