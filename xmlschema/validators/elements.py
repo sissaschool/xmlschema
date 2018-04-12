@@ -113,6 +113,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
     def _parse_attributes(self):
         self._parse_particle()
         self.name = None
+        self._ref = None
+
         if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
         self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
@@ -144,6 +146,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 if attribute in self.elem.attrib:
                     self._parse_error("attribute %r is not allowed when element reference is used." % attribute)
             xsd_element = self.maps.lookup_element(element_name)
+            self._ref = xsd_element
             self.name = xsd_element.name
             self.type = xsd_element.type
             self.qualified = xsd_element.qualified
@@ -263,7 +266,10 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
     @property
     def abstract(self):
-        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+        if self._ref is None:
+            return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+        else:
+            return self._ref.abstract
 
     @property
     def block(self):
@@ -516,15 +522,19 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         except (TypeError, AttributeError):
             return
 
-    def is_restriction(self, other):
+    def is_restriction(self, other, check_particle=True):
         if isinstance(other, XsdAnyElement):
-            return False
+            return True  # TODO
         elif isinstance(other, XsdElement):
-            if not ParticleMixin.is_restriction(self, other):
+            if self.name != other.name:
+                if other.name not in self.maps.substitution_groups:
+                    return False
+                else:
+                    return any(self.is_restriction(e) for e in self.maps.substitution_groups[other.name])
+            elif check_particle and not ParticleMixin.is_restriction(self, other):
                 return False
-            elif self.name != other.name:
-                return False
-            elif self.type is not other.type and not self.type.is_derived(other.type):
+            elif self.type is not other.type and self.type.elem is not other.type.elem and \
+                    not self.type.is_derived(other.type):
                 return False
             elif self.fixed != other.fixed:
                 return False
@@ -535,7 +545,10 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             elif not all(k in other.constraints for k in self.constraints):
                 return False
         elif other.model == XSD_CHOICE_TAG:
-            return any(self.is_restriction(e) for e in other.iter_group())
+            if ParticleMixin.is_restriction(self, other):
+                return any(self.is_restriction(e, False) for e in other.iter_group())
+            else:
+                return any(self.is_restriction(e) for e in other.iter_group())
         else:
             match_restriction = False
             for e in other.iter_group():

@@ -32,8 +32,7 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_package.py**
     Tests regarding packaging and forgotten development code
 
-You can run all tests with the script *test_all.py*. Finally, the bash script
-*test_all.sh* runs all tests with all available Python interpreters (2.7 and 3.3+).
+You can run all tests with the script *test_all.py*.
 
 
 Test files

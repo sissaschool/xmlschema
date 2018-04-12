@@ -256,7 +256,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
-    def is_restriction(self, other):
+    def is_restriction(self, other, check_particle=True):
         if not isinstance(other, XsdGroup):
             return False
         elif not self:
@@ -269,7 +269,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
             return False
         elif other.model == XSD_ALL_TAG and self.model == XSD_CHOICE_TAG:
             return False
-        elif not super(XsdGroup, self).is_restriction(other):
+        elif check_particle and not super(XsdGroup, self).is_restriction(other):
             return False
 
         other_iterator = iter(other.iter_group())
@@ -285,11 +285,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 elif item.is_restriction(other_item):
                     break
                 elif other.model == XSD_CHOICE_TAG:
-                    break
+                    continue
                 elif other_item.is_optional():
-                    break
+                    continue
                 elif isinstance(other_item, XsdGroup) and other_item.model == XSD_CHOICE_TAG and \
-                        other_item.min_occurs == 1 and other_item.max_occurs == 1:
+                        other_item.max_occurs == 1:
                     if any(item.is_restriction(s) for s in other_item.iter_group()):
                         break
                 else:

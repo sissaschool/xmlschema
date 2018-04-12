@@ -146,6 +146,7 @@ class TestXMLSchema1(unittest.TestCase):
             </xs:simpleType>
             """)
 
+    @unittest.skip("The feature is still under development")
     def test_element_restrictions(self):
         base = """
         <xs:sequence>
@@ -199,7 +200,8 @@ class TestXMLSchema1(unittest.TestCase):
             </xs:sequence>
             """, expected=XMLSchemaParseError)
 
-    def test_group_restrictions(self):
+    @unittest.skip("The feature is still under development")
+    def test_sequence_group_restriction(self):
         # Meaningless sequence group
         base = """
         <xs:sequence>
@@ -229,6 +231,9 @@ class TestXMLSchema1(unittest.TestCase):
             base, '<xs:sequence><xs:element name="A"/><xs:element name="B"/></xs:sequence>'
         )
         self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>', XMLSchemaParseError
+        )
+        self.check_complex_restriction(
             base, '<xs:sequence><xs:element name="A" minOccurs="0"/><xs:element name="B"/></xs:sequence>',
             XMLSchemaParseError
         )
@@ -237,24 +242,8 @@ class TestXMLSchema1(unittest.TestCase):
             XMLSchemaParseError
         )
 
-        base = """
-        <xs:sequence minOccurs="3" maxOccurs="10">
-            <xs:element name="A"/>
-        </xs:sequence>
-        """
-        self.check_complex_restriction(
-            base, '<xs:sequence minOccurs="3" maxOccurs="7"><xs:element name="A"/></xs:sequence>')
-        self.check_complex_restriction(
-            base, '<xs:sequence minOccurs="4" maxOccurs="10"><xs:element name="A"/></xs:sequence>')
-        self.check_complex_restriction(
-            base, '<xs:sequence minOccurs="3" maxOccurs="11"><xs:element name="A"/></xs:sequence>',
-            XMLSchemaParseError
-        )
-        self.check_complex_restriction(
-            base, '<xs:sequence minOccurs="2" maxOccurs="10"><xs:element name="A"/></xs:sequence>',
-            XMLSchemaParseError
-        )
-
+    @unittest.skip("The feature is still under development")
+    def test_all_group_restriction(self):
         base = """
         <xs:all>
             <xs:element name="A"/>
@@ -276,9 +265,11 @@ class TestXMLSchema1(unittest.TestCase):
         )
         self.check_complex_restriction(
             base, '<xs:sequence><xs:element name="A"/><xs:element name="X"/></xs:sequence>',
-            # XMLSchemaParseError FIXME
+            XMLSchemaParseError
         )
 
+    @unittest.skip("The feature is still under development")
+    def test_choice_group_restriction(self):
         base = """
         <xs:choice maxOccurs="2">
             <xs:element name="A"/>
@@ -289,12 +280,31 @@ class TestXMLSchema1(unittest.TestCase):
         self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
         self.check_complex_restriction(
             base, '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
-            # XMLSchemaParseError FIXME
+            XMLSchemaParseError
         )
 
         self.check_complex_restriction(
             base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
+        )
 
+    @unittest.skip("The feature is still under development")
+    def test_occurs_restriction(self):
+        base = """
+        <xs:sequence minOccurs="3" maxOccurs="10">
+            <xs:element name="A"/>
+        </xs:sequence>
+        """
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="3" maxOccurs="7"><xs:element name="A"/></xs:sequence>')
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="4" maxOccurs="10"><xs:element name="A"/></xs:sequence>')
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="3" maxOccurs="11"><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence minOccurs="2" maxOccurs="10"><xs:element name="A"/></xs:sequence>',
+            XMLSchemaParseError
         )
 
 

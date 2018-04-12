@@ -372,11 +372,6 @@ class XsdGlobals(XsdBaseComponent):
                             group[k] = element_class(elem, schema)
 
         for schema in not_built_schemas:
-            # Check for illegal restrictions
-            if schema.validation != 'skip':
-                for xsd_type in schema.iter_components(XsdComplexType):
-                    xsd_type.check_restriction()
-
             # Build substitution groups from global element declarations
             for xsd_element in schema.elements.values():
                 if xsd_element.substitution_group:
@@ -388,13 +383,20 @@ class XsdGlobals(XsdBaseComponent):
                     except KeyError:
                         self.substitution_groups[qname] = {xsd_element}
 
-            # Set referenced key/unique constraints for keyrefs
-            for constraint in schema.iter_components(XsdKeyref):
-                constraint.parse_refer()
-
             # Add global group's base elements
             for group in schema.groups.values():
                 self.base_elements.update({e.name: e for e in group.iter_elements()})
+
+            if schema.meta_schema is not None:
+                # Set referenced key/unique constraints for keyrefs
+                for constraint in schema.iter_components(XsdKeyref):
+                    constraint.parse_refer()
+
+                # Check for illegal restrictions
+                # TODO: Complete is_restriction() methods before enabling this check
+                # if schema.validation != 'skip':
+                #     for xsd_type in schema.iter_components(XsdComplexType):
+                #         xsd_type.check_restriction()
 
         if not self.built:
             raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
