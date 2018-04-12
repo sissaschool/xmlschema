@@ -256,13 +256,73 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
+    def is_restriction(self, other, check_particle=True):
+        if not isinstance(other, XsdGroup):
+            return False
+        elif not self:
+            return True
+        elif not other:
+            return False
+        elif other.model == XSD_SEQUENCE_TAG and self.model != XSD_SEQUENCE_TAG:
+            return False
+        elif other.model == XSD_CHOICE_TAG and self.model == XSD_ALL_TAG:
+            return False
+        elif other.model == XSD_ALL_TAG and self.model == XSD_CHOICE_TAG:
+            return False
+        elif check_particle and not super(XsdGroup, self).is_restriction(other):
+            return False
+
+        other_iterator = iter(other.iter_group())
+        for item in self.iter_group():
+            while True:
+                try:
+                    other_item = next(other_iterator)
+                except StopIteration:
+                    return False
+
+                if other_item is item:
+                    break
+                elif item.is_restriction(other_item):
+                    break
+                elif other.model == XSD_CHOICE_TAG:
+                    continue
+                elif other_item.is_optional():
+                    continue
+                elif isinstance(other_item, XsdGroup) and other_item.model == XSD_CHOICE_TAG and \
+                        other_item.max_occurs == 1:
+                    if any(item.is_restriction(s) for s in other_item.iter_group()):
+                        break
+                else:
+                    return False
+
+        return True
+
+    def iter_group(self):
+        for item in self:
+            if not isinstance(item, XsdGroup) or item.is_global:
+                yield item
+            elif item:
+                if item.min_occurs != 1 or item.max_occurs != 1:
+                    yield item
+                elif len(item) > 1:
+                    if item.model == XSD_SEQUENCE_TAG and self.model != XSD_SEQUENCE_TAG:
+                        yield item
+                    elif item.model == XSD_CHOICE_TAG and self.model != XSD_CHOICE_TAG:
+                        yield item
+                    else:
+                        for obj in item.iter_group():
+                            yield obj
+                else:
+                    for obj in item.iter_group():
+                        yield obj
+
     def iter_elements(self):
         for item in self:
-            if isinstance(item, (self.schema.BUILDERS.element_class, XsdAnyElement)):
-                yield item
-            elif isinstance(item, XsdGroup):
+            if isinstance(item, XsdGroup):
                 for e in item.iter_elements():
                     yield e
+            else:
+                yield item
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

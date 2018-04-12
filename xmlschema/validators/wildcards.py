@@ -152,6 +152,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
                 yield index
                 return
 
+    def is_restriction(self, other):
+        if not ParticleMixin.is_restriction(self, other):
+            return False
+        return True
+
 
 class XsdAnyAttribute(XsdWildcard):
     """

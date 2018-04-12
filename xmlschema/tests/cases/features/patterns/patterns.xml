@@ -13,4 +13,6 @@
     <LatinString>façade</LatinString>
     <Prefix>cc</Prefix> <!--Error-->
     <Prefix>cc: dd:@#!%</Prefix>
+    <Timestamp>2015-12-31T13:32:26-02:00</Timestamp>
+    <Timestamp>2015-12-31T13:32:26+02:00</Timestamp>
 </pt:patterns>

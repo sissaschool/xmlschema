@@ -71,7 +71,7 @@ def parse_character_group(s, expand_ranges=False):
                 raise XMLSchemaRegexError("bad character %r at position 0" % char)
             elif expand_ranges:
                 yield ord(char)
-            elif last_index == 0 or s[1] != '-':
+            elif last_index <= 1 or s[1] != '-':
                 yield ord(char)
         elif s[i] == '-':
             if escaped or (i == len(s) - 1):

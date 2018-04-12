@@ -840,7 +840,6 @@ class XsdAtomicRestriction(XsdAtomic):
                             schema=self.schema,
                             content_type=content_type,
                             attributes=base_type.attributes,
-                            derivation=base_type.derivation,
                             mixed=base_type.mixed
                         )
                 has_simple_type_child = True

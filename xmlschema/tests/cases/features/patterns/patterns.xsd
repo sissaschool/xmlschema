@@ -4,11 +4,12 @@
     <xs:element name="patterns">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="ISBN" type="ISBNType" maxOccurs="unbounded"/>
-                <xs:element name="ZipCode" type="better-us-zipcode" maxOccurs="unbounded"/>
-                <xs:element name="BasicString" type="basic-latin-string" maxOccurs="unbounded"/>
-                <xs:element name="LatinString" type="latin-1-string" maxOccurs="unbounded"/>
-                <xs:element name="Prefix" type="prefix-name" maxOccurs="unbounded"/>
+                <xs:element name="ISBN" type="ISBNType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="ZipCode" type="better-us-zipcode" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="BasicString" type="basic-latin-string" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="LatinString" type="latin-1-string" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Prefix" type="prefix-name" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Timestamp" type="TimestampType" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -40,6 +41,11 @@
     <xs:simpleType name="TOKEN">
         <xs:restriction base="xs:token">
             <xs:pattern value="(\p{L}|\p{N}|\p{P}|\p{S})+"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="TimestampType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value=".+T.+(Z|[+-].+)"/>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

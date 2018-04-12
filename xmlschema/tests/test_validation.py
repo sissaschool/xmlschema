@@ -36,7 +36,7 @@ def make_test_validation_function(xml_file, schema_class, expected_errors=0, ins
         errors = [str(e) for e in xs.iter_errors(xml_file)]
         if len(errors) != expected_errors:
             raise ValueError(
-                "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors[:3]))
+                "n.%d errors expected, found %d: %s" % (expected_errors, len(errors), '\n++++++\n'.join(errors))
             )
         if expected_errors == 0:
             self.assertTrue(True, "Successfully validated {} with schema {}".format(xml_file, schema))

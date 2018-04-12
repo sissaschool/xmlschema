@@ -322,8 +322,7 @@ class XsdGlobals(XsdBaseComponent):
 
     def build(self):
         """
-        Builds the schemas registered in the instance, excluding
-        those that are already built.
+        Update the global maps adding the global not built registered schemas.
         """
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
@@ -357,43 +356,47 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_element(qname)
         for qname in self.groups:
             self.lookup_group(qname)
+        self.base_elements.update(self.elements)
 
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
         group_class = meta_schema.BUILDERS.group_class
-        for xsd_global in self.iter_globals():
-            for obj in xsd_global.iter_components(XsdGroup):
-                for k in range(len(obj)):
-                    if isinstance(obj[k], tuple):
-                        elem, schema = obj[k]
-                        is_global = elem in list(schema.root)
+        for schema in not_built_schemas:
+            for group in schema.iter_components(XsdGroup):
+                for k in range(len(group)):
+                    if isinstance(group[k], tuple):
+                        elem, schema = group[k]
                         if elem.tag == XSD_GROUP_TAG:
-                            obj[k] = group_class(elem, schema, mixed=obj.mixed, is_global=is_global)
+                            group[k] = group_class(elem, schema, mixed=group.mixed)
                         else:
-                            obj[k] = element_class(elem, schema)
+                            group[k] = element_class(elem, schema)
 
-        # Build substitution groups from global element declarations
-        self.substitution_groups.clear()
-        for xsd_element in self.elements.values():
-            if xsd_element.substitution_group:
-                qname = reference_to_qname(xsd_element.substitution_group, xsd_element.schema.namespaces)
-                if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
-                    xsd_element.type = self.elements[qname].type
-                try:
-                    self.substitution_groups[qname].add(xsd_element)
-                except KeyError:
-                    self.substitution_groups[qname] = {xsd_element}
+        for schema in not_built_schemas:
+            # Build substitution groups from global element declarations
+            for xsd_element in schema.elements.values():
+                if xsd_element.substitution_group:
+                    qname = reference_to_qname(xsd_element.substitution_group, xsd_element.schema.namespaces)
+                    if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
+                        xsd_element.type = self.elements[qname].type
+                    try:
+                        self.substitution_groups[qname].add(xsd_element)
+                    except KeyError:
+                        self.substitution_groups[qname] = {xsd_element}
 
-        # Set referenced key/unique constraints for keyrefs
-        for xsd_global in self.iter_globals():
-            for constraint in xsd_global.iter_components(XsdKeyref):
-                constraint.parse_refer()
+            # Add global group's base elements
+            for group in schema.groups.values():
+                self.base_elements.update({e.name: e for e in group.iter_elements()})
 
-        # Rebuild base_elements
-        self.base_elements.clear()
-        self.base_elements.update(self.elements)
-        for group in self.groups.values():
-            self.base_elements.update({e.name: e for e in group.iter_elements()})
+            if schema.meta_schema is not None:
+                # Set referenced key/unique constraints for keyrefs
+                for constraint in schema.iter_components(XsdKeyref):
+                    constraint.parse_refer()
+
+                # Check for illegal restrictions
+                # TODO: Complete is_restriction() methods before enabling this check
+                # if schema.validation != 'skip':
+                #     for xsd_type in schema.iter_components(XsdComplexType):
+                #         xsd_type.check_restriction()
 
         if not self.built:
             raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
