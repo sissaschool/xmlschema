@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.26',
+    version='0.9.27',
     install_requires=['elementpath'],
     packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [

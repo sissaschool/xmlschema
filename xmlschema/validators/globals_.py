@@ -196,26 +196,34 @@ class XsdGlobals(XsdBaseComponent):
 
                 elif isinstance(obj, tuple):
                     # Not built XSD global component without redefinitions
-                    elem, schema = obj
+                    try:
+                        elem, schema = obj
+                    except ValueError:
+                        return obj[0] # Circular build, simply return (elem, schema) couple
+
                     try:
                         factory_or_class = tag_map[elem.tag]
                     except KeyError:
-                        raise XMLSchemaKeyError(
-                            "wrong element %r for map %r." % (elem, global_map)
-                        )
+                        raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                    global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
                     global_map[qname] = factory_or_class(elem, schema, is_global=True)
                     return global_map[qname]
 
                 elif isinstance(obj, list):
                     if not isinstance(obj[0], xsd_classes):
                         # Not built XSD global component with redefinitions
-                        elem, schema = obj[0]
+                        try:
+                            elem, schema = obj[0]
+                        except ValueError:
+                            return obj[0][0]  # Circular build, simply return (elem, schema) couple
+
                         try:
                             factory_or_class = tag_map[elem.tag]
                         except KeyError:
-                            raise XMLSchemaKeyError(
-                                "wrong element %r for map %r." % (elem, global_map)
-                            )
+                            raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                        global_map[qname] = obj[0],  # To catch circular builds
                         global_map[qname] = factory_or_class(elem, schema, is_global=True)
                     else:
                         # Built-in type
@@ -366,10 +374,7 @@ class XsdGlobals(XsdBaseComponent):
                 for k in range(len(group)):
                     if isinstance(group[k], tuple):
                         elem, schema = group[k]
-                        if elem.tag == XSD_GROUP_TAG:
-                            group[k] = group_class(elem, schema, mixed=group.mixed)
-                        else:
-                            group[k] = element_class(elem, schema)
+                        group[k] = element_class(elem, schema)
 
         for schema in not_built_schemas:
             # Build substitution groups from global element declarations

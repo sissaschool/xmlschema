@@ -3,6 +3,7 @@ setuptools
 tox
 elementpath
 lxml
+defusedxml
 Sphinx
 sphinx_rtd_theme
 -e .

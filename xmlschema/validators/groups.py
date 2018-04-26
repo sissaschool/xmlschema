@@ -15,7 +15,7 @@ from collections import MutableSequence
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..etree import etree_child_index
+from ..etree import etree_child_index, etree_element
 from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
@@ -23,13 +23,21 @@ from ..qnames import (
 )
 
 from .exceptions import (
-    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError,
-    XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError
 )
 from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+
+DUMMY_ANY_ELEMENT = etree_element(
+    XSD_ANY_TAG,
+    attrib={
+        'namespace': '##any',
+        'processContents': 'lax',
+        'minOccurs': '0',
+        'maxOccurs': 'unbounded'
+    })
 
 
 class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
@@ -88,8 +96,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
     def __repr__(self):
         if self.name is None:
             return u'%s(model=%r)' % (self.__class__.__name__, local_name(self.model))
-        else:
+        elif self.ref is None:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -139,13 +149,19 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
             if name is None:
                 if ref is not None:
                     # Reference to a global group
-                    group_name = reference_to_qname(ref, self.namespaces)
-                    xsd_group = self.maps.lookup_group(group_name)
-                    self.name = xsd_group.name
-                    self.model = xsd_group.model
-                    self.extend(xsd_group)
                     if self.is_global:
                         self._parse_error("a group reference cannot be global", elem)
+                    self.name = reference_to_qname(ref, self.namespaces)
+                    xsd_group = self.schema.maps.lookup_group(self.name)
+                    if isinstance(xsd_group, tuple):
+                        # Disallowed circular definition, substitute with any content group.
+                        self._parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
+                        self.model = XSD_SEQUENCE_TAG
+                        self.mixed = True
+                        self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema))
+                    else:
+                        self.model = xsd_group.model
+                        self.extend(xsd_group)
                 else:
                     self._parse_error("missing both attributes 'name' and 'ref'", elem)
                 return
@@ -154,9 +170,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
                 if not self.is_global:
-                    self._parse_error(
-                        "attribute 'name' not allowed for a local group", self
-                    )
+                    self._parse_error("attribute 'name' not allowed for a local group", self)
                 else:
                     if 'minOccurs' in elem.attrib:
                         self._parse_error(
@@ -186,13 +200,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         self.model = content_model.tag
         for child in self._iterparse_components(content_model):
             if child.tag == XSD_ELEMENT_TAG:
-                # Builds inner elements at the end for avoids circularity
+                # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif content_model.tag == XSD_ALL_TAG:
                 self._parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
                 self.append(XsdAnyElement(child, self.schema))
-            elif child.tag in (XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
+            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_GROUP_TAG):
                 self.append(XsdGroup(child, self.schema, mixed=self.mixed))
             else:
                 raise XMLSchemaParseError("unexpected element:", elem=elem)
@@ -235,14 +249,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for item in self:
-            try:
-                if not item.is_global:
-                    for obj in item.iter_components(xsd_classes):
-                        yield obj
-            except AttributeError:
-                if isinstance(item, tuple):
-                    raise XMLSchemaNotBuiltError(self)
-                raise
+            if not item.is_global:
+                for obj in item.iter_components(xsd_classes):
+                    yield obj
 
     def clear(self):
         del self._group[:]

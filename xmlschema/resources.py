@@ -13,7 +13,10 @@ import os.path
 from .compat import (
     PY3, StringIO, unicode_type, urlopen, urlsplit, urljoin, uses_relative, urlunsplit, pathname2url, URLError
 )
-from .etree import etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement
+from .etree import (
+    etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement,
+    safe_etree_fromstring, safe_etree_parse_error
+)
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
@@ -69,6 +72,7 @@ def load_xml_resource(source, element_only=True):
             return xml_root if element_only else (xml_root, source, None)
 
         xml_data, xml_url = load_resource(source)
+        safe_data = xml_url.startswith('file:') or xml_url.startswith('/')
     else:
         try:
             # source is a file-like object containing XML data
@@ -80,11 +84,12 @@ def load_xml_resource(source, element_only=True):
             )
         else:
             xml_url = getattr(source, 'name', getattr(source, 'url', None))
+            safe_data = True
             source.close()
 
     try:
-        xml_root = etree_fromstring(xml_data)
-    except (etree_parse_error, UnicodeEncodeError) as err:
+        xml_root = etree_fromstring(xml_data) if safe_data else safe_etree_fromstring(xml_data)
+    except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError) as err:
         raise XMLSchemaValueError(
             "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
         )

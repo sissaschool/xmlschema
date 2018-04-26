@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for a disallowed circular model (see issue #58). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:group name="Test-G">
+    <xs:sequence>
+      <xs:group minOccurs="0" ref="Test-G" />
+    </xs:sequence>
+  </xs:group>
+</xs:schema>

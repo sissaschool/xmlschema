@@ -16,6 +16,8 @@ from .compat import PY3, StringIO
 from .exceptions import XMLSchemaValueError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
 
+import defusedxml.ElementTree
+
 # Register missing namespaces into imported ElementTree module
 ElementTree.register_namespace('xslt', XSLT_NAMESPACE)
 ElementTree.register_namespace('hfp', HFP_NAMESPACE)
@@ -29,6 +31,12 @@ etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
 etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
+
+
+# Safe APIs from defusedxml package
+safe_etree_iterparse = defusedxml.ElementTree.iterparse
+safe_etree_fromstring = defusedxml.ElementTree.fromstring
+safe_etree_parse_error = defusedxml.ElementTree.ParseError
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
