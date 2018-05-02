@@ -34,6 +34,7 @@ etree_register_namespace = ElementTree.register_namespace
 
 
 # Safe APIs from defusedxml package
+safe_etree_parse = defusedxml.ElementTree.parse
 safe_etree_iterparse = defusedxml.ElementTree.iterparse
 safe_etree_fromstring = defusedxml.ElementTree.fromstring
 safe_etree_parse_error = defusedxml.ElementTree.ParseError

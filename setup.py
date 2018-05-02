@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 setup(
     name='xmlschema',
     version='0.9.27',
-    install_requires=['elementpath'],
+    install_requires=['elementpath>=1.0.6', 'defusedxml>=0.5'],
     packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [
         'unicode_categories.json',

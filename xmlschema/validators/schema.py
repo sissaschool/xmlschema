@@ -85,7 +85,7 @@ class XMLSchemaMeta(type):
 
         # Build the meta-schema class
         meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, 'Meta' + name, bases, dict_)
-        meta_schema = meta_schema_class(meta_schema, build=False)
+        meta_schema = meta_schema_class(meta_schema, defuse='never', build=False)
         for uri, pathname in list(base_schemas.items()):
             meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
@@ -172,9 +172,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, build=True):
+                 converter=None, locations=None, defuse='remote', build=True):
         try:
-            self.root, self.text, self.url = load_xml_resource(source, element_only=False)
+            self.root, self.text, self.url = load_xml_resource(source, False, defuse)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
         super(XMLSchemaBase, self).__init__()
@@ -201,6 +201,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if locations:
             self.locations.update(locations)  # Insert locations argument first
         self.locations.update(iter_schema_location_hints(self.root))
+
+        self.defuse = defuse
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
@@ -531,7 +533,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, namespace or self.target_namespace, self.validation, self.maps,
-                self.converter, None, False
+                self.converter, None, self.defuse, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -555,7 +557,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                     return schema
         try:
             return self.create_schema(
-                schema_url, self.target_namespace, self.validation, self.maps, self.converter, None, False
+                schema_url, self.target_namespace, self.validation, self.maps,
+                self.converter, None, self.defuse, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
@@ -602,7 +605,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if etree_iselement(xml_document):
                 xml_root = xml_document
             else:
-                xml_root = load_xml_resource(xml_document)
+                xml_root = load_xml_resource(xml_document, defuse=self.defuse)
         else:
             if not etree_iselement(xml_root):
                 raise XMLSchemaTypeError(

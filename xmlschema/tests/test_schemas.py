@@ -308,16 +308,18 @@ class TestXMLSchema1(unittest.TestCase):
         )
 
 
-def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False, locations=None):
+def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False,
+                              locations=None, defuse='remote'):
     def test_schema(self):
         if inspect:
             SchemaObserver.clear()
+
         # print("Run %s" % self.id())
         try:
             if expected_errors > 0:
-                xs = schema_class(xsd_file, validation='lax', locations=locations)
+                xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
             else:
-                xs = schema_class(xsd_file, locations=locations)
+                xs = schema_class(xsd_file, locations=locations, defuse=defuse)
         except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
             num_errors = 1
             errors = [str(err)]

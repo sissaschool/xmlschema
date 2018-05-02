@@ -1,9 +1,9 @@
 # Requirements for setup a development environment for the xmlschema package.
 setuptools
 tox
-elementpath
+elementpath>=1.0.6
 lxml
-defusedxml
+defusedxml>=0.5
 Sphinx
 sphinx_rtd_theme
 -e .
