@@ -161,7 +161,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema))
                     else:
                         self.model = xsd_group.model
-                        self.extend(xsd_group)
+                        self.append(xsd_group)
                 else:
                     self._parse_error("missing both attributes 'name' and 'ref'", elem)
                 return

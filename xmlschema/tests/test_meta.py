@@ -216,7 +216,6 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertTrue(len(meta_schema.maps.elements) == 47)
         self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 199)
 
-        self.assertTrue(len(meta_schema.maps.base_elements) == 48)
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
 
     def test_build(self):
@@ -236,7 +235,7 @@ class TestGlobalMaps(unittest.TestCase):
                 if c.is_global:
                     global_counter += 1
         self.assertTrue(global_counter == 199)
-        self.assertTrue(total_counter == 1206)
+        self.assertTrue(total_counter == 943)
 
 
 # TODO: Add tests for base schemas files.

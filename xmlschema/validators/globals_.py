@@ -120,10 +120,8 @@ class XsdGlobals(XsdBaseComponent):
         self.groups = {}                # Model groups
         self.notations = {}             # Notations
         self.elements = {}              # Global elements
-
         self.substitution_groups = {}   # Substitution groups
         self.constraints = {}           # Constraints (uniqueness, keys, keyref)
-        self.base_elements = {}         # Global elements + global groups expansion
 
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
@@ -140,7 +138,6 @@ class XsdGlobals(XsdBaseComponent):
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
         obj.constraints.update(self.constraints)
-        obj.base_elements.update(self.base_elements)
         return obj
 
     __copy__ = copy
@@ -174,8 +171,6 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_element = self._create_lookup_function(
                 value, XsdElement, **{XSD_ELEMENT_TAG: self.validator.BUILDERS.element_class}
             )
-        elif name == 'base_elements':
-            self.lookup_base_element = self._create_lookup_function(value, XsdElement)
         super(XsdGlobals, self).__setattr__(name, value)
 
     @staticmethod
@@ -199,7 +194,7 @@ class XsdGlobals(XsdBaseComponent):
                     try:
                         elem, schema = obj
                     except ValueError:
-                        return obj[0] # Circular build, simply return (elem, schema) couple
+                        return obj[0]  # Circular build, simply return (elem, schema) couple
 
                     try:
                         factory_or_class = tag_map[elem.tag]
@@ -321,7 +316,6 @@ class XsdGlobals(XsdBaseComponent):
         """
         for global_map in self.global_maps:
             global_map.clear()
-        self.base_elements.clear()
         self.substitution_groups.clear()
         self.constraints.clear()
 
@@ -364,11 +358,9 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_element(qname)
         for qname in self.groups:
             self.lookup_group(qname)
-        self.base_elements.update(self.elements)
 
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
-        group_class = meta_schema.BUILDERS.group_class
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
                 for k in range(len(group)):
@@ -387,10 +379,6 @@ class XsdGlobals(XsdBaseComponent):
                         self.substitution_groups[qname].add(xsd_element)
                     except KeyError:
                         self.substitution_groups[qname] = {xsd_element}
-
-            # Add global group's base elements
-            for group in schema.groups.values():
-                self.base_elements.update({e.name: e for e in group.iter_elements()})
 
             if schema.meta_schema is not None:
                 # Set referenced key/unique constraints for keyrefs
