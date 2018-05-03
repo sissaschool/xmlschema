@@ -179,6 +179,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot create schema: %s' % err)
         super(XMLSchemaBase, self).__init__()
 
+        self._base_elements = None
+
         # Set and check target namespace
         self.target_namespace = self.root.get('targetNamespace', '')
         if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
@@ -328,7 +330,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             self.attribute_groups = NamespaceView(value.attribute_groups, self.target_namespace)
             self.groups = NamespaceView(value.groups, self.target_namespace)
             self.elements = NamespaceView(value.elements, self.target_namespace)
-            self.base_elements = NamespaceView(value.base_elements, self.target_namespace)
             self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
             self.constraints = NamespaceView(value.constraints, self.target_namespace)
             self.global_maps = (self.notations, self.types, self.attributes,
@@ -405,6 +406,19 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 for e in p.iterchildren()
             }
         return self._parent_map
+
+    @property
+    def base_elements(self):
+        """
+        Lazy property that returns dictionary that contains the global elements plus
+        the elements derived from global groups expansion. This lazy property could be
+        resource costly to build when the schema has many nested global groups.
+        """
+        if self._base_elements is None:
+            self._base_elements = self.elements.copy()
+            for group in self.groups.values():
+                self.base_elements.update({e.name: e for e in group.iter_elements()})
+        return self._base_elements
 
     @classmethod
     def create_schema(cls, *args, **kwargs):
