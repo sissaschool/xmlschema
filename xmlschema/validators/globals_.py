@@ -120,10 +120,8 @@ class XsdGlobals(XsdBaseComponent):
         self.groups = {}                # Model groups
         self.notations = {}             # Notations
         self.elements = {}              # Global elements
-
         self.substitution_groups = {}   # Substitution groups
         self.constraints = {}           # Constraints (uniqueness, keys, keyref)
-        self.base_elements = {}         # Global elements + global groups expansion
 
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
@@ -140,7 +138,6 @@ class XsdGlobals(XsdBaseComponent):
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
         obj.constraints.update(self.constraints)
-        obj.base_elements.update(self.base_elements)
         return obj
 
     __copy__ = copy
@@ -174,8 +171,6 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_element = self._create_lookup_function(
                 value, XsdElement, **{XSD_ELEMENT_TAG: self.validator.BUILDERS.element_class}
             )
-        elif name == 'base_elements':
-            self.lookup_base_element = self._create_lookup_function(value, XsdElement)
         super(XsdGlobals, self).__setattr__(name, value)
 
     @staticmethod
@@ -196,26 +191,34 @@ class XsdGlobals(XsdBaseComponent):
 
                 elif isinstance(obj, tuple):
                     # Not built XSD global component without redefinitions
-                    elem, schema = obj
+                    try:
+                        elem, schema = obj
+                    except ValueError:
+                        return obj[0]  # Circular build, simply return (elem, schema) couple
+
                     try:
                         factory_or_class = tag_map[elem.tag]
                     except KeyError:
-                        raise XMLSchemaKeyError(
-                            "wrong element %r for map %r." % (elem, global_map)
-                        )
+                        raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                    global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
                     global_map[qname] = factory_or_class(elem, schema, is_global=True)
                     return global_map[qname]
 
                 elif isinstance(obj, list):
                     if not isinstance(obj[0], xsd_classes):
                         # Not built XSD global component with redefinitions
-                        elem, schema = obj[0]
+                        try:
+                            elem, schema = obj[0]
+                        except ValueError:
+                            return obj[0][0]  # Circular build, simply return (elem, schema) couple
+
                         try:
                             factory_or_class = tag_map[elem.tag]
                         except KeyError:
-                            raise XMLSchemaKeyError(
-                                "wrong element %r for map %r." % (elem, global_map)
-                            )
+                            raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                        global_map[qname] = obj[0],  # To catch circular builds
                         global_map[qname] = factory_or_class(elem, schema, is_global=True)
                     else:
                         # Built-in type
@@ -313,7 +316,6 @@ class XsdGlobals(XsdBaseComponent):
         """
         for global_map in self.global_maps:
             global_map.clear()
-        self.base_elements.clear()
         self.substitution_groups.clear()
         self.constraints.clear()
 
@@ -356,20 +358,15 @@ class XsdGlobals(XsdBaseComponent):
             self.lookup_element(qname)
         for qname in self.groups:
             self.lookup_group(qname)
-        self.base_elements.update(self.elements)
 
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
-        group_class = meta_schema.BUILDERS.group_class
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
                 for k in range(len(group)):
                     if isinstance(group[k], tuple):
                         elem, schema = group[k]
-                        if elem.tag == XSD_GROUP_TAG:
-                            group[k] = group_class(elem, schema, mixed=group.mixed)
-                        else:
-                            group[k] = element_class(elem, schema)
+                        group[k] = element_class(elem, schema)
 
         for schema in not_built_schemas:
             # Build substitution groups from global element declarations
@@ -382,10 +379,6 @@ class XsdGlobals(XsdBaseComponent):
                         self.substitution_groups[qname].add(xsd_element)
                     except KeyError:
                         self.substitution_groups[qname] = {xsd_element}
-
-            # Add global group's base elements
-            for group in schema.groups.values():
-                self.base_elements.update({e.name: e for e in group.iter_elements()})
 
             if schema.meta_schema is not None:
                 # Set referenced key/unique constraints for keyrefs

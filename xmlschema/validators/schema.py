@@ -85,7 +85,7 @@ class XMLSchemaMeta(type):
 
         # Build the meta-schema class
         meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, 'Meta' + name, bases, dict_)
-        meta_schema = meta_schema_class(meta_schema, build=False)
+        meta_schema = meta_schema_class(meta_schema, defuse='never', build=False)
         for uri, pathname in list(base_schemas.items()):
             meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
@@ -121,6 +121,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :param locations: A map with schema location hints. Can be a dictionary or a sequence of \
     couples (namespace URI, resource URL). It can be useful for override schema's locations hints.
     :type locations: dict or None
+    :param defuse: Defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
+    For default defuse only remote XML data.
+    :type defuse: str or None
     :param build: Defines whether build the schema maps.
     :type build: bool
 
@@ -141,6 +144,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype target_namespace: str
     :ivar validation: Validation mode, can be 'strict', 'lax' or 'skip'.
     :vartype validation: str
+    :ivar defuse: When to defuse XML data, can be 'always', 'remote' or 'never'.
+    :vartype defuse: str
     :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
     that store the global_maps argument or a new object when this argument is not provided.
     :vartype maps: XsdGlobals
@@ -172,9 +177,13 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, build=True):
+                 converter=None, locations=None, defuse=None, build=True):
+        self.defuse = defuse or 'remote'  # Will be changed to 'always' in the future
+        self._base_elements = None
+
+        # Load the XSD schema resource
         try:
-            self.root, self.text, self.url = load_xml_resource(source, element_only=False)
+            self.root, self.text, self.url = load_xml_resource(source, False, self.defuse)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
         super(XMLSchemaBase, self).__init__()
@@ -326,7 +335,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             self.attribute_groups = NamespaceView(value.attribute_groups, self.target_namespace)
             self.groups = NamespaceView(value.groups, self.target_namespace)
             self.elements = NamespaceView(value.elements, self.target_namespace)
-            self.base_elements = NamespaceView(value.base_elements, self.target_namespace)
             self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
             self.constraints = NamespaceView(value.constraints, self.target_namespace)
             self.global_maps = (self.notations, self.types, self.attributes,
@@ -403,6 +411,19 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 for e in p.iterchildren()
             }
         return self._parent_map
+
+    @property
+    def base_elements(self):
+        """
+        Lazy property that returns dictionary that contains the global elements plus
+        the elements derived from global groups expansion. This lazy property could be
+        resource costly to build when the schema has many nested global groups.
+        """
+        if self._base_elements is None:
+            self._base_elements = self.elements.copy()
+            for group in self.groups.values():
+                self.base_elements.update({e.name: e for e in group.iter_elements()})
+        return self._base_elements
 
     @classmethod
     def create_schema(cls, *args, **kwargs):
@@ -531,7 +552,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, namespace or self.target_namespace, self.validation, self.maps,
-                self.converter, None, False
+                self.converter, None, self.defuse, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -555,13 +576,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                     return schema
         try:
             return self.create_schema(
-                schema_url, self.target_namespace, self.validation, self.maps, self.converter, None, False
+                schema_url, self.target_namespace, self.validation, self.maps,
+                self.converter, None, self.defuse, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
     def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, converter=None, **kwargs):
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
+                    defuse=None, **kwargs):
         """
         Creates an iterator for decoding an XML document using the schema instance. Yields objects 
         that can be dictionaries or simple data values.
@@ -602,7 +625,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if etree_iselement(xml_document):
                 xml_root = xml_document
             else:
-                xml_root = load_xml_resource(xml_document)
+                xml_root = load_xml_resource(xml_document, defuse=defuse or self.defuse)
         else:
             if not etree_iselement(xml_root):
                 raise XMLSchemaTypeError(

@@ -13,10 +13,16 @@ import os.path
 from .compat import (
     PY3, StringIO, unicode_type, urlopen, urlsplit, urljoin, uses_relative, urlunsplit, pathname2url, URLError
 )
-from .etree import etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement
+from .etree import (
+    etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement,
+    safe_etree_fromstring, safe_etree_parse_error
+)
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+
+
+DEFUSE_MODES = ('always', 'remote', 'never')
 
 
 def iter_schema_location_hints(elem, namespace=None):
@@ -46,7 +52,7 @@ def iter_schema_location_hints(elem, namespace=None):
             pass
 
 
-def load_xml_resource(source, element_only=True):
+def load_xml_resource(source, element_only=True, defuse='remote'):
     """
     Examines the source and returns the root Element, the XML text and an url
     if available. Returns only the root Element if the optional argument 
@@ -55,9 +61,14 @@ def load_xml_resource(source, element_only=True):
 
     :param source: an URL, a filename path or a file-like object.
     :param element_only: If True the function returns only the root Element of the tree.
+    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
+    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :return: a tuple with three items (root Element, XML text and XML URL) or
     only the root Element if 'element_only' argument is True.
     """
+    if defuse not in DEFUSE_MODES:
+        raise XMLSchemaValueError("'defuse' argument value has to be in {}.".format(DEFUSE_MODES))
+
     # source argument is a string
     if isinstance(source, (str, bytes, unicode_type)):
         try:
@@ -69,6 +80,7 @@ def load_xml_resource(source, element_only=True):
             return xml_root if element_only else (xml_root, source, None)
 
         xml_data, xml_url = load_resource(source)
+        is_local = xml_url.startswith('file:') or xml_url.startswith('/')
     else:
         try:
             # source is a file-like object containing XML data
@@ -80,11 +92,17 @@ def load_xml_resource(source, element_only=True):
             )
         else:
             xml_url = getattr(source, 'name', getattr(source, 'url', None))
+            is_local = True
             source.close()
 
     try:
-        xml_root = etree_fromstring(xml_data)
-    except (etree_parse_error, UnicodeEncodeError) as err:
+        if defuse == 'always':
+            xml_root = safe_etree_fromstring(xml_data)
+        elif defuse == 'never' or is_local:
+            xml_root = etree_fromstring(xml_data)
+        else:
+            xml_root = safe_etree_fromstring(xml_data)
+    except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError) as err:
         raise XMLSchemaValueError(
             "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
         )

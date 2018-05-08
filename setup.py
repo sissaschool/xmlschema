@@ -15,8 +15,8 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.26',
-    install_requires=['elementpath'],
+    version='0.9.27',
+    install_requires=['elementpath>=1.0.6', 'defusedxml>=0.5'],
     packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [
         'unicode_categories.json',
@@ -43,6 +43,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
         'Topic :: Software Development :: Libraries'
     ]

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- A sample schema for testing model validation -->
-<xs:schema xmlns="http://example.com/model" xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://example.com/model" >
+<xs:schema xmlns="http://xmlschema.test/test/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://xmlschema.test/test/" >
     <xs:anyattribute notNamespace="#all">
     </xs:anyattribute>
     <xs:annotation ciao="10" xml:lang="en"/>

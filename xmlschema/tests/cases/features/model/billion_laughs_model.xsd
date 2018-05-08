@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Billion laughs test for group expansion (ref. issue #59). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:group name="LOL1">
+      <xs:sequence>
+          <xs:element name="lol1" />
+          <xs:element name="lol2" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL2">
+      <xs:sequence>
+          <xs:group ref="LOL1" />
+          <xs:group ref="LOL1" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL3">
+      <xs:sequence>
+          <xs:group ref="LOL2" />
+          <xs:group ref="LOL2" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL4">
+      <xs:sequence>
+          <xs:group ref="LOL3" />
+          <xs:group ref="LOL3" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL5">
+      <xs:sequence>
+          <xs:group ref="LOL4" />
+          <xs:group ref="LOL4" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL6">
+      <xs:sequence>
+          <xs:group ref="LOL5" />
+          <xs:group ref="LOL5" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL7">
+      <xs:sequence>
+          <xs:group ref="LOL6" />
+          <xs:group ref="LOL6" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL8">
+      <xs:sequence>
+          <xs:group ref="LOL7" />
+          <xs:group ref="LOL7" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL9">
+      <xs:sequence>
+          <xs:group ref="LOL8" />
+          <xs:group ref="LOL8" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL10">
+      <xs:sequence>
+          <xs:group ref="LOL9" />
+          <xs:group ref="LOL9" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL11">
+      <xs:sequence>
+          <xs:group ref="LOL10" />
+          <xs:group ref="LOL10" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL12">
+      <xs:sequence>
+          <xs:group ref="LOL11" />
+          <xs:group ref="LOL11" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL13">
+      <xs:sequence>
+          <xs:group ref="LOL12" />
+          <xs:group ref="LOL12" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL14">
+      <xs:sequence>
+          <xs:group ref="LOL13" />
+          <xs:group ref="LOL13" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL15">
+      <xs:sequence>
+          <xs:group ref="LOL14" />
+          <xs:group ref="LOL14" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL16">
+      <xs:sequence>
+          <xs:group ref="LOL15" />
+          <xs:group ref="LOL15" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL17">
+      <xs:sequence>
+          <xs:group ref="LOL16" />
+          <xs:group ref="LOL16" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL18">
+      <xs:sequence>
+          <xs:group ref="LOL17" />
+          <xs:group ref="LOL17" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL19">
+      <xs:sequence>
+          <xs:group ref="LOL18" />
+          <xs:group ref="LOL18" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL20">
+      <xs:sequence>
+          <xs:group ref="LOL19" />
+          <xs:group ref="LOL19" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL21">
+      <xs:sequence>
+          <xs:group ref="LOL20" />
+          <xs:group ref="LOL20" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL22">
+      <xs:sequence>
+          <xs:group ref="LOL21" />
+          <xs:group ref="LOL21" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL23">
+      <xs:sequence>
+          <xs:group ref="LOL22" />
+          <xs:group ref="LOL22" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL24">
+      <xs:sequence>
+          <xs:group ref="LOL23" />
+          <xs:group ref="LOL23" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL25">
+      <xs:sequence>
+          <xs:group ref="LOL24" />
+          <xs:group ref="LOL24" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL26">
+      <xs:sequence>
+          <xs:group ref="LOL25" />
+          <xs:group ref="LOL25" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL27">
+      <xs:sequence>
+          <xs:group ref="LOL26" />
+          <xs:group ref="LOL26" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL28">
+      <xs:sequence>
+          <xs:group ref="LOL27" />
+          <xs:group ref="LOL27" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL29">
+      <xs:sequence>
+          <xs:group ref="LOL28" />
+          <xs:group ref="LOL28" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL30">
+      <xs:sequence>
+          <xs:group ref="LOL29" />
+          <xs:group ref="LOL29" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL31">
+      <xs:sequence>
+          <xs:group ref="LOL30" />
+          <xs:group ref="LOL30" />
+      </xs:sequence>
+    </xs:group>
+
+    <xs:group name="LOL32">
+      <xs:sequence>
+          <xs:group ref="LOL31" />
+          <xs:group ref="LOL31" />
+      </xs:sequence>
+    </xs:group>
+
+</xs:schema>

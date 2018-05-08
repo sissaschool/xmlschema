@@ -28,6 +28,7 @@ The xmlschema library includes the following features:
 * Decoding of XML data into Python data structures
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
+* XML-based attacks prevention using the external package *defusedxml*
 
 
 Installation

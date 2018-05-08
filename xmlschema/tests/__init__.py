@@ -80,9 +80,16 @@ def xsd_version_number(value):
     return value
 
 
+def defuse_data(value):
+    if value not in ('always', 'remote', 'never'):
+        msg = "%r is not a valid value." % value
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def get_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
-    parser.usage = """TEST_FILE [TOT_ERRORS] [-i] [-x=VERSION]"""
+    parser.usage = """TEST_FILE [TOT_ERRORS] [-i] [-v=VERSION]"""
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
     parser.add_argument('tot_errors', nargs='?', type=int, default=0, help="Total errors expected (default=0).")
     parser.add_argument(
@@ -95,6 +102,10 @@ def get_args_parser():
     )
     parser.add_argument(
         '-l', dest='locations', nargs=2, type=str, default=None, action='append'
+    )
+    parser.add_argument(
+        '-d', dest='defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
+        help="Define when to use the defused XML data loaders."
     )
     return parser
 
@@ -124,7 +135,7 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
             schema_class = xmlschema.XMLSchema
 
         test_func = test_function_builder(
-            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations
+            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations, test_args.defuse
         )
         test_name = os.path.relpath(test_file)
         test_num += 1
