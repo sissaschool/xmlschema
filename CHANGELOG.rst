@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+v0.9.27
+=======
+* Add support for preventing XML attacks with the use of the
+  *defusedxml* package (added *defuse* argument to schemas)
+* Fix for group circularity (issue #58)
+* Fix for billion laughs attacks using XSD groups expansion
+
 v0.9.26
 =======
 * Added checks for model restrictions

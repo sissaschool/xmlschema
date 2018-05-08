@@ -30,6 +30,7 @@ Schema level API
     .. autoattribute:: target_prefix
     .. autoattribute:: base_url
     .. autoattribute:: parent_map
+    .. autoattribute:: base_elements
 
     .. automethod:: get_locations
     .. automethod:: include_schema

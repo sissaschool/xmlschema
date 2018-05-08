@@ -121,6 +121,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :param locations: A map with schema location hints. Can be a dictionary or a sequence of \
     couples (namespace URI, resource URL). It can be useful for override schema's locations hints.
     :type locations: dict or None
+    :param defuse: Defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
+    For default defuse only remote XML data.
+    :type defuse: str or None
     :param build: Defines whether build the schema maps.
     :type build: bool
 
@@ -141,6 +144,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype target_namespace: str
     :ivar validation: Validation mode, can be 'strict', 'lax' or 'skip'.
     :vartype validation: str
+    :ivar defuse: When to defuse XML data, can be 'always', 'remote' or 'never'.
+    :vartype defuse: str
     :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
     that store the global_maps argument or a new object when this argument is not provided.
     :vartype maps: XsdGlobals
@@ -172,14 +177,16 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, defuse='remote', build=True):
+                 converter=None, locations=None, defuse=None, build=True):
+        self.defuse = defuse or 'remote'  # Will be changed to 'always' in the future
+        self._base_elements = None
+
+        # Load the XSD schema resource
         try:
-            self.root, self.text, self.url = load_xml_resource(source, False, defuse)
+            self.root, self.text, self.url = load_xml_resource(source, False, self.defuse)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
         super(XMLSchemaBase, self).__init__()
-
-        self._base_elements = None
 
         # Set and check target namespace
         self.target_namespace = self.root.get('targetNamespace', '')
@@ -203,8 +210,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if locations:
             self.locations.update(locations)  # Insert locations argument first
         self.locations.update(iter_schema_location_hints(self.root))
-
-        self.defuse = defuse
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
@@ -578,7 +583,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
     def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, converter=None, **kwargs):
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
+                    defuse=None, **kwargs):
         """
         Creates an iterator for decoding an XML document using the schema instance. Yields objects 
         that can be dictionaries or simple data values.
@@ -619,7 +625,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if etree_iselement(xml_document):
                 xml_root = xml_document
             else:
-                xml_root = load_xml_resource(xml_document, defuse=self.defuse)
+                xml_root = load_xml_resource(xml_document, defuse=defuse or self.defuse)
         else:
             if not etree_iselement(xml_root):
                 raise XMLSchemaTypeError(
