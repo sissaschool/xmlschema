@@ -493,11 +493,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
         model_occurs = 0
         max_occurs = self.max_occurs
+        model = self.model
         while index < len(elem) and (not max_occurs or model_occurs < max_occurs):
             child_index = index  # index of the current examined child
-
-            if self.model == XSD_SEQUENCE_TAG:
-                for item in self:
+            if model == XSD_SEQUENCE_TAG:
+                for item in self.iter_group():
                     for obj in item.iter_decode_children(elem, child_index, validation):
                         if isinstance(obj, XMLSchemaValidationError):
                             if self.min_occurs > model_occurs:
@@ -509,14 +509,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         else:
                             child_index = obj
 
-            elif self.model == XSD_ALL_TAG:
+            elif model == XSD_ALL_TAG:
                 elements = [e for e in self]
                 while elements:
                     for item in elements:
                         for obj in item.iter_decode_children(elem, child_index, validation='lax'):
                             if isinstance(obj, tuple):
                                 yield obj
-                                continue
                             elif isinstance(obj, int) and child_index < obj:
                                 child_index = obj
                                 break
@@ -532,7 +531,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         return
                     elements.remove(item)
 
-            elif self.model == XSD_CHOICE_TAG:
+            elif model == XSD_CHOICE_TAG:
                 matched_choice = False
                 obj = None
                 for item in self:
