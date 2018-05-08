@@ -139,33 +139,3 @@ def etree_child_index(elem, child):
         if elem[index] is child:
             return index
     raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
-
-
-class ChildrenIterator(object):
-
-    def __init__(self, elem):
-        self.elem = elem
-        self.index = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            child = self.elem[self.index]
-        except IndexError:
-            raise StopIteration
-        else:
-            self.index += 1
-            return child
-
-    @property
-    def child(self):
-        try:
-            return self.elem[self.index]
-        except IndexError:
-            raise StopIteration
-
-    @property
-    def finished(self):
-        return self.index >= len(self.elem)

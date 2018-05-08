@@ -451,7 +451,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         model_occurs = 0
         while True:
             try:
-                tag = elem[index].tag
+                child = elem[index]
             except TypeError:
                 # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
                 # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
@@ -461,33 +461,31 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                     error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                     yield self._validation_error(error, validation)
-                else:
-                    yield index
+                yield index
                 return
             else:
+                tag = child.tag
                 if tag == self.name:
-                    yield self, elem[index]
+                    yield self, child
                 elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
-                    yield self, elem[index]
+                    yield self, child
                 elif self.name in self.maps.substitution_groups:
                     for e in self.schema.substitution_groups[self.name]:
                         if tag == e.name:
-                            yield e, elem[index]
+                            yield e, child
                             break
                     else:
                         if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                             error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                             yield self._validation_error(error, validation)
-                        else:
-                            yield index
+                        yield index
                         return
 
                 else:
                     if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                         error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
                         yield self._validation_error(error, validation)
-                    else:
-                        yield index
+                    yield index
                     return
 
             index += 1

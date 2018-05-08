@@ -390,13 +390,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     elif obj < index:
                         raise XMLSchemaValueError("returned a lesser index, this is a bug!")
                     else:
-                        # obj is the last index used by inner validators
                         index = obj + 1
                         break
                 else:
                     if isinstance(obj, XMLSchemaValidationError):
-                        raise XMLSchemaTypeError(
-                            "the iteration cannot ends with a validation error, an integer expected.")
+                        raise XMLSchemaTypeError("children decoding cannot ends with a validation error.")
                     break
 
             if elem[-1] is not child:
@@ -488,6 +486,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         yield text, children
 
     def iter_decode_children(self, elem, index=0, validation='lax'):
+        """
+        Generator function for decoding the children of an element. Before ending the generator
+        yields the last index used by inner validators.
+
+        :param elem: Element node.
+        :param index: Start child index, 0 for default.
+        :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
+        :return: Generates a sequence of values that can be tuples and/or errors and an integer.
+        """
         if not len(self):
             return  # Skip empty groups!
 
@@ -495,7 +502,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         max_occurs = self.max_occurs
         model = self.model
         while index < len(elem) and (not max_occurs or model_occurs < max_occurs):
-            child_index = index  # index of the current examined child
+            child_index = index
+
             if model == XSD_SEQUENCE_TAG:
                 for item in self.iter_group():
                     for obj in item.iter_decode_children(elem, child_index, validation):
@@ -524,9 +532,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         break
                     else:
                         if any(not e.is_optional() for e in elements) and self.min_occurs > model_occurs:
-                            yield XMLSchemaChildrenValidationError(
-                                self, elem, child_index, expected=[e.prefixed_name for e in elements]
-                            )
+                            expected = [e.prefixed_name for e in elements]
+                            yield XMLSchemaChildrenValidationError(self, elem, child_index, expected)
                         yield child_index
                         return
                     elements.remove(item)
@@ -553,9 +560,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         pass
 
                     if self.min_occurs > model_occurs:
-                        yield XMLSchemaChildrenValidationError(
-                            self, elem, child_index, expected=[e.prefixed_name for e in self.iter_elements()]
-                        )
+                        expected = [e.prefixed_name for e in self.iter_elements()]
+                        yield XMLSchemaChildrenValidationError(self, elem, child_index, expected)
                     yield index
                     return
             else:
