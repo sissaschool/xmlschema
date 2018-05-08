@@ -110,9 +110,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
     def iter_decode_children(self, elem, index=0, validation='lax'):
         model_occurs = 0
         process_contents = self.process_contents
+        max_occurs = self.max_occurs
         while True:
             try:
-                namespace = get_namespace(elem[index].tag)
+                child = elem[index]
             except TypeError:
                 # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
                 # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
@@ -124,31 +125,35 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
                         self, elem, index, expected="from %r namespace" % self.namespaces
                     )
                     yield self._validation_error(error, validation)
-                else:
-                    yield index
+                yield index
                 return
             else:
-                if validation != 'skip' and not self.is_namespace_allowed(namespace):
-                    error = XMLSchemaChildrenValidationError(self, elem, index)
-                    yield self._validation_error(error, validation)
+                namespace = get_namespace(child.tag)
+
+                if not self.is_namespace_allowed(namespace):
+                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                        error = XMLSchemaChildrenValidationError(self, elem, index)
+                        yield self._validation_error(error, validation)
+                    yield index
+                    return
 
                 try:
-                    xsd_element = self.maps.lookup_element(elem[index].tag)
+                    xsd_element = self.maps.lookup_element(child.tag)
                 except LookupError:
                     if validation != 'skip' and process_contents == 'strict':
                         yield self._validation_error(
-                            "cannot retrieve the schema for %r" % elem[index], validation, elem
+                            "cannot retrieve the schema for %r" % child, validation, elem
                         )
-                    yield None, elem[index]
+                    yield None, child
                 else:
                     if process_contents != 'skip':
-                        yield xsd_element, elem[index]
+                        yield xsd_element, child
                     else:
-                        yield None, elem[index]
+                        yield None, child
 
             index += 1
             model_occurs += 1
-            if self.max_occurs is not None and model_occurs >= self.max_occurs:
+            if max_occurs is not None and model_occurs >= max_occurs:
                 yield index
                 return
 
