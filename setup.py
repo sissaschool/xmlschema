@@ -19,10 +19,8 @@ setup(
     install_requires=['elementpath>=1.0.6', 'defusedxml>=0.5'],
     packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [
-        'unicode_categories.json',
-        'validators/schemas/*.xsd', 'validators/schemas/*/*.xsd',
-        'tests/test_all.sh', 'tests/cases/*', 'tests/cases/*/*',
-        'tests/cases/*/*/*', 'tests/resources/*'
+        'unicode_categories.json', 'validators/schemas/*.xsd', 'validators/schemas/*/*.xsd',
+        'tests/cases/*', 'tests/cases/*/*', 'tests/cases/*/*/*', 'tests/resources/*'
     ]},
     author='Davide Brunato',
     author_email='brunato@sissa.it',
