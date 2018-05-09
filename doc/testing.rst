@@ -29,6 +29,9 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_decoding.py**
     Tests regarding XML data decoding
 
+**test_encoding.py**
+    Tests regarding data encoding to XML
+
 **test_package.py**
     Tests regarding packaging and forgotten development code
 
