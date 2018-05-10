@@ -412,6 +412,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             }
         return self._parent_map
 
+    @classmethod
+    def builtin_types(cls):
+        """An accessor for XSD built-in types."""
+        try:
+            return cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
+        except KeyError:
+            raise XMLSchemaNotBuiltError("missing XSD namespace in meta-schema.")
+
     @property
     def base_elements(self):
         """

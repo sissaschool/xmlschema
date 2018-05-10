@@ -50,6 +50,9 @@ class TestEncoding(unittest.TestCase):
         cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/collection/collection.xsd'))
         cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/features/decoding/decoder.xsd'))
 
+    def check_encode(data, schema):
+        pass
+
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
         xt = _ElementTree.parse(filename)
@@ -64,6 +67,9 @@ class TestEncoding(unittest.TestCase):
             local_name(e1.tag) == local_name(e2.tag)
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
         ]))
+
+    def test_builtin_types(self):
+        pass
 
 
 if __name__ == '__main__':
