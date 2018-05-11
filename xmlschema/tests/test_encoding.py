@@ -20,11 +20,6 @@ from decimal import Decimal
 from xml.etree import ElementTree as _ElementTree
 
 try:
-    import lxml.etree as _lxml_etree
-except ImportError:
-    _lxml_etree = None
-
-try:
     import xmlschema
 except ImportError:
     # Adds the package base dir path as first search path for imports
@@ -33,6 +28,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema.qnames import local_name
+from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 
 class TestEncoding(unittest.TestCase):
@@ -50,8 +46,13 @@ class TestEncoding(unittest.TestCase):
         cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/collection/collection.xsd'))
         cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/features/decoding/decoder.xsd'))
 
-    def check_encode(data, schema):
-        pass
+    def check_encode(self, xsd_component, data, expected, **kwargs):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.encode, data, **kwargs)
+        else:
+            obj = xsd_component.encode(data, **kwargs)
+            self.assertEqual(expected, obj)
+            self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
@@ -69,7 +70,24 @@ class TestEncoding(unittest.TestCase):
         ]))
 
     def test_builtin_types(self):
-        pass
+        xsd_types = xmlschema.XMLSchema.builtin_types()
+        self.check_encode(xsd_types['string'], 'sample string ', 'sample string ')
+        self.check_encode(xsd_types['integer'], 1000, '1000')
+        self.check_encode(xsd_types['integer'], 100.0, XMLSchemaEncodeError)
+        self.check_encode(xsd_types['integer'], 100.0, '100', validation='lax')
+        self.check_encode(xsd_types['float'], 100.0, '100.0')
+        self.check_encode(xsd_types['float'], 'hello', XMLSchemaEncodeError)
+        self.check_encode(xsd_types['decimal'], -99.09, '-99.09')
+        self.check_encode(xsd_types['decimal'], '-99.09', '-99.09')
+        self.check_encode(xsd_types['positiveInteger'], -1, XMLSchemaValidationError)
+        self.check_encode(xsd_types['positiveInteger'], 0, XMLSchemaValidationError)
+        self.check_encode(xsd_types['nonNegativeInteger'], 0, '0')
+        self.check_encode(xsd_types['nonNegativeInteger'], -1, XMLSchemaValidationError)
+        self.check_encode(xsd_types['negativeInteger'], -100, '-100')
+        self.check_encode(xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+        self.check_encode(xsd_types['unsignedLong'], 101, '101')
+        self.check_encode(xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
+        self.check_encode(xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
 
 
 if __name__ == '__main__':
