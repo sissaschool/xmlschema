@@ -275,7 +275,9 @@ class XsdSimpleType(XsdType, ValidatorMixin):
         yield text
 
     def iter_encode(self, text, validation='lax', **kwargs):
-        if not isinstance(text, (str, unicode_type)) and validation != 'skip':
+        if isinstance(text, (str, unicode_type)):
+            text = self.normalize(text)
+        elif validation != 'skip':
             error = XMLSchemaEncodeError(self, text, unicode_type)
             yield self._validation_error(error, validation)
 
@@ -452,6 +454,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         yield result
 
     def iter_encode(self, obj, validation='lax', **kwargs):
+        obj = self.normalize(obj)
         if not isinstance(obj, self.python_type):
             if self.python_type == Decimal and isinstance(obj, (str, unicode_type, int, float)):
                 pass
@@ -916,6 +919,9 @@ class XsdAtomicRestriction(XsdAtomic):
                 return
 
     def iter_encode(self, obj, validation='lax', **kwargs):
+        if isinstance(obj, (str, unicode_type)):
+            obj = self.normalize(obj)
+
         for result in self.base_type.iter_encode(obj, validation):
             if isinstance(result, XMLSchemaValidationError):
                 if validation == 'strict':
