@@ -359,7 +359,7 @@ class XsdType(XsdComponent):
 
     @staticmethod
     def is_atomic():
-        return False
+        return None
 
     def is_empty(self):
         raise NotImplementedError

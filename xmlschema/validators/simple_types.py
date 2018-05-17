@@ -27,9 +27,7 @@ from .exceptions import (
 )
 from .parseutils import get_xsd_derivation_attribute, get_xsd_component
 from .xsdbase import XsdType, ValidatorMixin
-from .facets import (
-    XsdFacet, XSD_FACETS, LIST_FACETS, UNION_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
-)
+from .facets import XsdFacet, XSD_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 
 
 def xsd_simple_type_factory(elem, schema, is_global=False):
@@ -591,7 +589,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS.intersection(LIST_FACETS)
+        return self.schema._LIST_FACETS
 
     @staticmethod
     def is_atomic():
@@ -740,7 +738,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS.intersection(UNION_FACETS)
+        return self.schema._UNION_FACETS
 
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
