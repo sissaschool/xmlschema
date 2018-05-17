@@ -20,6 +20,8 @@ features/builtins/builtins.xml
 features/decoder/decoder.xsd
 features/decoder/data2.xml 1
 features/derivations/complex-extensions.xsd 1
+features/derivations/list_types.xsd 1
+features/derivations/list_types.xml 2
 features/elements/test-imports.xsd
 features/namespaces/no_referenciable.xsd 1
 features/model/model.xsd 1

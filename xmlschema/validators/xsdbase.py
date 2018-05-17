@@ -357,6 +357,10 @@ class XsdType(XsdComponent):
     def is_complex():
         raise NotImplementedError
 
+    @staticmethod
+    def is_atomic():
+        return False
+
     def is_empty(self):
         raise NotImplementedError
 
@@ -513,18 +517,32 @@ class ValidatorMixin(object):
         the XSD component, or also if it's invalid when ``validate='strict'`` is provided.
         """
         validation = kwargs.pop('validation', 'strict')
+        errors = []
         for chunk in self.iter_decode(data, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
-                raise chunk
-            return chunk
+            if isinstance(chunk, XMLSchemaValidationError):
+                if validation == 'strict':
+                    raise chunk
+                elif validation == 'lax':
+                    errors.append(chunk)
+            elif errors:
+                return chunk, errors
+            else:
+                return chunk
     to_dict = decode
 
     def encode(self, data, *args, **kwargs):
         validation = kwargs.pop('validation', 'strict')
+        errors = []
         for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
-                raise chunk
-            return chunk
+            if isinstance(chunk, XMLSchemaValidationError):
+                if validation == 'strict':
+                    raise chunk
+                elif validation == 'lax':
+                    errors.append(chunk)
+            elif errors:
+                return chunk, errors
+            else:
+                return chunk
     to_etree = encode
 
     def iter_decode(self, data, path=None, validation='lax', process_namespaces=True,

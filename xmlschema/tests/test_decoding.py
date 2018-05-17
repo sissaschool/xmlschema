@@ -262,7 +262,7 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
                                 locations=None, defuse='defuse'):
     def test_decoding(self):
         schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, locations=_locations, defuse=defuse)
+        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
         errors = []
         chunks = []
         for obj in xs.iter_decode(xml_file):
