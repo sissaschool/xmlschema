@@ -63,16 +63,21 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        return u''.join([
-            self.message or u"failed validating %r with %r.\n" % (self.obj, self.validator),
-            u'\nReason: %s\n' % self.reason if self.reason is not None else '',
-            u"\nSchema:\n\n  %s\n" % etree_tostring(
-                self.schema_elem, max_lines=20
-            ) if self.schema_elem is not None else '',
-            u"\nInstance:\n\n  %s\n" % etree_tostring(
-                self.elem, max_lines=20
-            ) if self.elem is not None else ''
-        ])
+        msg = [self.message or u"failed validating %r with %r.\n" % (self.obj, self.validator)]
+        if self.reason is not None:
+            msg.append(u'\nReason: %s\n' % self.reason)
+        if self.schema_elem is not None:
+            msg.append(u"\nSchema:\n\n  %s\n" % etree_tostring(self.schema_elem, max_lines=20))
+
+        elem = self.elem
+        if elem is not None:
+            if hasattr(elem, 'sourceline'):
+                msg.append(u"\nInstance (line %r):\n\n  %s\n" % (
+                    elem.sourceline, etree_tostring(elem, max_lines=20)
+                ))
+            else:
+                msg.append(u"\nInstance:\n\n  %s\n" % etree_tostring(elem, max_lines=20))
+        return u''.join(msg)
 
     if PY3:
         __str__ = __unicode__

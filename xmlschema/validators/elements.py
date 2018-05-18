@@ -15,7 +15,7 @@ from collections import Sequence
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaAttributeError
-from ..etree import etree_element
+from ..etree import etree_element, etree_iselement
 from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
@@ -243,6 +243,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 error.schema_elem = self.type.elem
             else:
                 error.schema_elem = self.elem
+        if error.elem is None and etree_iselement(obj):
+            error.elem = obj
         return super(XsdElement, self)._validation_error(error, validation)
 
     @property
