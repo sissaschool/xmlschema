@@ -13,7 +13,7 @@ This module contains classes for XML Schema simple data types.
 """
 from decimal import Decimal, DecimalException
 
-from ..compat import unicode_type
+from ..compat import unicode_type, long_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
     get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
@@ -405,12 +405,17 @@ class XsdAtomicBuiltin(XsdAtomic):
                  to_python=None, from_python=None):
         """
         :param name: The XSD type's qualified name.
-        :param python_type: The correspondent Python's type.
+        :param python_type: The correspondent Python's type. If a tuple or list of types \
+        is provided uses the first and consider the others as compatible types.
         :param base_type: The reference base type, None if it's a primitive type.
         :param facets: Optional facets validators.
         :param to_python: The optional decode function.
         :param from_python: The optional encode function.
         """
+        if isinstance(python_type, (tuple, list)):
+            self.instance_types, python_type = python_type, python_type[0]
+        else:
+            self.instance_types = python_type
         if not callable(python_type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
@@ -456,10 +461,8 @@ class XsdAtomicBuiltin(XsdAtomic):
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         obj = self.normalize(obj)
-        if not isinstance(obj, self.python_type):
-            if self.python_type == Decimal and isinstance(obj, (str, unicode_type, int, float)):
-                pass
-            elif validation == 'strict' or isinstance(obj, bool) or self.python_type == bool:
+        if not isinstance(obj, self.instance_types):
+            if validation == 'strict' or isinstance(obj, bool) or self.python_type == bool:
                 reason = "%r is not an instance of %r" % (obj, self.python_type)
                 error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
                 yield self._validation_error(error, validation, obj)

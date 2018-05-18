@@ -258,14 +258,14 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     # --- String Types ---
     {
         'name': xsd_qname('string'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, PRESERVE_WHITE_SPACE_ELEMENT)
     },  # character string
 
     # --- Numerical Types ---
     {
         'name': xsd_qname('decimal'),
-        'python_type': Decimal,
+        'python_type': (Decimal, str, unicode_type, int, float),
         'facets': (DECIMAL_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     },  # decimal number
     {
@@ -282,47 +282,47 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     # ---Dates and Times---
     {
         'name': xsd_qname('date'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, date_validator)
     },  # CCYY-MM-DD
     {
         'name': xsd_qname('dateTime'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, datetime_validator)
     },  # CCYY-MM-DDThh:mm:ss
     {
         'name': xsd_qname('gDay'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_day_validator)
     },  # DD
     {
         'name': xsd_qname('gMonth'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_validator)
     },  # MM
     {
         'name': xsd_qname('gMonthDay'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_day_validator)
     },  # MM-DD
     {
         'name': xsd_qname('gYear'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_validator)
     },  # CCYY
     {
         'name': xsd_qname('gYearMonth'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_month_validator)
     },  # CCYY-MM
     {
         'name': xsd_qname('time'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, time_validator)
     },  # hh:mm:ss
     {
         'name': xsd_qname('duration'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (
             FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, duration_validator
         )
@@ -331,17 +331,17 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     # Other primitive types
     {
         'name': xsd_qname('QName'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     },  # prf:name (the prefix needs to be qualified with an in scope namespace)
     {
         'name': xsd_qname('NOTATION'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': xsd_qname('anyURI'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     },  # absolute or relative uri (RFC 2396)
     {
@@ -353,12 +353,12 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     },  # true/false or 1/0
     {
         'name': xsd_qname('base64Binary'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     },  # base64 encoded binary value
     {
         'name': xsd_qname('hexBinary'),
-        'python_type': unicode_type,
+        'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
     }   # hexadecimal encoded binary value
 ]
@@ -367,46 +367,46 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
 XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     # --- String Types ---
     (
-        xsd_qname('normalizedString'), unicode_type, xsd_qname('string'), [REPLACE_WHITE_SPACE_ELEMENT]
+        xsd_qname('normalizedString'), (unicode_type, str), xsd_qname('string'), [REPLACE_WHITE_SPACE_ELEMENT]
     ),  # line breaks are normalized
     (
-        xsd_qname('token'), unicode_type, xsd_qname('normalizedString'), [COLLAPSE_WHITE_SPACE_ELEMENT]
+        xsd_qname('token'), (unicode_type, str), xsd_qname('normalizedString'), [COLLAPSE_WHITE_SPACE_ELEMENT]
     ),  # whitespace is normalized
     (
-        xsd_qname('language'), unicode_type, xsd_qname('token'), [
+        xsd_qname('language'), (unicode_type, str), xsd_qname('token'), [
             etree_element(XSD_PATTERN_TAG, attrib={
                 'value': r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*"
             })
         ]
     ),  # language codes
     (
-        xsd_qname('Name'), unicode_type, xsd_qname('token'),
+        xsd_qname('Name'), (unicode_type, str), xsd_qname('token'),
         [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\i\c*"})]
     ),  # not starting with a digit
     (
-        xsd_qname('NCName'), unicode_type, xsd_qname('Name'),
+        xsd_qname('NCName'), (unicode_type, str), xsd_qname('Name'),
         [etree_element(XSD_PATTERN_TAG, attrib={'value': r"[\i-[:]][\c-[:]]*"})]
     ),  # cannot contain colons
     (
-        xsd_qname('ID'), unicode_type, xsd_qname('NCName')
+        xsd_qname('ID'), (unicode_type, str), xsd_qname('NCName')
     ),  # unique identification in document (attribute only)
     (
-        xsd_qname('IDREF'), unicode_type, xsd_qname('NCName')
+        xsd_qname('IDREF'), (unicode_type, str), xsd_qname('NCName')
     ),  # reference to ID field in document (attribute only)
     (
-        xsd_qname('ENTITY'), unicode_type, xsd_qname('NCName')
+        xsd_qname('ENTITY'), (unicode_type, str), xsd_qname('NCName')
     ),  # reference to entity (attribute only)
     (
-        xsd_qname('NMTOKEN'), unicode_type, xsd_qname('token'),
+        xsd_qname('NMTOKEN'), (unicode_type, str), xsd_qname('token'),
         [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
     ),  # should not contain whitespace (attribute only)
 
     # --- Numerical Types ---
     (
-        xsd_qname('integer'), long_type, xsd_qname('decimal')
+        xsd_qname('integer'), (long_type, int), xsd_qname('decimal')
     ),  # any integer value
     (
-        xsd_qname('long'), long_type, xsd_qname('integer'), [long_validator]
+        xsd_qname('long'), (long_type, int), xsd_qname('integer'), [long_validator]
     ),  # signed 128 bit value
     (
         xsd_qname('int'), int, xsd_qname('long'), [int_validator]
@@ -418,13 +418,13 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
         xsd_qname('byte'), int, xsd_qname('short'), [byte_validator]
     ),  # signed 8 bit value
     (
-        xsd_qname('nonNegativeInteger'), long_type, xsd_qname('integer'), [non_negative_int_validator]
+        xsd_qname('nonNegativeInteger'), (long_type, int), xsd_qname('integer'), [non_negative_int_validator]
     ),  # only zero and more value allowed [>= 0]
     (
-        xsd_qname('positiveInteger'), long_type, xsd_qname('nonNegativeInteger'), [positive_int_validator]
+        xsd_qname('positiveInteger'), (long_type, int), xsd_qname('nonNegativeInteger'), [positive_int_validator]
     ),  # only positive value allowed [> 0]
     (
-        xsd_qname('unsignedLong'), long_type, xsd_qname('nonNegativeInteger'), [unsigned_long_validator]
+        xsd_qname('unsignedLong'), (long_type, int), xsd_qname('nonNegativeInteger'), [unsigned_long_validator]
     ),  # unsigned 128 bit value
     (
         xsd_qname('unsignedInt'), int, xsd_qname('unsignedLong'), [unsigned_int_validator]
@@ -436,10 +436,10 @@ XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
         xsd_qname('unsignedByte'), int, xsd_qname('unsignedShort'), [unsigned_byte_validator]
     ),  # unsigned 8 bit value
     (
-        xsd_qname('nonPositiveInteger'), long_type, xsd_qname('integer'), [non_positive_int_validator]
+        xsd_qname('nonPositiveInteger'), (long_type, int), xsd_qname('integer'), [non_positive_int_validator]
     ),  # only zero and smaller value allowed [<= 0]
     (
-        xsd_qname('negativeInteger'), long_type, xsd_qname('nonPositiveInteger'), [negative_int_validator]
+        xsd_qname('negativeInteger'), (long_type, int), xsd_qname('nonPositiveInteger'), [negative_int_validator]
     )   # only negative value allowed [< 0]
 ]
 

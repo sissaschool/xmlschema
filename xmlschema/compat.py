@@ -38,4 +38,3 @@ else:
     long_type = long
     unicode_type = unicode
     unicode_chr = unichr
-
