@@ -357,6 +357,10 @@ class XsdType(XsdComponent):
     def is_complex():
         raise NotImplementedError
 
+    @staticmethod
+    def is_atomic():
+        return None
+
     def is_empty(self):
         raise NotImplementedError
 
@@ -508,23 +512,53 @@ class ValidatorMixin(object):
         arguments of the :func:`XMLSchema.iter_decode`.
         :return: A dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
-         a simple data type object otherwise.
+         a simple data type object otherwise. If *validation* argument is 'lax' and the data \
+        contain errors a 2-items tuple is returned, where the first item is the decoded \
+        object and the second item is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
-        the XSD component, or also if it's invalid when ``validate='strict'`` is provided.
+        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         validation = kwargs.pop('validation', 'strict')
+        errors = []
         for chunk in self.iter_decode(data, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
-                raise chunk
-            return chunk
+            if isinstance(chunk, XMLSchemaValidationError):
+                if validation == 'strict':
+                    raise chunk
+                elif validation == 'lax':
+                    errors.append(chunk)
+            elif errors:
+                return chunk, errors
+            else:
+                return chunk
     to_dict = decode
 
     def encode(self, data, *args, **kwargs):
+        """
+        Encodes data to XML using the XSD schema/component.
+
+        :param data: the data to be encoded.
+        :param args: arguments that maybe passed to :func:`XMLSchema.iter_encode`.
+        :param kwargs: keyword arguments from the ones included in the optional \
+        arguments of the :func:`XMLSchema.iter_encode`.
+        :return: An element tree's Element if the original data is a structured data or \
+        a string if it's simple type datum. If *validation* argument is 'lax' and the data \
+        contain errors a 2-items tuple is returned, where the first item is the encoded \
+        object and the second item is a list containing the errors.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by \
+        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
+        """
         validation = kwargs.pop('validation', 'strict')
+        errors = []
         for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError) and validation == 'strict':
-                raise chunk
-            return chunk
+            if isinstance(chunk, XMLSchemaValidationError):
+                if validation == 'strict':
+                    raise chunk
+                elif validation == 'lax':
+                    errors.append(chunk)
+            elif errors:
+                return chunk, errors
+            else:
+                return chunk
     to_etree = encode
 
     def iter_decode(self, data, path=None, validation='lax', process_namespaces=True,

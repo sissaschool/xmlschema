@@ -262,7 +262,7 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
                                 locations=None, defuse='defuse'):
     def test_decoding(self):
         schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, locations=_locations, defuse=defuse)
+        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
         errors = []
         chunks = []
         for obj in xs.iter_decode(xml_file):
@@ -396,21 +396,6 @@ class TestDecoding(unittest.TestCase):
 
         json_ml_dict = self.col_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
         self.assertTrue(json_ml_dict == _COLLECTION_JSON_ML)
-
-    def test_encoding(self):
-        filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
-        xt = _ElementTree.parse(filename)
-        xd = self.col_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.namespaces)
-
-        self.assertEqual(
-            len([e for e in elem.iter()]), 20,
-            msg="The encoded tree must have 20 elements as the origin."
-        )
-        self.assertTrue(all([
-            local_name(e1.tag) == local_name(e2.tag)
-            for e1, e2 in zip(elem.iter(), xt.getroot().iter())
-        ]))
 
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with

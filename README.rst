@@ -2,7 +2,9 @@
 xmlschema
 *********
 
-This is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
+.. xmlschema-introduction-start
+
+The *xmlschema* library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
 for Python (supports versions 2.7 and Python 3.3+).
 
 This library arises from the needs of a solid Python layer for processing XML
@@ -16,7 +18,8 @@ the schema-based decoding of XML data has led to build this library. Obviously
 this library can be useful for other cases related to XML Schema based processing,
 not only for the original scope.
 
-For more information read the `xmlschema documentation on readthedocs <http://xmlschema.readthedocs.io/en/latest/>`_.
+The full `xmlschema documentation is available on "Read the Docs" <http://xmlschema.readthedocs.io/en/latest/>`_.
+
 
 Features
 ========
@@ -29,6 +32,8 @@ The xmlschema library includes the following features:
 * Decoding of XML data into Python data structures
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
+* XML-based attacks prevention using the external package *defusedxml*
+
 
 Installation
 ============
@@ -40,6 +45,9 @@ You can install the library with *pip* in a Python 2.7 or Python 3.3+ environmen
 The library uses the Python's ElementTree XML library and doesn't require additional
 packages. The library includes also the schemas of the XML Schema standards for working
 offline and to speed-up the building of schema instances.
+
+.. xmlschema-introduction-end
+
 
 Usage
 =====
@@ -116,13 +124,13 @@ values that match to the data types declared by the schema:
                  'year': '1925'}]}
 
 License
--------
+=======
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present
 distribution, or http://opensource.org/licenses/MIT.
 
 Roadmap
--------
+=======
 
 * Validated XML data encoding
 * XSD 1.1

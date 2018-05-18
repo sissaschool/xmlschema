@@ -20,10 +20,10 @@ class TestPackage(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
+        cls.test_dir = os.path.dirname(os.path.abspath(__file__))
         cls.source_dir = os.path.dirname(cls.test_dir)
         cls.package_dir = os.path.dirname(cls.source_dir)
-        if not os.path.dirname(cls.package_dir).endswith('/xmlschema'):
+        if not cls.package_dir.endswith('/xmlschema'):
             cls.package_dir = None
 
         cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")

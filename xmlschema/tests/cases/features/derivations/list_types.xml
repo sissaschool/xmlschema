@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<values xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="list_types.xsd">
+    <list_of_integers> 10 20 30 </list_of_integers>
+    <list_of_integers> 10.0 20 30 </list_of_integers>
+    <list_of_integers> hello </list_of_integers>
+</values>

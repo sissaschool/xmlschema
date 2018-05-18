@@ -34,10 +34,11 @@ from .exceptions import (
 from .parseutils import has_xsd_components, get_xsd_derivation_attribute
 from .xsdbase import XsdBaseComponent, ValidatorMixin
 from . import (
-    XSD_FACETS, XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
+    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
     xsd_build_any_content_group, xsd_build_any_attribute_group, XsdComponent
 )
+from .facets import XSD_FACETS, UNION_FACETS, LIST_FACETS
 from .globals_ import (
     XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 )
@@ -79,8 +80,11 @@ class XMLSchemaMeta(type):
         base_schemas = dict_.pop('base_schemas')
         builders = dict_.pop('builders')
         meta_schema = dict_.pop('meta_schema')
+        facets = dict_.pop('facets') or set()
         dict_['XSD_VERSION'] = dict_.pop('xsd_version')
-        dict_['FACETS'] = dict_.pop('facets') or ()
+        dict_['FACETS'] = facets
+        dict_['_LIST_FACETS'] = facets.intersection(LIST_FACETS)
+        dict_['_UNION_FACETS'] = facets.intersection(UNION_FACETS)
         dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
 
         # Build the meta-schema class
@@ -175,6 +179,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     BASE_SCHEMAS = None
     meta_schema = None
     _parent_map = None
+    _LIST_FACETS = None
+    _UNION_FACETS = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, defuse=None, build=True):
@@ -411,6 +417,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 for e in p.iterchildren()
             }
         return self._parent_map
+
+    @classmethod
+    def builtin_types(cls):
+        """An accessor for XSD built-in types."""
+        try:
+            return cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
+        except KeyError:
+            raise XMLSchemaNotBuiltError("missing XSD namespace in meta-schema.")
 
     @property
     def base_elements(self):

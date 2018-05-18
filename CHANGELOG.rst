@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+v0.9.28
+=======
+* Encoding of XSD builtin types (strings and numerical)
+* Fix for issue #62
+* Drop support for Python 3.3
+
 v0.9.27
 =======
 * Add support for preventing XML attacks with the use of the
