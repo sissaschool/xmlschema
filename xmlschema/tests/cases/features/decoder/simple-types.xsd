@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns="http://example.com/decoder" xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://example.com/decoder" >
+<xs:schema xmlns="http://xmlschema.test/test/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://xmlschema.test/test/" >
     <xs:element name="data">
         <xs:complexType>
             <xs:sequence>
@@ -50,4 +50,35 @@
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>
+
+    <!-- List types -->
+    <xs:simpleType name="list_of_strings">
+        <xs:list itemType="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_integers">
+        <xs:list itemType="xs:integer"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_floats">
+        <xs:list itemType="xs:float"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_booleans">
+        <xs:list itemType="xs:boolean"/>
+    </xs:simpleType>
+
+    <!-- Union types -->
+    <xs:simpleType name="integer_or_float">
+        <xs:union memberTypes="xs:integer xs:float"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="integer_or_string">
+        <xs:union memberTypes="xs:integer xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="boolean_or_integer_or_string">
+        <xs:union memberTypes="xs:boolean xs:integer xs:string"/>
+    </xs:simpleType>
+
 </xs:schema>

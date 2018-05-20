@@ -18,41 +18,35 @@ import sys
 from collections import OrderedDict
 from xml.etree import ElementTree as _ElementTree
 
+
 try:
     import xmlschema
 except ImportError:
     # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    pkg_base_dir = os.path.dirname(os.path.dirname(test_dir))
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.qnames import local_name
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 
-class TestEncoding(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
-        cls.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'vh': 'http://example.com/vehicles',
-            'col': 'http://example.com/ns/collection',
-            'dt': 'http://example.com/decoder'
-        }
-        cls.xsd_types = xmlschema.XMLSchema.builtin_types()
-        cls.vh_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/vehicles/vehicles.xsd'))
-        cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/collection/collection.xsd'))
-        cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/features/decoding/decoder.xsd'))
+class TestEncoding(XMLSchemaTestCase):
 
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
         else:
             obj = xsd_component.encode(data, **kwargs)
-            self.assertEqual(expected, obj)
-            self.assertTrue(isinstance(obj, type(expected)))
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
+                    and isinstance(obj[1][0], Exception):
+                self.assertEqual(expected, obj[0])
+                self.assertTrue(isinstance(obj[0], type(expected)))
+            else:
+                self.assertEqual(expected, obj)
+                self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
@@ -108,6 +102,36 @@ class TestEncoding(unittest.TestCase):
         self.check_encode(self.xsd_types['unsignedLong'], 101, u'101')
         self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+
+    def test_builtin_list_types(self):
+        self.check_encode(self.xsd_types['IDREFS'], 'first_name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
+        self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), u'mouse cat dog')
+
+    def test_list_types(self):
+        list_of_strings = self.st_schema.types['list_of_strings']
+        self.check_encode(list_of_strings, (10, 25, 40), u'', validation='lax')
+        self.check_encode(list_of_strings, (10, 25, 40), u'10 25 40', validation='skip')
+        self.check_encode(list_of_strings, ['a', 'b', 'c'], u'a b c', validation='skip')
+
+        list_of_integers = self.st_schema.types['list_of_integers']
+        self.check_encode(list_of_integers, (10, 25, 40), u'10 25 40')
+        self.check_encode(list_of_integers, (10, 25.0, 40), XMLSchemaValidationError)
+        self.check_encode(list_of_integers, (10, 25.0, 40), u'10 25 40', validation='lax')
+
+        list_of_floats = self.st_schema.types['list_of_floats']
+        self.check_encode(list_of_floats, [10.1, 25.0, 40.0], u'10.1 25.0 40.0')
+        self.check_encode(list_of_floats, [10.1, 25, 40.0], u'10.1 25.0 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 40.0', validation='lax')
+
+        list_of_booleans = self.st_schema.types['list_of_booleans']
+        self.check_encode(list_of_booleans, [True, False, True], u'true false true')
+        self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false 40.0', validation='skip')
 
 
 if __name__ == '__main__':

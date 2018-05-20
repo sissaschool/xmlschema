@@ -25,7 +25,7 @@ if __name__ == '__main__':
         sys.path.insert(0, pkg_base_dir)
         import xmlschema
 
-    from xmlschema.tests import tests_factory, print_test_header
+    from xmlschema.tests import tests_factory, print_test_header, get_testfiles
     from xmlschema.tests.test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories
     from xmlschema.tests.test_xpath import XsdXPathTest
     from xmlschema.tests.test_resources import TestResources
@@ -38,15 +38,7 @@ if __name__ == '__main__':
 
     print_test_header()
 
-    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
-    else:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
-        try:
-            sys.argv.remove('-s')
-        except ValueError:
-            sys.argv.remove('--skip-extra')
-
-    globals().update(tests_factory(make_test_schema_function, path, 'schema', 'xsd'))
-    globals().update(tests_factory(make_test_decoding_function, path, 'decoding', 'xml'))
+    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
+    globals().update(tests_factory(make_test_schema_function, testfiles, 'schema', 'xsd'))
+    globals().update(tests_factory(make_test_decoding_function, testfiles, 'decoding', 'xml'))
     unittest.main()

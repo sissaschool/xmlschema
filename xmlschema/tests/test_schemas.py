@@ -358,19 +358,10 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory
+    from xmlschema.tests import print_test_header, get_testfiles, tests_factory
 
     print_test_header()
-
-    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
-    else:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
-        try:
-            sys.argv.remove('-s')
-        except ValueError:
-            sys.argv.remove('--skip-extra')
-
-    schema_tests = tests_factory(make_test_schema_function, path, label='schema', suffix='xsd')
+    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
+    schema_tests = tests_factory(make_test_schema_function, testfiles, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()

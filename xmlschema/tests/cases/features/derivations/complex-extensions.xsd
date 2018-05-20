@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           xmlns="http://example.com/derivations"
-           targetNamespace="http://example.com/derivations">
+           xmlns="http://xmlschema.test/test/"
+           targetNamespace="http://xmlschema.test/test/">
+
 	<!-- Case 1: Legal complexContent extension (base complex content type is empty) -->
 	<xs:complexType name="word">
 		<xs:simpleContent>

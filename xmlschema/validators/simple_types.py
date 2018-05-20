@@ -463,9 +463,12 @@ class XsdAtomicBuiltin(XsdAtomic):
         obj = self.normalize(obj)
         if not isinstance(obj, self.instance_types):
             if validation == 'strict' or isinstance(obj, bool) or self.python_type == bool:
-                reason = "%r is not an instance of %r" % (obj, self.python_type)
-                error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                yield self._validation_error(error, validation, obj)
+                if validation != 'skip':
+                    reason = "%r is not an instance of %r" % (obj, self.python_type)
+                    error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
+                    yield self._validation_error(error, validation, obj)
+                    yield None
+                    return
             else:
                 try:
                     value = self.python_type(obj)
@@ -475,8 +478,11 @@ class XsdAtomicBuiltin(XsdAtomic):
                         obj = value
                 except ValueError:
                     error = XMLSchemaEncodeError(self, obj, self.from_python)
-                    yield self._validation_error(error, validation, obj)
-                    yield unicode_type(obj) if validation == 'skip' else None
+                    if validation == 'skip':
+                        yield unicode_type(obj)
+                    else:
+                        yield self._validation_error(error, validation, obj)
+                        yield None
                     return
 
         if validation == 'skip':
@@ -627,6 +633,9 @@ class XsdList(XsdSimpleType):
         yield items
 
     def iter_encode(self, items, validation='lax', **kwargs):
+        if not hasattr(items, '__iter__') or isinstance(items, (str, unicode_type)):
+            yield self._validation_error("cannot encode a %r object." % type(items), validation, items)
+
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(items):
@@ -637,15 +646,10 @@ class XsdList(XsdSimpleType):
             for result in self.base_type.iter_encode(item, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation)
-                    if isinstance(result, XMLSchemaEncodeError):
-                        if validation == 'skip':
-                            encoded_items.append(unicode_type(item))
-                        else:
-                            encoded_items.append(None)
                 else:
                     encoded_items.append(result)
 
-        yield u' '.join(encoded_items)
+        yield u' '.join(item for item in encoded_items if item is not None)
 
 
 class XsdUnion(XsdSimpleType):

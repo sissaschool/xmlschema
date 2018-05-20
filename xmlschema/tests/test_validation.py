@@ -28,6 +28,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema.tests import XMLSchemaTestCase
+
 
 def make_test_validation_function(xml_file, schema_class, expected_errors=0, inspect=False,
                                   locations=None, defuse='remote'):
@@ -50,17 +52,13 @@ def make_test_validation_function(xml_file, schema_class, expected_errors=0, ins
     return test_validation
 
 
-class TestValidation(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
+class TestValidation(XMLSchemaTestCase):
 
     @unittest.skipIf(etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        xs = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xsd'))
-        xt1 = etree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml'))
-        xt2 = etree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles-1_error.xml'))
+        xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
+        xt1 = etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        xt2 = etree.parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
         self.assertTrue(xs.is_valid(xt1))
         self.assertFalse(xs.is_valid(xt2))
         self.assertTrue(xs.validate(xt1) is None)
@@ -68,21 +66,13 @@ class TestValidation(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory
+    from xmlschema.tests import print_test_header, get_testfiles, tests_factory
 
     print_test_header()
 
-    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
-    else:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
-        try:
-            sys.argv.remove('-s')
-        except ValueError:
-            sys.argv.remove('--skip-extra')
-
-    # Validation test cases: those test don't run with the test_all.py script because are
-    # a duplication of similar decoding tests.
-    validation_tests = tests_factory(make_test_validation_function, path, 'validation', 'xml')
+    # Validation test cases: those test don't run with the test_all.py script
+    # because are a duplication of similar decoding tests.
+    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
+    validation_tests = tests_factory(make_test_validation_function, testfiles, 'validation', 'xml')
     globals().update(validation_tests)
     unittest.main()

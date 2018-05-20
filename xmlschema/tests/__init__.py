@@ -14,6 +14,7 @@ Tests subpackage imports and methods for unittest scripts of the 'xmlschema' pac
 import unittest
 import re
 import os
+import sys
 import glob
 import fileinput
 import argparse
@@ -27,6 +28,19 @@ import xmlschema.validators
 def print_test_header():
     header = "Test %r" % xmlschema
     print("*" * len(header) + '\n' + header + '\n' + "*" * len(header))
+
+
+def get_testfiles(test_dir):
+    # Checks arguments and defines the testfiles lists to use
+    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
+        testfiles = glob.glob(os.path.join(test_dir, '*/testfiles'))
+    else:
+        testfiles = glob.glob(os.path.join(test_dir, 'cases/testfiles'))
+        try:
+            sys.argv.remove('-s')
+        except ValueError:
+            sys.argv.remove('--skip-extra')
+    return testfiles
 
 
 class SchemaObserver(object):
@@ -113,10 +127,11 @@ def get_args_parser():
 test_line_parser = get_args_parser()
 
 
-def tests_factory(test_function_builder, pathname, label="validation", suffix="xml"):
+def tests_factory(test_function_builder, testfiles, label="validation", suffix="xml"):
     tests = {}
     test_num = 0
-    for line in fileinput.input(glob.iglob(pathname)):
+
+    for line in fileinput.input(testfiles):
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -145,3 +160,27 @@ def tests_factory(test_function_builder, pathname, label="validation", suffix="x
             {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
         )
     return tests
+
+
+class XMLSchemaTestCase(unittest.TestCase):
+
+    test_dir = os.path.dirname(__file__)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.namespaces = {
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'vh': 'http://example.com/vehicles',
+            'col': 'http://example.com/ns/collection',
+            'xst': 'http://xmlschema.test/test/'
+        }
+
+        cls.xsd_types = xmlschema.XMLSchema.builtin_types()
+
+        cls.vh_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/vehicles/vehicles.xsd'))
+        cls.col_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/collection/collection.xsd'))
+        cls.st_schema = xmlschema.XMLSchema(cls.abspath('cases/features/decoder/simple-types.xsd'))
+
+    @classmethod
+    def abspath(cls, path):
+        return os.path.join(cls.test_dir, path)

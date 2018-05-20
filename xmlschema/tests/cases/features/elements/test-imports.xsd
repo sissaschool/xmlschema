@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <xs:schema elementFormDefault="qualified"
-           targetNamespace="http://www.w3.org/2001/05/XMLInfoset"
+           targetNamespace="http://xmlschema.test/test/"
            xmlns:xs="http://www.w3.org/2001/XMLSchema">
     <xs:include schemaLocation="example.xsd" />
     <xs:import schemaLocation="example.xsd" />
