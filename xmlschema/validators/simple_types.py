@@ -461,51 +461,54 @@ class XsdAtomicBuiltin(XsdAtomic):
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         obj = self.normalize(obj)
-        if not isinstance(obj, self.instance_types):
-            if validation == 'strict' or isinstance(obj, bool) or self.python_type == bool:
-                if validation != 'skip':
-                    reason = "%r is not an instance of %r" % (obj, self.python_type)
-                    error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                    yield self._validation_error(error, validation, obj)
-                    yield None
-                    return
-            else:
-                try:
-                    value = self.python_type(obj)
-                    if value != obj:
-                        raise ValueError()
-                    else:
-                        obj = value
-                except ValueError:
-                    error = XMLSchemaEncodeError(self, obj, self.from_python)
-                    if validation == 'skip':
-                        yield unicode_type(obj)
-                    else:
-                        yield self._validation_error(error, validation, obj)
-                        yield None
-                    return
-
         if validation == 'skip':
             try:
                 yield self.from_python(obj)
             except ValueError:
                 yield unicode_type(obj)
-        else:
-            for validator in self.validators:
-                for error in validator(obj):
-                    yield self._validation_error(error, validation)
+            return
+
+        elif isinstance(obj, bool):
+            types_ = self.instance_types
+            if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
+                reason = "boolean value %r requires a %r decoder." % (obj, bool)
+                error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
+                yield self._validation_error(error, validation, obj)
+                obj = self.python_type(obj)
+
+        elif not isinstance(obj, self.instance_types):
+            if validation == 'strict':
+                reason = "%r is not an instance of %r." % (obj, self.instance_types)
+                error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
+                yield self._validation_error(error, validation, obj)
 
             try:
-                text = self.from_python(obj)
+                value = self.python_type(obj)
+                if value != obj:
+                    raise ValueError()
+                else:
+                    obj = value
             except ValueError:
                 error = XMLSchemaEncodeError(self, obj, self.from_python)
                 yield self._validation_error(error, validation, obj)
                 yield None
-            else:
-                if self.patterns is not None:
-                    for error in self.patterns(text):
-                        yield self._validation_error(error, validation)
-                yield text
+                return
+
+        for validator in self.validators:
+            for error in validator(obj):
+                yield self._validation_error(error, validation)
+
+        try:
+            text = self.from_python(obj)
+        except ValueError:
+            error = XMLSchemaEncodeError(self, obj, self.from_python)
+            yield self._validation_error(error, validation, obj)
+            yield None
+        else:
+            if self.patterns is not None:
+                for error in self.patterns(text):
+                    yield self._validation_error(error, validation)
+            yield text
 
 
 class XsdList(XsdSimpleType):
@@ -783,14 +786,17 @@ class XsdUnion(XsdSimpleType):
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for member_type in self.member_types:
-            for result in member_type.iter_encode(obj, validation):
-                if not isinstance(result, XMLSchemaValidationError):
-                    if validation != 'skip':
-                        for validator in self.validators:
-                            for error in validator(obj):
-                                yield self._validation_error(error, validation)
-                    yield result
-                    return
+            try:
+                for result in member_type.iter_encode(obj, validation, **kwargs):
+                    if result is not None and not isinstance(result, XMLSchemaValidationError):
+                        if validation != 'skip':
+                            for validator in self.validators:
+                                for error in validator(obj):
+                                    yield self._validation_error(error, validation)
+                        yield result
+                        return
+            except XMLSchemaValidationError:
+                pass
 
         if validation != 'skip':
             error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")

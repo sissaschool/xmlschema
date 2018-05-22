@@ -125,13 +125,34 @@ class TestEncoding(XMLSchemaTestCase):
         list_of_floats = self.st_schema.types['list_of_floats']
         self.check_encode(list_of_floats, [10.1, 25.0, 40.0], u'10.1 25.0 40.0')
         self.check_encode(list_of_floats, [10.1, 25, 40.0], u'10.1 25.0 40.0', validation='lax')
-        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 0.0 40.0', validation='lax')
 
         list_of_booleans = self.st_schema.types['list_of_booleans']
         self.check_encode(list_of_booleans, [True, False, True], u'true false true')
         self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
         self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
         self.check_encode(list_of_booleans, [True, False, 40.0], u'true false 40.0', validation='skip')
+
+    def test_union_types(self):
+        integer_or_float = self.st_schema.types['integer_or_float']
+        self.check_encode(integer_or_float, -95, u'-95')
+        self.check_encode(integer_or_float, -95.0, u'-95.0')
+        self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
+        self.check_encode(integer_or_float, True, u'1', validation='lax')
+
+        integer_or_string = self.st_schema.types['integer_or_string']
+        self.check_encode(integer_or_string, 89, u'89')
+        self.check_encode(integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, "Venice ", u'Venice ')
+
+        boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
+        self.check_encode(boolean_or_integer_or_string, 89, u'89')
+        self.check_encode(boolean_or_integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(boolean_or_integer_or_string, False, 'false')
+        self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
 
 if __name__ == '__main__':

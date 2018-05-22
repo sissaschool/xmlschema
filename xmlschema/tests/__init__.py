@@ -172,7 +172,7 @@ class XMLSchemaTestCase(unittest.TestCase):
             'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'vh': 'http://example.com/vehicles',
             'col': 'http://example.com/ns/collection',
-            'xst': 'http://xmlschema.test/test/'
+            'xst': 'http://xmlschema.test/test/',
         }
 
         cls.xsd_types = xmlschema.XMLSchema.builtin_types()
