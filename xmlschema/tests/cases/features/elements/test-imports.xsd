@@ -7,5 +7,4 @@
     <xs:redefine schemaLocation="example.xsd"/>
     <xs:import namespace="http://missing.example.test/" />
     <xs:import/>
-
 </xs:schema>

@@ -29,6 +29,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.etree import etree_element, etree_tostring, etree_iselement
 from xmlschema.qnames import local_name
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
@@ -38,6 +39,9 @@ class TestEncoding(XMLSchemaTestCase):
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
+        elif etree_iselement(expected):
+            elem = xsd_component.encode(data, **kwargs)
+            self.assertEqual(etree_tostring(expected), etree_tostring(elem))
         else:
             obj = xsd_component.encode(data, **kwargs)
             if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
@@ -154,6 +158,30 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(boolean_or_integer_or_string, False, 'false')
         self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
+    def test_simple_elements(self):
+        elem = etree_element('{http://xmlschema.test/test/}A')
+        elem.text = '89'
+        self.check_encode(self.get_element('A', type='string'), '89', elem)
+        self.check_encode(self.get_element('A', type='integer'), 89, elem)
+        elem.text = '-10.4'
+        self.check_encode(self.get_element('A', type='float'), -10.4, elem)
+        elem.text = 'false'
+        self.check_encode(self.get_element('A', type='boolean'), False, elem)
+        elem.text = 'true'
+        self.check_encode(self.get_element('A', type='boolean'), True, elem)
+
+        self.check_encode(self.get_element('A', type='short'), 128000, XMLSchemaValidationError)
+        elem.text = '0'
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), 0, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='positiveInteger'), 0, XMLSchemaValidationError)
+        elem.text = '-1'
+        self.check_encode(self.get_element('A', type='negativeInteger'), -1, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
+
+    def test_complex_elements(self):
+        elem = etree_element('{http://xmlschema.test/test/}A', attrib={'a1': 10, 'a2': -1})
+        pass
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

@@ -25,6 +25,7 @@ ElementTree.register_namespace('vc', VC_NAMESPACE)
 
 
 # Define alias for ElementTree API for internal module imports
+etree_parse = ElementTree.parse
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError

@@ -23,6 +23,10 @@ from functools import wraps
 
 import xmlschema
 import xmlschema.validators
+from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.etree import etree_iselement, etree_element, etree_register_namespace
+from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
+from xmlschema.namespaces import XSD_NAMESPACE
 
 
 def print_test_header():
@@ -163,8 +167,21 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
 
 
 class XMLSchemaTestCase(unittest.TestCase):
+    """
+    XMLSchema TestCase class.
+
+    Setup tests common environment. The tests parts have to use empty prefix for
+    XSD namespace names and 'xst' prefix for XMLSchema test namespace names.
+    """
 
     test_dir = os.path.dirname(__file__)
+    etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
+    etree_register_namespace(prefix='xst', uri="http://xmlschema.test/test/")
+    SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+    <schema xmlns:xst="http://xmlschema.test/test/" xmlns="http://www.w3.org/2001/XMLSchema" 
+        targetNamespace="http://xmlschema.test/test/" elementFormDefault="qualified" version="{0}">
+    {1}
+    </schema>"""
 
     @classmethod
     def setUpClass(cls):
@@ -175,7 +192,9 @@ class XMLSchemaTestCase(unittest.TestCase):
             'xst': 'http://xmlschema.test/test/',
         }
 
+        cls.schema_class = xmlschema.XMLSchema
         cls.xsd_types = xmlschema.XMLSchema.builtin_types()
+        cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
         cls.vh_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/vehicles/vehicles.xsd'))
         cls.col_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/collection/collection.xsd'))
@@ -184,3 +203,42 @@ class XMLSchemaTestCase(unittest.TestCase):
     @classmethod
     def abspath(cls, path):
         return os.path.join(cls.test_dir, path)
+
+    def get_schema(self, source):
+        """
+        Returns a schema source that can be used to create an XMLSchema instance.
+
+        :param source: A string or an ElementTree's Element.
+        :return: An ElementTree's Element or a full pathname.
+        """
+        if etree_iselement(source):
+            if source.tag in (XSD_SCHEMA_TAG, 'schema'):
+                return source
+            elif get_namespace(source.tag):
+                raise XMLSchemaValueError("source %r namespace has to be empty." % source)
+            elif source.tag not in {'element', 'attribute', 'simpleType', 'complexType',
+                                    'group', 'attributeGroup', 'notation'}:
+                raise XMLSchemaValueError("% is not an XSD global definition/declaration." % source)
+
+            root = etree_element('schema', attrib={
+                'xmlns:xst': "http://xmlschema.test/test/",
+                'xmlns': "http://www.w3.org/2001/XMLSchema",
+                'targetNamespace':  "http://xmlschema.test/test/",
+                'elementFormDefault': "qualified",
+                'version': self.schema_class.XSD_VERSION,
+            })
+            root.append(source)
+            return root
+        else:
+            source = source.strip()
+            if not source.startswith('<'):
+                return os.path.join(self.test_dir, source)
+            else:
+                return self.SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
+
+    def get_element(self, name, **attrib):
+        source = '<element name="{}" {}/>'.format(
+            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
+        )
+        schema = self.schema_class(self.get_schema(source))
+        return schema.elements[name]
