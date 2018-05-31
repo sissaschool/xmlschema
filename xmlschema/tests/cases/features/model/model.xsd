@@ -13,4 +13,13 @@
             </xs:sequence>
         </xs:complexType>
     </xs:element>
+
+    <xs:complexType name="A" mixed="true">
+        <xs:simpleContent>
+            <xs:extension base="xs:string"/>
+        </xs:simpleContent>
+        <xs:attribute name="a1" type="xs:short"/>
+        <xs:attribute name="a2" type="xs:negativeInteger"/>
+    </xs:complexType>
+
 </xs:schema>

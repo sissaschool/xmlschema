@@ -291,6 +291,19 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
 
 class TestDecoding(XMLSchemaTestCase):
 
+    def check_decode(self, xsd_component, data, expected, **kwargs):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.decode, data, **kwargs)
+        else:
+            obj = xsd_component.decode(data, **kwargs)
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
+                    and isinstance(obj[1][0], Exception):
+                self.assertEqual(expected, obj[0])
+                self.assertTrue(isinstance(obj[0], type(expected)))
+            else:
+                self.assertEqual(expected, obj)
+                self.assertTrue(isinstance(obj, type(expected)))
+
     @unittest.skipIf(_lxml_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
         vh_xml_tree = _lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
@@ -423,6 +436,10 @@ class TestDecoding(XMLSchemaTestCase):
                          ('#2', '.\n  Your order'), ('orderid', 1032),
                          ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
         )
+
+    def test_simple_facets(self):
+        hex_code_type = self.st_schema.types['hexCode']
+        self.check_decode(hex_code_type, '00D7310A', '00D7310A')
 
 
 if __name__ == '__main__':

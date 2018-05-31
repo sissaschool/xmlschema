@@ -19,13 +19,16 @@ from ..qnames import (
     XSD_PATTERN_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
     XSD_MIN_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_ASSERTION_TAG,
     XSD_EXPLICIT_TIMEZONE_TAG, XSD_WHITE_SPACE_ENUM, XSD_NOTATION_TYPE, XSD_DECIMAL_TYPE,
-    XSD_INTEGER_TYPE, local_name,
+    XSD_INTEGER_TYPE, local_name, xsd_qname
 )
 from ..regex import get_python_regex
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 from .parseutils import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 from .xsdbase import XsdComponent
 
+
+XSD_BASE46_BINARY = xsd_qname('base64Binary')
+XSD_HEX_BINARY = xsd_qname('hexBinary')
 
 XSD_FACETS = {
     XSD_LENGTH_TAG,
@@ -128,13 +131,25 @@ class XsdSingleFacet(XsdFacet):
             self.validator = self.white_space_validator
         elif elem.tag == XSD_LENGTH_TAG:
             self.value = get_xsd_int_attribute(elem, 'value')
-            self.validator = self.length_validator
+            primitive_type = getattr(self.base_type, 'primitive_type', None)
+            if primitive_type is None or primitive_type.name not in (XSD_HEX_BINARY, XSD_BASE46_BINARY):
+                self.validator = self.length_validator
+            else:
+                self.validator = self.hex_length_validator
         elif elem.tag == XSD_MIN_LENGTH_TAG:
             self.value = get_xsd_int_attribute(elem, 'value')
-            self.validator = self.min_length_validator
+            primitive_type = getattr(self.base_type, 'primitive_type', None)
+            if primitive_type is None or primitive_type.name not in (XSD_HEX_BINARY, XSD_BASE46_BINARY):
+                self.validator = self.min_length_validator
+            else:
+                self.validator = self.hex_min_length_validator
         elif elem.tag == XSD_MAX_LENGTH_TAG:
             self.value = get_xsd_int_attribute(elem, 'value')
-            self.validator = self.max_length_validator
+            primitive_type = getattr(self.base_type, 'primitive_type', None)
+            if primitive_type is None or primitive_type.name not in (XSD_HEX_BINARY, XSD_BASE46_BINARY):
+                self.validator = self.max_length_validator
+            else:
+                self.validator = self.hex_max_length_validator
         elif elem.tag == XSD_MIN_INCLUSIVE_TAG:
             self.value = base_type.decode(get_xsd_attribute(elem, 'value'))
             self.validator = self.min_inclusive_validator
@@ -236,12 +251,24 @@ class XsdSingleFacet(XsdFacet):
         if len(x) != self.value:
             yield XMLSchemaValidationError(self, x)
 
+    def hex_length_validator(self, x):
+        if len(x) != self.value * 2:
+            yield XMLSchemaValidationError(self, x)
+
     def min_length_validator(self, x):
         if len(x) < self.value:
             yield XMLSchemaValidationError(self, x)
 
+    def hex_min_length_validator(self, x):
+        if len(x) < self.value * 2:
+            yield XMLSchemaValidationError(self, x)
+
     def max_length_validator(self, x):
         if len(x) > self.value:
+            yield XMLSchemaValidationError(self, x)
+
+    def hex_max_length_validator(self, x):
+        if len(x) > self.value * 2:
             yield XMLSchemaValidationError(self, x)
 
     def min_inclusive_validator(self, x):

@@ -81,4 +81,10 @@
         <xs:union memberTypes="xs:boolean xs:integer xs:string"/>
     </xs:simpleType>
 
+    <xs:simpleType name='hexCode'>
+        <xs:restriction base='xs:hexBinary'>
+            <xs:length value='4'/>
+        </xs:restriction>
+    </xs:simpleType>
+
 </xs:schema>
