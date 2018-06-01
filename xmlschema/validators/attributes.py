@@ -423,15 +423,15 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
 
         yield result_list
 
-    def iter_encode(self, attributes, validation='lax', **kwargs):
+    def iter_encode(self, attrs, validation='lax', **kwargs):
         result_list = []
         required_attributes = self.required.copy()
         try:
-            attributes = attributes.items()
+            attrs = attrs.items()
         except AttributeError:
             pass
 
-        for name, value in attributes:
+        for name, value in attrs:
             try:
                 xsd_attribute = self[name]
             except KeyError:
@@ -441,7 +441,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         error = XMLSchemaValidationError(
-                            self, attributes, "% is not an attribute of the XSI namespace." % name
+                            self, attrs, "% is not an attribute of the XSI namespace." % name
                         )
                         if validation == 'strict':
                             raise error
@@ -453,7 +453,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                         value = {name: value}
                     except KeyError:
                         yield XMLSchemaValidationError(
-                            self, attributes, "%r attribute not allowed for element." % name
+                            self, attrs, "%r attribute not allowed for element." % name
                         )
                         continue
             else:
@@ -468,6 +468,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
 
         if required_attributes:
             yield XMLSchemaValidationError(
-                self, attributes, "missing required attributes %r" % required_attributes,
+                self, attrs, "missing required attributes %r" % required_attributes,
             )
         yield result_list

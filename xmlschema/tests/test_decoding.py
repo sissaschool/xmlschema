@@ -17,6 +17,7 @@ import os
 import sys
 from collections import OrderedDict
 from decimal import Decimal
+import base64
 from xml.etree import ElementTree as _ElementTree
 
 try:
@@ -440,6 +441,9 @@ class TestDecoding(XMLSchemaTestCase):
     def test_simple_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
         self.check_decode(hex_code_type, '00D7310A', '00D7310A')
+        base64_code_type = self.st_schema.types['base64Code']
+        base64_value = base64.b64encode(b'hello')
+        self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
 
 
 if __name__ == '__main__':

@@ -36,14 +36,14 @@ def print_test_header():
 
 def get_testfiles(test_dir):
     # Checks arguments and defines the testfiles lists to use
-    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
-        testfiles = glob.glob(os.path.join(test_dir, '*/testfiles'))
-    else:
+    if '-x' not in sys.argv and '--extra' not in sys.argv:
         testfiles = glob.glob(os.path.join(test_dir, 'cases/testfiles'))
+    else:
+        testfiles = glob.glob(os.path.join(test_dir, '*/testfiles'))
         try:
-            sys.argv.remove('-s')
+            sys.argv.remove('-x')
         except ValueError:
-            sys.argv.remove('--skip-extra')
+            sys.argv.remove('--extra')
     return testfiles
 
 
