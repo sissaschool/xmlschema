@@ -155,7 +155,7 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(boolean_or_integer_or_string, 89, u'89')
         self.check_encode(boolean_or_integer_or_string, 89.0, u'89', validation='lax')
         self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
-        self.check_encode(boolean_or_integer_or_string, False, 'false')
+        self.check_encode(boolean_or_integer_or_string, False, u'false')
         self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
     def test_simple_elements(self):

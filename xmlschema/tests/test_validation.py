@@ -73,8 +73,6 @@ class TestValidation(XMLSchemaTestCase):
         self.assertRaises(xmlschema.XMLSchemaValidationError, xs.validate, xt2)
 
     def test_issue_064(self):
-        import pdb
-        pdb.set_trace()
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
 

@@ -441,7 +441,7 @@ class TestDecoding(XMLSchemaTestCase):
 
     def test_simple_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
-        self.check_decode(hex_code_type, '00D7310A', '00D7310A')
+        self.check_decode(hex_code_type, u'00D7310A', u'00D7310A')
 
         base64_code_type = self.st_schema.types['base64Code']
         base64_value = base64.b64encode(b'hello')
