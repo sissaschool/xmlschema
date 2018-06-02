@@ -171,15 +171,15 @@ class XMLSchemaTestCase(unittest.TestCase):
     XMLSchema TestCase class.
 
     Setup tests common environment. The tests parts have to use empty prefix for
-    XSD namespace names and 'xst' prefix for XMLSchema test namespace names.
+    XSD namespace names and 'ns' prefix for XMLSchema test namespace names.
     """
 
     test_dir = os.path.dirname(__file__)
     etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
-    etree_register_namespace(prefix='xst', uri="http://xmlschema.test/test/")
+    etree_register_namespace(prefix='ns', uri="ns")
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
-    <schema xmlns:xst="http://xmlschema.test/test/" xmlns="http://www.w3.org/2001/XMLSchema" 
-        targetNamespace="http://xmlschema.test/test/" elementFormDefault="qualified" version="{0}">
+    <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema" 
+        targetNamespace="ns" elementFormDefault="qualified" version="{0}">
     {1}
     </schema>"""
 
@@ -189,7 +189,7 @@ class XMLSchemaTestCase(unittest.TestCase):
             'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'vh': 'http://example.com/vehicles',
             'col': 'http://example.com/ns/collection',
-            'xst': 'http://xmlschema.test/test/',
+            'ns': 'ns',
         }
 
         cls.schema_class = xmlschema.XMLSchema
@@ -221,9 +221,9 @@ class XMLSchemaTestCase(unittest.TestCase):
                 raise XMLSchemaValueError("% is not an XSD global definition/declaration." % source)
 
             root = etree_element('schema', attrib={
-                'xmlns:xst': "http://xmlschema.test/test/",
+                'xmlns:ns': "ns",
                 'xmlns': "http://www.w3.org/2001/XMLSchema",
-                'targetNamespace':  "http://xmlschema.test/test/",
+                'targetNamespace':  "ns",
                 'elementFormDefault': "qualified",
                 'version': self.schema_class.XSD_VERSION,
             })

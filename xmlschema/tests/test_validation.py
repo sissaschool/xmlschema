@@ -54,6 +54,14 @@ def make_test_validation_function(xml_file, schema_class, expected_errors=0, ins
 
 class TestValidation(XMLSchemaTestCase):
 
+    def check_validity(self, xsd_component, data, expected, use_defaults=True):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults)
+        elif expected:
+            self.assertTrue(xsd_component.is_valid(data, use_defaults))
+        else:
+            self.assertFalse(xsd_component.is_valid(data, use_defaults))
+
     @unittest.skipIf(etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
         xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
@@ -63,6 +71,11 @@ class TestValidation(XMLSchemaTestCase):
         self.assertFalse(xs.is_valid(xt2))
         self.assertTrue(xs.validate(xt1) is None)
         self.assertRaises(xmlschema.XMLSchemaValidationError, xs.validate, xt2)
+
+    def test_issue_064(self):
+        import pdb
+        pdb.set_trace()
+        self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
 
 if __name__ == '__main__':

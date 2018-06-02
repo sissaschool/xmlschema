@@ -34,12 +34,6 @@ from xmlschema import XMLSchemaParseError, XMLSchemaURLError
 from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 
-SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
-<schema xmlns:xst="http://xmlschema.test/test/" xmlns="http://www.w3.org/2001/XMLSchema" 
-    targetNamespace="http://xmlschema.test/test/" elementFormDefault="qualified" version="{0}">
-{1}
-</schema>"""
-
 
 class TestXMLSchema1(XMLSchemaTestCase):
 
@@ -96,7 +90,7 @@ class TestXMLSchema1(XMLSchemaTestCase):
             </simpleType>
     
             <simpleType name="ntype">
-                <restriction base="xst:dtype">
+                <restriction base="ns:dtype">
                     <totalDigits value="3" />
                     <fractionDigits value="1" />
                 </restriction>
@@ -119,7 +113,7 @@ class TestXMLSchema1(XMLSchemaTestCase):
                 </restriction>
             </simpleType>
             <simpleType name="mlengthchild">
-                <restriction base="xst:mlengthparent">
+                <restriction base="ns:mlengthparent">
                     <maxLength value="20"/>
                 </restriction>
             </simpleType>

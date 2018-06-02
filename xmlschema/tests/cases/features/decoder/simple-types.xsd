@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns="http://xmlschema.test/test/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://xmlschema.test/test/" >
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
     <xs:element name="data">
         <xs:complexType>
             <xs:sequence>
@@ -11,6 +10,7 @@
                 <xs:element name="complex_boolean" type="TYPE_ATTR_BOOLEAN" minOccurs="0" maxOccurs="4"/>
                 <xs:element name="simple_boolean" type="xs:boolean" minOccurs="0" maxOccurs="4"/>
                 <xs:element name="date_and_time" type="xs:dateTime" minOccurs="0"/>
+                <xs:element name="name" type="none_empty_string" minOccurs="0"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -91,6 +91,13 @@
         <xs:restriction base='xs:base64Binary'>
             <xs:minLength value='3'/>
             <xs:maxLength value='8'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- For testing issue #64 -->
+    <xs:simpleType name="none_empty_string">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
         </xs:restriction>
     </xs:simpleType>
 

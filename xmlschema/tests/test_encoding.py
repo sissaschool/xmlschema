@@ -159,7 +159,7 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
     def test_simple_elements(self):
-        elem = etree_element('{http://xmlschema.test/test/}A')
+        elem = etree_element('{ns}A')
         elem.text = '89'
         self.check_encode(self.get_element('A', type='string'), '89', elem)
         self.check_encode(self.get_element('A', type='integer'), 89, elem)
@@ -180,7 +180,7 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
 
     def test_complex_elements(self):
-        elem = etree_element('{http://xmlschema.test/test/}A', attrib={'a1': 10, 'a2': -1})
+        elem = etree_element('{ns}A', attrib={'a1': 10, 'a2': -1})
 
         schema = self.get_schema("""
             <complexType name="A" mixed="true">
@@ -194,8 +194,8 @@ class TestEncoding(XMLSchemaTestCase):
             """)
         # print(schema)
         xs = self.schema_class(schema)
-
         pass
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

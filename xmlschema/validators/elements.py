@@ -383,6 +383,9 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     text = default
 
             if text is None:
+                for result in type_.iter_decode('', validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield self._validation_error(result, validation, elem)
                 yield None
             else:
                 for result in type_.iter_decode(text, validation, **kwargs):

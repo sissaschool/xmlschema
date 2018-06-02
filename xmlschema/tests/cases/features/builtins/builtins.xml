@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xst:data xmlns:xst="http://xmlschema.test/test/"
+<ns:data xmlns:ns="ns"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://xmlschema.test/test/ ./builtins.xsd">
+         xsi:schemaLocation="ns ./builtins.xsd">
     <birthdayDate>2005-05-25</birthdayDate>
     <birthdayDate>2001-01-01Z</birthdayDate>
     <birthdayDate>-0100-07-13</birthdayDate>
@@ -10,4 +10,4 @@
     <eventTime>12:30:20-04:00</eventTime>
     <lastTicketDateTime>2017-09-06T23:59:00.000+03:00</lastTicketDateTime>
     <lastTicketDateTime>2017-09-06T23:59:00+03:00</lastTicketDateTime>
-</xst:data>
+</ns:data>
