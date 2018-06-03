@@ -482,7 +482,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 return
             else:
                 tag = child.tag
-                if tag == self.name:
+                if callable(tag):
+                    # Lxml comment
+                    index += 1
+                    continue
+                elif tag == self.name:
                     yield self, child
                 elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
                     yield self, child

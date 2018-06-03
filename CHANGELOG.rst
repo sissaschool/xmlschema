@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.29
+=======
+* Extended the tests on lxml XML data
+* Fixes for issues #61, #63 and #64
+
 v0.9.28
 =======
 * Encoding of XSD builtin types (strings and numerical)

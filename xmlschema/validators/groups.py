@@ -397,8 +397,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         raise XMLSchemaTypeError("children decoding cannot ends with a validation error.")
                     break
 
-            if elem[-1] is not child:
-                # residual content not validated by the model: generate an error and perform a raw decoding
+            if elem[-1] is not child and not callable(elem[-1].tag):
+                # Residual content, lxml comments excluded, not validated by the model:
+                # generates an error and perform a raw decoding.
                 start_index = 0 if child is None else etree_child_index(elem, child) + 1
                 if validation != 'skip' and self:
                     error = XMLSchemaChildrenValidationError(self, elem, start_index)

@@ -31,7 +31,7 @@ if __name__ == '__main__':
     from xmlschema.tests.test_resources import TestResources
     from xmlschema.tests.test_meta import TestBuiltinTypes, TestGlobalMaps
     from xmlschema.tests.test_schemas import make_test_schema_function, TestXMLSchema1
-    from xmlschema.tests.test_decoding import make_test_decoding_function, TestDecoding
+    from xmlschema.tests.test_decoding import make_decoding_test_function, TestDecoding
     from xmlschema.tests.test_encoding import TestEncoding
     from xmlschema.tests.test_validation import TestValidation
     from xmlschema.tests.test_package import TestPackage
@@ -40,5 +40,5 @@ if __name__ == '__main__':
 
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
     globals().update(tests_factory(make_test_schema_function, testfiles, 'schema', 'xsd'))
-    globals().update(tests_factory(make_test_decoding_function, testfiles, 'decoding', 'xml'))
+    globals().update(tests_factory(make_decoding_test_function, testfiles, 'decoding', 'xml'))
     unittest.main()

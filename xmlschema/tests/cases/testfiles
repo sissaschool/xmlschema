@@ -8,6 +8,7 @@ examples/collection/collection2.xsd -i   # key constraint
 examples/collection/collection2.xml 1
 examples/collection/collection3.xsd      # key and keyref constraints
 examples/collection/collection3.xml 1
+examples/collection/collection4.xml      # Many XML comments inserted
 examples/vehicles/vehicles.xsd -i
 examples/vehicles/vehicles.xml
 examples/vehicles/vehicles-1_error.xml 1
