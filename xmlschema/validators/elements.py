@@ -268,33 +268,40 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
     @property
     def abstract(self):
-        if self._ref is None:
-            return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
-        else:
+        if self._ref is not None:
             return self._ref.abstract
+        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
     def block(self):
+        if self._ref is not None:
+            return self._ref.block
         return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
 
     @property
     def default(self):
-        return self.elem.get('default')
+        return self.elem.get('default') if self._ref is None else self._ref.default
 
     @property
     def final(self):
+        if self._ref is not None:
+            return self._ref.final
         return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
     @property
     def fixed(self):
-        return self.elem.get('fixed')
+        return self.elem.get('fixed') if self._ref is None else self._ref.fixed
 
     @property
     def form(self):
+        if self._ref is not None:
+            return self._ref.form
         return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'), default=None)
 
     @property
     def nillable(self):
+        if self._ref is not None:
+            return self._ref.nillable
         return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
 
     @property
@@ -377,12 +384,20 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 yield self._validation_error("a simpleType element can't has child elements.", validation, elem)
 
             text = elem.text
-            if not text and use_defaults:
+            if self.fixed is not None:
+                if text is None:
+                    text = self.fixed
+                elif text != self.fixed:
+                    yield self._validation_error("must has a fixed value %r." % self.fixed, validation, elem)
+            elif not text and use_defaults:
                 default = self.default
                 if default is not None:
                     text = default
 
             if text is None:
+                for result in type_.iter_decode('', validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield self._validation_error(result, validation, elem)
                 yield None
             else:
                 for result in type_.iter_decode(text, validation, **kwargs):
@@ -467,7 +482,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 return
             else:
                 tag = child.tag
-                if tag == self.name:
+                if callable(tag):
+                    # Lxml comment
+                    index += 1
+                    continue
+                elif tag == self.name:
                     yield self, child
                 elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
                     yield self, child

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns="http://example.com/patterns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://example.com/patterns" >
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
     <xs:element name="patterns">
         <xs:complexType>
             <xs:sequence>

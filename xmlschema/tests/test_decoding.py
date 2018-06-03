@@ -17,12 +17,14 @@ import os
 import sys
 from collections import OrderedDict
 from decimal import Decimal
+import base64
 from xml.etree import ElementTree as _ElementTree
 
 try:
     import lxml.etree as _lxml_etree
 except ImportError:
     _lxml_etree = None
+
 
 try:
     import xmlschema
@@ -32,7 +34,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.qnames import local_name
+from xmlschema.tests import XMLSchemaTestCase
+from xmlschema import XMLSchemaValidationError
 
 
 _VEHICLES_DICT = {
@@ -244,7 +247,7 @@ _COLLECTION_JSON_ML = [
 ]
 
 _DATA_DICT = {
-    '@xsi:schemaLocation': 'http://example.com/decoder  ./decoder.xsd',
+    '@xsi:schemaLocation': 'ns ./simple-types.xsd',
     'certification': [
         {'$': 'ISO-9001', '@Year': 1999},
         {'$': 'ISO-27001', '@Year': 2009}
@@ -258,7 +261,7 @@ _DATA_DICT = {
 }
 
 
-def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspect=False,
+def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
                                 locations=None, defuse='defuse'):
     def test_decoding(self):
         schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
@@ -288,30 +291,61 @@ def make_test_decoding_function(xml_file, schema_class, expected_errors=0, inspe
     return test_decoding
 
 
-class TestDecoding(unittest.TestCase):
+def make_lxml_decoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
+                                     locations=None, defuse='defuse'):
+    def test_decoding(self):
+        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
+        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
+        data = _lxml_etree.parse(xml_file)
+        errors = []
+        chunks = []
+        for obj in xs.iter_decode(data):
+            if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                errors.append(obj)
+            else:
+                chunks.append(obj)
+        if len(errors) != expected_errors:
+            raise ValueError(
+                "n.%d errors expected, found %d: %s" % (
+                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
+                )
+            )
+        if not chunks:
+            raise ValueError("No decoded object returned!!")
+        elif len(chunks) > 1:
+            raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
+        elif not isinstance(chunks[0], dict):
+            raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
+        else:
+            self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-    @classmethod
-    def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
-        cls.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'vh': 'http://example.com/vehicles',
-            'col': 'http://example.com/ns/collection',
-            'dt': 'http://example.com/decoder'
-        }
-        cls.vh_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/vehicles/vehicles.xsd'))
-        cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/collection/collection.xsd'))
-        cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/features/decoding/decoder.xsd'))
+    return test_decoding
+
+
+class TestDecoding(XMLSchemaTestCase):
+
+    def check_decode(self, xsd_component, data, expected, **kwargs):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.decode, data, **kwargs)
+        else:
+            obj = xsd_component.decode(data, **kwargs)
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
+                    and isinstance(obj[1][0], Exception):
+                self.assertEqual(expected, obj[0])
+                self.assertTrue(isinstance(obj[0], type(expected)))
+            else:
+                self.assertEqual(expected, obj)
+                self.assertTrue(isinstance(obj, type(expected)))
 
     @unittest.skipIf(_lxml_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        vh_xml_tree = _lxml_etree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml'))
+        vh_xml_tree = _lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
         self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
         self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_tree = _ElementTree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml'))
-        col_xml_tree = _ElementTree.parse(os.path.join(self.test_dir, 'cases/examples/collection/collection.xml'))
+        vh_xml_tree = _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        col_xml_tree = _ElementTree.parse(self.abspath('cases/examples/collection/collection.xml'))
 
         xml_dict = self.vh_schema.to_dict(vh_xml_tree)
         self.assertNotEqual(xml_dict, _VEHICLES_DICT)  # XSI namespace unmapped
@@ -332,10 +366,10 @@ class TestDecoding(unittest.TestCase):
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
     def test_to_dict_from_string(self):
-        with open(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml')) as f:
+        with open(self.abspath('cases/examples/vehicles/vehicles.xml')) as f:
             vh_xml_string = f.read()
 
-        with open(os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')) as f:
+        with open(self.abspath('cases/examples/collection/collection.xml')) as f:
             col_xml_string = f.read()
 
         xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.namespaces)
@@ -351,7 +385,7 @@ class TestDecoding(unittest.TestCase):
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_path(self):
-        xt = _ElementTree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles.xml'))
+        xt = _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
         self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
@@ -361,23 +395,23 @@ class TestDecoding(unittest.TestCase):
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            _ElementTree.parse(os.path.join(self.test_dir, 'cases/examples/vehicles/vehicles-2_errors.xml')),
+            _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
             namespaces=self.namespaces
         )
 
     def test_validation_skip(self):
-        xt = _ElementTree.parse(os.path.join(self.test_dir, 'cases/features/decoding/data3.xml'))
-        xd = self.decoder_schema.decode(xt, validation='skip', namespaces=self.namespaces)
+        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
+        xd = self.st_schema.decode(xt, validation='skip', namespaces=self.namespaces)
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes3(self):
-        xt = _ElementTree.parse(os.path.join(self.test_dir, 'cases/features/decoding/data.xml'))
-        xd = self.decoder_schema.to_dict(xt, namespaces=self.namespaces)
+        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
+        xd = self.st_schema.to_dict(xt, namespaces=self.namespaces)
         self.assertEqual(xd, _DATA_DICT)
 
     def test_converters(self):
-        filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
+        filename = self.abspath('cases/examples/collection/collection.xml')
 
         parker_dict = self.col_schema.to_dict(filename, converter=xmlschema.ParkerConverter)
         self.assertTrue(parker_dict == _COLLECTION_PARKER)
@@ -400,9 +434,9 @@ class TestDecoding(unittest.TestCase):
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with
         dictionaries, returns just that even when it has a single dict. """
-        xsd_string = os.path.join(self.test_dir, 'cases/issues/issue_022/xsd_string.xsd')
-        xml_string_1 = os.path.join(self.test_dir, 'cases/issues/issue_022/xml_string_1.xml')
-        xml_string_2 = os.path.join(self.test_dir, 'cases/issues/issue_022/xml_string_2.xml')
+        xsd_string = self.abspath('cases/issues/issue_022/xsd_string.xsd')
+        xml_string_1 = self.abspath('cases/issues/issue_022/xml_string_1.xml')
+        xml_string_2 = self.abspath('cases/issues/issue_022/xml_string_2.xml')
         xsd_schema = xmlschema.XMLSchema(xsd_string)
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
@@ -417,8 +451,8 @@ class TestDecoding(unittest.TestCase):
         self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
 
     def test_choice_model_decoding(self):
-        schema = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xsd'))
-        data = schema.to_dict(os.path.join(self.test_dir, 'cases/issues/issue_041/issue_041.xml'))
+        schema = xmlschema.XMLSchema(self.abspath('cases/issues/issue_041/issue_041.xsd'))
+        data = schema.to_dict(self.abspath('cases/issues/issue_041/issue_041.xml'))
         self.assertEqual(data, {
             u'@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
             'Name': u'SomeNameValueThingy',
@@ -426,8 +460,8 @@ class TestDecoding(unittest.TestCase):
         })
 
     def test_cdata_decoding(self):
-        schema = xmlschema.XMLSchema(os.path.join(self.test_dir, 'cases/issues/issue_046/issue_046.xsd'))
-        xml_file = os.path.join(self.test_dir, 'cases/issues/issue_046/issue_046.xml')
+        schema = xmlschema.XMLSchema(self.abspath('cases/issues/issue_046/issue_046.xsd'))
+        xml_file = self.abspath('cases/issues/issue_046/issue_046.xml')
         self.assertEqual(
             schema.decode(xml_file, dict_class=OrderedDict, cdata_prefix='#'),
             OrderedDict([('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
@@ -436,21 +470,25 @@ class TestDecoding(unittest.TestCase):
                          ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
         )
 
+    def test_simple_facets(self):
+        hex_code_type = self.st_schema.types['hexCode']
+        self.check_decode(hex_code_type, u'00D7310A', u'00D7310A')
+
+        base64_code_type = self.st_schema.types['base64Code']
+        base64_value = base64.b64encode(b'hello')
+        self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
+
+        none_empty_string_type = self.st_schema.types['none_empty_string']
+        self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory
+    from xmlschema.tests import print_test_header, tests_factory, get_testfiles
 
     print_test_header()
-
-    if '-s' not in sys.argv and '--skip-extra' not in sys.argv:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '*/testfiles')
-    else:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cases/testfiles')
-        try:
-            sys.argv.remove('-s')
-        except ValueError:
-            sys.argv.remove('--skip-extra')
-
-    decoding_tests = tests_factory(make_test_decoding_function, path, 'decoding', 'xml')
+    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
+    decoding_tests = tests_factory(make_decoding_test_function, testfiles, 'decoding', 'xml')
+    lxml_decoding_tests = tests_factory(make_lxml_decoding_test_function, testfiles, 'lxml_decoding', 'xml')
     globals().update(decoding_tests)
+    globals().update(lxml_decoding_tests)
     unittest.main()

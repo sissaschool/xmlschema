@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<pt:patterns xmlns:pt="http://example.com/patterns"
-              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-              xsi:schemaLocation="http://example.com/patterns ./patterns.xsd">
+<ns:patterns xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="ns ./patterns.xsd">
     <ISBN>b0123456789012</ISBN>
     <ISBN>b01234567890123</ISBN> <!--Error-->
     <ISBN>b0123456789012</ISBN><!--Undetected error: TODO: check identity constraints-->
@@ -15,4 +14,4 @@
     <Prefix>cc: dd:@#!%</Prefix>
     <Timestamp>2015-12-31T13:32:26-02:00</Timestamp>
     <Timestamp>2015-12-31T13:32:26+02:00</Timestamp>
-</pt:patterns>
+</ns:patterns>

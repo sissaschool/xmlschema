@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- A sample schema for testing model validation -->
-<xs:schema xmlns="http://xmlschema.test/test/" xmlns:xs="http://www.w3.org/2001/XMLSchema"
-           targetNamespace="http://xmlschema.test/test/" >
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
     <xs:anyattribute notNamespace="#all">
     </xs:anyattribute>
     <xs:annotation ciao="10" xml:lang="en"/>
@@ -13,4 +12,13 @@
             </xs:sequence>
         </xs:complexType>
     </xs:element>
+
+    <xs:complexType name="A" mixed="true">
+        <xs:simpleContent>
+            <xs:extension base="xs:string"/>
+        </xs:simpleContent>
+        <xs:attribute name="a1" type="xs:short"/>
+        <xs:attribute name="a2" type="xs:negativeInteger"/>
+    </xs:complexType>
+
 </xs:schema>

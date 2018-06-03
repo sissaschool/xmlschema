@@ -15,7 +15,7 @@ from .compat import (
 )
 from .etree import (
     etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement,
-    safe_etree_fromstring, safe_etree_parse_error
+    safe_etree_fromstring, safe_etree_parse_error, etree_tostring
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
@@ -68,6 +68,9 @@ def load_xml_resource(source, element_only=True, defuse='remote'):
     """
     if defuse not in DEFUSE_MODES:
         raise XMLSchemaValueError("'defuse' argument value has to be in {}.".format(DEFUSE_MODES))
+
+    if etree_iselement(source):
+        return source, None, None
 
     # source argument is a string
     if isinstance(source, (str, bytes, unicode_type)):

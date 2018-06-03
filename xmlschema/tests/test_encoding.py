@@ -18,41 +18,39 @@ import sys
 from collections import OrderedDict
 from xml.etree import ElementTree as _ElementTree
 
+
 try:
     import xmlschema
 except ImportError:
     # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    pkg_base_dir = os.path.dirname(os.path.dirname(test_dir))
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.etree import etree_element, etree_tostring, etree_iselement
 from xmlschema.qnames import local_name
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 
-class TestEncoding(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
-        cls.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'vh': 'http://example.com/vehicles',
-            'col': 'http://example.com/ns/collection',
-            'dt': 'http://example.com/decoder'
-        }
-        cls.xsd_types = xmlschema.XMLSchema.builtin_types()
-        cls.vh_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/vehicles/vehicles.xsd'))
-        cls.col_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/examples/collection/collection.xsd'))
-        cls.decoder_schema = xmlschema.XMLSchema(os.path.join(cls.test_dir, 'cases/features/decoding/decoder.xsd'))
+class TestEncoding(XMLSchemaTestCase):
 
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
+        elif etree_iselement(expected):
+            elem = xsd_component.encode(data, **kwargs)
+            self.assertEqual(etree_tostring(expected), etree_tostring(elem))
         else:
             obj = xsd_component.encode(data, **kwargs)
-            self.assertEqual(expected, obj)
-            self.assertTrue(isinstance(obj, type(expected)))
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
+                    and isinstance(obj[1][0], Exception):
+                self.assertEqual(expected, obj[0])
+                self.assertTrue(isinstance(obj[0], type(expected)))
+            else:
+                self.assertEqual(expected, obj)
+                self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
@@ -108,6 +106,95 @@ class TestEncoding(unittest.TestCase):
         self.check_encode(self.xsd_types['unsignedLong'], 101, u'101')
         self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+
+    def test_builtin_list_types(self):
+        self.check_encode(self.xsd_types['IDREFS'], 'first_name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
+        self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), u'mouse cat dog')
+
+    def test_list_types(self):
+        list_of_strings = self.st_schema.types['list_of_strings']
+        self.check_encode(list_of_strings, (10, 25, 40), u'', validation='lax')
+        self.check_encode(list_of_strings, (10, 25, 40), u'10 25 40', validation='skip')
+        self.check_encode(list_of_strings, ['a', 'b', 'c'], u'a b c', validation='skip')
+
+        list_of_integers = self.st_schema.types['list_of_integers']
+        self.check_encode(list_of_integers, (10, 25, 40), u'10 25 40')
+        self.check_encode(list_of_integers, (10, 25.0, 40), XMLSchemaValidationError)
+        self.check_encode(list_of_integers, (10, 25.0, 40), u'10 25 40', validation='lax')
+
+        list_of_floats = self.st_schema.types['list_of_floats']
+        self.check_encode(list_of_floats, [10.1, 25.0, 40.0], u'10.1 25.0 40.0')
+        self.check_encode(list_of_floats, [10.1, 25, 40.0], u'10.1 25.0 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 0.0 40.0', validation='lax')
+
+        list_of_booleans = self.st_schema.types['list_of_booleans']
+        self.check_encode(list_of_booleans, [True, False, True], u'true false true')
+        self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false 40.0', validation='skip')
+
+    def test_union_types(self):
+        integer_or_float = self.st_schema.types['integer_or_float']
+        self.check_encode(integer_or_float, -95, u'-95')
+        self.check_encode(integer_or_float, -95.0, u'-95.0')
+        self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
+        self.check_encode(integer_or_float, True, u'1', validation='lax')
+
+        integer_or_string = self.st_schema.types['integer_or_string']
+        self.check_encode(integer_or_string, 89, u'89')
+        self.check_encode(integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, "Venice ", u'Venice ')
+
+        boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
+        self.check_encode(boolean_or_integer_or_string, 89, u'89')
+        self.check_encode(boolean_or_integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(boolean_or_integer_or_string, False, u'false')
+        self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
+
+    def test_simple_elements(self):
+        elem = etree_element('{ns}A')
+        elem.text = '89'
+        self.check_encode(self.get_element('A', type='string'), '89', elem)
+        self.check_encode(self.get_element('A', type='integer'), 89, elem)
+        elem.text = '-10.4'
+        self.check_encode(self.get_element('A', type='float'), -10.4, elem)
+        elem.text = 'false'
+        self.check_encode(self.get_element('A', type='boolean'), False, elem)
+        elem.text = 'true'
+        self.check_encode(self.get_element('A', type='boolean'), True, elem)
+
+        self.check_encode(self.get_element('A', type='short'), 128000, XMLSchemaValidationError)
+        elem.text = '0'
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), 0, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='positiveInteger'), 0, XMLSchemaValidationError)
+        elem.text = '-1'
+        self.check_encode(self.get_element('A', type='negativeInteger'), -1, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
+
+    def test_complex_elements(self):
+        elem = etree_element('{ns}A', attrib={'a1': 10, 'a2': -1})
+
+        schema = self.get_schema("""
+            <complexType name="A" mixed="true">
+                <simpleContent>
+                    <extension base="string">
+                    </extension>
+                </simpleContent>
+                <attribute name="a1" type="short"/>                 
+                <attribute name="a2" type="negativeInteger"/>
+            </complexType>
+            """)
+        # print(schema)
+        xs = self.schema_class(schema)
+        pass
 
 
 if __name__ == '__main__':
