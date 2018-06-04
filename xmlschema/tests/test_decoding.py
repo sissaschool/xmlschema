@@ -482,19 +482,22 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_decode(base64_code_type, base64.b64encode(b'ok'), XMLSchemaValidationError)
         base64_value = base64.b64encode(b'hello')
         self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
-        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'), 'YWJjZWZnaA==')
-        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =', 'Y W J j ZWZ n a A= =')
-        self.check_decode(base64_code_type, ' Y  W J j ZWZ\t\tn\na A= =', 'Y W J j ZWZ n a A= =')
-        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'), 'YWJjZWZnaGk=')
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'), u'YWJjZWZnaA==')
+        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, u' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'), u'YWJjZWZnaGk=')
+
+        self.check_decode(base64_code_type, u'YWJjZWZnaA=', XMLSchemaValidationError)
+        self.check_decode(base64_code_type, u'YWJjZWZna$==', XMLSchemaValidationError)
 
         base64_length4_type = self.st_schema.types['base64Length4']
         self.check_decode(base64_length4_type, base64.b64encode(b'abc'), XMLSchemaValidationError)
-        self.check_decode(base64_length4_type, base64.b64encode(b'abce'), 'YWJjZQ==')
+        self.check_decode(base64_length4_type, base64.b64encode(b'abce'), u'YWJjZQ==')
         self.check_decode(base64_length4_type, base64.b64encode(b'abcef'), XMLSchemaValidationError)
 
         base64_length5_type = self.st_schema.types['base64Length5']
         self.check_decode(base64_length5_type, base64.b64encode(b'1234'), XMLSchemaValidationError)
-        self.check_decode(base64_length5_type, base64.b64encode(b'12345'), 'MTIzNDU=')
+        self.check_decode(base64_length5_type, base64.b64encode(b'12345'), u'MTIzNDU=')
         self.check_decode(base64_length5_type, base64.b64encode(b'123456'), XMLSchemaValidationError)
 
 

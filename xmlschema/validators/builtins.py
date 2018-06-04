@@ -15,6 +15,7 @@ Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
 """
 import datetime
 import re
+import base64
 from decimal import Decimal
 
 from ..compat import long_type, unicode_type
@@ -39,6 +40,8 @@ from .groups import XsdGroup
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 _RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
+_RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
+_RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
 
 
 #
@@ -232,8 +235,22 @@ def datetime_iso8601_validator(date_string, *date_formats):
         )
 
 
-def base64binary_validator(x):
-    pass
+def hex_binary_validator(x):
+    if len(x) % 2 or _RE_HEX_BINARY.match(x) is None:
+        yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
+
+
+def base64_binary_validator(x):
+    match = _RE_NOT_BASE64_BINARY.search(x)
+    if match is not None:
+        reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
+        yield XMLSchemaValidationError(base64_binary_validator, x, reason)
+    else:
+        try:
+            base64.standard_b64decode(x)
+        except (ValueError, TypeError) as err:
+            yield XMLSchemaValidationError(base64_binary_validator, x, "not a base64 encoding: %s." % err)
+
 
 #
 # XSD builtin decoding functions
@@ -357,12 +374,12 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
     {
         'name': xsd_qname('base64Binary'),
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator)
     },  # base64 encoded binary value
     {
         'name': xsd_qname('hexBinary'),
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator)
     }   # hexadecimal encoded binary value
 ]
 
