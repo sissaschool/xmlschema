@@ -470,16 +470,32 @@ class TestDecoding(XMLSchemaTestCase):
                          ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
         )
 
-    def test_simple_facets(self):
+    def test_string_facets(self):
+        none_empty_string_type = self.st_schema.types['none_empty_string']
+        self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+
+    def test_binary_data_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
         self.check_decode(hex_code_type, u'00D7310A', u'00D7310A')
 
         base64_code_type = self.st_schema.types['base64Code']
+        self.check_decode(base64_code_type, base64.b64encode(b'ok'), XMLSchemaValidationError)
         base64_value = base64.b64encode(b'hello')
         self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'), 'YWJjZWZnaA==')
+        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =', 'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, ' Y  W J j ZWZ\t\tn\na A= =', 'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'), 'YWJjZWZnaGk=')
 
-        none_empty_string_type = self.st_schema.types['none_empty_string']
-        self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+        base64_length4_type = self.st_schema.types['base64Length4']
+        self.check_decode(base64_length4_type, base64.b64encode(b'abc'), XMLSchemaValidationError)
+        self.check_decode(base64_length4_type, base64.b64encode(b'abce'), 'YWJjZQ==')
+        self.check_decode(base64_length4_type, base64.b64encode(b'abcef'), XMLSchemaValidationError)
+
+        base64_length5_type = self.st_schema.types['base64Length5']
+        self.check_decode(base64_length5_type, base64.b64encode(b'1234'), XMLSchemaValidationError)
+        self.check_decode(base64_length5_type, base64.b64encode(b'12345'), 'MTIzNDU=')
+        self.check_decode(base64_length5_type, base64.b64encode(b'123456'), XMLSchemaValidationError)
 
 
 if __name__ == '__main__':

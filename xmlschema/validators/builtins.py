@@ -232,6 +232,9 @@ def datetime_iso8601_validator(date_string, *date_formats):
         )
 
 
+def base64binary_validator(x):
+    pass
+
 #
 # XSD builtin decoding functions
 def boolean_to_python(s):
