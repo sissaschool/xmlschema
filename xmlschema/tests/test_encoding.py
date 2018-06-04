@@ -181,20 +181,21 @@ class TestEncoding(XMLSchemaTestCase):
 
     def test_complex_elements(self):
         elem = etree_element('{ns}A', attrib={'a1': 10, 'a2': -1})
-
         schema = self.get_schema("""
-            <complexType name="A" mixed="true">
-                <simpleContent>
-                    <extension base="string">
-                    </extension>
-                </simpleContent>
-                <attribute name="a1" type="short"/>                 
-                <attribute name="a2" type="negativeInteger"/>
-            </complexType>
-            """)
-        # print(schema)
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type" mixed="true">
+            <simpleContent>
+                <extension base="string">
+                    <attribute name="a1" type="short"/>                 
+                    <attribute name="a2" type="negativeInteger"/>
+                </extension>
+            </simpleContent>
+        </complexType>
+        """)
         xs = self.schema_class(schema)
-        pass
+        data = xs.decode('<A xmlns="ns" a1="10" a2="-1">simple </A>' )
+        # print(data)
+        # print(xs.types['A_type'].encode(data))
 
 
 if __name__ == '__main__':

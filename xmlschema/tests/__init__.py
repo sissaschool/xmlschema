@@ -180,7 +180,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema" 
         targetNamespace="ns" elementFormDefault="qualified" version="{0}">
-    {1}
+        {1}
     </schema>"""
 
     @classmethod
