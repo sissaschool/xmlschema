@@ -266,6 +266,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
     def ref(self):
         return self.elem.get('ref')
 
+    # Properties inherited by references
     @property
     def abstract(self):
         if self._ref is not None:
@@ -273,20 +274,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
-    def block(self):
-        if self._ref is not None:
-            return self._ref.block
-        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
-
-    @property
     def default(self):
         return self.elem.get('default') if self._ref is None else self._ref.default
-
-    @property
-    def final(self):
-        if self._ref is not None:
-            return self._ref.final
-        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
     @property
     def fixed(self):
@@ -303,6 +292,15 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         if self._ref is not None:
             return self._ref.nillable
         return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
+
+    # Global element's exclusive properties
+    @property
+    def final(self):
+        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+
+    @property
+    def block(self):
+        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
 
     @property
     def substitution_group(self):
