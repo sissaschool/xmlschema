@@ -65,7 +65,7 @@ class XsdRegexCharGroup(MutableSet):
             self.add(char)
 
     def __repr__(self):
-        return u"<%s %r at %d>" % (self.__class__.__name__, self.get_char_class(), id(self))
+        return u"<%s %s at %d>" % (self.__class__.__name__, self, id(self))
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -73,11 +73,13 @@ class XsdRegexCharGroup(MutableSet):
 
     def __unicode__(self):
         if not self.negative:
-            return unicode_type(self.positive)
-        elif self.positive:
-            return unicode_type(UnicodeSubset(self.negative.complement())) + unicode_type(self.positive)
+            return u'[%s]' % unicode_type(self.positive)
+        elif not self.positive:
+            return u'[^%s]' % unicode_type(self.negative)
         else:
-            return unicode_type(UnicodeSubset(self.negative.complement()))
+            return u'[%s%s]' % (
+                unicode_type(UnicodeSubset(self.negative.complement())), unicode_type(self.positive)
+            )
 
     if PY3:
         __str__ = __unicode__
@@ -176,14 +178,6 @@ class XsdRegexCharGroup(MutableSet):
     def complement(self):
         self.positive, self.negative = self.negative, self.positive
 
-    def get_char_class(self):
-        if self.positive:
-            return u'[%s]' % unicode_type(self)
-        elif self.negative:
-            return u'[^%s]' % unicode_type(self.negative)
-        else:
-            return u'[]'
-
 
 def parse_character_class(xml_regex, start_pos):
     if xml_regex[start_pos] != '[':
@@ -246,7 +240,7 @@ def get_python_regex(xml_regex, debug=False):
         elif ch == '[':
             try:
                 char_group, pos = parse_character_class(xml_regex, pos)
-                regex.append(char_group.get_char_class())
+                regex.append(unicode_type(char_group))
             except IndexError:
                 raise XMLSchemaRegexError(
                     "unterminated character group at position %d: %r" % (pos, xml_regex)
