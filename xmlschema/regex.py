@@ -75,9 +75,9 @@ class XsdRegexCharGroup(MutableSet):
         if not self.negative:
             return unicode_type(self.positive)
         elif self.positive:
-            return u'{0, ..., maxunicode} - %s + %s' % (self.negative, self.positive)
+            return unicode_type(UnicodeSubset(self.negative.complement())) + unicode_type(self.positive)
         else:
-            return u'{0, ..., maxunicode} - %s' % self.negative
+            return unicode_type(UnicodeSubset(self.negative.complement()))
 
     if PY3:
         __str__ = __unicode__

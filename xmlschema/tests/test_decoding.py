@@ -274,6 +274,8 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             else:
                 chunks.append(obj)
         if len(errors) != expected_errors:
+            import pdb
+            pdb.set_trace()
             raise ValueError(
                 "n.%d errors expected, found %d: %s" % (
                     expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
