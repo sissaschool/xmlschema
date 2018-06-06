@@ -11,7 +11,7 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-from decimal import Decimal, DecimalException
+from decimal import DecimalException
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -455,11 +455,6 @@ class XsdAtomicBuiltin(XsdAtomic):
                 for error in validator(result):
                     yield self._validation_error(error, validation)
 
-        if isinstance(result, Decimal):
-            try:
-                result = kwargs.get('decimal_type')(result)
-            except TypeError:
-                pass
         yield result
 
     def iter_encode(self, data, validation='lax', **kwargs):
@@ -604,7 +599,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._LIST_FACETS
+        return self.schema.LIST_FACETS
 
     @staticmethod
     def is_atomic():
@@ -751,7 +746,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._UNION_FACETS
+        return self.schema.UNION_FACETS
 
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)

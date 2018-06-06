@@ -29,7 +29,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema.etree import etree_element, etree_tostring, etree_iselement
+from xmlschema.etree import etree_element, etree_tostring, etree_iselement, etree_fromstring
 from xmlschema.qnames import local_name
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
@@ -48,6 +48,8 @@ class TestEncoding(XMLSchemaTestCase):
                     and isinstance(obj[1][0], Exception):
                 self.assertEqual(expected, obj[0])
                 self.assertTrue(isinstance(obj[0], type(expected)))
+            elif etree_iselement(obj):
+                self.assertEqual(expected, etree_tostring(obj).strip())
             else:
                 self.assertEqual(expected, obj)
                 self.assertTrue(isinstance(obj, type(expected)))
@@ -180,22 +182,45 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
 
     def test_complex_elements(self):
-        elem = etree_element('{ns}A', attrib={'a1': 10, 'a2': -1})
         schema = self.get_schema("""
         <element name="A" type="ns:A_type" />
         <complexType name="A_type" mixed="true">
             <simpleContent>
                 <extension base="string">
-                    <attribute name="a1" type="short"/>                 
+                    <attribute name="a1" type="short" use="required"/>                 
                     <attribute name="a2" type="negativeInteger"/>
                 </extension>
             </simpleContent>
         </complexType>
         """)
-        xs = self.schema_class(schema)
-        data = xs.decode('<A xmlns="ns" a1="10" a2="-1">simple </A>' )
-        # print(data)
-        # print(xs.types['A_type'].encode(data))
+        self.check_encode(
+            schema.elements['A'], data={'@a1': 10, '@a2': -1, '$': 'simple '},
+            expected='<ns:A xmlns:ns="ns" a1="10" a2="-1">simple </ns:A>'
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
+            etree_fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '@a2': -1},
+            etree_fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '$': 'simple '},
+            etree_fromstring('<A xmlns="ns" a1="10">simple </A>')
+        )
+        self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
+
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type">
+            <sequence>
+                <element name="B1" type="string"/>
+                <element name="B2" type="integer"/>
+                <element name="B3" type="boolean"/>                
+            </sequence>
+        </complexType>
+        """)
 
 
 if __name__ == '__main__':

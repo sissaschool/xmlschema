@@ -204,7 +204,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     def abspath(cls, path):
         return os.path.join(cls.test_dir, path)
 
-    def get_schema(self, source):
+    def get_schema_source(self, source):
         """
         Returns a schema source that can be used to create an XMLSchema instance.
 
@@ -236,9 +236,12 @@ class XMLSchemaTestCase(unittest.TestCase):
             else:
                 return self.SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
 
+    def get_schema(self, source_part):
+        return self.schema_class(self.get_schema_source(source_part))
+
     def get_element(self, name, **attrib):
         source = '<element name="{}" {}/>'.format(
             name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
         )
-        schema = self.schema_class(self.get_schema(source))
+        schema = self.schema_class(self.get_schema_source(source))
         return schema.elements[name]

@@ -225,17 +225,17 @@ class XsdSingleFacet(XsdFacet):
                 elif self.elem.tag == XSD_LENGTH_TAG:
                     if base_facet is not None and value != base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has different 'length': %r" % base_facet.value, self
+                            "base type has a different 'length': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MIN_LENGTH_TAG:
                     if value < base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has greater 'minLength': %r" % base_facet.value, self
+                            "base type has a greater 'minLength': %r" % base_facet.value, self
                         )
                 elif self.elem.tag == XSD_MAX_LENGTH_TAG:
                     if value > base_facet.value:
                         raise XMLSchemaParseError(
-                            "base type has lesser 'maxLength': %r" % base_facet.value, self
+                            "base type has a lesser 'maxLength': %r" % base_facet.value, self
                         )
         super(XsdSingleFacet, self).__setattr__(name, value)
 
@@ -309,11 +309,11 @@ class XsdSingleFacet(XsdFacet):
 
     def min_inclusive_validator(self, x):
         if x < self.value:
-            yield XMLSchemaValidationError(self, x, "value has to greater or equal than %r." % self.value)
+            yield XMLSchemaValidationError(self, x, "value has to be greater or equal than %r." % self.value)
 
     def min_exclusive_validator(self, x):
         if x <= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to greater than %r." % self.value)
+            yield XMLSchemaValidationError(self, x, "value has to be greater than %r." % self.value)
 
     def max_inclusive_validator(self, x):
         if x > self.value:

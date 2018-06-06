@@ -12,6 +12,7 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 from collections import Sequence
+from decimal import Decimal
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaAttributeError
@@ -402,6 +403,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
+                        if isinstance(result, Decimal):
+                            try:
+                                result = kwargs.get('decimal_type')(result)
+                            except TypeError:
+                                pass
                         yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
                         del result
 
@@ -422,6 +428,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         tail = (u'\n' + u' ' * indent * level) if indent is not None else None
 
         element_data, errors = element_encode_hook(data, self, validation)
+
         if validation != 'skip':
             for e in errors:
                 yield self._validation_error(e, validation)
@@ -433,8 +440,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 else:
                     elem = _etree_element(self.name, attrib=dict(result.attributes))
                     elem.text = result.text
-                    elem.extend(result.content)
+                    if result.content:
+                        elem.extend(result.content)
                     elem.tail = tail
+                    # for err in self.iter_errors(elem, validation):
+                    #     yield err
                     yield elem
         else:
             # Encode a simpleType

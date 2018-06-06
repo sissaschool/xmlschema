@@ -502,6 +502,22 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_decode(base64_length5_type, base64.b64encode(b'12345'), u'MTIzNDU=')
         self.check_decode(base64_length5_type, base64.b64encode(b'123456'), XMLSchemaValidationError)
 
+    def test_decimal_type(self):
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <simpleType name="A_type">
+            <restriction base="decimal">
+                <minInclusive value="100.50"/>
+            </restriction>
+        </simpleType>
+        """)
+
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', Decimal('120.48'))
+        self.check_decode(schema, '<A xmlns="ns">100.50</A>', Decimal('100.50'))
+        self.check_decode(schema, '<A xmlns="ns">100.49</A>', XMLSchemaValidationError)
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', 120.48, decimal_type=float)
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)  # Issue #66
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header, tests_factory, get_testfiles

@@ -83,8 +83,8 @@ class XMLSchemaMeta(type):
         facets = dict_.pop('facets') or set()
         dict_['XSD_VERSION'] = dict_.pop('xsd_version')
         dict_['FACETS'] = facets
-        dict_['_LIST_FACETS'] = facets.intersection(LIST_FACETS)
-        dict_['_UNION_FACETS'] = facets.intersection(UNION_FACETS)
+        dict_['LIST_FACETS'] = facets.intersection(LIST_FACETS)
+        dict_['UNION_FACETS'] = facets.intersection(UNION_FACETS)
         dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
 
         # Build the meta-schema class
@@ -175,12 +175,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     """
     XSD_VERSION = None
     FACETS = None
+    LIST_FACETS = None
+    UNION_FACETS = None
     BUILDERS = ()
     BASE_SCHEMAS = None
     meta_schema = None
     _parent_map = None
-    _LIST_FACETS = None
-    _UNION_FACETS = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, defuse=None, build=True):
