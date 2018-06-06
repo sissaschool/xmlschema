@@ -47,9 +47,9 @@ class TestXMLSchema1(XMLSchemaTestCase):
         a substring test if it's not `None` (maybe a string). Then returns the schema instance.
         """
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.schema_class, self.get_schema_source(source), **kwargs)
+            self.assertRaises(expected, self.schema_class, self.retrieve_schema_source(source), **kwargs)
         else:
-            schema = self.schema_class(self.get_schema_source(source), **kwargs)
+            schema = self.schema_class(self.retrieve_schema_source(source), **kwargs)
             if callable(expected):
                 self.assertTrue(expected(schema))
             return schema
