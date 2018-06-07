@@ -417,17 +417,15 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield self._validation_error(error, validation)
 
     def iter_encode(self, data, validation='lax', **kwargs):
-        element_encode_hook = kwargs.get('element_encode_hook')
-        if element_encode_hook is None:
-            element_encode_hook = self.schema.get_converter().element_encode
-            kwargs['element_encode_hook'] = element_encode_hook
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         _etree_element = kwargs.get('etree_element') or etree_element
 
         level = kwargs.pop('level', 0)
-        indent = kwargs.get('indent', None)
-        tail = (u'\n' + u' ' * indent * level) if indent is not None else None
-
-        element_data, errors = element_encode_hook(data, self, validation)
+        indent = kwargs.get('indent', 4)
+        element_data, errors = converter.element_encode(data, self, validation)
 
         if validation != 'skip':
             for e in errors:
@@ -439,12 +437,13 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield self._validation_error(result, validation, data)
                 else:
                     elem = _etree_element(self.name, attrib=dict(result.attributes))
-                    elem.text = result.text
                     if result.content:
                         elem.extend(result.content)
-                    elem.tail = tail
-                    # for err in self.iter_errors(elem, validation):
-                    #     yield err
+                        elem.text = result.text or u'\n' + u' ' * indent * (level +1)
+                        elem.tail = u'\n' + u' ' * indent * level
+                    else:
+                        elem.text = result.text
+                        elem.tail = u'\n' + u' ' * indent * level
                     yield elem
         else:
             # Encode a simpleType
@@ -457,7 +456,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             if element_data.text is None:
                 elem = _etree_element(self.name, attrib={})
                 elem.text = None
-                elem.tail = tail
+                elem.tail = u'\n' + u' ' * indent * level
                 yield elem
             else:
                 for result in self.type.iter_encode(element_data.text, validation, **kwargs):
@@ -466,7 +465,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     else:
                         elem = _etree_element(self.name, attrib={})
                         elem.text = result
-                        elem.tail = tail
+                        elem.tail = u'\n' + u' ' * indent * level
                         yield elem
                         break
 

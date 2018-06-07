@@ -623,9 +623,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         """
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
-
-        if not self.built:
+        elif not self.built:
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+        elif not self.elements:
+            yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
         if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
@@ -680,25 +681,29 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                             **kwargs):
                         yield obj
 
-    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
-                    converter=None, **kwargs):
+    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=4, converter=None, **kwargs):
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
+        elif not self.built:
+            raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+        elif not self.elements:
+            yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
-        if indent is not None and indent < 0:
-            indent = 0
-        _namespaces = self.namespaces.copy()
-        if namespaces:
-            _namespaces.update(namespaces)
+        namespaces = {} if namespaces is None else namespaces.copy()
+        converter = self.get_converter(converter, namespaces, **kwargs)
 
-        xsd_element = self.find(path, namespaces=_namespaces)
+        if path is not None:
+            xsd_element = self.find(path, namespaces=namespaces)
+        elif isinstance(data, dict) and len(data) == 1:
+            xsd_element = self.elements.get(list(data.keys())[0])
+        else:
+            xsd_element = list(self.elements.values())[0]
+
         if not isinstance(xsd_element, XsdElement):
             msg = "the path %r doesn't match any element of the schema!" % path
             yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
         else:
-            _converter = self.get_converter(converter, _namespaces)
-            for obj in xsd_element.iter_encode(data, validation, indent=indent,
-                                               element_encode_hook=_converter.element_encode):
+            for obj in xsd_element.iter_encode(data, validation, indent=indent, converter=converter):
                 yield obj
 
     def iter(self, name=None):

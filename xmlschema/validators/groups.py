@@ -23,7 +23,7 @@ from ..qnames import (
 )
 
 from .exceptions import (
-    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError
+    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
 from .wildcards import XsdAnyElement
@@ -439,51 +439,40 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
     def iter_encode(self, data, validation='lax', **kwargs):
         children = []
         level = kwargs.get('level', 0)
-        indent = kwargs.get('indent', None)
-        padding = (u'\n' + u' ' * indent * level) if indent is not None else None
-        text = padding
+        indent = kwargs.get('indent', 4)
+        padding = u'\n' + u' ' * indent * level
 
-        children_map = {}
-        for e in self.iter_elements():
-            key = e.name
-            try:
-                children_map[key].append(e)
-            except AttributeError:
-                children_map[key] = [children_map[key], e]
-            except KeyError:
-                children_map[key] = e
-
-        try:
-            for name, value in data:
-                if isinstance(name, int):
-                    if children:
-                        children[-1].tail = padding + value + padding
+        text = ''
+        for name, value in data:
+            if isinstance(name, int):
+                if children:
+                    if children[-1].tail is None:
+                        children[-1].tail = padding + value
                     else:
-                        text = padding + value + padding
+                        children[-1].tail += padding + value
                 else:
-                    try:
-                        xsd_element = children_map[name]
-                    except KeyError:
-                        if validation != 'skip':
-                            yield self._validation_error(
-                                '%r does not match any declared element.' % name, validation, obj=value
-                            )
-                    else:
+                    text += padding + value
+            else:
+                for xsd_element in self.iter_elements():
+                    if xsd_element.match(name):
                         for result in xsd_element.iter_encode(value, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
                                 yield result
                             else:
                                 children.append(result)
-        except ValueError:
-            if validation != 'skip':
-                error = XMLSchemaEncodeError(self, data, self, '%r does not match content.' % data)
-                yield self._validation_error(error, validation)
+                        break
+                else:
+                    if validation != 'skip':
+                        yield self._validation_error(
+                            '%r does not match any declared element.' % name, validation, obj=value
+                        )
 
-        if indent and level:
-            if children:
-                children[-1].tail = children[-1].tail[:-indent]
+        if children:
+            if children[-1].tail is None:
+                children[-1].tail = padding[:-indent]
             else:
-                text = text[:-indent]
+                children[-1].tail = padding + children[-1].tail.strip() + padding[:-indent]
+
         yield text, children
 
     def iter_decode_children(self, elem, index=0, validation='lax'):

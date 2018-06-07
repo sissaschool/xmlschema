@@ -221,6 +221,19 @@ class TestEncoding(XMLSchemaTestCase):
             </sequence>
         </complexType>
         """)
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=OrderedDict([('B1', 'abc'), ('B2', 10), ('B3', False)]),
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n  </ns:A>',
+            indent=0,
+        )
+        self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=OrderedDict([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n  hello</ns:A>',
+            indent=0, cdata_prefix='#'
+        )
 
 
 if __name__ == '__main__':

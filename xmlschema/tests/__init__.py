@@ -179,7 +179,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     etree_register_namespace(prefix='ns', uri="ns")
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema" 
-        targetNamespace="ns" elementFormDefault="qualified" version="{0}">
+        targetNamespace="ns" elementFormDefault="unqualified" version="{0}">
         {1}
     </schema>"""
 
