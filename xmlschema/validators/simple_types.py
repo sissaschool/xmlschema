@@ -940,7 +940,19 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def iter_encode(self, data, validation='lax', **kwargs):
         data = self.normalize(data)
-        for result in self.base_type.iter_encode(data, validation):
+
+        if self.base_type.is_simple():
+            base_type = self.base_type
+        elif self.base_type.has_simple_content():
+            base_type = self.base_type.content_type
+        elif self.base_type.mixed:
+            yield unicode_type(data)
+            return
+        else:
+            raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
+                                      "simple or mixed content required." % self.base_type)
+
+        for result in base_type.iter_encode(data, validation):
             if isinstance(result, XMLSchemaValidationError):
                 if validation == 'strict':
                     raise result

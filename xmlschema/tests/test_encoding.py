@@ -29,9 +29,59 @@ except ImportError:
     import xmlschema
 
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema.etree import etree_element, etree_tostring, etree_iselement, etree_fromstring
+from xmlschema.etree import (
+    etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
+    etree_get_namespaces, etree_elements_equal
+)
 from xmlschema.qnames import local_name
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
+
+
+def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
+                                locations=None, defuse='defuse'):
+    def test_decoding(self):
+        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
+        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
+        errors = []
+        chunks = []
+        for obj in xs.iter_decode(xml_file):
+            if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                errors.append(obj)
+            else:
+                chunks.append(obj)
+        if len(errors) != expected_errors:
+            import pdb
+            pdb.set_trace()
+            raise ValueError(
+                "n.%d errors expected, found %d: %s" % (
+                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
+                )
+            )
+        if not chunks:
+            raise ValueError("No decoded object returned!!")
+        elif len(chunks) > 1:
+            raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
+        elif not isinstance(chunks[0], dict):
+            raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
+        else:
+            self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
+
+        if not errors:
+            root = etree_parse(xml_file).getroot()
+            namespaces = etree_get_namespaces(xml_file)
+            encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
+            if not etree_elements_equal(root, encoded_tree, strict=False):
+                import pdb
+                pdb.set_trace()
+
+            self.assertTrue(
+                etree_elements_equal(root, encoded_tree, strict=False),
+                "Encoded element tree differs from source tree."
+            )
+
+
+    return test_decoding
+
 
 
 class TestEncoding(XMLSchemaTestCase):
@@ -237,6 +287,10 @@ class TestEncoding(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    from xmlschema.tests import print_test_header, tests_factory, get_testfiles
+
     print_test_header()
+    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
+    encoding_tests = tests_factory(make_encoding_test_function, testfiles, 'encoding', 'xml')
+    globals().update(encoding_tests)
     unittest.main()
