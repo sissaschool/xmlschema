@@ -12,6 +12,7 @@
 This module contains classes for XML Schema attributes and attribute groups.
 """
 from collections import MutableMapping
+from decimal import Decimal
 
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
@@ -174,9 +175,17 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
             yield error
 
         for result in self.type.iter_decode(text, validation, **kwargs):
-            yield result
-            if not isinstance(result, XMLSchemaValidationError):
-                return
+            if isinstance(result, XMLSchemaValidationError):
+                yield result
+            elif isinstance(result, Decimal):
+                try:
+                    yield kwargs.get('decimal_type')(result)
+                except TypeError:
+                    yield result
+                break
+            else:
+                yield result
+                break
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for result in self.type.iter_encode(obj, validation):

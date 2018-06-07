@@ -38,7 +38,7 @@ from . import (
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
     xsd_build_any_content_group, xsd_build_any_attribute_group, XsdComponent
 )
-from .facets import XSD_FACETS, UNION_FACETS, LIST_FACETS
+from .facets import XSD_10_FACETS, UNION_FACETS, LIST_FACETS
 from .globals_ import (
     XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 )
@@ -63,8 +63,8 @@ DEFAULT_BUILDERS = {
 # Schemas paths
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
-XSD_1_0_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
-XSD_1_1_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+XSD_10_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+XSD_11_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
 BASE_SCHEMAS = {
     XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
@@ -83,8 +83,8 @@ class XMLSchemaMeta(type):
         facets = dict_.pop('facets') or set()
         dict_['XSD_VERSION'] = dict_.pop('xsd_version')
         dict_['FACETS'] = facets
-        dict_['_LIST_FACETS'] = facets.intersection(LIST_FACETS)
-        dict_['_UNION_FACETS'] = facets.intersection(UNION_FACETS)
+        dict_['LIST_FACETS'] = facets.intersection(LIST_FACETS)
+        dict_['UNION_FACETS'] = facets.intersection(UNION_FACETS)
         dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
 
         # Build the meta-schema class
@@ -175,12 +175,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     """
     XSD_VERSION = None
     FACETS = None
+    LIST_FACETS = None
+    UNION_FACETS = None
     BUILDERS = ()
     BASE_SCHEMAS = None
     meta_schema = None
     _parent_map = None
-    _LIST_FACETS = None
-    _UNION_FACETS = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, defuse=None, build=True):
@@ -623,9 +623,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         """
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
-
-        if not self.built:
+        elif not self.built:
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+        elif not self.elements:
+            yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
         if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
@@ -680,25 +681,29 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                             **kwargs):
                         yield obj
 
-    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
-                    converter=None, **kwargs):
+    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=4, converter=None, **kwargs):
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
+        elif not self.built:
+            raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+        elif not self.elements:
+            yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
-        if indent is not None and indent < 0:
-            indent = 0
-        _namespaces = self.namespaces.copy()
-        if namespaces:
-            _namespaces.update(namespaces)
+        namespaces = {} if namespaces is None else namespaces.copy()
+        converter = self.get_converter(converter, namespaces, **kwargs)
 
-        xsd_element = self.find(path, namespaces=_namespaces)
+        if path is not None:
+            xsd_element = self.find(path, namespaces=namespaces)
+        elif isinstance(data, dict) and len(data) == 1:
+            xsd_element = self.elements.get(list(data.keys())[0])
+        else:
+            xsd_element = list(self.elements.values())[0]
+
         if not isinstance(xsd_element, XsdElement):
             msg = "the path %r doesn't match any element of the schema!" % path
             yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
         else:
-            _converter = self.get_converter(converter, _namespaces)
-            for obj in xsd_element.iter_encode(data, validation, indent=indent,
-                                               element_encode_hook=_converter.element_encode):
+            for obj in xsd_element.iter_encode(data, validation, indent=indent, converter=converter):
                 yield obj
 
     def iter(self, name=None):
@@ -749,9 +754,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 
 XMLSchema_v1_0 = create_validator(
     xsd_version='1.0',
-    meta_schema=XSD_1_0_META_SCHEMA_PATH,
+    meta_schema=XSD_10_META_SCHEMA_PATH,
     base_schemas=BASE_SCHEMAS,
-    facets=XSD_FACETS
+    facets=XSD_10_FACETS
 )
 XMLSchema = XMLSchema_v1_0
 """The default class for schema instances."""

@@ -47,9 +47,9 @@ class TestXMLSchema1(XMLSchemaTestCase):
         a substring test if it's not `None` (maybe a string). Then returns the schema instance.
         """
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.schema_class, self.get_schema(source), **kwargs)
+            self.assertRaises(expected, self.schema_class, self.retrieve_schema_source(source), **kwargs)
         else:
-            schema = self.schema_class(self.get_schema(source), **kwargs)
+            schema = self.schema_class(self.retrieve_schema_source(source), **kwargs)
             if callable(expected):
                 self.assertTrue(expected(schema))
             return schema
@@ -71,13 +71,40 @@ class TestXMLSchema1(XMLSchemaTestCase):
         self.check_schema(source, expected, **kwargs)
 
     def test_simple_types(self):
-        xs = self.check_schema('cases/features/elements/test-simple-types.xsd')
-
-        # Issue #54: set list or union element.
-        xs.types['test_list'].elem = xs.root[1]  # elem.tag == 'simpleType'
+        # Issue #54: set list or union schema element.
+        xs = self.check_schema("""
+            <simpleType name="test_list">
+                <annotation/>
+                <list itemType="string"/>
+            </simpleType>
+    
+            <simpleType name="test_union">
+                <annotation/>
+                <union memberTypes="string integer boolean"/>
+            </simpleType>
+        """)
+        xs.types['test_list'].elem = xs.root[0]  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST_TAG)
-        xs.types['test_union'].elem = xs.root[2]  # elem.tag == 'simpleType'
+        xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
+
+    def test_wrong_includes_and_imports(self):
+        self.check_schema("""
+            <include schemaLocation="example.xsd" />
+            <import schemaLocation="example.xsd" />
+            <redefine schemaLocation="example.xsd"/>
+            <import namespace="http://missing.example.test/" />
+            <import/>
+            """)
+
+    def test_wrong_references(self):
+        # Wrong namespace for element type's reference
+        self.check_schema("""
+            <element name="dimension" type="dimensionType"/>
+            <simpleType name="dimensionType">
+                <restriction base="short"/>
+            </simpleType>
+            """, XMLSchemaParseError)
 
     def test_facets(self):
         # Issue #55 and a near error (derivation from xs:integer)
@@ -279,6 +306,27 @@ class TestXMLSchema1(XMLSchemaTestCase):
             base, '<sequence minOccurs="2" maxOccurs="10"><element name="A"/></sequence>',
             XMLSchemaParseError
         )
+
+    def test_union_restrictions(self):
+        # Wrong union restriction (not admitted facets, see issue #67)
+        self.check_schema("""
+            <simpleType name="Percentage">
+                <restriction base="ns:Integer">
+                    <minInclusive value="0"/>
+                    <maxInclusive value="100"/>
+                </restriction>
+            </simpleType>
+            
+            <simpleType name="Integer">
+                <union memberTypes="int ns:IntegerString"/>
+            </simpleType>
+                        
+            <simpleType name="IntegerString">
+                <restriction base="string">
+                    <pattern value="-?[0-9]+(\.[0-9]+)?%"/>
+                </restriction>
+            </simpleType>
+            """, XMLSchemaParseError)
 
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False,

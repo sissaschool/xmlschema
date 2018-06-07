@@ -561,8 +561,7 @@ class ValidatorMixin(object):
                 return chunk
     to_etree = encode
 
-    def iter_decode(self, data, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, converter=None, **kwargs):
+    def iter_decode(self, data, validation='lax', *args, **kwargs):
         """
         Generator method for decoding XML data using the XSD component. Returns a data
         structure after a sequence, possibly empty, of validation or decode errors.
@@ -573,6 +572,5 @@ class ValidatorMixin(object):
         """
         raise NotImplementedError
 
-    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=None,
-                    converter=None, **kwargs):
+    def iter_encode(self, data, validation='lax', *args, **kwargs):
         raise NotImplementedError

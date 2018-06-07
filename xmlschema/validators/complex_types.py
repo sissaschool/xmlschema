@@ -119,6 +119,10 @@ class XsdComplexType(XsdType, ValidatorMixin):
             else:
                 self._parse_simple_content_extension(derivation_elem, self.base_type)
 
+            if content_elem is not elem[-1]:
+                k = 2 if content_elem is not elem[0] else 1
+                self._parse_error("unexpected tag %r after simpleContent declaration:" % elem[k].tag, elem)
+
         elif content_elem.tag == XSD_COMPLEX_CONTENT_TAG:
             #
             # complexType with complexContent restriction/extension
@@ -135,9 +139,13 @@ class XsdComplexType(XsdType, ValidatorMixin):
             else:
                 self._parse_complex_content_extension(derivation_elem, self.base_type)
 
+            if content_elem is not elem[-1]:
+                k = 2 if content_elem is not elem[0] else 1
+                self._parse_error("unexpected tag %r after complexContent declaration:" % elem[k].tag, elem)
+
         else:
             if self.schema.validation == 'skip':
-                self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, self)
+                self._parse_error("unexpected tag %r for complexType content:" % content_elem.tag, elem)
             self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
             self.attributes = self.schema.BUILDERS.build_any_attribute_group(self.schema)
 

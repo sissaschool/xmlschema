@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="A" type="xs:string"/>
+    <xs:element name="B" type="xs:string"/>
+
+    <!-- Circularity between two groups -->
+    <xs:group name="group1">
+        <xs:sequence>
+            <xs:element ref="A"/>
+            <xs:group ref="group2"/>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:group name="group2">
+        <xs:sequence>
+            <xs:element ref="B"/>
+            <xs:group ref="group1"/>
+        </xs:sequence>
+    </xs:group>
+
+    <!-- Self circularity case-->
+    <xs:group name="groupC">
+        <xs:sequence>
+            <xs:element ref="A"/>
+            <xs:group ref="groupC"/>
+        </xs:sequence>
+    </xs:group>
+
+</xs:schema>

@@ -274,6 +274,8 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             else:
                 chunks.append(obj)
         if len(errors) != expected_errors:
+            import pdb
+            pdb.set_trace()
             raise ValueError(
                 "n.%d errors expected, found %d: %s" % (
                     expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
@@ -470,16 +472,51 @@ class TestDecoding(XMLSchemaTestCase):
                          ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
         )
 
-    def test_simple_facets(self):
+    def test_string_facets(self):
+        none_empty_string_type = self.st_schema.types['none_empty_string']
+        self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+
+    def test_binary_data_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
         self.check_decode(hex_code_type, u'00D7310A', u'00D7310A')
 
         base64_code_type = self.st_schema.types['base64Code']
+        self.check_decode(base64_code_type, base64.b64encode(b'ok'), XMLSchemaValidationError)
         base64_value = base64.b64encode(b'hello')
         self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'), u'YWJjZWZnaA==')
+        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, u' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'), u'YWJjZWZnaGk=')
 
-        none_empty_string_type = self.st_schema.types['none_empty_string']
-        self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+        self.check_decode(base64_code_type, u'YWJjZWZnaA=', XMLSchemaValidationError)
+        self.check_decode(base64_code_type, u'YWJjZWZna$==', XMLSchemaValidationError)
+
+        base64_length4_type = self.st_schema.types['base64Length4']
+        self.check_decode(base64_length4_type, base64.b64encode(b'abc'), XMLSchemaValidationError)
+        self.check_decode(base64_length4_type, base64.b64encode(b'abce'), u'YWJjZQ==')
+        self.check_decode(base64_length4_type, base64.b64encode(b'abcef'), XMLSchemaValidationError)
+
+        base64_length5_type = self.st_schema.types['base64Length5']
+        self.check_decode(base64_length5_type, base64.b64encode(b'1234'), XMLSchemaValidationError)
+        self.check_decode(base64_length5_type, base64.b64encode(b'12345'), u'MTIzNDU=')
+        self.check_decode(base64_length5_type, base64.b64encode(b'123456'), XMLSchemaValidationError)
+
+    def test_decimal_type(self):
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <simpleType name="A_type">
+            <restriction base="decimal">
+                <minInclusive value="100.50"/>
+            </restriction>
+        </simpleType>
+        """)
+
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', Decimal('120.48'))
+        self.check_decode(schema, '<A xmlns="ns">100.50</A>', Decimal('100.50'))
+        self.check_decode(schema, '<A xmlns="ns">100.49</A>', XMLSchemaValidationError)
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', 120.48, decimal_type=float)
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)  # Issue #66
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='0.9.29',
+    version='0.9.30',
     install_requires=['elementpath>=1.0.6', 'defusedxml>=0.5'],
     packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
     package_data={'xmlschema': [
@@ -37,7 +37,6 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',

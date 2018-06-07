@@ -140,3 +140,43 @@ def etree_child_index(elem, child):
         if elem[index] is child:
             return index
     raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
+
+
+def etree_elements_equal(elem, other, strict=True):
+    other_elements = iter(other.iter())
+    for e1 in elem.iter():
+        try:
+            e2 = next(other_elements)
+        except StopIteration:
+            return False
+
+        if e1.tag != e2.tag or e1.attrib != e2.attrib or len(e1) != len(e2):
+            return False
+        elif e1.text != e2.text:
+            if strict:
+                return False
+            elif e1.text is None:
+                if e2.text.strip():
+                    return False
+            elif e2.text is None:
+                if e1.text.strip():
+                    return False
+            elif e1.text.strip() != e2.text.strip():
+                try:
+                    if float(e1.text.strip()) != float(e2.text.strip()):
+                        return False
+                except (ValueError, TypeError):
+                    return False
+        elif e1.tail != e2.tail:
+            if strict:
+                return False
+            elif e1.tail is None:
+                if e2.tail.strip():
+                    return False
+            elif e2.tail is None:
+                if e1.tail.strip():
+                    return False
+            elif e1.tail.strip() != e2.tail.strip():
+                return False
+
+    return True

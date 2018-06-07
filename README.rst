@@ -5,7 +5,7 @@ xmlschema
 .. xmlschema-introduction-start
 
 The *xmlschema* library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
-for Python (supports versions 2.7 and Python 3.3+).
+for Python (supports versions 2.7 and Python 3.4+).
 
 This library arises from the needs of a solid Python layer for processing XML
 Schema based files for
@@ -38,7 +38,7 @@ The xmlschema library includes the following features:
 Installation
 ============
 
-You can install the library with *pip* in a Python 2.7 or Python 3.3+ environment::
+You can install the library with *pip* in a Python 2.7 or Python 3.4+ environment::
 
     pip install xmlschema
 

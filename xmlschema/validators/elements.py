@@ -12,6 +12,7 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 from collections import Sequence
+from decimal import Decimal
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaAttributeError
@@ -266,6 +267,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
     def ref(self):
         return self.elem.get('ref')
 
+    # Properties inherited by references
     @property
     def abstract(self):
         if self._ref is not None:
@@ -273,20 +275,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
-    def block(self):
-        if self._ref is not None:
-            return self._ref.block
-        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
-
-    @property
     def default(self):
         return self.elem.get('default') if self._ref is None else self._ref.default
-
-    @property
-    def final(self):
-        if self._ref is not None:
-            return self._ref.final
-        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
 
     @property
     def fixed(self):
@@ -303,6 +293,15 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         if self._ref is not None:
             return self._ref.nillable
         return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
+
+    # Global element's exclusive properties
+    @property
+    def final(self):
+        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+
+    @property
+    def block(self):
+        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
 
     @property
     def substitution_group(self):
@@ -404,6 +403,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, elem)
                     else:
+                        if isinstance(result, Decimal):
+                            try:
+                                result = kwargs.get('decimal_type')(result)
+                            except TypeError:
+                                pass
                         yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
                         del result
 
@@ -413,17 +417,16 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield self._validation_error(error, validation)
 
     def iter_encode(self, data, validation='lax', **kwargs):
-        element_encode_hook = kwargs.get('element_encode_hook')
-        if element_encode_hook is None:
-            element_encode_hook = self.schema.get_converter().element_encode
-            kwargs['element_encode_hook'] = element_encode_hook
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         _etree_element = kwargs.get('etree_element') or etree_element
 
         level = kwargs.pop('level', 0)
-        indent = kwargs.get('indent', None)
-        tail = (u'\n' + u' ' * indent * level) if indent is not None else None
+        indent = kwargs.get('indent', 4)
+        element_data, errors = converter.element_encode(data, self, validation)
 
-        element_data, errors = element_encode_hook(data, self, validation)
         if validation != 'skip':
             for e in errors:
                 yield self._validation_error(e, validation)
@@ -434,9 +437,13 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield self._validation_error(result, validation, data)
                 else:
                     elem = _etree_element(self.name, attrib=dict(result.attributes))
-                    elem.text = result.text
-                    elem.extend(result.content)
-                    elem.tail = tail
+                    if result.content:
+                        elem.extend(result.content)
+                        elem.text = result.text or u'\n' + u' ' * indent * (level +1)
+                        elem.tail = u'\n' + u' ' * indent * level
+                    else:
+                        elem.text = result.text
+                        elem.tail = u'\n' + u' ' * indent * level
                     yield elem
         else:
             # Encode a simpleType
@@ -449,7 +456,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             if element_data.text is None:
                 elem = _etree_element(self.name, attrib={})
                 elem.text = None
-                elem.tail = tail
+                elem.tail = u'\n' + u' ' * indent * level
                 yield elem
             else:
                 for result in self.type.iter_encode(element_data.text, validation, **kwargs):
@@ -458,7 +465,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     else:
                         elem = _etree_element(self.name, attrib={})
                         elem.text = result
-                        elem.tail = tail
+                        elem.tail = u'\n' + u' ' * indent * level
                         yield elem
                         break
 

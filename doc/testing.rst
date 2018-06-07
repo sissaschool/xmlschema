@@ -35,7 +35,8 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_package.py**
     Tests regarding packaging and forgotten development code
 
-You can run all tests with the script *test_all.py*.
+You can run all tests with the script *test_all.py*. If you have the *tox automation tool* installed you can run
+all tests with all supported Python's versions using the command ``tox``.
 
 
 Test files
@@ -91,3 +92,16 @@ From version 0.9.14 each line is parsed for those additional arguments:
 
 **-v**
     XSD version to use for schema (default is 1.0)
+
+To run tests with also your personal set of files you have to add a ``-x/--extra`` option to the
+command, for example:
+
+.. code-block:: text
+
+   python xmlschema/tests/test_all.py -x
+
+or:
+
+.. code-block:: text
+
+    tox -- -x

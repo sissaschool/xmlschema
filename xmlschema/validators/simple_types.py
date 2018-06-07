@@ -11,7 +11,7 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-from decimal import Decimal, DecimalException
+from decimal import DecimalException
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -27,7 +27,7 @@ from .exceptions import (
 )
 from .parseutils import get_xsd_derivation_attribute, get_xsd_component
 from .xsdbase import XsdType, ValidatorMixin
-from .facets import XsdFacet, XSD_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
+from .facets import XsdFacet, XSD_10_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 
 
 def xsd_simple_type_factory(elem, schema, is_global=False):
@@ -361,7 +361,7 @@ class XsdAtomic(XsdSimpleType):
         try:
             facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return XSD_FACETS.union({None})
+            return XSD_10_FACETS.union({None})
         else:
             try:
                 return self.schema.FACETS.intersection(facets)
@@ -455,11 +455,6 @@ class XsdAtomicBuiltin(XsdAtomic):
                 for error in validator(result):
                     yield self._validation_error(error, validation)
 
-        if isinstance(result, Decimal):
-            try:
-                result = kwargs.get('decimal_type')(result)
-            except TypeError:
-                pass
         yield result
 
     def iter_encode(self, data, validation='lax', **kwargs):
@@ -604,7 +599,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._LIST_FACETS
+        return self.schema.LIST_FACETS
 
     @staticmethod
     def is_atomic():
@@ -751,7 +746,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return self.schema._UNION_FACETS
+        return self.schema.UNION_FACETS
 
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
@@ -945,7 +940,19 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def iter_encode(self, data, validation='lax', **kwargs):
         data = self.normalize(data)
-        for result in self.base_type.iter_encode(data, validation):
+
+        if self.base_type.is_simple():
+            base_type = self.base_type
+        elif self.base_type.has_simple_content():
+            base_type = self.base_type.content_type
+        elif self.base_type.mixed:
+            yield unicode_type(data)
+            return
+        else:
+            raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
+                                      "simple or mixed content required." % self.base_type)
+
+        for result in base_type.iter_encode(data, validation):
             if isinstance(result, XMLSchemaValidationError):
                 if validation == 'strict':
                     raise result

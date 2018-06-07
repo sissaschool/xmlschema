@@ -32,7 +32,7 @@ class TestPackage(unittest.TestCase):
     def test_missing_debug_statements(self):
         # Exclude explicit debug statements written in the code
         exclude = {
-            'regex.py': [236, 237],
+            'regex.py': [230, 231],
         }
 
         message = "\nFound a debug missing statement at line %d or file %r: %r"

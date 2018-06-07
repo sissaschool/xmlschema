@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+v0.9.30
+=======
+* First experimental version of data encoding with the default converter
+* Fixes for issues #65, #66 and #67
+
 v0.9.29
 =======
 * Extended the tests on lxml XML data

@@ -81,6 +81,7 @@
         <xs:union memberTypes="xs:boolean xs:integer xs:string"/>
     </xs:simpleType>
 
+    <!-- For testing issue #63 -->
     <xs:simpleType name='hexCode'>
         <xs:restriction base='xs:hexBinary'>
             <xs:length value='4'/>
@@ -91,6 +92,18 @@
         <xs:restriction base='xs:base64Binary'>
             <xs:minLength value='3'/>
             <xs:maxLength value='8'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='base64Length4'>
+        <xs:restriction base='xs:base64Binary'>
+            <xs:length value='4'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='base64Length5'>
+        <xs:restriction base='xs:base64Binary'>
+            <xs:length value='5'/>
         </xs:restriction>
     </xs:simpleType>
 
