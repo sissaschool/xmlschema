@@ -30,7 +30,7 @@ from .xsdbase import XsdComponent
 XSD_BASE64_BINARY = xsd_qname('base64Binary')
 XSD_HEX_BINARY = xsd_qname('hexBinary')
 
-XSD_FACETS = {
+XSD_10_FACETS = {
     XSD_LENGTH_TAG,
     XSD_MIN_LENGTH_TAG,
     XSD_MAX_LENGTH_TAG,
@@ -45,8 +45,8 @@ XSD_FACETS = {
     XSD_FRACTION_DIGITS_TAG
 }
 
-XSD11_FACETS = XSD_FACETS.copy()
-XSD11_FACETS.update({XSD_ASSERTION_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
+XSD_11_FACETS = XSD_10_FACETS.copy()
+XSD_11_FACETS.update({XSD_ASSERTION_TAG, XSD_EXPLICIT_TIMEZONE_TAG})
 
 #
 # Admitted facets sets for Atomic Types, List Type and Union Type
@@ -79,10 +79,7 @@ LIST_FACETS = {
     XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTION_TAG
 }
 
-UNION_FACETS = {
-    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
-    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTION_TAG
-}
+UNION_FACETS = {XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_ASSERTION_TAG}
 
 
 class XsdFacet(XsdComponent):
@@ -106,7 +103,7 @@ class XsdFacet(XsdComponent):
 
     @property
     def admitted_tags(self):
-        return XSD_FACETS
+        return XSD_10_FACETS
 
     def __call__(self, *args, **kwargs):
         return

@@ -75,9 +75,9 @@ class SchemaObserver(object):
 
 ObservedXMLSchema = xmlschema.create_validator(
     xsd_version='1.0',
-    meta_schema=xmlschema.validators.schema.XSD_1_0_META_SCHEMA_PATH,
+    meta_schema=xmlschema.validators.schema.XSD_10_META_SCHEMA_PATH,
     base_schemas=xmlschema.validators.schema.BASE_SCHEMAS,
-    facets=xmlschema.validators.XSD_FACETS,
+    facets=xmlschema.validators.XSD_10_FACETS,
     **{k: SchemaObserver.observe_builder(v)
        for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items() if k != 'simple_type_class'}
 )

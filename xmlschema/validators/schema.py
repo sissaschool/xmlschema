@@ -38,7 +38,7 @@ from . import (
     XsdAtomicRestriction, XsdSimpleType, xsd_simple_type_factory, xsd_builtin_types_factory,
     xsd_build_any_content_group, xsd_build_any_attribute_group, XsdComponent
 )
-from .facets import XSD_FACETS, UNION_FACETS, LIST_FACETS
+from .facets import XSD_10_FACETS, UNION_FACETS, LIST_FACETS
 from .globals_ import (
     XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 )
@@ -63,8 +63,8 @@ DEFAULT_BUILDERS = {
 # Schemas paths
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
-XSD_1_0_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
-XSD_1_1_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+XSD_10_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+XSD_11_META_SCHEMA_PATH = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
 BASE_SCHEMAS = {
     XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
@@ -749,9 +749,9 @@ def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, *
 
 XMLSchema_v1_0 = create_validator(
     xsd_version='1.0',
-    meta_schema=XSD_1_0_META_SCHEMA_PATH,
+    meta_schema=XSD_10_META_SCHEMA_PATH,
     base_schemas=BASE_SCHEMAS,
-    facets=XSD_FACETS
+    facets=XSD_10_FACETS
 )
 XMLSchema = XMLSchema_v1_0
 """The default class for schema instances."""

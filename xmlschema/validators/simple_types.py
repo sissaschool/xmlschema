@@ -27,7 +27,7 @@ from .exceptions import (
 )
 from .parseutils import get_xsd_derivation_attribute, get_xsd_component
 from .xsdbase import XsdType, ValidatorMixin
-from .facets import XsdFacet, XSD_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
+from .facets import XsdFacet, XSD_10_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
 
 
 def xsd_simple_type_factory(elem, schema, is_global=False):
@@ -361,7 +361,7 @@ class XsdAtomic(XsdSimpleType):
         try:
             facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return XSD_FACETS.union({None})
+            return XSD_10_FACETS.union({None})
         else:
             try:
                 return self.schema.FACETS.intersection(facets)

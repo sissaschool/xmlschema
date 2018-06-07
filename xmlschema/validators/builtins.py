@@ -29,7 +29,7 @@ from ..qnames import (
 
 from .exceptions import XMLSchemaValidationError
 from .facets import (
-    XsdSingleFacet, XsdPatternsFacet, XSD_FACETS, STRING_FACETS,
+    XsdSingleFacet, XsdPatternsFacet, XSD_10_FACETS, STRING_FACETS,
     BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction
@@ -542,7 +542,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
         schema=meta_schema,
         name=XSD_ANY_SIMPLE_TYPE,
-        facets={k: None for k in XSD_FACETS},
+        facets={k: None for k in XSD_10_FACETS},
         is_global=True
     )
     # xs:anyAtomicType
@@ -569,7 +569,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
                 xsd_types[name] = xsd_class(elem, schema, *item)
             else:
                 try:
-                    facets = xsd_build_facets(item[3], base_type, meta_schema, XSD_FACETS)
+                    facets = xsd_build_facets(item[3], base_type, meta_schema, XSD_10_FACETS)
                 except IndexError:
                     xsd_types[name] = xsd_class(elem, schema, name, item[1], base_type, *item[3:])
                 else:
@@ -590,7 +590,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
             else:
                 base_type = None
             if 'facets' in item:
-                item['facets'] = xsd_build_facets(item['facets'], base_type, schema, XSD_FACETS)
+                item['facets'] = xsd_build_facets(item['facets'], base_type, schema, XSD_10_FACETS)
             xsd_types[item['name']] = xsd_class(elem, schema, **item)
         else:
             raise XMLSchemaValueError("Require a sequence of list/tuples or dictionaries")

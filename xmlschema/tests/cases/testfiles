@@ -28,6 +28,7 @@ features/model/model.xsd 2
 features/model/model-2_errors.xsd 2
 features/model/billion_laughs_model.xsd
 features/model/circular_model.xsd 1
+features/model/recursive-groups.xsd 2 # Two circular definitions
 features/patterns/patterns.xsd
 features/patterns/patterns.xml 5
 

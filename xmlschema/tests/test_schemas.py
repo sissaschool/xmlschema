@@ -307,6 +307,27 @@ class TestXMLSchema1(XMLSchemaTestCase):
             XMLSchemaParseError
         )
 
+    def test_union_restrictions(self):
+        # Wrong union restriction (not admitted facets, see issue #67)
+        self.check_schema("""
+            <simpleType name="Percentage">
+                <restriction base="ns:Integer">
+                    <minInclusive value="0"/>
+                    <maxInclusive value="100"/>
+                </restriction>
+            </simpleType>
+            
+            <simpleType name="Integer">
+                <union memberTypes="int ns:IntegerString"/>
+            </simpleType>
+                        
+            <simpleType name="IntegerString">
+                <restriction base="string">
+                    <pattern value="-?[0-9]+(\.[0-9]+)?%"/>
+                </restriction>
+            </simpleType>
+            """, XMLSchemaParseError)
+
 
 def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False,
                               locations=None, defuse='remote'):
