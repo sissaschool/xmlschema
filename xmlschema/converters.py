@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -9,20 +8,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for converting XML elements with XMLSchema support.
+This module contains converter classes and definitions.
 """
-from collections import OrderedDict, namedtuple
+from collections import namedtuple, OrderedDict
 import string
 
 from .exceptions import XMLSchemaValueError
 from .namespaces import NamespaceMapper
 
-
-XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
-"""
-XML Schema validation modes
-Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
-"""
 
 # Namedtuple for a generic Element data representation.
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -109,7 +102,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
     def map_content(self, content):
         """
-        Creates an iterator for converting decoded content to a data structure.
+        A generator function for converting decoded content to a data structure.
         If the instance has a not-empty map of namespaces registers the mapped URIs
         and prefixes.
 
@@ -166,8 +159,6 @@ class XMLSchemaConverter(NamespaceMapper):
         :param validation: The XSD validation mode ('strict'/'lax'/'skip').
         :return: A couple with encoded ElementData and a list of errors.
         """
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation mode argument can be 'strict', 'lax' or 'skip'.")
         attributes = []
         errors = []
         unmap_qname = self.unmap_qname

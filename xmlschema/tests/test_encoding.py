@@ -91,7 +91,7 @@ class TestEncoding(XMLSchemaTestCase):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
         elif etree_iselement(expected):
             elem = xsd_component.encode(data, **kwargs)
-            self.assertEqual(etree_tostring(expected), etree_tostring(elem))
+            self.assertTrue(etree_elements_equal(expected, elem, strict=False))
         else:
             obj = xsd_component.encode(data, **kwargs)
             if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
