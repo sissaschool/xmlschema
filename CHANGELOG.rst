@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+v0.9.31
+=======
+* Schema serialization with pickle (issue #68)
+
 v0.9.30
 =======
 * First experimental version of data encoding with the default converter

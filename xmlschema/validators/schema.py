@@ -24,7 +24,10 @@ from ..namespaces import (
 from ..etree import etree_get_namespaces, etree_register_namespace, etree_iselement
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView
-from ..qnames import XSD_SCHEMA_TAG
+from ..qnames import (
+    XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
+    XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
+)
 from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -88,10 +91,21 @@ class XMLSchemaMeta(type):
         dict_['LIST_FACETS'] = facets.intersection(LIST_FACETS)
         dict_['UNION_FACETS'] = facets.intersection(UNION_FACETS)
         dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
+        dict_['TAG_MAP'] = {
+            XSD_NOTATION_TAG: builders['notation_class'],
+            XSD_SIMPLE_TYPE_TAG: builders['simple_type_factory'],
+            XSD_COMPLEX_TYPE_TAG: builders['complex_type_class'],
+            XSD_ATTRIBUTE_TAG: builders['attribute_class'],
+            XSD_ATTRIBUTE_GROUP_TAG: builders['attribute_group_class'],
+            XSD_GROUP_TAG: builders['group_class'],
+            XSD_ELEMENT_TAG: builders['element_class'],
+        }
 
         # Build the meta-schema class
-        meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, 'Meta' + name, bases, dict_)
+        meta_schema_class_name = 'Meta' + name
+        meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, meta_schema_class_name, bases, dict_)
         meta_schema = meta_schema_class(meta_schema, defuse='never', build=False)
+        globals()[meta_schema_class_name] = meta_schema_class
         for uri, pathname in list(base_schemas.items()):
             meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
