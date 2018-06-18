@@ -15,6 +15,7 @@ This module runs tests concerning the building of XSD schemas with the 'xmlschem
 import unittest
 import os
 import sys
+import pickle
 
 try:
     # noinspection PyPackageRequirements
@@ -30,7 +31,7 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaParseError, XMLSchemaURLError
+from xmlschema import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase
 from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 
@@ -354,7 +355,13 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
                 if any([c for c in missing]):
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
-        # Check with lxml.etree.XMLSchema if it's installed
+            # Pickling test (skip inspected schema classes test)
+            if not inspect:
+                deserialized_schema = pickle.loads(pickle.dumps(xs))
+                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                self.assertEqual(xs.built, deserialized_schema.built)
+
+            # Check with lxml.etree.XMLSchema if it's installed
         if False and _lxml_etree is not None and not num_errors:
             xsd = _lxml_etree.parse(xsd_file)
             try:

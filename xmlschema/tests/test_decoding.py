@@ -15,6 +15,7 @@ This module runs tests concerning the decoding of XML files with the 'xmlschema'
 import unittest
 import os
 import sys
+import pickle
 from collections import OrderedDict
 from decimal import Decimal
 import base64
@@ -274,13 +275,12 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             else:
                 chunks.append(obj)
         if len(errors) != expected_errors:
-            import pdb
-            pdb.set_trace()
             raise ValueError(
                 "n.%d errors expected, found %d: %s" % (
                     expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
                 )
             )
+
         if not chunks:
             raise ValueError("No decoded object returned!!")
         elif len(chunks) > 1:
@@ -289,6 +289,20 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
+
+        if not inspect:
+            # Repeat with serialized-deserialized schema
+            deserialized_schema = pickle.loads(pickle.dumps(xs))
+            errors2 = []
+            chunks2 = []
+            for obj in deserialized_schema.iter_decode(xml_file):
+                if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                    errors2.append(obj)
+                else:
+                    chunks2.append(obj)
+
+            self.assertEqual(len(errors), len(errors2))
+            self.assertEqual(chunks, chunks2)
 
     return test_decoding
 
