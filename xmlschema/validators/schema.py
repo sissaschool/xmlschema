@@ -13,6 +13,7 @@ This module contains XMLSchema class creator for xmlschema package.
 """
 import os
 from collections import namedtuple
+from abc import ABCMeta
 import elementpath
 
 from ..exceptions import (
@@ -46,6 +47,8 @@ from .globals_ import (
     XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 )
 
+#
+# Schema builders
 DEFAULT_BUILDERS = {
     'notation_class': XsdNotation,
     'simple_type_class': XsdSimpleType,
@@ -62,7 +65,7 @@ DEFAULT_BUILDERS = {
 }
 """Default options for building XSD schema elements."""
 
-
+#
 # Schemas paths
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
@@ -82,11 +85,14 @@ DEFUSE_CHOICES = {'always', 'remote', 'never'}
 class XMLSchemaMeta(type):
 
     def __new__(mcs, name, bases, dict_):
-        base_schemas = dict_.pop('base_schemas')
-        builders = dict_.pop('builders')
+        xsd_version = dict_.pop('xsd_version')
         meta_schema = dict_.pop('meta_schema')
-        facets = dict_.pop('facets') or set()
-        dict_['XSD_VERSION'] = dict_.pop('xsd_version')
+        base_schemas = dict_.pop('base_schemas')
+        facets = dict_.pop('facets')
+        builders = dict_.pop('builders')
+
+        dict_['XSD_VERSION'] = xsd_version
+        dict_['BASE_SCHEMAS'] = base_schemas
         dict_['FACETS'] = facets
         dict_['LIST_FACETS'] = facets.intersection(LIST_FACETS)
         dict_['UNION_FACETS'] = facets.intersection(UNION_FACETS)
@@ -109,7 +115,6 @@ class XMLSchemaMeta(type):
         for uri, pathname in list(base_schemas.items()):
             meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
-        dict_['BASE_SCHEMAS'] = base_schemas
         dict_['meta_schema'] = meta_schema
 
         return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
@@ -190,11 +195,13 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype elements: NamespaceView
     """
     XSD_VERSION = None
+    BASE_SCHEMAS = None
     FACETS = None
     LIST_FACETS = None
     UNION_FACETS = None
-    BUILDERS = ()
-    BASE_SCHEMAS = None
+    BUILDERS = None
+    TAG_MAP = None
+
     meta_schema = None
     _parent_map = None
 
@@ -741,10 +748,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 yield xsd_element
 
 
-def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, **options):
-    builders = dict(DEFAULT_BUILDERS.items())
-    builders.update(options)
-
+def create_validator(xsd_version, meta_schema, base_schemas=None, facets=None, builders=None):
     return XMLSchemaMeta(
         name='XMLSchema_v{}'.format(xsd_version.replace(".", "_")),
         bases=(XMLSchemaBase,),
@@ -762,7 +766,8 @@ XMLSchema_v1_0 = create_validator(
     xsd_version='1.0',
     meta_schema=XSD_10_META_SCHEMA_PATH,
     base_schemas=BASE_SCHEMAS,
-    facets=XSD_10_FACETS
+    facets=XSD_10_FACETS,
+    builders=dict(DEFAULT_BUILDERS.items())
 )
 XMLSchema = XMLSchema_v1_0
 """The default class for schema instances."""
