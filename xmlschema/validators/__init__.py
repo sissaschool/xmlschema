@@ -28,4 +28,4 @@ from .facets import (
     DECIMAL_FACETS, DATETIME_FACETS, XsdSingleFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
 from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, xsd_build_any_content_group
-from .schema import create_validator, XMLSchema, XMLSchema_v1_0
+from .schema import XMLSchema, XMLSchema10

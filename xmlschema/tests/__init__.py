@@ -73,16 +73,11 @@ class SchemaObserver(object):
         del cls.components[:]
 
 
-ObservedXMLSchema = xmlschema.create_validator(
-    xsd_version='1.0',
-    meta_schema=xmlschema.validators.schema.XSD_10_META_SCHEMA_PATH,
-    base_schemas=xmlschema.validators.schema.BASE_SCHEMAS,
-    facets=xmlschema.validators.XSD_10_FACETS,
-    builders= {
+class ObservedXMLSchema10(xmlschema.XMLSchema10):
+    BUILDERS = {
         k: SchemaObserver.observe_builder(v)
-        for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items() if k != 'simple_type_class'
+        for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items()
     }
-)
 
 
 def get_test_args(args_line):
@@ -151,7 +146,7 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
             continue
 
         if test_args.inspect:
-            schema_class = ObservedXMLSchema
+            schema_class = ObservedXMLSchema10
         else:
             schema_class = xmlschema.XMLSchema
 
