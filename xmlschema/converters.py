@@ -82,20 +82,20 @@ class XMLSchemaConverter(NamespaceMapper):
             for name, value in attributes:
                 yield self.map_qname(name), value
 
-    def unmap_attributes(self, attributes):
-        if self.attr_prefix is None or not attributes:
+    def unmap_attributes(self, data):
+        if self.attr_prefix is None or not data:
             return
         elif self.attr_prefix:
             k = len(self.attr_prefix)
             try:
-                for name, value in attributes.items():
+                for name, value in data.items():
                     if name.startswith(self.attr_prefix):
                         yield self.unmap_qname(name[k:]), value
             except AttributeError:
                 return
         else:
             try:
-                for name, value in attributes.items():
+                for name, value in data.items():
                     yield self.unmap_qname(name), value
             except AttributeError:
                 return
@@ -141,7 +141,8 @@ class XMLSchemaConverter(NamespaceMapper):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if xsd_child is None or xsd_child.is_single() and xsd_element.type.content_type.is_single():
+                    if xsd_child is None or xsd_child.is_single() and \
+                            xsd_element.type.content_type.is_single() and not isinstance(value, (self.list, list)):
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
@@ -159,63 +160,55 @@ class XMLSchemaConverter(NamespaceMapper):
         :param validation: The XSD validation mode ('strict'/'lax'/'skip').
         :return: A couple with encoded ElementData and a list of errors.
         """
-        attributes = []
         errors = []
         unmap_qname = self.unmap_qname
         text_key = self.text_key
         attr_prefix = self.attr_prefix
         cdata_prefix = self.cdata_prefix
 
-        if xsd_element.type.is_simple():
-            return ElementData(xsd_element.name, data, None, attributes), errors
-        elif xsd_element.type.has_simple_content():
-            try:
-                text = data[text_key]
-            except TypeError:
-                return ElementData(xsd_element.name, data, None, attributes), errors
-            except KeyError:
-                text = None
-
-            for name, value in data.items():
-                if name == text_key:
-                    continue
-                if attr_prefix is not None and name.startswith(attr_prefix):
-                    attributes.append((unmap_qname(name[len(attr_prefix):]), value))
-                elif validation != 'skip':
-                    errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
-
-            return ElementData(xsd_element.name, text, None, attributes), errors
-
-        elif not isinstance(data, (self.dict, dict)):
-            return ElementData(xsd_element.name, None, data, attributes), errors
+        if not isinstance(data, (self.dict, dict)):
+            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+                return ElementData(xsd_element.name, data, None, self.dict()), errors
+            else:
+                return ElementData(xsd_element.name, None, data, self.dict()), errors
         else:
+            text = data.pop(text_key, None)
             content = []
+            attributes = self.dict(a for a in self.unmap_attributes(data))
             for name, value in data.items():
                 if (cdata_prefix and name.startswith(cdata_prefix)) or \
                                 name[0].isdigit() and cdata_prefix == '':
                     content.append((int(name[len(cdata_prefix):]), value))
                 elif attr_prefix and name.startswith(attr_prefix):
-                    attributes.append((unmap_qname(name[len(attr_prefix):]), value))
-                elif attr_prefix == '' and name in xsd_element.attributes:
-                    attributes.append((unmap_qname(name), value))
-                elif name == text_key:
-                    if validation != 'skip':
-                        errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
+                    continue
                 elif not isinstance(value, (self.list, list)) or not value:
                     content.append((unmap_qname(name), value))
+                elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                    ns_name = unmap_qname(name)
+                    for obj in value:
+                        content.append((ns_name, obj))
                 else:
                     ns_name = unmap_qname(name)
                     for xsd_child in xsd_element.type.content_type.iter_elements():
                         if xsd_child.match(ns_name):
-                            if xsd_child.type.is_simple() and xsd_child.type.is_list():
+                            if xsd_child.type.is_list():
                                 content.append((ns_name, value))
                             else:
                                 for obj in value:
                                     content.append((ns_name, obj))
                             break
                     else:
-                        content.append((ns_name, value))
-            return ElementData(xsd_element.name, None, content, attributes), errors
+                        if attr_prefix == '' and name not in attributes:
+                            for xsd_attribute in xsd_element.attributes.values():
+                                if xsd_attribute.match(name):
+                                    attributes[name] = value
+                                    break
+                            else:
+                                content.append((ns_name, value))
+                        else:
+                            content.append((ns_name, value))
+
+            return ElementData(xsd_element.name, text, content, attributes), errors
 
 
 class ParkerConverter(XMLSchemaConverter):

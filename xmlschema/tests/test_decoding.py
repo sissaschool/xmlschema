@@ -36,6 +36,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.etree import etree_get_namespaces
 from xmlschema import XMLSchemaValidationError
 
 
@@ -296,7 +297,7 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             errors2 = []
             chunks2 = []
             for obj in deserialized_schema.iter_decode(xml_file):
-                if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
                     errors2.append(obj)
                 else:
                     chunks2.append(obj)
@@ -304,36 +305,27 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             self.assertEqual(len(errors), len(errors2))
             self.assertEqual(chunks, chunks2)
 
-    return test_decoding
+        if not errors:
+            # Compare with the decode API
+            self.assertEqual(xs.decode(xml_file), chunks[0], "decode() API has a different result!")
 
+        if _lxml_etree is not None:
+            # Compare with lxml
+            data = _lxml_etree.parse(xml_file)
+            namespaces = etree_get_namespaces(xml_file)
+            errors2 = []
+            chunks2 = []
+            for obj in xs.iter_decode(data, namespaces=namespaces):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
+                    errors2.append(obj)
+                else:
+                    chunks2.append(obj)
+            if chunks != chunks2:
+                import pdb
+                pdb.set_trace()
 
-def make_lxml_decoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
-                                     locations=None, defuse='defuse'):
-    def test_decoding(self):
-        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
-        data = _lxml_etree.parse(xml_file)
-        errors = []
-        chunks = []
-        for obj in xs.iter_decode(data):
-            if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
-                errors.append(obj)
-            else:
-                chunks.append(obj)
-        if len(errors) != expected_errors:
-            raise ValueError(
-                "n.%d errors expected, found %d: %s" % (
-                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
-                )
-            )
-        if not chunks:
-            raise ValueError("No decoded object returned!!")
-        elif len(chunks) > 1:
-            raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
-        elif not isinstance(chunks[0], dict):
-            raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
-        else:
-            self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
+            self.assertEqual(chunks, chunks2)
+            self.assertEqual(len(errors), len(errors2))
 
     return test_decoding
 
@@ -539,7 +531,5 @@ if __name__ == '__main__':
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
     decoding_tests = tests_factory(make_decoding_test_function, testfiles, 'decoding', 'xml')
-    lxml_decoding_tests = tests_factory(make_lxml_decoding_test_function, testfiles, 'lxml_decoding', 'xml')
     globals().update(decoding_tests)
-    globals().update(lxml_decoding_tests)
     unittest.main()

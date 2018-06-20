@@ -39,7 +39,7 @@ from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
                                 locations=None, defuse='defuse'):
-    def test_decoding(self):
+    def test_encoding(self):
         schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
         xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
         errors = []
@@ -69,7 +69,7 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
             data = xs.decode(xml_file, dict_class=OrderedDict)
-            encoded_tree = xs.encode(data, path=root.tag, namespaces=namespaces)
+            encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
             if xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict) != data:
                 import pdb
                 pdb.set_trace()
@@ -86,7 +86,7 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             )
             """
 
-    return test_decoding
+    return test_encoding
 
 
 

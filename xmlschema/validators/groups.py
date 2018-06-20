@@ -361,6 +361,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
+        if elem.tag == 'atomGroupdddd':
+            print(elem, len(elem))
+            import pdb
+            pdb.set_trace()
+
         if len(elem):
             # Decode child elements
             index = 0
@@ -443,9 +448,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
+        namespaces = kwargs.get('namespaces')
         padding = u'\n' + u' ' * indent * level
 
         text = ''
+        empty_prefix_ns = namespaces.get('') if namespaces else None
         for name, value in data:
             if isinstance(name, int):
                 if children:
@@ -457,7 +464,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     text += padding + value
             else:
                 for xsd_element in self.iter_elements():
-                    if xsd_element.match(name):
+                    if xsd_element.match(name) or \
+                            empty_prefix_ns and '{%s}%s' % (empty_prefix_ns, name) == xsd_element.name:
                         for result in xsd_element.iter_encode(value, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
                                 yield result

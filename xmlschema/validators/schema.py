@@ -732,7 +732,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             msg = "the path %r doesn't match any element of the schema!" % path
             yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
         else:
-            for obj in xsd_element.iter_encode(data, validation, indent=indent, converter=converter):
+            for obj in xsd_element.iter_encode(data, validation, namespaces=namespaces,
+                                               indent=indent, converter=converter):
                 yield obj
 
     def iter(self, name=None):

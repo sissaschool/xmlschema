@@ -371,6 +371,9 @@ class XsdComplexType(XsdType, ValidatorMixin):
         except AttributeError:
             return False
 
+    def is_list(self):
+        return self.has_simple_content() and self.content_type.is_list()
+
     @property
     def abstract(self):
         return get_xsd_bool_attribute(self.elem, 'abstract', default=False)

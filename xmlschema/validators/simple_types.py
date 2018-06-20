@@ -950,7 +950,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 return
 
     def iter_encode(self, data, validation='lax', **kwargs):
-        if isinstance(self.primitive_type, XsdList):
+        if self.is_list():
             if not hasattr(data, '__iter__') or isinstance(data, (str, unicode_type, bytes)):
                 import pdb
                 # print(repr(self))
@@ -961,6 +961,8 @@ class XsdAtomicRestriction(XsdAtomic):
             if validation != 'skip':
                 for validator in self.validators:
                     for error in validator(data):
+                        import pdb
+                        pdb.set_trace()
                         yield self._validation_error(error, validation)
 
             for result in self.base_type.iter_encode(data, validation):

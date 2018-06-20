@@ -115,6 +115,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         self._parse_particle()
         self.name = None
         self._ref = None
+        self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
 
         if self.default is not None and self.fixed is not None:
             self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
@@ -125,7 +126,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             element_name = reference_to_qname(self.elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
-            self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
             try:
                 if self.is_global or self.qualified:
                     self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
@@ -346,14 +346,14 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
         # Check the xsi:nil attribute of the instance
         if validation != 'skip' and XSI_NIL in elem.attrib:
-            if self.nillable:
+            if not self.nillable:
+                yield self._validation_error("element is not nillable.", validation, elem)
+            elif elem.text is not None:
                 try:
                     if get_xsd_bool_attribute(elem, XSI_NIL):
-                        self._validation_error('xsi:nil="true" but the element is not empty.', validation, elem)
+                        yield self._validation_error('xsi:nil="true" but the element is not empty.', validation, elem)
                 except TypeError:
-                    self._validation_error("xsi:nil attribute must has a boolean value.", validation, elem)
-            else:
-                self._validation_error("element is not nillable.", validation, elem)
+                    yield self._validation_error("xsi:nil attribute must has a boolean value.", validation, elem)
 
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
@@ -425,14 +425,27 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
+
+        if self.name == 'numberccccccccc':
+            print(self, data)
+            import pdb
+            pdb.set_trace()
+
         element_data, errors = converter.element_encode(data, self, validation)
+
+        try:
+            type_name = element_data.attributes.pop(XSI_TYPE)
+        except (KeyError, AttributeError):
+            type_ = self.type
+        else:
+            type_ = self.maps.lookup_type(reference_to_qname(type_name, kwargs['namespaces']))
 
         if validation != 'skip':
             for e in errors:
                 yield self._validation_error(e, validation)
 
-        if self.type.is_complex():
-            for result in self.type.iter_encode(element_data, validation, level=level + 1, **kwargs):
+        if type_.is_complex():
+            for result in type_.iter_encode(element_data, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, data)
                 else:
@@ -459,7 +472,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 elem.tail = u'\n' + u' ' * indent * level
                 yield elem
             else:
-                for result in self.type.iter_encode(element_data.text, validation, **kwargs):
+                for result in type_.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, data)
                     else:
