@@ -50,13 +50,12 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             else:
                 chunks.append(obj)
         if len(errors) != expected_errors:
-            import pdb
-            pdb.set_trace()
             raise ValueError(
                 "n.%d errors expected, found %d: %s" % (
                     expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
                 )
             )
+
         if not chunks:
             raise ValueError("No decoded object returned!!")
         elif len(chunks) > 1:
@@ -69,7 +68,14 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
         if not errors:
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
-            encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
+            data = xs.decode(xml_file, dict_class=OrderedDict)
+            encoded_tree = xs.encode(data, path=root.tag, namespaces=namespaces)
+            if xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict) != data:
+                import pdb
+                pdb.set_trace()
+            self.assertEqual(xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict), data)
+
+            """
             if not etree_elements_equal(root, encoded_tree, strict=False):
                 import pdb
                 pdb.set_trace()
@@ -78,7 +84,7 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
                 etree_elements_equal(root, encoded_tree, strict=False),
                 "Encoded element tree differs from source tree."
             )
-
+            """
 
     return test_decoding
 
@@ -160,8 +166,8 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
 
     def test_builtin_list_types(self):
-        self.check_encode(self.xsd_types['IDREFS'], 'first_name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
+        self.check_encode(self.xsd_types['IDREFS'], 'first_name', u'first_name')  # Transform data to list
         self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
         self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
         self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')

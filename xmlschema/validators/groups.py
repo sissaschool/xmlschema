@@ -437,6 +437,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         yield result_list
 
     def iter_encode(self, data, validation='lax', **kwargs):
+        if data is None:
+            return
+
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)

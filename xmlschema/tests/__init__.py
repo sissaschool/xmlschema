@@ -18,6 +18,7 @@ import sys
 import glob
 import fileinput
 import argparse
+import logging
 
 from functools import wraps
 
@@ -27,6 +28,8 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import etree_iselement, etree_element, etree_register_namespace
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
+
+logger = logging.getLogger('xmlschema.tests')
 
 
 def print_test_header():
@@ -155,11 +158,15 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
         )
         test_name = os.path.relpath(test_file)
         test_num += 1
-        class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
-        tests[class_name] = type(
-            class_name, (unittest.TestCase,),
-            {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
-        )
+        if test_func is not None:
+            class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
+            tests[class_name] = type(
+                class_name, (unittest.TestCase,),
+                {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
+            )
+            logger.debug("Add %s test case %r.", label, class_name)
+        else:
+            logger.debug("Skip %s test case %d (%r).", label, test_num, test_num, test_name)
     return tests
 
 

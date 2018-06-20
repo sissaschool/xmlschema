@@ -498,8 +498,10 @@ class XsdComplexType(XsdType, ValidatorMixin):
             for result in self.content_type.iter_encode(data.content, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
-                else:
+                elif result:
                     yield ElementData(None, result[0], result[1], attributes)
+                else:
+                    yield ElementData(None, None, None, attributes)
 
 
 class Xsd11ComplexType(XsdComplexType):

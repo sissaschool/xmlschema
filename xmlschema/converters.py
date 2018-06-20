@@ -166,14 +166,29 @@ class XMLSchemaConverter(NamespaceMapper):
         attr_prefix = self.attr_prefix
         cdata_prefix = self.cdata_prefix
 
-        try:
-            text = data[text_key]
-        except TypeError:
-            # simpleType
+        if xsd_element.type.is_simple():
             return ElementData(xsd_element.name, data, None, attributes), errors
-        except KeyError:
-            # complexType with a complex content
-            text = None
+        elif xsd_element.type.has_simple_content():
+            try:
+                text = data[text_key]
+            except TypeError:
+                return ElementData(xsd_element.name, data, None, attributes), errors
+            except KeyError:
+                text = None
+
+            for name, value in data.items():
+                if name == text_key:
+                    continue
+                if attr_prefix is not None and name.startswith(attr_prefix):
+                    attributes.append((unmap_qname(name[len(attr_prefix):]), value))
+                elif validation != 'skip':
+                    errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
+
+            return ElementData(xsd_element.name, text, None, attributes), errors
+
+        elif not isinstance(data, (self.dict, dict)):
+            return ElementData(xsd_element.name, None, data, attributes), errors
+        else:
             content = []
             for name, value in data.items():
                 if (cdata_prefix and name.startswith(cdata_prefix)) or \
@@ -183,23 +198,24 @@ class XMLSchemaConverter(NamespaceMapper):
                     attributes.append((unmap_qname(name[len(attr_prefix):]), value))
                 elif attr_prefix == '' and name in xsd_element.attributes:
                     attributes.append((unmap_qname(name), value))
+                elif name == text_key:
+                    if validation != 'skip':
+                        errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
+                elif not isinstance(value, (self.list, list)) or not value:
+                    content.append((unmap_qname(name), value))
                 else:
-                    if isinstance(value, (self.list, list)):
-                        for obj in value:
-                            content.append((unmap_qname(name), obj))
+                    ns_name = unmap_qname(name)
+                    for xsd_child in xsd_element.type.content_type.iter_elements():
+                        if xsd_child.match(ns_name):
+                            if xsd_child.type.is_simple() and xsd_child.type.is_list():
+                                content.append((ns_name, value))
+                            else:
+                                for obj in value:
+                                    content.append((ns_name, obj))
+                            break
                     else:
-                        content.append((unmap_qname(name), value))
-        else:
-            # complexType with a simple content
-            content = None
-            for name, value in data.items():
-                if name == text_key:
-                    continue
-                if attr_prefix is not None and name.startswith(attr_prefix):
-                    attributes.append((unmap_qname(name[len(attr_prefix):]), value))
-                elif validation != 'skip':
-                    errors.append(XMLSchemaValueError('unexpected key %r in %r.' % (name, data)))
-        return ElementData(xsd_element.name, text, content, attributes), errors
+                        content.append((ns_name, value))
+            return ElementData(xsd_element.name, None, content, attributes), errors
 
 
 class ParkerConverter(XMLSchemaConverter):
