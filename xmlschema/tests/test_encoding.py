@@ -69,6 +69,7 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
             data = xs.decode(xml_file, dict_class=OrderedDict)
+            # print(chunks[0])
             encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
             if xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict) != data:
                 import pdb

@@ -332,6 +332,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     yield e
             else:
                 yield item
+                for e in self.schema.substitution_groups.get(item.name, ()):
+                    yield e
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
@@ -474,6 +476,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         break
                 else:
                     if validation != 'skip':
+                        import pdb
+                        pdb.set_trace()
                         yield self._validation_error(
                             '%r does not match any declared element.' % name, validation, obj=value
                         )

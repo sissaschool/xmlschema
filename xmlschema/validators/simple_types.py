@@ -785,6 +785,7 @@ class XsdUnion(XsdSimpleType):
                                 yield self._validation_error(error, validation)
                     yield result
                     return
+                break
 
         if validation != 'skip':
             error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")

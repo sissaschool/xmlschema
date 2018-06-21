@@ -426,7 +426,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
 
-        if self.name == 'numberccccccccc':
+        if self.name == 'items':
             print(self, data)
             import pdb
             pdb.set_trace()
@@ -434,7 +434,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         element_data, errors = converter.element_encode(data, self, validation)
 
         try:
-            type_name = element_data.attributes.pop(XSI_TYPE)
+            type_name = element_data.attributes[XSI_TYPE]
         except (KeyError, AttributeError):
             type_ = self.type
         else:
@@ -458,16 +458,21 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                         elem.text = result.text
                         elem.tail = u'\n' + u' ' * indent * level
                     yield elem
+                    break
+            else:
+                yield _etree_element(self.name)
         else:
             # Encode a simpleType
             if element_data.attributes:
-                yield self._validation_error("a simpleType element can't has attributes.", validation, data)
+                for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
 
             if element_data.content:
                 yield self._validation_error("a simpleType element can't has child elements.", validation, data)
 
             if element_data.text is None:
-                elem = _etree_element(self.name, attrib={})
+                elem = _etree_element(self.name, attrib=element_data.attributes)
                 elem.text = None
                 elem.tail = u'\n' + u' ' * indent * level
                 yield elem
@@ -476,11 +481,13 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, data)
                     else:
-                        elem = _etree_element(self.name, attrib={})
+                        elem = _etree_element(self.name, attrib=element_data.attributes)
                         elem.text = result
                         elem.tail = u'\n' + u' ' * indent * level
                         yield elem
                         break
+                else:
+                    yield _etree_element(self.name, attrib=element_data.attributes)
 
         del element_data
 
