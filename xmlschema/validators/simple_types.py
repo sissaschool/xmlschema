@@ -479,11 +479,9 @@ class XsdAtomicBuiltin(XsdAtomic):
                 data = self.python_type(data)
 
         elif not isinstance(data, self.instance_types):
-            if validation == 'strict':
-                reason = "%r is not an instance of %r." % (data, self.instance_types)
-                error = XMLSchemaEncodeError(self, data, self.from_python, reason)
-                yield self._validation_error(error, validation, data)
-
+            reason = "%r is not an instance of %r." % (data, self.instance_types)
+            error = XMLSchemaEncodeError(self, data, self.from_python, reason)
+            yield self._validation_error(error, validation, data)
             try:
                 value = self.python_type(data)
                 if value != data:
@@ -824,17 +822,42 @@ class XsdUnion(XsdSimpleType):
 
     def iter_encode(self, data, validation='lax', **kwargs):
         for member_type in self.member_types:
-            try:
-                for result in member_type.iter_encode(data, validation, **kwargs):
-                    if result is not None and not isinstance(result, XMLSchemaValidationError):
-                        if validation != 'skip':
-                            for validator in self.validators:
-                                for error in validator(data):
-                                    yield self._validation_error(error, validation)
-                        yield result
-                        return
-            except XMLSchemaValidationError:
-                pass
+            for result in member_type.iter_encode(data, validation='lax', **kwargs):
+                if result is not None and not isinstance(result, XMLSchemaValidationError):
+                    if validation == 'skip':
+                        for validator in self.validators:
+                            for error in validator(data):
+                                yield self._validation_error(error, validation)
+                        for error in self.patterns(result):
+                            yield self._validation_error(error, validation)
+
+                    yield result
+                    return
+                elif validation == 'strict':
+                    # In 'strict' mode avoid lax encoding by similar types (eg. float encoded by int)
+                    break
+
+        if hasattr(data, '__iter__') and not isinstance(data, (str, unicode_type, bytes)):
+            for member_type in self.member_types:
+                results = []
+                for item in data:
+                    for result in member_type.iter_encode(item, validation='lax', **kwargs):
+                        if result is not None and not isinstance(result, XMLSchemaValidationError):
+                            if validation != 'skip':
+                                for validator in self.validators:
+                                    for error in validator(result):
+                                        yield self._validation_error(error, validation)
+                            for error in self.patterns(result):
+                                yield self._validation_error(error, validation)
+
+                            results.append(result)
+                            break
+                        elif validation == 'strict':
+                            break
+
+                if len(results) == len(data):
+                    yield results
+                    break
 
         if validation != 'skip':
             error = XMLSchemaEncodeError(self, data, self.member_types, "no type suitable for encoding the object.")
@@ -981,10 +1004,6 @@ class XsdAtomicRestriction(XsdAtomic):
     def iter_encode(self, data, validation='lax', **kwargs):
         if self.is_list():
             if not hasattr(data, '__iter__') or isinstance(data, (str, unicode_type, bytes)):
-                import pdb
-                # print(repr(self))
-                # print(data)
-                # pdb.set_trace()
                 data = [] if data is None or data == '' else [data]
 
             if validation != 'skip':
