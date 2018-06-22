@@ -57,7 +57,10 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
-            return namespace and namespace != self.target_namespace
+            if namespace:
+                return namespace != self.target_namespace
+            else:
+                return False
         else:
             any_namespaces = self.namespace.split()
             if '##local' in any_namespaces and namespace == '':
@@ -257,7 +260,10 @@ class Xsd11Wildcard(XsdWildcard):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
-            return namespace and namespace != self.target_namespace
+            if namespace:
+                return namespace != self.target_namespace
+            else:
+                return False
         else:
             any_namespaces = self.namespace.split()
             if '##local' in any_namespaces and namespace == '':

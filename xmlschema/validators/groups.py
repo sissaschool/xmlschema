@@ -363,11 +363,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        if elem.tag == 'atomGroupdddd':
-            print(elem, len(elem))
-            import pdb
-            pdb.set_trace()
-
         if len(elem):
             # Decode child elements
             index = 0

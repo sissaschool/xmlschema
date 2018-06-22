@@ -1009,8 +1009,6 @@ class XsdAtomicRestriction(XsdAtomic):
             if validation != 'skip':
                 for validator in self.validators:
                     for error in validator(data):
-                        import pdb
-                        pdb.set_trace()
                         yield self._validation_error(error, validation)
 
             for result in self.base_type.iter_encode(data, validation):

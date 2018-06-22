@@ -37,7 +37,7 @@ from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 
 
-class TestXMLSchema1(XMLSchemaTestCase):
+class TestXMLSchema10(XMLSchemaTestCase):
 
     def check_schema(self, source, expected=None, **kwargs):
         """

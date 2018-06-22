@@ -4,7 +4,9 @@ CHANGELOG
 
 v0.9.31
 =======
-* Schema serialization with pickle (issue #68)
+* Schema serialization with pickle for Python 3 (enhancement related to issue #68)
+* Data encoding with default converter
+* Improved decoding for xs:union
 
 v0.9.30
 =======
