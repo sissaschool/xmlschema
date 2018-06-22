@@ -158,15 +158,14 @@ class NamespaceMapper(MutableMapping):
         try:
             prefix, name = qname.split(':', 1)
         except ValueError:
+            prefix, name = '', qname
+
+        try:
+            uri = self.namespaces[prefix]
+        except KeyError:
             return qname
         else:
-            try:
-                uri = self.namespaces[prefix]
-            except KeyError:
-                return qname
-            else:
-                self._xmlns[prefix] = uri
-                return u'{%s}%s' % (uri, name)
+            return u'{%s}%s' % (uri, name) if uri else name
 
     def transfer(self, other):
         transferred = []

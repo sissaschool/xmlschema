@@ -559,7 +559,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
         if namespaces is None:
-            namespaces = self.namespaces
+            namespaces = {k: v for k, v in self.namespaces.items() if k}  # Skip empty prefix that is ambiguous
 
         for prefix, uri_ in namespaces.items():
             etree_register_namespace(prefix, uri_)

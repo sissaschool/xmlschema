@@ -416,6 +416,57 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 for error in constraint(elem):
                     yield self._validation_error(error, validation)
 
+    def iter_decode_children(self, elem, index=0, validation='lax'):
+        model_occurs = 0
+        while True:
+            try:
+                child = elem[index]
+            except TypeError:
+                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
+                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
+                # decode nothing and take the next.
+                pass
+            except IndexError:
+                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                    error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                    yield self._validation_error(error, validation)
+                yield index
+                return
+            else:
+                tag = child.tag
+                if callable(tag):
+                    # Lxml comment
+                    index += 1
+                    continue
+                elif tag == self.name:
+                    yield self, child
+                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
+                    yield self, child
+                elif self.name in self.maps.substitution_groups:
+                    for e in self.schema.substitution_groups[self.name]:
+                        if tag == e.name:
+                            yield e, child
+                            break
+                    else:
+                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                            error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                            yield self._validation_error(error, validation)
+                        yield index
+                        return
+
+                else:
+                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                        error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
+                        yield self._validation_error(error, validation)
+                    yield index
+                    return
+
+            index += 1
+            model_occurs += 1
+            if self.max_occurs is not None and model_occurs >= self.max_occurs:
+                yield index
+                return
+
     def iter_encode(self, data, validation='lax', **kwargs):
         try:
             converter = kwargs['converter']
@@ -426,7 +477,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
 
-        if self.name == 'items':
+        if self.name.endswith("EncryptionProperty...."):
             print(self, data)
             import pdb
             pdb.set_trace()
@@ -490,57 +541,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield _etree_element(self.name, attrib=element_data.attributes)
 
         del element_data
-
-    def iter_decode_children(self, elem, index=0, validation='lax'):
-        model_occurs = 0
-        while True:
-            try:
-                child = elem[index]
-            except TypeError:
-                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
-                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
-                # decode nothing and take the next.
-                pass
-            except IndexError:
-                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
-                    yield self._validation_error(error, validation)
-                yield index
-                return
-            else:
-                tag = child.tag
-                if callable(tag):
-                    # Lxml comment
-                    index += 1
-                    continue
-                elif tag == self.name:
-                    yield self, child
-                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
-                    yield self, child
-                elif self.name in self.maps.substitution_groups:
-                    for e in self.schema.substitution_groups[self.name]:
-                        if tag == e.name:
-                            yield e, child
-                            break
-                    else:
-                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
-                            yield self._validation_error(error, validation)
-                        yield index
-                        return
-
-                else:
-                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                        error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
-                        yield self._validation_error(error, validation)
-                    yield index
-                    return
-
-            index += 1
-            model_occurs += 1
-            if self.max_occurs is not None and model_occurs >= self.max_occurs:
-                yield index
-                return
 
     def get_attribute(self, name):
         if name[0] != '{':

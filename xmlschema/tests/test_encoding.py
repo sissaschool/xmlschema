@@ -18,6 +18,10 @@ import sys
 from collections import OrderedDict
 from xml.etree import ElementTree as _ElementTree
 
+try:
+    import lxml.etree as _lxml_etree
+except ImportError:
+    _lxml_etree = None
 
 try:
     import xmlschema
@@ -67,10 +71,24 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
 
         if not errors:
             root = etree_parse(xml_file).getroot()
+            root2 = _lxml_etree.parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
             data = xs.decode(xml_file, dict_class=OrderedDict)
-            # print(chunks[0])
+
+            if True:
+                from xmlschema.etree import etree_tostring
+                from pprint import pprint
+                print("### Risultato ###\n")
+                print(namespaces)
+                pprint(chunks[0])
+                print()
+                print(etree_tostring(root))
+                print()
+                print(_lxml_etree.tostring(root2).decode('utf-8'))
+                # print(etree_tostring(encoded_tree))
+
             encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
+
             if xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict) != data:
                 import pdb
                 pdb.set_trace()
@@ -288,7 +306,7 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=OrderedDict([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n  hello</ns:A>',
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>hello\n  </ns:A>',
             indent=0, cdata_prefix='#'
         )
 

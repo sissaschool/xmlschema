@@ -82,23 +82,11 @@ class XMLSchemaConverter(NamespaceMapper):
             for name, value in attributes:
                 yield self.map_qname(name), value
 
-    def unmap_attributes(self, data):
-        if self.attr_prefix is None or not data:
-            return
-        elif self.attr_prefix:
-            k = len(self.attr_prefix)
-            try:
-                for name, value in data.items():
-                    if name.startswith(self.attr_prefix):
-                        yield self.unmap_qname(name[k:]), value
-            except AttributeError:
-                return
+    def unmap_attribute_qname(self, name):
+        if name[0] == '{' or ':' not in name:
+            return name
         else:
-            try:
-                for name, value in data.items():
-                    yield self.unmap_qname(name), value
-            except AttributeError:
-                return
+            return self.unmap_qname(name)
 
     def map_content(self, content):
         """
@@ -161,26 +149,29 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: A couple with encoded ElementData and a list of errors.
         """
         errors = []
-        unmap_qname = self.unmap_qname
-        text_key = self.text_key
-        attr_prefix = self.attr_prefix
-        cdata_prefix = self.cdata_prefix
-
         if not isinstance(data, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
                 return ElementData(xsd_element.name, data, None, self.dict()), errors
             else:
                 return ElementData(xsd_element.name, None, data, self.dict()), errors
         else:
+            unmap_qname = self.unmap_qname
+            unmap_attribute_qname = self.unmap_attribute_qname
+            text_key = self.text_key
+            attr_prefix = self.attr_prefix
+            cdata_prefix = self.cdata_prefix
+
             text = data.pop(text_key, None)
             content = []
-            attributes = self.dict(a for a in self.unmap_attributes(data))
+            attributes = self.dict()
             for name, value in data.items():
                 if (cdata_prefix and name.startswith(cdata_prefix)) or \
                                 name[0].isdigit() and cdata_prefix == '':
-                    content.append((int(name[len(cdata_prefix):]), value))
+                    index = int(name[len(cdata_prefix):])
+                    content.append((index, value))
                 elif attr_prefix and name.startswith(attr_prefix):
-                    continue
+                    name = name[len(attr_prefix):]
+                    attributes[unmap_attribute_qname(name)] = value
                 elif not isinstance(value, (self.list, list)) or not value:
                     content.append((unmap_qname(name), value))
                 elif isinstance(value[0], (self.dict, dict, self.list, list)):
@@ -198,10 +189,10 @@ class XMLSchemaConverter(NamespaceMapper):
                                     content.append((ns_name, obj))
                             break
                     else:
-                        if attr_prefix == '' and name not in attributes:
+                        if attr_prefix == '' and ns_name not in attributes:
                             for xsd_attribute in xsd_element.attributes.values():
-                                if xsd_attribute.match(name):
-                                    attributes[name] = value
+                                if xsd_attribute.match(ns_name):
+                                    attributes[ns_name] = value
                                     break
                             else:
                                 content.append((ns_name, value))

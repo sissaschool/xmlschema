@@ -35,6 +35,7 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema.compat import PY3
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import etree_get_namespaces
 from xmlschema import XMLSchemaValidationError
@@ -291,8 +292,8 @@ def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspe
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-        if not inspect:
-            # Repeat with serialized-deserialized schema
+        if not inspect and PY3:
+            # Repeat with serialized-deserialized schema (only for Python 3)
             deserialized_schema = pickle.loads(pickle.dumps(xs))
             errors2 = []
             chunks2 = []

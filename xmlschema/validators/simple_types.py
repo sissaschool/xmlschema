@@ -776,6 +776,7 @@ class XsdUnion(XsdSimpleType):
             for error in self.patterns(text):
                 yield self._validation_error(error, validation)
 
+        # Try the text as a whole
         for member_type in self.member_types:
             for result in member_type.iter_decode(text, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
@@ -787,12 +788,39 @@ class XsdUnion(XsdSimpleType):
                     return
                 break
 
-        if validation != 'skip':
-            error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
+        if ' ' not in text.strip():
+            reason = "no type suitable for decoding %r." % text
+            error = XMLSchemaDecodeError(self, text, self.member_types, reason)
             yield self._validation_error(error, validation)
-            yield None
-        else:
-            yield unicode_type(text)
+
+        items = []
+        not_decodable = []
+        for chunk in text.split():
+            for member_type in self.member_types:
+                for result in member_type.iter_decode(chunk, validation='lax', **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        break
+                    else:
+                        items.append(result)
+                else:
+                    break
+            else:
+                if validation != 'skip':
+                    not_decodable.append(chunk)
+                else:
+                    items.append(unicode_type(chunk))
+
+        if not_decodable:
+            reason = "no type suitable for decoding the values %r." % not_decodable
+            error = XMLSchemaDecodeError(self, text, self.member_types, reason)
+            yield self._validation_error(error, validation)
+
+        if validation != 'skip':
+            for validator in self.validators:
+                for error in validator(items):
+                    yield self._validation_error(error, validation)
+
+        yield items if len(items) > 1 else items[0] if items else None
 
     def iter_encode(self, data, validation='lax', **kwargs):
         for member_type in self.member_types:
