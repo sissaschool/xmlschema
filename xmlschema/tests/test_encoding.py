@@ -71,22 +71,8 @@ def make_encoding_test_function(xml_file, schema_class, expected_errors=0, inspe
 
         if not errors:
             root = etree_parse(xml_file).getroot()
-            root2 = _lxml_etree.parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
             data = xs.decode(xml_file, dict_class=OrderedDict)
-
-            if True:
-                from xmlschema.etree import etree_tostring
-                from pprint import pprint
-                print("### Risultato ###\n")
-                print(namespaces)
-                pprint(chunks[0])
-                print()
-                print(etree_tostring(root))
-                print()
-                print(_lxml_etree.tostring(root2).decode('utf-8'))
-                # print(etree_tostring(encoded_tree))
-
             encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
 
             if xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict) != data:

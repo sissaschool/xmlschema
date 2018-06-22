@@ -558,11 +558,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 else:
                     text += padding + value
             else:
+                if ':' not in name and empty_prefix_ns:
+                    qname = '{%s}%s' % (empty_prefix_ns, name)
+                else:
+                    qname = None
+
                 for xsd_element in self.iter_elements():
-                    if xsd_element.match(name) or \
-                            empty_prefix_ns and '{%s}%s' % (empty_prefix_ns, name) == xsd_element.name:
+                    if xsd_element.match(name) or qname and xsd_element.match(qname):
                         if isinstance(xsd_element, XsdAnyElement):
-                            for result in xsd_element.iter_encode((name, value), validation, **kwargs):
+                            for result in xsd_element.iter_encode((qname or name, value), validation, **kwargs):
                                 if isinstance(result, XMLSchemaValidationError):
                                     yield result
                                 else:
@@ -576,8 +580,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         break
                 else:
                     if validation != 'skip':
-                        import pdb
-                        pdb.set_trace()
                         yield self._validation_error(
                             '%r does not match any declared element.' % name, validation, obj=value
                         )

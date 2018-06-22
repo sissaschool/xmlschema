@@ -476,12 +476,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
-
-        if self.name.endswith("EncryptionProperty...."):
-            print(self, data)
-            import pdb
-            pdb.set_trace()
-
         element_data, errors = converter.element_encode(data, self, validation)
 
         try:
