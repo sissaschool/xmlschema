@@ -35,7 +35,6 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.compat import PY3
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
@@ -268,14 +267,32 @@ _DATA_DICT = {
 }
 
 
+def iter_nested_items(items, dict_class=dict, list_class=list):
+    if isinstance(items, dict_class):
+        for k, v in items.items():
+            for value in iter_nested_items(v, dict_class, list_class):
+                yield value
+    elif isinstance(items, list_class):
+        for item in items:
+            for value in iter_nested_items(item, dict_class, list_class):
+                yield value
+    elif isinstance(items, dict):
+        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
+    elif isinstance(items, list):
+        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
+    else:
+        yield items
+
+
 def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
                                locations=None, defuse='defuse'):
+
     def test_decoder(self):
-        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
+        source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
+        schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
         errors = []
         chunks = []
-        for obj in xs.iter_decode(xml_file):
+        for obj in schema.iter_decode(xml_file):
             if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
                 errors.append(obj)
             else:
@@ -296,9 +313,9 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-        if not inspect and PY3:
+        if not inspect and sys.version_info >= (3,):
             # Repeat with serialized-deserialized schema (only for Python 3)
-            deserialized_schema = pickle.loads(pickle.dumps(xs))
+            deserialized_schema = pickle.loads(pickle.dumps(schema))
             errors2 = []
             chunks2 = []
             for obj in deserialized_schema.iter_decode(xml_file):
@@ -312,33 +329,47 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
 
         if not errors:
             # Compare with the decode API
-            self.assertEqual(xs.decode(xml_file), chunks[0], "decode() API has a different result!")
+            self.assertEqual(schema.decode(xml_file), chunks[0], "decode() API has a different result!")
 
         if _lxml_etree is not None:
             # Compare with lxml
-            data = _lxml_etree.parse(xml_file)
+            root = _lxml_etree.parse(xml_file)
             namespaces = etree_get_namespaces(xml_file)
             errors2 = []
             chunks2 = []
-            for obj in xs.iter_decode(data, namespaces=namespaces):
+            for obj in schema.iter_decode(root, namespaces=namespaces):
                 if isinstance(obj, xmlschema.XMLSchemaValidationError):
                     errors2.append(obj)
                 else:
                     chunks2.append(obj)
-            if chunks != chunks2:
-                import pdb
-                pdb.set_trace()
 
             self.assertEqual(chunks, chunks2)
             self.assertEqual(len(errors), len(errors2))
 
         if not errors:
-            # Encoding test (only if the XML is strictly conforming to the schema)
+            # Encoding tests (only if the XML is strictly conforming to the schema)
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
-            data = xs.decode(xml_file, dict_class=OrderedDict)
-            encoded_tree = xs.encode(chunks[0], path=root.tag, namespaces=namespaces)
-            self.assertEqual(xs.decode(encoded_tree, namespaces=namespaces, dict_class=OrderedDict), data)
+            dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
+            kwargs = {'namespaces': namespaces, 'cdata_prefix': '#'}
+
+            def check_etree_encode(converter=None):
+                data = schema.decode(root, dict_class=dict_class, converter=converter, **kwargs)
+                for _ in iter_nested_items(data, dict_class=dict_class):
+                    pass
+                encoded_tree = schema.encode(data, path=root.tag, dict_class=dict_class, converter=converter, **kwargs)
+
+                self.assertEqual(
+                    schema.decode(encoded_tree, **kwargs), schema.decode(root, converter=converter, **kwargs)
+                )
+
+            check_etree_encode()
+
+            # TODO: Full encode tests with other converters
+            # check_etree_encode(converter=xmlschema.ParkerConverter)
+            # check_etree_encode(converter=xmlschema.BadgerFishConverter)
+            # check_etree_encode(converter=xmlschema.AbderaConverter)
+            # check_etree_encode(converter=xmlschema.JsonMLConverter)
 
     return test_decoder
 

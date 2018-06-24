@@ -336,7 +336,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                         "another declaration after anyAttribute:", elem=elem))
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
-                self.update({None: XsdAnyAttribute(elem=child, schema=self.schema)})
+                self.update([(None, XsdAnyAttribute(elem=child, schema=self.schema))])
             elif child.tag == XSD_ATTRIBUTE_TAG:
                 attribute = XsdAttribute(child, self.schema)
                 self[attribute.name] = attribute

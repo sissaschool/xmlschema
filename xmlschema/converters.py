@@ -138,22 +138,19 @@ class XMLSchemaConverter(NamespaceMapper):
                     result_dict[name] = self.list([result_dict[name], value])
             return result_dict if result_dict else None
 
-    def element_encode(self, data, xsd_element, validation='lax'):
+    def element_encode(self, data, xsd_element):
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
-        Uses the XSD element for recognizing errors.
 
         :param data: Decoded data structure.
         :param xsd_element: The `XsdElement` associated to the decoded data structure.
-        :param validation: The XSD validation mode ('strict'/'lax'/'skip').
-        :return: A couple with encoded ElementData and a list of errors.
+        :return: An ElementData instance.
         """
-        errors = []
         if not isinstance(data, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-                return ElementData(xsd_element.name, data, None, self.dict()), errors
+                return ElementData(xsd_element.name, data, None, self.dict())
             else:
-                return ElementData(xsd_element.name, None, data, self.dict()), errors
+                return ElementData(xsd_element.name, None, data, self.dict())
         else:
             unmap_qname = self.unmap_qname
             unmap_attribute_qname = self.unmap_attribute_qname
@@ -161,12 +158,14 @@ class XMLSchemaConverter(NamespaceMapper):
             attr_prefix = self.attr_prefix
             cdata_prefix = self.cdata_prefix
 
-            text = data.pop(text_key, None)
+            text = None
             content = []
             attributes = self.dict()
             for name, value in data.items():
-                if (cdata_prefix and name.startswith(cdata_prefix)) or \
-                                name[0].isdigit() and cdata_prefix == '':
+                if text_key and name == text_key:
+                    text = data[text_key]
+                elif (cdata_prefix and name.startswith(cdata_prefix)) or \
+                        name[0].isdigit() and cdata_prefix == '':
                     index = int(name[len(cdata_prefix):])
                     content.append((index, value))
                 elif attr_prefix and name.startswith(attr_prefix):
@@ -199,7 +198,7 @@ class XMLSchemaConverter(NamespaceMapper):
                         else:
                             content.append((ns_name, value))
 
-            return ElementData(xsd_element.name, text, content, attributes), errors
+            return ElementData(xsd_element.name, text, content, attributes)
 
 
 class ParkerConverter(XMLSchemaConverter):
@@ -257,6 +256,9 @@ class ParkerConverter(XMLSchemaConverter):
                 return self.dict([(map_qname(data.tag), result_dict)])
             else:
                 return result_dict if result_dict else None
+
+    def element_encode(self, data, xsd_element):
+        raise NotImplementedError()
 
 
 class BadgerFishConverter(XMLSchemaConverter):
@@ -327,6 +329,9 @@ class BadgerFishConverter(XMLSchemaConverter):
         else:
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
 
+    def element_encode(self, data, xsd_element):
+        raise NotImplementedError()
+
 
 class AbderaConverter(XMLSchemaConverter):
     """
@@ -377,6 +382,9 @@ class AbderaConverter(XMLSchemaConverter):
         else:
             return children if children is not None else self.list()
 
+    def element_encode(self, data, xsd_element):
+        raise NotImplementedError()
+
 
 class JsonMLConverter(XMLSchemaConverter):
     """
@@ -414,3 +422,6 @@ class JsonMLConverter(XMLSchemaConverter):
         if element_dict:
             result_list.insert(1, element_dict)
         return result_list
+
+    def element_encode(self, data, xsd_element):
+        raise NotImplementedError()

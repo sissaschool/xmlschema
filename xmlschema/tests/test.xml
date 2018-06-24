@@ -1,6 +1,0 @@
-<ns:A xmlns:xsi=" http://www.w3.org/2001/XMLSchema-instance   "
-      xmlns:ns=" ns " xsi:schemaLocation="ns test.xsd">
-    <B1>ciao</B1>
-    <B2>10</B2>
-    <B3>false</B3>
-</ns:A>

@@ -15,7 +15,7 @@ from .compat import (
 )
 from .etree import (
     etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement,
-    safe_etree_fromstring, safe_etree_parse_error, etree_tostring
+    safe_etree_fromstring, safe_etree_parse_error
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace

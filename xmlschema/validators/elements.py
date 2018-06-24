@@ -476,7 +476,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
-        element_data, errors = converter.element_encode(data, self, validation)
+        element_data = converter.element_encode(data, self)
 
         try:
             type_name = element_data.attributes[XSI_TYPE]
@@ -485,19 +485,15 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         else:
             type_ = self.maps.lookup_type(reference_to_qname(type_name, kwargs['namespaces']))
 
-        if validation != 'skip':
-            for e in errors:
-                yield self._validation_error(e, validation)
-
         if type_.is_complex():
             for result in type_.iter_encode(element_data, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, data)
                 else:
-                    elem = _etree_element(self.name, attrib=dict(result.attributes))
+                    elem = _etree_element(self.name, attrib=converter.dict(result.attributes))
                     if result.content:
                         elem.extend(result.content)
-                        elem.text = result.text or u'\n' + u' ' * indent * (level +1)
+                        elem.text = result.text or u'\n' + u' ' * indent * (level + 1)
                         elem.tail = u'\n' + u' ' * indent * level
                     else:
                         elem.text = result.text
