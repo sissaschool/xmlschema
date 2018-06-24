@@ -392,6 +392,10 @@ class XsdAtomic(XsdSimpleType):
     def is_atomic():
         return True
 
+    @staticmethod
+    def is_list():
+        return False
+
 
 class XsdAtomicBuiltin(XsdAtomic):
     """
@@ -475,11 +479,9 @@ class XsdAtomicBuiltin(XsdAtomic):
                 data = self.python_type(data)
 
         elif not isinstance(data, self.instance_types):
-            if validation == 'strict':
-                reason = "%r is not an instance of %r." % (data, self.instance_types)
-                error = XMLSchemaEncodeError(self, data, self.from_python, reason)
-                yield self._validation_error(error, validation, data)
-
+            reason = "%r is not an instance of %r." % (data, self.instance_types)
+            error = XMLSchemaEncodeError(self, data, self.from_python, reason)
+            yield self._validation_error(error, validation, data)
             try:
                 value = self.python_type(data)
                 if value != data:
@@ -605,6 +607,10 @@ class XsdList(XsdSimpleType):
     def is_atomic():
         return False
 
+    @staticmethod
+    def is_list():
+        return True
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -635,7 +641,7 @@ class XsdList(XsdSimpleType):
 
     def iter_encode(self, data, validation='lax', **kwargs):
         if not hasattr(data, '__iter__') or isinstance(data, (str, unicode_type, bytes)):
-            yield self._validation_error("cannot encode a %r object." % type(data), validation, data)
+            data = [data]
 
         if validation != 'skip':
             for validator in self.validators:
@@ -751,6 +757,9 @@ class XsdUnion(XsdSimpleType):
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
 
+    def is_list(self):
+        return all(mt.is_list() for mt in self.member_types)
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -765,6 +774,7 @@ class XsdUnion(XsdSimpleType):
             for error in self.patterns(text):
                 yield self._validation_error(error, validation)
 
+        # Try the text as a whole
         for member_type in self.member_types:
             for result in member_type.iter_decode(text, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
@@ -774,27 +784,80 @@ class XsdUnion(XsdSimpleType):
                                 yield self._validation_error(error, validation)
                     yield result
                     return
+                break
+
+        if ' ' not in text.strip():
+            reason = "no type suitable for decoding %r." % text
+            error = XMLSchemaDecodeError(self, text, self.member_types, reason)
+            yield self._validation_error(error, validation)
+
+        items = []
+        not_decodable = []
+        for chunk in text.split():
+            for member_type in self.member_types:
+                for result in member_type.iter_decode(chunk, validation='lax', **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        break
+                    else:
+                        items.append(result)
+                else:
+                    break
+            else:
+                if validation != 'skip':
+                    not_decodable.append(chunk)
+                else:
+                    items.append(unicode_type(chunk))
+
+        if not_decodable:
+            reason = "no type suitable for decoding the values %r." % not_decodable
+            error = XMLSchemaDecodeError(self, text, self.member_types, reason)
+            yield self._validation_error(error, validation)
 
         if validation != 'skip':
-            error = XMLSchemaDecodeError(self, text, self.member_types, "no type suitable for decoding the text.")
-            yield self._validation_error(error, validation)
-            yield None
-        else:
-            yield unicode_type(text)
+            for validator in self.validators:
+                for error in validator(items):
+                    yield self._validation_error(error, validation)
+
+        yield items if len(items) > 1 else items[0] if items else None
 
     def iter_encode(self, data, validation='lax', **kwargs):
         for member_type in self.member_types:
-            try:
-                for result in member_type.iter_encode(data, validation, **kwargs):
-                    if result is not None and not isinstance(result, XMLSchemaValidationError):
-                        if validation != 'skip':
-                            for validator in self.validators:
-                                for error in validator(data):
-                                    yield self._validation_error(error, validation)
-                        yield result
-                        return
-            except XMLSchemaValidationError:
-                pass
+            for result in member_type.iter_encode(data, validation='lax', **kwargs):
+                if result is not None and not isinstance(result, XMLSchemaValidationError):
+                    if validation == 'skip':
+                        for validator in self.validators:
+                            for error in validator(data):
+                                yield self._validation_error(error, validation)
+                        for error in self.patterns(result):
+                            yield self._validation_error(error, validation)
+
+                    yield result
+                    return
+                elif validation == 'strict':
+                    # In 'strict' mode avoid lax encoding by similar types (eg. float encoded by int)
+                    break
+
+        if hasattr(data, '__iter__') and not isinstance(data, (str, unicode_type, bytes)):
+            for member_type in self.member_types:
+                results = []
+                for item in data:
+                    for result in member_type.iter_encode(item, validation='lax', **kwargs):
+                        if result is not None and not isinstance(result, XMLSchemaValidationError):
+                            if validation != 'skip':
+                                for validator in self.validators:
+                                    for error in validator(result):
+                                        yield self._validation_error(error, validation)
+                            for error in self.patterns(result):
+                                yield self._validation_error(error, validation)
+
+                            results.append(result)
+                            break
+                        elif validation == 'strict':
+                            break
+
+                if len(results) == len(data):
+                    yield results
+                    break
 
         if validation != 'skip':
             error = XMLSchemaEncodeError(self, data, self.member_types, "no type suitable for encoding the object.")
@@ -939,6 +1002,27 @@ class XsdAtomicRestriction(XsdAtomic):
                 return
 
     def iter_encode(self, data, validation='lax', **kwargs):
+        if self.is_list():
+            if not hasattr(data, '__iter__') or isinstance(data, (str, unicode_type, bytes)):
+                data = [] if data is None or data == '' else [data]
+
+            if validation != 'skip':
+                for validator in self.validators:
+                    for error in validator(data):
+                        yield self._validation_error(error, validation)
+
+            for result in self.base_type.iter_encode(data, validation):
+                if isinstance(result, XMLSchemaValidationError):
+                    if validation == 'strict':
+                        raise result
+                    yield result
+                    if isinstance(result, XMLSchemaEncodeError):
+                        yield unicode_type(data) if validation == 'skip' else None
+                        return
+                else:
+                    yield result
+            return
+
         data = self.normalize(data)
 
         if self.base_type.is_simple():
@@ -968,6 +1052,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 yield result
                 return
+
+    def is_list(self):
+        return self.primitive_type.is_list()
 
 
 class Xsd11AtomicRestriction(XsdAtomicRestriction):

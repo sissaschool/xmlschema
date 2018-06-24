@@ -18,6 +18,7 @@ import sys
 import glob
 import fileinput
 import argparse
+import logging
 
 from functools import wraps
 
@@ -27,6 +28,8 @@ from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import etree_iselement, etree_element, etree_register_namespace
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
+
+logger = logging.getLogger('xmlschema.tests')
 
 
 def print_test_header():
@@ -73,14 +76,11 @@ class SchemaObserver(object):
         del cls.components[:]
 
 
-ObservedXMLSchema = xmlschema.create_validator(
-    xsd_version='1.0',
-    meta_schema=xmlschema.validators.schema.XSD_10_META_SCHEMA_PATH,
-    base_schemas=xmlschema.validators.schema.BASE_SCHEMAS,
-    facets=xmlschema.validators.XSD_10_FACETS,
-    **{k: SchemaObserver.observe_builder(v)
-       for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items() if k != 'simple_type_class'}
-)
+class ObservedXMLSchema10(xmlschema.XMLSchema10):
+    BUILDERS = {
+        k: SchemaObserver.observe_builder(v)
+        for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items()
+    }
 
 
 def get_test_args(args_line):
@@ -149,7 +149,7 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
             continue
 
         if test_args.inspect:
-            schema_class = ObservedXMLSchema
+            schema_class = ObservedXMLSchema10
         else:
             schema_class = xmlschema.XMLSchema
 
@@ -158,11 +158,15 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
         )
         test_name = os.path.relpath(test_file)
         test_num += 1
-        class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
-        tests[class_name] = type(
-            class_name, (unittest.TestCase,),
-            {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
-        )
+        if test_func is not None:
+            class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
+            tests[class_name] = type(
+                class_name, (unittest.TestCase,),
+                {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
+            )
+            logger.debug("Add %s test case %r.", label, class_name)
+        else:
+            logger.debug("Skip %s test case %d (%r).", label, test_num, test_num, test_name)
     return tests
 
 

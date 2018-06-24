@@ -332,6 +332,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     yield e
             else:
                 yield item
+                for e in self.schema.substitution_groups.get(item.name, ()):
+                    yield e
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
@@ -436,45 +438,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
         yield result_list
 
-    def iter_encode(self, data, validation='lax', **kwargs):
-        children = []
-        level = kwargs.get('level', 0)
-        indent = kwargs.get('indent', 4)
-        padding = u'\n' + u' ' * indent * level
-
-        text = ''
-        for name, value in data:
-            if isinstance(name, int):
-                if children:
-                    if children[-1].tail is None:
-                        children[-1].tail = padding + value
-                    else:
-                        children[-1].tail += padding + value
-                else:
-                    text += padding + value
-            else:
-                for xsd_element in self.iter_elements():
-                    if xsd_element.match(name):
-                        for result in xsd_element.iter_encode(value, validation, **kwargs):
-                            if isinstance(result, XMLSchemaValidationError):
-                                yield result
-                            else:
-                                children.append(result)
-                        break
-                else:
-                    if validation != 'skip':
-                        yield self._validation_error(
-                            '%r does not match any declared element.' % name, validation, obj=value
-                        )
-
-        if children:
-            if children[-1].tail is None:
-                children[-1].tail = padding[:-indent]
-            else:
-                children[-1].tail = padding + children[-1].tail.strip() + padding[:-indent]
-
-        yield text, children
-
     def iter_decode_children(self, elem, index=0, validation='lax'):
         """
         Generator function for decoding the children of an element. Before ending the generator
@@ -561,6 +524,68 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
             index = child_index
 
         yield index
+
+
+    def iter_encode(self, data, validation='lax', **kwargs):
+        if data is None:
+            return
+
+        children = []
+        level = kwargs.get('level', 0)
+        indent = kwargs.get('indent', 4)
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
+        namespaces = kwargs.get('namespaces')
+
+        padding = u'\n' + u' ' * indent * level
+
+        text = ''
+        empty_prefix_ns = namespaces.get('') if namespaces else None
+        for name, value in data:
+            if isinstance(name, int):
+                if children:
+                    if children[-1].tail is None:
+                        children[-1].tail = padding + value
+                    else:
+                        children[-1].tail += padding + value
+                else:
+                    text += padding + value
+            else:
+                if ':' not in name and empty_prefix_ns:
+                    qname = '{%s}%s' % (empty_prefix_ns, name)
+                else:
+                    qname = None
+
+                for xsd_element in self.iter_elements():
+                    if xsd_element.match(name) or qname and xsd_element.match(qname):
+                        if isinstance(xsd_element, XsdAnyElement):
+                            for result in xsd_element.iter_encode((qname or name, value), validation, **kwargs):
+                                if isinstance(result, XMLSchemaValidationError):
+                                    yield result
+                                else:
+                                    children.append(result)
+                        else:
+                            for result in xsd_element.iter_encode(value, validation, **kwargs):
+                                if isinstance(result, XMLSchemaValidationError):
+                                    yield result
+                                else:
+                                    children.append(result)
+                        break
+                else:
+                    if validation != 'skip':
+                        yield self._validation_error(
+                            '%r does not match any declared element.' % name, validation, obj=value
+                        )
+
+        if children:
+            if children[-1].tail is None:
+                children[-1].tail = padding[:-indent] or '\n'
+            else:
+                children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
+
+        yield text or None, children
 
 
 class Xsd11Group(XsdGroup):

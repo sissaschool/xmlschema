@@ -371,6 +371,9 @@ class XsdComplexType(XsdType, ValidatorMixin):
         except AttributeError:
             return False
 
+    def is_list(self):
+        return self.has_simple_content() and self.content_type.is_list()
+
     @property
     def abstract(self):
         return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
@@ -498,8 +501,10 @@ class XsdComplexType(XsdType, ValidatorMixin):
             for result in self.content_type.iter_encode(data.content, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
-                else:
+                elif result:
                     yield ElementData(None, result[0], result[1], attributes)
+                else:
+                    yield ElementData(None, None, None, attributes)
 
 
 class Xsd11ComplexType(XsdComplexType):

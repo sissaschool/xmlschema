@@ -98,6 +98,77 @@ load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
 load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
 
 
+def create_lookup_function(xsd_classes):
+    if isinstance(xsd_classes, tuple):
+        types_desc = ' or '.join([c.__name__ for c in xsd_classes])
+    else:
+        types_desc = xsd_classes.__name__
+
+    def lookup(global_map, qname, tag_map):
+        try:
+            obj = global_map[qname]
+        except KeyError:
+            raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
+        else:
+            if isinstance(obj, xsd_classes):
+                return obj
+
+            elif isinstance(obj, tuple):
+                # Not built XSD global component without redefinitions
+                try:
+                    elem, schema = obj
+                except ValueError:
+                    return obj[0]  # Circular build, simply return (elem, schema) couple
+
+                try:
+                    factory_or_class = tag_map[elem.tag]
+                except KeyError:
+                    raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
+                global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                return global_map[qname]
+
+            elif isinstance(obj, list):
+                if not isinstance(obj[0], xsd_classes):
+                    # Not built XSD global component with redefinitions
+                    try:
+                        elem, schema = obj[0]
+                    except ValueError:
+                        return obj[0][0]  # Circular build, simply return (elem, schema) couple
+
+                    try:
+                        factory_or_class = tag_map[elem.tag]
+                    except KeyError:
+                        raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+
+                    global_map[qname] = obj[0],  # To catch circular builds
+                    global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                else:
+                    # Built-in type
+                    global_map[qname] = obj[0]
+
+                for elem, schema in obj[1:]:
+                    global_map[qname].schema = schema
+                    global_map[qname].elem = elem
+                return global_map[qname]
+
+            else:
+                raise XMLSchemaTypeError(
+                    "wrong instance %s for XSD global %r, a %s required." % (obj, qname, types_desc)
+                )
+
+    return lookup
+
+
+lookup_notation = create_lookup_function(XsdNotation)
+lookup_type = create_lookup_function((XsdSimpleType, XsdComplexType))
+lookup_attribute = create_lookup_function(XsdAttribute)
+lookup_attribute_group = create_lookup_function(XsdAttributeGroup)
+lookup_group = create_lookup_function(XsdGroup)
+lookup_element = create_lookup_function(XsdElement)
+
+
 class XsdGlobals(XsdBaseComponent):
     """
     Mediator class for related XML schema instances. It stores the global
@@ -142,98 +213,23 @@ class XsdGlobals(XsdBaseComponent):
 
     __copy__ = copy
 
-    def __setattr__(self, name, value):
-        if name == 'notations':
-            self.lookup_notation = self._create_lookup_function(
-                value, XsdNotation, **{XSD_NOTATION_TAG: self.validator.BUILDERS.notation_class}
-            )
-        elif name == 'types':
-            self.lookup_type = self._create_lookup_function(
-                value, (XsdSimpleType, XsdComplexType), **{
-                    XSD_SIMPLE_TYPE_TAG: self.validator.BUILDERS.simple_type_factory,
-                    XSD_COMPLEX_TYPE_TAG: self.validator.BUILDERS.complex_type_class
-                }
-            )
-        elif name == 'attributes':
-            self.lookup_attribute = self._create_lookup_function(
-                value, XsdAttribute, **{XSD_ATTRIBUTE_TAG: self.validator.BUILDERS.attribute_class}
-            )
-        elif name == 'attribute_groups':
-            self.lookup_attribute_group = self._create_lookup_function(
-                value, XsdAttributeGroup,
-                **{XSD_ATTRIBUTE_GROUP_TAG: self.validator.BUILDERS.attribute_group_class}
-            )
-        elif name == 'groups':
-            self.lookup_group = self._create_lookup_function(
-                value, XsdGroup, **{XSD_GROUP_TAG: self.validator.BUILDERS.group_class}
-            )
-        elif name == 'elements':
-            self.lookup_element = self._create_lookup_function(
-                value, XsdElement, **{XSD_ELEMENT_TAG: self.validator.BUILDERS.element_class}
-            )
-        super(XsdGlobals, self).__setattr__(name, value)
+    def lookup_notation(self, qname):
+        return lookup_notation(self.notations, qname, self.validator.TAG_MAP)
 
-    @staticmethod
-    def _create_lookup_function(global_map, xsd_classes, **tag_map):
-        if isinstance(xsd_classes, tuple):
-            types_desc = ' or '.join([c.__name__ for c in xsd_classes])
-        else:
-            types_desc = xsd_classes.__name__
+    def lookup_type(self, qname):
+        return lookup_type(self.types, qname, self.validator.TAG_MAP)
 
-        def lookup(qname):
-            try:
-                obj = global_map[qname]
-            except KeyError:
-                raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
-            else:
-                if isinstance(obj, xsd_classes):
-                    return obj
+    def lookup_attribute(self, qname):
+        return lookup_attribute(self.attributes, qname, self.validator.TAG_MAP)
 
-                elif isinstance(obj, tuple):
-                    # Not built XSD global component without redefinitions
-                    try:
-                        elem, schema = obj
-                    except ValueError:
-                        return obj[0]  # Circular build, simply return (elem, schema) couple
+    def lookup_attribute_group(self, qname):
+        return lookup_attribute_group(self.attribute_groups, qname, self.validator.TAG_MAP)
 
-                    try:
-                        factory_or_class = tag_map[elem.tag]
-                    except KeyError:
-                        raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+    def lookup_group(self, qname):
+        return lookup_group(self.groups, qname, self.validator.TAG_MAP)
 
-                    global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
-                    global_map[qname] = factory_or_class(elem, schema, is_global=True)
-                    return global_map[qname]
-
-                elif isinstance(obj, list):
-                    if not isinstance(obj[0], xsd_classes):
-                        # Not built XSD global component with redefinitions
-                        try:
-                            elem, schema = obj[0]
-                        except ValueError:
-                            return obj[0][0]  # Circular build, simply return (elem, schema) couple
-
-                        try:
-                            factory_or_class = tag_map[elem.tag]
-                        except KeyError:
-                            raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
-
-                        global_map[qname] = obj[0],  # To catch circular builds
-                        global_map[qname] = factory_or_class(elem, schema, is_global=True)
-                    else:
-                        # Built-in type
-                        global_map[qname] = obj[0]
-
-                    for elem, schema in obj[1:]:
-                        global_map[qname].schema = schema
-                        global_map[qname].elem = elem
-                    return global_map[qname]
-
-                else:
-                    raise XMLSchemaTypeError(
-                        "wrong instance %s for XSD global %r, a %s required." % (obj, qname, types_desc)
-                    )
-        return lookup
+    def lookup_element(self, qname):
+        return lookup_element(self.elements, qname, self.validator.TAG_MAP)
 
     @property
     def built(self):

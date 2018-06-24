@@ -12,6 +12,8 @@
 This module contains ElementTree setup and helpers for xmlschema package.
 """
 from xml.etree import ElementTree
+import re
+
 from .compat import PY3, StringIO
 from .exceptions import XMLSchemaValueError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
@@ -70,34 +72,52 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
 
 def etree_get_namespaces(source):
     """
-    Extracts namespaces with related prefixes from the XML source. For
-    each prefix takes the first entry. If source is an ElementTree node
-    returns the nsmap attribute (works only for lxml).
+    Extracts namespaces with related prefixes from the XML source. If the source is
+    an ElementTree node returns the nsmap attribute (works only for lxml).
+    If a duplicate prefix declaration is encountered then, if the namespace URI is
+    not already mapped with the same or another prefix, adds a different prefix.
 
     :param source: A string containing the XML document or a file path 
-    or a file like object or an etree Element (lxml).
+    or a file like object or an ElementTree or Element.
     :return: A dictionary for mapping namespace prefixes to full URI.
     """
+    def update_nsmap(prefix, uri):
+        if prefix not in nsmap:
+            nsmap[prefix] = uri
+        elif not any(uri == ns for ns in nsmap.values()):
+            if not prefix:
+                try:
+                    prefix = re.search('(\w+)$', uri.strip()).group()
+                except AttributeError:
+                    return
+
+            while prefix in nsmap:
+                match = re.search('(\d+)$', prefix)
+                if not match:
+                    prefix += '2'
+                else:
+                    index = int(match.group()) + 1
+                    prefix = prefix[:match.span()[0]] + str(index)
+            nsmap[prefix] = uri
+
+    nsmap = {}
     try:
-        nsmap = {}
         try:
             for event, node in etree_iterparse(StringIO(source), events=('start-ns',)):
-                if node[0] not in nsmap:
-                    nsmap[node[0]] = node[1]
+                update_nsmap(*node)
         except ElementTree.ParseError:
-            with open(source) as f:
-                for event, node in etree_iterparse(f, events=('start-ns', )):
-                    if node[0] not in nsmap:
-                        nsmap[node[0]] = node[1]
-        return nsmap
+            for event, node in etree_iterparse(source, events=('start-ns', )):
+                update_nsmap(*node)
     except (TypeError, ElementTree.ParseError):
         try:
-            if hasattr(source, 'getroot'):
-                return {k if k is not None else '': v for k, v in source.getroot().nsmap.items()}
-            else:
-                return {k if k is not None else '': v for k, v in source.nsmap.items()}
+            # Can extracts namespace information only from lxml etree structures
+            for elem in source.iter():
+                for k, v in elem.nsmap.items():
+                    update_nsmap(k if k is not None else '', v)
         except (AttributeError, TypeError):
-            return {}
+            pass  # Non an lxml's tree or element
+
+    return nsmap
 
 
 def etree_iterpath(elem, tag=None, path='.'):

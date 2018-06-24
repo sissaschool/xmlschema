@@ -25,6 +25,12 @@ from .parseutils import (
     get_xsd_component, iter_xsd_components, get_xsd_int_attribute, get_xpath_default_namespace_attribute
 )
 
+XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
+"""
+XML Schema validation modes
+Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
+"""
+
 
 class XsdBaseComponent(object):
     """
@@ -32,8 +38,14 @@ class XsdBaseComponent(object):
     to report its validity collecting building errors and implementing the properties.
 
     See: https://www.w3.org/TR/xmlschema-ref/
+
+    :param validation: Defines the XSD validation mode to use for build the schema, \
+    it's value can be 'strict', 'lax' or 'skip'.
+    :type validation: str
     """
     def __init__(self, validation='strict'):
+        if validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         self.validation = validation
         self.errors = []  # component errors
 
@@ -519,7 +531,10 @@ class ValidatorMixin(object):
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         validation = kwargs.pop('validation', 'strict')
+        if validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         errors = []
+
         for chunk in self.iter_decode(data, validation=validation, *args, **kwargs):
             if isinstance(chunk, XMLSchemaValidationError):
                 if validation == 'strict':
@@ -548,7 +563,10 @@ class ValidatorMixin(object):
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         validation = kwargs.pop('validation', 'strict')
+        if validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         errors = []
+
         for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
             if isinstance(chunk, XMLSchemaValidationError):
                 if validation == 'strict':
@@ -562,14 +580,6 @@ class ValidatorMixin(object):
     to_etree = encode
 
     def iter_decode(self, data, validation='lax', *args, **kwargs):
-        """
-        Generator method for decoding XML data using the XSD component. Returns a data
-        structure after a sequence, possibly empty, of validation or decode errors.
-
-        Like the method *decode* except that it does not raise any exception. Yields
-        decoded values. Also :exc:`XMLSchemaValidationError` errors are yielded during
-        decoding process if the *obj* is invalid.
-        """
         raise NotImplementedError
 
     def iter_encode(self, data, validation='lax', *args, **kwargs):

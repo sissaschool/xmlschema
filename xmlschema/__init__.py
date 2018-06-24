@@ -19,14 +19,17 @@ from .validators.exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
 )
-from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema_v1_0, create_validator
+from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 
-__version__ = '0.9.30'
+__version__ = '0.9.31'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
+
+
+XMLSchema_v1_0 = XMLSchema10
 
 
 def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locations=None):

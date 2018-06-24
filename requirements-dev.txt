@@ -1,7 +1,7 @@
 # Requirements for setup a development environment for the xmlschema package.
 setuptools
 tox
-elementpath>=1.0.6
+elementpath>=1.0.10
 lxml
 defusedxml>=0.5
 Sphinx

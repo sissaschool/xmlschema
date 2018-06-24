@@ -38,3 +38,22 @@ else:
     long_type = long
     unicode_type = unicode
     unicode_chr = unichr
+
+
+def add_metaclass(metaclass):
+    """
+    Class decorator for creating a class with a metaclass.
+    From `six` package source code: https://bitbucket.org/gutworth/six/overview.
+    """
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, str):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper

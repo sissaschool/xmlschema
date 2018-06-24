@@ -35,9 +35,7 @@ XSD_CONSTRAINTS_XPATH_SYMBOLS = {
 class XsdConstraintXPathParser(XPath1Parser):
     symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_CONSTRAINTS_XPATH_SYMBOLS}
     SYMBOLS = XSD_CONSTRAINTS_XPATH_SYMBOLS
-
-
-XsdConstraintXPathParser.end()
+XsdConstraintXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):

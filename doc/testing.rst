@@ -23,14 +23,8 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_schemas.py**
     Tests about parsing of XSD Schemas
 
-**test_validation.py**
-    Tests about XML validation
-
-**test_decoding.py**
-    Tests regarding XML data decoding
-
-**test_encoding.py**
-    Tests regarding data encoding to XML
+**test_decoder.py**
+    Tests regarding XML data validation/decoding/encoding
 
 **test_package.py**
     Tests regarding packaging and forgotten development code
@@ -42,8 +36,8 @@ all tests with all supported Python's versions using the command ``tox``.
 Test files
 ----------
 
-Three scripts (*test_schemas.py*, *test_validation.py*, *test_decoding.py*) create
-the most tests dinamically, loading a set of XSD or XML files.
+Two scripts (*test_schemas.py*, *test_decoder.py*) create the most tests dinamically,
+loading a set of XSD or XML files.
 Only a small set of test files is published in the repository for copyright
 reasons. You can found the published test files into ``xmlschema/tests/examples/``
 subdirectory.

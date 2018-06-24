@@ -57,7 +57,10 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
-            return namespace and namespace != self.target_namespace
+            if namespace:
+                return namespace != self.target_namespace
+            else:
+                return False
         else:
             any_namespaces = self.namespace.split()
             if '##local' in any_namespaces and namespace == '':
@@ -90,13 +93,16 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
     def admitted_tags(self):
         return {XSD_ANY_TAG}
 
+    def is_emptiable(self):
+        return self.min_occurs == 0 or self.process_contents != 'strict'
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
         if self.match(elem.tag):
             try:
-                xsd_element = self.maps.lookup_base_element(elem.tag)
+                xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
                 if self.process_contents == 'strict' and validation != 'skip':
                     yield self._validation_error("element %r not found." % elem.tag, validation, elem)
@@ -156,6 +162,24 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
             if max_occurs is not None and model_occurs >= max_occurs:
                 yield index
                 return
+
+    def iter_encode(self, data, validation='lax', *args, **kwargs):
+        if self.process_contents == 'skip':
+            return
+
+        name, value = data
+        if self.match(name):
+            try:
+                xsd_element = self.maps.lookup_element(name)
+            except LookupError:
+                if self.process_contents == 'strict' and validation != 'skip':
+                    yield self._validation_error("element %r not found." % name, validation)
+            else:
+                for result in xsd_element.iter_encode(value, validation, **kwargs):
+                    yield result
+
+        elif validation != 'skip':
+            yield self._validation_error("element %r not allowed here." % name, validation, value)
 
     def is_restriction(self, other):
         if not ParticleMixin.is_restriction(self, other):
@@ -236,7 +260,10 @@ class Xsd11Wildcard(XsdWildcard):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
-            return namespace and namespace != self.target_namespace
+            if namespace:
+                return namespace != self.target_namespace
+            else:
+                return False
         else:
             any_namespaces = self.namespace.split()
             if '##local' in any_namespaces and namespace == '':

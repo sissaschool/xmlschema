@@ -165,8 +165,7 @@ class NamespaceMapper(MutableMapping):
             except KeyError:
                 return qname
             else:
-                self._xmlns[prefix] = uri
-                return u'{%s}%s' % (uri, name)
+                return u'{%s}%s' % (uri, name) if uri else name
 
     def transfer(self, other):
         transferred = []

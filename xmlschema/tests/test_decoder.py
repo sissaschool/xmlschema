@@ -15,6 +15,7 @@ This module runs tests concerning the decoding of XML files with the 'xmlschema'
 import unittest
 import os
 import sys
+import pickle
 from collections import OrderedDict
 from decimal import Decimal
 import base64
@@ -35,7 +36,12 @@ except ImportError:
     import xmlschema
 
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema import XMLSchemaValidationError
+from xmlschema.etree import (
+    etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
+    etree_get_namespaces, etree_elements_equal
+)
+from xmlschema.qnames import local_name
+from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 
 _VEHICLES_DICT = {
@@ -261,47 +267,32 @@ _DATA_DICT = {
 }
 
 
-def make_decoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
-                                locations=None, defuse='defuse'):
-    def test_decoding(self):
-        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
+def iter_nested_items(items, dict_class=dict, list_class=list):
+    if isinstance(items, dict_class):
+        for k, v in items.items():
+            for value in iter_nested_items(v, dict_class, list_class):
+                yield value
+    elif isinstance(items, list_class):
+        for item in items:
+            for value in iter_nested_items(item, dict_class, list_class):
+                yield value
+    elif isinstance(items, dict):
+        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
+    elif isinstance(items, list):
+        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
+    else:
+        yield items
+
+
+def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
+                               locations=None, defuse='defuse'):
+
+    def test_decoder(self):
+        source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
+        schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
         errors = []
         chunks = []
-        for obj in xs.iter_decode(xml_file):
-            if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
-                errors.append(obj)
-            else:
-                chunks.append(obj)
-        if len(errors) != expected_errors:
-            import pdb
-            pdb.set_trace()
-            raise ValueError(
-                "n.%d errors expected, found %d: %s" % (
-                    expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
-                )
-            )
-        if not chunks:
-            raise ValueError("No decoded object returned!!")
-        elif len(chunks) > 1:
-            raise ValueError("Too many ({}) decoded objects returned: {}".format(len(chunks), chunks))
-        elif not isinstance(chunks[0], dict):
-            raise ValueError("Decoded object is not a dictionary: {}".format(chunks))
-        else:
-            self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
-
-    return test_decoding
-
-
-def make_lxml_decoding_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
-                                     locations=None, defuse='defuse'):
-    def test_decoding(self):
-        schema, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-        xs = schema_class(schema, validation='lax', locations=_locations, defuse=defuse)
-        data = _lxml_etree.parse(xml_file)
-        errors = []
-        chunks = []
-        for obj in xs.iter_decode(data):
+        for obj in schema.iter_decode(xml_file):
             if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
                 errors.append(obj)
             else:
@@ -312,6 +303,7 @@ def make_lxml_decoding_test_function(xml_file, schema_class, expected_errors=0, 
                     expected_errors, len(errors), '\n++++++\n'.join([str(e) for e in errors])
                 )
             )
+
         if not chunks:
             raise ValueError("No decoded object returned!!")
         elif len(chunks) > 1:
@@ -321,7 +313,89 @@ def make_lxml_decoding_test_function(xml_file, schema_class, expected_errors=0, 
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-    return test_decoding
+        if not inspect and sys.version_info >= (3,):
+            # Repeat with serialized-deserialized schema (only for Python 3)
+            deserialized_schema = pickle.loads(pickle.dumps(schema))
+            errors2 = []
+            chunks2 = []
+            for obj in deserialized_schema.iter_decode(xml_file):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
+                    errors2.append(obj)
+                else:
+                    chunks2.append(obj)
+
+            self.assertEqual(len(errors), len(errors2))
+            self.assertEqual(chunks, chunks2)
+
+        if not errors:
+            # Compare with the decode API
+            self.assertEqual(schema.decode(xml_file), chunks[0], "decode() API has a different result!")
+
+        if _lxml_etree is not None:
+            # Compare with lxml
+            root = _lxml_etree.parse(xml_file)
+            namespaces = etree_get_namespaces(xml_file)
+            errors2 = []
+            chunks2 = []
+            for obj in schema.iter_decode(root, namespaces=namespaces):
+                if isinstance(obj, xmlschema.XMLSchemaValidationError):
+                    errors2.append(obj)
+                else:
+                    chunks2.append(obj)
+
+            self.assertEqual(chunks, chunks2)
+            self.assertEqual(len(errors), len(errors2))
+
+        if not errors:
+            # Encoding tests (only if the XML is strictly conforming to the schema)
+            root = etree_parse(xml_file).getroot()
+            namespaces = etree_get_namespaces(xml_file)
+            dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
+            kwargs = {'namespaces': namespaces, 'cdata_prefix': '#'}
+
+            def check_etree_encode(converter=None):
+                data = schema.decode(root, dict_class=dict_class, converter=converter, **kwargs)
+                for _ in iter_nested_items(data, dict_class=dict_class):
+                    pass
+                encoded_tree = schema.encode(data, path=root.tag, dict_class=dict_class, converter=converter, **kwargs)
+
+                self.assertEqual(
+                    schema.decode(encoded_tree, **kwargs), schema.decode(root, converter=converter, **kwargs)
+                )
+
+            check_etree_encode()
+
+            # TODO: Full encode tests with other converters
+            # check_etree_encode(converter=xmlschema.ParkerConverter)
+            # check_etree_encode(converter=xmlschema.BadgerFishConverter)
+            # check_etree_encode(converter=xmlschema.AbderaConverter)
+            # check_etree_encode(converter=xmlschema.JsonMLConverter)
+
+    return test_decoder
+
+
+class TestValidation(XMLSchemaTestCase):
+
+    def check_validity(self, xsd_component, data, expected, use_defaults=True):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults)
+        elif expected:
+            self.assertTrue(xsd_component.is_valid(data, use_defaults))
+        else:
+            self.assertFalse(xsd_component.is_valid(data, use_defaults))
+
+    @unittest.skipIf(_lxml_etree is None, "The lxml library is not installed.")
+    def test_lxml(self):
+        xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
+        xt1 = _lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        xt2 = _lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
+        self.assertTrue(xs.is_valid(xt1))
+        self.assertFalse(xs.is_valid(xt2))
+        self.assertTrue(xs.validate(xt1) is None)
+        self.assertRaises(xmlschema.XMLSchemaValidationError, xs.validate, xt2)
+
+    def test_issue_064(self):
+        self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
 
 class TestDecoding(XMLSchemaTestCase):
@@ -519,13 +593,213 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)  # Issue #66
 
 
+class TestEncoding(XMLSchemaTestCase):
+
+    def check_encode(self, xsd_component, data, expected, **kwargs):
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, xsd_component.encode, data, **kwargs)
+        elif etree_iselement(expected):
+            elem = xsd_component.encode(data, **kwargs)
+            self.assertTrue(etree_elements_equal(expected, elem, strict=False))
+        else:
+            obj = xsd_component.encode(data, **kwargs)
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
+                    and isinstance(obj[1][0], Exception):
+                self.assertEqual(expected, obj[0])
+                self.assertTrue(isinstance(obj[0], type(expected)))
+            elif etree_iselement(obj):
+                self.assertEqual(expected, etree_tostring(obj).strip())
+            else:
+                self.assertEqual(expected, obj)
+                self.assertTrue(isinstance(obj, type(expected)))
+
+    def test_decode_encode(self):
+        filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
+        xt = _ElementTree.parse(filename)
+        xd = self.col_schema.to_dict(filename, dict_class=OrderedDict)
+        elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.namespaces)
+
+        self.assertEqual(
+            len([e for e in elem.iter()]), 20,
+            msg="The encoded tree must have 20 elements as the origin."
+        )
+        self.assertTrue(all([
+            local_name(e1.tag) == local_name(e2.tag)
+            for e1, e2 in zip(elem.iter(), xt.getroot().iter())
+        ]))
+
+    def test_builtin_string_based_types(self):
+        self.check_encode(self.xsd_types['string'], 'sample string ', u'sample string ')
+        self.check_encode(self.xsd_types['normalizedString'], ' sample string ', u' sample string ')
+        self.check_encode(self.xsd_types['normalizedString'], '\n\r sample\tstring\n', u'   sample string ')
+        self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', u'sample string')
+        self.check_encode(self.xsd_types['language'], 'sample string', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['language'], ' en ', u'en')
+        self.check_encode(self.xsd_types['Name'], 'first_name', u'first_name')
+        self.check_encode(self.xsd_types['Name'], ' first_name ', u'first_name')
+        self.check_encode(self.xsd_types['Name'], 'first name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['Name'], '1st_name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['Name'], 'first_name1', u'first_name1')
+        self.check_encode(self.xsd_types['Name'], 'first:name', u'first:name')
+        self.check_encode(self.xsd_types['NCName'], 'first_name', u'first_name')
+        self.check_encode(self.xsd_types['NCName'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['ENTITY'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['ID'], 'first:name', XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['IDREF'], 'first:name', XMLSchemaValidationError)
+
+    def test_builtin_decimal_based_types(self):
+        self.check_encode(self.xsd_types['decimal'], -99.09, u'-99.09')
+        self.check_encode(self.xsd_types['decimal'], '-99.09', u'-99.09')
+        self.check_encode(self.xsd_types['integer'], 1000, u'1000')
+        self.check_encode(self.xsd_types['integer'], 100.0, XMLSchemaEncodeError)
+        self.check_encode(self.xsd_types['integer'], 100.0, u'100', validation='lax')
+        self.check_encode(self.xsd_types['short'], 1999, u'1999')
+        self.check_encode(self.xsd_types['short'], 10000000, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['float'], 100.0, u'100.0')
+        self.check_encode(self.xsd_types['float'], 'hello', XMLSchemaEncodeError)
+        self.check_encode(self.xsd_types['double'], -4531.7, u'-4531.7')
+        self.check_encode(self.xsd_types['positiveInteger'], -1, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['positiveInteger'], 0, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['nonNegativeInteger'], 0, u'0')
+        self.check_encode(self.xsd_types['nonNegativeInteger'], -1, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['negativeInteger'], -100, u'-100')
+        self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['unsignedLong'], 101, u'101')
+        self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
+
+    def test_builtin_list_types(self):
+        self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
+        self.check_encode(self.xsd_types['IDREFS'], 'first_name', u'first_name')  # Transform data to list
+        self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
+        self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
+        self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), u'mouse cat dog')
+
+    def test_list_types(self):
+        list_of_strings = self.st_schema.types['list_of_strings']
+        self.check_encode(list_of_strings, (10, 25, 40), u'', validation='lax')
+        self.check_encode(list_of_strings, (10, 25, 40), u'10 25 40', validation='skip')
+        self.check_encode(list_of_strings, ['a', 'b', 'c'], u'a b c', validation='skip')
+
+        list_of_integers = self.st_schema.types['list_of_integers']
+        self.check_encode(list_of_integers, (10, 25, 40), u'10 25 40')
+        self.check_encode(list_of_integers, (10, 25.0, 40), XMLSchemaValidationError)
+        self.check_encode(list_of_integers, (10, 25.0, 40), u'10 25 40', validation='lax')
+
+        list_of_floats = self.st_schema.types['list_of_floats']
+        self.check_encode(list_of_floats, [10.1, 25.0, 40.0], u'10.1 25.0 40.0')
+        self.check_encode(list_of_floats, [10.1, 25, 40.0], u'10.1 25.0 40.0', validation='lax')
+        self.check_encode(list_of_floats, [10.1, False, 40.0], u'10.1 0.0 40.0', validation='lax')
+
+        list_of_booleans = self.st_schema.types['list_of_booleans']
+        self.check_encode(list_of_booleans, [True, False, True], u'true false true')
+        self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
+        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false 40.0', validation='skip')
+
+    def test_union_types(self):
+        integer_or_float = self.st_schema.types['integer_or_float']
+        self.check_encode(integer_or_float, -95, u'-95')
+        self.check_encode(integer_or_float, -95.0, u'-95.0')
+        self.check_encode(integer_or_float, True, XMLSchemaEncodeError)
+        self.check_encode(integer_or_float, True, u'1', validation='lax')
+
+        integer_or_string = self.st_schema.types['integer_or_string']
+        self.check_encode(integer_or_string, 89, u'89')
+        self.check_encode(integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, False, XMLSchemaEncodeError)
+        self.check_encode(integer_or_string, "Venice ", u'Venice ')
+
+        boolean_or_integer_or_string = self.st_schema.types['boolean_or_integer_or_string']
+        self.check_encode(boolean_or_integer_or_string, 89, u'89')
+        self.check_encode(boolean_or_integer_or_string, 89.0, u'89', validation='lax')
+        self.check_encode(boolean_or_integer_or_string, 89.0, XMLSchemaEncodeError)
+        self.check_encode(boolean_or_integer_or_string, False, u'false')
+        self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
+
+    def test_simple_elements(self):
+        elem = etree_element('{ns}A')
+        elem.text = '89'
+        self.check_encode(self.get_element('A', type='string'), '89', elem)
+        self.check_encode(self.get_element('A', type='integer'), 89, elem)
+        elem.text = '-10.4'
+        self.check_encode(self.get_element('A', type='float'), -10.4, elem)
+        elem.text = 'false'
+        self.check_encode(self.get_element('A', type='boolean'), False, elem)
+        elem.text = 'true'
+        self.check_encode(self.get_element('A', type='boolean'), True, elem)
+
+        self.check_encode(self.get_element('A', type='short'), 128000, XMLSchemaValidationError)
+        elem.text = '0'
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), 0, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='positiveInteger'), 0, XMLSchemaValidationError)
+        elem.text = '-1'
+        self.check_encode(self.get_element('A', type='negativeInteger'), -1, elem)
+        self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
+
+    def test_complex_elements(self):
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type" mixed="true">
+            <simpleContent>
+                <extension base="string">
+                    <attribute name="a1" type="short" use="required"/>                 
+                    <attribute name="a2" type="negativeInteger"/>
+                </extension>
+            </simpleContent>
+        </complexType>
+        """)
+        self.check_encode(
+            schema.elements['A'], data={'@a1': 10, '@a2': -1, '$': 'simple '},
+            expected='<ns:A xmlns:ns="ns" a1="10" a2="-1">simple </ns:A>'
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
+            etree_fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '@a2': -1},
+            etree_fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
+        )
+        self.check_encode(
+            schema.elements['A'], {'@a1': 10, '$': 'simple '},
+            etree_fromstring('<A xmlns="ns" a1="10">simple </A>')
+        )
+        self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
+
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type">
+            <sequence>
+                <element name="B1" type="string"/>
+                <element name="B2" type="integer"/>
+                <element name="B3" type="boolean"/>                
+            </sequence>
+        </complexType>
+        """)
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=OrderedDict([('B1', 'abc'), ('B2', 10), ('B3', False)]),
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n  </ns:A>',
+            indent=0,
+        )
+        self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=OrderedDict([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>hello\n  </ns:A>',
+            indent=0, cdata_prefix='#'
+        )
+
+
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header, tests_factory, get_testfiles
 
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    decoding_tests = tests_factory(make_decoding_test_function, testfiles, 'decoding', 'xml')
-    lxml_decoding_tests = tests_factory(make_lxml_decoding_test_function, testfiles, 'lxml_decoding', 'xml')
-    globals().update(decoding_tests)
-    globals().update(lxml_decoding_tests)
+    decoder_tests = tests_factory(make_decoder_test_function, testfiles, 'decoder', 'xml')
+    globals().update(decoder_tests)
     unittest.main()
