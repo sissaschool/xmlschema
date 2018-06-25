@@ -359,8 +359,8 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
 
             def check_etree_encode(converter=None, **kwargs):
                 data = schema.decode(root, converter=converter, **kwargs)
-                for _ in iter_nested_items(data, dict_class=dict_class):
-                    pass
+                #for _ in iter_nested_items(data, dict_class=dict_class):
+                #    pass
                 encoded_tree = schema.encode(data, path=root.tag, converter=converter, **kwargs)
                 if isinstance(encoded_tree, tuple):
                     encoded_tree = encoded_tree[0]  # Lossy converter + validation='lax'
@@ -372,14 +372,14 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
                 self.assertEqual(decoded_data, schema.decode(root, converter=converter, **kwargs))
 
             check_etree_encode(**options)
-            import pdb
-            # pdb.set_trace()
-
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='lax', **options)
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='skip', **options)
 
+            import pdb
+            # pdb.set_trace()
+
             # TODO: Full encode tests with other converters
-            # check_etree_encode(converter=xmlschema.BadgerFishConverter)
+            check_etree_encode(converter=xmlschema.BadgerFishConverter, **options)
             # check_etree_encode(converter=xmlschema.AbderaConverter)
             # check_etree_encode(converter=xmlschema.JsonMLConverter)
 

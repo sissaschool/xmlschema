@@ -383,7 +383,66 @@ class BadgerFishConverter(XMLSchemaConverter):
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
 
     def element_encode(self, data, xsd_element):
-        raise NotImplementedError()
+        map_qname = self.map_qname
+        unmap_qname = self.unmap_qname
+        unmap_attribute_qname = self.unmap_attribute_qname
+
+        try:
+            self.update(data[u'@xmlns'])
+        except KeyError:
+            pass
+
+        try:
+            element_data = data[map_qname(xsd_element.name)]
+        except KeyError:
+            element_data = data
+
+        text_key = self.text_key
+        attr_prefix = self.attr_prefix
+        cdata_prefix = self.cdata_prefix
+        text = None
+        content = []
+        attributes = self.dict()
+        for name, value in element_data.items():
+            if name == u'@xmlns':
+                continue
+            elif text_key and name == text_key:
+                text = element_data[text_key]
+            elif (cdata_prefix and name.startswith(cdata_prefix)) or \
+                    name[0].isdigit() and cdata_prefix == '':
+                index = int(name[len(cdata_prefix):])
+                content.append((index, value))
+            elif attr_prefix and name.startswith(attr_prefix):
+                name = name[len(attr_prefix):]
+                attributes[unmap_attribute_qname(name)] = value
+            elif not isinstance(value, (self.list, list)) or not value:
+                content.append((unmap_qname(name), value))
+            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                ns_name = unmap_qname(name)
+                for obj in value:
+                    content.append((ns_name, obj))
+            else:
+                ns_name = unmap_qname(name)
+                for xsd_child in xsd_element.type.content_type.iter_elements():
+                    if xsd_child.match(ns_name):
+                        if xsd_child.type.is_list():
+                            content.append((ns_name, value))
+                        else:
+                            for obj in value:
+                                content.append((ns_name, obj))
+                        break
+                else:
+                    if attr_prefix == '' and ns_name not in attributes:
+                        for xsd_attribute in xsd_element.attributes.values():
+                            if xsd_attribute.match(ns_name):
+                                attributes[ns_name] = value
+                                break
+                        else:
+                            content.append((ns_name, value))
+                    else:
+                        content.append((ns_name, value))
+
+        return ElementData(xsd_element.name, text, content, attributes)
 
 
 class AbderaConverter(XMLSchemaConverter):
