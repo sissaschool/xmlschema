@@ -359,8 +359,8 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
 
             def check_etree_encode(converter=None, **kwargs):
                 data = schema.decode(root, converter=converter, **kwargs)
-                #for _ in iter_nested_items(data, dict_class=dict_class):
-                #    pass
+                for _ in iter_nested_items(data, dict_class=dict_class):
+                    pass
                 encoded_tree = schema.encode(data, path=root.tag, converter=converter, **kwargs)
                 if isinstance(encoded_tree, tuple):
                     encoded_tree = encoded_tree[0]  # Lossy converter + validation='lax'
@@ -371,17 +371,16 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
 
                 self.assertEqual(decoded_data, schema.decode(root, converter=converter, **kwargs))
 
-            check_etree_encode(**options)
+            check_etree_encode(**options)  # Default converter
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='lax', **options)
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='skip', **options)
+            check_etree_encode(converter=xmlschema.BadgerFishConverter, **options)
 
             import pdb
             # pdb.set_trace()
 
-            # TODO: Full encode tests with other converters
-            check_etree_encode(converter=xmlschema.BadgerFishConverter, **options)
-            # check_etree_encode(converter=xmlschema.AbderaConverter)
-            # check_etree_encode(converter=xmlschema.JsonMLConverter)
+            check_etree_encode(converter=xmlschema.AbderaConverter, **options)
+            # check_etree_encode(converter=xmlschema.JsonMLConverter, **options)
 
     return test_decoder
 
@@ -514,6 +513,10 @@ class TestDecoding(XMLSchemaTestCase):
 
         abdera_dict = self.col_schema.to_dict(
             filename, converter=xmlschema.AbderaConverter, decimal_type=float, dict_class=dict)
+        if abdera_dict != _COLLECTION_ABDERA:
+            import pdb
+            pdb.set_trace()
+
         self.assertTrue(abdera_dict == _COLLECTION_ABDERA)
 
         json_ml_dict = self.col_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)

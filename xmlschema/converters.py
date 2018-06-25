@@ -474,10 +474,10 @@ class AbderaConverter(XMLSchemaConverter):
                 try:
                     children[name].append(value)
                 except KeyError:
-                    if xsd_child is None or xsd_child.is_single():
-                        children[name] = value
-                    else:
+                    if isinstance(value, (self.list, list)) and value:
                         children[name] = self.list([value])
+                    else:
+                        children[name] = value
                 except AttributeError:
                     children[name] = self.list([children[name], value])
             if not children:
@@ -490,13 +490,59 @@ class AbderaConverter(XMLSchemaConverter):
                     ('children', self.list([children]) if children is not None else self.list())
                 ])
             else:
-                return self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
+                return self.dict([
+                    ('attributes', self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])),
+                ])
         else:
             return children if children is not None else self.list()
 
     def element_encode(self, data, xsd_element):
-        raise NotImplementedError()
+        if not isinstance(data, (self.dict, dict)):
+            if data == []:
+                data = None
+            return ElementData(xsd_element.name, data, None, self.dict())
+        else:
+            unmap_qname = self.unmap_qname
+            unmap_attribute_qname = self.unmap_attribute_qname
+            attributes = self.dict()
+            try:
+                attributes.update([(unmap_attribute_qname(k), v) for k, v in data['attributes'].items()])
+            except KeyError:
+                children = data
+            else:
+                children = data.get('children', [])
 
+            if isinstance(children, (self.dict, dict)):
+                children = [children]
+            elif children and not isinstance(children[0], (self.dict, dict)):
+                if len(children) > 1:
+                    raise ValueError("Wrong format")
+                else:
+                    return ElementData(xsd_element.name, children[0], None, attributes)
+
+            content = []
+            for item in children:
+                for name, value in item.items():
+                    if not isinstance(value, (self.list, list)) or not value:
+                        content.append((unmap_qname(name), value))
+                    elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                        ns_name = unmap_qname(name)
+                        for obj in value:
+                            content.append((ns_name, obj))
+                    else:
+                        ns_name = unmap_qname(name)
+                        for xsd_child in xsd_element.type.content_type.iter_elements():
+                            if xsd_child.match(ns_name):
+                                if xsd_child.type.is_list():
+                                    content.append((ns_name, value))
+                                else:
+                                    for obj in value:
+                                        content.append((ns_name, obj))
+                                break
+                        else:
+                            content.append((ns_name, value))
+
+            return ElementData(xsd_element.name, None, content, attributes)
 
 class JsonMLConverter(XMLSchemaConverter):
     """
@@ -536,4 +582,6 @@ class JsonMLConverter(XMLSchemaConverter):
         return result_list
 
     def element_encode(self, data, xsd_element):
+        import pdb
+        pdb.set_trace()
         raise NotImplementedError()
