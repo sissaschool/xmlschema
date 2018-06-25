@@ -422,7 +422,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     result_list.append((name, result))
                     break
 
-        if required_attributes:
+        if required_attributes and validation != 'skip':
             error = XMLSchemaValidationError(
                 self, attrs, "missing required attributes: %r" % required_attributes
             )
@@ -475,7 +475,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     result_list.append((name, result))
                     break
 
-        if required_attributes:
+        if required_attributes and validation != 'skip':
             yield XMLSchemaValidationError(
                 self, attrs, "missing required attributes %r" % required_attributes,
             )

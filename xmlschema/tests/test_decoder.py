@@ -327,10 +327,6 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
             self.assertEqual(len(errors), len(errors2))
             self.assertEqual(chunks, chunks2)
 
-        if not errors:
-            # Compare with the decode API
-            self.assertEqual(schema.decode(xml_file), chunks[0], "decode() API has a different result!")
-
         if _lxml_etree is not None:
             # Compare with lxml
             root = _lxml_etree.parse(xml_file)
@@ -347,26 +343,42 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
             self.assertEqual(len(errors), len(errors2))
 
         if not errors:
+            # Compare with the decode API and other validation modes
+            strict_data = schema.decode(xml_file)
+            lax_data = schema.decode(xml_file, validation='lax')
+            skip_data = schema.decode(xml_file, validation='skip')
+            self.assertEqual(strict_data, chunks[0], "decode() API has a different result!")
+            self.assertEqual(lax_data, chunks[0], "'lax' validation has a different result!")
+            self.assertEqual(skip_data, chunks[0], "'skip' validation has a different result!")
+
             # Encoding tests (only if the XML is strictly conforming to the schema)
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
             dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
-            kwargs = {'namespaces': namespaces, 'cdata_prefix': '#'}
+            options = {'namespaces': namespaces, 'dict_class': dict_class, 'cdata_prefix': '#'}
 
-            def check_etree_encode(converter=None):
-                data = schema.decode(root, dict_class=dict_class, converter=converter, **kwargs)
+            def check_etree_encode(converter=None, **kwargs):
+                data = schema.decode(root, converter=converter, **kwargs)
                 for _ in iter_nested_items(data, dict_class=dict_class):
                     pass
-                encoded_tree = schema.encode(data, path=root.tag, dict_class=dict_class, converter=converter, **kwargs)
+                encoded_tree = schema.encode(data, path=root.tag, converter=converter, **kwargs)
+                if isinstance(encoded_tree, tuple):
+                    encoded_tree = encoded_tree[0]  # Lossy converter + validation='lax'
 
-                self.assertEqual(
-                    schema.decode(encoded_tree, **kwargs), schema.decode(root, converter=converter, **kwargs)
-                )
+                decoded_data = schema.decode(encoded_tree, converter=converter, **kwargs)
+                if isinstance(decoded_data, tuple):
+                    decoded_data = decoded_data[0]  # Lossy converter + validation='lax'
 
-            check_etree_encode()
+                self.assertEqual(decoded_data, schema.decode(root, converter=converter, **kwargs))
+
+            check_etree_encode(**options)
+            import pdb
+            # pdb.set_trace()
+
+            check_etree_encode(converter=xmlschema.ParkerConverter, validation='lax', **options)
+            check_etree_encode(converter=xmlschema.ParkerConverter, validation='skip', **options)
 
             # TODO: Full encode tests with other converters
-            # check_etree_encode(converter=xmlschema.ParkerConverter)
             # check_etree_encode(converter=xmlschema.BadgerFishConverter)
             # check_etree_encode(converter=xmlschema.AbderaConverter)
             # check_etree_encode(converter=xmlschema.JsonMLConverter)

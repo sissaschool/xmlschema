@@ -238,7 +238,7 @@ class ParkerConverter(XMLSchemaConverter):
                 return data.text if data.text != '' else None
         else:
             result_dict = self.dict()
-            for name, value, _ in self.map_content(data.content):
+            for name, value, xsd_child in self.map_content(data.content):
                 if preserve_root:
                     try:
                         if len(value) == 1:
@@ -249,16 +249,69 @@ class ParkerConverter(XMLSchemaConverter):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    result_dict[name] = value
+                    if isinstance(value, (self.list, list)):
+                        result_dict[name] = self.list([value])
+                    else:
+                        result_dict[name] = value
                 except AttributeError:
                     result_dict[name] = self.list([result_dict[name], value])
+
+            for k, v in result_dict.items():
+                if isinstance(v, (self.list, list)) and len(v) == 1:
+                    value = v.pop()
+                    v.extend(value)
+
             if preserve_root:
                 return self.dict([(map_qname(data.tag), result_dict)])
             else:
                 return result_dict if result_dict else None
 
     def element_encode(self, data, xsd_element):
-        raise NotImplementedError()
+        if not isinstance(data, (self.dict, dict)):
+            if data == '':
+                data = None
+            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+                return ElementData(xsd_element.name, data, None, self.dict())
+            else:
+                return ElementData(xsd_element.name, None, data, self.dict())
+        else:
+            unmap_qname = self.unmap_qname
+            if not data:
+                return ElementData(xsd_element.name, None, None, self.dict())
+            elif self.preserve_root:
+                try:
+                    items = data[self.map_qname(xsd_element.name)]
+                except KeyError:
+                    return ElementData(xsd_element.name, None, None, self.dict())
+            else:
+                items = data
+
+            try:
+                content = []
+                for name, value in data.items():
+                    ns_name = unmap_qname(name)
+                    if not isinstance(value, (self.list, list)) or not value:
+                        content.append((ns_name, value))
+                    elif any(isinstance(v, (self.list, list)) for v in value):
+                        for obj in value:
+                            content.append((ns_name, obj))
+                    else:
+                        for xsd_child in xsd_element.type.content_type.iter_elements():
+                            if xsd_child.match(ns_name):
+                                if xsd_child.type.is_list():
+                                    content.append((ns_name, value))
+                                else:
+                                    for obj in value:
+                                        content.append((ns_name, obj))
+                                break
+                        else:
+                            for obj in value:
+                                content.append((ns_name, obj))
+
+            except AttributeError:
+                return ElementData(xsd_element.name, items, None, self.dict())
+            else:
+                return ElementData(xsd_element.name, None, content, self.dict())
 
 
 class BadgerFishConverter(XMLSchemaConverter):

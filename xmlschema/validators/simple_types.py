@@ -828,8 +828,9 @@ class XsdUnion(XsdSimpleType):
                         for validator in self.validators:
                             for error in validator(data):
                                 yield self._validation_error(error, validation)
-                        for error in self.patterns(result):
-                            yield self._validation_error(error, validation)
+                        if self.patterns is not None:
+                            for error in self.patterns(result):
+                                yield self._validation_error(error, validation)
 
                     yield result
                     return
@@ -847,8 +848,9 @@ class XsdUnion(XsdSimpleType):
                                 for validator in self.validators:
                                     for error in validator(result):
                                         yield self._validation_error(error, validation)
-                            for error in self.patterns(result):
-                                yield self._validation_error(error, validation)
+                            if self.patterns is not None:
+                                for error in self.patterns(result):
+                                    yield self._validation_error(error, validation)
 
                             results.append(result)
                             break
