@@ -323,8 +323,19 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def match(self, name):
-        return self.name == name or not self.qualified and self.local_name == name
+    def match(self, name, namespaces=None):
+        if namespaces is None:
+            return self.name == name or not self.qualified and self.local_name == name
+        elif name[0] == '{':
+            return self.name == name
+        elif self.name == name:
+            return True
+        elif not self.qualified and self.local_name == name:
+            return True
+        elif '' in namespaces and ':' not in name:
+            return self.name == '{%s}%s' % (namespaces[''], name)
+        else:
+            return False
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

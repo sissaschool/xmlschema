@@ -361,11 +361,11 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
                 data = schema.decode(root, converter=converter, **kwargs)
                 for _ in iter_nested_items(data, dict_class=dict_class):
                     pass
-                encoded_tree = schema.encode(data, path=root.tag, converter=converter, **kwargs)
-                if isinstance(encoded_tree, tuple):
-                    encoded_tree = encoded_tree[0]  # Lossy converter + validation='lax'
+                encoded_root = schema.encode(data, path=root.tag, converter=converter, **kwargs)
+                if isinstance(encoded_root, tuple):
+                    encoded_root = encoded_root[0]  # Lossy converter + validation='lax'
 
-                decoded_data = schema.decode(encoded_tree, converter=converter, **kwargs)
+                decoded_data = schema.decode(encoded_root, converter=converter, **kwargs)
                 if isinstance(decoded_data, tuple):
                     decoded_data = decoded_data[0]  # Lossy converter + validation='lax'
 
@@ -375,12 +375,8 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='lax', **options)
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='skip', **options)
             check_etree_encode(converter=xmlschema.BadgerFishConverter, **options)
-
-            import pdb
-            # pdb.set_trace()
-
             check_etree_encode(converter=xmlschema.AbderaConverter, **options)
-            # check_etree_encode(converter=xmlschema.JsonMLConverter, **options)
+            check_etree_encode(converter=xmlschema.JsonMLConverter, **options)
 
     return test_decoder
 

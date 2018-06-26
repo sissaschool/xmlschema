@@ -544,6 +544,7 @@ class AbderaConverter(XMLSchemaConverter):
 
             return ElementData(xsd_element.name, None, content, attributes)
 
+
 class JsonMLConverter(XMLSchemaConverter):
     """
     XML Schema based converter class for JsonML (JSON Mark-up Language) convention.
@@ -564,7 +565,7 @@ class JsonMLConverter(XMLSchemaConverter):
     def element_decode(self, data, xsd_element):
         self.clear()
         result_list = self.list([self.map_qname(data.tag)])
-        element_dict = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
+        attributes = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
 
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if data.text is not None and data.text != '':
@@ -575,13 +576,46 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if self:
-            element_dict.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
-        if element_dict:
-            result_list.insert(1, element_dict)
+        if self and xsd_element.is_global:
+            attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
+        if attributes:
+            result_list.insert(1, attributes)
         return result_list
 
     def element_encode(self, data, xsd_element):
-        import pdb
-        pdb.set_trace()
-        raise NotImplementedError()
+        unmap_qname = self.unmap_qname
+        attributes = self.dict()
+        if not isinstance(data, (self.list, list)) or not data:
+            raise ValueError("Wrong data format, a not empty list required: %r." % data)
+
+        data_len = len(data)
+        if data_len == 1:
+            if not xsd_element.match(unmap_qname(data[0]), self):
+                raise ValueError("Unmatched tag")
+            return ElementData(xsd_element.name, None, None, attributes)
+
+        unmap_attribute_qname = self.unmap_attribute_qname
+        try:
+            for k, v in data[1].items():
+                if k == 'xmlns':
+                    self[''] = v
+                elif k.startswith('xmlns:'):
+                    self[k.split('xmlns:')[1]] = v
+                else:
+                    attributes[unmap_attribute_qname(k)] = v
+        except AttributeError:
+            content_index = 1
+        else:
+            content_index = 2
+
+        if not xsd_element.match(unmap_qname(data[0]), self):
+            raise ValueError("Unmatched tag")
+
+        if data_len <= content_index:
+            return ElementData(xsd_element.name, None, [], attributes)
+        elif data_len > content_index + 1 or isinstance(data[content_index], (self.list, list)) \
+                and not xsd_element.type.is_list():
+            content = [(unmap_qname(e[0]), e) for e in data[content_index:]]
+            return ElementData(xsd_element.name, None, content, attributes)
+        else:
+            return ElementData(xsd_element.name, data[content_index], [], attributes)
