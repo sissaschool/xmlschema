@@ -45,6 +45,9 @@ from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 
 
 _VEHICLES_DICT = {
+    '@xmlns:vh': 'http://example.com/vehicles',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
     'vh:cars': {
         'vh:car': [
             {'@make': 'Porsche', '@model': '911'},
@@ -54,8 +57,7 @@ _VEHICLES_DICT = {
         'vh:bike': [
             {'@make': 'Harley-Davidson', '@model': 'WL'},
             {'@make': 'Yamaha', '@model': 'XS650'}
-        ]},
-    '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'
+        ]}
 }
 
 _VEHICLES_DICT_ALT = [
@@ -71,6 +73,8 @@ _VEHICLES_DICT_ALT = [
 ]
 
 _COLLECTION_DICT = {
+    '@xmlns:col': 'http://example.com/ns/collection',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
     '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
     'object': [{
         '@available': True,
@@ -253,6 +257,8 @@ _COLLECTION_JSON_ML = [
 ]
 
 _DATA_DICT = {
+    '@xmlns:ns': 'ns',
+    '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
     '@xsi:schemaLocation': 'ns ./simple-types.xsd',
     'certification': [
         {'$': 'ISO-9001', '@Year': 1999},
@@ -422,57 +428,57 @@ class TestDecoding(XMLSchemaTestCase):
 
     @unittest.skipIf(_lxml_etree is None, "Skip if lxml library is not installed.")
     def test_lxml(self):
-        vh_xml_tree = _lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        vh_xml_tree = _lxml_etree.parse(self.vh_xml_file)
         self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
         self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_tree = _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
-        col_xml_tree = _ElementTree.parse(self.abspath('cases/examples/collection/collection.xml'))
+        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = _ElementTree.parse(self.col_xml_file)
 
         xml_dict = self.vh_schema.to_dict(vh_xml_tree)
-        self.assertNotEqual(xml_dict, _VEHICLES_DICT)  # XSI namespace unmapped
+        self.assertNotEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = self.vh_schema.to_dict(vh_xml_tree, namespaces=self.namespaces)
+        xml_dict = self.vh_schema.to_dict(vh_xml_tree, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = xmlschema.to_dict(vh_xml_tree, self.vh_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(vh_xml_tree, self.vh_schema.url, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
         xml_dict = self.col_schema.to_dict(col_xml_tree)
         self.assertNotEqual(xml_dict, _COLLECTION_DICT)
 
-        xml_dict = self.col_schema.to_dict(col_xml_tree, namespaces=self.namespaces)
+        xml_dict = self.col_schema.to_dict(col_xml_tree, namespaces=self.col_namespaces)
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
-        xml_dict = xmlschema.to_dict(col_xml_tree, self.col_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(col_xml_tree, self.col_schema.url, namespaces=self.col_namespaces)
         self.assertEqual(xml_dict, _COLLECTION_DICT)
 
     def test_to_dict_from_string(self):
-        with open(self.abspath('cases/examples/vehicles/vehicles.xml')) as f:
+        with open(self.vh_xml_file) as f:
             vh_xml_string = f.read()
 
-        with open(self.abspath('cases/examples/collection/collection.xml')) as f:
+        with open(self.col_xml_file) as f:
             col_xml_string = f.read()
 
-        xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.namespaces)
+        xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = xmlschema.to_dict(vh_xml_string, self.vh_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(vh_xml_string, self.vh_schema.url, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, _VEHICLES_DICT)
 
-        xml_dict = self.col_schema.to_dict(col_xml_string, namespaces=self.namespaces)
+        xml_dict = self.col_schema.to_dict(col_xml_string, namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
-        xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.namespaces)
+        xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_path(self):
-        xt = _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
-        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
-        self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
-        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.namespaces)
-        self.assertEqual(xd, _VEHICLES_DICT['vh:bikes'])
+        xt = _ElementTree.parse(self.vh_xml_file)
+        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:cars', namespaces=self.vh_namespaces)
+        self.assertEqual(xd['vh:car'], _VEHICLES_DICT['vh:cars']['vh:car'])
+        xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.vh_namespaces)
+        self.assertEqual(xd['vh:bike'], _VEHICLES_DICT['vh:bikes']['vh:bike'])
 
     def test_validation_strict(self):
         self.assertRaises(
@@ -480,23 +486,23 @@ class TestDecoding(XMLSchemaTestCase):
             self.vh_schema.to_dict,
             _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
-            namespaces=self.namespaces
+            namespaces=self.vh_namespaces
         )
 
     def test_validation_skip(self):
         xt = _ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
-        xd = self.st_schema.decode(xt, validation='skip', namespaces=self.namespaces)
+        xd = self.st_schema.decode(xt, validation='skip', namespaces={'ns': 'ns'})
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes3(self):
         xt = _ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
-        xd = self.st_schema.to_dict(xt, namespaces=self.namespaces)
+        xd = self.st_schema.to_dict(xt, namespaces=self.default_namespaces)
         self.assertEqual(xd, _DATA_DICT)
 
     def test_converters(self):
-        filename = self.abspath('cases/examples/collection/collection.xml')
+        filename = self.col_xml_file
 
-        parker_dict = self.col_schema.to_dict(filename, converter=xmlschema.ParkerConverter)
+        parker_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.ParkerConverter)
         self.assertTrue(parker_dict == _COLLECTION_PARKER)
 
         parker_dict_root = self.col_schema.to_dict(
@@ -509,10 +515,6 @@ class TestDecoding(XMLSchemaTestCase):
 
         abdera_dict = self.col_schema.to_dict(
             filename, converter=xmlschema.AbderaConverter, decimal_type=float, dict_class=dict)
-        if abdera_dict != _COLLECTION_ABDERA:
-            import pdb
-            pdb.set_trace()
-
         self.assertTrue(abdera_dict == _COLLECTION_ABDERA)
 
         json_ml_dict = self.col_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
@@ -541,8 +543,9 @@ class TestDecoding(XMLSchemaTestCase):
         schema = xmlschema.XMLSchema(self.abspath('cases/issues/issue_041/issue_041.xsd'))
         data = schema.to_dict(self.abspath('cases/issues/issue_041/issue_041.xml'))
         self.assertEqual(data, {
-            u'@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
-            'Name': u'SomeNameValueThingy',
+            '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            '@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
+            'Name': 'SomeNameValueThingy',
             'Value': {'Integer': 0}
         })
 
@@ -551,7 +554,8 @@ class TestDecoding(XMLSchemaTestCase):
         xml_file = self.abspath('cases/issues/issue_046/issue_046.xml')
         self.assertEqual(
             schema.decode(xml_file, dict_class=OrderedDict, cdata_prefix='#'),
-            OrderedDict([('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
+            OrderedDict([('@xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance'),
+                         ('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
                          ('#1', 'Dear Mr.'), ('name', 'John Smith'),
                          ('#2', '.\n  Your order'), ('orderid', 1032),
                          ('#3', 'will be shipped on'), ('shipdate', '2001-07-13'), ('#4', '.')])
@@ -598,10 +602,11 @@ class TestDecoding(XMLSchemaTestCase):
         """)
 
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', Decimal('120.48'))
-        self.check_decode(schema, '<A xmlns="ns">100.50</A>', Decimal('100.50'))
+        self.check_decode(schema, '<A xmlns="ns">100.50</A>', Decimal('100.50'), process_namespaces=False)
         self.check_decode(schema, '<A xmlns="ns">100.49</A>', XMLSchemaValidationError)
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', 120.48, decimal_type=float)
-        self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)  # Issue #66
+        # Issue #66
+        self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)
 
 
 class TestEncoding(XMLSchemaTestCase):
@@ -628,7 +633,7 @@ class TestEncoding(XMLSchemaTestCase):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
         xt = _ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=OrderedDict)
-        elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.namespaces)
+        elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.col_namespaces)
 
         self.assertEqual(
             len([e for e in elem.iter()]), 20,

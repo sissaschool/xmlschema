@@ -16,6 +16,7 @@ from collections import MutableSequence
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..etree import etree_child_index, etree_element
+from ..namespaces import get_namespace
 from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
@@ -525,24 +526,22 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
         yield index
 
-
     def iter_encode(self, data, validation='lax', **kwargs):
         if data is None:
+            yield None
             return
 
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
+        padding = u'\n' + u' ' * indent * level
+
         try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        namespaces = kwargs.get('namespaces')
-
-        padding = u'\n' + u' ' * indent * level
 
         text = ''
-        empty_prefix_ns = namespaces.get('') if namespaces else None
         for name, value in data:
             if isinstance(name, int):
                 if children:
@@ -553,25 +552,24 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 else:
                     text += padding + value
             else:
-                if ':' not in name and empty_prefix_ns:
-                    qname = '{%s}%s' % (empty_prefix_ns, name)
-                else:
-                    qname = None
-
                 for xsd_element in self.iter_elements():
-                    if xsd_element.match(name) or qname and xsd_element.match(qname):
-                        if isinstance(xsd_element, XsdAnyElement):
-                            for result in xsd_element.iter_encode((qname or name, value), validation, **kwargs):
+                    if isinstance(xsd_element, XsdAnyElement):
+                        namespace = get_namespace(name) or converter.get('', '')
+                        if xsd_element.is_namespace_allowed(namespace):
+                            if name[0] != '{' and namespace:
+                                name = '{%s}%s' % (namespace, name)
+                            for result in xsd_element.iter_encode((name, value), validation, **kwargs):
                                 if isinstance(result, XMLSchemaValidationError):
                                     yield result
                                 else:
                                     children.append(result)
-                        else:
-                            for result in xsd_element.iter_encode(value, validation, **kwargs):
-                                if isinstance(result, XMLSchemaValidationError):
-                                    yield result
-                                else:
-                                    children.append(result)
+                            break
+                    elif xsd_element.match(name, converter.get('')):
+                        for result in xsd_element.iter_encode(value, validation, **kwargs):
+                            if isinstance(result, XMLSchemaValidationError):
+                                yield result
+                            else:
+                                children.append(result)
                         break
                 else:
                     if validation != 'skip':

@@ -25,7 +25,7 @@ from functools import wraps
 import xmlschema
 import xmlschema.validators
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.etree import etree_iselement, etree_element, etree_register_namespace
+from xmlschema.etree import etree_iselement, etree_element, etree_get_namespaces, etree_register_namespace
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -189,20 +189,24 @@ class XMLSchemaTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'vh': 'http://example.com/vehicles',
-            'col': 'http://example.com/ns/collection',
-            'ns': 'ns',
-        }
-
         cls.schema_class = xmlschema.XMLSchema
         cls.xsd_types = xmlschema.XMLSchema.builtin_types()
         cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
-        cls.vh_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/vehicles/vehicles.xsd'))
-        cls.col_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/collection/collection.xsd'))
-        cls.st_schema = xmlschema.XMLSchema(cls.abspath('cases/features/decoder/simple-types.xsd'))
+        cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+
+        cls.vh_schema_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
+        cls.vh_schema = xmlschema.XMLSchema(cls.vh_schema_file)
+        cls.vh_namespaces = etree_get_namespaces(cls.vh_xml_file)
+
+        cls.col_schema_file = cls.abspath('cases/examples/collection/collection.xsd')
+        cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
+        cls.col_schema = xmlschema.XMLSchema(cls.col_schema_file)
+        cls.col_namespaces = etree_get_namespaces(cls.col_xml_file)
+
+        cls.st_schema_file = cls.abspath('cases/features/decoder/simple-types.xsd')
+        cls.st_schema = xmlschema.XMLSchema(cls.st_schema_file)
 
     @classmethod
     def abspath(cls, path):

@@ -323,19 +323,14 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def match(self, name, namespaces=None):
-        if namespaces is None:
-            return self.name == name or not self.qualified and self.local_name == name
-        elif name[0] == '{':
+    def match(self, name, default_namespace=None):
+        if name[0] == '{':
             return self.name == name
-        elif self.name == name:
-            return True
-        elif not self.qualified and self.local_name == name:
-            return True
-        elif '' in namespaces and ':' not in name:
-            return self.name == '{%s}%s' % (namespaces[''], name)
+        elif default_namespace:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
         else:
-            return False
+            return self.name == name or not self.qualified and self.local_name == name
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
@@ -347,6 +342,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
+        level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
@@ -369,11 +365,11 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
-            for result in type_.iter_decode(elem, validation, **kwargs):
+            for result in type_.iter_decode(elem, validation, level=level+1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
-                    yield converter.element_decode(ElementData(elem.tag, *result), self)
+                    yield converter.element_decode(ElementData(elem.tag, *result), self, level)
                     del result
         else:
             # simpleType
@@ -419,7 +415,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                                 result = kwargs.get('decimal_type')(result)
                             except TypeError:
                                 pass
-                        yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
+                        yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self, level)
                         del result
 
         if validation != 'skip':

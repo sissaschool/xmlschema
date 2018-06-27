@@ -51,9 +51,6 @@ Schema level API
     .. automethod:: decode
     .. automethod:: get_converter
 
-    .. autoattribute:: to_dict
-        :annotate: = An alias for :classmethod:`decode`.
-
     .. automethod:: iter
     .. automethod:: iterchildren
     .. automethod:: find

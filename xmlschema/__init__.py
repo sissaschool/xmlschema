@@ -47,7 +47,7 @@ def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locati
     :param use_defaults: defines when to use elements and attribute defaults for filling \
     missing required values.
     :param locations: Schema location hints.
-    :return:
+
     """
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations)
@@ -61,7 +61,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     the decode phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
     is not validated against the schema.
 
-    :param xml_document:can be a file-like object or a string containing the XML data \
+    :param xml_document: can be a file-like object or a string containing the XML data \
     or a file path or an URI of a resource or an ElementTree/Element instance.
     :param schema: can be a file-like object or a file path or an URI of a resource or \
     a string containing the schema.
@@ -69,12 +69,12 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     :param path: is an optional XPath expression that matches the subelement of the document \
     that have to be decoded. The XPath expression considers the schema as the root element \
     with global elements as its children.
-    :param process_namespaces: indicates whether to get the namespaces from the XML \
-    document and use them in the decoding process.
+    :param process_namespaces: indicates whether to use namespace information in the decoding process.
     :param locations: Schema location hints.
     :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
     to variate the decoding process.
     :return:
+
     """
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations)

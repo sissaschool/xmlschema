@@ -505,7 +505,7 @@ class ValidatorMixin(object):
 
     def is_valid(self, data, use_defaults=True):
         """
-        Like :method:`validate` except that do not raises an exception but returns
+        Like :meth:`validate` except that do not raises an exception but returns
         ``True`` if the XML document is valid, ``False`` if it's invalid.
         """
         error = next(self.iter_errors(data, use_defaults=use_defaults), None)

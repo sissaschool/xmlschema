@@ -50,8 +50,13 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
     def built(self):
         return True
 
-    def match(self, name):
-        return self.is_namespace_allowed(get_namespace(name))
+    def match(self, name, default_namespace=None):
+        if name[0] == '{':
+            return self.is_namespace_allowed(get_namespace(name))
+        elif default_namespace is None:
+            return self.is_namespace_allowed('')
+        else:
+            return self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
@@ -100,7 +105,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
         if self.process_contents == 'skip':
             return
 
-        if self.match(elem.tag):
+        if self.is_namespace_allowed(get_namespace(elem.tag)):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
@@ -208,7 +213,7 @@ class XsdAnyAttribute(XsdWildcard):
             return
 
         for name, value in attrs.items():
-            if self.match(name):
+            if self.is_namespace_allowed(get_namespace(name)):
                 try:
                     xsd_attribute = self.maps.lookup_attribute(name)
                 except LookupError:

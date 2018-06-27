@@ -63,7 +63,7 @@ def load_xml_resource(source, element_only=True, defuse='remote'):
     :param element_only: If True the function returns only the root Element of the tree.
     :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
     or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
-    :return: a tuple with three items (root Element, XML text and XML URL) or
+    :return: a tuple with three items (root Element, XML text and XML URL) or \
     only the root Element if 'element_only' argument is True.
     """
     if defuse not in DEFUSE_MODES:
@@ -259,8 +259,7 @@ def fetch_schema(source, locations=None):
     Fetch the schema URL from an XML data source. If no accessible schema location
     is found raises a ValueError.
 
-    :param source: An Element or an Element Tree with XML data or an URL or a
-    file-like object.
+    :param source: An Element or an Element Tree with XML data or an URL or a file-like object.
     :param locations: A dictionary or dictionary items with Schema location hints.
     :return: An URL referring to a reachable schema resource.
     """
