@@ -629,16 +629,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
-    def iter_decode(self, xml_document, path=None, validation='lax', process_namespaces=True,
+    def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, converter=None,
                     defuse=None, **kwargs):
         """
         Creates an iterator for decoding an XML document using the schema instance. Yields objects 
         that can be dictionaries or simple data values.
 
-        :param xml_document: can be a path \
-        to a file or an URI of a resource or an opened file-like object or an Element Tree \
-        instance or a string containing XML data.
+        :param source: the XML data source. Can be a path to a file or an URI of a resource or \
+        an opened file-like object or an Element Tree instance or a string containing XML data.
         :param path: is an optional XPath expression that matches the parts of the document \
         that have to be decoded. The XPath expression considers the schema as the root \
         element with global elements as its children.
@@ -661,24 +660,22 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise XMLSchemaValueError("decoding needs at least one XSD element declaration!")
         elif process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
-            namespaces.update(etree_get_namespaces(xml_document))
+            namespaces.update(etree_get_namespaces(source))
         else:
             namespaces = {}
 
         converter = self.get_converter(converter, namespaces, **kwargs)
 
         try:
-            xml_root = xml_document.getroot()
+            xml_root = source.getroot()
         except (AttributeError, TypeError):
-            if etree_iselement(xml_document):
-                xml_root = xml_document
+            if etree_iselement(source):
+                xml_root = source
             else:
-                xml_root = load_xml_resource(xml_document, defuse=defuse or self.defuse)
+                xml_root = load_xml_resource(source, defuse=defuse or self.defuse)
         else:
             if not etree_iselement(xml_root):
-                raise XMLSchemaTypeError(
-                    "wrong type %r for 'xml_document' argument." % type(xml_document)
-                )
+                raise XMLSchemaTypeError("wrong type %r for 'source' argument." % type(source))
 
         if path is None:
             xsd_element = self.find(xml_root.tag, namespaces=namespaces)
@@ -713,7 +710,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                             **kwargs):
                         yield obj
 
-    def iter_encode(self, data, path=None, validation='lax', namespaces=None, indent=4, converter=None, **kwargs):
+    def iter_encode(self, source, path=None, validation='lax', namespaces=None, indent=4, converter=None, **kwargs):
         if not self.built:
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
         elif not self.elements:
@@ -724,16 +721,16 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         if path is not None:
             xsd_element = self.find(path, namespaces=namespaces)
-        elif isinstance(data, dict) and len(data) == 1:
-            xsd_element = self.elements.get(list(data.keys())[0])
+        elif isinstance(source, dict) and len(source) == 1:
+            xsd_element = self.elements.get(list(source.keys())[0])
         else:
             xsd_element = list(self.elements.values())[0]
 
         if not isinstance(xsd_element, XsdElement):
             msg = "the path %r doesn't match any element of the schema!" % path
-            yield XMLSchemaEncodeError(self, data, self.elements, reason=msg)
+            yield XMLSchemaEncodeError(self, source, self.elements, reason=msg)
         else:
-            for obj in xsd_element.iter_encode(data, validation, namespaces=namespaces,
+            for obj in xsd_element.iter_encode(source, validation, namespaces=namespaces,
                                                indent=indent, converter=converter):
                 yield obj
 

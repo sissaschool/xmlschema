@@ -132,5 +132,4 @@ distribution, or http://opensource.org/licenses/MIT.
 Roadmap
 =======
 
-* Validated XML data encoding
 * XSD 1.1
