@@ -751,7 +751,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                         yield obj
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None,
-                    etree_element=etree_element, indent=4, converter=None, **kwargs):
+                    element_class=etree_element, indent=4, converter=None, **kwargs):
         """
         Encode a data structure to an ElementTree's Element.
 
@@ -761,7 +761,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         the schema is used.
         :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param etree_element: the class that has to be used to create new elements.
+        :param element_class: the class that has to be used to create new elements.
         :param indent: Number of spaces for XML indentation (default is 4).
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
         :param kwargs: Keyword arguments containing options for converter and encoding.
@@ -790,7 +790,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             for result in xsd_element.iter_encode(
                     obj, validation,
                     namespaces=namespaces,
-                    etree_element=etree_element,
+                    etree_element=element_class,
                     indent=indent,
                     converter=converter,
                     **kwargs):

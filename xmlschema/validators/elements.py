@@ -510,7 +510,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        _etree_element = kwargs.get('etree_element') or etree_element
+        element_class = kwargs.get('element_class') or etree_element
 
         level = kwargs.pop('level', 0)
         indent = kwargs.get('indent', 4)
@@ -528,7 +528,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, obj)
                 else:
-                    elem = _etree_element(self.name, attrib=converter.dict(result.attributes))
+                    elem = element_class(self.name, attrib=converter.dict(result.attributes))
                     if result.content:
                         elem.extend(result.content)
                         elem.text = result.text or u'\n' + u' ' * indent * (level + 1)
@@ -539,7 +539,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield elem
                     break
             else:
-                yield _etree_element(self.name)
+                yield element_class(self.name)
         else:
             # Encode a simpleType
             if element_data.attributes:
@@ -551,7 +551,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 yield self._validation_error("a simpleType element can't has child elements.", validation, obj)
 
             if element_data.text is None:
-                elem = _etree_element(self.name, attrib=element_data.attributes)
+                elem = element_class(self.name, attrib=element_data.attributes)
                 elem.text = None
                 elem.tail = u'\n' + u' ' * indent * level
                 yield elem
@@ -560,13 +560,13 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, obj)
                     else:
-                        elem = _etree_element(self.name, attrib=element_data.attributes)
+                        elem = element_class(self.name, attrib=element_data.attributes)
                         elem.text = result
                         elem.tail = u'\n' + u' ' * indent * level
                         yield elem
                         break
                 else:
-                    yield _etree_element(self.name, attrib=element_data.attributes)
+                    yield element_class(self.name, attrib=element_data.attributes)
 
         del element_data
 

@@ -11,7 +11,7 @@
 import json
 
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
-from .etree import etree_get_namespaces, etree_element
+from .etree import etree_get_namespaces
 from .resources import fetch_resource, load_xml_resource, fetch_schema, fetch_schema_locations, normalize_url
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
