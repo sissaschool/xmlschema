@@ -197,11 +197,13 @@ class XMLSchemaTestCase(unittest.TestCase):
 
         cls.vh_schema_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
+        cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
         cls.vh_schema = xmlschema.XMLSchema(cls.vh_schema_file)
         cls.vh_namespaces = etree_get_namespaces(cls.vh_xml_file)
 
         cls.col_schema_file = cls.abspath('cases/examples/collection/collection.xsd')
         cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
+        cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
         cls.col_schema = xmlschema.XMLSchema(cls.col_schema_file)
         cls.col_namespaces = etree_get_namespaces(cls.col_xml_file)
 

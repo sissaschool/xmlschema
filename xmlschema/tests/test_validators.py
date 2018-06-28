@@ -319,7 +319,7 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
-        # Error counting
+        # Test the errors iterator
         self.assertEqual(len(list(schema.iter_errors(xml_file))), len(errors))
 
         if not inspect and sys.version_info >= (3,):
@@ -504,6 +504,28 @@ class TestDecoding(XMLSchemaTestCase):
 
         xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, _COLLECTION_DICT)
+
+    def test_json_dump_and_load(self):
+        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = _ElementTree.parse(self.col_xml_file)
+
+        with open(self.vh_json_file, 'w') as f:
+            xmlschema.to_json(self.vh_xml_file, f)
+
+        with open(self.vh_json_file) as f:
+            root = xmlschema.from_json(f, self.vh_schema)
+
+        os.remove(self.vh_json_file)
+        self.assertTrue(etree_elements_equal(vh_xml_tree, root, False))
+
+        with open(self.col_json_file, 'w') as f:
+            xmlschema.to_json(self.col_xml_file, f)
+
+        with open(self.col_json_file) as f:
+            root = xmlschema.from_json(f, self.col_schema)
+
+        os.remove(self.col_json_file)
+        self.assertTrue(etree_elements_equal(col_xml_tree, root, False))
 
     def test_path(self):
         xt = _ElementTree.parse(self.vh_xml_file)
