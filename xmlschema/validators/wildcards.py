@@ -218,22 +218,39 @@ class XsdAnyAttribute(XsdWildcard):
     def admitted_tags(self):
         return {XSD_ANY_ATTRIBUTE_TAG}
 
-    def iter_decode(self, attrs, validation='lax', **kwargs):
+    def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
-        for name, value in attrs.items():
-            if self.is_namespace_allowed(get_namespace(name)):
-                try:
-                    xsd_attribute = self.maps.lookup_attribute(name)
-                except LookupError:
-                    if self.process_contents == 'strict' and validation != 'skip':
-                        yield self._validation_error("attribute %r not found." % name, validation, attrs)
-                else:
-                    for result in xsd_attribute.iter_decode(value, validation, **kwargs):
-                        yield result
-            elif validation != 'skip':
-                yield self._validation_error("attribute %r not allowed." % name, validation, attrs)
+        name, value = attribute
+        if self.is_namespace_allowed(get_namespace(name)):
+            try:
+                xsd_attribute = self.maps.lookup_attribute(name)
+            except LookupError:
+                if self.process_contents == 'strict' and validation != 'skip':
+                    yield self._validation_error("attribute %r not found." % name, validation, attribute)
+            else:
+                for result in xsd_attribute.iter_decode(value, validation, **kwargs):
+                    yield result
+        elif validation != 'skip':
+            yield self._validation_error("attribute %r not allowed." % name, validation, attribute)
+
+    def iter_encode(self, attribute, validation='lax', *args, **kwargs):
+        if self.process_contents == 'skip':
+            return
+
+        name, value = attribute
+        if self.is_namespace_allowed(get_namespace(name)):
+            try:
+                xsd_attribute = self.maps.lookup_attribute(name)
+            except LookupError:
+                if self.process_contents == 'strict' and validation != 'skip':
+                    yield self._validation_error("attribute %r not found." % name, validation, attribute)
+            else:
+                for result in xsd_attribute.iter_encode(value, validation, **kwargs):
+                    yield result
+        elif validation != 'skip':
+            yield self._validation_error("attribute %r not allowed." % name, validation, attribute)
 
 
 class Xsd11Wildcard(XsdWildcard):
@@ -263,7 +280,7 @@ class Xsd11Wildcard(XsdWildcard):
         # Parse notQName attribute
         try:
             not_qname = self.elem.attrib['notQName'].strip()
-        except:
+        except KeyError:
             self.not_qname = None
         else:
             if not_qname in ('##defined', '##definedSibling'):

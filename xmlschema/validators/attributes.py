@@ -408,7 +408,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {name: value}
+                        value = (name, value)
                     except KeyError:
                         if validation != 'skip':
                             error = XMLSchemaValidationError(
@@ -465,7 +465,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {name: value}
+                        value = (name, value)
                     except KeyError:
                         yield XMLSchemaValidationError(
                             self, attrs, "%r attribute not allowed for element." % name

@@ -136,7 +136,7 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
             json.dump(obj[0], fp, **kwargs)
             return tuple(obj[1])
         else:
-            return json.dumps(obj, **json_options), tuple(obj[1])
+            return json.dumps(obj[0], **json_options), tuple(obj[1])
     elif fp is not None:
         json.dump(obj, fp, **json_options)
     else:

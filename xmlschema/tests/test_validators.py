@@ -319,6 +319,9 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
         else:
             self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
 
+        # Error counting
+        self.assertEqual(len(list(schema.iter_errors(xml_file))), len(errors))
+
         if not inspect and sys.version_info >= (3,):
             # Repeat with serialized-deserialized schema (only for Python 3)
             deserialized_schema = pickle.loads(pickle.dumps(schema))
@@ -348,7 +351,14 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
             self.assertEqual(chunks, chunks2)
             self.assertEqual(len(errors), len(errors2))
 
-        if not errors:
+        if errors:
+            self.assertFalse(schema.is_valid(xml_file))
+            self.assertRaises(XMLSchemaValidationError, schema.validate, xml_file)
+        else:
+            # Validation API
+            self.assertTrue(schema.is_valid(xml_file))
+            self.assertEqual(schema.validate(xml_file), None)
+
             # Compare with the decode API and other validation modes
             strict_data = schema.decode(xml_file)
             lax_data = schema.decode(xml_file, validation='lax')
@@ -400,6 +410,11 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
                 self.assertEqual(serialized_data, data)
 
             check_serialization(**options)
+            check_serialization(converter=xmlschema.ParkerConverter, validation='lax', **options)
+            check_serialization(converter=xmlschema.ParkerConverter, validation='skip', **options)
+            check_serialization(converter=xmlschema.BadgerFishConverter, **options)
+            check_serialization(converter=xmlschema.AbderaConverter, **options)
+            check_serialization(converter=xmlschema.JsonMLConverter, **options)
 
     return test_validator
 
