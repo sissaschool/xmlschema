@@ -75,6 +75,16 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
             else:
                 return namespace in any_namespaces
 
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
+
+    def iter_decode(self, source, validation='lax', *args, **kwargs):
+        raise NotImplementedError
+
+    def iter_encode(self, obj, validation='lax', *args, **kwargs):
+        raise NotImplementedError
+
 
 class XsdAnyElement(XsdWildcard, ParticleMixin):
     """
@@ -168,11 +178,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
                 yield index
                 return
 
-    def iter_encode(self, data, validation='lax', *args, **kwargs):
+    def iter_encode(self, obj, validation='lax', *args, **kwargs):
         if self.process_contents == 'skip':
             return
 
-        name, value = data
+        name, value = obj
         if self.match(name):
             try:
                 xsd_element = self.maps.lookup_element(name)

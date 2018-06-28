@@ -2,8 +2,9 @@
 setuptools
 tox
 elementpath>=1.0.10
-lxml
 defusedxml>=0.5
+lxml
+pyyaml
 Sphinx
 sphinx_rtd_theme
 -e .

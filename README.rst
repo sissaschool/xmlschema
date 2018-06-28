@@ -24,12 +24,14 @@ The full `xmlschema documentation is available on "Read the Docs" <http://xmlsch
 Features
 ========
 
-The xmlschema library includes the following features:
+This library includes the following features:
 
 * Full XSD 1.0 support
 * Building of XML schema objects from XSD files
 * Validation of XML instances against XSD schemas
-* Decoding of XML data into Python data structures
+* Decoding of XML data into Python data and to JSON
+* Encoding of Python data and JSON to XML
+* Data decoding and encoding ruled by converter classes
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
 * XML-based attacks prevention using the external package *defusedxml*
@@ -42,8 +44,10 @@ You can install the library with *pip* in a Python 2.7 or Python 3.4+ environmen
 
     pip install xmlschema
 
-The library uses the Python's ElementTree XML library and doesn't require additional
-packages. The library includes also the schemas of the XML Schema standards for working
+The library uses the Python's ElementTree XML library and requires
+`elementpath <https://github.com/brunato/elementpath>`_ and
+`defusedxml <https://github.com/tiran/defusedxml>`_ additional packages.
+The base schemas of the XSD standards are included in the package for working
 offline and to speed-up the building of schema instances.
 
 .. xmlschema-introduction-end

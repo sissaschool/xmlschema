@@ -338,9 +338,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Generator method for decoding complex content elements. A list of 3-tuples
-        (key, decoded data, decoder) is returned, eventually preceded by a sequence
-        of validation/decode errors.
+        Decode the content of an Element.
+
+        :param elem: The Element that has to be decoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the decoding process.
+        :return: Yields a list of 3-tuples (key, decoded data, decoder), eventually \
+        preceded by a sequence of validation or decoding errors.
         """
         def not_whitespace(s):
             return s is not None and s.strip()
@@ -444,10 +448,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         Generator function for decoding the children of an element. Before ending the generator
         yields the last index used by inner validators.
 
-        :param elem: Element node.
+        :param elem: The parent Element.
         :param index: Start child index, 0 for default.
         :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
-        :return: Generates a sequence of values that can be tuples and/or errors and an integer.
+        :return: Yields a sequence of values that can be tuples and/or errors and an integer at the end.
         """
         if not len(self):
             return  # Skip empty groups!
@@ -526,8 +530,18 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
         yield index
 
-    def iter_encode(self, data, validation='lax', **kwargs):
-        if data is None:
+    def iter_encode(self, obj, validation='lax', **kwargs):
+        """
+        Encode data to the text and the content of an Element.
+
+        :param obj: The data that has to be encoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the encoding process.
+        :return: Yields a couple with the text of the Element and a list of 3-tuples \
+        (key, decoded data, decoder), eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
+        if obj is None:
             yield None
             return
 
@@ -542,7 +556,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         text = ''
-        for name, value in data:
+        for name, value in obj:
             if isinstance(name, int):
                 if children:
                     if children[-1].tail is None:

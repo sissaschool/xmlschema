@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the decoding of XML files with the 'xmlschema' package.
+This module runs tests concerning the validation/decoding/encoding of XML files.
 """
 import unittest
 import os
@@ -290,10 +290,10 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
-                               locations=None, defuse='defuse'):
+def make_validator_test_function(xml_file, schema_class, expected_errors=0, inspect=False,
+                                 locations=None, defuse='defuse'):
 
-    def test_decoder(self):
+    def test_validator(self):
         source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
         schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
         errors = []
@@ -375,7 +375,7 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
                 if isinstance(decoded_data, tuple):
                     decoded_data = decoded_data[0]  # Lossy converter + validation='lax'
 
-                self.assertEqual(decoded_data, schema.decode(root, converter=converter, **kwargs))
+                self.assertEqual(decoded_data, data)
 
             check_etree_encode(**options)  # Default converter
             check_etree_encode(converter=xmlschema.ParkerConverter, validation='lax', **options)
@@ -384,7 +384,24 @@ def make_decoder_test_function(xml_file, schema_class, expected_errors=0, inspec
             check_etree_encode(converter=xmlschema.AbderaConverter, **options)
             check_etree_encode(converter=xmlschema.JsonMLConverter, **options)
 
-    return test_decoder
+            def check_serialization(converter=None, **kwargs):
+                data = xmlschema.to_json(root, schema=schema, converter=converter, **kwargs)
+
+                deserialized_root = xmlschema.from_json(
+                    data, schema=schema, path=root.tag, converter=converter, **kwargs
+                )
+                if isinstance(deserialized_root, tuple):
+                    deserialized_root = deserialized_root[0]  # Lossy converter + validation='lax'
+
+                serialized_data = xmlschema.to_json(deserialized_root, schema=schema, converter=converter, **kwargs)
+                if isinstance(serialized_data, tuple):
+                    serialized_data = serialized_data[0]  # Lossy converter + validation='lax'
+
+                self.assertEqual(serialized_data, data)
+
+            check_serialization(**options)
+
+    return test_validator
 
 
 class TestValidation(XMLSchemaTestCase):
@@ -816,6 +833,6 @@ if __name__ == '__main__':
 
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    decoder_tests = tests_factory(make_decoder_test_function, testfiles, 'decoder', 'xml')
+    decoder_tests = tests_factory(make_validator_test_function, testfiles, 'validator', 'xml')
     globals().update(decoder_tests)
     unittest.main()

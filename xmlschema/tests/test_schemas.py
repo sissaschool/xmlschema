@@ -333,12 +333,12 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_final_attribute(self):
         self.check_schema("""
             <simpleType name="aType" final="list restriction">
-		        <restriction base="string"/>
-	        </simpleType>
-	        """)
+                <restriction base="string"/>
+            </simpleType>
+            """)
 
 
-def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False,
+def make_schema_test_function(xsd_file, schema_class, expected_errors=0, inspect=False,
                               locations=None, defuse='remote'):
     def test_schema(self):
         if inspect:
@@ -398,6 +398,6 @@ if __name__ == '__main__':
 
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    schema_tests = tests_factory(make_test_schema_function, testfiles, label='schema', suffix='xsd')
+    schema_tests = tests_factory(make_schema_test_function, testfiles, label='schema', suffix='xsd')
     globals().update(schema_tests)
     unittest.main()

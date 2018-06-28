@@ -15,5 +15,4 @@ for source code and for an issue tracker.
 Roadmap
 -------
 
-* Validated XML data encoding
 * XSD 1.1

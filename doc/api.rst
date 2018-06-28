@@ -1,12 +1,18 @@
 API Documentation
 =================
 
+.. _module-level-api:
+
 Module level API
 ----------------
 
 .. autofunction:: xmlschema.validate
 .. autofunction:: xmlschema.to_dict
+.. autofunction:: xmlschema.to_json
+.. autofunction:: xmlschema.from_json
 
+
+.. _schema-level-api:
 
 Schema level API
 ----------------
@@ -36,6 +42,7 @@ Schema level API
     .. automethod:: include_schema
     .. automethod:: import_schema
     .. automethod:: create_schema
+    .. automethod:: get_converter
 
     .. automethod:: check_schema
     .. automethod:: build
@@ -48,8 +55,17 @@ Schema level API
 
     .. automethod:: validate
     .. automethod:: is_valid
+    .. automethod:: iter_errors
     .. automethod:: decode
-    .. automethod:: get_converter
+
+    .. _schema-iter_decode:
+
+    .. automethod:: iter_decode
+    .. automethod:: encode
+
+    .. _schema-iter_encode:
+
+    .. automethod:: iter_encode
 
     .. automethod:: iter
     .. automethod:: iterchildren
@@ -64,6 +80,9 @@ XSD globals maps API
 .. autoclass:: xmlschema.XsdGlobals
     :members: copy, register, iter_schemas, iter_globals, clear, build
 
+
+.. _xml-schema-converters:
+
 XML Schema converters
 ---------------------
 
@@ -71,8 +90,10 @@ The base class `XMLSchemaConverter` is used for defining generic converters.
 The subclasses implement some of the most used conventions for converting XML
 to JSON data.
 
+.. autoclass:: xmlschema.converters.ElementData
+
 .. autoclass:: xmlschema.converters.XMLSchemaConverter
-    :members: element_decode
+    :members: element_decode, element_encode
 
 .. autoclass:: xmlschema.converters.ParkerConverter
 
@@ -83,6 +104,8 @@ to JSON data.
 .. autoclass:: xmlschema.converters.JsonMLConverter
 
 
+.. _resource-access-api:
+
 Resource access API
 -------------------
 
@@ -92,6 +115,8 @@ Resource access API
 .. autofunction:: xmlschema.load_xml_resource
 .. autofunction:: xmlschema.normalize_url
 
+
+.. _errors-and-exceptions:
 
 Errors and exceptions
 ---------------------

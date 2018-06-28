@@ -22,7 +22,7 @@ from ..exceptions import (
 from ..namespaces import (
     XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 )
-from ..etree import etree_get_namespaces, etree_register_namespace, etree_iselement
+from ..etree import etree_element, etree_get_namespaces, etree_register_namespace, etree_iselement
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import (
@@ -380,7 +380,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                                 self.attribute_groups, self.groups, self.elements)
         super(XMLSchemaBase, self).__setattr__(name, value)
 
+    def __iter__(self):
+        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
+            yield xsd_element
+
     # Schema element attributes
+    @property
+    def name(self):
+        return self.root.tag
+
     @property
     def tag(self):
         return self.root.tag
@@ -556,6 +564,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             return []
 
     def get_converter(self, converter=None, namespaces=None, **kwargs):
+        """
+        Returns a new converter instance.
+
+        :param converter: can be a converter class or instance. If it's an instance \
+        the new instance is copied from it and configured with the provided arguments.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param kwargs: optional arguments for initialize the converter instance.
+        :return: a converter instance.
+        """
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
         if namespaces is None:
@@ -629,12 +646,33 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
+    # ElementPath API
+    def iter(self, name=None):
+        """
+        Creates a subtree iterator (depth-first) for the XSD/XML element. If *name* is not ``None``
+        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
+        """
+        for xsd_element in self.elements.values():
+            if name is None or xsd_element.name == name:
+                yield xsd_element
+            for e in xsd_element.iter(name):
+                yield e
+
+    def iterchildren(self, name=None):
+        """
+        Creates an iterator for child XSD/XML elements, sorted by name. If *name* is not ``None``
+        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
+        """
+        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
+            if name is None or xsd_element.name == name:
+                yield xsd_element
+
+    # Validator methods
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, converter=None,
                     defuse=None, **kwargs):
         """
-        Creates an iterator for decoding an XML document using the schema instance. Yields objects 
-        that can be dictionaries or simple data values.
+        Decode an XML data source using the schema instance.
 
         :param source: the XML data source. Can be a path to a file or an URI of a resource or \
         an opened file-like object or an Element Tree instance or a string containing XML data.
@@ -652,7 +690,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         built-in and derived types), useful if you want to generate a JSON-compatible data structure.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
         :param defuse: Overrides when to defuse XML data. Can be 'always', 'remote' or 'never'.
-        :param kwargs: Keyword arguments containing options for converters and decoding.
+        :param kwargs: Keyword arguments containing options for converter and decoding.
+        :return: Yields a decoded data object, eventually preceded by a sequence of validation \
+        or decoding errors.
         """
         if not self.built:
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
@@ -685,7 +725,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 for obj in xsd_element.iter_decode(
                         xml_root, validation,
-                        process_namespaces=process_namespaces,
+                        include_namespaces=process_namespaces,
                         namespaces=namespaces,
                         use_defaults=use_defaults,
                         decimal_type=decimal_type,
@@ -702,7 +742,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 for elem in elementpath.select(xml_root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation,
-                            process_namespaces=process_namespaces,
+                            include_namespaces=process_namespaces and xsd_element.is_global,
                             namespaces=namespaces,
                             use_defaults=use_defaults,
                             decimal_type=decimal_type,
@@ -710,7 +750,24 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                             **kwargs):
                         yield obj
 
-    def iter_encode(self, source, path=None, validation='lax', namespaces=None, indent=4, converter=None, **kwargs):
+    def iter_encode(self, obj, path=None, validation='lax', namespaces=None,
+                    etree_element=etree_element, indent=4, converter=None, **kwargs):
+        """
+        Encode a data structure to an ElementTree's Element.
+
+        :param obj: the data that has to be encoded.
+        :param path: is an optional XPath expression for selecting the element of the schema \
+        that matches the data that has to be encoded. For default the first global element of \
+        the schema is used.
+        :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param etree_element: the class that has to be used to create new elements.
+        :param indent: Number of spaces for XML indentation (default is 4).
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
+        :param kwargs: Keyword arguments containing options for converter and encoding.
+        :return: Yields an Element instance, eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
         if not self.built:
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
         elif not self.elements:
@@ -721,46 +778,23 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         if path is not None:
             xsd_element = self.find(path, namespaces=namespaces)
-        elif isinstance(source, dict) and len(source) == 1:
-            xsd_element = self.elements.get(list(source.keys())[0])
+        elif isinstance(obj, dict) and len(obj) == 1:
+            xsd_element = self.elements.get(list(obj.keys())[0])
         else:
             xsd_element = list(self.elements.values())[0]
 
         if not isinstance(xsd_element, XsdElement):
             msg = "the path %r doesn't match any element of the schema!" % path
-            yield XMLSchemaEncodeError(self, source, self.elements, reason=msg)
+            yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
         else:
-            for obj in xsd_element.iter_encode(source, validation, namespaces=namespaces,
-                                               indent=indent, converter=converter):
-                yield obj
-
-    def iter(self, name=None):
-        """
-        Creates a subtree iterator (depth-first) for the XSD/XML element. If *name* is not ``None``
-        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
-        """
-        for xsd_element in self.elements.values():
-            if name is None or xsd_element.name == name:
-                yield xsd_element
-            for e in xsd_element.iter(name):
-                yield e
-
-    def __iter__(self):
-        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-            yield xsd_element
-
-    @property
-    def name(self):
-        return self.root.tag
-
-    def iterchildren(self, name=None):
-        """
-        Creates an iterator for child XSD/XML elements, sorted by name. If *name* is not ``None``
-        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
-        """
-        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-            if name is None or xsd_element.name == name:
-                yield xsd_element
+            for result in xsd_element.iter_encode(
+                    obj, validation,
+                    namespaces=namespaces,
+                    etree_element=etree_element,
+                    indent=indent,
+                    converter=converter,
+                    **kwargs):
+                yield result
 
 
 class XMLSchema10(XMLSchemaBase):

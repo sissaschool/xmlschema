@@ -31,7 +31,7 @@ the file containing the schema as argument:
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
 
 Otherwise the argument can be also an opened file-like object:
 
@@ -39,14 +39,14 @@ Otherwise the argument can be also an opened file-like object:
 
     >>> import xmlschema
     >>> schema_file = open('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
-    >>> my_schema = xmlschema.XMLSchema(schema_file)
+    >>> schema = xmlschema.XMLSchema(schema_file)
 
 Alternatively you can pass a string containing the schema definition:
 
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema("""
+    >>> schema = xmlschema.XMLSchema("""
     ... <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
     ... <xs:element name="block" type="xs:string"/>
     ... </xs:schema>
@@ -59,7 +59,7 @@ cannot knows anything about the schema's source location:
 
     >>> import xmlschema
     >>> schema_xsd = open('xmlschema/tests/cases/examples/vehicles/vehicles.xsd').read()
-    >>> my_schema = xmlschema.XMLSchema(schema_xsd)
+    >>> schema = xmlschema.XMLSchema(schema_xsd)
     Traceback (most recent call last):
     ...
     ...
@@ -76,14 +76,14 @@ attributes of the schema instance:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
-    >>> my_schema.types
+    >>> schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> schema.types
     NamespaceView({'vehicleType': XsdComplexType(name='vehicleType')})
-    >>> pprint(dict(my_schema.elements))
+    >>> pprint(dict(schema.elements))
     {'bikes': XsdElement(name='vh:bikes'),
      'cars': XsdElement(name='vh:cars'),
      'vehicles': XsdElement(name='vh:vehicles')}
-    >>> my_schema.attributes
+    >>> schema.attributes
     NamespaceView({'step': XsdAttribute(name='vh:step')})
 
 Those declarations are local views of *XSD global maps* shared between related schema instances.
@@ -92,13 +92,13 @@ The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
 .. doctest::
 
     >>> from pprint import pprint
-    >>> pprint(sorted(my_schema.maps.types.keys())[:5])
+    >>> pprint(sorted(schema.maps.types.keys())[:5])
     ['{http://example.com/vehicles}vehicleType',
      '{http://www.w3.org/1999/xlink}actuateType',
      '{http://www.w3.org/1999/xlink}arcType',
      '{http://www.w3.org/1999/xlink}arcroleType',
      '{http://www.w3.org/1999/xlink}extended']
-    >>> pprint(sorted(my_schema.maps.elements.keys())[:10])
+    >>> pprint(sorted(schema.maps.elements.keys())[:10])
     ['{http://example.com/vehicles}bikes',
      '{http://example.com/vehicles}cars',
      '{http://example.com/vehicles}vehicles',
@@ -116,9 +116,9 @@ defining the search criteria:
 
 .. doctest::
 
-    >>> my_schema.find('vh:vehicles/vh:bikes')
+    >>> schema.find('vh:vehicles/vh:bikes')
     XsdElement(name='vh:bikes')
-    >>> pprint(my_schema.findall('vh:vehicles/*'))
+    >>> pprint(schema.findall('vh:vehicles/*'))
     [XsdElement(name='vh:cars'), XsdElement(name='vh:bikes')]
 
 
@@ -134,12 +134,12 @@ returns ``False`` if the document is invalid.
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
-    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
+    >>> schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
     True
-    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
+    >>> schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     False
-    >>> my_schema.is_valid("""<?xml version="1.0" encoding="UTF-8"?><fancy_tag/>""")
+    >>> schema.is_valid("""<?xml version="1.0" encoding="UTF-8"?><fancy_tag/>""")
     False
 
 An alternative mode for validating an XML document is implemented by the method
@@ -149,9 +149,9 @@ to the schema:
 .. doctest::
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
-    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
-    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
+    >>> schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
+    >>> schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       File "/home/brunato/Development/projects/xmlschema/xmlschema/schema.py", line 220, in validate
@@ -198,14 +198,10 @@ Each schema component includes methods for data conversion:
 
 .. doctest::
 
-    >>> my_schema.types['vehicleType'].decode
+    >>> schema.types['vehicleType'].decode
     <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
-    >>> my_schema.elements['cars'].encode
+    >>> schema.elements['cars'].encode
     <bound method ValidatorMixin.encode of XsdElement(name='vh:cars')>
-
-.. warning::
-
-    The *encode* methods are not completed yet for this version of the library.
 
 
 Those methods can be used to decode the correspondents parts of the XML document:
@@ -234,7 +230,9 @@ You can also decode the entire XML document to a nested dictionary:
     >>> from pprint import pprint
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/vehicles/vehicles.xml'))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {'@xmlns:vh': 'http://example.com/vehicles',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
@@ -248,7 +246,9 @@ The decoded values coincide with the datatypes declared in the XSD schema:
     >>> from pprint import pprint
     >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/collection/collection.xsd')
     >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/collection/collection.xml'))
-    {'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+    {'@xmlns:col': 'http://example.com/ns/collection',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
      'object': [{'@available': True,
                  '@id': 'b0836217462',
                  'author': {'@id': 'PAR',
@@ -287,9 +287,13 @@ expression using in the *path* argument.
     An XPath expression for the schema *considers the schema as the root element with global
     elements as its children*.
 
+All the decoding and encoding methods are based on two generator methods of the `XMLSchema` class,
+namely *iter_decode()* and *iter_encode()*, that yield both data and validation errors.
+See :ref:`schema-level-api` section for more information.
 
-Validating and decoding ElementTree XML data
---------------------------------------------
+
+Validating and decoding ElementTree's elements
+----------------------------------------------
 
 Validation and decode API works also with XML data loaded in ElementTree structures:
 
@@ -312,7 +316,9 @@ have to provide a map to convert URIs to prefixes:
 
     >>> namespaces = {'xsi': 'http://www.w3.org/2001/XMLSchema-instance', 'vh': 'http://example.com/vehicles'}
     >>> pprint(xs.to_dict(xt, namespaces=namespaces))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {'@xmlns:vh': 'http://example.com/vehicles',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
@@ -331,13 +337,17 @@ namespace information is associated within each node of the trees:
     >>> xs.is_valid(xt)
     True
     >>> pprint(xs.to_dict(xt))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {'@xmlns:vh': 'http://example.com/vehicles',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
                             {'@make': 'Porsche', '@model': '911'}]}}
     >>> pprint(xmlschema.to_dict(xt, 'xmlschema/tests/cases/examples/vehicles/vehicles.xsd'))
-    {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
+    {'@xmlns:vh': 'http://example.com/vehicles',
+     '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+     '@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd',
      'vh:bikes': {'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                               {'@make': 'Yamaha', '@model': 'XS650'}]},
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
@@ -385,6 +395,9 @@ You can also change the data decoding process providing the keyword argument *co
 
     >>> pprint(xs.to_dict(xml_document, converter=xmlschema.ParkerConverter, dict_class=dict), indent=4)
     {'vh:bikes': {'vh:bike': [None, None]}, 'vh:cars': {'vh:car': [None, None]}}
+
+
+See the :ref:`xml-schema-converters` section for more information about converters.
 
 
 Decoding to JSON
@@ -463,6 +476,8 @@ using the keyword argument *decimal_type*:
         "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd"
     }
 
+From version 1.0 there are two module level API for simplify the JSON serialization and deserialization task.
+See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`module-level-api` section.
 
 XSD validation modes
 --------------------
@@ -498,4 +513,4 @@ package. The protection is applied both to XSD schemas and to XML data.
 The usage of this feature is regulated by the XMLSchema's argument *defuse*.
 For default this argument has value *'remote'* that means the protection on XML data is
 applied only to data loaded from remote. Other values for this argument can be *'always'*
-and *'never'*. In a future release the default will be changed permanently to *'always'*.
+and *'never'*.

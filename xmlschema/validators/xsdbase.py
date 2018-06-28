@@ -499,9 +499,11 @@ class ValidatorMixin(object):
         with global elements as its children.
         :param use_defaults: Use schema's default values for filling missing data.
         """
-        for chunk in self.iter_decode(source, path, use_defaults=use_defaults):
-            if isinstance(chunk, XMLSchemaValidationError):
-                yield chunk
+        for result in self.iter_decode(source, path, use_defaults=use_defaults):
+            if isinstance(result, XMLSchemaValidationError):
+                yield result
+            else:
+                del result
 
     def is_valid(self, source, use_defaults=True):
         """
@@ -535,23 +537,23 @@ class ValidatorMixin(object):
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         errors = []
 
-        for chunk in self.iter_decode(source, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError):
+        for result in self.iter_decode(source, validation=validation, *args, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
                 if validation == 'strict':
-                    raise chunk
+                    raise result
                 elif validation == 'lax':
-                    errors.append(chunk)
+                    errors.append(result)
             elif errors:
-                return chunk, errors
+                return result, errors
             else:
-                return chunk
+                return result
     to_dict = decode
 
-    def encode(self, data, *args, **kwargs):
+    def encode(self, obj, *args, **kwargs):
         """
         Encodes data to XML using the XSD schema/component.
 
-        :param data: the data to be encoded to XML.
+        :param obj: the data to be encoded to XML.
         :param args: arguments that maybe passed to :func:`XMLSchema.iter_encode`.
         :param kwargs: keyword arguments from the ones included in the optional \
         arguments of the :func:`XMLSchema.iter_encode`.
@@ -567,20 +569,20 @@ class ValidatorMixin(object):
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         errors = []
 
-        for chunk in self.iter_encode(data, validation=validation, *args, **kwargs):
-            if isinstance(chunk, XMLSchemaValidationError):
+        for result in self.iter_encode(obj, validation=validation, *args, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
                 if validation == 'strict':
-                    raise chunk
+                    raise result
                 elif validation == 'lax':
-                    errors.append(chunk)
+                    errors.append(result)
             elif errors:
-                return chunk, errors
+                return result, errors
             else:
-                return chunk
+                return result
     to_etree = encode
 
     def iter_decode(self, source, validation='lax', *args, **kwargs):
         raise NotImplementedError
 
-    def iter_encode(self, data, validation='lax', *args, **kwargs):
+    def iter_encode(self, obj, validation='lax', *args, **kwargs):
         raise NotImplementedError

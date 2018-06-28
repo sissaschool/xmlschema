@@ -17,8 +17,8 @@ from .exceptions import XMLSchemaValueError
 from .namespaces import NamespaceMapper
 
 
-# Namedtuple for a generic Element data representation.
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
+"Namedtuple for Element data interchange between decoders and converters."
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -109,17 +109,17 @@ class XMLSchemaConverter(NamespaceMapper):
                 if self.cdata_prefix is not None:
                     yield u'%s%s' % (self.cdata_prefix, name), value, xsd_child
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, include_namespaces=False):
         """
         Converts a decoded element data to a data structure.
 
         :param data: Decoded ElementData from an Element node.
         :param xsd_element: The `XsdElement` associated to decoded the data.
-        :param level: The tree level for data decoding (0 for the root).
+        :param include_namespaces: If set to `True` namespace information are included in the decode data.
         :return: A dictionary-based data structure containing the decoded data.
         """
         result_dict = self.dict()
-        if level == 0:
+        if include_namespaces:
             result_dict.update(
                 (u'%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
             )
@@ -244,7 +244,7 @@ class ParkerConverter(XMLSchemaConverter):
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
         )
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, *args, **kwargs):
         map_qname = self.map_qname
         preserve_root = self.preserve_root
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -347,7 +347,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, include_namespaces=True):
         dict_class = self.dict
 
         tag = self.map_qname(data.tag)
@@ -477,7 +477,7 @@ class AbderaConverter(XMLSchemaConverter):
             namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, *args, **kwargs):
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             children = data.text if data.text is not None and data.text != '' else None
         else:
@@ -577,7 +577,7 @@ class JsonMLConverter(XMLSchemaConverter):
             namespaces, dict_class or OrderedDict, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, include_namespaces=True):
         result_list = self.list([self.map_qname(data.tag)])
         attributes = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
 
@@ -590,7 +590,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if self and xsd_element.is_global:
+        if self and include_namespaces:
             attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
         if attributes:
             result_list.insert(1, attributes)

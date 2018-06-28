@@ -30,15 +30,15 @@ if __name__ == '__main__':
     from xmlschema.tests.test_xpath import XsdXPathTest
     from xmlschema.tests.test_resources import TestResources
     from xmlschema.tests.test_meta import TestBuiltinTypes, TestGlobalMaps
-    from xmlschema.tests.test_schemas import make_test_schema_function, TestXMLSchema10
-    from xmlschema.tests.test_decoder import (
-        make_decoder_test_function, TestValidation, TestDecoding, TestEncoding
+    from xmlschema.tests.test_schemas import make_schema_test_function, TestXMLSchema10
+    from xmlschema.tests.test_validators import (
+        make_validator_test_function, TestValidation, TestDecoding, TestEncoding
     )
     from xmlschema.tests.test_package import TestPackage
 
     print_test_header()
 
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    globals().update(tests_factory(make_test_schema_function, testfiles, 'schema', 'xsd'))
-    globals().update(tests_factory(make_decoder_test_function, testfiles, 'decoder', 'xml'))
+    globals().update(tests_factory(make_schema_test_function, testfiles, 'schema', 'xsd'))
+    globals().update(tests_factory(make_validator_test_function, testfiles, 'decoder', 'xml'))
     unittest.main()
