@@ -12,6 +12,7 @@
 This module contains imports and definitions for Python 2 and 3 compatibility.
 """
 import sys
+from collections import OrderedDict
 
 try:
     # Python 3 imports
@@ -38,6 +39,8 @@ else:
     long_type = long
     unicode_type = unicode
     unicode_chr = unichr
+
+_ordered_dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
 
 
 def add_metaclass(metaclass):

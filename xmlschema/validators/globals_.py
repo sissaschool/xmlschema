@@ -329,6 +329,8 @@ class XsdGlobals(XsdBaseComponent):
                 "%r: %r namespace is not registered." % (self, XSD_NAMESPACE))
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
+        for schema in not_built_schemas:
+            schema._root_elements = None
 
         # Load and build global declarations
         load_xsd_notations(self.notations, not_built_schemas)

@@ -230,7 +230,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot create schema: %s' % err)
 
         self.defuse = defuse  # Will be changed to 'always' in the future
-        self._base_elements = None
+        self._root_elements = None
 
         # Set and check target namespace
         self.target_namespace = self.root.get('targetNamespace', '')
@@ -468,17 +468,27 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise XMLSchemaNotBuiltError("missing XSD namespace in meta-schema.")
 
     @property
-    def base_elements(self):
+    def root_elements(self):
         """
-        Lazy property that returns dictionary that contains the global elements plus
-        the elements derived from global groups expansion. This lazy property could be
-        resource costly to build when the schema has many nested global groups.
+        The list of global elements that are not used by reference in any model of the schema.
+        This is implemented as lazy property because it's computationally expensive to build
+        when the schema model is complex.
         """
-        if self._base_elements is None:
-            self._base_elements = self.elements.copy()
-            for group in self.groups.values():
-                self.base_elements.update({e.name: e for e in group.iter_elements()})
-        return self._base_elements
+        if not self.elements:
+            return []
+        elif len(self.elements) == 1:
+            return list(self.elements.values())
+        elif self._root_elements is None:
+            names = set(e.name for e in self.elements.values())
+            for e in self.iter():
+                if e.ref or e.is_global:
+                    if e.name in names:
+                        names.discard(e.name)
+                        if not names:
+                            break
+            self._root_elements = list(names)
+
+        return [e for e in self.elements.values() if e.name in self._root_elements]
 
     @classmethod
     def create_schema(cls, *args, **kwargs):
@@ -751,7 +761,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                         yield obj
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None,
-                    element_class=etree_element, indent=4, converter=None, **kwargs):
+                    etree_element_class=etree_element, indent=4, converter=None, **kwargs):
         """
         Encode a data structure to an ElementTree's Element.
 
@@ -761,7 +771,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         the schema is used.
         :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param element_class: the class that has to be used to create new elements.
+        :param etree_element_class: the class that has to be used to create new XML elements.
         :param indent: Number of spaces for XML indentation (default is 4).
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
         :param kwargs: Keyword arguments containing options for converter and encoding.
@@ -790,7 +800,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             for result in xsd_element.iter_encode(
                     obj, validation,
                     namespaces=namespaces,
-                    etree_element=element_class,
+                    etree_element_class=etree_element_class,
                     indent=indent,
                     converter=converter,
                     **kwargs):
