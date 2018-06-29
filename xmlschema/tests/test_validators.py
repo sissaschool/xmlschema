@@ -314,7 +314,6 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
             self.assertEqual(decoded_data, data)
 
         def check_serialization(elem, converter=None, **kwargs):
-            return
             data = xmlschema.to_json(elem, schema=schema, converter=converter, **kwargs)
 
             deserialized_root = xmlschema.from_json(
@@ -397,6 +396,7 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
             check_etree_encode(root, converter=xmlschema.AbderaConverter, **options)
             check_etree_encode(root, converter=xmlschema.JsonMLConverter, **options)
 
+            options.pop('dict_class')
             check_serialization(root, **options)
             check_serialization(root, converter=xmlschema.ParkerConverter, validation='lax', **options)
             check_serialization(root, converter=xmlschema.ParkerConverter, validation='skip', **options)
@@ -435,6 +435,7 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
                 check_etree_encode(root, converter=xmlschema.AbderaConverter, **options)
                 check_etree_encode(root, converter=xmlschema.JsonMLConverter, **options)
 
+                options.pop('dict_class')
                 check_serialization(root, **options)
                 check_serialization(root, converter=xmlschema.ParkerConverter, validation='lax', **options)
                 check_serialization(root, converter=xmlschema.ParkerConverter, validation='skip', **options)
@@ -534,23 +535,20 @@ class TestDecoding(XMLSchemaTestCase):
     def test_json_dump_and_load(self):
         vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
         col_xml_tree = _ElementTree.parse(self.col_xml_file)
-        json_options = {} if sys.version_info >= (3, 6) else {
-            'object_hook': OrderedDict, 'object_pairs_hook': OrderedDict
-        }
         with open(self.vh_json_file, 'w') as f:
-            xmlschema.to_json(self.vh_xml_file, f, dict_class=OrderedDict)
+            xmlschema.to_json(self.vh_xml_file, f)
 
         with open(self.vh_json_file) as f:
-            root = xmlschema.from_json(f, self.vh_schema, json_options=json_options, dict_class=OrderedDict)
+            root = xmlschema.from_json(f, self.vh_schema)
 
         os.remove(self.vh_json_file)
         self.assertTrue(etree_elements_equal(vh_xml_tree, root, False))
 
         with open(self.col_json_file, 'w') as f:
-            xmlschema.to_json(self.col_xml_file, f, dict_class=OrderedDict)
+            xmlschema.to_json(self.col_xml_file, f)
 
         with open(self.col_json_file) as f:
-            root = xmlschema.from_json(f, self.col_schema, json_options=json_options, dict_class=OrderedDict)
+            root = xmlschema.from_json(f, self.col_schema)
 
         os.remove(self.col_json_file)
         self.assertTrue(etree_elements_equal(col_xml_tree, root, False))

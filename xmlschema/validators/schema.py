@@ -480,12 +480,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             return list(self.elements.values())
         elif self._root_elements is None:
             names = set(e.name for e in self.elements.values())
-            for e in self.iter():
-                if e.ref or e.is_global:
-                    if e.name in names:
-                        names.discard(e.name)
-                        if not names:
-                            break
+            for xsd_element in self.elements.values():
+                for e in xsd_element.iter():
+                    if e is xsd_element:
+                        continue
+                    elif e.ref or e.is_global:
+                        if e.name in names:
+                            names.discard(e.name)
+                            if not names:
+                                break
             self._root_elements = list(names)
 
         return [e for e in self.elements.values() if e.name in self._root_elements]
@@ -790,11 +793,17 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             xsd_element = self.find(path, namespaces=namespaces)
         elif isinstance(obj, dict) and len(obj) == 1:
             xsd_element = self.elements.get(list(obj.keys())[0])
-        else:
+        elif len(self.elements) == 1:
             xsd_element = list(self.elements.values())[0]
+        else:
+            root_elements = self.root_elements
+            xsd_element = root_elements[0] if len(root_elements) == 1 else None
 
         if not isinstance(xsd_element, XsdElement):
-            msg = "the path %r doesn't match any element of the schema!" % path
+            if path is not None:
+                msg = "the path %r doesn't match any element of the schema!" % path
+            else:
+                msg = "unable to select an element for decoding data, provide a valid 'path' argument."
             yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
         else:
             for result in xsd_element.iter_encode(

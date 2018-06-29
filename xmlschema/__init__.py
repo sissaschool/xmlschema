@@ -129,17 +129,16 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
         json_options = {}
 
     decimal_type = kwargs.pop('decimal_type', float)
-    dict_class = kwargs.pop('dict_class', dict if sys.version_info >= (3, 6) else OrderedDict )
-    object_hook = kwargs.pop('object_hook', dict_class)
-    obj = schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces,
-                         converter=converter, decimal_type=decimal_type, dict_class=dict_class, **kwargs)
+    dict_class = kwargs.pop('dict_class', _ordered_dict_class)
+    obj = schema.to_dict(xml_document, path=path, decimal_type=decimal_type, dict_class=dict_class,
+                         process_namespaces=process_namespaces, converter=converter, **kwargs)
 
     if isinstance(obj, tuple):
         if fp is not None:
             json.dump(obj[0], fp, **kwargs)
             return tuple(obj[1])
         else:
-            return json.dumps(obj[0], object_hook=object_hook, **json_options), tuple(obj[1])
+            return json.dumps(obj[0], **json_options), tuple(obj[1])
     elif fp is not None:
         json.dump(obj, fp, **json_options)
     else:
@@ -170,10 +169,12 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
     elif json_options is None:
         json_options = {}
 
+    dict_class = kwargs.pop('dict_class', _ordered_dict_class)
     object_hook = json_options.pop('object_hook', _ordered_dict_class)
+    object_pairs_hook = json_options.pop('object_pairs_hook', _ordered_dict_class)
     if hasattr(source, 'read'):
-        obj = json.load(source, object_hook=object_hook, **json_options)
+        obj = json.load(source, object_hook=object_hook, object_pairs_hook=object_pairs_hook, **json_options)
     else:
-        obj = json.loads(source, object_hook=object_hook, **json_options)
+        obj = json.loads(source, object_hook=object_hook, object_pairs_hook=object_pairs_hook, **json_options)
 
-    return schema.encode(obj, path=path, converter=converter, dict_class=_ordered_dict_class, **kwargs)
+    return schema.encode(obj, path=path, converter=converter, dict_class=dict_class, **kwargs)
