@@ -14,6 +14,11 @@ This module contains ElementTree setup and helpers for xmlschema package.
 from xml.etree import ElementTree
 import re
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
 from .compat import PY3, StringIO
 from .exceptions import XMLSchemaValueError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
@@ -25,7 +30,6 @@ ElementTree.register_namespace('xslt', XSLT_NAMESPACE)
 ElementTree.register_namespace('hfp', HFP_NAMESPACE)
 ElementTree.register_namespace('vc', VC_NAMESPACE)
 
-
 # Define alias for ElementTree API for internal module imports
 etree_parse = ElementTree.parse
 etree_iterparse = ElementTree.iterparse
@@ -35,12 +39,22 @@ etree_element = ElementTree.Element
 etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
 
-
 # Safe APIs from defusedxml package
 safe_etree_parse = defusedxml.ElementTree.parse
 safe_etree_iterparse = defusedxml.ElementTree.iterparse
 safe_etree_fromstring = defusedxml.ElementTree.fromstring
 safe_etree_parse_error = defusedxml.ElementTree.ParseError
+
+# Lxml APIs
+if lxml_etree is not None:
+    lxml_element = lxml_etree.Element
+    lxml_register_namespace = lxml_etree.register_namespace
+    lxml_register_namespace('xslt', XSLT_NAMESPACE)
+    lxml_register_namespace('hfp', HFP_NAMESPACE)
+    lxml_register_namespace('vc', VC_NAMESPACE)
+else:
+    lxml_element = None
+    lxml_register_namespace = None
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):

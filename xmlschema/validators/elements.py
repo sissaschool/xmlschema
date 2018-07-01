@@ -510,10 +510,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        etree_element_class = kwargs.get('etree_element_class') or etree_element
 
         level = kwargs.pop('level', 0)
-        indent = kwargs.get('indent', 4)
         element_data = converter.element_encode(obj, self)
 
         try:
@@ -528,45 +526,35 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, obj)
                 else:
-                    elem = etree_element_class(self.name, attrib=converter.dict(result.attributes))
-                    if result.content:
-                        elem.extend(result.content)
-                        elem.text = result.text or u'\n' + u' ' * indent * (level + 1)
-                        elem.tail = u'\n' + u' ' * indent * level
-                    else:
-                        elem.text = result.text
-                        elem.tail = u'\n' + u' ' * indent * level
-                    yield elem
+                    yield converter.etree_element(self.name, *result, level=level)
                     break
             else:
-                yield etree_element_class(self.name)
+                yield converter.etree_element(self.name, level=level)
         else:
             # Encode a simpleType
-            if element_data.attributes:
-                for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
+            for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    attributes = result
+                    break
+            else:
+                attributes = None
 
             if element_data.content:
                 yield self._validation_error("a simpleType element can't has child elements.", validation, obj)
 
             if element_data.text is None:
-                elem = etree_element_class(self.name, attrib=element_data.attributes)
-                elem.text = None
-                elem.tail = u'\n' + u' ' * indent * level
-                yield elem
+                yield converter.etree_element(self.name, attrib=attributes, level=level)
             else:
                 for result in type_.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, obj)
                     else:
-                        elem = etree_element_class(self.name, attrib=element_data.attributes)
-                        elem.text = result
-                        elem.tail = u'\n' + u' ' * indent * level
-                        yield elem
+                        yield converter.etree_element(self.name, result, attrib=attributes, level=level)
                         break
                 else:
-                    yield etree_element_class(self.name, attrib=element_data.attributes)
+                    yield converter.etree_element(self.name, attrib=attributes, level=level)
 
         del element_data
 

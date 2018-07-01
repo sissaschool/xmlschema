@@ -22,7 +22,7 @@ from ..exceptions import (
 from ..namespaces import (
     XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 )
-from ..etree import etree_element, etree_get_namespaces, etree_register_namespace, etree_iselement
+from ..etree import etree_get_namespaces, etree_iselement
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..qnames import (
@@ -589,10 +589,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
         if namespaces is None:
-            namespaces = {k: v for k, v in self.namespaces.items() if k}  # Skip empty prefix that is ambiguous
-
-        for prefix, uri_ in namespaces.items():
-            etree_register_namespace(prefix, uri_)
+            # Uses the schema's namespace map but skips empty prefix that is ambiguous
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
 
         if isinstance(converter, XMLSchemaConverter):
             return converter.copy(namespaces=namespaces, **kwargs)
@@ -763,8 +761,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                             **kwargs):
                         yield obj
 
-    def iter_encode(self, obj, path=None, validation='lax', namespaces=None,
-                    etree_element_class=etree_element, indent=4, converter=None, **kwargs):
+    def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
         """
         Encode a data structure to an ElementTree's Element.
 
@@ -774,8 +771,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         the schema is used.
         :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param etree_element_class: the class that has to be used to create new XML elements.
-        :param indent: Number of spaces for XML indentation (default is 4).
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
         :param kwargs: Keyword arguments containing options for converter and encoding.
         :return: Yields an Element instance, eventually preceded by a sequence of validation \
@@ -809,8 +804,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             for result in xsd_element.iter_encode(
                     obj, validation,
                     namespaces=namespaces,
-                    etree_element_class=etree_element_class,
-                    indent=indent,
                     converter=converter,
                     **kwargs):
                 yield result

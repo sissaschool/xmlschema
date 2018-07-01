@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..etree import etree_element
-from ..converters import ElementData
 from ..qnames import (
     get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
@@ -486,8 +485,8 @@ class XsdComplexType(XsdType, ValidatorMixin):
         :param element_data: An ElementData instance with unencoded data.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
         :param kwargs: Keyword arguments for the encoding process.
-        :return: Yields an ElementData instance with encoded data, eventually preceded \
-        by a sequence of validation or encoding errors.
+        :return: Yields a 3-tuple (text, content, attributes) containing the encoded parts,
+        eventually preceded by a sequence of validation or decoding errors.
         """
         # Encode attributes
         for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
@@ -502,22 +501,22 @@ class XsdComplexType(XsdType, ValidatorMixin):
         if self.has_simple_content():
             # Encode a simple content element
             if element_data.text is None:
-                yield ElementData(None, None, element_data.content, attributes)
+                yield None, element_data.content, attributes
             else:
                 for result in self.content_type.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
-                        yield ElementData(None, result, element_data.content, attributes)
+                        yield result, element_data.content, attributes
         else:
             # Encode a complex content element
             for result in self.content_type.iter_encode(element_data.content, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif result:
-                    yield ElementData(None, result[0], result[1], attributes)
+                    yield result[0], result[1], attributes
                 else:
-                    yield ElementData(None, None, None, attributes)
+                    yield None, None, attributes
 
 
 class Xsd11ComplexType(XsdComplexType):
