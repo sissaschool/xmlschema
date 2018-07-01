@@ -40,7 +40,7 @@ else:
     unicode_type = unicode
     unicode_chr = unichr
 
-_ordered_dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
+ordered_dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
 
 
 def add_metaclass(metaclass):

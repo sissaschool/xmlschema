@@ -10,7 +10,7 @@
 #
 import json
 
-from .compat import _ordered_dict_class
+from .compat import ordered_dict_class as _ordered_dict_class
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .etree import etree_get_namespaces
 from .resources import fetch_resource, load_xml_resource, fetch_schema, fetch_schema_locations, normalize_url

@@ -13,8 +13,9 @@ This module contains converter classes and definitions.
 from collections import namedtuple, OrderedDict
 import string
 
+from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
-from .etree import etree_element, etree_register_namespace, lxml_element, lxml_register_namespace
+from .etree import etree_element, lxml_element
 from .namespaces import NamespaceMapper
 
 
@@ -130,7 +131,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 elem = self.etree_element_class(tag, self.dict(attrib))
         else:
             nsmap = {prefix if prefix else None: uri for prefix, uri in self._namespaces.items()}
-            elem = self.etree_element_class(tag, self.dict(attrib), nsmap)
+            elem = self.etree_element_class(tag, OrderedDict(attrib), nsmap)
 
         if children:
             elem.extend(children)
@@ -257,7 +258,8 @@ class ParkerConverter(XMLSchemaConverter):
     ref: http://wiki.open311.org/JSON_and_XML_Conversion/#the-parker-convention
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
+    Python 3.6+ or `OrderedDict` for previous versions.
     :param list_class: List class to use for decoded data. Default is `list`.
     :param preserve_root: If `True` the root element will be preserved. For default \
     the Parker convention remove the document root element, returning only the value.
@@ -265,7 +267,7 @@ class ParkerConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
         self.preserve_root = preserve_root
 
@@ -373,13 +375,14 @@ class BadgerFishConverter(XMLSchemaConverter):
     ref: http://badgerfish.ning.com/
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
+    Python 3.6+ or `OrderedDict` for previous versions.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='#')
         super(BadgerFishConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element, include_namespaces=True):
@@ -503,13 +506,14 @@ class AbderaConverter(XMLSchemaConverter):
     ref: https://cwiki.apache.org/confluence/display/ABDERA/JSON+Serialization
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
+    Python 3.6+ or `OrderedDict` for previous versions.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(AbderaConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element, *args, **kwargs):
@@ -603,13 +607,14 @@ class JsonMLConverter(XMLSchemaConverter):
     ref: https://www.ibm.com/developerworks/library/x-jsonml/
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `OrderedDict`.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
+    Python 3.6+ or `OrderedDict` for previous versions.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(JsonMLConverter, self).__init__(
-            namespaces, dict_class or OrderedDict, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
     def element_decode(self, data, xsd_element, include_namespaces=True):

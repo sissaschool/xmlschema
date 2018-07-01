@@ -316,13 +316,13 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
         def check_serialization(elem, converter=None, **kwargs):
             data = xmlschema.to_json(elem, schema=schema, converter=converter, **kwargs)
 
-            deserialized_root = xmlschema.from_json(
+            deserialized_elem = xmlschema.from_json(
                 data, schema=schema, path=elem.tag, converter=converter, **kwargs
             )
-            if isinstance(deserialized_root, tuple):
-                deserialized_root = deserialized_root[0]  # Lossy converter + validation='lax'
+            if isinstance(deserialized_elem, tuple):
+                deserialized_elem = deserialized_elem[0]  # Lossy converter + validation='lax'
 
-            serialized_data = xmlschema.to_json(deserialized_root, schema=schema, converter=converter, **kwargs)
+            serialized_data = xmlschema.to_json(deserialized_elem, schema=schema, converter=converter, **kwargs)
             if isinstance(serialized_data, tuple):
                 serialized_data = serialized_data[0]  # Lossy converter + validation='lax'
 
@@ -435,7 +435,6 @@ def make_validator_test_function(xml_file, schema_class, expected_errors=0, insp
                 check_etree_encode(root, converter=xmlschema.AbderaConverter, **options)
                 check_etree_encode(root, converter=xmlschema.JsonMLConverter, **options)
 
-                return
                 options.pop('dict_class')
                 check_serialization(root, **options)
                 check_serialization(root, converter=xmlschema.ParkerConverter, validation='lax', **options)
