@@ -49,6 +49,7 @@ safe_etree_parse_error = defusedxml.ElementTree.ParseError
 if lxml_etree is not None:
     lxml_etree_parse = lxml_etree.parse
     lxml_etree_element = lxml_etree.Element
+    lxml_etree_comment = lxml_etree.Comment
     lxml_etree_register_namespace = lxml_etree.register_namespace
     lxml_etree_register_namespace('xslt', XSLT_NAMESPACE)
     lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
@@ -56,6 +57,7 @@ if lxml_etree is not None:
 else:
     lxml_etree_parse = lxml_etree.parse
     lxml_etree_element = None
+    lxml_etree_comment = None
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
@@ -187,38 +189,71 @@ def etree_child_index(elem, child):
 def etree_elements_equal(elem, other, strict=True):
     other_elements = iter(other.iter())
     for e1 in elem.iter():
+        if e1.tag is lxml_etree_comment:
+            continue
+
         try:
             e2 = next(other_elements)
         except StopIteration:
+            print("Terminato prima")
             return False
 
-        if e1.tag != e2.tag or e1.attrib != e2.attrib or len(e1) != len(e2):
+        if e1.tag != e2.tag:
+            print("Tag diversi: ", e1.tag, e2.tag)
+            return False
+        elif e1.attrib != e2.attrib:
+            if strict:
+                print("Attributi diversi: ", e1.attrib, e2.attrib)
+                return False
+            elif e1.attrib.keys() != e2.attrib.keys():
+                print("Chiavi attributi diversi: ", e1.attrib.keys(), e2.attrib.keys())
+                return False
+            else:
+                for k in e1.attrib:
+                    a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()
+                    if a1 != a2:
+                        try:
+                            if float(a1) != float(a2):
+                                print("Attribute %r differ: " % k)
+                                return False
+                        except (ValueError, TypeError):
+                            return False
+
+        elif len([c for c in e1 if c.tag is not lxml_etree_comment]) != len(e2):
+            print("Numero di figli diverso:", len([c for c in e1 if c.tag is not lxml_etree_comment]), len(e2))
             return False
         elif e1.text != e2.text:
             if strict:
                 return False
             elif e1.text is None:
                 if e2.text.strip():
+                    print("Testo diverso: ")
                     return False
             elif e2.text is None:
                 if e1.text.strip():
+                    print("Testo diverso: ", e1, e1.text, e2)
                     return False
             elif e1.text.strip() != e2.text.strip():
                 try:
                     if float(e1.text.strip()) != float(e2.text.strip()):
+                        print("Testo diverso: ", e1.text, e2.text)
                         return False
                 except (ValueError, TypeError):
+                    print("Testo diverso: ", e1.text, e2.text)
                     return False
         elif e1.tail != e2.tail:
             if strict:
                 return False
             elif e1.tail is None:
                 if e2.tail.strip():
+                    print("TAil")
                     return False
             elif e2.tail is None:
                 if e1.tail.strip():
+                    print("TAil")
                     return False
             elif e1.tail.strip() != e2.tail.strip():
+                print("TAil")
                 return False
 
     return True

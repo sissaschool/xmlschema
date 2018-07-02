@@ -541,7 +541,7 @@ class AbderaConverter(XMLSchemaConverter):
                 children = None
 
         if data.attributes:
-            if children:
+            if children != []:
                 return self.dict([
                     ('attributes', self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])),
                     ('children', self.list([children]) if children is not None else self.list())
