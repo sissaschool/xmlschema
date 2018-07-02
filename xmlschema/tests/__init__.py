@@ -122,8 +122,11 @@ def get_args_parser():
         '-l', dest='locations', nargs=2, type=str, default=None, action='append'
     )
     parser.add_argument(
-        '-d', dest='defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
+        '-defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
+    )
+    parser.add_argument(
+        '-defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
     )
     return parser
 
@@ -131,8 +134,8 @@ def get_args_parser():
 test_line_parser = get_args_parser()
 
 
-def tests_factory(test_function_builder, testfiles, label="validation", suffix="xml"):
-    tests = {}
+def tests_factory(test_class_builder, testfiles, suffix="xml"):
+    test_classes = {}
     test_num = 0
 
     for line in fileinput.input(testfiles):
@@ -145,29 +148,22 @@ def tests_factory(test_function_builder, testfiles, label="validation", suffix="
             test_args.locations = {k.strip('\'"'): v for k, v in test_args.locations}
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
-        if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
+        if not os.path.isfile(test_file):
+            logger.debug("Skip %s: not a file.", test_file)
+            continue
+        elif os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
+            logger.debug("Skip %s: wrong suffix.", test_file)
             continue
 
-        if test_args.inspect:
-            schema_class = ObservedXMLSchema10
-        else:
-            schema_class = xmlschema.XMLSchema
-
-        test_func = test_function_builder(
-            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations, test_args.defuse
-        )
-        test_name = os.path.relpath(test_file)
         test_num += 1
-        if test_func is not None:
-            class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
-            tests[class_name] = type(
-                class_name, (unittest.TestCase,),
-                {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
-            )
-            logger.debug("Add %s test case %r.", label, class_name)
+        if test_args.inspect:
+            test_class = test_class_builder(test_file, test_args, test_num, ObservedXMLSchema10)
         else:
-            logger.debug("Skip %s test case %d (%r).", label, test_num, test_num, test_name)
-    return tests
+            test_class = test_class_builder(test_file, test_args, test_num)
+        test_classes[test_class.__name__] = test_class
+        logger.debug("Add test class %r.", test_class.__name__)
+
+    return test_classes
 
 
 class XMLSchemaTestCase(unittest.TestCase):

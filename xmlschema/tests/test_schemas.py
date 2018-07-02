@@ -31,7 +31,7 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase
+from xmlschema import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase, XMLSchema
 from xmlschema.compat import PY3
 from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
@@ -338,8 +338,16 @@ class TestXMLSchema10(XMLSchemaTestCase):
             """)
 
 
-def make_schema_test_function(xsd_file, schema_class, expected_errors=0, inspect=False,
-                              locations=None, defuse='remote'):
+def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
+
+    xsd_file = test_file
+
+    # Extract schema test arguments
+    expected_errors = test_args.tot_errors
+    inspect = test_args.inspect
+    locations = test_args.locations
+    defuse = test_args.defuse
+
     def test_schema(self):
         if inspect:
             SchemaObserver.clear()
@@ -390,7 +398,12 @@ def make_schema_test_function(xsd_file, schema_class, expected_errors=0, inspect
         else:
             self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
 
-    return test_schema
+    test_name = os.path.relpath(test_file)
+    class_name = 'TestSchema{0:03}'.format(test_num)
+    return type(
+        class_name, (unittest.TestCase,),
+        {'test_schema_{0:03}_{1}'.format(test_num, test_name): test_schema}
+    )
 
 
 if __name__ == '__main__':
@@ -398,6 +411,6 @@ if __name__ == '__main__':
 
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    schema_tests = tests_factory(make_schema_test_function, testfiles, label='schema', suffix='xsd')
+    schema_tests = tests_factory(make_schema_test_class, testfiles, suffix='xsd')
     globals().update(schema_tests)
     unittest.main()
