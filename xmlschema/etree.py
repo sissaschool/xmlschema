@@ -20,7 +20,7 @@ except ImportError:
     lxml_etree = None
 
 from .compat import PY3, StringIO
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
 
 import defusedxml.ElementTree
@@ -47,22 +47,30 @@ safe_etree_parse_error = defusedxml.ElementTree.ParseError
 
 # Lxml APIs
 if lxml_etree is not None:
-    lxml_element = lxml_etree.Element
-    lxml_register_namespace = lxml_etree.register_namespace
-    lxml_register_namespace('xslt', XSLT_NAMESPACE)
-    lxml_register_namespace('hfp', HFP_NAMESPACE)
-    lxml_register_namespace('vc', VC_NAMESPACE)
+    lxml_etree_parse = lxml_etree.parse
+    lxml_etree_element = lxml_etree.Element
+    lxml_etree_register_namespace = lxml_etree.register_namespace
+    lxml_etree_register_namespace('xslt', XSLT_NAMESPACE)
+    lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
+    lxml_etree_register_namespace('vc', VC_NAMESPACE)
 else:
-    lxml_element = None
-    lxml_register_namespace = None
+    lxml_etree_parse = lxml_etree.parse
+    lxml_etree_element = None
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
+    if isinstance(elem, etree_element):
+        tostring = ElementTree.tostring
+    elif lxml_etree is not None:
+        tostring = lxml_etree.tostring
+    else:
+        raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
+
     if PY3:
-        lines = ElementTree.tostring(elem, encoding="unicode").splitlines()
+        lines = tostring(elem, encoding="unicode").splitlines()
     else:
         # noinspection PyCompatibility,PyUnresolvedReferences
-        lines = unicode(ElementTree.tostring(elem)).splitlines()
+        lines = unicode(tostring(elem)).splitlines()
     while lines and not lines[-1].strip():
         lines.pop(-1)
     lines[-1] = '  %s' % lines[-1].strip()

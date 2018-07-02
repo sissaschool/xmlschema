@@ -15,7 +15,7 @@ import string
 
 from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
-from .etree import etree_element, lxml_element
+from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import NamespaceMapper
 
 
@@ -43,7 +43,7 @@ class XMLSchemaConverter(NamespaceMapper):
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, text_key='$', attr_prefix='@',
                  cdata_prefix=None, etree_element_class=etree_element, indent=4, **kwargs):
-        if etree_element_class not in (etree_element, lxml_element):
+        if etree_element_class not in (etree_element, lxml_etree_element):
             raise XMLSchemaValueError("%r: unsupported element.")
         self.dict = dict_class or dict
         self.list = list_class or list
@@ -52,7 +52,10 @@ class XMLSchemaConverter(NamespaceMapper):
         self.cdata_prefix = cdata_prefix
         self.etree_element_class = etree_element_class
         self.indent = indent
-        super(XMLSchemaConverter, self).__init__(namespaces)
+        if etree_element_class is etree_element:
+            super(XMLSchemaConverter, self).__init__(namespaces, etree_register_namespace)
+        else:
+            super(XMLSchemaConverter, self).__init__(namespaces, lxml_etree_register_namespace)
 
     def __setattr__(self, name, value):
         if name in ('attr_prefix', 'text_key', 'cdata_prefix'):

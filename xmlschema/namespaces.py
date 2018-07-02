@@ -104,8 +104,9 @@ class NamespaceMapper(MutableMapping):
 
     :param namespaces: Initial data with namespace prefixes and URIs.
     """
-    def __init__(self, namespaces=None):
+    def __init__(self, namespaces=None, register_namespace=None):
         self._namespaces = {}
+        self.register_namespace = register_namespace
         if namespaces is not None:
             self._namespaces.update(namespaces)
 
@@ -114,6 +115,10 @@ class NamespaceMapper(MutableMapping):
 
     def __setitem__(self, key, value):
         self._namespaces[key] = value
+        try:
+            self.register_namespace(key, value)
+        except (TypeError, ValueError):
+            pass
 
     def __delitem__(self, key):
         del self._namespaces[key]
