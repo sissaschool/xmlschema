@@ -307,4 +307,4 @@ def fetch_schema_locations(source, locations=None):
             except XMLSchemaURLError:
                 pass
 
-    raise XMLSchemaValueError("schema for XML data source %r not found." % source)
+    raise XMLSchemaValueError("not found a schema for XML data resource %r (namespace=%r)." % (source, namespace))

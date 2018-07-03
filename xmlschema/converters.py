@@ -182,17 +182,23 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
+            list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
-                    result_dict[name].append(value)
+                    result = result_dict[name]
                 except KeyError:
-                    if xsd_child is None or xsd_child.is_single() and \
-                            xsd_element.type.content_type.is_single() and not isinstance(value, (self.list, list)):
+                    if xsd_child is None or xsd_child.is_single() and xsd_element.type.content_type.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
-                except AttributeError:
-                    result_dict[name] = self.list([result_dict[name], value])
+                else:
+                    if not isinstance(result, list_types) or not result:
+                        result_dict[name] = self.list([result, value])
+                    elif isinstance(result[0], list_types) or not isinstance(value, list_types):
+                        result.append(value)
+                    else:
+                        result_dict[name] = self.list([result, value])
+
             return result_dict if result_dict else None
 
     def element_encode(self, obj, xsd_element, level=0):
