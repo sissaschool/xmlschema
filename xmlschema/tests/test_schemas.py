@@ -347,12 +347,17 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
     inspect = test_args.inspect
     locations = test_args.locations
     defuse = test_args.defuse
+    debug_mode = test_args.debug
 
     def test_schema(self):
+        if debug_mode:
+            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+            import pdb
+            pdb.set_trace()
+
         if inspect:
             SchemaObserver.clear()
 
-        # print("Run %s" % self.id())
         try:
             if expected_errors > 0:
                 xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
@@ -398,11 +403,11 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
         else:
             self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
 
-    test_name = os.path.relpath(test_file)
+    rel_path = os.path.relpath(test_file)
     class_name = 'TestSchema{0:03}'.format(test_num)
     return type(
         class_name, (unittest.TestCase,),
-        {'test_schema_{0:03}_{1}'.format(test_num, test_name): test_schema}
+        {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
     )
 
 

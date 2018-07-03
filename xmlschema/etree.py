@@ -52,13 +52,15 @@ if lxml_etree is not None:
     lxml_etree_element = lxml_etree.Element
     lxml_etree_comment = lxml_etree.Comment
     lxml_etree_register_namespace = lxml_etree.register_namespace
+
     lxml_etree_register_namespace('xslt', XSLT_NAMESPACE)
     lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
     lxml_etree_register_namespace('vc', VC_NAMESPACE)
 else:
-    lxml_etree_parse = lxml_etree.parse
+    lxml_etree_parse = None
     lxml_etree_element = None
     lxml_etree_comment = None
+    lxml_etree_register_namespace = None
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):

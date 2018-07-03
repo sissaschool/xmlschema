@@ -13,6 +13,7 @@
 This module runs tests concerning the validation/decoding/encoding of XML files.
 """
 import unittest
+import pdb
 import os
 import sys
 import pickle
@@ -297,6 +298,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     defuse = test_args.defuse
     defaults = test_args.defaults
     wildcards_skip = test_args.skip
+    debug_mode = test_args.debug
 
     xml_file = test_file
     rel_path = os.path.relpath(test_file)
@@ -332,6 +334,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             except AssertionError as err:
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) \
                         and not defaults and not wildcards_skip:
+                    if debug_mode:
+                        pdb.set_trace()
+
                     raise AssertionError(str(err) + msg_template % "encoded tree differs from original")
                 else:
                     # Lossy or augmenting cases are checked with a second pass or re encoding
@@ -342,6 +347,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     try:
                         etree_elements_assert_equal(encoded_root, encoded_root2, strict=False)
                     except AssertionError as err:
+                        if debug_mode:
+                            pdb.set_trace()
+
                         raise AssertionError(str(err) + msg_template % "encoded tree differs after second pass")
 
         def check_json_serialization(self, elem, converter=None, **kwargs):
@@ -481,6 +489,11 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                              msg_template % "wrong number of errors (%d expected)" % expected_errors)
 
         def test_decoding_and_encoding(self):
+            if debug_mode:
+                print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+                import pdb
+                pdb.set_trace()
+
             self.check_decoding_with_element_tree()
 
             if not inspect and sys.version_info >= (3,):

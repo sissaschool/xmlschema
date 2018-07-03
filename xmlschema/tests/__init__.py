@@ -131,6 +131,9 @@ def get_args_parser():
     parser.add_argument(
         '-skip', action="store_true", default=False, help="Some test data are skipped by schema wildcards.",
     )
+    parser.add_argument(
+        '-debug', action="store_true", default=False, help="Run test in debug mode.",
+    )
     return parser
 
 
@@ -140,6 +143,7 @@ test_line_parser = get_args_parser()
 def tests_factory(test_class_builder, testfiles, suffix="xml"):
     test_classes = {}
     test_num = 0
+    debug_mode = False
 
     for line in fileinput.input(testfiles):
         line = line.strip()
@@ -159,10 +163,18 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             continue
 
         test_num += 1
+        if debug_mode:
+            if not test_args.debug:
+                continue
+        elif test_args.debug:
+            debug_mode = True
+            test_classes.clear()
+
         if test_args.inspect:
             test_class = test_class_builder(test_file, test_args, test_num, ObservedXMLSchema10)
         else:
             test_class = test_class_builder(test_file, test_args, test_num)
+
         test_classes[test_class.__name__] = test_class
         logger.debug("Add test class %r.", test_class.__name__)
 
