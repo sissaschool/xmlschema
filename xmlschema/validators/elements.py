@@ -367,6 +367,10 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 except TypeError:
                     yield self._validation_error("xsi:nil attribute must has a boolean value.", validation, elem)
 
+        if self.name == 'longdescription':
+            import pdb
+            pdb.set_trace()
+
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
@@ -526,10 +530,10 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, obj)
                 else:
-                    yield converter.etree_element(self.name, *result, level=level)
+                    yield converter.etree_element(element_data.tag, *result, level=level)
                     break
             else:
-                yield converter.etree_element(self.name, level=level)
+                yield converter.etree_element(element_data.tag, level=level)
         else:
             # Encode a simpleType
             for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
@@ -545,16 +549,16 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 yield self._validation_error("a simpleType element can't has child elements.", validation, obj)
 
             if element_data.text is None:
-                yield converter.etree_element(self.name, attrib=attributes, level=level)
+                yield converter.etree_element(element_data.tag, attrib=attributes, level=level)
             else:
                 for result in type_.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self._validation_error(result, validation, obj)
                     else:
-                        yield converter.etree_element(self.name, result, attrib=attributes, level=level)
+                        yield converter.etree_element(element_data.tag, result, attrib=attributes, level=level)
                         break
                 else:
-                    yield converter.etree_element(self.name, attrib=attributes, level=level)
+                    yield converter.etree_element(element_data.tag, attrib=attributes, level=level)
 
         del element_data
 

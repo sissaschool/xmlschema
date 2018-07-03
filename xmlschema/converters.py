@@ -194,11 +194,15 @@ class XMLSchemaConverter(NamespaceMapper):
         :param xsd_element: The `XsdElement` associated to the decoded data structure.
         :return: An ElementData instance.
         """
+        tag = xsd_element.name
+        if tag[0] != '{' and self.get(''):
+            tag = '{%s}%s' % (self.get(''), tag)
+
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-                return ElementData(xsd_element.name, obj, None, self.dict())
+                return ElementData(tag, obj, None, self.dict())
             else:
-                return ElementData(xsd_element.name, None, obj, self.dict())
+                return ElementData(tag, None, obj, self.dict())
 
         unmap_qname = self.unmap_qname
         unmap_attribute_qname = self.unmap_attribute_qname
@@ -251,7 +255,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     else:
                         content.append((ns_name, value))
 
-        return ElementData(xsd_element.name, text, content, attributes)
+        return ElementData(tag, text, content, attributes)
 
 
 class ParkerConverter(XMLSchemaConverter):
@@ -448,6 +452,10 @@ class BadgerFishConverter(XMLSchemaConverter):
         except KeyError:
             pass
 
+        tag = xsd_element.name
+        if tag[0] != '{' and self.get(''):
+            tag = '{%s}%s' % (self.get(''), tag)
+
         try:
             element_data = obj[map_qname(xsd_element.name)]
         except KeyError:
@@ -498,7 +506,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                     else:
                         content.append((ns_name, value))
 
-        return ElementData(xsd_element.name, text, content, attributes)
+        return ElementData(tag, text, content, attributes)
 
 
 class AbderaConverter(XMLSchemaConverter):
@@ -554,10 +562,14 @@ class AbderaConverter(XMLSchemaConverter):
             return children if children is not None else self.list()
 
     def element_encode(self, obj, xsd_element):
+        tag = xsd_element.name
+        if tag[0] != '{' and self.get(''):
+            tag = '{%s}%s' % (self.get(''), tag)
+
         if not isinstance(obj, (self.dict, dict)):
             if obj == []:
                 obj = None
-            return ElementData(xsd_element.name, obj, None, self.dict())
+            return ElementData(tag, obj, None, self.dict())
         else:
             unmap_qname = self.unmap_qname
             unmap_attribute_qname = self.unmap_attribute_qname
@@ -575,7 +587,7 @@ class AbderaConverter(XMLSchemaConverter):
                 if len(children) > 1:
                     raise ValueError("Wrong format")
                 else:
-                    return ElementData(xsd_element.name, children[0], None, attributes)
+                    return ElementData(tag, children[0], None, attributes)
 
             content = []
             for child in children:
@@ -599,7 +611,7 @@ class AbderaConverter(XMLSchemaConverter):
                         else:
                             content.append((ns_name, value))
 
-            return ElementData(xsd_element.name, None, content, attributes)
+            return ElementData(tag, None, content, attributes)
 
 
 class JsonMLConverter(XMLSchemaConverter):

@@ -128,6 +128,9 @@ def get_args_parser():
     parser.add_argument(
         '-defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
     )
+    parser.add_argument(
+        '-skip', action="store_true", default=False, help="Some test data are skipped by schema wildcards.",
+    )
     return parser
 
 

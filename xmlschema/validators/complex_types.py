@@ -95,7 +95,7 @@ class XsdComplexType(XsdType, ValidatorMixin):
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
             # complexType with empty content
-            self.content_type = self.schema.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema)
+            self.content_type = self.schema.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema, mixed=self.mixed)
             self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
 
         elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:

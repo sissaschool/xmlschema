@@ -186,74 +186,79 @@ def etree_child_index(elem, child):
     raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
 
 
-def etree_elements_equal(elem, other, strict=True):
+def etree_elements_equal(elem, other, strict=True, skip_comments=True):
+    try:
+        etree_elements_assert_equal(elem, other, strict=strict, skip_comments=skip_comments)
+    except AssertionError:
+        return False
+    else:
+        return True
+
+
+def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
+    _REGEX_SPACES = re.compile(r'\s+')
+
     other_elements = iter(other.iter())
     for e1 in elem.iter():
-        if e1.tag is lxml_etree_comment:
+        if skip_comments and e1.tag is lxml_etree_comment:
             continue
 
         try:
             e2 = next(other_elements)
         except StopIteration:
-            print("Terminato prima")
-            return False
+            assert False, "Second tree ends before the first: %r." % e1
 
-        if e1.tag != e2.tag:
-            print("Tag diversi: ", e1.tag, e2.tag)
-            return False
-        elif e1.attrib != e2.attrib:
+        assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
+
+        # Attributes
+        if e1.attrib != e2.attrib:
             if strict:
-                print("Attributi diversi: ", e1.attrib, e2.attrib)
-                return False
-            elif e1.attrib.keys() != e2.attrib.keys():
-                print("Chiavi attributi diversi: ", e1.attrib.keys(), e2.attrib.keys())
-                return False
+                raise AssertionError("%r != %r: attribute differ: %r != %r." % (e1, e2, e1.attrib, e2.attrib))
             else:
+                assert e1.attrib.keys() == e2.attrib.keys(), \
+                    "%r != %r: attribute keys differ: %r != %r." % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
                     a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()
                     if a1 != a2:
                         try:
-                            if float(a1) != float(a2):
-                                print("Attribute %r differ: " % k)
-                                return False
-                        except (ValueError, TypeError):
-                            return False
+                            assert float(a1) == float(a2)
+                        except (AssertionError, ValueError, TypeError):
+                            raise AssertionError(
+                                "%r != %r: attribute %r differ: %r != %r." % (e1, e2, k, a1, a2)
+                            )
 
-        elif len([c for c in e1 if c.tag is not lxml_etree_comment]) != len(e2):
-            print("Numero di figli diverso:", len([c for c in e1 if c.tag is not lxml_etree_comment]), len(e2))
-            return False
-        elif e1.text != e2.text:
+        # Number of children
+        if skip_comments:
+            nc1 = len([c for c in e1 if c.tag is not lxml_etree_comment])
+            nc2 = len([c for c in e2 if c.tag is not lxml_etree_comment])
+        else:
+            nc1 = len(e1)
+            nc2 = len(e2)
+        assert nc1 == nc2, "%r != %r: children number differ: %r != %r." % (e1, e2, nc1, nc2)
+
+        # Text
+        if e1.text != e2.text:
+            message = "%r != %r: texts differ: %r != %r." % (e1, e2, e1.text, e2.text)
             if strict:
-                return False
+                raise AssertionError(message)
             elif e1.text is None:
-                if e2.text.strip():
-                    print("Testo diverso: ")
-                    return False
+                assert not e2.text.strip(), message
             elif e2.text is None:
-                if e1.text.strip():
-                    print("Testo diverso: ", e1, e1.text, e2)
-                    return False
-            elif e1.text.strip() != e2.text.strip():
+                assert not e1.text.strip(), message
+            elif _REGEX_SPACES.sub(e1.text.strip(), '') != _REGEX_SPACES.sub(e2.text.strip(), ''):
                 try:
-                    if float(e1.text.strip()) != float(e2.text.strip()):
-                        print("Testo diverso: ", e1.text, e2.text)
-                        return False
-                except (ValueError, TypeError):
-                    print("Testo diverso: ", e1.text, e2.text)
-                    return False
-        elif e1.tail != e2.tail:
-            if strict:
-                return False
-            elif e1.tail is None:
-                if e2.tail.strip():
-                    print("TAil")
-                    return False
-            elif e2.tail is None:
-                if e1.tail.strip():
-                    print("TAil")
-                    return False
-            elif e1.tail.strip() != e2.tail.strip():
-                print("TAil")
-                return False
+                    assert float(e1.text.strip()) == float(e2.text.strip())
+                except (AssertionError, ValueError, TypeError):
+                    raise AssertionError(message)
 
-    return True
+        # Tail
+        if e1.tail != e2.tail:
+            message = "%r != %r: tails differ: %r != %r." % (e1, e2, e1.tail, e2.tail)
+            if strict:
+                raise AssertionError(message)
+            elif e1.tail is None:
+                assert not e2.tail.strip(), message
+            elif e2.text is None:
+                assert not e1.tail.strip(), message
+            else:
+                assert e1.tail.strip() == e2.tail.strip(), message
