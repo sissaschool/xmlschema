@@ -344,7 +344,6 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     except AssertionError as err:
                         raise AssertionError(str(err) + msg_template % "encoded tree differs after second pass")
 
-
         def check_json_serialization(self, elem, converter=None, **kwargs):
             data = xmlschema.to_json(elem, schema=self.schema, converter=converter, **kwargs)
 

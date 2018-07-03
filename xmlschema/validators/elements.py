@@ -347,7 +347,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        include_namespaces = kwargs.pop('include_namespaces', False)
+        level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
@@ -367,14 +367,10 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 except TypeError:
                     yield self._validation_error("xsi:nil attribute must has a boolean value.", validation, elem)
 
-        if self.name == 'longdescription':
-            import pdb
-            pdb.set_trace()
-
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
-            for result in type_.iter_decode(elem, validation, **kwargs):
+            for result in type_.iter_decode(elem, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
@@ -385,7 +381,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                             element_data = ElementData(elem.tag, *result)
                     else:
                         element_data = ElementData(elem.tag, *result)
-                    yield converter.element_decode(element_data, self, include_namespaces)
+                    yield converter.element_decode(element_data, self, level)
                     del result
         else:
             # simpleType
@@ -432,7 +428,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                             except TypeError:
                                 pass
                         element_data = ElementData(elem.tag, result, None, attributes)
-                        yield converter.element_decode(element_data, self, include_namespaces)
+                        yield converter.element_decode(element_data, self, level)
                         del result
 
         if validation != 'skip':
@@ -505,7 +501,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         Encode data to an Element.
 
         :param obj: The data that has to be encoded.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
         :param kwargs: Keyword arguments for the encoding process.
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.
@@ -516,7 +512,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         level = kwargs.pop('level', 0)
-        element_data = converter.element_encode(obj, self)
+        element_data = converter.element_encode(obj, self, level)
 
         try:
             type_name = element_data.attributes[XSI_TYPE]

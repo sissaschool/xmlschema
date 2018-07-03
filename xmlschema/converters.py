@@ -16,7 +16,7 @@ import string
 from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
-from .namespaces import NamespaceMapper
+from .namespaces import NamespaceMapper, XSI_NAMESPACE
 
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -126,6 +126,13 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         Builds an ElementTree's Element using arguments and the element class and
         the indent spacing stored in the converter instance.
+
+        :param tag: the Element tag string.
+        :param text: the Element text.
+        :param children: the list of Element children/subelements.
+        :param attrib: a dictionary with Element attributes.
+        :param level: the level related to the encoding process (0 means the root).
+        :return: an instance of the Element class setted for the converter instance.
         """
         if type(self.etree_element_class) is type(etree_element):
             if attrib is None:
@@ -146,19 +153,21 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return elem
 
-    def element_decode(self, data, xsd_element, include_namespaces=False):
+    def element_decode(self, data, xsd_element, level=0):
         """
         Converts a decoded element data to a data structure.
 
-        :param data: Decoded ElementData from an Element node.
-        :param xsd_element: The `XsdElement` associated to decoded the data.
-        :param include_namespaces: If set to `True` namespace information are included in the decode data.
-        :return: A dictionary-based data structure containing the decoded data.
+        :param data: ElementData instance decoded from an Element node.
+        :param xsd_element: the `XsdElement` associated to decoded the data.
+        :param level: the level related to the decoding process (0 means the root).
+        :return: a data structure containing the decoded data.
         """
         result_dict = self.dict()
-        if include_namespaces:
+        if level == 0 and xsd_element.is_global and self:
+            schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
                 (u'%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
+                if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -186,17 +195,16 @@ class XMLSchemaConverter(NamespaceMapper):
                     result_dict[name] = self.list([result_dict[name], value])
             return result_dict if result_dict else None
 
-    def element_encode(self, obj, xsd_element):
+    def element_encode(self, obj, xsd_element, level=0):
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
 
         :param obj: the decoded object.
-        :param xsd_element: The `XsdElement` associated to the decoded data structure.
-        :return: An ElementData instance.
+        :param xsd_element: the `XsdElement` associated to the decoded data structure.
+        :param level: the level related to the encoding process (0 means the root).
+        :return: an ElementData instance.
         """
-        tag = xsd_element.name
-        if tag[0] != '{' and self.get(''):
-            tag = '{%s}%s' % (self.get(''), tag)
+        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -288,7 +296,7 @@ class ParkerConverter(XMLSchemaConverter):
             indent=kwargs.get('indent', self.indent),
         )
 
-    def element_decode(self, data, xsd_element, *args, **kwargs):
+    def element_decode(self, data, xsd_element, level=0):
         map_qname = self.map_qname
         preserve_root = self.preserve_root
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -326,7 +334,7 @@ class ParkerConverter(XMLSchemaConverter):
             else:
                 return result_dict if result_dict else None
 
-    def element_encode(self, obj, xsd_element):
+    def element_encode(self, obj, xsd_element, level=0):
         if not isinstance(obj, (self.dict, dict)):
             if obj == '':
                 obj = None
@@ -392,7 +400,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, include_namespaces=True):
+    def element_decode(self, data, xsd_element, level=0):
         dict_class = self.dict
 
         tag = self.map_qname(data.tag)
@@ -442,19 +450,16 @@ class BadgerFishConverter(XMLSchemaConverter):
         else:
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
 
-    def element_encode(self, obj, xsd_element):
+    def element_encode(self, obj, xsd_element, level=0):
         map_qname = self.map_qname
         unmap_qname = self.unmap_qname
         unmap_attribute_qname = self.unmap_attribute_qname
+        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         try:
             self.update(obj[u'@xmlns'])
         except KeyError:
             pass
-
-        tag = xsd_element.name
-        if tag[0] != '{' and self.get(''):
-            tag = '{%s}%s' % (self.get(''), tag)
 
         try:
             element_data = obj[map_qname(xsd_element.name)]
@@ -527,7 +532,7 @@ class AbderaConverter(XMLSchemaConverter):
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, *args, **kwargs):
+    def element_decode(self, data, xsd_element, level=0):
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             children = data.text if data.text is not None and data.text != '' else None
         else:
@@ -561,10 +566,8 @@ class AbderaConverter(XMLSchemaConverter):
         else:
             return children if children is not None else self.list()
 
-    def element_encode(self, obj, xsd_element):
-        tag = xsd_element.name
-        if tag[0] != '{' and self.get(''):
-            tag = '{%s}%s' % (self.get(''), tag)
+    def element_encode(self, obj, xsd_element, level=0):
+        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not isinstance(obj, (self.dict, dict)):
             if obj == []:
@@ -632,7 +635,7 @@ class JsonMLConverter(XMLSchemaConverter):
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
-    def element_decode(self, data, xsd_element, include_namespaces=True):
+    def element_decode(self, data, xsd_element, level=0):
         result_list = self.list([self.map_qname(data.tag)])
         attributes = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
 
@@ -645,13 +648,13 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if self and include_namespaces:
+        if level == 0 and xsd_element.is_global and self:
             attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
         if attributes:
             result_list.insert(1, attributes)
         return result_list
 
-    def element_encode(self, obj, xsd_element):
+    def element_encode(self, obj, xsd_element, level=0):
         unmap_qname = self.unmap_qname
         attributes = self.dict()
         if not isinstance(obj, (self.list, list)) or not obj:

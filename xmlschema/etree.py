@@ -21,7 +21,8 @@ except ImportError:
 
 from .compat import PY3, StringIO
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
+from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
+from .qnames import get_qname
 
 import defusedxml.ElementTree
 
@@ -117,11 +118,11 @@ def etree_get_namespaces(source):
 
             while prefix in nsmap:
                 match = re.search('(\d+)$', prefix)
-                if not match:
-                    prefix += '2'
-                else:
+                if match:
                     index = int(match.group()) + 1
                     prefix = prefix[:match.span()[0]] + str(index)
+                else:
+                    prefix += '2'
             nsmap[prefix] = uri
 
     nsmap = {}
@@ -196,9 +197,19 @@ def etree_elements_equal(elem, other, strict=True, skip_comments=True):
 
 
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
+    """
+    Compares two XML Element trees.
+
+    :param elem: the master Element tree, reference for namespace mapping.
+    :param other: the other Element tree that has to be compared.
+    :param strict: asserts strictly equality. `True` for default.
+    :param skip_comments: Skip comments for e
+    :raise: an AssertionError containing information about first difference encountered.
+    """
     _REGEX_SPACES = re.compile(r'\s+')
 
     other_elements = iter(other.iter())
+    namespace = ''
     for e1 in elem.iter():
         if skip_comments and e1.tag is lxml_etree_comment:
             continue
@@ -208,7 +219,11 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
         except StopIteration:
             assert False, "Second tree ends before the first: %r." % e1
 
-        assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
+        if strict or e1 is elem:
+            assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
+        else:
+            namespace = get_namespace(e1.tag) or namespace
+            assert get_qname(namespace, e1.tag) == get_qname(namespace, e1.tag), "%r != %r: tags differ." % (e1, e2)
 
         # Attributes
         if e1.attrib != e2.attrib:
@@ -262,3 +277,10 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
                 assert not e1.tail.strip(), message
             else:
                 assert e1.tail.strip() == e2.tail.strip(), message
+
+    try:
+        e2 = next(other_elements)
+    except StopIteration:
+        pass
+    else:
+        assert False, "First tree ends before the second: %r." % e2

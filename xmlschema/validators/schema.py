@@ -588,9 +588,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         """
         if converter is None:
             converter = getattr(self, 'converter', XMLSchemaConverter)
-        if namespaces is None:
-            # Uses the schema's namespace map but skips empty prefix that is ambiguous
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
 
         if isinstance(converter, XMLSchemaConverter):
             return converter.copy(namespaces=namespaces, **kwargs)
@@ -736,7 +733,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 for obj in xsd_element.iter_decode(
                         xml_root, validation,
-                        include_namespaces=process_namespaces,
                         namespaces=namespaces,
                         use_defaults=use_defaults,
                         decimal_type=decimal_type,
@@ -753,7 +749,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 for elem in elementpath.select(xml_root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation,
-                            include_namespaces=process_namespaces and xsd_element.is_global,
                             namespaces=namespaces,
                             use_defaults=use_defaults,
                             decimal_type=decimal_type,
