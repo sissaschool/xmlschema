@@ -63,7 +63,7 @@ else:
     lxml_etree_register_namespace = None
 
 
-def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
+def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
     if isinstance(elem, etree_element):
         tostring = ElementTree.tostring
     elif lxml_etree is not None:
@@ -78,23 +78,29 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4):
         lines = unicode(tostring(elem)).splitlines()
     while lines and not lines[-1].strip():
         lines.pop(-1)
-    lines[-1] = '  %s' % lines[-1].strip()
+    lines[-1] = u'  %s' % lines[-1].strip()
 
     if max_lines is not None:
         if indent:
-            xml_text = '\n'.join([indent + line for line in lines[:max_lines]])
+            xml_text = u'\n'.join([indent + line for line in lines[:max_lines]])
         else:
-            xml_text = '\n'.join(lines[:max_lines])
+            xml_text = u'\n'.join(lines[:max_lines])
         if len(lines) > max_lines + 2:
-            xml_text += '\n%s    ...\n%s%s' % (indent, indent, lines[-1])
+            xml_text += u'\n%s    ...\n%s%s' % (indent, indent, lines[-1])
         elif len(lines) > max_lines:
-            xml_text += '\n%s%s\n%s%s' % (indent, lines[-2], indent, lines[-1])
+            xml_text += u'\n%s%s\n%s%s' % (indent, lines[-2], indent, lines[-1])
     elif indent:
-        xml_text = '\n'.join([indent + line for line in lines])
+        xml_text = u'\n'.join([indent + line for line in lines])
     else:
-        xml_text = '\n'.join(lines)
+        xml_text = u'\n'.join(lines)
 
-    return xml_text.replace('\t', ' ' * spaces_for_tab) if spaces_for_tab else xml_text
+    if spaces_for_tab:
+        xml_text = xml_text.replace(u'\t', u' ' * spaces_for_tab)
+
+    if xml_declaration:
+        xml_text = indent + u'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_text
+
+    return xml_text
 
 
 def etree_get_namespaces(source):
