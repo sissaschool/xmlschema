@@ -24,6 +24,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema import etree_get_namespaces, fetch_resource, normalize_url, XMLSchemaURLError
+
 
 class TestResources(unittest.TestCase):
 
@@ -35,18 +37,23 @@ class TestResources(unittest.TestCase):
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
-    def test_absolute_path(self):
+    def test_normalize_url(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
-        self.assertTrue(xmlschema.normalize_url(url1, base_url="/path_my_schema/schema.xsd") == url1)
+        self.assertEqual(normalize_url(url1, base_url="/path_my_schema/schema.xsd"), url1)
+
+        parent_url = 'file://' + os.path.dirname(os.getcwd())
+        self.assertEqual(normalize_url('../dir1/./dir2'), os.path.join(parent_url, 'dir1/dir2'))
+        self.assertEqual(normalize_url('../dir1/./dir2', '/home'), 'file:///dir1/dir2')
+        self.assertEqual(normalize_url('../dir1/./dir2', 'file:///home'), 'file:///dir1/dir2')
 
     def test_fetch_resource(self):
         wrong_path = os.path.join(self.test_dir, 'resources/dummy_file.txt')
-        self.assertRaises(xmlschema.XMLSchemaURLError, xmlschema.fetch_resource, wrong_path)
+        self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
         right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
-        self.assertTrue(xmlschema.fetch_resource(right_path).endswith('y%20file.txt'))
+        self.assertTrue(fetch_resource(right_path).endswith('y%20file.txt'))
 
     def test_get_namespace(self):
-        self.assertFalse(xmlschema.etree_get_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
+        self.assertFalse(etree_get_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
 
 
 if __name__ == '__main__':

@@ -164,10 +164,11 @@ def normalize_url(url, base_url=None):
     else:
         base_url_parts = urlsplit(base_url)
         if base_url_parts.scheme and base_url_parts.scheme in uses_relative:
+            pathname = os.path.abspath(os.path.join(base_url_parts.path, pathname2url(url)))
             return urlunsplit((
                 base_url_parts.scheme,
                 base_url_parts.netloc,
-                os.path.join(base_url_parts.path, pathname2url(url)),
+                pathname,
                 base_url_parts.query,
                 base_url_parts.fragment
             ))
@@ -191,6 +192,8 @@ def fetch_resource(location, base_url=None):
     """
     if not location:
         raise XMLSchemaValueError("'location' argument must contains a not empty string.")
+    if location.startswith('..') or base_url and base_url.startswith('..'):
+        print(location, base_url)
 
     url = normalize_url(location, base_url)
     try:

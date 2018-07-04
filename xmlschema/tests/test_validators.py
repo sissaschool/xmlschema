@@ -315,57 +315,71 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             cls.longMessage = True
 
         def check_etree_encode(self, root, converter=None, **kwargs):
-            data = self.schema.decode(root, converter=converter, **kwargs)
-            for _ in iter_nested_items(data, dict_class=ordered_dict_class):
+            data1 = self.schema.decode(root, converter=converter, **kwargs)
+
+            for _ in iter_nested_items(data1, dict_class=ordered_dict_class):
                 pass
-            encoded_root = self.schema.encode(data, path=root.tag, converter=converter, **kwargs)
-            if isinstance(encoded_root, tuple):
-                encoded_root = encoded_root[0]  # Lossy converter + validation='lax'
 
-            # 1st check: compare decoded and re decoded data
-            decoded_data = self.schema.decode(encoded_root, converter=converter, **kwargs)
-            if isinstance(decoded_data, tuple):
-                decoded_data = decoded_data[0]  # Lossy converter + validation='lax'
-            self.assertEqual(decoded_data, data, msg_template % "decoded data changed at second pass")
+            elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
+            if isinstance(elem1, tuple):
+                elem1 = elem1[0]  # Lossy converter + validation='lax'
 
-            # 2nd check: compare original an re encoded tree
+            # Main check: compare original an re encoded tree
             try:
-                etree_elements_assert_equal(root, encoded_root, strict=False)
+                etree_elements_assert_equal(root, elem1, strict=False)
             except AssertionError as err:
+                # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
+                # or it the XML case has defaults taken from the schema or some part of data
+                # decoding is skipped by schema wildcards (set the specific argument in testfiles).
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) \
                         and not defaults and not wildcards_skip:
                     if debug_mode:
                         pdb.set_trace()
-
                     raise AssertionError(str(err) + msg_template % "encoded tree differs from original")
                 else:
-                    # Lossy or augmenting cases are checked with a second pass or re encoding
-                    encoded_root2 = self.schema.encode(decoded_data, path=root.tag, converter=converter, **kwargs)
-                    if isinstance(encoded_root2, tuple):
-                        encoded_root2 = encoded_root2[0]
+                    # Lossy or augmenting cases are checked after a re decoding-encoding pass
+                    data2 = self.schema.decode(elem1, converter=converter, **kwargs)
+                    if isinstance(data2, tuple):
+                        data2 = data2[0]  # Lossy converter + validation='lax'
+
+                    if sys.version_info >= (3, 6):
+                        # For Python < 3.6 cannot ensure attribute decoding order
+                        try:
+                            self.assertEqual(data1, data2, msg_template % "re decoded data changed")
+                        except AssertionError:
+                            if debug_mode:
+                                pdb.set_trace()
+                            raise
+
+                    elem2 = self.schema.encode(data2, path=root.tag, converter=converter, **kwargs)
+                    if isinstance(elem2, tuple):
+                        elem2 = elem2[0]
 
                     try:
-                        etree_elements_assert_equal(encoded_root, encoded_root2, strict=False)
+                        etree_elements_assert_equal(elem1, elem2, strict=False)
                     except AssertionError as err:
                         if debug_mode:
                             pdb.set_trace()
-
                         raise AssertionError(str(err) + msg_template % "encoded tree differs after second pass")
 
-        def check_json_serialization(self, elem, converter=None, **kwargs):
-            data = xmlschema.to_json(elem, schema=self.schema, converter=converter, **kwargs)
+        def check_json_serialization(self, root, converter=None, **kwargs):
+            data1 = xmlschema.to_json(root, schema=self.schema, converter=converter, **kwargs)
 
-            deserialized_elem = xmlschema.from_json(
-                data, schema=self.schema, path=elem.tag, converter=converter, **kwargs
-            )
-            if isinstance(deserialized_elem, tuple):
-                deserialized_elem = deserialized_elem[0]  # Lossy converter + validation='lax'
+            elem1 = xmlschema.from_json(data1, schema=self.schema, path=root.tag, converter=converter, **kwargs)
+            if isinstance(elem1, tuple):
+                elem1 = elem1[0]  # Lossy converter + validation='lax'
 
-            serialized_data = xmlschema.to_json(deserialized_elem, schema=self.schema, converter=converter, **kwargs)
-            if isinstance(serialized_data, tuple):
-                serialized_data = serialized_data[0]  # Lossy converter + validation='lax'
+            data2 = xmlschema.to_json(elem1, schema=self.schema, converter=converter, **kwargs)
+            if isinstance(data2, tuple):
+                data2 = data2[0]
 
-            self.assertEqual(serialized_data, data, msg_template % "serialized data changed at second pass")
+            if sys.version_info >= (3, 6):
+                self.assertEqual(data2, data1, msg_template % "serialized data changed at second pass")
+            else:
+                elem2 = xmlschema.from_json(data2, schema=self.schema, path=root.tag, converter=converter, **kwargs)
+                if isinstance(elem2, tuple):
+                    elem2 = elem2[0]
+                self.assertTrue(etree_elements_equal(elem1, elem2, strict=False))
 
         def check_decoding_with_element_tree(self):
             del self.errors[:]

@@ -28,7 +28,6 @@ except ImportError:
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
 
 
-PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 if PY3:
