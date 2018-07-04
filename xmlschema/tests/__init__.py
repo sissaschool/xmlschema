@@ -111,28 +111,28 @@ def get_args_parser():
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
     parser.add_argument('tot_errors', nargs='?', type=int, default=0, help="Total errors expected (default=0).")
     parser.add_argument(
-        '-i', dest="inspect", action="store_true", default=False,
+        '-i', '--inspect', dest="inspect", action="store_true", default=False,
         help="inspect using an observed custom schema class."
     )
     parser.add_argument(
-        "-v", dest="version", metavar='VERSION', type=xsd_version_number, default='1.0',
-        help="XSD version to use for schema (default is 1.0)."
+        '-v', '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
+        help="XSD schema version to use for test (default is 1.0)."
     )
     parser.add_argument(
         '-l', dest='locations', nargs=2, type=str, default=None, action='append'
     )
     parser.add_argument(
-        '-defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
+        '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )
     parser.add_argument(
-        '-defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
+        '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
     )
     parser.add_argument(
-        '-skip', action="store_true", default=False, help="Some test data are skipped by schema wildcards.",
+        '--skip', action="store_true", default=False, help="Some test data are skipped by schema wildcards.",
     )
     parser.add_argument(
-        '-debug', action="store_true", default=False, help="Run test in debug mode.",
+        '--debug', action="store_true", default=False, help="Run test in debug mode.",
     )
     return parser
 
