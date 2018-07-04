@@ -182,12 +182,13 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
+            has_single_group = xsd_element.type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
                     result = result_dict[name]
                 except KeyError:
-                    if xsd_child is None or xsd_child.is_single() and xsd_element.type.content_type.is_single():
+                    if xsd_child is None or has_single_group and xsd_child.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
@@ -312,6 +313,7 @@ class ParkerConverter(XMLSchemaConverter):
                 return data.text if data.text != '' else None
         else:
             result_dict = self.dict()
+            list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 if preserve_root:
                     try:
@@ -323,7 +325,7 @@ class ParkerConverter(XMLSchemaConverter):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if isinstance(value, (self.list, list)):
+                    if isinstance(value, list_types):
                         result_dict[name] = self.list([value])
                     else:
                         result_dict[name] = value
@@ -419,6 +421,8 @@ class BadgerFishConverter(XMLSchemaConverter):
             if data.text is not None and data.text != '':
                 result_dict[self.text_key] = data.text
         else:
+            has_single_group = xsd_element.type.content_type.is_single()
+            list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
                     if u'@xmlns' in value:
@@ -438,14 +442,19 @@ class BadgerFishConverter(XMLSchemaConverter):
                     value = self.dict()
 
                 try:
-                    result_dict[name].append(value)
+                    result = result_dict[name]
                 except KeyError:
-                    if xsd_child is None or xsd_child.is_single():
+                    if xsd_child is None or has_single_group and xsd_child.is_single():
                         result_dict[name] = value
                     else:
                         result_dict[name] = self.list([value])
-                except AttributeError:
-                    result_dict[name] = self.list([result_dict[name], value])
+                else:
+                    if not isinstance(result, list_types) or not result:
+                        result_dict[name] = self.list([result, value])
+                    elif isinstance(result[0], list_types) or not isinstance(value, list_types):
+                        result.append(value)
+                    else:
+                        result_dict[name] = self.list([result, value])
 
         if has_local_root:
             if self:
