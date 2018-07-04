@@ -24,7 +24,7 @@ from ..namespaces import (
 )
 from ..etree import etree_get_namespaces, etree_iselement
 
-from ..namespaces import NamespaceResourcesMap, NamespaceView
+from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
 from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
@@ -249,6 +249,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if locations:
             self.locations.update(locations)  # Insert locations argument first
         self.locations.update(iter_schema_location_hints(self.root))
+        if self.meta_schema is not None:
+            # Add fallback schema location hint for XHTML
+            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text

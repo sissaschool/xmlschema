@@ -14,7 +14,7 @@ XSD declarations/definitions.
 """
 import re
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
-from ..namespaces import XSD_NAMESPACE, URIDict
+from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
     XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
@@ -183,7 +183,7 @@ class XsdGlobals(XsdBaseComponent):
         super(XsdGlobals, self).__init__()
         self.validator = validator
 
-        self.namespaces = URIDict()     # Registered schemas by namespace URI
+        self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
         self.types = {}                 # Global types (both complex and simple)
         self.attributes = {}            # Global attributes
@@ -305,18 +305,44 @@ class XsdGlobals(XsdBaseComponent):
             if not any([schema.url == obj.url for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
-    def clear(self, remove_schemas=False):
+    def clear(self, remove_schemas=False, only_unbuilt=False):
         """
-        Clears the instance maps, removing also all the registered schemas
-        and cleaning the cache.
-        """
-        for global_map in self.global_maps:
-            global_map.clear()
-        self.substitution_groups.clear()
-        self.constraints.clear()
+        Clears the instance maps and schemas.
 
-        if remove_schemas:
-            self.namespaces.clear()
+        :param remove_schemas: removes also the schema instances.
+        :param only_unbuilt: removes only not built objects/schemas.
+        """
+        if only_unbuilt:
+            not_built_schemas = {schema for schema in self.iter_schemas() if not schema.built}
+            if not not_built_schemas:
+                return
+
+            for global_map in self.global_maps:
+                for k in list(global_map.keys()):
+                    obj = global_map[k]
+                    if not isinstance(obj, XsdComponent) or obj.schema in not_built_schemas:
+                        del global_map[k]
+                        if k in self.substitution_groups:
+                            del self.substitution_groups[k]
+                        if k in self.constraints:
+                            del self.constraints[k]
+
+            if remove_schemas:
+                namespaces = NamespaceResourcesMap()
+                for uri, value in self.namespaces.items():
+                    for schema in value:
+                        if schema not in not_built_schemas:
+                            namespaces[uri] = schema
+                self.namespaces = namespaces
+
+        else:
+            for global_map in self.global_maps:
+                global_map.clear()
+            self.substitution_groups.clear()
+            self.constraints.clear()
+
+            if remove_schemas:
+                self.namespaces.clear()
 
     def build(self):
         """
