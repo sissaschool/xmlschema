@@ -15,7 +15,7 @@ from .compat import (
 )
 from .etree import (
     etree_iterparse, etree_fromstring, etree_parse_error, etree_iselement,
-    safe_etree_fromstring, safe_etree_parse_error
+    safe_etree_fromstring, safe_etree_parse_error, safe_etree_iterparse
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
@@ -52,101 +52,6 @@ def iter_schema_location_hints(elem, namespace=None):
             pass
 
 
-def load_xml_resource(source, element_only=True, defuse='remote'):
-    """
-    Examines the source and returns the root Element, the XML text and an url
-    if available. Returns only the root Element if the optional argument 
-    "element_only" is True. This function is usable for XML data files of small 
-    or medium sizes, as XSD schemas.
-
-    :param source: an URL, a filename path or a file-like object.
-    :param element_only: If True the function returns only the root Element of the tree.
-    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
-    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
-    :return: a tuple with three items (root Element, XML text and XML URL) or \
-    only the root Element if 'element_only' argument is True.
-    """
-    if defuse not in DEFUSE_MODES:
-        raise XMLSchemaValueError("'defuse' argument value has to be in {}.".format(DEFUSE_MODES))
-
-    if etree_iselement(source):
-        return source, None, None
-
-    # source argument is a string
-    if isinstance(source, (str, bytes, unicode_type)):
-        try:
-            xml_root = etree_fromstring(source)
-        except (etree_parse_error, UnicodeEncodeError):
-            if len(source.splitlines()) > 1:
-                raise
-        else:
-            return xml_root if element_only else (xml_root, source, None)
-
-        xml_data, xml_url = load_resource(source)
-        is_local = xml_url.startswith('file:') or xml_url.startswith('/')
-    else:
-        try:
-            # source is a file-like object containing XML data
-            xml_data = source.read()
-        except AttributeError:
-            raise XMLSchemaTypeError(
-                "an Element tree, a string or a file-like object "
-                "is required, not %r." % source.__class__.__name__
-            )
-        else:
-            xml_url = getattr(source, 'name', getattr(source, 'url', None))
-            is_local = True
-            source.close()
-
-    try:
-        if defuse == 'always':
-            xml_root = safe_etree_fromstring(xml_data)
-        elif defuse == 'never' or is_local:
-            xml_root = etree_fromstring(xml_data)
-        else:
-            xml_root = safe_etree_fromstring(xml_data)
-    except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError) as err:
-        raise XMLSchemaValueError(
-            "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
-        )
-    else:
-        return xml_root if element_only else (xml_root, xml_data, xml_url)
-
-
-def load_resource(url):
-    """
-    Load resource from an URL, decoding into a UTF-8 string.
-
-    :param url: Resource URLs.
-    :return: Resource as unicode string ad the loaded URL.
-    """
-    msg = "cannot load resource from %r: %s"
-    try:
-        source = urlopen(normalize_url(url))
-    except URLError as err:
-        raise XMLSchemaURLError(reason=msg % (url, err.reason))
-    else:
-        try:
-            data = source.read()
-        except (OSError, IOError) as err:
-            raise XMLSchemaOSError(msg % (url, err))
-        finally:
-            source.close()
-
-    if PY3:
-        try:
-            return data.decode('utf-8'), url
-        except UnicodeDecodeError:
-            return data.decode('iso-8859-1'), url
-    else:
-        try:
-            return data.encode('utf-8'), url
-        except UnicodeDecodeError:
-            import codecs
-            with codecs.open(urlsplit(url).path, mode='rb', encoding='iso-8859-1') as text_file:
-                return text_file.read().encode('iso-8859-1'), url
-
-
 def normalize_url(url, base_url=None):
     """
     Returns a normalized url. If URL scheme is missing the 'file' scheme is set.
@@ -181,46 +86,115 @@ def normalize_url(url, base_url=None):
                 return urljoin(u'file:', url_parts.geturl())
 
 
-def fetch_resource(location, base_url=None):
+def load_resource(url, timeout=300):
     """
-    Fetch a resource trying to open it. If the resource is accessible
-    returns the URL, otherwise raises an error (XMLSchemaURLError).
+    Load resource from an URL, decoding into a UTF-8 string.
 
-    :param location: An URL or a file path.
-    :param base_url: Reference path for completing local URLs.
-    :return: A normalized URL.
+    :param url: resource URLs.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    :return: the loaded resource as unicode string.
     """
-    if not location:
-        raise XMLSchemaValueError("'location' argument must contains a not empty string.")
-
-    url = normalize_url(location, base_url)
+    msg = "cannot load resource from %r: %s"
     try:
-        resource = urlopen(url)
+        source = urlopen(normalize_url(url), timeout=timeout)
     except URLError as err:
-        # fallback joining the path without a base URL
-        url = normalize_url(location)
+        raise XMLSchemaURLError(reason=msg % (url, err.reason))
+    else:
         try:
-            resource = urlopen(url)
-        except URLError:
-            raise XMLSchemaURLError(
-                reason="cannot access resource from %r: %s" % (location, str(err))
+            data = source.read()
+        except (OSError, IOError) as err:
+            raise XMLSchemaOSError(msg % (url, err))
+        finally:
+            source.close()
+
+    if PY3:
+        try:
+            return data.decode('utf-8'), url
+        except UnicodeDecodeError:
+            return data.decode('iso-8859-1'), url
+    else:
+        try:
+            return data.encode('utf-8'), url
+        except UnicodeDecodeError:
+            import codecs
+            with codecs.open(urlsplit(url).path, mode='rb', encoding='iso-8859-1') as text_file:
+                return text_file.read().encode('iso-8859-1'), url
+
+
+def load_xml_resource(source, element_only=True, defuse='remote', timeout=300):
+    """
+    Examines the source and returns the root Element, the XML text and an url
+    if available. Returns only the root Element if the optional argument
+    "element_only" is True. This function is usable for XML data files of small
+    or medium sizes, as XSD schemas.
+
+    :param source: an URL, a filename path or a file-like object.
+    :param element_only: If True the function returns only the root Element of the tree.
+    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
+    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    :return: a tuple with three items (root Element, XML text and XML URL) or \
+    only the root Element if 'element_only' argument is True.
+    """
+    if defuse not in DEFUSE_MODES:
+        raise XMLSchemaValueError("'defuse' argument value has to be in {}.".format(DEFUSE_MODES))
+
+    if etree_iselement(source):
+        return source, None, None
+
+    # source argument is a string
+    if isinstance(source, (str, bytes, unicode_type)):
+        try:
+            xml_root = etree_fromstring(source)
+        except (etree_parse_error, UnicodeEncodeError):
+            if len(source.splitlines()) > 1:
+                raise
+        else:
+            return xml_root if element_only else (xml_root, source, None)
+
+        xml_data, xml_url = load_resource(source, timeout)
+        is_local = xml_url.startswith('file:') or xml_url.startswith('/')
+    else:
+        try:
+            # source is a file-like object containing XML data
+            xml_data = source.read()
+        except AttributeError:
+            raise XMLSchemaTypeError(
+                "an Element tree, a string or a file-like object "
+                "is required, not %r." % source.__class__.__name__
             )
         else:
-            resource.close()
-            return url
+            xml_url = getattr(source, 'name', getattr(source, 'url', None))
+            is_local = True
+            source.close()
+
+    try:
+        if defuse == 'always':
+            xml_root = safe_etree_fromstring(xml_data)
+        elif defuse == 'never' or is_local:
+            xml_root = etree_fromstring(xml_data)
+        else:
+            xml_root = safe_etree_fromstring(xml_data)
+    except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError) as err:
+        raise XMLSchemaValueError(
+            "error parsing XML data from %r: %s" % (xml_url or type(xml_data), err)
+        )
     else:
-        resource.close()
-        return url
+        return xml_root if element_only else (xml_root, xml_data, xml_url)
 
 
-def get_xml_root(source):
+def load_xml_root(source, defuse='remote', timeout=300):
     """
     Returns the root Element and an URL, if available.
 
     :param source: an ElementTree structure, a string containing XML data, \
     an URL or a file-like object.
+    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
+    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :return: A 2-tuple with root Element and the source URL or `None`.
     """
+
     if isinstance(source, (str, bytes, unicode_type)):
         # source argument is a string
         if '\n' not in source:
@@ -228,10 +202,17 @@ def get_xml_root(source):
                 for _, xml_root in etree_iterparse(StringIO(source), events=('start',)):
                     return xml_root, None
             except (etree_parse_error, UnicodeEncodeError):
+                # source should be an URL
                 xml_url = normalize_url(source)
-                resource = urlopen(xml_url)
+                is_local = xml_url.startswith('file:') or xml_url.startswith('/')
+                if defuse == 'never' or is_local:
+                    iterparse = etree_iterparse
+                else:
+                    iterparse = safe_etree_iterparse
+
+                resource = urlopen(xml_url, timeout=timeout)
                 try:
-                    for _, xml_root in etree_iterparse(resource, events=('start',)):
+                    for _, xml_root in iterparse(resource, events=('start',)):
                         return xml_root, xml_url
                 finally:
                     resource.close()
@@ -251,29 +232,53 @@ def get_xml_root(source):
                     "an URL or a file-like object is required, not %r." % type(source)
                 )
 
-        for _, xml_root in etree_iterparse(urlopen(xml_url), events=('start',)):
+        for _, xml_root in etree_iterparse(urlopen(xml_url, timeout=timeout), events=('start',)):
             return xml_root, xml_url
 
 
-def fetch_schema(source, locations=None):
+def fetch_resource(location, base_url=None, timeout=300):
     """
-    Fetch the schema URL from an XML data source. If no accessible schema location
-    is found raises a ValueError.
+    Fetch a resource trying to open it. If the resource is accessible
+    returns the URL, otherwise raises an error (XMLSchemaURLError).
 
-    :param source: An Element or an Element Tree with XML data or an URL or a file-like object.
-    :param locations: A dictionary or dictionary items with Schema location hints.
-    :return: An URL referring to a reachable schema resource.
+    :param location: An URL or a file path.
+    :param base_url: Reference path for completing local URLs.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    :return: A normalized URL.
     """
-    return fetch_schema_locations(source, locations)[0]
+    if not location:
+        raise XMLSchemaValueError("'location' argument must contains a not empty string.")
+
+    url = normalize_url(location, base_url)
+    try:
+        resource = urlopen(url, timeout=timeout)
+    except URLError as err:
+        # fallback joining the path without a base URL
+        url = normalize_url(location)
+        try:
+            resource = urlopen(url, timeout=timeout)
+        except URLError:
+            raise XMLSchemaURLError(
+                reason="cannot access resource from %r: %s" % (location, str(err))
+            )
+        else:
+            resource.close()
+            return url
+    else:
+        resource.close()
+        return url
 
 
-def fetch_schema_locations(source, locations=None):
+def fetch_schema_locations(source, locations=None, defuse='remote', timeout=300):
     """
     Fetch the schema URL and other location hints from an XML data source. If no
     accessible schema location is found for source root's namespace raises a ValueError.
 
     :param source: An Element or an Element Tree with XML data or an URL or a file-like object.
     :param locations: A dictionary or dictionary items with Schema location hints.
+    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
+    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempts in case of remote data.
     :return: An couple with the URL referring to the first reachable schema resource \
     and a list of dictionary items with location hints.
     """
@@ -283,7 +288,7 @@ def fetch_schema_locations(source, locations=None):
         if etree_iselement(source):
             xml_root, xml_url = source, None
         else:
-            xml_root, xml_url = get_xml_root(source)
+            xml_root, xml_url = load_xml_root(source, defuse, timeout)
     else:
         if not etree_iselement(xml_root):
             raise XMLSchemaTypeError(
@@ -309,3 +314,18 @@ def fetch_schema_locations(source, locations=None):
                 pass
 
     raise XMLSchemaValueError("not found a schema for XML data resource %r (namespace=%r)." % (source, namespace))
+
+
+def fetch_schema(source, locations=None, defuse='remote', timeout=300):
+    """
+    Fetch the schema URL from an XML data source. If no accessible schema location
+    is found raises a ValueError.
+
+    :param source: An Element or an Element Tree with XML data or an URL or a file-like object.
+    :param locations: A dictionary or dictionary items with Schema location hints.
+    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
+    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempts in case of remote data.
+    :return: An URL referring to a reachable schema resource.
+    """
+    return fetch_schema_locations(source, locations, defuse, timeout)[0]

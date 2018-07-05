@@ -159,28 +159,32 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :param defuse: Defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
     For default defuse only remote XML data.
     :type defuse: str or None
+    :param timeout: the timeout in seconds for fetching resources. Default is `300`.
+    :type timeout: int
     :param build: Defines whether build the schema maps.
     :type build: bool
 
-    :cvar XSD_VERSION: Store the XSD version (1.0 or 1.1).
+    :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :vartype XSD_VERSION: str
-    :cvar meta_schema: The XSD meta-schema instance.
+    :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
     :ivar root: schema ElementTree root element
     :vartype root: Element
     :ivar text: text source of the schema
     :vartype text: str
-    :ivar url: The schema resource URL. It's `None` if the schema is built from a string.
+    :ivar url: the schema resource URL. It's `None` if the schema is built from a string.
     :vartype url: str
-    :ivar target_namespace: It is the *targetNamespace* of the schema, the namespace to which \
+    :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
     with the schema. In this case the schema declarations can be reused from other namespaces as \
     *chameleon* definitions.
     :vartype target_namespace: str
-    :ivar validation: Validation mode, can be 'strict', 'lax' or 'skip'.
+    :ivar validation: validation mode, can be 'strict', 'lax' or 'skip'.
     :vartype validation: str
-    :ivar defuse: When to defuse XML data, can be 'always', 'remote' or 'never'.
+    :ivar defuse: when to defuse XML data, can be 'always', 'remote' or 'never'.
     :vartype defuse: str
+    :ivar timeout: the timeout in seconds for fetching resources.
+    :vartype timeout: str
     :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
     that store the global_maps argument or a new object when this argument is not provided.
     :vartype maps: XsdGlobals
@@ -222,14 +226,15 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, defuse='remote', build=True):
+                 converter=None, locations=None, defuse='remote', timeout=300, build=True):
         super(XMLSchemaBase, self).__init__(validation)
         try:
-            self.root, self.text, self.url = load_xml_resource(source, False, defuse)
+            self.root, self.text, self.url = load_xml_resource(source, False, defuse, timeout)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
 
-        self.defuse = defuse  # Will be changed to 'always' in the future
+        self.defuse = defuse
+        self.timeout = timeout
         self._root_elements = None
 
         # Set and check target namespace
@@ -245,13 +250,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 self.target_namespace = namespace  # Chameleon schema
 
-        self.locations = NamespaceResourcesMap()
+        self.locations = locations
+        self._locations = NamespaceResourcesMap()
         if locations:
-            self.locations.update(locations)  # Insert locations argument first
-        self.locations.update(iter_schema_location_hints(self.root))
+            self._locations.update(locations)  # Insert locations argument first
+        self._locations.update(iter_schema_location_hints(self.root))
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
-            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+            self._locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
@@ -575,7 +581,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         Get a list of location hints.
         """
         try:
-            return list(self.locations[namespace])
+            return list(self._locations[namespace])
         except KeyError:
             return []
 
@@ -627,7 +633,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, namespace or self.target_namespace, self.validation, self.maps,
-                self.converter, None, self.defuse, False
+                self.converter, None, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -652,7 +658,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, self.target_namespace, self.validation, self.maps,
-                self.converter, None, self.defuse, False
+                self.converter, None, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
@@ -723,7 +729,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if etree_iselement(source):
                 xml_root = source
             else:
-                xml_root = load_xml_resource(source, defuse=defuse or self.defuse)
+                xml_root = load_xml_resource(source, defuse=defuse or self.defuse, timeout=self.timeout)
         else:
             if not etree_iselement(xml_root):
                 raise XMLSchemaTypeError("wrong type %r for 'source' argument." % type(source))
