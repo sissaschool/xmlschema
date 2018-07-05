@@ -754,9 +754,14 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
-        elif data_len > content_index + 1 or isinstance(obj[content_index], (self.list, list)) \
-                and not xsd_element.type.is_list():
-            content = [(unmap_qname(e[0]), e) for e in obj[content_index:]]
-            return ElementData(xsd_element.name, None, content, attributes)
-        else:
+        elif data_len == content_index + 1 and (xsd_element.type.is_simple()
+                or xsd_element.type.has_simple_content()):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
+        else:
+            cdata_num = iter(range(1, data_len))
+            list_types = list if self.list is list else (self.list, list)
+            content = [
+                (unmap_qname(e[0]), e) if isinstance(e, list_types) else (next(cdata_num), e)
+                for e in obj[content_index:]
+            ]
+            return ElementData(xsd_element.name, None, content, attributes)
