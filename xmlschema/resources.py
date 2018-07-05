@@ -192,8 +192,6 @@ def fetch_resource(location, base_url=None):
     """
     if not location:
         raise XMLSchemaValueError("'location' argument must contains a not empty string.")
-    if location.startswith('..') or base_url and base_url.startswith('..'):
-        print(location, base_url)
 
     url = normalize_url(location, base_url)
     try:

@@ -26,10 +26,14 @@ import xmlschema
 import xmlschema.validators
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import etree_iselement, etree_element, etree_get_namespaces, etree_register_namespace
+from xmlschema.resources import has_network_access
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
 logger = logging.getLogger('xmlschema.tests')
+
+
+SKIP_REMOTE_TESTS = not has_network_access('http://91.198.174.192')
 
 
 def print_test_header():
@@ -129,7 +133,7 @@ def get_args_parser():
         '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
     )
     parser.add_argument(
-        '--skip', action="store_true", default=False, help="Some test data are skipped by schema wildcards.",
+        '--skip', action="store_true", default=False, help="Some test data are skipped by wildcards processContents.",
     )
     parser.add_argument(
         '--debug', action="store_true", default=False, help="Run test in debug mode.",

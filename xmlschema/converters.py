@@ -63,7 +63,20 @@ class XMLSchemaConverter(NamespaceMapper):
                 raise XMLSchemaValueError('%r cannot includes letters or underscores: %r' % (name, value))
             elif name == 'attr_prefix':
                 self.ns_prefix = (value or '') + 'xmlns'
-        super(NamespaceMapper, self).__setattr__(name, value)
+        super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def lossless(self):
+        """The converter can ignore some kind of XML data during decoding."""
+        return self.cdata_prefix and self.text_key and self.attr_prefix
+
+    @property
+    def losslessly(self):
+        """
+        The format of decoded data is without loss of quality. Only losslessly formats can be
+        always used to encode to an XML data that is strictly conformant to the schema.
+        """
+        return False
 
     def copy(self, **kwargs):
         return type(self)(
@@ -293,6 +306,15 @@ class ParkerConverter(XMLSchemaConverter):
         )
         self.preserve_root = preserve_root
 
+    def __setattr__(self, name, value):
+        if name == 'text_key' and value != '' or name in ('attr_prefix', 'cdata_prefix') and value is not None:
+            raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
+        super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def lossless(self):
+        return False
+
     def copy(self, **kwargs):
         return type(self)(
             namespaces=kwargs.get('namespaces', self._namespaces),
@@ -407,6 +429,16 @@ class BadgerFishConverter(XMLSchemaConverter):
         super(BadgerFishConverter, self).__init__(
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
+
+    def __setattr__(self, name, value):
+        if name == 'text_key' and value != '$' or name == 'attr_prefix' and value != '@' or \
+                name == 'cdata_prefix' and value != '#':
+            raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
+        super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def lossless(self):
+        return True
 
     def element_decode(self, data, xsd_element, level=0):
         dict_class = self.dict
@@ -547,6 +579,15 @@ class AbderaConverter(XMLSchemaConverter):
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
+    def __setattr__(self, name, value):
+        if name in ('text_key', 'attr_prefix') and value != '' or name == 'cdata_prefix' and value is not None:
+            raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
+        super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def lossless(self):
+        return False
+
     def element_decode(self, data, xsd_element, level=0):
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             children = data.text if data.text is not None and data.text != '' else None
@@ -645,10 +686,23 @@ class JsonMLConverter(XMLSchemaConverter):
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
-        kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
+        kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(JsonMLConverter, self).__init__(
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
+
+    def __setattr__(self, name, value):
+        if name in ('text_key', 'attr_prefix', 'cdata_prefix') and value != '':
+            raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
+        super(XMLSchemaConverter, self).__setattr__(name, value)
+
+    @property
+    def lossless(self):
+        return True
+
+    @property
+    def losslessly(self):
+        return True
 
     def element_decode(self, data, xsd_element, level=0):
         result_list = self.list([self.map_qname(data.tag)])
