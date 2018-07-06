@@ -2,14 +2,14 @@
 # ../../schemas/XSD_1.1/XMLSchema.xsd
 
 # Cases with schema examples
-examples/collection/collection.xsd -i
+examples/collection/collection.xsd --inspect
 examples/collection/collection.xml
-examples/collection/collection2.xsd -i   # key constraint
+examples/collection/collection2.xsd --inspect   # key constraint
 examples/collection/collection2.xml 1
 examples/collection/collection3.xsd      # key and keyref constraints
 examples/collection/collection3.xml 1
 examples/collection/collection4.xml      # Many XML comments inserted
-examples/vehicles/vehicles.xsd -i
+examples/vehicles/vehicles.xsd --inspect
 examples/vehicles/vehicles.xml
 examples/vehicles/vehicles-1_error.xml 1
 examples/vehicles/vehicles-2_errors.xml 2

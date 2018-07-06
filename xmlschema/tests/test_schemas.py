@@ -345,7 +345,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
     # Extract schema test arguments
     expected_errors = test_args.tot_errors
     inspect = test_args.inspect
-    locations = test_args.locations
+    locations = test_args.locations if not test_args.network else []
     defuse = test_args.defuse
     debug_mode = test_args.debug
 

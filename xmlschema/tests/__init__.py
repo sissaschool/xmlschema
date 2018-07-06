@@ -126,19 +126,23 @@ def get_args_parser():
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
     parser.add_argument('tot_errors', nargs='?', type=int, default=0, help="Total errors expected (default=0).")
     parser.add_argument(
-        '-i', '--inspect', dest="inspect", action="store_true", default=False,
-        help="inspect using an observed custom schema class."
+        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
-        '-v', '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
+        '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
         help="XSD schema version to use for test (default is 1.0)."
     )
     parser.add_argument(
-        '-l', dest='locations', nargs=2, type=str, default=None, action='append'
+        '--network', action="store_true", default=False, help="Test needs remote network access to run.",
     )
     parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
+    )
+    parser.add_argument(
+        '-L', dest='locations', nargs=2, type=str, default=None, action='append',
+        help="Schema location hints override. If the test has also the --network option the provided "
+             "locations are used only if there is not network access."
     )
     parser.add_argument(
         '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
@@ -159,11 +163,26 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
     test_classes = {}
     test_num = 0
     debug_mode = False
+    line_buffer = []
 
     for line in fileinput.input(testfiles):
         line = line.strip()
         if not line or line[0] == '#':
+            if not line_buffer:
+                continue
+            else:
+                raise SyntaxError("Empty continuation at line %d!" % fileinput.filelineno())
+        elif '#' in line:
+            line = line.split('#', 1)[0].rstrip()
+
+        # Process line continuations
+        if line[-1] == '\\':
+            line_buffer.append(line[:-1].strip())
             continue
+        elif line_buffer:
+            line_buffer.append(line)
+            line = ' '.join(line_buffer)
+            del line_buffer[:]
 
         test_args = test_line_parser.parse_args(get_test_args(line))
         if test_args.locations is not None:
@@ -178,11 +197,18 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             continue
 
         test_num += 1
-        if debug_mode:
+
+        # Skip test exceptions and debug mode activation
+        if test_args.network and not test_args.locations:
+            rel_path = os.path.relpath(test_file)
+            logger.warning("Skip test %d (%s): no network and no locations.", test_num, rel_path)
+            continue
+        elif debug_mode:
             if not test_args.debug:
                 continue
         elif test_args.debug:
             debug_mode = True
+            logger.debug("Debug mode activated: discard previous %r test classes.", len(test_classes))
             test_classes.clear()
 
         if test_args.inspect:
@@ -192,6 +218,9 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
 
         test_classes[test_class.__name__] = test_class
         logger.debug("Add test class %r.", test_class.__name__)
+
+    if line_buffer:
+        raise ValueError("Not completed line continuation at the end!")
 
     return test_classes
 

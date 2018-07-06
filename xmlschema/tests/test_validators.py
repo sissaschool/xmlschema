@@ -294,7 +294,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     # Extract schema test arguments
     expected_errors = test_args.tot_errors
     inspect = test_args.inspect
-    locations = test_args.locations
+    locations = test_args.locations if not test_args.network else []
     defuse = test_args.defuse
     defaults = test_args.defaults
     wildcards_skip = test_args.skip
@@ -433,9 +433,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         def check_encoding_with_element_tree(self):
             root = etree_parse(xml_file).getroot()
             namespaces = etree_get_namespaces(xml_file)
-            options = {'namespaces': namespaces, 'dict_class': ordered_dict_class, 'cdata_prefix': '#'}
+            options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
-            self.check_etree_encode(root, **options)  # Default converter
+            self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
             self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
             self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
             self.check_etree_encode(root, BadgerFishConverter, **options)
@@ -443,7 +443,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             self.check_etree_encode(root, JsonMLConverter, **options)
 
             options.pop('dict_class')
-            self.check_json_serialization(root, **options)
+            self.check_json_serialization(root, cdata_prefix='#', **options)
             self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
             self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
             self.check_json_serialization(root, BadgerFishConverter, **options)
@@ -470,10 +470,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
                     'dict_class': ordered_dict_class,
-                    'cdata_prefix': '#'
                 }
 
-                self.check_etree_encode(root, **options)  # Default converter
+                self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
                 self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
                 self.check_etree_encode(root, BadgerFishConverter, **options)
@@ -481,7 +480,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 self.check_etree_encode(root, JsonMLConverter, **options)
 
                 options.pop('dict_class')
-                self.check_json_serialization(root, **options)
+                self.check_json_serialization(root, cdata_prefix='#', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
                 self.check_json_serialization(root, BadgerFishConverter, **options)

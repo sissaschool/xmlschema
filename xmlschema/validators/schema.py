@@ -338,7 +338,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if schema_location:
                 try:
                     self.import_schema(namespace, schema_location, self.base_url)
-                except (OSError, IOError):
+                except (OSError, IOError) as err:
                     # It is not an error if the location fail to resolve:
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                     pass
@@ -349,7 +349,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             for url in self.get_locations(namespace):
                 try:
                     self.import_schema(namespace, url, self.base_url)
-                except (OSError, IOError):
+                except (OSError, IOError) as err:
                     pass
                 else:
                     break
