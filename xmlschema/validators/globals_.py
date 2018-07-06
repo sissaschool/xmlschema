@@ -351,8 +351,7 @@ class XsdGlobals(XsdBaseComponent):
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
-            raise XMLSchemaValueError(
-                "%r: %r namespace is not registered." % (self, XSD_NAMESPACE))
+            raise XMLSchemaValueError("%r: %r namespace is not registered." % (self, XSD_NAMESPACE))
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
         for schema in not_built_schemas:
@@ -415,5 +414,5 @@ class XsdGlobals(XsdBaseComponent):
                 #     for xsd_type in schema.iter_components(XsdComplexType):
                 #         xsd_type.check_restriction()
 
-        if not self.built:
+        if self.validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError("Global map %r not built!" % self)

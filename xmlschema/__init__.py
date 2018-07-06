@@ -20,7 +20,8 @@ from .converters import (
 
 from .validators.exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
-    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError
+    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError,
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 

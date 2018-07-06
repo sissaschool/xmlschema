@@ -16,6 +16,7 @@ import unittest
 import os
 import sys
 import pickle
+import warnings
 
 try:
     # noinspection PyPackageRequirements
@@ -31,7 +32,10 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase, XMLSchema
+from xmlschema import (
+    XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase, XMLSchema,
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+)
 from xmlschema.compat import PY3
 from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
@@ -91,13 +95,26 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
 
     def test_wrong_includes_and_imports(self):
-        self.check_schema("""
-            <include schemaLocation="example.xsd" />
-            <import schemaLocation="example.xsd" />
-            <redefine schemaLocation="example.xsd"/>
-            <import namespace="http://missing.example.test/" />
-            <import/>
-            """)
+
+        with warnings.catch_warnings(record=True) as context:
+            warnings.simplefilter("always")
+            self.check_schema("""
+                <include schemaLocation="example.xsd" />
+                <import schemaLocation="example.xsd" />
+                <redefine schemaLocation="example.xsd"/>
+                <import namespace="http://missing.example.test/" />
+                <import/>
+                """)
+            self.assertEqual(len(context), 4, "Wrong number of include/import warnings")
+            self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
+            self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
+            self.assertEqual(context[2].category, XMLSchemaImportWarning)
+            self.assertEqual(context[3].category, XMLSchemaImportWarning)
+            self.assertTrue(str(context[0].message).startswith("Include"))
+            self.assertTrue(str(context[1].message).startswith("Redefine"))
+            self.assertTrue(str(context[2].message).startswith("Namespace import"))
+            self.assertTrue(str(context[3].message).startswith("Namespace import"))
+            self.assertTrue(str(context[3].message).endswith("no schema location provided."))
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference
@@ -343,9 +360,9 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
     xsd_file = test_file
 
     # Extract schema test arguments
-    expected_errors = test_args.tot_errors
+    expected_errors = test_args.errors
     inspect = test_args.inspect
-    locations = test_args.locations if not test_args.network else []
+    locations = test_args.locations
     defuse = test_args.defuse
     debug_mode = test_args.debug
 

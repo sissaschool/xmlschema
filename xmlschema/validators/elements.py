@@ -15,7 +15,7 @@ from collections import Sequence
 from decimal import Decimal
 
 from ..compat import unicode_type
-from ..exceptions import XMLSchemaAttributeError
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaIndexError
 from ..etree import etree_element, etree_iselement
 from ..converters import ElementData
 from ..qnames import (
@@ -71,7 +71,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         try:
             elements = [e for e in self.type.content_type.iter_elements()]
         except AttributeError:
-            raise IndexError('child index out of range')
+            raise XMLSchemaIndexError('child index out of range')
         return elements[i]
 
     def __iter__(self):

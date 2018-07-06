@@ -536,8 +536,7 @@ def get_unicode_categories(filename=None):
         filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
 
     try:
-        if maxunicode < UCS4_MAXUNICODE:
-            raise ValueError()
+        assert maxunicode >= UCS4_MAXUNICODE
         with open(filename, 'r') as fp:
             categories = json.load(fp)
     except (IOError, SystemError, ValueError):

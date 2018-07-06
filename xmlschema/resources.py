@@ -258,9 +258,7 @@ def fetch_resource(location, base_url=None, timeout=300):
         try:
             resource = urlopen(url, timeout=timeout)
         except URLError:
-            raise XMLSchemaURLError(
-                reason="cannot access resource from %r: %s" % (location, str(err))
-            )
+            raise XMLSchemaURLError(reason=err.reason)
         else:
             resource.close()
             return url

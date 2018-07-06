@@ -9,12 +9,27 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains exception classes for the 'xmlschema.components' subpackage.
+This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
 from ..compat import PY3
 from ..exceptions import XMLSchemaException
 from ..etree import etree_tostring, etree_iselement
 from ..qnames import qname_to_prefixed
+
+
+class XMLSchemaWarning(Warning):
+    """Base warning for XMLSchema"""
+    pass
+
+
+class XMLSchemaIncludeWarning(XMLSchemaWarning):
+    """A schema include fails."""
+    pass
+
+
+class XMLSchemaImportWarning(XMLSchemaWarning):
+    """A schema namespace import fails."""
+    pass
 
 
 class XMLSchemaNotBuiltError(XMLSchemaException, RuntimeError):

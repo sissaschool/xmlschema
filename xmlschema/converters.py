@@ -644,7 +644,7 @@ class AbderaConverter(XMLSchemaConverter):
                 children = [children]
             elif children and not isinstance(children[0], (self.dict, dict)):
                 if len(children) > 1:
-                    raise ValueError("Wrong format")
+                    raise XMLSchemaValueError("Wrong format")
                 else:
                     return ElementData(tag, children[0], None, attributes)
 
@@ -727,12 +727,12 @@ class JsonMLConverter(XMLSchemaConverter):
         unmap_qname = self.unmap_qname
         attributes = self.dict()
         if not isinstance(obj, (self.list, list)) or not obj:
-            raise ValueError("Wrong data format, a not empty list required: %r." % obj)
+            raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
 
         data_len = len(obj)
         if data_len == 1:
             if not xsd_element.match(unmap_qname(obj[0]), default_namespace=self.get('')):
-                raise ValueError("Unmatched tag")
+                raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
         unmap_attribute_qname = self.unmap_attribute_qname
@@ -750,7 +750,7 @@ class JsonMLConverter(XMLSchemaConverter):
             content_index = 2
 
         if not xsd_element.match(unmap_qname(obj[0]), self.get('')):
-            raise ValueError("Unmatched tag")
+            raise XMLSchemaValueError("Unmatched tag")
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)

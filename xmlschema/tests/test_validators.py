@@ -37,8 +37,7 @@ from xmlschema.compat import ordered_dict_class
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
-    etree_get_namespaces, etree_elements_equal, etree_elements_assert_equal, lxml_etree_parse,
-    lxml_etree_element
+    etree_get_namespaces, etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
 )
 from xmlschema.qnames import local_name
 
@@ -289,12 +288,22 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
+def etree_elements_equal(elem, other, strict=True, skip_comments=True):
+    try:
+        etree_elements_assert_equal(elem, other, strict=strict, skip_comments=skip_comments)
+    except AssertionError:
+        return False
+    else:
+        return True
+
+
 def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
 
     # Extract schema test arguments
-    expected_errors = test_args.tot_errors
+    expected_errors = test_args.errors
+    expected_warnings = test_args.warnings
     inspect = test_args.inspect
-    locations = test_args.locations if not test_args.network else []
+    locations = test_args.locations
     defuse = test_args.defuse
     defaults = test_args.defaults
     wildcards_skip = test_args.skip

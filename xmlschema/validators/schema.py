@@ -13,15 +13,12 @@ This module contains XMLSchema class creator for xmlschema package.
 """
 import os
 from collections import namedtuple
+import warnings
 import elementpath
 
 from ..compat import add_metaclass
-from ..exceptions import (
-    XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError
-)
-from ..namespaces import (
-    XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
-)
+from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 from ..etree import etree_get_namespaces, etree_iselement
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
@@ -33,7 +30,8 @@ from ..resources import fetch_resource, load_xml_resource, iter_schema_location_
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError
+    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError,
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from .parseutils import has_xsd_components, get_xsd_derivation_attribute
 from .xsdbase import XsdBaseComponent, ValidatorMixin
@@ -154,7 +152,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :type converter: XMLSchemaConverter or None
     :param locations: A map with schema location hints. Can be a dictionary or a sequence of \
-    couples (namespace URI, resource URL). It can be useful for override schema's locations hints.
+    couples (namespace URI, resource URL). It can be useful for override schema's imports locations.
     :type locations: dict or None
     :param defuse: Defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
     For default defuse only remote XML data.
@@ -233,6 +231,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
 
+        self.warnings = []
         self.defuse = defuse
         self.timeout = timeout
         self._root_elements = None
@@ -250,10 +249,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 self.target_namespace = namespace  # Chameleon schema
 
-        self.locations = locations
-        self._locations = NamespaceResourcesMap()
-        if locations:
-            self._locations.update(locations)  # Insert locations argument first
+        self._locations = NamespaceResourcesMap(iter_schema_location_hints(self.root))
+        if locations is not None:
+            self._locations.update(locations)
         self._locations.update(iter_schema_location_hints(self.root))
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
@@ -306,60 +304,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 self.root, self.namespaces, self.target_namespace
             )
 
-        # Includes
-        for child in iterchildren_xsd_include(self.root):
-            try:
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
-            except (KeyError, OSError, IOError):
-                # Attribute missing error already found by validation against meta-schema.
-                # It is not an error if the location fail to resolve:
-                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
-                pass
-
-        # Redefines
-        for child in iterchildren_xsd_redefine(self.root):
-            try:
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
-            except KeyError:
-                pass  # Attribute missing error already found by validation against meta-schema
-            except (OSError, IOError) as err:
-                # If the redefine doesn't contain components (annotation excluded) the statement
-                # is equivalent to an include, so no error is generated. Otherwise fails.
-                if has_xsd_components(child):
-                    if self.validation == 'lax':
-                        self.errors.append(XMLSchemaParseError(str(err), self, child))
-                    elif self.validation == 'strict':
-                        raise XMLSchemaParseError(str(err), self, child)
-
-        # Imports
-        for namespace, schema_location in map(
-                lambda x: (x.get('namespace', '').strip(), x.get('schemaLocation')),
-                iterchildren_xsd_import(self.root)):
-            if schema_location:
-                try:
-                    self.import_schema(namespace, schema_location, self.base_url)
-                except (OSError, IOError) as err:
-                    # It is not an error if the location fail to resolve:
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
-                    pass
-                else:
-                    continue
-
-            # Try to resolve location with other schema location hints
-            for url in self.get_locations(namespace):
-                try:
-                    self.import_schema(namespace, url, self.base_url)
-                except (OSError, IOError) as err:
-                    pass
-                else:
-                    break
-            else:
-                if namespace:
-                    # Last tentative with schema url
-                    try:
-                        self.import_schema(namespace, namespace)
-                    except (OSError, IOError, ValueError):
-                        pass
+        self.warnings.extend(self._include_schemas())
+        self.warnings.extend(self._import_namespaces())
 
         if build:
             self.maps.build()
@@ -392,6 +338,73 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     def __iter__(self):
         for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
             yield xsd_element
+
+    def _include_schemas(self):
+        """Processes schema document inclusions and redefinitions."""
+        include_warnings = []
+
+        for child in iterchildren_xsd_include(self.root):
+            try:
+                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+            except KeyError:
+                pass
+            except (OSError, IOError) as err:
+                # Attribute missing error already found by validation against meta-schema.
+                # It is not an error if the location fail to resolve:
+                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
+                include_warnings.append("Include schema failed: %s." % str(err))
+                warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+
+        for child in iterchildren_xsd_redefine(self.root):
+            try:
+                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+            except KeyError:
+                pass  # Attribute missing error already found by validation against meta-schema
+            except (OSError, IOError) as err:
+                # If the redefine doesn't contain components (annotation excluded) the statement
+                # is equivalent to an include, so no error is generated. Otherwise fails.
+                include_warnings.append("Redefine schema failed: %s." % str(err))
+                warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                if has_xsd_components(child):
+                    if self.validation == 'lax':
+                        self.errors.append(XMLSchemaParseError(str(err), self, child))
+                    elif self.validation == 'strict':
+                        raise XMLSchemaParseError(str(err), self, child)
+
+        return include_warnings
+
+    def _import_namespaces(self):
+        """Processes namespace imports. Return a list of exceptions."""
+        import_warnings = []
+        namespace_imports = NamespaceResourcesMap(map(
+            lambda x: (x.get('namespace', '').strip(), x.get('schemaLocation')),
+            iterchildren_xsd_import(self.root)
+        ))
+
+        for namespace, locations in namespace_imports.items():
+            if namespace in self.maps.namespaces:
+                continue
+
+            import_error = None
+            for schema_location in locations + self.get_locations(namespace):
+                if schema_location:
+                    try:
+                        self.import_schema(namespace, schema_location, self.base_url)
+                    except (OSError, IOError) as err:
+                        # It's not an error if the location access fails (ref. section 4.2.6.2):
+                        #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
+                        if import_error is None:
+                            import_error = err
+                    else:
+                        break
+            else:
+                if import_error is None:
+                    import_warnings.append("Namespace import failed: no schema location provided.")
+                else:
+                    import_warnings.append("Namespace import failed: %s." % str(import_error))
+                warnings.warn(import_warnings[-1], XMLSchemaImportWarning, stacklevel=3)
+
+        return import_warnings
 
     # Schema element attributes
     @property
@@ -578,7 +591,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     def get_locations(self, namespace):
         """
-        Get a list of location hints.
+        Get a list of location hints for a namespace.
         """
         try:
             return list(self._locations[namespace])
@@ -618,12 +631,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         """
         if namespace in self.maps.namespaces and not force:
             return
+
         try:
             schema_url = fetch_resource(location, base_url)
         except XMLSchemaURLError as err:
-            raise XMLSchemaURLError(
-                reason="cannot import namespace %r: %s" % (namespace, err.reason)
-            )
+            if namespace:
+                raise XMLSchemaOSError("cannot import namespace %r from %r: %s." % (namespace, location, err))
+            else:
+                raise XMLSchemaOSError("cannot import chameleon schema from %r: %s." % (location, err))
         else:
             if namespace in self.maps.namespaces:
                 for schema in self.maps.namespaces[namespace]:
@@ -633,7 +648,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, namespace or self.target_namespace, self.validation, self.maps,
-                self.converter, None, self.defuse, self.timeout, False
+                self.converter, self._locations, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -650,7 +665,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             schema_url = fetch_resource(location, base_url)
         except XMLSchemaURLError as err:
-            raise XMLSchemaURLError(reason="cannot include %r: %s." % (location, err.reason))
+            raise XMLSchemaOSError("cannot include schema from %r: %s." % (location, err))
         else:
             for schema in self.maps.namespaces[self.target_namespace]:
                 if schema_url == schema.url:
@@ -658,7 +673,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, self.target_namespace, self.validation, self.maps,
-                self.converter, None, self.defuse, self.timeout, False
+                self.converter, self._locations, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))

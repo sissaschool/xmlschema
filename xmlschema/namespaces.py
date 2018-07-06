@@ -51,26 +51,30 @@ def get_namespace(name):
         return ''
 
 
-class URIDict(MutableMapping):
+class NamespaceResourcesMap(MutableMapping):
     """
-    Dictionary which uses normalized URIs as keys.
+    Dictionary for storing information about namespace resources. The values are
+    lists of strings. Setting an existing value appends the string to the value.
+    Setting a value with a list sets/replaces the value.
     """
-    @staticmethod
-    def normalize(uri):
-        return urlsplit(uri).geturl()
-
     def __init__(self, *args, **kwargs):
         self._store = dict()
-        self._store.update(*args, **kwargs)
+        self.update(*args, **kwargs)
 
     def __getitem__(self, uri):
-        return self._store[self.normalize(uri)]
+        return self._store[uri]
 
     def __setitem__(self, uri, value):
-        self._store[self.normalize(uri)] = value
+        if isinstance(value, list):
+            self._store[uri] = value
+        else:
+            try:
+                self._store[uri].append(value)
+            except KeyError:
+                self._store[uri] = [value]
 
     def __delitem__(self, uri):
-        del self._store[self.normalize(uri)]
+        del self._store[uri]
 
     def __iter__(self):
         return iter(self._store)
@@ -85,19 +89,6 @@ class URIDict(MutableMapping):
         self._store.clear()
 
 
-class NamespaceResourcesMap(URIDict):
-
-    def __setitem__(self, uri, value):
-        uri = self.normalize(uri)
-        if isinstance(value, list):
-            self._store[uri] = value
-        else:
-            try:
-                self._store[uri].append(value)
-            except KeyError:
-                self._store[uri] = [value]
-
-
 class NamespaceMapper(MutableMapping):
     """
     A class to map/unmap namespace prefixes to URIs.
@@ -108,7 +99,7 @@ class NamespaceMapper(MutableMapping):
         self._namespaces = {}
         self.register_namespace = register_namespace
         if namespaces is not None:
-            self._namespaces.update(namespaces)
+            self.update(namespaces)
 
     def __getitem__(self, key):
         return self._namespaces[key]

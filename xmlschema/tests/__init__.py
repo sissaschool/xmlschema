@@ -36,7 +36,7 @@ logger = logging.getLogger('xmlschema.tests')
 def has_network_access(*locations):
     for url in locations:
         try:
-            urlopen(url, timeout=1)
+            urlopen(url, timeout=5)
         except URLError:
             pass
         else:
@@ -121,28 +121,32 @@ def defuse_data(value):
 
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.usage = """TEST_FILE [TOT_ERRORS] [-i] [-v=VERSION]"""
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
-    parser.add_argument('tot_errors', nargs='?', type=int, default=0, help="Total errors expected (default=0).")
     parser.add_argument(
-        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
+        '-L', dest='locations', nargs=2, type=str, default=None, action='append',
+        help="Schema location hint overrides."
     )
     parser.add_argument(
         '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
         help="XSD schema version to use for test (default is 1.0)."
     )
     parser.add_argument(
-        '--network', action="store_true", default=False, help="Test needs remote network access to run.",
+        '--errors', type=int, default=0, help="Number of errors expected (default=0)."
+    )
+    parser.add_argument(
+        '--warnings', type=int, default=0, help="Number of warnings expected (default=0)."
+    )
+    parser.add_argument(
+        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )
     parser.add_argument(
-        '-L', dest='locations', nargs=2, type=str, default=None, action='append',
-        help="Schema location hints override. If the test has also the --network option the provided "
-             "locations are used only if there is not network access."
+        '--timeout', type=int, default=300, help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
         '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
@@ -198,12 +202,8 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
 
         test_num += 1
 
-        # Skip test exceptions and debug mode activation
-        if test_args.network and not test_args.locations:
-            rel_path = os.path.relpath(test_file)
-            logger.warning("Skip test %d (%s): no network and no locations.", test_num, rel_path)
-            continue
-        elif debug_mode:
+        # Debug mode activation
+        if debug_mode:
             if not test_args.debug:
                 continue
         elif test_args.debug:

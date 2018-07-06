@@ -195,18 +195,9 @@ def etree_child_index(elem, child):
     raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
 
 
-def etree_elements_equal(elem, other, strict=True, skip_comments=True):
-    try:
-        etree_elements_assert_equal(elem, other, strict=strict, skip_comments=skip_comments)
-    except AssertionError:
-        return False
-    else:
-        return True
-
-
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
     """
-    Compares two XML Element trees.
+    Tests the equality of two XML Element trees.
 
     :param elem: the master Element tree, reference for namespace mapping.
     :param other: the other Element tree that has to be compared.
