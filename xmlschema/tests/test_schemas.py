@@ -361,6 +361,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
 
     # Extract schema test arguments
     expected_errors = test_args.errors
+    expected_warnings = test_args.warnings
     inspect = test_args.inspect
     locations = test_args.locations
     defuse = test_args.defuse
@@ -376,10 +377,12 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
             SchemaObserver.clear()
 
         try:
-            if expected_errors > 0:
-                xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
-            else:
-                xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+            with warnings.catch_warnings(record=True) as ctx:
+                if expected_errors > 0:
+                    xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
+                else:
+                    xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+                self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
         except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
             num_errors = 1
             errors = [str(err)]

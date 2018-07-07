@@ -20,6 +20,7 @@ import pickle
 from decimal import Decimal
 import base64
 from xml.etree import ElementTree as _ElementTree
+import warnings
 
 try:
     import xmlschema
@@ -288,15 +289,6 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def etree_elements_equal(elem, other, strict=True, skip_comments=True):
-    try:
-        etree_elements_assert_equal(elem, other, strict=strict, skip_comments=skip_comments)
-    except AssertionError:
-        return False
-    else:
-        return True
-
-
 def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
 
     # Extract schema test arguments
@@ -322,6 +314,12 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True
+
+        def check_etree_elements(self, elem, other):
+            try:
+                self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
+            except AssertionError as err:
+                self.assertEqual(err, None)
 
         def check_etree_encode(self, root, converter=None, **kwargs):
             data1 = self.schema.decode(root, converter=converter, **kwargs)
@@ -388,17 +386,22 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 elem2 = xmlschema.from_json(data2, schema=self.schema, path=root.tag, converter=converter, **kwargs)
                 if isinstance(elem2, tuple):
                     elem2 = elem2[0]
-                self.assertTrue(etree_elements_equal(elem1, elem2, strict=False))
+                try:
+                    self.assertIsNone(etree_elements_assert_equal(elem1, elem2, strict=False, skip_comments=True))
+                except AssertionError as err:
+                    self.assertIsNone(err, None)
 
         def check_decoding_with_element_tree(self):
             del self.errors[:]
             del self.chunks[:]
 
-            for obj in self.schema.iter_decode(xml_file):
-                if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
-                    self.errors.append(obj)
-                else:
-                    self.chunks.append(obj)
+            with warnings.catch_warnings(record=True) as ctx:
+                for obj in self.schema.iter_decode(xml_file):
+                    if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
+                        self.errors.append(obj)
+                    else:
+                        self.chunks.append(obj)
+                self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
 
             if len(self.errors) != expected_errors:
                 raise ValueError(
@@ -627,7 +630,7 @@ class TestDecoding(XMLSchemaTestCase):
             root = xmlschema.from_json(f, self.vh_schema)
 
         os.remove(self.vh_json_file)
-        self.assertTrue(etree_elements_equal(vh_xml_tree, root, False))
+        self.check_etree_elements(vh_xml_tree, root)
 
         with open(self.col_json_file, 'w') as f:
             xmlschema.to_json(self.col_xml_file, f)
@@ -636,7 +639,7 @@ class TestDecoding(XMLSchemaTestCase):
             root = xmlschema.from_json(f, self.col_schema)
 
         os.remove(self.col_json_file)
-        self.assertTrue(etree_elements_equal(col_xml_tree, root, False))
+        self.check_etree_elements(col_xml_tree, root)
 
     def test_path(self):
         xt = _ElementTree.parse(self.vh_xml_file)
@@ -782,7 +785,7 @@ class TestEncoding(XMLSchemaTestCase):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
         elif etree_iselement(expected):
             elem = xsd_component.encode(data, **kwargs)
-            self.assertTrue(etree_elements_equal(expected, elem, strict=False))
+            self.check_etree_elements(expected, elem)
         else:
             obj = xsd_component.encode(data, **kwargs)
             if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \

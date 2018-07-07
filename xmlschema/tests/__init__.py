@@ -26,7 +26,10 @@ import xmlschema
 import xmlschema.validators
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.etree import etree_iselement, etree_element, etree_get_namespaces, etree_register_namespace
+from xmlschema.etree import (
+    etree_iselement, etree_element, etree_get_namespaces,
+    etree_register_namespace, etree_elements_assert_equal
+)
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -126,17 +129,17 @@ def get_args_parser():
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
     parser.add_argument(
         '-L', dest='locations', nargs=2, type=str, default=None, action='append',
-        help="Schema location hint overrides."
+        metavar="URI-URL", help="Schema location hint overrides."
     )
     parser.add_argument(
         '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
         help="XSD schema version to use for test (default is 1.0)."
     )
     parser.add_argument(
-        '--errors', type=int, default=0, help="Number of errors expected (default=0)."
+        '--errors', type=int, default=0, metavar='NUM', help="Number of errors expected (default=0)."
     )
     parser.add_argument(
-        '--warnings', type=int, default=0, help="Number of warnings expected (default=0)."
+        '--warnings', type=int, default=0, metavar='NUM', help="Number of warnings expected (default=0)."
     )
     parser.add_argument(
         '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
@@ -146,7 +149,7 @@ def get_args_parser():
         help="Define when to use the defused XML data loaders."
     )
     parser.add_argument(
-        '--timeout', type=int, default=300, help="Timeout for fetching resources (default=300)."
+        '--timeout', type=int, default=300, metavar='SEC', help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
         '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
@@ -310,3 +313,9 @@ class XMLSchemaTestCase(unittest.TestCase):
         )
         schema = self.schema_class(self.retrieve_schema_source(source))
         return schema.elements[name]
+
+    def check_etree_elements(self, elem, other):
+        try:
+            self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
+        except AssertionError as err:
+            self.assertIsNone(err, None)
