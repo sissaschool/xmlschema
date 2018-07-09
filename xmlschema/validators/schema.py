@@ -16,7 +16,7 @@ from collections import namedtuple
 import warnings
 import elementpath
 
-from ..compat import add_metaclass
+from ..compat import add_metaclass, urlsplit
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 from ..etree import etree_get_namespaces, etree_iselement
@@ -26,7 +26,7 @@ from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
 )
-from ..resources import fetch_resource, load_xml_resource, iter_schema_location_hints
+from ..resources import normalize_url, fetch_resource, load_xml_resource, iter_schema_location_hints
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -154,10 +154,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :param locations: schema location hints for namespace imports. Can be a dictionary or \
     a sequence of couples (namespace URI, resource URL).
     :type locations: dict or list or None
-    :param allow_overrides: if `True` the location hints can override the import's \
-    *schemaLocation* attribute. For default it's `False`, so a location hint is used \
-    only if the *schemaLocation* is missing, that is standard compliant.
-    :type allow_overrides: bool
+    :param base_dir: directory path for override remote locations, by replacement of scheme and \
+    netloc of an URL. Useful for avoiding namespace imports and schema inclusions from remote, \
+    replacing them with local imports/includes. Can be an absolute or relative path to an existent \
+    directory. In the second case the relative path is expanded to an absolute one from schema \
+    location or current dir.
+    :type base_dir: str or None
     :param defuse: defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
     For default defuse only remote XML data.
     :type defuse: str or None
@@ -194,8 +196,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype converter: XMLSchemaConverter
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
-    :ivar allow_overrides: can override the import locations with hints.
-    :vartype allow_overrides: bool
+    :ivar base_dir: override remote locations with local directory path.
+    :vartype base_dir: str or None
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
     :vartype namespaces: dict
     :ivar errors: schema errors.
@@ -234,7 +236,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
-                 locations=None, allow_overrides=False, defuse='remote', timeout=300, build=True):
+                 locations=None, base_dir=None, defuse='remote', timeout=300, build=True):
         super(XMLSchemaBase, self).__init__(validation)
         try:
             self.root, self.text, self.url = load_xml_resource(source, False, defuse, timeout)
@@ -242,7 +244,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot create schema: %s' % err)
 
         self.warnings = []
-        self.allow_overrides = allow_overrides
         self.defuse = defuse
         self.timeout = timeout
         self._root_elements = None
@@ -267,6 +268,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
             self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+
+        if base_dir is None:
+            self.base_dir = None
+        else:
+            base_dir = normalize_url(base_dir, self.base_url)
+            self.base_dir = base_dir if os.path.isdir(urlsplit(base_dir).path) else None
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
@@ -394,11 +401,17 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         for namespace, locations in namespace_imports.items():
             if namespace in self.maps.namespaces:
+                # Imports are done on namespace basis not on resource: this is the standard
+                # and also avoids import loops that sometimes are hard to detect.
                 continue
 
+            if all(loc is None for loc in locations):
+                locations = self.get_locations(namespace)
+
             import_error = None
-            for schema_location in locations + self.get_locations(namespace):
+            for schema_location in locations:
                 if schema_location:
+                    print("LOCATION", schema_location, self.base_url, self.base_dir)
                     try:
                         self.import_schema(namespace, schema_location, self.base_url)
                     except (OSError, IOError) as err:
@@ -651,6 +664,11 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 raise XMLSchemaOSError("cannot import chameleon schema from %r: %s." % (location, err))
         else:
+            if self.base_dir is not None and urlsplit(schema_url).scheme not in ('file', ''):
+                print(schema_url)
+                schema_url = os.path.join(self.base_dir, urlsplit(schema_url).path[1:])
+                print(schema_url)
+
             if namespace in self.maps.namespaces:
                 for schema in self.maps.namespaces[namespace]:
                     if schema_url == schema.url:
@@ -660,7 +678,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             namespace = namespace or self.target_namespace
             return self.create_schema(
                 schema_url, namespace, self.validation, self.maps, self.converter,
-                self.locations, self.allow_overrides, self.defuse, self.timeout, False
+                self.locations, self.base_dir, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -685,7 +703,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         try:
             return self.create_schema(
                 schema_url, self.target_namespace, self.validation, self.maps, self.converter,
-                self.locations, self.allow_overrides, self.defuse, self.timeout, False
+                self.locations, self.base_dir, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))

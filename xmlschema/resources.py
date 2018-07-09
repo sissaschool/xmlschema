@@ -25,7 +25,7 @@ from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 DEFUSE_MODES = ('always', 'remote', 'never')
 
 
-def iter_schema_location_hints(elem, namespace=None):
+def iter_schema_location_hints(root, namespace=None, base_url=None):
     """
     Generates a sequence of location hints from xsi:schemaLocation and
     xsi:noNamespaceSchemaLocation attributes of an Element object.
@@ -34,22 +34,23 @@ def iter_schema_location_hints(elem, namespace=None):
     :param namespace: If not `None` limits hints to a specific namespace.
     :return: Generate couples of namespace URI and resource URL.
     """
-    if namespace != '':
-        try:
-            locations = elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).get(XSI_SCHEMA_LOCATION)
-        except AttributeError:
-            pass  # elem has no xsi:schemaLocation attribute
-        else:
-            locations = locations.split()
-            for uri, url in zip(locations[0::2], locations[1::2]):
-                if namespace is None or uri == namespace:
-                    yield uri, url
+    for elem in root.iter():
+        if namespace != '':
+            try:
+                locations = elem.find('.[@%s]' % XSI_SCHEMA_LOCATION).get(XSI_SCHEMA_LOCATION)
+            except AttributeError:
+                pass  # elem has no xsi:schemaLocation attribute
+            else:
+                locations = locations.split()
+                for uri, url in zip(locations[0::2], locations[1::2]):
+                    if namespace is None or uri == namespace:
+                        yield uri, normalize_url(url, base_url)
 
-    if not namespace:
-        try:
-            yield '', elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).get(XSI_NONS_SCHEMA_LOCATION)
-        except AttributeError:
-            pass
+        if not namespace:
+            try:
+                yield '', elem.find('.[@%s]' % XSI_NONS_SCHEMA_LOCATION).get(XSI_NONS_SCHEMA_LOCATION)
+            except AttributeError:
+                pass
 
 
 def normalize_url(url, base_url=None):
@@ -293,6 +294,7 @@ def fetch_schema_locations(source, locations=None, defuse='remote', timeout=300)
                 "wrong type %r for 'source' argument." % type(source)
             )
     namespace = get_namespace(xml_root.tag)
+    base_url = None if xml_url is None else os.path.dirname(xml_url)
 
     try:
         locations = list(locations.items())
@@ -301,9 +303,8 @@ def fetch_schema_locations(source, locations=None, defuse='remote', timeout=300)
             locations = []
         else:
             locations = list(locations)
-    locations.extend([(k, v) for k, v in iter_schema_location_hints(xml_root)])
+    locations.extend([(k, v) for k, v in iter_schema_location_hints(xml_root, base_url=base_url)])
 
-    base_url = None if xml_url is None else os.path.dirname(xml_url)
     for uri, url in locations:
         if namespace == uri:
             try:

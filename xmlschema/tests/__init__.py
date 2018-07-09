@@ -148,6 +148,9 @@ def get_args_parser():
         '--network', action="store_true", default=False, help="Skip the test if the network access is not available."
     )
     parser.add_argument(
+        '--basedir', metavar='DIR', type=str, default=None, help="Replace remote locations with base directory path."
+    )
+    parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )

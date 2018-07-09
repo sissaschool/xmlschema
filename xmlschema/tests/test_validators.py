@@ -35,6 +35,7 @@ from xmlschema import (
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import ordered_dict_class
+from xmlschema.resources import normalize_url
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
@@ -296,6 +297,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     expected_warnings = test_args.warnings
     inspect = test_args.inspect
     locations = test_args.locations
+    base_dir = test_args.basedir
     defuse = test_args.defuse
     defaults = test_args.defaults
     wildcards_skip = test_args.skip
@@ -310,7 +312,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         @classmethod
         def setUpClass(cls):
             source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-            cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
+            _base_dir = normalize_url(base_dir, os.path.dirname(xml_file)) if base_dir is not None else None
+
+            cls.schema = schema_class(source, validation='lax', locations=_locations, base_dir=_base_dir, defuse=defuse)
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True

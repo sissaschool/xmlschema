@@ -364,6 +364,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
     expected_warnings = test_args.warnings
     inspect = test_args.inspect
     locations = test_args.locations
+    allow_overrides = bool(locations)
     defuse = test_args.defuse
     debug_mode = test_args.debug
 
@@ -379,9 +380,10 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
         def check_schema():
             try:
                 if expected_errors > 0:
-                    xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
+                    xs = schema_class(xsd_file, validation='lax', locations=locations,
+                                      allow_overrides=allow_overrides, defuse=defuse)
                 else:
-                    xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+                    xs = schema_class(xsd_file, locations=locations, allow_overrides=allow_overrides, defuse=defuse)
             except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
                 errors = [str(err)]
             else:
