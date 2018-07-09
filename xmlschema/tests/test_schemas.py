@@ -376,42 +376,40 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
         if inspect:
             SchemaObserver.clear()
 
-        try:
-            with warnings.catch_warnings(record=True) as ctx:
+        def check_schema():
+            try:
                 if expected_errors > 0:
                     xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
                 else:
                     xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+            except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
+                errors = [str(err)]
+            else:
+                errors = xs.all_errors
+
+                if inspect:
+                    components_ids = set([id(c) for c in xs.iter_components()])
+                    missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                    if any([c for c in missing]):
+                        raise ValueError("schema missing %d components: %r" % (len(missing), missing))
+
+                # Pickling test (only for Python 3, skip inspected schema classes test)
+                if not inspect and PY3:
+                    deserialized_schema = pickle.loads(pickle.dumps(xs))
+                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                    self.assertEqual(xs.built, deserialized_schema.built)
+
+            return errors
+
+        if expected_warnings > 0:
+            with warnings.catch_warnings(record=True) as ctx:
+                warnings.simplefilter("always")
+                errors = check_schema()
                 self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
-        except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
-            num_errors = 1
-            errors = [str(err)]
         else:
-            num_errors = len(xs.all_errors)
-            errors = xs.all_errors
+            errors = check_schema()
 
-            if inspect:
-                components_ids = set([id(c) for c in xs.iter_components()])
-                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
-                if any([c for c in missing]):
-                    raise ValueError("schema missing %d components: %r" % (len(missing), missing))
-
-            # Pickling test (only for Python 3, skip inspected schema classes test)
-            if not inspect and PY3:
-                deserialized_schema = pickle.loads(pickle.dumps(xs))
-                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
-                self.assertEqual(xs.built, deserialized_schema.built)
-
-            # Check with lxml.etree.XMLSchema if it's installed
-        if False and _lxml_etree is not None and not num_errors:
-            xsd = _lxml_etree.parse(xsd_file)
-            try:
-                _lxml_etree.XMLSchema(xsd.getroot())
-            except _lxml_etree.XMLSchemaParseError as err:
-                self.assertTrue(
-                    False, "Schema without errors but lxml's validator report an error: {}".format(err)
-                )
-
+        num_errors = len(errors)
         if num_errors != expected_errors:
             print("\n%s: %r errors, %r expected." % (self.id()[13:], num_errors, expected_errors))
             if num_errors == 0:

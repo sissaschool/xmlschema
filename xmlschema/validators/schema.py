@@ -135,31 +135,35 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     """
     Base class for an XML Schema instance.
 
-    :param source: An URI that reference to a resource or a file path or a file-like \
+    :param source: an URI that reference to a resource or a file path or a file-like \
     object or a string containing the schema.
     :type source: str or file
-    :param namespace: Is an optional argument that contains the URI of the namespace. \
+    :param namespace: is an optional argument that contains the URI of the namespace. \
     When specified it must be equal to the *targetNamespace* declared in the schema.
     :type namespace: str or None
-    :param validation: Defines the XSD validation mode to use for build the schema, \
+    :param validation: defines the XSD validation mode to use for build the schema, \
     it's value can be 'strict', 'lax' or 'skip'.
     :type validation: str
-    :param global_maps: Is an optional argument containing an :class:`XsdGlobals` \
+    :param global_maps: is an optional argument containing an :class:`XsdGlobals` \
     instance, a mediator object for sharing declaration data between dependents \
     schema instances.
     :type global_maps: XsdGlobals or None
-    :param converter: Is an optional argument that can be an :class:`XMLSchemaConverter` \
+    :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :type converter: XMLSchemaConverter or None
-    :param locations: A map with schema location hints. Can be a dictionary or a sequence of \
-    couples (namespace URI, resource URL). It can be useful for override schema's imports locations.
-    :type locations: dict or None
-    :param defuse: Defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
+    :param locations: schema location hints for namespace imports. Can be a dictionary or \
+    a sequence of couples (namespace URI, resource URL).
+    :type locations: dict or list or None
+    :param allow_overrides: if `True` the location hints can override the import's \
+    *schemaLocation* attribute. For default it's `False`, so a location hint is used \
+    only if the *schemaLocation* is missing, that is standard compliant.
+    :type allow_overrides: bool
+    :param defuse: defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
     For default defuse only remote XML data.
     :type defuse: str or None
     :param timeout: the timeout in seconds for fetching resources. Default is `300`.
     :type timeout: int
-    :param build: Defines whether build the schema maps.
+    :param build: defines whether build the schema maps. Default is `True`.
     :type build: bool
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
@@ -186,12 +190,18 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
     that store the global_maps argument or a new object when this argument is not provided.
     :vartype maps: XsdGlobals
-    :ivar converter: The default converter used for XML data decoding/encoding.
+    :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar locations: Schema location hints.
-    :vartype locations: dict
-    :ivar namespaces: A dictionary that maps from the prefixes used by the schema into namespace URI.
+    :ivar locations: schema location hints.
+    :vartype locations: NamespaceResourcesMap
+    :ivar allow_overrides: can override the import locations with hints.
+    :vartype allow_overrides: bool
+    :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
     :vartype namespaces: dict
+    :ivar errors: schema errors.
+    :vartype errors: list
+    :ivar warnings: warning messages about failure of import and include elements.
+    :vartype namespaces: list
 
     :ivar notations: `xsd:notation` declarations
     :vartype notations: NamespaceView
@@ -223,8 +233,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     }
     _parent_map = None
 
-    def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, defuse='remote', timeout=300, build=True):
+    def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
+                 locations=None, allow_overrides=False, defuse='remote', timeout=300, build=True):
         super(XMLSchemaBase, self).__init__(validation)
         try:
             self.root, self.text, self.url = load_xml_resource(source, False, defuse, timeout)
@@ -232,6 +242,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise type(err)('cannot create schema: %s' % err)
 
         self.warnings = []
+        self.allow_overrides = allow_overrides
         self.defuse = defuse
         self.timeout = timeout
         self._root_elements = None
@@ -249,13 +260,13 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 self.target_namespace = namespace  # Chameleon schema
 
-        self._locations = NamespaceResourcesMap(iter_schema_location_hints(self.root))
+        self.locations = NamespaceResourcesMap(iter_schema_location_hints(self.root))
         if locations is not None:
-            self._locations.update(locations)
-        self._locations.update(iter_schema_location_hints(self.root))
+            self.locations.update(locations)
+        self.locations.update(iter_schema_location_hints(self.root))
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
-            self._locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
@@ -594,7 +605,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         Get a list of location hints for a namespace.
         """
         try:
-            return list(self._locations[namespace])
+            return list(self.locations[namespace])
         except KeyError:
             return []
 
@@ -646,9 +657,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                         return schema
 
         try:
+            namespace = namespace or self.target_namespace
             return self.create_schema(
-                schema_url, namespace or self.target_namespace, self.validation, self.maps,
-                self.converter, self._locations, self.defuse, self.timeout, False
+                schema_url, namespace, self.validation, self.maps, self.converter,
+                self.locations, self.allow_overrides, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
@@ -672,8 +684,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                     return schema
         try:
             return self.create_schema(
-                schema_url, self.target_namespace, self.validation, self.maps,
-                self.converter, self._locations, self.defuse, self.timeout, False
+                schema_url, self.target_namespace, self.validation, self.maps, self.converter,
+                self.locations, self.allow_overrides, self.defuse, self.timeout, False
             )
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))

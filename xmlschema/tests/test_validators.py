@@ -395,13 +395,20 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             del self.errors[:]
             del self.chunks[:]
 
-            with warnings.catch_warnings(record=True) as ctx:
+            def do_decoding():
                 for obj in self.schema.iter_decode(xml_file):
                     if isinstance(obj, (xmlschema.XMLSchemaDecodeError, xmlschema.XMLSchemaValidationError)):
                         self.errors.append(obj)
                     else:
                         self.chunks.append(obj)
-                self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
+
+            if expected_warnings == 0:
+                do_decoding()
+            else:
+                with warnings.catch_warnings(record=True) as ctx:
+                    warnings.simplefilter("always")
+                    do_decoding()
+                    self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
 
             if len(self.errors) != expected_errors:
                 raise ValueError(

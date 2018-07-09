@@ -145,6 +145,9 @@ def get_args_parser():
         '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
+        '--network', action="store_true", default=False, help="Skip the test if the network access is not available."
+    )
+    parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )
@@ -155,7 +158,7 @@ def get_args_parser():
         '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
     )
     parser.add_argument(
-        '--skip', action="store_true", default=False, help="Some test data are skipped by wildcards processContents.",
+        '--skip', action="store_true", default=False, help="Some test data are skipped by wildcards processContents."
     )
     parser.add_argument(
         '--debug', action="store_true", default=False, help="Run test in debug mode.",
@@ -204,6 +207,10 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             continue
 
         test_num += 1
+
+        # Skip the test on network access basis
+        if test_args.network and SKIP_REMOTE_TESTS:
+            continue
 
         # Debug mode activation
         if debug_mode:
