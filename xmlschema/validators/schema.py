@@ -26,7 +26,7 @@ from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
 )
-from ..resources import normalize_url, fetch_resource, load_xml_resource, iter_schema_location_hints
+from ..resources import normalize_url, fetch_resource, XMLResource, load_xml_resource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -239,9 +239,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                  locations=None, base_dir=None, defuse='remote', timeout=300, build=True):
         super(XMLSchemaBase, self).__init__(validation)
         try:
-            self.root, self.text, self.url = load_xml_resource(source, False, defuse, timeout)
+            self.source = XMLResource(source, defuse, timeout)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
+        else:
+            self.source.load()
+            self.root, self.text, self.url = self.source.root, self.source.data, self.source.url
 
         self.warnings = []
         self.defuse = defuse
@@ -261,10 +264,9 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 self.target_namespace = namespace  # Chameleon schema
 
-        self.locations = NamespaceResourcesMap(iter_schema_location_hints(self.root))
+        self.locations = NamespaceResourcesMap(self.source.iter_location_hints())
         if locations is not None:
             self.locations.update(locations)
-        self.locations.update(iter_schema_location_hints(self.root))
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
             self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
@@ -277,7 +279,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         # Extract namespaces from schema text
-        self.namespaces.update(etree_get_namespaces(self.text))
+        self.namespaces.update(self.source.get_namespaces())
         if '' not in self.namespaces:
             # For default local names are mapped to targetNamespace
             self.namespaces[''] = self.target_namespace
@@ -411,7 +413,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             import_error = None
             for schema_location in locations:
                 if schema_location:
-                    print("LOCATION", schema_location, self.base_url, self.base_dir)
                     try:
                         self.import_schema(namespace, schema_location, self.base_url)
                     except (OSError, IOError) as err:
@@ -476,12 +477,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     @property
     def schema_location(self):
         """A list of location hints extracted from the *xsi:schemaLocation* attribute of the schema."""
-        return [(k, v) for k, v in iter_schema_location_hints(self.root) if k]
+        return [(k, v) for k, v in self.source.iter_location_hints() if k]
 
     @property
     def no_namespace_schema_location(self):
         """A location hint extracted from the *xsi:noNamespaceSchemaLocation* attribute of the schema."""
-        for k, v in iter_schema_location_hints(self.root):
+        for k, v in self.source.iter_location_hints():
             if not k:
                 return v
 
@@ -665,9 +666,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 raise XMLSchemaOSError("cannot import chameleon schema from %r: %s." % (location, err))
         else:
             if self.base_dir is not None and urlsplit(schema_url).scheme not in ('file', ''):
-                print(schema_url)
                 schema_url = os.path.join(self.base_dir, urlsplit(schema_url).path[1:])
-                print(schema_url)
 
             if namespace in self.maps.namespaces:
                 for schema in self.maps.namespaces[namespace]:

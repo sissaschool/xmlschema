@@ -311,9 +311,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         @classmethod
         def setUpClass(cls):
-            source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
-            _base_dir = normalize_url(base_dir, os.path.dirname(xml_file)) if base_dir is not None else None
-
+            source, _locations, _base_dir = xmlschema.fetch_schema_locations(xml_file, locations)
             cls.schema = schema_class(source, validation='lax', locations=_locations, base_dir=_base_dir, defuse=defuse)
             cls.errors = []
             cls.chunks = []

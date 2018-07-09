@@ -11,7 +11,7 @@
 import json
 
 from .compat import ordered_dict_class
-from .resources import fetch_schema_locations
+from .resources import normalize_url, fetch_schema_locations
 from .validators.schema import XMLSchema
 
 
@@ -39,7 +39,8 @@ def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locati
         cls(schema, validation='strict', locations=locations).validate(xml_document, use_defaults)
 
 
-def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True, locations=None, **kwargs):
+def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True,
+            locations=None, base_url=None, **kwargs):
     """
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
@@ -56,6 +57,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     with global elements as its children.
     :param process_namespaces: indicates whether to use namespace information in the decoding process.
     :param locations: Schema location hints.
+    :param base_url: reference base URL for normalizing local and relative URLs.
     :param kwargs: optional keyword arguments of :meth:`XMLSchema.iter_decode` usable \
     to variate the decoding process.
     :return: an object containing the decoded data. If ``validation='lax'`` keyword argument \
@@ -67,7 +69,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     """
     if not isinstance(schema, XMLSchema):
         if schema is None:
-            schema, locations = fetch_schema_locations(xml_document, locations)
+            schema, locations, base_url = fetch_schema_locations(xml_document, locations, base_url)
         schema = cls(schema, validation='strict', locations=locations)
 
     return schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces, **kwargs)
@@ -103,7 +105,7 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
     """
     if not isinstance(schema, XMLSchema):
         if schema is None:
-            schema, locations = fetch_schema_locations(xml_document, locations)
+            schema, locations, base_dir = fetch_schema_locations(xml_document, locations)
         schema = cls(schema, validation='strict', locations=locations)
     if json_options is None:
         json_options = {}
