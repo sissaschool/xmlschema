@@ -16,7 +16,7 @@ from collections import namedtuple
 import warnings
 import elementpath
 
-from ..compat import add_metaclass, urlsplit
+from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 
@@ -25,7 +25,7 @@ from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
 )
-from ..resources import normalize_url, fetch_resource, XMLResource
+from ..resources import fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -665,7 +665,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             else:
                 raise XMLSchemaOSError("cannot import chameleon schema from %r: %s." % (location, err))
         else:
-            #if self.base_dir is not None and urlsplit(schema_url).scheme not in ('file', ''):
+            # if self.base_dir is not None and urlsplit(schema_url).scheme not in ('file', ''):
             #    schema_url = os.path.join(self.base_dir, urlsplit(schema_url).path[1:])
 
             if namespace in self.maps.namespaces:
@@ -730,8 +730,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     # Validator methods
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
-                    defuse=None, timeout=None, **kwargs):
+                    namespaces=None, use_defaults=True, decimal_type=None, converter=None, **kwargs):
         """
         Decode an XML data source using the schema instance.
 
@@ -761,7 +760,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         elif not self.elements:
             raise XMLSchemaValueError("decoding needs at least one XSD element declaration!")
         elif not isinstance(source, XMLResource):
-            source = XMLResource(source, None, defuse or self.defuse, timeout or self.timeout)
+            source = XMLResource(
+                source=source,
+                base_url=kwargs.get('base_url'),
+                defuse=kwargs.get('defuse', self.defuse),
+                timeout=kwargs.get('timeout', self.timeout),
+            )
         source.load()
 
         if process_namespaces:

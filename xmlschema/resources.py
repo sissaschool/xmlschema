@@ -73,7 +73,7 @@ def normalize_url(url, base_url=None):
                 return urljoin(u'file:', url_parts.geturl())
 
 
-def fetch_resource(location, base_url=None, timeout=300):
+def fetch_resource(location, base_url=None, timeout=30):
     """
     Fetch a resource trying to accessing it. If the resource is accessible
     returns the URL, otherwise raises an error (XMLSchemaURLError).
@@ -104,8 +104,86 @@ def fetch_resource(location, base_url=None, timeout=300):
         return url
 
 
-class XMLResource(object):
+def fetch_schema_locations(source, locations=None, **resource_options):
+    """
+    Fetches the schema URL for the source's root of an XML data source and a list of location hints.
+    If an accessible schema location is not found raises a ValueError.
 
+    :param source: an Element or an Element Tree with XML data or an URL or a file-like object.
+    :param locations: a dictionary or dictionary items with Schema location hints.
+    :param resource_options: keyword arguments for providing :class:`XMLResource` class init options.
+    :return: A tuple with the URL referring to the first reachable schema resource, a list \
+    of dictionary items with normalized location hints.
+    """
+    base_url = resource_options.pop('base_url', None)
+    timeout = resource_options.pop('timeout', 30)
+    resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+    base_url = resource.base_url
+    namespace = resource.namespace
+    for ns, url in filter(lambda x: x[0] == namespace, resource.get_locations(locations)):
+        try:
+            return fetch_resource(url, base_url, timeout), locations
+        except XMLSchemaURLError:
+            pass
+    raise XMLSchemaValueError("not found a schema for XML data resource %r (namespace=%r)." % (source, namespace))
+
+
+def fetch_schema(source, locations=None, **resource_options):
+    """
+    Fetches the schema URL for the source's root of an XML data source.
+    If an accessible schema location is not found raises a ValueError.
+
+    :param source: An an Element or an Element Tree with XML data or an URL or a file-like object.
+    :param locations: A dictionary or dictionary items with schema location hints.
+    :param resource_options: keyword arguments for providing :class:`XMLResource` class init options.
+    :return: An URL referring to a reachable schema resource.
+    """
+    return fetch_schema_locations(source, locations, **resource_options)[0]
+
+
+def fetch_namespaces(source, **resource_options):
+    """
+    Extracts namespaces with related prefixes from the XML data source. If the source is
+    an lxml's ElementTree/Element returns the nsmap attribute of the root. If a duplicate
+    prefix declaration is encountered then adds the namespace using a different prefix,
+    but only in the case if the namespace URI is not already mapped by another prefix.
+
+    :param source: a string containing the XML document or file path or an url \
+    or a file like object or an ElementTree or Element.
+    :param resource_options: keyword arguments for providing :class:`XMLResource` init options.
+    :return: A dictionary for mapping namespace prefixes to full URI.
+    """
+    timeout = resource_options.pop('timeout', 30)
+    return XMLResource(source, timeout=timeout, **resource_options).get_namespaces()
+
+
+def load_xml_resource(source, element_only=True, **resource_options):
+    """
+    Load XML data source into an Element tree, returning the root Element, the XML text and an
+    url, if available. Usable for XML data files of small or medium sizes, as XSD schemas.
+
+    :param source: an URL, a filename path or a file-like object.
+    :param element_only: if True the function returns only the root Element of the tree.
+    :param resource_options: keyword arguments for providing :class:`XMLResource` init options.
+    :return: a tuple with three items (root Element, XML text and XML URL) or \
+    only the root Element if 'element_only' argument is True.
+    """
+    lazy = resource_options.pop('lazy', False)
+    source = XMLResource(source, lazy=lazy, **resource_options)
+    return source.root if element_only else (source.root, source.data, source.url)
+
+
+class XMLResource(object):
+    """
+    Implement an interface for accessing and parse XML data sources.
+
+    :param source: a string containing the XML document or file path or an url or a file like \
+    object or an ElementTree or Element.
+    :param base_url: is an optional base URL for fetching the schema resource from relative locations.
+    :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
+    'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    """
     def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         if defuse not in DEFUSE_MODES:
             raise XMLSchemaValueError("'defuse' argument value has to be in {}: {}".format(DEFUSE_MODES, defuse))
@@ -339,75 +417,3 @@ class XMLResource(object):
 
         locations.extend([(ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints()])
         return locations
-
-
-def fetch_namespaces(source, base_url=None, defuse='remote', timeout=300):
-    """
-    Extracts namespaces with related prefixes from the XML data source. If the source is
-    an lxml's ElementTree/Element returns the nsmap attribute of the root. If a duplicate
-    prefix declaration is encountered then adds the namespace using a different prefix,
-    but only in the case if the namespace URI is not already mapped by another prefix.
-
-    :param source: An XMLResource instance of a string containing the XML document or a
-    file path or a file like object or an ElementTree or Element.
-    :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
-    'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
-    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :return: A dictionary for mapping namespace prefixes to full URI.
-    """
-    if not isinstance(source, XMLResource):
-        source = XMLResource(source, base_url, defuse, timeout)
-    return source.get_namespaces()
-
-
-def load_xml_resource(source, element_only=True, base_url=None, defuse='remote', timeout=300):
-    """
-    Load XML data source into an Element tree, returning the root Element, the XML text and an
-    url, if available. Usable for XML data files of small or medium sizes, as XSD schemas.
-
-    :param source: an URL, a filename path or a file-like object.
-    :param element_only: if True the function returns only the root Element of the tree.
-    :param base_url: is an optional base URL for fetching the schema resource from relative locations.
-    :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
-    'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
-    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :return: a tuple with three items (root Element, XML text and XML URL) or \
-    only the root Element if 'element_only' argument is True.
-    """
-    if not isinstance(source, XMLResource):
-        source = XMLResource(source, base_url, defuse, timeout)
-    source.load()
-    return source.root if element_only else (source.root, source.data, source.url)
-
-
-def fetch_schema_locations(source, locations=None):
-    """
-    Fetches the schema URL for the source's root of an XML data source and a list of location hints.
-    If an accessible schema location is not found raises a ValueError.
-
-    :param source: An an Element or an Element Tree with XML data or an URL or a file-like object.
-    :param locations: A dictionary or dictionary items with Schema location hints.
-    :return: A tuple with the URL referring to the first reachable schema resource, a list \
-    of dictionary items with normalized location hints.
-    """
-    resource = XMLResource(source)
-    base_url = resource.base_url
-    namespace = resource.namespace
-    for ns, url in filter(lambda x: x[0] == namespace, resource.get_locations(locations)):
-        try:
-            return fetch_resource(url, base_url), locations, base_url
-        except XMLSchemaURLError:
-            pass
-    raise XMLSchemaValueError("not found a schema for XML data resource %r (namespace=%r)." % (source, namespace))
-
-
-def fetch_schema(source, locations=None):
-    """
-    Fetches the schema URL for the source's root of an XML data source.
-    If an accessible schema location is not found raises a ValueError.
-
-    :param source: An an Element or an Element Tree with XML data or an URL or a file-like object.
-    :param locations: A dictionary or dictionary items with schema location hints.
-    :return: An URL referring to a reachable schema resource.
-    """
-    return fetch_schema_locations(source, locations)[0]

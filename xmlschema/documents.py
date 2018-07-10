@@ -15,7 +15,7 @@ from .resources import fetch_schema_locations
 from .validators.schema import XMLSchema
 
 
-def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locations=None):
+def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locations=None, base_url=None):
     """
     Validates an XML document against a schema instance. This function builds an
     :class:`XMLSchema` object for validating the XML document. Raises an
@@ -29,14 +29,16 @@ def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locati
     :param cls: schema class to use for building the instance (default is :class:`XMLSchema`).
     :param use_defaults: defines when to use elements and attribute defaults for filling \
     missing required values.
-    :param locations: Schema location hints.
+    :param locations: additional schema location hints, in case a schema instance has to be built.
+    :param base_url: is an optional custom base URL for remapping relative locations, for \
+    default uses the directory where the XSD or alternatively the XML document is located.
     """
-    if isinstance(schema, XMLSchema):
-        schema.validate(xml_document, use_defaults)
-    else:
-        if schema is None:
-            schema, locations = fetch_schema_locations(xml_document, locations)
-        cls(schema, validation='strict', locations=locations).validate(xml_document, use_defaults)
+    if schema is None:
+        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
+        schema = cls(schema, validation='strict', locations=locations)
+    elif not isinstance(schema, XMLSchema):
+        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
+    schema.validate(xml_document, use_defaults)
 
 
 def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True,
@@ -56,9 +58,10 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     that have to be decoded. The XPath expression considers the schema as the root element \
     with global elements as its children.
     :param process_namespaces: indicates whether to use namespace information in the decoding process.
-    :param locations: Schema location hints.
-    :param base_url: reference base URL for normalizing local and relative URLs.
-    :param kwargs: optional keyword arguments of :meth:`XMLSchema.iter_decode` usable \
+    :param locations: additional schema location hints, in case a schema instance has to be built.
+    :param base_url: is an optional custom base URL for remapping relative locations, for \
+    default uses the directory where the XSD or alternatively the XML document is located.
+    :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
     to variate the decoding process.
     :return: an object containing the decoded data. If ``validation='lax'`` keyword argument \
     is provided the validation errors are collected and returned coupled in a tuple with the \
@@ -67,16 +70,16 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
 
     """
-    if not isinstance(schema, XMLSchema):
-        if schema is None:
-            schema, locations, base_url = fetch_schema_locations(xml_document, locations, base_url)
+    if schema is None:
+        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
-
+    elif not isinstance(schema, XMLSchema):
+        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
     return schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces, **kwargs)
 
 
 def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, converter=None,
-            process_namespaces=True, locations=None, json_options=None, **kwargs):
+            process_namespaces=True, locations=None, base_url=None, json_options=None, **kwargs):
     """
     Serialize an XML document to JSON. For default the XML data is validated during
     the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
@@ -93,7 +96,9 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
     with global elements as its children.
     :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
     :param process_namespaces: indicates whether to use namespace information in the decoding process.
-    :param locations: Schema location hints.
+    :param locations: additional schema location hints, in case a schema instance has to be built.
+    :param base_url: is an optional custom base URL for remapping relative locations, for \
+    default uses the directory where the XSD or alternatively the XML document is located.
     :param json_options: a dictionary with options for the JSON serializer.
     :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
     to variate the decoding process.
@@ -103,10 +108,11 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
     """
-    if not isinstance(schema, XMLSchema):
-        if schema is None:
-            schema, locations, base_dir = fetch_schema_locations(xml_document, locations)
+    if schema is None:
+        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
+    elif not isinstance(schema, XMLSchema):
+        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
     if json_options is None:
         json_options = {}
 

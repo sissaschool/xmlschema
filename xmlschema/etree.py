@@ -19,7 +19,7 @@ try:
 except ImportError:
     lxml_etree = None
 
-from .compat import PY3, StringIO
+from .compat import PY3
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname

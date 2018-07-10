@@ -13,7 +13,6 @@ This module contains namespace related constants, functions and classes.
 """
 import re
 from collections import Mapping, MutableMapping
-from .compat import urlsplit
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 
