@@ -31,6 +31,14 @@ def is_remote_url(url):
     return url is not None and urlsplit(url).scheme not in ('', 'file')
 
 
+def url_is_directory(url):
+    os.path.isdir(urlsplit(url).path)
+
+
+def url_is_file(url):
+    os.path.isfile(urlsplit(url).path)
+
+
 def normalize_url(url, base_url=None):
     """
     Returns a normalized url. If URL scheme is missing the 'file' scheme is set.
@@ -98,16 +106,18 @@ def fetch_resource(location, base_url=None, timeout=300):
 
 class XMLResource(object):
 
-    def __init__(self, source, defuse='remote', timeout=300, lazy=True):
+    def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         if defuse not in DEFUSE_MODES:
             raise XMLSchemaValueError("'defuse' argument value has to be in {}: {}".format(DEFUSE_MODES, defuse))
         if not isinstance(timeout, int):
             raise XMLSchemaValueError("'timeout' argument value must be > 0: %d" % timeout)
 
         self._root = self._data = self._url = None
+        self._base_url = base_url
         self.defuse = defuse
         self.timeout = timeout
         self.source = source
+
         if not lazy:
             self.load()
 
@@ -130,7 +140,13 @@ class XMLResource(object):
 
     @property
     def base_url(self):
-        return os.path.dirname(self._url) if self._url is not None else None
+        url = self._url
+        if self._base_url is None:
+            return os.path.dirname(url) if url is not None else None
+        elif url:
+            return normalize_url(self._base_url, os.path.dirname(url))
+        else:
+            return self._base_url
 
     @property
     def namespace(self):
@@ -311,8 +327,21 @@ class XMLResource(object):
 
         return nsmap
 
+    def get_locations(self, locations=None):
+        base_url = self.base_url
+        if locations is None:
+            locations = []
+        else:
+            try:
+                locations = [(ns, normalize_url(url, base_url)) for ns, url in locations.items()]
+            except AttributeError:
+                locations = [(ns, normalize_url(url, base_url)) for ns, url in locations]
 
-def fetch_namespaces(source, defuse='remote', timeout=300):
+        locations.extend([(ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints()])
+        return locations
+
+
+def fetch_namespaces(source, base_url=None, defuse='remote', timeout=300):
     """
     Extracts namespaces with related prefixes from the XML data source. If the source is
     an lxml's ElementTree/Element returns the nsmap attribute of the root. If a duplicate
@@ -327,17 +356,18 @@ def fetch_namespaces(source, defuse='remote', timeout=300):
     :return: A dictionary for mapping namespace prefixes to full URI.
     """
     if not isinstance(source, XMLResource):
-        source = XMLResource(source, defuse, timeout)
+        source = XMLResource(source, base_url, defuse, timeout)
     return source.get_namespaces()
 
 
-def load_xml_resource(source, element_only=True, defuse='remote', timeout=300):
+def load_xml_resource(source, element_only=True, base_url=None, defuse='remote', timeout=300):
     """
     Load XML data source into an Element tree, returning the root Element, the XML text and an
     url, if available. Usable for XML data files of small or medium sizes, as XSD schemas.
 
     :param source: an URL, a filename path or a file-like object.
     :param element_only: if True the function returns only the root Element of the tree.
+    :param base_url: is an optional base URL for fetching the schema resource from relative locations.
     :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
     'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
@@ -345,45 +375,25 @@ def load_xml_resource(source, element_only=True, defuse='remote', timeout=300):
     only the root Element if 'element_only' argument is True.
     """
     if not isinstance(source, XMLResource):
-        source = XMLResource(source, defuse, timeout)
+        source = XMLResource(source, base_url, defuse, timeout)
     source.load()
     return source.root if element_only else (source.root, source.data, source.url)
 
 
-def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote', timeout=300):
+def fetch_schema_locations(source, locations=None):
     """
-    Fetch the schema URL and other location hints from an XML data source. If no
-    accessible schema location is found for source root's namespace raises a ValueError.
+    Fetches the schema URL for the source's root of an XML data source and a list of location hints.
+    If an accessible schema location is not found raises a ValueError.
 
-    :param source: An XMLResource instance or an Element or an Element Tree with XML data \
-    or an URL or a file-like object.
+    :param source: An an Element or an Element Tree with XML data or an URL or a file-like object.
     :param locations: A dictionary or dictionary items with Schema location hints.
-    :param base_url: is an optional base URL for fetching the schema resource from relative locations.
-    :param defuse: Set the usage of defusedxml library on data. Can be 'always', 'remote' \
-    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
-    :param timeout: the timeout in seconds for the connection attempts in case of remote data.
-    :return: A tuple with the URL referring to the first reachable schema resource,a list \
+    :return: A tuple with the URL referring to the first reachable schema resource, a list \
     of dictionary items with normalized location hints.
     """
-    if not isinstance(source, XMLResource):
-        source = XMLResource(source, defuse, timeout)
-
-    if base_url is None:
-        base_url = source.base_url
-    else:
-        base_url = normalize_url(base_url, source.base_url)
-
-    if locations is None:
-        locations = []
-    else:
-        try:
-            locations = [(ns, normalize_url(url, base_url)) for ns, url in locations.items()]
-        except AttributeError:
-            locations = [(ns, normalize_url(url, base_url)) for ns, url in locations]
-
-    locations.extend([(ns, normalize_url(url, base_url)) for ns, url in source.iter_location_hints()])
-    namespace = source.namespace
-    for ns, url in filter(lambda x: x[0] == namespace, locations):
+    resource = XMLResource(source)
+    base_url = resource.base_url
+    namespace = resource.namespace
+    for ns, url in filter(lambda x: x[0] == namespace, resource.get_locations(locations)):
         try:
             return fetch_resource(url, base_url), locations, base_url
         except XMLSchemaURLError:
@@ -393,12 +403,11 @@ def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote
 
 def fetch_schema(source, locations=None):
     """
-    Fetch the schema URL from an XML data source. If no accessible schema location
-    is found raises a ValueError.
+    Fetches the schema URL for the source's root of an XML data source.
+    If an accessible schema location is not found raises a ValueError.
 
-    :param source: An XMLResource instance or an Element or an ElementTree or a string \
-    containing XML data or an URL or a file-like object.
-    :param locations: A dictionary or dictionary items with Schema location hints.
+    :param source: An an Element or an Element Tree with XML data or an URL or a file-like object.
+    :param locations: A dictionary or dictionary items with schema location hints.
     :return: An URL referring to a reachable schema resource.
     """
     return fetch_schema_locations(source, locations)[0]

@@ -297,7 +297,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     expected_warnings = test_args.warnings
     inspect = test_args.inspect
     locations = test_args.locations
-    base_dir = test_args.basedir
+    base_url = test_args.baseurl
     defuse = test_args.defuse
     defaults = test_args.defaults
     wildcards_skip = test_args.skip
@@ -312,7 +312,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         @classmethod
         def setUpClass(cls):
             source, _locations, _base_dir = xmlschema.fetch_schema_locations(xml_file, locations)
-            cls.schema = schema_class(source, validation='lax', locations=_locations, base_dir=_base_dir, defuse=defuse)
+            cls.schema = schema_class(source, validation='lax', locations=_locations, base_url=None, defuse=defuse)
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True
