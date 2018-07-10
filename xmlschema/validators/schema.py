@@ -19,14 +19,14 @@ import elementpath
 from ..compat import add_metaclass, urlsplit
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
-from ..etree import etree_get_namespaces, etree_iselement
+from ..etree import etree_get_namespaces
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
 from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
 )
-from ..resources import normalize_url, fetch_resource, XMLResource, load_xml_resource
+from ..resources import normalize_url, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -172,12 +172,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype XSD_VERSION: str
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
-    :ivar root: schema ElementTree root element
-    :vartype root: Element
-    :ivar text: text source of the schema
-    :vartype text: str
-    :ivar url: the schema resource URL. It's `None` if the schema is built from a string.
-    :vartype url: str
     :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
     with the schema. In this case the schema declarations can be reused from other namespaces as \
@@ -185,10 +179,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype target_namespace: str
     :ivar validation: validation mode, can be 'strict', 'lax' or 'skip'.
     :vartype validation: str
-    :ivar defuse: when to defuse XML data, can be 'always', 'remote' or 'never'.
-    :vartype defuse: str
-    :ivar timeout: the timeout in seconds for fetching resources.
-    :vartype timeout: str
     :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
     that store the global_maps argument or a new object when this argument is not provided.
     :vartype maps: XsdGlobals
@@ -200,8 +190,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :vartype base_dir: str or None
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
     :vartype namespaces: dict
-    :ivar errors: schema errors.
-    :vartype errors: list
     :ivar warnings: warning messages about failure of import and include elements.
     :vartype namespaces: list
 
@@ -274,7 +262,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             self.base_dir = base_dir if os.path.isdir(urlsplit(base_dir).path) else None
 
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
-        # Extract namespaces from schema text
         self.namespaces.update(self.source.get_namespaces())
         if '' not in self.namespaces:
             # For default local names are mapped to targetNamespace
@@ -430,14 +417,17 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     # XML resource attributes
     @property
     def root(self):
+        """Root element of the schema."""
         return self.source.root
 
     @property
     def text(self):
+        """XML text of the schema."""
         return self.source.data
 
     @property
     def url(self):
+        """Schema resource URL, is `None` if the schema is built from a string."""
         return self.source.url
 
     @property
@@ -446,10 +436,12 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     @property
     def defuse(self):
+        """Defines when to defuse XML data, can be 'always', 'remote' or 'never'."""
         return self.source.defuse
 
     @property
     def timeout(self):
+        """Timeout in seconds for fetching resources."""
         return self.source.timeout
 
     # Schema root attributes
@@ -748,7 +740,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     # Validator methods
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, converter=None,
-                    defuse=None, **kwargs):
+                    defuse=None, timeout=None, **kwargs):
         """
         Decode an XML data source using the schema instance.
 
@@ -768,6 +760,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         built-in and derived types), useful if you want to generate a JSON-compatible data structure.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
         :param defuse: Overrides when to defuse XML data. Can be 'always', 'remote' or 'never'.
+        :param timeout: Overrides the timeout setted for the schema.
         :param kwargs: Keyword arguments containing options for converter and decoding.
         :return: Yields a decoded data object, eventually preceded by a sequence of validation \
         or decoding errors.
@@ -784,25 +777,18 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         converter = self.get_converter(converter, namespaces, **kwargs)
 
-        try:
-            xml_root = source.getroot()
-        except (AttributeError, TypeError):
-            if etree_iselement(source):
-                xml_root = source
-            else:
-                xml_root = load_xml_resource(source, defuse=defuse or self.defuse, timeout=self.timeout)
-        else:
-            if not etree_iselement(xml_root):
-                raise XMLSchemaTypeError("wrong type %r for 'source' argument." % type(source))
+        if not isinstance(source, XMLResource):
+            source = XMLResource(source, defuse or self.defuse, timeout or self.timeout)
+        source.load()
 
         if path is None:
-            xsd_element = self.find(xml_root.tag, namespaces=namespaces)
+            xsd_element = self.find(source.root.tag, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
-                msg = "%r is not a global element of the schema!" % xml_root.tag
-                yield XMLSchemaValidationError(self, xml_root, reason=msg)
+                msg = "%r is not a global element of the schema!" % source.root.tag
+                yield XMLSchemaValidationError(self, source.root, reason=msg)
             else:
                 for obj in xsd_element.iter_decode(
-                        xml_root, validation,
+                        source.root, validation,
                         namespaces=namespaces,
                         use_defaults=use_defaults,
                         decimal_type=decimal_type,
@@ -813,10 +799,10 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             xsd_element = self.find(path, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
                 msg = "the path %r doesn't match any element of the schema!" % path
-                obj = elementpath.select(xml_root, path, namespaces=namespaces) or xml_root
+                obj = elementpath.select(source.root, path, namespaces=namespaces) or source.root
                 yield XMLSchemaValidationError(self, obj, reason=msg)
             else:
-                for elem in elementpath.select(xml_root, path, namespaces=namespaces):
+                for elem in elementpath.select(source.root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation,
                             namespaces=namespaces,
