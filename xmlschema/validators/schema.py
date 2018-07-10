@@ -239,20 +239,16 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                  locations=None, base_dir=None, defuse='remote', timeout=300, build=True):
         super(XMLSchemaBase, self).__init__(validation)
         try:
-            self.source = XMLResource(source, defuse, timeout)
+            self.source = XMLResource(source, defuse, timeout, lazy=False)
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
-        else:
-            self.source.load()
-            self.root, self.text, self.url = self.source.root, self.source.data, self.source.url
 
         self.warnings = []
-        self.defuse = defuse
-        self.timeout = timeout
         self._root_elements = None
+        root = self.source.root
 
         # Set and check target namespace
-        self.target_namespace = self.root.get('targetNamespace', '')
+        self.target_namespace = root.get('targetNamespace', '')
         if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
             raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
         if namespace is not None and self.target_namespace != namespace:
@@ -314,14 +310,14 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             # Base schemas use single file and don't have to be checked
             return
         elif validation == 'strict':
-            self.check_schema(self.root)
+            self.check_schema(root)
         elif validation == 'lax':
-            self.errors.extend([e for e in self.meta_schema.iter_errors(self.root)])
+            self.errors.extend([e for e in self.meta_schema.iter_errors(root)])
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.XSD_VERSION > '1.0':
             self.xpath_default_namespace = self._parse_xpath_default_namespace_attribute(
-                self.root, self.namespaces, self.target_namespace
+                root, self.namespaces, self.target_namespace
             )
 
         self.warnings.extend(self._include_schemas())
@@ -431,7 +427,32 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         return import_warnings
 
-    # Schema element attributes
+    # XML resource attributes
+    @property
+    def root(self):
+        return self.source.root
+
+    @property
+    def text(self):
+        return self.source.data
+
+    @property
+    def url(self):
+        return self.source.url
+
+    @property
+    def base_url(self):
+        return self.source.base_url
+
+    @property
+    def defuse(self):
+        return self.source.defuse
+
+    @property
+    def timeout(self):
+        return self.source.timeout
+
+    # Schema root attributes
     @property
     def name(self):
         return self.root.tag
@@ -492,10 +513,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             if namespace == self.target_namespace:
                 return prefix
         return ''
-
-    @property
-    def base_url(self):
-        return os.path.dirname(self.url) if self.url is not None else None
 
     @property
     def parent_map(self):

@@ -98,7 +98,7 @@ def fetch_resource(location, base_url=None, timeout=300):
 
 class XMLResource(object):
 
-    def __init__(self, source, defuse='remote', timeout=300):
+    def __init__(self, source, defuse='remote', timeout=300, lazy=True):
         if defuse not in DEFUSE_MODES:
             raise XMLSchemaValueError("'defuse' argument value has to be in {}: {}".format(DEFUSE_MODES, defuse))
         if not isinstance(timeout, int):
@@ -108,6 +108,8 @@ class XMLResource(object):
         self.defuse = defuse
         self.timeout = timeout
         self.source = source
+        if not lazy:
+            self.load()
 
     def __setattr__(self, name, value):
         super(XMLResource, self).__setattr__(name, value)
@@ -381,15 +383,3 @@ def fetch_schema(source, locations=None):
     :return: An URL referring to a reachable schema resource.
     """
     return fetch_schema_locations(source, locations)[0]
-
-
-def etree_iterator(source, defuse=True):
-    if etree_iselement(source):
-        return source.iter()
-
-    iterparse = safe_etree_iterparse if defuse else etree_iterparse
-    def iterparse_tree():
-        for event, elem in iterparse(source, events=('end',)):
-            yield elem
-            elem.clear()
-    return iterparse_tree()
