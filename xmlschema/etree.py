@@ -103,56 +103,6 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declar
     return xml_text
 
 
-def etree_get_namespaces(source):
-    """
-    Extracts namespaces with related prefixes from the XML source. If the source is
-    an ElementTree node returns the nsmap attribute (works only for lxml).
-    If a duplicate prefix declaration is encountered then, if the namespace URI is
-    not already mapped with the same or another prefix, adds a different prefix.
-
-    :param source: A string containing the XML document or a file path 
-    or a file like object or an ElementTree or Element.
-    :return: A dictionary for mapping namespace prefixes to full URI.
-    """
-    def update_nsmap(prefix, uri):
-        if prefix not in nsmap:
-            nsmap[prefix] = uri
-        elif not any(uri == ns for ns in nsmap.values()):
-            if not prefix:
-                try:
-                    prefix = re.search('(\w+)$', uri.strip()).group()
-                except AttributeError:
-                    return
-
-            while prefix in nsmap:
-                match = re.search('(\d+)$', prefix)
-                if match:
-                    index = int(match.group()) + 1
-                    prefix = prefix[:match.span()[0]] + str(index)
-                else:
-                    prefix += '2'
-            nsmap[prefix] = uri
-
-    nsmap = {}
-    try:
-        try:
-            for event, node in etree_iterparse(StringIO(source), events=('start-ns',)):
-                update_nsmap(*node)
-        except ElementTree.ParseError:
-            for event, node in etree_iterparse(source, events=('start-ns', )):
-                update_nsmap(*node)
-    except (TypeError, ElementTree.ParseError):
-        try:
-            # Can extracts namespace information only from lxml etree structures
-            for elem in source.iter():
-                for k, v in elem.nsmap.items():
-                    update_nsmap(k if k is not None else '', v)
-        except (AttributeError, TypeError):
-            pass  # Non an lxml's tree or element
-
-    return nsmap
-
-
 def etree_iterpath(elem, tag=None, path='.'):
     """
     A version of ElementTree node's iter function that return a couple

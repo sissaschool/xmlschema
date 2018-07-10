@@ -11,7 +11,7 @@
 import json
 
 from .compat import ordered_dict_class
-from .resources import normalize_url, fetch_schema_locations
+from .resources import fetch_schema_locations
 from .validators.schema import XMLSchema
 
 

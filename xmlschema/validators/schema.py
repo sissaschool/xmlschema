@@ -19,7 +19,6 @@ import elementpath
 from ..compat import add_metaclass, urlsplit
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
-from ..etree import etree_get_namespaces
 
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
 from ..qnames import (
@@ -769,17 +768,17 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
             raise XMLSchemaNotBuiltError("schema %r is not built." % self)
         elif not self.elements:
             raise XMLSchemaValueError("decoding needs at least one XSD element declaration!")
-        elif process_namespaces:
+        elif not isinstance(source, XMLResource):
+            source = XMLResource(source, defuse or self.defuse, timeout or self.timeout)
+        source.load()
+
+        if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
-            namespaces.update(etree_get_namespaces(source))
+            namespaces.update(source.get_namespaces())
         else:
             namespaces = {}
 
         converter = self.get_converter(converter, namespaces, **kwargs)
-
-        if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse or self.defuse, timeout or self.timeout)
-        source.load()
 
         if path is None:
             xsd_element = self.find(source.root.tag, namespaces=namespaces)

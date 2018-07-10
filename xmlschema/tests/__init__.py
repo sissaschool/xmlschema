@@ -27,9 +27,9 @@ import xmlschema.validators
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import (
-    etree_iselement, etree_element, etree_get_namespaces,
-    etree_register_namespace, etree_elements_assert_equal
+    etree_iselement, etree_element, etree_register_namespace, etree_elements_assert_equal
 )
+from xmlschema.resources import fetch_namespaces
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -267,13 +267,13 @@ class XMLSchemaTestCase(unittest.TestCase):
         cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
         cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
         cls.vh_schema = xmlschema.XMLSchema(cls.vh_schema_file)
-        cls.vh_namespaces = etree_get_namespaces(cls.vh_xml_file)
+        cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
 
         cls.col_schema_file = cls.abspath('cases/examples/collection/collection.xsd')
         cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
         cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
         cls.col_schema = xmlschema.XMLSchema(cls.col_schema_file)
-        cls.col_namespaces = etree_get_namespaces(cls.col_xml_file)
+        cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
 
         cls.st_schema_file = cls.abspath('cases/features/decoder/simple-types.xsd')
         cls.st_schema = xmlschema.XMLSchema(cls.st_schema_file)

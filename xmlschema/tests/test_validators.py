@@ -35,11 +35,11 @@ from xmlschema import (
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import ordered_dict_class
-from xmlschema.resources import normalize_url
+from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
-    etree_get_namespaces, etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
+    etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
 )
 from xmlschema.qnames import local_name
 
@@ -453,7 +453,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         def check_encoding_with_element_tree(self):
             root = etree_parse(xml_file).getroot()
-            namespaces = etree_get_namespaces(xml_file)
+            namespaces = fetch_namespaces(xml_file)
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
             self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
@@ -473,7 +473,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         def check_decoding_and_encoding_with_lxml(self):
             xml_tree = lxml_etree_parse(xml_file)
-            namespaces = etree_get_namespaces(xml_file)
+            namespaces = fetch_namespaces(xml_file)
             errors = []
             chunks = []
             for obj in self.schema.iter_decode(xml_tree, namespaces=namespaces):

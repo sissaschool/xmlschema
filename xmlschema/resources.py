@@ -294,7 +294,7 @@ class XMLResource(object):
         elif self._url is not None:
             resource = self.open()
             try:
-                for event, node in self.iterparse(StringIO(self._data), events=('start-ns',)):
+                for event, node in self.iterparse(resource, events=('start-ns',)):
                     update_nsmap(*node)
             except (etree_parse_error, safe_etree_parse_error):
                 pass
@@ -310,6 +310,25 @@ class XMLResource(object):
                 pass  # Not an lxml's tree or element
 
         return nsmap
+
+
+def fetch_namespaces(source, defuse='remote', timeout=300):
+    """
+    Extracts namespaces with related prefixes from the XML data source. If the source is
+    an lxml's ElementTree/Element returns the nsmap attribute of the root. If a duplicate
+    prefix declaration is encountered then adds the namespace using a different prefix,
+    but only in the case if the namespace URI is not already mapped by another prefix.
+
+    :param source: An XMLResource instance of a string containing the XML document or a
+    file path or a file like object or an ElementTree or Element.
+    :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
+    'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    :return: A dictionary for mapping namespace prefixes to full URI.
+    """
+    if not isinstance(source, XMLResource):
+        source = XMLResource(source, defuse, timeout)
+    return source.get_namespaces()
 
 
 def load_xml_resource(source, element_only=True, defuse='remote', timeout=300):
