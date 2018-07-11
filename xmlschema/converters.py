@@ -265,7 +265,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    if xsd_child.match(ns_name):
+                    if xsd_child.match(ns_name, self.get('')):
                         if xsd_child.type.is_list():
                             content.append((ns_name, value))
                         else:
@@ -395,7 +395,7 @@ class ParkerConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            if xsd_child.match(ns_name):
+                            if xsd_child.match(ns_name, self.get('')):
                                 if xsd_child.type.is_list():
                                     content.append((ns_name, value))
                                 else:
@@ -540,7 +540,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    if xsd_child.match(ns_name):
+                    if xsd_child.match(ns_name, self.get('')):
                         if xsd_child.type.is_list():
                             content.append((ns_name, value))
                         else:
@@ -660,7 +660,7 @@ class AbderaConverter(XMLSchemaConverter):
                     else:
                         ns_name = unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            if xsd_child.match(ns_name):
+                            if xsd_child.match(ns_name, self.get('')):
                                 if xsd_child.type.is_list():
                                     content.append((ns_name, value))
                                 else:
@@ -731,7 +731,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         data_len = len(obj)
         if data_len == 1:
-            if not xsd_element.match(unmap_qname(obj[0]), default_namespace=self.get('')):
+            if not xsd_element.match(unmap_qname(obj[0]), self.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 

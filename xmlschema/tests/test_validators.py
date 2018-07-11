@@ -13,6 +13,7 @@
 This module runs tests concerning the validation/decoding/encoding of XML files.
 """
 import unittest
+import pdb
 import os
 import sys
 import pickle
@@ -312,7 +313,6 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         def setUpClass(cls):
             if debug_mode:
                 print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
-                import pdb
                 pdb.set_trace()
 
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
@@ -514,7 +514,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 self.check_json_serialization(root, AbderaConverter, **options)
                 self.check_json_serialization(root, JsonMLConverter, **options)
 
-        def test_validate_and_is_valid_api(self):
+        def check_validate_and_is_valid_api(self):
             if expected_errors:
                 self.assertFalse(self.schema.is_valid(xml_file), msg_template % "file with errors is valid")
                 self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file,
@@ -524,7 +524,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 self.assertEqual(self.schema.validate(xml_file), None,
                                  msg_template % "file without errors not validated")
 
-        def test_iter_errors(self):
+        def check_iter_errors(self):
             self.assertEqual(len(list(self.schema.iter_errors(xml_file))), expected_errors,
                              msg_template % "wrong number of errors (%d expected)" % expected_errors)
 
@@ -539,6 +539,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             if lxml_etree_parse is not None:
                 self.check_decoding_and_encoding_with_lxml()
+
+            self.check_iter_errors()
+            self.check_validate_and_is_valid_api()
 
     TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
     return TestValidator
