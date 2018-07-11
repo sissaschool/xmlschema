@@ -145,9 +145,6 @@ def get_args_parser():
         '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
-        '--network', action="store_true", default=False, help="Skip the test if the network access is not available."
-    )
-    parser.add_argument(
         '--baseurl', metavar='DIR', type=str, default=None, help="Use custom base url path."
     )
     parser.add_argument(
@@ -210,10 +207,6 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             continue
 
         test_num += 1
-
-        # Skip the test on network access basis
-        if test_args.network and SKIP_REMOTE_TESTS:
-            continue
 
         # Debug mode activation
         if debug_mode:

@@ -13,7 +13,6 @@
 This module runs tests concerning the validation/decoding/encoding of XML files.
 """
 import unittest
-import pdb
 import os
 import sys
 import pickle
@@ -311,8 +310,15 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         @classmethod
         def setUpClass(cls):
-            source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
+            if debug_mode:
+                print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+                import pdb
+                pdb.set_trace()
+
+            # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
+            source, _locations = xmlschema.fetch_schema_locations(xml_file, locations, base_url=base_url)
             cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
+
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True
@@ -523,11 +529,6 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                              msg_template % "wrong number of errors (%d expected)" % expected_errors)
 
         def test_decoding_and_encoding(self):
-            if debug_mode:
-                print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
-                import pdb
-                pdb.set_trace()
-
             self.check_decoding_with_element_tree()
 
             if not inspect and sys.version_info >= (3,):

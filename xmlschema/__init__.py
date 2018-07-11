@@ -11,7 +11,8 @@
 from .compat import ordered_dict_class as _ordered_dict_class
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .resources import (
-    normalize_url, fetch_resource, load_xml_resource, fetch_namespaces, fetch_schema_locations, fetch_schema
+    normalize_url, fetch_resource, load_xml_resource, fetch_namespaces,
+    fetch_schema_locations, fetch_schema, XMLResource
 )
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter

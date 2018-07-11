@@ -386,9 +386,9 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                 else:
                     xs = schema_class(xsd_file, locations=locations, base_url=base_url, defuse=defuse)
             except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
-                errors = [str(err)]
+                errors_ = [str(err)]
             else:
-                errors = xs.all_errors
+                errors_ = xs.all_errors
 
                 if inspect:
                     components_ids = set([id(c) for c in xs.iter_components()])
@@ -402,7 +402,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                     self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
                     self.assertEqual(xs.built, deserialized_schema.built)
 
-            return errors
+            return errors_
 
         if expected_warnings > 0:
             with warnings.catch_warnings(record=True) as ctx:

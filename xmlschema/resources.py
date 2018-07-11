@@ -32,11 +32,11 @@ def is_remote_url(url):
 
 
 def url_is_directory(url):
-    os.path.isdir(urlsplit(url).path)
+    return os.path.isdir(urlsplit(url).path)
 
 
 def url_is_file(url):
-    os.path.isfile(urlsplit(url).path)
+    return os.path.isfile(urlsplit(url).path)
 
 
 def normalize_url(url, base_url=None):
@@ -118,9 +118,11 @@ def fetch_schema_locations(source, locations=None, **resource_options):
     base_url = resource_options.pop('base_url', None)
     timeout = resource_options.pop('timeout', 30)
     resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+
     base_url = resource.base_url
     namespace = resource.namespace
-    for ns, url in filter(lambda x: x[0] == namespace, resource.get_locations(locations)):
+    locations = resource.get_locations(locations)
+    for ns, url in filter(lambda x: x[0] == namespace, locations):
         try:
             return fetch_resource(url, base_url, timeout), locations
         except XMLSchemaURLError:
@@ -177,12 +179,15 @@ class XMLResource(object):
     """
     Implement an interface for accessing and parse XML data sources.
 
-    :param source: a string containing the XML document or file path or an url or a file like \
-    object or an ElementTree or Element.
-    :param base_url: is an optional base URL for fetching the schema resource from relative locations.
+    :param source: a string containing the XML document or file path or an URL or a file like \
+    object or an ElementTree or an Element.
+    :param base_url: is an optional base URL used when the URL of the resource cannot be \
+    retrieved by the source argument. If an URL that match a directory path is passed then it \
+    overrides also a remote resource URL.
     :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
     'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
+    :param lazy: if set to `False` the source is fully loaded into memory. Default is `True`.
     """
     def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         if defuse not in DEFUSE_MODES:
@@ -198,6 +203,26 @@ class XMLResource(object):
 
         if not lazy:
             self.load()
+
+    def __str__(self):
+        # noinspection PyCompatibility,PyUnresolvedReferences
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
+    def __repr__(self):
+        if self._root is None:
+            return u'%s()' % (self.__class__.__name__)
+        elif self._url is None:
+            return u'%s(tag=%r)' % (self.__class__.__name__, self._root.tag)
+        else:
+            return u'%s(tag=%r, basename=%r)' % (
+                self.__class__.__name__, self._root.tag, os.path.basename(self._url)
+            )
 
     def __setattr__(self, name, value):
         super(XMLResource, self).__setattr__(name, value)
@@ -218,13 +243,7 @@ class XMLResource(object):
 
     @property
     def base_url(self):
-        url = self._url
-        if self._base_url is None:
-            return os.path.dirname(url) if url is not None else None
-        elif url:
-            return normalize_url(self._base_url, os.path.dirname(url))
-        else:
-            return self._base_url
+        return os.path.dirname(self._url) if self._url else self._base_url
 
     @property
     def namespace(self):
@@ -250,6 +269,20 @@ class XMLResource(object):
             return safe_etree_fromstring
         else:
             return etree_fromstring
+
+    def copy(self, **kwargs):
+        obj = type(self)(
+            source=self.source,
+            base_url=kwargs.get('base_url'),
+            defuse=kwargs.get('defuse', 'remote'),
+            timeout=kwargs.get('timeout', 300),
+        )
+        if not kwargs.get('lazy', True):
+            if self._data is None:
+                obj.load()
+            else:
+                obj._root, obj._data = self._root, self._data
+        return obj
 
     def is_loaded(self):
         return self._url is None or self._data is not None
@@ -407,13 +440,16 @@ class XMLResource(object):
 
     def get_locations(self, locations=None):
         base_url = self.base_url
-        if locations is None:
-            locations = []
-        else:
+        location_hints = []
+        if locations is not None:
             try:
-                locations = [(ns, normalize_url(url, base_url)) for ns, url in locations.items()]
+                for ns, value in locations.items():
+                    if isinstance(value, list):
+                        location_hints.extend([(ns, normalize_url(url, base_url)) for url in value])
+                    else:
+                        location_hints.append((ns, normalize_url(value, base_url)))
             except AttributeError:
-                locations = [(ns, normalize_url(url, base_url)) for ns, url in locations]
+                location_hints.extend([(ns, normalize_url(url, base_url)) for ns, url in locations])
 
-        locations.extend([(ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints()])
-        return locations
+        location_hints.extend([(ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints()])
+        return location_hints
