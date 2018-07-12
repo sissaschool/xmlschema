@@ -92,22 +92,51 @@ to JSON data.
 
 .. autoclass:: xmlschema.converters.ElementData
 
-.. autoclass:: xmlschema.converters.XMLSchemaConverter
-    :members: element_decode, element_encode
+.. autoclass:: xmlschema.XMLSchemaConverter
 
-.. autoclass:: xmlschema.converters.ParkerConverter
+    .. autoattribute:: lossless
+    .. autoattribute:: losslessly
 
-.. autoclass:: xmlschema.converters.BadgerFishConverter
+    .. automethod:: element_decode
+    .. automethod:: element_encode
 
-.. autoclass:: xmlschema.converters.AbderaConverter
+.. autoclass:: xmlschema.ParkerConverter
 
-.. autoclass:: xmlschema.converters.JsonMLConverter
+.. autoclass:: xmlschema.BadgerFishConverter
+
+.. autoclass:: xmlschema.AbderaConverter
+
+.. autoclass:: xmlschema.JsonMLConverter
 
 
 .. _resource-access-api:
 
 Resource access API
 -------------------
+
+.. autoclass:: xmlschema.XMLResource
+    :members: source, defuse, timeout, lazy
+
+    .. autoattribute:: root
+    .. autoattribute:: document
+    .. autoattribute:: text
+    .. autoattribute:: url
+    .. autoattribute:: base_url
+    .. autoattribute:: namespace
+    .. autoattribute:: parse
+    .. autoattribute:: iterparse
+    .. autoattribute:: fromstring
+
+    .. automethod:: copy
+    .. automethod:: tostring
+    .. automethod:: open
+    .. automethod:: load
+    .. automethod:: is_loaded
+    .. automethod:: iter
+    .. automethod:: iter_location_hints
+    .. automethod:: get_namespaces
+    .. automethod:: get_locations
+
 
 .. autofunction:: xmlschema.fetch_resource
 .. autofunction:: xmlschema.fetch_schema

@@ -38,19 +38,20 @@ class XMLSchemaConverter(NamespaceMapper):
     :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
-    :param etree_element_class: the class that has to be used to create new XML elements.
+    :param etree_element_class: the class that has to be used to create new XML elements, \
+    if not provided uses the ElementTree's Element class.
     :param indent: Number of spaces for XML indentation (default is 4).
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, text_key='$', attr_prefix='@',
-                 cdata_prefix=None, etree_element_class=etree_element, indent=4, **kwargs):
-        if etree_element_class not in (etree_element, lxml_etree_element):
+                 cdata_prefix=None, etree_element_class=None, indent=4, **kwargs):
+        if etree_element_class is not None and etree_element_class not in (etree_element, lxml_etree_element):
             raise XMLSchemaValueError("%r: unsupported element.")
         self.dict = dict_class or dict
         self.list = list_class or list
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
-        self.etree_element_class = etree_element_class
+        self.etree_element_class = etree_element_class or etree_element
         self.indent = indent
         if etree_element_class is etree_element:
             super(XMLSchemaConverter, self).__init__(namespaces, etree_register_namespace)
@@ -86,7 +87,7 @@ class XMLSchemaConverter(NamespaceMapper):
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
-            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
+            etree_element_class=kwargs.get('etree_element_class'),
             indent=kwargs.get('indent', self.indent),
         )
 
@@ -321,7 +322,7 @@ class ParkerConverter(XMLSchemaConverter):
             dict_class=kwargs.get('dict_class', self.dict),
             list_class=kwargs.get('list_class', self.list),
             preserve_root=kwargs.get('preserve_root', self.preserve_root),
-            etree_element_class=kwargs.get('etree_element_class', self.etree_element_class),
+            etree_element_class=kwargs.get('etree_element_class'),
             indent=kwargs.get('indent', self.indent),
         )
 
@@ -755,7 +756,7 @@ class JsonMLConverter(XMLSchemaConverter):
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
         elif data_len == content_index + 1 and (xsd_element.type.is_simple()
-                or xsd_element.type.has_simple_content()):
+                                                or xsd_element.type.has_simple_content()):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
