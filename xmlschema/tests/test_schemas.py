@@ -37,7 +37,7 @@ from xmlschema import (
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from xmlschema.compat import PY3
-from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
+from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 
 
@@ -353,6 +353,15 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 <restriction base="string"/>
             </simpleType>
             """)
+
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
+    def test_remote_schemas(self):
+        # Tests with Dublin Core schemas that also use imports
+        #   Ref: http://dublincore.org/schemas/xmls/
+        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
+        self.assertTrue(isinstance(dc_schema, self.schema_class))
+        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
+        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):

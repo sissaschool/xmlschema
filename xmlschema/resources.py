@@ -13,11 +13,12 @@ import re
 import codecs
 
 from .compat import (
-    PY3, StringIO, unicode_type, urlopen, urlsplit, urljoin, uses_relative, urlunsplit, pathname2url, URLError
+    PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, uses_relative, urlunsplit, pathname2url, URLError
 )
 from .etree import (
     etree_iselement, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error,
-    safe_etree_parse, safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error
+    safe_etree_parse, safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error,
+    etree_tostring
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
@@ -190,15 +191,14 @@ class XMLResource(object):
     :param lazy: if set to `False` the source is fully loaded into memory. Default is `True`.
     """
     def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
-        if defuse not in DEFUSE_MODES:
-            raise XMLSchemaValueError("'defuse' argument value has to be in {}: {}".format(DEFUSE_MODES, defuse))
-        if not isinstance(timeout, int):
-            raise XMLSchemaValueError("'timeout' argument value must be > 0: %d" % timeout)
+        if base_url is not None and not isinstance(base_url, string_base_type):
+            raise XMLSchemaValueError(u"'base_url' argument has to be a string: {!r}".format(base_url))
 
-        self._root = self._data = self._url = None
+        self._document = self._root = self._data = self._url = None
         self._base_url = base_url
         self.defuse = defuse
         self.timeout = timeout
+        self.lazy = lazy
         self.source = source
 
         if not lazy:
@@ -216,7 +216,7 @@ class XMLResource(object):
 
     def __repr__(self):
         if self._root is None:
-            return u'%s()' % (self.__class__.__name__)
+            return u'%s()' % self.__class__.__name__
         elif self._url is None:
             return u'%s(tag=%r)' % (self.__class__.__name__, self._root.tag)
         else:
@@ -225,9 +225,15 @@ class XMLResource(object):
             )
 
     def __setattr__(self, name, value):
-        super(XMLResource, self).__setattr__(name, value)
         if name == 'source':
-            self._root, self._data, self._url = self.getroot(only_root=False)
+            self._root, self._data, self._url = self.fromsource(value, only_root=False)
+        elif name == 'defuse' and value not in DEFUSE_MODES:
+            raise XMLSchemaValueError(u"'defuse' attribute: {!r} is not a defuse mode.".format(value))
+        elif name == 'timeout' and not isinstance(value, int) and value <= 0:
+            raise XMLSchemaValueError(u"'timeout' attribute must be a positive integer: {!r}".format(value))
+        elif name == 'lazy' and not isinstance(value, bool):
+            raise XMLSchemaValueError(u"'lazy' attribute must be a boolean: {!r}".format(value))
+        super(XMLResource, self).__setattr__(name, value)
 
     @property
     def root(self):
@@ -287,14 +293,11 @@ class XMLResource(object):
     def is_loaded(self):
         return self._url is None or self._data is not None
 
-    def getroot(self, only_root=True):
-        if only_root and self._root is not None:
-            return self._root
-
-        source = self.source
+    def fromsource(self, source, only_root=True):
+        lazy = self.lazy
         if etree_iselement(source):
             return source, None, None
-        elif isinstance(source, (str, bytes, unicode_type)):
+        elif isinstance(source, string_base_type):
             try:
                 # check if source is a string containing a valid XML root
                 for _, root in self.iterparse(StringIO(source), events=('start',)):
@@ -308,6 +311,10 @@ class XMLResource(object):
                 url = getattr(source, 'uri', normalize_url(source.file))
             except AttributeError:
                 url = None
+            if not lazy:
+                document = self.parse(source)
+                root = document.getroot()
+                return root if only_root else (root, None, url)
         else:
             try:
                 root = source.getroot()
@@ -326,7 +333,12 @@ class XMLResource(object):
         else:
             resource = urlopen(url, timeout=self.timeout)
             try:
-                for _, root in self.iterparse(resource, events=('start',)):
+                if lazy:
+                    for _, root in self.iterparse(resource, events=('start',)):
+                        return root if only_root else (root, None, url)
+                else:
+                    document = self.parse(resource)
+                    root = document.getroot()
                     return root if only_root else (root, None, url)
             finally:
                 resource.close()
@@ -412,13 +424,7 @@ class XMLResource(object):
                 nsmap[prefix] = uri
 
         nsmap = {}
-        if self._data is not None:
-            try:
-                for event, node in self.iterparse(StringIO(self._data), events=('start-ns',)):
-                    update_nsmap(*node)
-            except (etree_parse_error, safe_etree_parse_error):
-                pass
-        elif self._url is not None:
+        if self._url is not None:
             resource = self.open()
             try:
                 for event, node in self.iterparse(resource, events=('start-ns',)):
@@ -427,6 +433,12 @@ class XMLResource(object):
                 pass
             finally:
                 resource.close()
+        elif self._data is not None:
+            try:
+                for event, node in self.iterparse(StringIO(self._data), events=('start-ns',)):
+                    update_nsmap(*node)
+            except (etree_parse_error, safe_etree_parse_error):
+                pass
         else:
             # Warning: can extracts namespace information only from lxml etree structures
             try:

@@ -32,10 +32,12 @@ PY3 = sys.version_info[0] == 3
 
 if PY3:
     long_type = int
+    string_base_type = str
     unicode_type = str
     unicode_chr = chr
 else:
     long_type = long
+    string_base_type = basestring
     unicode_type = unicode
     unicode_chr = unichr
 
