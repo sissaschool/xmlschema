@@ -340,7 +340,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     @property
     def text(self):
         """XML text of the schema."""
-        return self.source.data
+        return self.source.text
 
     @property
     def url(self):

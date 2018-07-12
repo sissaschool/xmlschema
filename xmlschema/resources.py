@@ -173,12 +173,12 @@ def load_xml_resource(source, element_only=True, **resource_options):
     """
     lazy = resource_options.pop('lazy', False)
     source = XMLResource(source, lazy=lazy, **resource_options)
-    return source.root if element_only else (source.root, source.data, source.url)
+    return source.root if element_only else (source.root, source.text, source.url)
 
 
 class XMLResource(object):
     """
-    Implement an interface for accessing and parse XML data sources.
+    XML resource reader based on ElementTree and urllib.
 
     :param source: a string containing the XML document or file path or an URL or a file like \
     object or an ElementTree or an Element.
@@ -194,15 +194,12 @@ class XMLResource(object):
         if base_url is not None and not isinstance(base_url, string_base_type):
             raise XMLSchemaValueError(u"'base_url' argument has to be a string: {!r}".format(base_url))
 
-        self._document = self._root = self._data = self._url = None
+        self._root = self._document = self._url = self._text = None
         self._base_url = base_url
         self.defuse = defuse
         self.timeout = timeout
         self.lazy = lazy
         self.source = source
-
-        if not lazy:
-            self.load()
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
@@ -226,8 +223,8 @@ class XMLResource(object):
 
     def __setattr__(self, name, value):
         if name == 'source':
-            self._root, self._data, self._url = self.fromsource(value, only_root=False)
-        elif name == 'defuse' and value not in DEFUSE_MODES:
+            self._root, self._document, self._text, self._url = self._fromsource(value)
+        if name == 'defuse' and value not in DEFUSE_MODES:
             raise XMLSchemaValueError(u"'defuse' attribute: {!r} is not a defuse mode.".format(value))
         elif name == 'timeout' and not isinstance(value, int) and value <= 0:
             raise XMLSchemaValueError(u"'timeout' attribute must be a positive integer: {!r}".format(value))
@@ -235,75 +232,24 @@ class XMLResource(object):
             raise XMLSchemaValueError(u"'lazy' attribute must be a boolean: {!r}".format(value))
         super(XMLResource, self).__setattr__(name, value)
 
-    @property
-    def root(self):
-        return self._root
-
-    @property
-    def data(self):
-        return self._data
-
-    @property
-    def url(self):
-        return self._url
-
-    @property
-    def base_url(self):
-        return os.path.dirname(self._url) if self._url else self._base_url
-
-    @property
-    def namespace(self):
-        return get_namespace(self._root.tag) if self._root is not None else None
-
-    @property
-    def parse(self):
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_parse
-        else:
-            return etree_parse
-
-    @property
-    def iterparse(self):
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_iterparse
-        else:
-            return etree_iterparse
-
-    @property
-    def fromstring(self):
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_fromstring
-        else:
-            return etree_fromstring
-
-    def copy(self, **kwargs):
-        obj = type(self)(
-            source=self.source,
-            base_url=kwargs.get('base_url'),
-            defuse=kwargs.get('defuse', 'remote'),
-            timeout=kwargs.get('timeout', 300),
-        )
-        if not kwargs.get('lazy', True):
-            if self._data is None:
-                obj.load()
-            else:
-                obj._root, obj._data = self._root, self._data
-        return obj
-
-    def is_loaded(self):
-        return self._url is None or self._data is not None
-
-    def fromsource(self, source, only_root=True):
+    def _fromsource(self, source):
         lazy = self.lazy
         if etree_iselement(source):
-            return source, None, None
+            return source, None, None, None
         elif isinstance(source, string_base_type):
+            _url, self._url = self._url, None
             try:
-                # check if source is a string containing a valid XML root
-                for _, root in self.iterparse(StringIO(source), events=('start',)):
-                    return root if only_root else (root, source, None)
+                if lazy:
+                    # check if source is a string containing a valid XML root
+                    for _, root in self.iterparse(StringIO(source), events=('start',)):
+                        return root, None, source, None
+                else:
+                    return self.fromstring(source), None, source, None
             except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError):
-                pass
+                if '\n' in source:
+                    raise
+            finally:
+                self._url = _url
             url = normalize_url(source) if '\n' not in source else None
         elif hasattr(source, 'read'):
             # source should be a file-like object
@@ -312,9 +258,13 @@ class XMLResource(object):
             except AttributeError:
                 url = None
             if not lazy:
-                document = self.parse(source)
-                root = document.getroot()
-                return root if only_root else (root, None, url)
+                _url, self._url = self._url, url
+                try:
+                    document = self.parse(source)
+                    root = document.getroot()
+                finally:
+                    self._url = _url
+                return root, document, None, url
         else:
             try:
                 root = source.getroot()
@@ -322,7 +272,7 @@ class XMLResource(object):
                 url = None
             else:
                 if etree_iselement(root):
-                    return root if only_root else (root, None, None)
+                    return root, source, None, None
                 url = None
 
         if url is None:
@@ -332,24 +282,106 @@ class XMLResource(object):
             )
         else:
             resource = urlopen(url, timeout=self.timeout)
+            _url, self._url = self._url, url
             try:
                 if lazy:
                     for _, root in self.iterparse(resource, events=('start',)):
-                        return root if only_root else (root, None, url)
+                        return root, None, None, url
                 else:
                     document = self.parse(resource)
                     root = document.getroot()
-                    return root if only_root else (root, None, url)
+                    return root, document, None, url
             finally:
+                self._url = _url
                 resource.close()
 
+    @property
+    def root(self):
+        """The XML tree root Element."""
+        return self._root
+
+    @property
+    def document(self):
+        """
+        The ElementTree document, `None` if the instance is lazy or is not created
+        from another document or from an URL.
+        """
+        return self._root
+
+    @property
+    def text(self):
+        """The XML text source, `None` if it's not available."""
+        if self._text is None and self._url is not None:
+            self.load()
+        return self._text
+
+    @property
+    def url(self):
+        """The source URL, `None` if the instance is created from an Element tree or from a string."""
+        return self._url
+
+    @property
+    def base_url(self):
+        """The base URL for completing relative locations."""
+        return os.path.dirname(self._url) if self._url else self._base_url
+
+    @property
+    def namespace(self):
+        """The namespace of the XML document."""
+        return get_namespace(self._root.tag) if self._root is not None else None
+
+    @property
+    def parse(self):
+        """The ElementTree parse method, depends from 'defuse' and 'url' attributes."""
+        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
+            return safe_etree_parse
+        else:
+            return etree_parse
+
+    @property
+    def iterparse(self):
+        """The ElementTree iterparse method, depends from 'defuse' and 'url' attributes."""
+        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
+            return safe_etree_iterparse
+        else:
+            return etree_iterparse
+
+    @property
+    def fromstring(self):
+        """The ElementTree fromstring method, depends from 'defuse' and 'url' attributes."""
+        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
+            return safe_etree_fromstring
+        else:
+            return etree_fromstring
+
+    @property
+    def tostring(self):
+        return etree_tostring(self._root)
+
+    def copy(self, **kwargs):
+        obj = type(self)(
+            source=self.source,
+            base_url=kwargs.get('base_url'),
+            defuse=kwargs.get('defuse', 'remote'),
+            timeout=kwargs.get('timeout', 300),
+            lazy=kwargs.get('lazy', True)
+        )
+        if obj._text is None and self._text is not None:
+            obj._text = self._text
+        return obj
+
     def open(self):
+        """Returns a opened resource reader object for the instance URL."""
         try:
             return urlopen(self._url, timeout=self.timeout)
         except URLError as err:
             raise XMLSchemaURLError(reason="cannot access to resource %r: %s" % (self._url, err.reason))
 
     def load(self):
+        """
+        Loads the XML text from the data source. If the data source is an Element
+        the source XML text can't be retrieved.
+        """
         if self._url is None:
             return  # Created from Element or text source --> already loaded
 
@@ -362,23 +394,49 @@ class XMLResource(object):
             resource.close()
 
         try:
-            self._data = data.decode('utf-8') if PY3 else data.encode('utf-8')
+            self._text = data.decode('utf-8') if PY3 else data.encode('utf-8')
         except UnicodeDecodeError:
             if PY3:
-                self._data = data.decode('iso-8859-1')
+                self._text = data.decode('iso-8859-1')
             else:
                 with codecs.open(urlsplit(self._url).path, mode='rb', encoding='iso-8859-1') as f:
-                    self._data = f.read().encode('iso-8859-1')
+                    self._text = f.read().encode('iso-8859-1')
 
+        # TODO: lazy mode management for XML tree
         try:
-            self._root = self.fromstring(self._data)
+            self._root = self.fromstring(self._text)
         except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError) as err:
             raise XMLSchemaValueError(
-                "error parsing XML data from %r: %s" % (self._url or type(self._data), err)
+                "error parsing XML data from %r: %s" % (self._url or type(self._text), err)
             )
 
+    def is_loaded(self):
+        """Gets `True` the XML text of the data source is loaded."""
+        return self._text is not None
+
+    def iter(self, tag=None):
+        """XML resource tree elements lazy iterator."""
+        if not self.lazy:
+            for elem in self._root.iter(tag):
+                yield elem
+            return
+        elif self._url is not None:
+            resource = urlopen(self._url, timeout=self.timeout)
+        else:
+            resource = StringIO(self._text)
+
+        try:
+            for event, elem in self.iterparse(resource, events=('start', 'end')):
+                if event == 'end':
+                    elem.clear()
+                elif tag is None or elem.tag == tag:
+                    yield elem
+        finally:
+            resource.close()
+
     def iter_location_hints(self):
-        for elem in self._root.iter():
+        """Yields schema location hints from the XML tree."""
+        for elem in self.iter():
             try:
                 locations = elem.attrib[XSI_SCHEMA_LOCATION]
             except KeyError:
@@ -433,9 +491,9 @@ class XMLResource(object):
                 pass
             finally:
                 resource.close()
-        elif self._data is not None:
+        elif isinstance(self._text, string_base_type):
             try:
-                for event, node in self.iterparse(StringIO(self._data), events=('start-ns',)):
+                for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
                     update_nsmap(*node)
             except (etree_parse_error, safe_etree_parse_error):
                 pass
@@ -451,6 +509,12 @@ class XMLResource(object):
         return nsmap
 
     def get_locations(self, locations=None):
+        """
+        Returns a list of schema location hints. The locations are normalized using the
+        base URL of the instance. The *locations* argument can be a dictionary or a list
+        of namespace resources, that are inserted before the schema location hints extracted
+        from the XML resource.
+        """
         base_url = self.base_url
         location_hints = []
         if locations is not None:
