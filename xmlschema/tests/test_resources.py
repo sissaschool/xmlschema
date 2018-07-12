@@ -48,6 +48,25 @@ class TestResources(XMLSchemaTestCase):
     def test_fetch_namespaces(self):
         self.assertFalse(fetch_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
 
+    def test_class_get_namespaces(self):
+        with open(self.vh_xml_file) as schema_file:
+            resource = XMLResource(schema_file)
+            self.assertEqual(resource.url, normalize_url(self.vh_xml_file))
+            self.assertEqual(resource.get_namespaces().keys(), {'vh', 'xsi'})
+
+        with open(self.vh_schema_file) as schema_file:
+            resource = XMLResource(schema_file)
+            self.assertEqual(resource.url, normalize_url(self.vh_schema_file))
+            self.assertEqual(resource.get_namespaces().keys(), {'xs', 'vh'})
+
+        resource = XMLResource(self.col_xml_file)
+        self.assertEqual(resource.url, normalize_url(self.col_xml_file))
+        self.assertEqual(resource.get_namespaces().keys(), {'col', 'xsi'})
+
+        resource = XMLResource(self.col_schema_file)
+        self.assertEqual(resource.url, normalize_url(self.col_schema_file))
+        self.assertEqual(resource.get_namespaces().keys(), {'', 'xs'})
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

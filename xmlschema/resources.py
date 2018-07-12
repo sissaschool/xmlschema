@@ -250,10 +250,23 @@ class XMLResource(object):
             finally:
                 self._url = _url
             url = normalize_url(source) if '\n' not in source else None
+
+        elif isinstance(source, StringIO):
+            _url, self._url = self._url, None
+            try:
+                if lazy:
+                    for _, root in self.iterparse(source, events=('start',)):
+                        return root, None, None, None
+                else:
+                    document = self.parse(source)
+                    return document.getroot(), document, source.getvalue(), None
+            finally:
+                self._url = _url
+
         elif hasattr(source, 'read'):
             # source should be a file-like object
             try:
-                url = getattr(source, 'uri', normalize_url(source.file))
+                url = getattr(source, 'url', normalize_url(source.name))
             except AttributeError:
                 url = None
             if not lazy:
@@ -264,7 +277,9 @@ class XMLResource(object):
                 finally:
                     self._url = _url
                 return root, document, None, url
+
         else:
+            # Try ElementTree object at last
             try:
                 root = source.getroot()
             except (AttributeError, TypeError):
