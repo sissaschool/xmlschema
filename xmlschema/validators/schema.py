@@ -135,8 +135,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     Base class for an XML Schema instance.
 
     :param source: an URI that reference to a resource or a file path or a file-like \
-    object or a string containing the schema.
-    :type source: str or file
+    object or a string containing the schema or an Element or an ElementTree document.
+    :type source: Element or ElementTree or str or file-like object
     :param namespace: is an optional argument that contains the URI of the namespace. \
     When specified it must be equal to the *targetNamespace* declared in the schema.
     :type namespace: str or None
@@ -153,11 +153,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :param locations: schema location hints for namespace imports. Can be a dictionary or \
     a sequence of couples (namespace URI, resource URL).
     :type locations: dict or list or None
-    :param base_url: base URL for override remote locations, by replacement of scheme and \
-    netloc of an URL. Useful for avoiding namespace imports and schema inclusions from remote, \
-    replacing them with local imports/includes. Can be an absolute or relative path to an existent \
-    directory. In the second case the relative path is expanded to an absolute one from schema \
-    location or current dir.
+    :param base_url: is an optional base URL, used for the normalization of relative paths \
+    when the URL of the schema resource can't be obtained from the source argument.
     :type base_url: str or None
     :param defuse: defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
     For default defuse only remote XML data.

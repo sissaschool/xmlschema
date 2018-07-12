@@ -15,7 +15,7 @@ from .resources import fetch_schema_locations
 from .validators.schema import XMLSchema
 
 
-def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locations=None, base_url=None):
+def validate(xml_document, schema=None, cls=None, use_defaults=True, locations=None, base_url=None):
     """
     Validates an XML document against a schema instance. This function builds an
     :class:`XMLSchema` object for validating the XML document. Raises an
@@ -26,13 +26,14 @@ def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locati
     or a file path or a URL of a resource or an ElementTree/Element instance.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
-    :param cls: schema class to use for building the instance (default is :class:`XMLSchema`).
+    :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
     :param use_defaults: defines when to use elements and attribute defaults for filling \
     missing required values.
     :param locations: additional schema location hints, in case a schema instance has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
     default uses the directory where the XSD or alternatively the XML document is located.
     """
+    cls = XMLSchema if cls is None else XMLSchema
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
@@ -41,7 +42,7 @@ def validate(xml_document, schema=None, cls=XMLSchema, use_defaults=True, locati
     schema.validate(xml_document, use_defaults)
 
 
-def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespaces=True,
+def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True,
             locations=None, base_url=None, **kwargs):
     """
     Decodes an XML document to a Python's nested dictionary. The decoding is based
@@ -53,7 +54,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     or a file path or a URL of a resource or an ElementTree/Element instance.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
-    :param cls: schema class to use for building the instance (default is :class:`XMLSchema`).
+    :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
     :param path: is an optional XPath expression that matches the subelement of the document \
     that have to be decoded. The XPath expression considers the schema as the root element \
     with global elements as its children.
@@ -70,6 +71,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
 
     """
+    cls = XMLSchema if cls is None else XMLSchema
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
@@ -78,7 +80,7 @@ def to_dict(xml_document, schema=None, cls=XMLSchema, path=None, process_namespa
     return schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces, **kwargs)
 
 
-def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, converter=None,
+def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=None,
             process_namespaces=True, locations=None, base_url=None, json_options=None, **kwargs):
     """
     Serialize an XML document to JSON. For default the XML data is validated during
@@ -90,7 +92,7 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
     :param fp: can be a :meth:`write()` supporting file-like object.
     :param schema: can be a schema instance or a file-like object or a file path or an URL \
     of a resource or a string containing the schema.
-    :param cls: schema class to use for building the instance (default is :class:`XMLSchema`).
+    :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
     :param path: is an optional XPath expression that matches the subelement of the document \
     that have to be decoded. The XPath expression considers the schema as the root element \
     with global elements as its children.
@@ -108,6 +110,7 @@ def to_json(xml_document, fp=None, schema=None, cls=XMLSchema, path=None, conver
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
     """
+    cls = XMLSchema if cls is None else XMLSchema
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)

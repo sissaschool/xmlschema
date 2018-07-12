@@ -24,18 +24,11 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import etree_get_namespaces, fetch_resource, normalize_url, XMLSchemaURLError
+from xmlschema import fetch_namespaces, fetch_resource, normalize_url, XMLResource, XMLSchemaURLError
+from xmlschema.tests import XMLSchemaTestCase
 
 
-class TestResources(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
-        cls.xs1 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "cases/examples/vehicles/vehicles.xsd"))
-        cls.xs2 = xmlschema.XMLSchema(os.path.join(cls.test_dir, "cases/examples/collection/collection.xsd"))
-        cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
-        cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
+class TestResources(XMLSchemaTestCase):
 
     def test_normalize_url(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
@@ -52,8 +45,8 @@ class TestResources(unittest.TestCase):
         right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
         self.assertTrue(fetch_resource(right_path).endswith('y%20file.txt'))
 
-    def test_get_namespace(self):
-        self.assertFalse(etree_get_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
+    def test_fetch_namespaces(self):
+        self.assertFalse(fetch_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
 
 
 if __name__ == '__main__':

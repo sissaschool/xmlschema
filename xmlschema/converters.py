@@ -29,9 +29,9 @@ class XMLSchemaConverter(NamespaceMapper):
     decoded XML data for an Element into a data structure and to build an Element
     from encoded data structure.
 
-    :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
-    :param list_class: List class to use for decoded data. Default is `list`.
+    :param namespaces: map from namespace prefixes to URI.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
     :param text_key: is the key to apply to element's decoded text data.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
     with a prefix. If `None` the converter ignores attributes.
@@ -40,7 +40,15 @@ class XMLSchemaConverter(NamespaceMapper):
     CDATA parts are ignored if this argument is `None`.
     :param etree_element_class: the class that has to be used to create new XML elements, \
     if not provided uses the ElementTree's Element class.
-    :param indent: Number of spaces for XML indentation (default is 4).
+    :param indent: number of spaces for XML indentation (default is 4).
+
+    :ivar dict: dictionary class to use for decoded data.
+    :ivar list: list class to use for decoded data.
+    :ivar text_key: key for decoded Element text
+    :ivar attr_prefix: prefix for attribute names
+    :ivar cdata_prefix: prefix for character data parts
+    :ivar etree_element_class: Element class to use
+    :ivar indent: indentation to use for rebuilding XML trees
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, text_key='$', attr_prefix='@',
                  cdata_prefix=None, etree_element_class=None, indent=4, **kwargs):
@@ -110,7 +118,7 @@ class XMLSchemaConverter(NamespaceMapper):
             for name, value in attributes:
                 yield self.map_qname(name), value
 
-    def unmap_attribute_qname(self, name):
+    def _unmap_attribute_qname(self, name):
         if name[0] == '{' or ':' not in name:
             return name
         else:
@@ -234,7 +242,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 return ElementData(tag, None, obj, self.dict())
 
         unmap_qname = self.unmap_qname
-        unmap_attribute_qname = self.unmap_attribute_qname
+        unmap_attribute_qname = self._unmap_attribute_qname
         text_key = self.text_key
         attr_prefix = self.attr_prefix
         ns_prefix = self.ns_prefix
@@ -501,7 +509,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     def element_encode(self, obj, xsd_element, level=0):
         map_qname = self.map_qname
         unmap_qname = self.unmap_qname
-        unmap_attribute_qname = self.unmap_attribute_qname
+        unmap_attribute_qname = self._unmap_attribute_qname
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         try:
@@ -632,7 +640,7 @@ class AbderaConverter(XMLSchemaConverter):
             return ElementData(tag, obj, None, self.dict())
         else:
             unmap_qname = self.unmap_qname
-            unmap_attribute_qname = self.unmap_attribute_qname
+            unmap_attribute_qname = self._unmap_attribute_qname
             attributes = self.dict()
             try:
                 attributes.update([(unmap_attribute_qname(k), v) for k, v in obj['attributes'].items()])
@@ -736,7 +744,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
-        unmap_attribute_qname = self.unmap_attribute_qname
+        unmap_attribute_qname = self._unmap_attribute_qname
         try:
             for k, v in obj[1].items():
                 if k == 'xmlns':

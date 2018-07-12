@@ -1,5 +1,11 @@
-# ../../schemas/XSD_1.0/XMLSchema.xsd
-# ../../schemas/XSD_1.1/XMLSchema.xsd
+#
+# Test-files for xmlschema
+#
+# Each uncommented and not empty line creates a test.
+#
+# Uncomment the following line and run test_all.py to show an help:
+# filename --help
+#
 
 # Cases with schema examples
 examples/collection/collection.xsd --inspect

@@ -5,7 +5,7 @@ Test scripts
 ------------
 
 The tests of the *xmlschema* library are implemented using the Python's *unitest*
-library. The test scripts are located in under the installation base into ``tests/``
+library. The test scripts are located under the installation base into ``tests/``
 subdirectory. There are several test scripts, each one for a different topic:
 
 **test_meta.py**
@@ -29,8 +29,9 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_package.py**
     Tests regarding packaging and forgotten development code
 
-You can run all tests with the script *test_all.py*. If you have the *tox automation tool* installed you can run
-all tests with all supported Python's versions using the command ``tox``.
+You can run all tests with the script *test_all.py*. From the project source base, if you have
+the *tox automation tool* installed, you can run all tests with all supported Python's versions
+using the command ``tox``.
 
 
 Test files
@@ -66,12 +67,12 @@ one per line, as in the following example:
     qe/qes_neb.xsd
     qe/qes_with_choice_no_nesting.xsd
     qe/silicon.xml
-    qe/silicon-1_error.xml 1
-    qe/silicon-3_errors.xml 3
+    qe/silicon-1_error.xml --errors 1
+    qe/silicon-3_errors.xml --errors=3
     qe/SrTiO_3.xml
-    qe/SrTiO_3-2_errors.xml 2
+    qe/SrTiO_3-2_errors.xml --errors 2
 
-The test scripts creates test for each listed file, dependant from the context.
+The test scripts create a test for each listed file, dependant from the context.
 For example the script that test the schemas uses only *.xsd* files, where instead
 the script that tests the validation uses both types, validating each XML file
 against its schema and each XSD against the meta-schema.
@@ -79,13 +80,43 @@ against its schema and each XSD against the meta-schema.
 If a file has errors insert an integer number after the path. This is the number of errors
 that the XML Schema validator have to found to pass the test.
 
-From version 0.9.14 each line is parsed for those additional arguments:
+From version 1.0.0 each test-case line is parsed for those additional arguments:
 
-**-i**
-    inspect using an observed custom schema class.
+**-L URI URL**
+    Schema location hint overrides.
 
-**-v**
-    XSD version to use for schema (default is 1.0)
+**--version=VERSION**
+    XSD schema version to use for the test case (default is 1.0).
+
+**--errors=NUM**
+    Number of errors expected (default=0).
+
+**--warnings=NUM**
+    Number of warnings expected (default=0).
+
+**--inspect**
+    Inspect using an observed custom schema class.
+
+**--defuse=(always, remote, never)**
+    Define when to use the defused XML data loaders.
+
+**--timeout=SEC**
+    Timeout for fetching resources (default=300).
+
+**--skip**
+    Skip strict encoding checks (for cases where test data uses default or fixed values
+    or some test data are skipped by wildcards processContents).
+
+**--debug**
+    Activate the debug mode (only the cases with `--debug` are executed).
+
+If you put a ``--help`` on the first case line the argument parser show you all the options available.
+
+.. note::
+
+    Test case line options are changed from version 1.0.0, with the choice of using almost only double
+    dash prefixed options, in order to simplify text search in long *testfiles*, and add or remove
+    options without the risk to change also parts of filepaths.
 
 To run tests with also your personal set of files you have to add a ``-x/--extra`` option to the
 command, for example:

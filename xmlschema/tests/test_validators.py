@@ -297,10 +297,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     expected_warnings = test_args.warnings
     inspect = test_args.inspect
     locations = test_args.locations
-    base_url = test_args.baseurl
     defuse = test_args.defuse
-    defaults = test_args.defaults
-    wildcards_skip = test_args.skip
+    skip_strict = test_args.skip
     debug_mode = test_args.debug
 
     xml_file = test_file
@@ -316,7 +314,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 pdb.set_trace()
 
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
-            source, _locations = xmlschema.fetch_schema_locations(xml_file, locations, base_url=base_url)
+            source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
             cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
 
             cls.errors = []
@@ -346,8 +344,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
                 # or it the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
-                if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) \
-                        and not defaults and not wildcards_skip:
+                if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) and not skip_strict:
                     if debug_mode:
                         pdb.set_trace()
                     raise AssertionError(str(err) + msg_template % "encoded tree differs from original")

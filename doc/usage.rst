@@ -479,7 +479,7 @@ using the keyword argument *decimal_type*:
     }
 
 From version 1.0 there are two module level API for simplify the JSON serialization and deserialization task.
-See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`module-level-api` section.
+See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`document-level-api` section.
 
 XSD validation modes
 --------------------

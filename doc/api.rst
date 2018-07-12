@@ -1,10 +1,10 @@
 API Documentation
 =================
 
-.. _module-level-api:
+.. _document-level-api:
 
-Module level API
-----------------
+Document level API
+------------------
 
 .. autofunction:: xmlschema.validate
 .. autofunction:: xmlschema.to_dict
@@ -25,6 +25,10 @@ Schema level API
 .. autoclass:: xmlschema.XMLSchema
 
 .. autoclass:: xmlschema.XMLSchemaBase
+
+    .. autoattribute:: root
+    .. autoattribute:: text
+    .. autoattribute:: url
 
     .. autoattribute:: id
     .. autoattribute:: version
@@ -87,8 +91,8 @@ XML Schema converters
 ---------------------
 
 The base class `XMLSchemaConverter` is used for defining generic converters.
-The subclasses implement some of the most used conventions for converting XML
-to JSON data.
+The subclasses implement some of the most used `conventions for converting XML
+to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
 .. autoclass:: xmlschema.converters.ElementData
 
@@ -97,6 +101,10 @@ to JSON data.
     .. autoattribute:: lossless
     .. autoattribute:: losslessly
 
+    .. automethod:: copy
+    .. automethod:: map_attributes
+    .. automethod:: map_content
+    .. automethod:: etree_element
     .. automethod:: element_decode
     .. automethod:: element_encode
 

@@ -182,9 +182,8 @@ class XMLResource(object):
 
     :param source: a string containing the XML document or file path or an URL or a file like \
     object or an ElementTree or an Element.
-    :param base_url: is an optional base URL used when the URL of the resource cannot be \
-    retrieved by the source argument. If an URL that match a directory path is passed then it \
-    overrides also a remote resource URL.
+    :param base_url: is an optional base URL, used for the normalization of relative paths when \
+    the URL of the resource can't be obtained from the source argument.
     :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
     'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.

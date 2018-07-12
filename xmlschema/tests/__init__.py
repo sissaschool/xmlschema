@@ -133,7 +133,7 @@ def get_args_parser():
     )
     parser.add_argument(
         '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
-        help="XSD schema version to use for test (default is 1.0)."
+        help="XSD schema version to use for the test case (default is 1.0)."
     )
     parser.add_argument(
         '--errors', type=int, default=0, metavar='NUM', help="Number of errors expected (default=0)."
@@ -145,9 +145,6 @@ def get_args_parser():
         '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
-        '--baseurl', metavar='DIR', type=str, default=None, help="Use custom base url path."
-    )
-    parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )
@@ -155,13 +152,17 @@ def get_args_parser():
         '--timeout', type=int, default=300, metavar='SEC', help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
-        '--defaults', action="store_true", default=False, help="Test data uses default or fixed values.",
+        '--defaults', action="store_true", default=False,
+        help="Test data uses default or fixed values (skip strict encoding checks).",
     )
     parser.add_argument(
-        '--skip', action="store_true", default=False, help="Some test data are skipped by wildcards processContents."
+        '--skip', action="store_true", default=False,
+        help="Skip strict encoding checks (for cases where test data uses default or "
+             "fixed values or some test data are skipped by wildcards processContents)."
     )
     parser.add_argument(
-        '--debug', action="store_true", default=False, help="Run test in debug mode.",
+        '--debug', action="store_true", default=False,
+        help="Activate the debug mode (only the cases with --debug are executed).",
     )
     return parser
 
