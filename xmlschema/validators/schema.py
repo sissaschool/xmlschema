@@ -582,6 +582,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 # Attribute missing error already found by validation against meta-schema.
                 # It is not an error if the location fail to resolve:
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
+                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
                 include_warnings.append("Include schema failed: %s." % str(err))
                 warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
 

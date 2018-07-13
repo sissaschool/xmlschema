@@ -14,7 +14,7 @@ This module contains base functions and classes XML Schema components.
 import re
 
 from ..compat import PY3, unicode_type
-from ..etree import etree_tostring, etree_iselement
+from ..etree import etree_tostring, is_etree_element
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
     local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG,
@@ -163,7 +163,7 @@ class XsdComponent(XsdBaseComponent):
 
     def __setattr__(self, name, value):
         if name == "elem":
-            if not etree_iselement(value):
+            if not is_etree_element(value):
                 raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
             elif value.tag not in self.admitted_tags:
                 raise XMLSchemaValueError(
@@ -218,7 +218,7 @@ class XsdComponent(XsdBaseComponent):
             raise XMLSchemaValueError("'skip' validation mode incompatible with error handling.")
         elif not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(self, obj, reason=unicode_type(error))
-        elif obj and error.elem is None and etree_iselement(obj):
+        elif obj and error.elem is None and is_etree_element(obj):
             error.elem = obj
 
         if validation == 'strict':

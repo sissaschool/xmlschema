@@ -2,10 +2,13 @@
 CHANGELOG
 *********
 
-v1.0.0 (2018-06-27)
+v1.0.0 (2018-07-14)
 ===================
 * Validated data encoding to XML
 * Improved converters with decoding/encoding of namespace information
+* Added helper functions for encoding and decoding to JSON
+* Added XMLResource class for managing access to XML data sources
+* Added warnings for failed schema includes and namespace imports
 
 v0.9.31 (2018-06-24)
 ====================

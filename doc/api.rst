@@ -139,6 +139,7 @@ Resource access API
     .. automethod:: tostring
     .. automethod:: open
     .. automethod:: load
+    .. automethod:: is_lazy
     .. automethod:: is_loaded
     .. automethod:: iter
     .. automethod:: iter_location_hints

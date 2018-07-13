@@ -24,12 +24,15 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import fetch_namespaces, fetch_resource, normalize_url, XMLResource, XMLSchemaURLError
+from xmlschema import (
+    fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
+    load_xml_resource, XMLResource, XMLSchemaURLError
+)
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.compat import urlopen, StringIO
 from xmlschema.etree import (
     ElementTree, etree_parse, etree_iterparse, etree_fromstring, safe_etree_parse,
-    safe_etree_iterparse, safe_etree_fromstring, lxml_etree_parse,
+    safe_etree_iterparse, safe_etree_fromstring, lxml_etree_parse, is_etree_element
 )
 
 
@@ -66,6 +69,22 @@ class TestResources(XMLSchemaTestCase):
 
     def test_fetch_namespaces(self):
         self.assertFalse(fetch_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
+
+    def test_fetch_schema_locations(self):
+        locations = fetch_schema_locations(self.col_xml_file)
+        self.assertEqual(locations, (
+            'file://{}'.format(self.col_schema_file),
+            [('http://example.com/ns/collection', 'file://{}'.format(self.col_schema_file))]
+        ))
+        self.assertEqual(fetch_schema(self.vh_xml_file), 'file://{}'.format(self.vh_schema_file))
+
+    def test_load_xml_resource(self):
+        self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
+        root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
+        self.assertTrue(is_etree_element(root))
+        self.assertEqual(root.tag, '{http://example.com/vehicles}vehicles')
+        self.assertTrue(text.startswith('<?xml version'))
+        self.assertEqual(url, 'file://{}'.format(self.vh_xml_file))
 
     # Tests on XMLResource instances
     def test_xml_resource_from_url(self):

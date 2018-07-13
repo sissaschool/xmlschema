@@ -38,7 +38,7 @@ from xmlschema.compat import ordered_dict_class
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
-    etree_element, etree_tostring, etree_iselement, etree_fromstring, etree_parse,
+    etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
     etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
 )
 from xmlschema.qnames import local_name
@@ -793,7 +793,7 @@ class TestEncoding(XMLSchemaTestCase):
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, xsd_component.encode, data, **kwargs)
-        elif etree_iselement(expected):
+        elif is_etree_element(expected):
             elem = xsd_component.encode(data, **kwargs)
             self.check_etree_elements(expected, elem)
         else:
@@ -802,7 +802,7 @@ class TestEncoding(XMLSchemaTestCase):
                     and isinstance(obj[1][0], Exception):
                 self.assertEqual(expected, obj[0])
                 self.assertTrue(isinstance(obj[0], type(expected)))
-            elif etree_iselement(obj):
+            elif is_etree_element(obj):
                 self.assertEqual(expected, etree_tostring(obj).strip())
             else:
                 self.assertEqual(expected, obj)

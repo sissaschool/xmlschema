@@ -23,6 +23,7 @@ from .compat import PY3
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname
+from .xpath import ElementPathMixin
 
 import defusedxml.ElementTree
 
@@ -37,7 +38,6 @@ etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
 etree_parse_error = ElementTree.ParseError
 etree_element = ElementTree.Element
-etree_iselement = ElementTree.iselement
 etree_register_namespace = ElementTree.register_namespace
 
 # Safe APIs from defusedxml package
@@ -61,6 +61,11 @@ else:
     lxml_etree_element = None
     lxml_etree_comment = None
     lxml_etree_register_namespace = None
+
+
+def is_etree_element(elem):
+    """More safer test for matching ElementTree elements."""
+    return hasattr(elem, 'tag') and not isinstance(elem, ElementPathMixin)
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):

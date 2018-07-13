@@ -16,7 +16,7 @@ from .compat import (
     PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit, pathname2url, URLError
 )
 from .etree import (
-    etree_iselement, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error,
+    is_etree_element, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error,
     safe_etree_parse, safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error,
     etree_tostring, etree_register_namespace
 )
@@ -197,7 +197,11 @@ def load_xml_resource(source, element_only=True, **resource_options):
     """
     lazy = resource_options.pop('lazy', False)
     source = XMLResource(source, lazy=lazy, **resource_options)
-    return source.root if element_only else (source.root, source.text, source.url)
+    if element_only:
+        return source.root
+    else:
+        source.load()
+        return source.root, source.text, source.url
 
 
 class XMLResource(object):
@@ -257,7 +261,7 @@ class XMLResource(object):
 
     def _fromsource(self, source):
         url, lazy = None, self._lazy
-        if etree_iselement(source):
+        if is_etree_element(source):
             return source, None, None, None
         elif isinstance(source, string_base_type):
             _url, self._url = self._url, None
@@ -315,7 +319,7 @@ class XMLResource(object):
             except (AttributeError, TypeError):
                 pass
             else:
-                if etree_iselement(root):
+                if is_etree_element(root):
                     return root, source, None, None
 
         if url is None:

@@ -7,7 +7,9 @@ Usage
 
     import xmlschema
     import os
+    import warnings
     os.chdir('..')
+    warnings.simplefilter("ignore", xmlschema.XMLSchemaIncludeWarning)
 
 .. testsetup:: vehicles
 

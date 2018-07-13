@@ -13,7 +13,7 @@ This module contains exception and warning classes for the 'xmlschema.validators
 """
 from ..compat import PY3
 from ..exceptions import XMLSchemaException
-from ..etree import etree_tostring, etree_iselement
+from ..etree import etree_tostring, is_etree_element
 from ..qnames import qname_to_prefixed
 
 
@@ -50,7 +50,7 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        if etree_iselement(self.elem):
+        if is_etree_element(self.elem):
             return u''.join([
                 self.message,
                 u"\n\n  %s\n" % etree_tostring(self.elem, max_lines=20)
@@ -70,7 +70,7 @@ class XMLSchemaValidationError(XMLSchemaException, ValueError):
         self.obj = obj
         self.reason = reason
         self.schema_elem = schema_elem or getattr(validator, 'elem', None)
-        self.elem = elem or obj if etree_iselement(obj) else None
+        self.elem = elem or obj if is_etree_element(obj) else None
         self.message = None
 
     def __str__(self):

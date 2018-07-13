@@ -27,7 +27,7 @@ import xmlschema.validators
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import (
-    etree_iselement, etree_element, etree_register_namespace, etree_elements_assert_equal
+    is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
 )
 from xmlschema.resources import fetch_namespaces
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
@@ -285,7 +285,7 @@ class XMLSchemaTestCase(unittest.TestCase):
         :param source: A string or an ElementTree's Element.
         :return: An schema source string, an ElementTree's Element or a full pathname.
         """
-        if etree_iselement(source):
+        if is_etree_element(source):
             if source.tag in (XSD_SCHEMA_TAG, 'schema'):
                 return source
             elif get_namespace(source.tag):

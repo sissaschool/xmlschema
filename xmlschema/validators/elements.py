@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaIndexError
-from ..etree import etree_element, etree_iselement
+from ..etree import etree_element, is_etree_element
 from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
@@ -244,7 +244,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 error.schema_elem = self.type.elem
             else:
                 error.schema_elem = self.elem
-        if error.elem is None and etree_iselement(obj):
+        if error.elem is None and is_etree_element(obj):
             error.elem = obj
         return super(XsdElement, self)._validation_error(error, validation)
 
