@@ -25,7 +25,7 @@ from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
 )
-from ..resources import is_remote_url, url_is_file, fetch_resource, XMLResource
+from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 from .exceptions import (
@@ -649,7 +649,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                 # This is not the standard processing for XSD imports, but resolve the problem
                 # of local processing of schemas tested to work from a http server, providing
                 # explicit local hints.
-                local_hints = [url for url in self.get_locations(namespace) if url and url_is_file(url)]
+                local_hints = [url for url in self.get_locations(namespace) if url and url_path_is_file(url)]
                 if local_hints:
                     locations = local_hints + locations
 

@@ -32,46 +32,71 @@ def is_remote_url(url):
     return url is not None and urlsplit(url).scheme not in ('', 'file')
 
 
-def url_is_directory(url):
+def url_path_is_directory(url):
     return os.path.isdir(urlsplit(url).path)
 
 
-def url_is_file(url):
+def url_path_is_file(url):
     return os.path.isfile(urlsplit(url).path)
 
 
-def normalize_url(url, base_url=None):
+def normalize_url(url, base_url=None, keep_relative=False):
     """
-    Returns a normalized url. If URL scheme is missing the 'file' scheme is set.
+    Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file'.
+    For file paths the os.path.join is used instead of urljoin, in order to remap also relative paths.
 
-    :param url: An relative or absolute URL.
-    :param base_url: A reference base URL to join.
+    :param url: a relative or absolute URL.
+    :param base_url: the reference base URL for construct the normalized URL from the argument. \
+    For compatibility between "os.path.join" and "urljoin" a trailing '/' is added to not empty paths.
+    :param keep_relative: if set to `True` keeps relative file paths, otherwise gets the \
+    absolute path from the current working directory.
     :return: A normalized URL.
     """
-    url_parts = urlsplit(url)
-    if url_parts.scheme and url_parts.scheme in uses_relative:
-        return url_parts.geturl()
-    elif base_url is None:
-        pathname = os.path.abspath(url_parts.geturl())
-        return urljoin(u'file:', pathname2url(pathname))
-    else:
+    def add_trailing_slash(url):
+        r = urlsplit(url)
+        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[-1] != '/' else r[2], r[3], r[4]))
+
+    if base_url is not None:
         base_url_parts = urlsplit(base_url)
-        if base_url_parts.scheme and base_url_parts.scheme in uses_relative:
-            pathname = os.path.abspath(os.path.join(base_url_parts.path, pathname2url(url)))
-            return urlunsplit((
-                base_url_parts.scheme,
-                base_url_parts.netloc,
-                pathname,
-                base_url_parts.query,
-                base_url_parts.fragment
-            ))
+        if base_url_parts.scheme not in ('', 'file'):
+            url = urljoin(add_trailing_slash(base_url), url)
         else:
-            pathname = os.path.abspath(os.path.join(base_url, url))
-            url_parts = urlsplit(pathname2url(pathname))
-            if url_parts.scheme and url_parts.scheme in uses_relative:
-                return url_parts.geturl()
-            else:
-                return urljoin(u'file:', url_parts.geturl())
+            # For file schemes uses the os.path.join instead of urljoin
+            url_parts = urlsplit(url)
+            if url_parts.scheme not in ('', 'file'):
+                url = urljoin(add_trailing_slash(base_url), url)
+            elif not url_parts.netloc or base_url_parts.netloc == url_parts.netloc:
+                # Join paths only if host parts (netloc) are equal
+                url = urlunsplit((
+                    '',
+                    base_url_parts.netloc,
+                    os.path.normpath(os.path.join(base_url_parts.path, url_parts.path)),
+                    url_parts.query,
+                    url_parts.fragment,
+                ))
+
+    url_parts = urlsplit(url, scheme='file')
+    if url_parts.scheme != 'file':
+        return urlunsplit((
+            url_parts.scheme,
+            url_parts.netloc,
+            pathname2url(url_parts.path),
+            url_parts.query,
+            url_parts.fragment,
+        ))
+    elif url_parts.path[:1] == '/':
+        return url_parts.geturl()
+    elif keep_relative:
+        # Unsplitting 'file' scheme URLs breaks relative paths
+        return 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
+    else:
+        return urlunsplit((
+            url_parts.scheme,
+            url_parts.netloc,
+            os.path.abspath(url_parts.path),
+            url_parts.query,
+            url_parts.fragment,
+        ))
 
 
 def fetch_resource(location, base_url=None, timeout=30):

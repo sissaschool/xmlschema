@@ -36,14 +36,29 @@ class TestResources(XMLSchemaTestCase):
 
         parent_url = 'file://' + os.path.dirname(os.getcwd())
         self.assertEqual(normalize_url('../dir1/./dir2'), os.path.join(parent_url, 'dir1/dir2'))
-        self.assertEqual(normalize_url('../dir1/./dir2', '/home'), 'file:///dir1/dir2')
+        self.assertEqual(normalize_url('../dir1/./dir2', '/home', keep_relative=True), 'file:///dir1/dir2')
         self.assertEqual(normalize_url('../dir1/./dir2', 'file:///home'), 'file:///dir1/dir2')
+
+        self.assertEqual(normalize_url('other.xsd', 'file:///home'), 'file:///home/other.xsd')
+        self.assertEqual(normalize_url('other.xsd', 'file:///home/'), 'file:///home/other.xsd')
+        self.assertEqual(normalize_url('file:other.xsd', 'file:///home'), 'file:///home/other.xsd')
+
+        abs_path = 'file://{}/'.format(os.getcwd())
+        self.assertEqual(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
+        self.assertEqual(normalize_url('file:other.xsd'), abs_path + 'other.xsd')
+        self.assertEqual(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
+        self.assertEqual(normalize_url('file:other.xsd', 'http://site/base'), abs_path + 'other.xsd')
+
+        self.assertEqual(normalize_url('dummy path.xsd'), abs_path + 'dummy path.xsd')
+        self.assertEqual(normalize_url('dummy path.xsd', 'http://site/base'), 'http://site/base/dummy%20path.xsd')
+        self.assertEqual(normalize_url('dummy path.xsd', 'file://host/home/'), 'file://host/home/dummy path.xsd')
+
 
     def test_fetch_resource(self):
         wrong_path = os.path.join(self.test_dir, 'resources/dummy_file.txt')
         self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
         right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
-        self.assertTrue(fetch_resource(right_path).endswith('y%20file.txt'))
+        self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
 
     def test_fetch_namespaces(self):
         self.assertFalse(fetch_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
@@ -66,6 +81,13 @@ class TestResources(XMLSchemaTestCase):
         resource = XMLResource(self.col_schema_file)
         self.assertEqual(resource.url, normalize_url(self.col_schema_file))
         self.assertEqual(resource.get_namespaces().keys(), {'', 'xs'})
+
+    def test_class_get_locations(self):
+        resource = XMLResource(self.col_xml_file)
+        self.assertEqual(resource.url, normalize_url(self.col_xml_file))
+        locations = resource.get_locations([('ns', 'other.xsd')])
+        self.assertEqual(len(locations), 2)
+        self.assertEqual(locations[0][1], 'file://{}/other.xsd'.format(self.col_dir))
 
 
 if __name__ == '__main__':
