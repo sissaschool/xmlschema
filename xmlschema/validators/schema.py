@@ -337,6 +337,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     @property
     def text(self):
         """XML text of the schema."""
+        if self.source.text is None:
+            self.source.load()
         return self.source.text
 
     @property
@@ -762,11 +764,11 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         elif not self.elements:
             raise XMLSchemaValueError("decoding needs at least one XSD element declaration!")
 
-        defuse = defuse or self.defuse
-        timeout = timeout or self.timeout
         if not isinstance(source, XMLResource):
+            defuse = defuse or self.defuse
+            timeout = timeout or self.timeout
             source = XMLResource(source=source, defuse=defuse, timeout=timeout, lazy=False)
-        else:
+        elif defuse and source.defuse != defuse or timeout and source.timeout != timeout:
             source = source.copy(defuse=defuse, timeout=timeout, lazy=False)
 
         if process_namespaces:
