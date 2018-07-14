@@ -266,6 +266,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
+    def is_needless(self, parent_group):
+        if not self:
+            return True
+        elif self.min_occurs != 1 or self.max_occurs != 1:
+            return False
+        elif len(self) == 1:
+            return True
+        elif self.model == XSD_SEQUENCE_TAG and parent_group.model != XSD_SEQUENCE_TAG:
+            return False
+        elif self.model == XSD_CHOICE_TAG and parent_group.model != XSD_CHOICE_TAG:
+            return False
+        else:
+            return True
+
     def is_restriction(self, other, check_particle=True):
         if not isinstance(other, XsdGroup):
             return False
@@ -309,22 +323,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
     def iter_group(self):
         for item in self:
-            if not isinstance(item, XsdGroup) or item.is_global:
+            if not isinstance(item, XsdGroup):
                 yield item
-            elif item:
-                if item.min_occurs != 1 or item.max_occurs != 1:
-                    yield item
-                elif len(item) > 1:
-                    if item.model == XSD_SEQUENCE_TAG and self.model != XSD_SEQUENCE_TAG:
-                        yield item
-                    elif item.model == XSD_CHOICE_TAG and self.model != XSD_CHOICE_TAG:
-                        yield item
-                    else:
-                        for obj in item.iter_group():
-                            yield obj
-                else:
-                    for obj in item.iter_group():
-                        yield obj
+            elif item.is_global or not item.is_needless(self):
+                yield item
+            else:
+                for obj in item.iter_group():
+                    yield obj
 
     def iter_elements(self):
         for item in self:

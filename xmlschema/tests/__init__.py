@@ -40,7 +40,7 @@ def has_network_access(*locations):
     for url in locations:
         try:
             urlopen(url, timeout=5)
-        except URLError:
+        except (URLError, OSError):
             pass
         else:
             return True

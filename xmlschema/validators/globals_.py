@@ -409,7 +409,7 @@ class XsdGlobals(XsdBaseComponent):
                     constraint.parse_refer()
 
                 # Check for illegal restrictions
-                # TODO: Complete is_restriction() methods before enabling this check
+                # TODO: Fix for XsdGroup.is_restriction() method is needed before enabling this check
                 # if schema.validation != 'skip':
                 #     for xsd_type in schema.iter_components(XsdComplexType):
                 #         xsd_type.check_restriction()
