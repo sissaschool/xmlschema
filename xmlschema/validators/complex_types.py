@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..etree import etree_element
-from ..converters import ElementData
 from ..qnames import (
     get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
@@ -96,7 +95,7 @@ class XsdComplexType(XsdType, ValidatorMixin):
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
             # complexType with empty content
-            self.content_type = self.schema.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema)
+            self.content_type = self.schema.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema, mixed=self.mixed)
             self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
 
         elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
@@ -437,9 +436,13 @@ class XsdComplexType(XsdType, ValidatorMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Generator method for decoding complexType elements. A 3-tuple (simple content,
-        complex content, attributes) containing the decoded parts is returned, eventually
-        preceded by a sequence of validation/decode errors.
+        Decode an Element instance.
+
+        :param elem: The Element that has to be decoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the decoding process.
+        :return: Yields a 3-tuple (simple content, complex content, attributes) containing \
+        the decoded parts, eventually preceded by a sequence of validation or decoding errors.
         """
         # Decode attributes
         for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
@@ -475,9 +478,18 @@ class XsdComplexType(XsdType, ValidatorMixin):
                 else:
                     yield None, result, attributes
 
-    def iter_encode(self, data, validation='lax', **kwargs):
+    def iter_encode(self, element_data, validation='lax', **kwargs):
+        """
+        Encode an element data instance.
+
+        :param element_data: An ElementData instance with unencoded data.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the encoding process.
+        :return: Yields a 3-tuple (text, content, attributes) containing the encoded parts,
+        eventually preceded by a sequence of validation or decoding errors.
+        """
         # Encode attributes
-        for result in self.attributes.iter_encode(data.attributes, validation, **kwargs):
+        for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
@@ -488,23 +500,23 @@ class XsdComplexType(XsdType, ValidatorMixin):
 
         if self.has_simple_content():
             # Encode a simple content element
-            if data.text is None:
-                yield ElementData(None, None, data.content, attributes)
+            if element_data.text is None:
+                yield None, element_data.content, attributes
             else:
-                for result in self.content_type.iter_encode(data.text, validation, **kwargs):
+                for result in self.content_type.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
-                        yield ElementData(None, result, data.content, attributes)
+                        yield result, element_data.content, attributes
         else:
             # Encode a complex content element
-            for result in self.content_type.iter_encode(data.content, validation, **kwargs):
+            for result in self.content_type.iter_encode(element_data.content, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif result:
-                    yield ElementData(None, result[0], result[1], attributes)
+                    yield result[0], result[1], attributes
                 else:
-                    yield ElementData(None, None, None, attributes)
+                    yield None, None, attributes
 
 
 class Xsd11ComplexType(XsdComplexType):

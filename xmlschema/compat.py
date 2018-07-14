@@ -12,6 +12,7 @@
 This module contains imports and definitions for Python 2 and 3 compatibility.
 """
 import sys
+from collections import OrderedDict
 
 try:
     # Python 3 imports
@@ -27,17 +28,20 @@ except ImportError:
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
 
 
-PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 
 if PY3:
     long_type = int
+    string_base_type = str
     unicode_type = str
     unicode_chr = chr
 else:
     long_type = long
+    string_base_type = basestring
     unicode_type = unicode
     unicode_chr = unichr
+
+ordered_dict_class = dict if sys.version_info >= (3, 6) else OrderedDict
 
 
 def add_metaclass(metaclass):

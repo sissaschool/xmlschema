@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
-from ..etree import etree_element, etree_iselement
+from ..etree import etree_element, is_etree_element
 from ..qnames import (
     xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ANY_TAG,
     XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ANY_TYPE,
@@ -469,7 +469,7 @@ def xsd_build_facets(items, base_type, schema, keys):
     for obj in items:
         if isinstance(obj, (list, tuple, set)):
             facets.update([(k, None) for k in obj if k in keys])
-        elif etree_iselement(obj):
+        elif is_etree_element(obj):
             if obj.tag in keys:
                 if obj.tag == XSD_PATTERN_TAG:
                     facets[obj.tag] = XsdPatternsFacet(base_type, obj, schema)

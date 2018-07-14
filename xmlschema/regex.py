@@ -16,7 +16,7 @@ from collections import MutableSet
 from sys import maxunicode
 
 from .compat import PY3, unicode_type
-from .exceptions import XMLSchemaRegexError
+from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 
 _UNICODE_SUBSETS = UNICODE_CATEGORIES.copy()
@@ -261,7 +261,7 @@ def get_python_regex(xml_regex, debug=False):
                 start_pos = pos - 1
                 try:
                     if xml_regex[pos + 1] != '{':
-                        raise ValueError()
+                        raise XMLSchemaValueError("a '{' expected, found %r." % xml_regex[pos + 1])
                     while xml_regex[pos] != '}':
                         pos += 1
                 except (IndexError, ValueError):

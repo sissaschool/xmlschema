@@ -15,8 +15,8 @@ from collections import Sequence
 from decimal import Decimal
 
 from ..compat import unicode_type
-from ..exceptions import XMLSchemaAttributeError
-from ..etree import etree_element, etree_iselement
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaIndexError
+from ..etree import etree_element, is_etree_element
 from ..converters import ElementData
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
@@ -71,7 +71,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         try:
             elements = [e for e in self.type.content_type.iter_elements()]
         except AttributeError:
-            raise IndexError('child index out of range')
+            raise XMLSchemaIndexError('child index out of range')
         return elements[i]
 
     def __iter__(self):
@@ -244,7 +244,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 error.schema_elem = self.type.elem
             else:
                 error.schema_elem = self.elem
-        if error.elem is None and etree_iselement(obj):
+        if error.elem is None and is_etree_element(obj):
             error.elem = obj
         return super(XsdElement, self)._validation_error(error, validation)
 
@@ -323,19 +323,31 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def match(self, name):
-        return self.name == name or not self.qualified and self.local_name == name
+    def match(self, name, default_namespace=None):
+        if name[0] == '{':
+            return self.name == name
+        elif default_namespace:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
+        else:
+            return self.name == name or not self.qualified and self.local_name == name
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Generator method for decoding elements. A data structure is returned, eventually
-        preceded by a sequence of validation or decode errors.
+        Decode an Element instance.
+
+        :param elem: The Element that has to be decoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the decoding process.
+        :return: Yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
         """
         try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
+        level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
@@ -358,11 +370,18 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
-            for result in type_.iter_decode(elem, validation, **kwargs):
+            for result in type_.iter_decode(elem, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self._validation_error(result, validation, elem)
                 else:
-                    yield converter.element_decode(ElementData(elem.tag, *result), self)
+                    if isinstance(result[0], Decimal):
+                        try:
+                            element_data = ElementData(elem.tag, kwargs.get('decimal_type')(result[0]), *result[1:])
+                        except TypeError:
+                            element_data = ElementData(elem.tag, *result)
+                    else:
+                        element_data = ElementData(elem.tag, *result)
+                    yield converter.element_decode(element_data, self, level)
                     del result
         else:
             # simpleType
@@ -408,7 +427,8 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                                 result = kwargs.get('decimal_type')(result)
                             except TypeError:
                                 pass
-                        yield converter.element_decode(ElementData(elem.tag, result, None, attributes), self)
+                        element_data = ElementData(elem.tag, result, None, attributes)
+                        yield converter.element_decode(element_data, self, level)
                         del result
 
         if validation != 'skip':
@@ -417,6 +437,15 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield self._validation_error(error, validation)
 
     def iter_decode_children(self, elem, index=0, validation='lax'):
+        """
+        Generator function for decoding the children of an element. Before ending the generator
+        yields the last index used by inner validators.
+
+        :param elem: The parent Element.
+        :param index: Start child index, 0 for default.
+        :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
+        :return: Yields a sequence of values that can be tuples and/or errors and an integer at the end.
+        """
         model_occurs = 0
         while True:
             try:
@@ -467,16 +496,23 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 yield index
                 return
 
-    def iter_encode(self, data, validation='lax', **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
+        """
+        Encode data to an Element.
+
+        :param obj: The data that has to be encoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
+        :param kwargs: Keyword arguments for the encoding process.
+        :return: Yields an Element, eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
         try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        _etree_element = kwargs.get('etree_element') or etree_element
 
         level = kwargs.pop('level', 0)
-        indent = kwargs.get('indent', 4)
-        element_data = converter.element_encode(data, self)
+        element_data = converter.element_encode(obj, self, level)
 
         try:
             type_name = element_data.attributes[XSI_TYPE]
@@ -488,47 +524,37 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         if type_.is_complex():
             for result in type_.iter_encode(element_data, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
-                    yield self._validation_error(result, validation, data)
+                    yield self._validation_error(result, validation, obj)
                 else:
-                    elem = _etree_element(self.name, attrib=converter.dict(result.attributes))
-                    if result.content:
-                        elem.extend(result.content)
-                        elem.text = result.text or u'\n' + u' ' * indent * (level + 1)
-                        elem.tail = u'\n' + u' ' * indent * level
-                    else:
-                        elem.text = result.text
-                        elem.tail = u'\n' + u' ' * indent * level
-                    yield elem
+                    yield converter.etree_element(element_data.tag, *result, level=level)
                     break
             else:
-                yield _etree_element(self.name)
+                yield converter.etree_element(element_data.tag, level=level)
         else:
             # Encode a simpleType
-            if element_data.attributes:
-                for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
+            for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    attributes = result
+                    break
+            else:
+                attributes = None
 
             if element_data.content:
-                yield self._validation_error("a simpleType element can't has child elements.", validation, data)
+                yield self._validation_error("a simpleType element can't has child elements.", validation, obj)
 
             if element_data.text is None:
-                elem = _etree_element(self.name, attrib=element_data.attributes)
-                elem.text = None
-                elem.tail = u'\n' + u' ' * indent * level
-                yield elem
+                yield converter.etree_element(element_data.tag, attrib=attributes, level=level)
             else:
                 for result in type_.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
-                        yield self._validation_error(result, validation, data)
+                        yield self._validation_error(result, validation, obj)
                     else:
-                        elem = _etree_element(self.name, attrib=element_data.attributes)
-                        elem.text = result
-                        elem.tail = u'\n' + u' ' * indent * level
-                        yield elem
+                        yield converter.etree_element(element_data.tag, result, attrib=attributes, level=level)
                         break
                 else:
-                    yield _etree_element(self.name, attrib=element_data.attributes)
+                    yield converter.etree_element(element_data.tag, attrib=attributes, level=level)
 
         del element_data
 
@@ -542,13 +568,20 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             yield self
         try:
             for xsd_element in self.type.content_type.iter_elements():
-                if xsd_element.ref is None:
+                if xsd_element.ref is None and not xsd_element.is_global:
+                    elements = []
                     for e in xsd_element.iter(tag):
-                        yield e
+                        if e in elements:
+                            break
+                        else:
+                            elements.append(e)
+                            yield e
                 elif tag is None or xsd_element.name == tag:
                     yield xsd_element
         except (TypeError, AttributeError):
+            # If has a simple type or simple content or xsd_element is an XsdAnyElement
             return
+
 
     def iterchildren(self, tag=None):
         try:

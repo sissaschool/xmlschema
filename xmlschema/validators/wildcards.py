@@ -13,7 +13,7 @@ This module contains classes for XML Schema wildcards.
 """
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
-from .exceptions import XMLSchemaChildrenValidationError
+from .exceptions import XMLSchemaChildrenValidationError, XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
 
@@ -22,6 +22,11 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
 
     def __init__(self, elem, schema):
         super(XsdWildcard, self).__init__(elem, schema, is_global=False)
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents
+        )
 
     def _parse(self):
         super(XsdWildcard, self)._parse()
@@ -41,17 +46,36 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
-    def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents
-        )
+    def _load_namespace(self, namespace):
+        if namespace in self.schema.maps.namespaces:
+            return
+
+        for url in self.schema.get_locations(namespace):
+            try:
+                schema = self.schema.import_schema(namespace, url, base_url=self.schema.base_url)
+                if schema is not None:
+                    try:
+                        schema.maps.build()
+                    except XMLSchemaNotBuiltError:
+                        # Namespace build fails: remove unbuilt schemas and the url hint
+                        schema.maps.clear(remove_schemas=True, only_unbuilt=True)
+                        self.schema.locations[namespace].remove(url)
+                    else:
+                        break
+            except (OSError, IOError):
+                pass
 
     @property
     def built(self):
         return True
 
-    def match(self, name):
-        return self.is_namespace_allowed(get_namespace(name))
+    def match(self, name, default_namespace=None):
+        if name[0] == '{':
+            return self.is_namespace_allowed(get_namespace(name))
+        elif default_namespace is None:
+            return self.is_namespace_allowed('')
+        else:
+            return self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace):
         if self.namespace == '##any' or namespace == XSI_NAMESPACE:
@@ -69,6 +93,16 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
                 return True
             else:
                 return namespace in any_namespaces
+
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
+
+    def iter_decode(self, source, validation='lax', *args, **kwargs):
+        raise NotImplementedError
+
+    def iter_encode(self, obj, validation='lax', *args, **kwargs):
+        raise NotImplementedError
 
 
 class XsdAnyElement(XsdWildcard, ParticleMixin):
@@ -100,7 +134,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
         if self.process_contents == 'skip':
             return
 
-        if self.match(elem.tag):
+        namespace = get_namespace(elem.tag)
+        if self.is_namespace_allowed(namespace):
+            self._load_namespace(namespace)
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
@@ -109,7 +145,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
             else:
                 for result in xsd_element.iter_decode(elem, validation, **kwargs):
                     yield result
-
         elif validation != 'skip':
             yield self._validation_error("element %r not allowed here." % elem.tag, validation, elem)
 
@@ -134,28 +169,30 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
                 yield index
                 return
             else:
-                namespace = get_namespace(child.tag)
-
-                if not self.is_namespace_allowed(namespace):
-                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                        error = XMLSchemaChildrenValidationError(self, elem, index)
-                        yield self._validation_error(error, validation)
-                    yield index
-                    return
-
-                try:
-                    xsd_element = self.maps.lookup_element(child.tag)
-                except LookupError:
-                    if validation != 'skip' and process_contents == 'strict':
-                        yield self._validation_error(
-                            "cannot retrieve the schema for %r" % child, validation, elem
-                        )
+                if process_contents == 'skip':
                     yield None, child
                 else:
-                    if process_contents != 'skip':
-                        yield xsd_element, child
-                    else:
+                    namespace = get_namespace(child.tag)
+
+                    if not self.is_namespace_allowed(namespace):
+                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
+                            error = XMLSchemaChildrenValidationError(self, elem, index)
+                            yield self._validation_error(error, validation)
+                        yield index
+                        return
+
+                    self._load_namespace(namespace)
+
+                    try:
+                        xsd_element = self.maps.lookup_element(child.tag)
+                    except LookupError:
+                        if validation != 'skip' and process_contents == 'strict':
+                            yield self._validation_error(
+                                "cannot retrieve the schema for %r" % child, validation, elem
+                            )
                         yield None, child
+                    else:
+                        yield xsd_element, child
 
             index += 1
             model_occurs += 1
@@ -163,12 +200,14 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
                 yield index
                 return
 
-    def iter_encode(self, data, validation='lax', *args, **kwargs):
+    def iter_encode(self, obj, validation='lax', *args, **kwargs):
         if self.process_contents == 'skip':
             return
 
-        name, value = data
-        if self.match(name):
+        name, value = obj
+        namespace = get_namespace(name)
+        if self.is_namespace_allowed(namespace):
+            self._load_namespace(namespace)
             try:
                 xsd_element = self.maps.lookup_element(name)
             except LookupError:
@@ -177,7 +216,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin):
             else:
                 for result in xsd_element.iter_encode(value, validation, **kwargs):
                     yield result
-
         elif validation != 'skip':
             yield self._validation_error("element %r not allowed here." % name, validation, value)
 
@@ -203,22 +241,43 @@ class XsdAnyAttribute(XsdWildcard):
     def admitted_tags(self):
         return {XSD_ANY_ATTRIBUTE_TAG}
 
-    def iter_decode(self, attrs, validation='lax', **kwargs):
+    def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
-        for name, value in attrs.items():
-            if self.match(name):
-                try:
-                    xsd_attribute = self.maps.lookup_attribute(name)
-                except LookupError:
-                    if self.process_contents == 'strict' and validation != 'skip':
-                        yield self._validation_error("attribute %r not found." % name, validation, attrs)
-                else:
-                    for result in xsd_attribute.iter_decode(value, validation, **kwargs):
-                        yield result
-            elif validation != 'skip':
-                yield self._validation_error("attribute %r not allowed." % name, validation, attrs)
+        name, value = attribute
+        namespace = get_namespace(name)
+        if self.is_namespace_allowed(namespace):
+            self._load_namespace(namespace)
+            try:
+                xsd_attribute = self.maps.lookup_attribute(name)
+            except LookupError:
+                if self.process_contents == 'strict' and validation != 'skip':
+                    yield self._validation_error("attribute %r not found." % name, validation, attribute)
+            else:
+                for result in xsd_attribute.iter_decode(value, validation, **kwargs):
+                    yield result
+        elif validation != 'skip':
+            yield self._validation_error("attribute %r not allowed." % name, validation, attribute)
+
+    def iter_encode(self, attribute, validation='lax', *args, **kwargs):
+        if self.process_contents == 'skip':
+            return
+
+        name, value = attribute
+        namespace = get_namespace(name)
+        if self.is_namespace_allowed(namespace):
+            self._load_namespace(namespace)
+            try:
+                xsd_attribute = self.maps.lookup_attribute(name)
+            except LookupError:
+                if self.process_contents == 'strict' and validation != 'skip':
+                    yield self._validation_error("attribute %r not found." % name, validation, attribute)
+            else:
+                for result in xsd_attribute.iter_encode(value, validation, **kwargs):
+                    yield result
+        elif validation != 'skip':
+            yield self._validation_error("attribute %r not allowed." % name, validation, attribute)
 
 
 class Xsd11Wildcard(XsdWildcard):
@@ -248,7 +307,7 @@ class Xsd11Wildcard(XsdWildcard):
         # Parse notQName attribute
         try:
             not_qname = self.elem.attrib['notQName'].strip()
-        except:
+        except KeyError:
             self.not_qname = None
         else:
             if not_qname in ('##defined', '##definedSibling'):

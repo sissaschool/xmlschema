@@ -537,7 +537,7 @@ def get_unicode_categories(filename=None):
 
     try:
         if maxunicode < UCS4_MAXUNICODE:
-            raise ValueError()
+            raise XMLSchemaValueError()
         with open(filename, 'r') as fp:
             categories = json.load(fp)
     except (IOError, SystemError, ValueError):

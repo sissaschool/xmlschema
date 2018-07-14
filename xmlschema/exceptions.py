@@ -43,6 +43,10 @@ class XMLSchemaKeyError(XMLSchemaException, KeyError):
     pass
 
 
+class XMLSchemaIndexError(XMLSchemaException, ImportError):
+    pass
+
+
 class XMLSchemaURLError(XMLSchemaException, URLError):
     pass
 

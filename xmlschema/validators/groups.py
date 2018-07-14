@@ -16,6 +16,7 @@ from collections import MutableSequence
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..etree import etree_child_index, etree_element
+from ..namespaces import get_namespace
 from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
@@ -265,6 +266,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
+    def is_needless(self, parent_group):
+        if not self:
+            return True
+        elif self.min_occurs != 1 or self.max_occurs != 1:
+            return False
+        elif len(self) == 1:
+            return True
+        elif self.model == XSD_SEQUENCE_TAG and parent_group.model != XSD_SEQUENCE_TAG:
+            return False
+        elif self.model == XSD_CHOICE_TAG and parent_group.model != XSD_CHOICE_TAG:
+            return False
+        else:
+            return True
+
     def is_restriction(self, other, check_particle=True):
         if not isinstance(other, XsdGroup):
             return False
@@ -308,22 +323,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
     def iter_group(self):
         for item in self:
-            if not isinstance(item, XsdGroup) or item.is_global:
+            if not isinstance(item, XsdGroup):
                 yield item
-            elif item:
-                if item.min_occurs != 1 or item.max_occurs != 1:
-                    yield item
-                elif len(item) > 1:
-                    if item.model == XSD_SEQUENCE_TAG and self.model != XSD_SEQUENCE_TAG:
-                        yield item
-                    elif item.model == XSD_CHOICE_TAG and self.model != XSD_CHOICE_TAG:
-                        yield item
-                    else:
-                        for obj in item.iter_group():
-                            yield obj
-                else:
-                    for obj in item.iter_group():
-                        yield obj
+            elif item.is_global or not item.is_needless(self):
+                yield item
+            else:
+                for obj in item.iter_group():
+                    yield obj
 
     def iter_elements(self):
         for item in self:
@@ -337,9 +343,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Generator method for decoding complex content elements. A list of 3-tuples
-        (key, decoded data, decoder) is returned, eventually preceded by a sequence
-        of validation/decode errors.
+        Decode the content of an Element.
+
+        :param elem: The Element that has to be decoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the decoding process.
+        :return: Yields a list of 3-tuples (key, decoded data, decoder), eventually \
+        preceded by a sequence of validation or decoding errors.
         """
         def not_whitespace(s):
             return s is not None and s.strip()
@@ -443,10 +453,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         Generator function for decoding the children of an element. Before ending the generator
         yields the last index used by inner validators.
 
-        :param elem: Element node.
+        :param elem: The parent Element.
         :param index: Start child index, 0 for default.
         :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
-        :return: Generates a sequence of values that can be tuples and/or errors and an integer.
+        :return: Yields a sequence of values that can be tuples and/or errors and an integer at the end.
         """
         if not len(self):
             return  # Skip empty groups!
@@ -525,25 +535,33 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
 
         yield index
 
+    def iter_encode(self, obj, validation='lax', **kwargs):
+        """
+        Encode data to the text and the content of an Element.
 
-    def iter_encode(self, data, validation='lax', **kwargs):
-        if data is None:
+        :param obj: The data that has to be encoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: Keyword arguments for the encoding process.
+        :return: Yields a couple with the text of the Element and a list of 3-tuples \
+        (key, decoded data, decoder), eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
+        if obj is None:
+            yield None
             return
 
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
+        padding = u'\n' + u' ' * indent * level
+
         try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-        namespaces = kwargs.get('namespaces')
-
-        padding = u'\n' + u' ' * indent * level
 
         text = ''
-        empty_prefix_ns = namespaces.get('') if namespaces else None
-        for name, value in data:
+        for name, value in obj:
             if isinstance(name, int):
                 if children:
                     if children[-1].tail is None:
@@ -553,25 +571,24 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 else:
                     text += padding + value
             else:
-                if ':' not in name and empty_prefix_ns:
-                    qname = '{%s}%s' % (empty_prefix_ns, name)
-                else:
-                    qname = None
-
                 for xsd_element in self.iter_elements():
-                    if xsd_element.match(name) or qname and xsd_element.match(qname):
-                        if isinstance(xsd_element, XsdAnyElement):
-                            for result in xsd_element.iter_encode((qname or name, value), validation, **kwargs):
+                    if isinstance(xsd_element, XsdAnyElement):
+                        namespace = get_namespace(name) or converter.get('', '')
+                        if xsd_element.is_namespace_allowed(namespace):
+                            if name[0] != '{' and namespace:
+                                name = '{%s}%s' % (namespace, name)
+                            for result in xsd_element.iter_encode((name, value), validation, **kwargs):
                                 if isinstance(result, XMLSchemaValidationError):
                                     yield result
                                 else:
                                     children.append(result)
-                        else:
-                            for result in xsd_element.iter_encode(value, validation, **kwargs):
-                                if isinstance(result, XMLSchemaValidationError):
-                                    yield result
-                                else:
-                                    children.append(result)
+                            break
+                    elif xsd_element.match(name, converter.get('')):
+                        for result in xsd_element.iter_encode(value, validation, **kwargs):
+                            if isinstance(result, XMLSchemaValidationError):
+                                yield result
+                            else:
+                                children.append(result)
                         break
                 else:
                     if validation != 'skip':

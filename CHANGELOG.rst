@@ -2,67 +2,75 @@
 CHANGELOG
 *********
 
-v0.9.31
-=======
+v1.0.0 (2018-07-14)
+===================
+* Validated data encoding to XML
+* Improved converters with decoding/encoding of namespace information
+* Added helper functions for encoding and decoding to JSON
+* Added XMLResource class for managing access to XML data sources
+* Added warnings for failed schema includes and namespace imports
+
+v0.9.31 (2018-06-24)
+====================
 * Schema serialization with pickle for Python 3 (enhancement related to issue #68)
 * Data encoding with the default converter
 * Improved decoding for xs:union
 
-v0.9.30
-=======
+v0.9.30 (2018-06-06)
+====================
 * First experimental version of data encoding with the default converter
 * Fixes for issues #65, #66 and #67
 
-v0.9.29
-=======
+v0.9.29 (2018-06-03)
+====================
 * Extended the tests on lxml XML data
 * Fixes for issues #61, #63 and #64
 
-v0.9.28
-=======
+v0.9.28 (2018-05-18)
+====================
 * Encoding of XSD builtin types (strings and numerical)
 * Fix for issue #62
 * Drop support for Python 3.3
 
-v0.9.27
-=======
+v0.9.27 (2018-05-08)
+====================
 * Add support for preventing XML attacks with the use of the
   *defusedxml* package (added *defuse* argument to schemas)
 * Fix for group circularity (issue #58)
 * Fix for billion laughs attacks using XSD groups expansion
 
-v0.9.26
-=======
+v0.9.26 (2018-04-12)
+====================
 * Added checks for model restrictions
 
-v0.9.25
-=======
+v0.9.25 (2018-04-05)
+====================
 * Removed XsdAnnotated class
 * Added XsdType class as common class for XSD types
 * Fixes for issues #55 and #56
 
-v0.9.24
-=======
+v0.9.24 (2018-04-03)
+====================
 * Added XPath 1.0/2.0 full parsing with the derived *elementpath* package
 * Fixes for issues #52 and #54
 * Test package improved (tox.ini, other checks with test_package.py)
 
-v0.9.23
-=======
+v0.9.23 (2018-03-10)
+====================
 * Fixes for issues #45, #46, #51
 * Added kwargs to *iter_decode()*, *dict_class* and *list_class* arguments have
   been removed
 * Added kwargs to converters initialization in order to push variable keyword
   arguments from *iter_decode()*
 
-v0.9.21
-=======
+v0.9.21 (2018-02-15)
+====================
 * Fixes 'final' derivation attribute for complexType
 * Decoupling of the XPath module from XsdComponent API
 * Fix for issue #41
 
-v0.9.20
-=======
+v0.9.20 (2018-01-22)
+====================
 * Substitution groups support
 * Added *fetch_schema_locations* function to API
 * Added *locations* argument to *fetch_schema*, *validate* and *to_dict* API functions

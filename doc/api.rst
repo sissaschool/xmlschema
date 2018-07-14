@@ -1,12 +1,18 @@
 API Documentation
 =================
 
-Module level API
-----------------
+.. _document-level-api:
+
+Document level API
+------------------
 
 .. autofunction:: xmlschema.validate
 .. autofunction:: xmlschema.to_dict
+.. autofunction:: xmlschema.to_json
+.. autofunction:: xmlschema.from_json
 
+
+.. _schema-level-api:
 
 Schema level API
 ----------------
@@ -20,6 +26,10 @@ Schema level API
 
 .. autoclass:: xmlschema.XMLSchemaBase
 
+    .. autoattribute:: root
+    .. autoattribute:: text
+    .. autoattribute:: url
+
     .. autoattribute:: id
     .. autoattribute:: version
     .. autoattribute:: attribute_form_default
@@ -30,12 +40,13 @@ Schema level API
     .. autoattribute:: target_prefix
     .. autoattribute:: base_url
     .. autoattribute:: parent_map
-    .. autoattribute:: base_elements
+    .. autoattribute:: root_elements
 
     .. automethod:: get_locations
     .. automethod:: include_schema
     .. automethod:: import_schema
     .. automethod:: create_schema
+    .. automethod:: get_converter
 
     .. automethod:: check_schema
     .. automethod:: build
@@ -48,11 +59,17 @@ Schema level API
 
     .. automethod:: validate
     .. automethod:: is_valid
+    .. automethod:: iter_errors
     .. automethod:: decode
-    .. automethod:: get_converter
 
-    .. autoattribute:: to_dict
-        :annotate: = An alias for :classmethod:`decode`.
+    .. _schema-iter_decode:
+
+    .. automethod:: iter_decode
+    .. automethod:: encode
+
+    .. _schema-iter_encode:
+
+    .. automethod:: iter_encode
 
     .. automethod:: iter
     .. automethod:: iterchildren
@@ -67,27 +84,68 @@ XSD globals maps API
 .. autoclass:: xmlschema.XsdGlobals
     :members: copy, register, iter_schemas, iter_globals, clear, build
 
+
+.. _xml-schema-converters:
+
 XML Schema converters
 ---------------------
 
 The base class `XMLSchemaConverter` is used for defining generic converters.
-The subclasses implement some of the most used conventions for converting XML
-to JSON data.
+The subclasses implement some of the most used `conventions for converting XML
+to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
-.. autoclass:: xmlschema.converters.XMLSchemaConverter
-    :members: element_decode
+.. autoclass:: xmlschema.converters.ElementData
 
-.. autoclass:: xmlschema.converters.ParkerConverter
+.. autoclass:: xmlschema.XMLSchemaConverter
 
-.. autoclass:: xmlschema.converters.BadgerFishConverter
+    .. autoattribute:: lossless
+    .. autoattribute:: losslessly
 
-.. autoclass:: xmlschema.converters.AbderaConverter
+    .. automethod:: copy
+    .. automethod:: map_attributes
+    .. automethod:: map_content
+    .. automethod:: etree_element
+    .. automethod:: element_decode
+    .. automethod:: element_encode
 
-.. autoclass:: xmlschema.converters.JsonMLConverter
+.. autoclass:: xmlschema.ParkerConverter
 
+.. autoclass:: xmlschema.BadgerFishConverter
+
+.. autoclass:: xmlschema.AbderaConverter
+
+.. autoclass:: xmlschema.JsonMLConverter
+
+
+.. _resource-access-api:
 
 Resource access API
 -------------------
+
+.. autoclass:: xmlschema.XMLResource
+    :members: source, defuse, timeout, lazy
+
+    .. autoattribute:: root
+    .. autoattribute:: document
+    .. autoattribute:: text
+    .. autoattribute:: url
+    .. autoattribute:: base_url
+    .. autoattribute:: namespace
+    .. autoattribute:: parse
+    .. autoattribute:: iterparse
+    .. autoattribute:: fromstring
+
+    .. automethod:: copy
+    .. automethod:: tostring
+    .. automethod:: open
+    .. automethod:: load
+    .. automethod:: is_lazy
+    .. automethod:: is_loaded
+    .. automethod:: iter
+    .. automethod:: iter_location_hints
+    .. automethod:: get_namespaces
+    .. automethod:: get_locations
+
 
 .. autofunction:: xmlschema.fetch_resource
 .. autofunction:: xmlschema.fetch_schema
@@ -95,6 +153,8 @@ Resource access API
 .. autofunction:: xmlschema.load_xml_resource
 .. autofunction:: xmlschema.normalize_url
 
+
+.. _errors-and-exceptions:
 
 Errors and exceptions
 ---------------------

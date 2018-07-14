@@ -13,7 +13,6 @@ This module contains namespace related constants, functions and classes.
 """
 import re
 from collections import Mapping, MutableMapping
-from .compat import urlsplit
 
 _RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
 
@@ -51,26 +50,30 @@ def get_namespace(name):
         return ''
 
 
-class URIDict(MutableMapping):
+class NamespaceResourcesMap(MutableMapping):
     """
-    Dictionary which uses normalized URIs as keys.
+    Dictionary for storing information about namespace resources. The values are
+    lists of strings. Setting an existing value appends the string to the value.
+    Setting a value with a list sets/replaces the value.
     """
-    @staticmethod
-    def normalize(uri):
-        return urlsplit(uri).geturl()
-
     def __init__(self, *args, **kwargs):
         self._store = dict()
-        self._store.update(*args, **kwargs)
+        self.update(*args, **kwargs)
 
     def __getitem__(self, uri):
-        return self._store[self.normalize(uri)]
+        return self._store[uri]
 
     def __setitem__(self, uri, value):
-        self._store[self.normalize(uri)] = value
+        if isinstance(value, list):
+            self._store[uri] = value
+        else:
+            try:
+                self._store[uri].append(value)
+            except KeyError:
+                self._store[uri] = [value]
 
     def __delitem__(self, uri):
-        del self._store[self.normalize(uri)]
+        del self._store[uri]
 
     def __iter__(self):
         return iter(self._store)
@@ -85,72 +88,64 @@ class URIDict(MutableMapping):
         self._store.clear()
 
 
-class NamespaceResourcesMap(URIDict):
-
-    def __setitem__(self, uri, value):
-        uri = self.normalize(uri)
-        if isinstance(value, list):
-            self._store[uri] = value
-        else:
-            try:
-                self._store[uri].append(value)
-            except KeyError:
-                self._store[uri] = [value]
-
-
 class NamespaceMapper(MutableMapping):
     """
-    A class to map/unmap XML namespace URIs to prefixes. An instance
-    memorize the used prefixes.
+    A class to map/unmap namespace prefixes to URIs.
 
-    :param namespaces: The reference dictionary for namespace prefix to URI mapping.
+    :param namespaces: Initial data with namespace prefixes and URIs.
     """
-    def __init__(self, namespaces=None):
-        self._xmlns = {}
-        self.namespaces = namespaces if namespaces is not None else {}
+    def __init__(self, namespaces=None, register_namespace=None):
+        self._namespaces = {}
+        self.register_namespace = register_namespace
+        if namespaces is not None:
+            self.update(namespaces)
 
     def __getitem__(self, key):
-        return self._xmlns[key]
+        return self._namespaces[key]
 
     def __setitem__(self, key, value):
-        self._xmlns[key] = value
+        self._namespaces[key] = value
+        try:
+            self.register_namespace(key, value)
+        except (TypeError, ValueError):
+            pass
 
     def __delitem__(self, key):
-        del self._xmlns[key]
+        del self._namespaces[key]
 
     def __iter__(self):
-        return iter(self._xmlns)
+        return iter(self._namespaces)
 
     def __len__(self):
-        return len(self._xmlns)
+        return len(self._namespaces)
 
     def clear(self):
-        self._xmlns.clear()
+        self._namespaces.clear()
 
     def map_qname(self, qname):
         try:
-            if qname[0] != '{' or not self.namespaces:
+            if qname[0] != '{' or not self._namespaces:
                 return qname
         except IndexError:
             return qname
 
         qname_uri = get_namespace(qname)
-        for prefix, uri in self.namespaces.items():
+        for prefix, uri in self.items():
             if uri != qname_uri:
                 continue
             if prefix:
-                self._xmlns[prefix] = uri
+                self._namespaces[prefix] = uri
                 return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
             else:
                 if uri:
-                    self._xmlns[prefix] = uri
+                    self._namespaces[prefix] = uri
                 return qname.replace(u'{%s}' % uri, '')
         else:
             return qname
 
     def unmap_qname(self, qname):
         try:
-            if qname[0] == '{' or not self.namespaces:
+            if qname[0] == '{' or not self:
                 return qname
         except IndexError:
             return qname
@@ -161,7 +156,7 @@ class NamespaceMapper(MutableMapping):
             return qname
         else:
             try:
-                uri = self.namespaces[prefix]
+                uri = self._namespaces[prefix]
             except KeyError:
                 return qname
             else:

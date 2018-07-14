@@ -24,12 +24,30 @@ from functools import wraps
 
 import xmlschema
 import xmlschema.validators
+from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.etree import etree_iselement, etree_element, etree_register_namespace
+from xmlschema.etree import (
+    is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
+)
+from xmlschema.resources import fetch_namespaces
 from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
 logger = logging.getLogger('xmlschema.tests')
+
+
+def has_network_access(*locations):
+    for url in locations:
+        try:
+            urlopen(url, timeout=5)
+        except (URLError, OSError):
+            pass
+        else:
+            return True
+    return False
+
+
+SKIP_REMOTE_TESTS = not has_network_access('http://www.sissa.it', 'http://www.w3.org/', 'http://dublincore.org/')
 
 
 def print_test_header():
@@ -106,24 +124,45 @@ def defuse_data(value):
 
 
 def get_args_parser():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.usage = """TEST_FILE [TOT_ERRORS] [-i] [-v=VERSION]"""
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."
     parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
-    parser.add_argument('tot_errors', nargs='?', type=int, default=0, help="Total errors expected (default=0).")
     parser.add_argument(
-        '-i', dest="inspect", action="store_true", default=False,
-        help="inspect using an observed custom schema class."
+        '-L', dest='locations', nargs=2, type=str, default=None, action='append',
+        metavar="URI-URL", help="Schema location hint overrides."
     )
     parser.add_argument(
-        "-v", dest="version", metavar='VERSION', type=xsd_version_number, default='1.0',
-        help="XSD version to use for schema (default is 1.0)."
+        '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
+        help="XSD schema version to use for the test case (default is 1.0)."
     )
     parser.add_argument(
-        '-l', dest='locations', nargs=2, type=str, default=None, action='append'
+        '--errors', type=int, default=0, metavar='NUM', help="Number of errors expected (default=0)."
     )
     parser.add_argument(
-        '-d', dest='defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
+        '--warnings', type=int, default=0, metavar='NUM', help="Number of warnings expected (default=0)."
+    )
+    parser.add_argument(
+        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
+    )
+    parser.add_argument(
+        '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
+    )
+    parser.add_argument(
+        '--timeout', type=int, default=300, metavar='SEC', help="Timeout for fetching resources (default=300)."
+    )
+    parser.add_argument(
+        '--defaults', action="store_true", default=False,
+        help="Test data uses default or fixed values (skip strict encoding checks).",
+    )
+    parser.add_argument(
+        '--skip', action="store_true", default=False,
+        help="Skip strict encoding checks (for cases where test data uses default or "
+             "fixed values or some test data are skipped by wildcards processContents)."
+    )
+    parser.add_argument(
+        '--debug', action="store_true", default=False,
+        help="Activate the debug mode (only the cases with --debug are executed).",
     )
     return parser
 
@@ -131,43 +170,66 @@ def get_args_parser():
 test_line_parser = get_args_parser()
 
 
-def tests_factory(test_function_builder, testfiles, label="validation", suffix="xml"):
-    tests = {}
+def tests_factory(test_class_builder, testfiles, suffix="xml"):
+    test_classes = {}
     test_num = 0
+    debug_mode = False
+    line_buffer = []
 
     for line in fileinput.input(testfiles):
         line = line.strip()
         if not line or line[0] == '#':
+            if not line_buffer:
+                continue
+            else:
+                raise SyntaxError("Empty continuation at line %d!" % fileinput.filelineno())
+        elif '#' in line:
+            line = line.split('#', 1)[0].rstrip()
+
+        # Process line continuations
+        if line[-1] == '\\':
+            line_buffer.append(line[:-1].strip())
             continue
+        elif line_buffer:
+            line_buffer.append(line)
+            line = ' '.join(line_buffer)
+            del line_buffer[:]
 
         test_args = test_line_parser.parse_args(get_test_args(line))
         if test_args.locations is not None:
             test_args.locations = {k.strip('\'"'): v for k, v in test_args.locations}
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
-        if not os.path.isfile(test_file) or os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
+        if not os.path.isfile(test_file):
+            logger.debug("Skip %s: not a file.", test_file)
+            continue
+        elif os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
+            logger.debug("Skip %s: wrong suffix.", test_file)
             continue
 
-        if test_args.inspect:
-            schema_class = ObservedXMLSchema10
-        else:
-            schema_class = xmlschema.XMLSchema
-
-        test_func = test_function_builder(
-            test_file, schema_class, test_args.tot_errors, test_args.inspect, test_args.locations, test_args.defuse
-        )
-        test_name = os.path.relpath(test_file)
         test_num += 1
-        if test_func is not None:
-            class_name = 'Test{0}{1:03}'.format(label.title(), test_num)
-            tests[class_name] = type(
-                class_name, (unittest.TestCase,),
-                {'test_{0}_{1:03}_{2}'.format(label, test_num, test_name): test_func}
-            )
-            logger.debug("Add %s test case %r.", label, class_name)
+
+        # Debug mode activation
+        if debug_mode:
+            if not test_args.debug:
+                continue
+        elif test_args.debug:
+            debug_mode = True
+            logger.debug("Debug mode activated: discard previous %r test classes.", len(test_classes))
+            test_classes.clear()
+
+        if test_args.inspect:
+            test_class = test_class_builder(test_file, test_args, test_num, ObservedXMLSchema10)
         else:
-            logger.debug("Skip %s test case %d (%r).", label, test_num, test_num, test_name)
-    return tests
+            test_class = test_class_builder(test_file, test_args, test_num)
+
+        test_classes[test_class.__name__] = test_class
+        logger.debug("Add test class %r.", test_class.__name__)
+
+    if line_buffer:
+        raise ValueError("Not completed line continuation at the end!")
+
+    return test_classes
 
 
 class XMLSchemaTestCase(unittest.TestCase):
@@ -189,20 +251,28 @@ class XMLSchemaTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.namespaces = {
-            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-            'vh': 'http://example.com/vehicles',
-            'col': 'http://example.com/ns/collection',
-            'ns': 'ns',
-        }
-
         cls.schema_class = xmlschema.XMLSchema
         cls.xsd_types = xmlschema.XMLSchema.builtin_types()
         cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
-        cls.vh_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/vehicles/vehicles.xsd'))
-        cls.col_schema = xmlschema.XMLSchema(cls.abspath('cases/examples/collection/collection.xsd'))
-        cls.st_schema = xmlschema.XMLSchema(cls.abspath('cases/features/decoder/simple-types.xsd'))
+        cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+
+        cls.vh_dir = cls.abspath('cases/examples/vehicles')
+        cls.vh_schema_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
+        cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
+        cls.vh_schema = xmlschema.XMLSchema(cls.vh_schema_file)
+        cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
+
+        cls.col_dir = cls.abspath('cases/examples/collection')
+        cls.col_schema_file = cls.abspath('cases/examples/collection/collection.xsd')
+        cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
+        cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
+        cls.col_schema = xmlschema.XMLSchema(cls.col_schema_file)
+        cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
+
+        cls.st_schema_file = cls.abspath('cases/features/decoder/simple-types.xsd')
+        cls.st_schema = xmlschema.XMLSchema(cls.st_schema_file)
 
     @classmethod
     def abspath(cls, path):
@@ -215,7 +285,7 @@ class XMLSchemaTestCase(unittest.TestCase):
         :param source: A string or an ElementTree's Element.
         :return: An schema source string, an ElementTree's Element or a full pathname.
         """
-        if etree_iselement(source):
+        if is_etree_element(source):
             if source.tag in (XSD_SCHEMA_TAG, 'schema'):
                 return source
             elif get_namespace(source.tag):
@@ -249,3 +319,9 @@ class XMLSchemaTestCase(unittest.TestCase):
         )
         schema = self.schema_class(self.retrieve_schema_source(source))
         return schema.elements[name]
+
+    def check_etree_elements(self, elem, other):
+        try:
+            self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
+        except AssertionError as err:
+            self.assertIsNone(err, None)

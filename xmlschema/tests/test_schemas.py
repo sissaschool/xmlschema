@@ -16,6 +16,7 @@ import unittest
 import os
 import sys
 import pickle
+import warnings
 
 try:
     # noinspection PyPackageRequirements
@@ -31,10 +32,14 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase
+from xmlschema import (
+    XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase, XMLSchema,
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+)
 from xmlschema.compat import PY3
-from xmlschema.tests import SchemaObserver, XMLSchemaTestCase
+from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
+from xmlschema.etree import safe_etree_parse, safe_etree_iterparse, safe_etree_fromstring
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -91,13 +96,26 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
 
     def test_wrong_includes_and_imports(self):
-        self.check_schema("""
-            <include schemaLocation="example.xsd" />
-            <import schemaLocation="example.xsd" />
-            <redefine schemaLocation="example.xsd"/>
-            <import namespace="http://missing.example.test/" />
-            <import/>
-            """)
+
+        with warnings.catch_warnings(record=True) as context:
+            warnings.simplefilter("always")
+            self.check_schema("""
+                <include schemaLocation="example.xsd" />
+                <import schemaLocation="example.xsd" />
+                <redefine schemaLocation="example.xsd"/>
+                <import namespace="http://missing.example.test/" />
+                <import/>
+                """)
+            self.assertEqual(len(context), 4, "Wrong number of include/import warnings")
+            self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
+            self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
+            self.assertEqual(context[2].category, XMLSchemaImportWarning)
+            self.assertEqual(context[3].category, XMLSchemaImportWarning)
+            self.assertTrue(str(context[0].message).startswith("Include"))
+            self.assertTrue(str(context[1].message).startswith("Redefine"))
+            self.assertTrue(str(context[2].message).startswith("Namespace import"))
+            self.assertTrue(str(context[3].message).startswith("Namespace import"))
+            self.assertTrue(str(context[3].message).endswith("no schema location provided."))
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference
@@ -333,52 +351,82 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_final_attribute(self):
         self.check_schema("""
             <simpleType name="aType" final="list restriction">
-		        <restriction base="string"/>
-	        </simpleType>
-	        """)
+                <restriction base="string"/>
+            </simpleType>
+            """)
+
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
+    def test_remote_schemas(self):
+        # Tests with Dublin Core schemas that also use imports
+        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
+        self.assertTrue(isinstance(dc_schema, self.schema_class))
+        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
+        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
+
+        # Check XML resource defusing
+        self.assertEqual(dc_schema.source.parse, safe_etree_parse)
+        self.assertEqual(dc_schema.source.iterparse, safe_etree_iterparse)
+        self.assertEqual(dc_schema.source.fromstring, safe_etree_fromstring)
+        self.assertEqual(dcterms_schema.source.parse, safe_etree_parse)
+        self.assertEqual(dcterms_schema.source.iterparse, safe_etree_iterparse)
+        self.assertEqual(dcterms_schema.source.fromstring, safe_etree_fromstring)
 
 
-def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect=False,
-                              locations=None, defuse='remote'):
+def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
+
+    xsd_file = test_file
+
+    # Extract schema test arguments
+    expected_errors = test_args.errors
+    expected_warnings = test_args.warnings
+    inspect = test_args.inspect
+    locations = test_args.locations
+    defuse = test_args.defuse
+    debug_mode = test_args.debug
+
     def test_schema(self):
+        if debug_mode:
+            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+            import pdb
+            pdb.set_trace()
+
         if inspect:
             SchemaObserver.clear()
 
-        # print("Run %s" % self.id())
-        try:
-            if expected_errors > 0:
-                xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
-            else:
-                xs = schema_class(xsd_file, locations=locations, defuse=defuse)
-        except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
-            num_errors = 1
-            errors = [str(err)]
-        else:
-            num_errors = len(xs.all_errors)
-            errors = xs.all_errors
-
-            if inspect:
-                components_ids = set([id(c) for c in xs.iter_components()])
-                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
-                if any([c for c in missing]):
-                    raise ValueError("schema missing %d components: %r" % (len(missing), missing))
-
-            # Pickling test (only for Python 3, skip inspected schema classes test)
-            if not inspect and PY3:
-                deserialized_schema = pickle.loads(pickle.dumps(xs))
-                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
-                self.assertEqual(xs.built, deserialized_schema.built)
-
-            # Check with lxml.etree.XMLSchema if it's installed
-        if False and _lxml_etree is not None and not num_errors:
-            xsd = _lxml_etree.parse(xsd_file)
+        def check_schema():
             try:
-                _lxml_etree.XMLSchema(xsd.getroot())
-            except _lxml_etree.XMLSchemaParseError as err:
-                self.assertTrue(
-                    False, "Schema without errors but lxml's validator report an error: {}".format(err)
-                )
+                if expected_errors > 0:
+                    xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
+                else:
+                    xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+            except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
+                errors_ = [str(err)]
+            else:
+                errors_ = xs.all_errors
 
+                if inspect:
+                    components_ids = set([id(c) for c in xs.iter_components()])
+                    missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                    if any([c for c in missing]):
+                        raise ValueError("schema missing %d components: %r" % (len(missing), missing))
+
+                # Pickling test (only for Python 3, skip inspected schema classes test)
+                if not inspect and PY3:
+                    deserialized_schema = pickle.loads(pickle.dumps(xs))
+                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                    self.assertEqual(xs.built, deserialized_schema.built)
+
+            return errors_
+
+        if expected_warnings > 0:
+            with warnings.catch_warnings(record=True) as ctx:
+                warnings.simplefilter("always")
+                errors = check_schema()
+                self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
+        else:
+            errors = check_schema()
+
+        num_errors = len(errors)
         if num_errors != expected_errors:
             print("\n%s: %r errors, %r expected." % (self.id()[13:], num_errors, expected_errors))
             if num_errors == 0:
@@ -390,7 +438,12 @@ def make_test_schema_function(xsd_file, schema_class, expected_errors=0, inspect
         else:
             self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
 
-    return test_schema
+    rel_path = os.path.relpath(test_file)
+    class_name = 'TestSchema{0:03}'.format(test_num)
+    return type(
+        class_name, (unittest.TestCase,),
+        {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
+    )
 
 
 if __name__ == '__main__':
@@ -398,6 +451,6 @@ if __name__ == '__main__':
 
     print_test_header()
     testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    schema_tests = tests_factory(make_test_schema_function, testfiles, label='schema', suffix='xsd')
+    schema_tests = tests_factory(make_schema_test_class, testfiles, suffix='xsd')
     globals().update(schema_tests)
     unittest.main()

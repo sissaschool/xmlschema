@@ -155,8 +155,14 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
     def is_optional(self):
         return self.use == 'optional'
 
-    def match(self, name):
-        return self.name == name or not self.qualified and self.local_name == name
+    def match(self, name, default_namespace=None):
+        if name[0] == '{':
+            return self.name == name
+        elif default_namespace:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
+        else:
+            return self.name == name or not self.qualified and self.local_name == name
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -402,7 +408,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {name: value}
+                        value = (name, value)
                     except KeyError:
                         if validation != 'skip':
                             error = XMLSchemaValidationError(
@@ -422,7 +428,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     result_list.append((name, result))
                     break
 
-        if required_attributes:
+        if required_attributes and validation != 'skip':
             error = XMLSchemaValidationError(
                 self, attrs, "missing required attributes: %r" % required_attributes
             )
@@ -459,7 +465,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
-                        value = {name: value}
+                        value = (name, value)
                     except KeyError:
                         yield XMLSchemaValidationError(
                             self, attrs, "%r attribute not allowed for element." % name
@@ -475,7 +481,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                     result_list.append((name, result))
                     break
 
-        if required_attributes:
+        if required_attributes and validation != 'skip':
             yield XMLSchemaValidationError(
                 self, attrs, "missing required attributes %r" % required_attributes,
             )
