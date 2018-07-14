@@ -26,7 +26,7 @@ from .validators.exceptions import (
 )
 from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"
