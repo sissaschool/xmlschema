@@ -13,7 +13,8 @@ import re
 import codecs
 
 from .compat import (
-    PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit, pathname2url, URLError
+    PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
+    pathname2url, URLError, uses_relative
 )
 from .etree import (
     is_etree_element, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error,
@@ -53,17 +54,28 @@ def normalize_url(url, base_url=None, keep_relative=False):
     :return: A normalized URL.
     """
     def add_trailing_slash(r):
-        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[-1] != '/' else r[2], r[3], r[4]))
+        if not r[2] or r[2][-1] == '/':
+            return urlunsplit((r[0], r[1], r[2], r[3], r[4]))
+        elif r[2][-1] == '\\':
+            return urlunsplit((r[0], r[1], r[2][:-1] + '/', r[3], r[4]))
+        else:
+            return urlunsplit((r[0], r[1], r[2] + '/', r[3], r[4]))
 
     if base_url is not None:
         base_url_parts = urlsplit(base_url)
+        base_url = add_trailing_slash(base_url_parts)
+        if base_url_parts.scheme not in uses_relative:
+            base_url_parts = urlsplit('file:///{}'.format(base_url))
+        else:
+            base_url_parts = urlsplit(base_url)
+
         if base_url_parts.scheme not in ('', 'file'):
-            url = urljoin(add_trailing_slash(base_url_parts), url)
+            url = urljoin(base_url, url)
         else:
             # For file schemes uses the os.path.join instead of urljoin
             url_parts = urlsplit(url)
             if url_parts.scheme not in ('', 'file'):
-                url = urljoin(add_trailing_slash(base_url_parts), url)
+                url = urljoin(base_url, url)
             elif not url_parts.netloc or base_url_parts.netloc == url_parts.netloc:
                 # Join paths only if host parts (netloc) are equal
                 url = urlunsplit((
@@ -75,7 +87,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 ))
 
     url_parts = urlsplit(url, scheme='file')
-    if url_parts.scheme != 'file':
+    if url_parts.scheme not in uses_relative:
+        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:\Python\lib\....
+    elif url_parts.scheme != 'file':
         return urlunsplit((
             url_parts.scheme,
             url_parts.netloc,
@@ -83,7 +97,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
             url_parts.query,
             url_parts.fragment,
         ))
-    elif url_parts.path[:1] == '/':
+    elif url_parts.path[:1] in ('/', '\\'):
         return url_parts.geturl()
     elif keep_relative:
         # Unsplitting 'file' scheme URLs breaks relative paths
