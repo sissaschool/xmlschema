@@ -49,8 +49,8 @@ def normalize_url(url, base_url=None, keep_relative=False):
     :param url: a relative or absolute URL.
     :param base_url: the reference base URL for construct the normalized URL from the argument. \
     For compatibility between "os.path.join" and "urljoin" a trailing '/' is added to not empty paths.
-    :param keep_relative: if set to `True` keeps relative file paths, otherwise gets the \
-    absolute path from the current working directory.
+    :param keep_relative: if set to `True` keeps relative file paths, which would not strictly \
+    conformant to URL format specification.
     :return: A normalized URL.
     """
     def add_trailing_slash(r):
@@ -88,7 +88,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
 
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
-        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:\Python\lib\....
+        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
     elif url_parts.scheme != 'file':
         return urlunsplit((
             url_parts.scheme,
@@ -100,7 +100,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
     elif url_parts.path[:1] in ('/', '\\'):
         return url_parts.geturl()
     elif keep_relative:
-        # Unsplitting 'file' scheme URLs breaks relative paths
+        # Can't use urlunsplit with a scheme because it converts relative paths to absolute ones.
         return 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
     else:
         return urlunsplit((
