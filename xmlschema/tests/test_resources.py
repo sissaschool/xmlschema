@@ -34,7 +34,7 @@ from xmlschema import (
     load_xml_resource, XMLResource, XMLSchemaURLError
 )
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema.compat import urlopen, urlsplit, StringIO
+from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
 from xmlschema.etree import (
     ElementTree, etree_parse, etree_iterparse, etree_fromstring, safe_etree_parse,
     safe_etree_iterparse, safe_etree_fromstring, lxml_etree_parse, is_etree_element
@@ -47,14 +47,16 @@ def is_windows_path(path):
 
 
 def add_leading_slash(path):
-    return '/' + path if path and path[0] != '/' else path
+    return '/' + path if path and path[0] not in ('/', '\\') else path
 
 
 class TestResources(XMLSchemaTestCase):
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)
-        expected_parts = urlsplit(expected)
+        if urlsplit(expected).scheme not in uses_relative:
+            expected = add_leading_slash(expected)
+        expected_parts = urlsplit(expected, scheme='file')
 
         self.assertEqual(url_parts.scheme, expected_parts.scheme, "Schemes differ.")
         self.assertEqual(url_parts.netloc, expected_parts.netloc, "Netloc parts differ.")
@@ -73,8 +75,8 @@ class TestResources(XMLSchemaTestCase):
         url1 = "https://example.com/xsd/other_schema.xsd"
         self.check_url(normalize_url(url1, base_url="/path_my_schema/schema.xsd"), url1)
 
-        parent_url = 'file://' + os.path.dirname(os.getcwd())
-        self.check_url(normalize_url('../dir1/./dir2'), os.path.join(parent_url, 'dir1/dir2'))
+        parent_dir = os.path.dirname(os.getcwd())
+        self.check_url(normalize_url('../dir1/./dir2'), os.path.join(parent_dir, 'dir1/dir2'))
         self.check_url(normalize_url('../dir1/./dir2', '/home', keep_relative=True), 'file:///dir1/dir2')
         self.check_url(normalize_url('../dir1/./dir2', 'file:///home'), 'file:///dir1/dir2')
 
@@ -82,19 +84,20 @@ class TestResources(XMLSchemaTestCase):
         self.check_url(normalize_url('other.xsd', 'file:///home/'), 'file:///home/other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'file:///home'), 'file:///home/other.xsd')
 
-        abs_path = 'file://{}/'.format(os.getcwd())
+        cwd_url = 'file://{}/'.format(add_leading_slash(os.getcwd()))
         self.check_url(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
-        self.check_url(normalize_url('file:other.xsd'), abs_path + 'other.xsd')
+        self.check_url(normalize_url('file:other.xsd'), cwd_url + 'other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
-        self.check_url(normalize_url('file:other.xsd', 'http://site/base'), abs_path + 'other.xsd')
+        self.check_url(normalize_url('file:other.xsd', 'http://site/base'), cwd_url + 'other.xsd')
 
-        self.check_url(normalize_url('dummy path.xsd'), abs_path + 'dummy path.xsd')
+        self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'http://site/base'), 'http://site/base/dummy%20path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'), 'file://host/home/dummy path.xsd')
 
         win_abs_path1 = 'z:\\Dir_1_0\\Dir2-0\\schemas/XSD_1.0/XMLSchema.xsd'
         win_abs_path2 = 'z:\\Dir-1.0\\Dir-2_0\\'
-        self.check_url(normalize_url(win_abs_path1), 'file:///{}'.format(win_abs_path1))
+        self.check_url(normalize_url(win_abs_path1), win_abs_path1)
+
         self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path1), 'file:///k:\\Dir3\\schema.xsd')
         self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path2), 'file:///k:\\Dir3\\schema.xsd')
         self.check_url(normalize_url('schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/schema.xsd')
@@ -113,10 +116,10 @@ class TestResources(XMLSchemaTestCase):
 
     def test_fetch_schema_locations(self):
         locations = fetch_schema_locations(self.col_xml_file)
-        self.check_url(locations[0], 'file://{}'.format(self.col_schema_file))
+        self.check_url(locations[0], self.col_schema_file)
         self.assertEqual(locations[1][0][0], 'http://example.com/ns/collection')
-        self.check_url(locations[1][0][1], 'file://{}'.format(self.col_schema_file))
-        self.assertEqual(fetch_schema(self.vh_xml_file), 'file://{}'.format(self.vh_schema_file))
+        self.check_url(locations[1][0][1], self.col_schema_file)
+        self.check_url(fetch_schema(self.vh_xml_file), self.vh_schema_file)
 
     def test_load_xml_resource(self):
         self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
@@ -124,14 +127,14 @@ class TestResources(XMLSchemaTestCase):
         self.assertTrue(is_etree_element(root))
         self.assertEqual(root.tag, '{http://example.com/vehicles}vehicles')
         self.assertTrue(text.startswith('<?xml version'))
-        self.assertEqual(url, 'file://{}'.format(self.vh_xml_file))
+        self.check_url(url, self.vh_xml_file)
 
     # Tests on XMLResource instances
     def test_xml_resource_from_url(self):
         resource = XMLResource(self.vh_xml_file)
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
-        self.check_url(resource.url, 'file://{}'.format(self.vh_xml_file))
+        self.check_url(resource.url, self.vh_xml_file)
         self.assertIsNone(resource.document)
         self.assertIsNone(resource.text)
         resource.load()
@@ -140,7 +143,7 @@ class TestResources(XMLSchemaTestCase):
         resource = XMLResource(self.vh_xml_file, lazy=False)
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
-        self.check_url(resource.url, 'file://{}'.format(self.vh_xml_file))
+        self.check_url(resource.url, self.vh_xml_file)
         self.assertIsInstance(resource.document, ElementTree.ElementTree)
         self.assertIsNone(resource.text)
         resource.load()
@@ -191,12 +194,12 @@ class TestResources(XMLSchemaTestCase):
         self.assertIsNone(resource.text)
 
     def test_xml_resource_from_resource(self):
-        xml_file = urlopen('file://{}'.format(self.vh_xml_file))
+        xml_file = urlopen('file://{}'.format(add_leading_slash(self.vh_xml_file)))
         try:
             resource = XMLResource(xml_file)
             self.assertEqual(resource.source, xml_file)
             self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
-            self.assertEqual(resource.url, 'file://{}'.format(self.vh_xml_file))
+            self.check_url(resource.url, self.vh_xml_file)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
@@ -209,7 +212,7 @@ class TestResources(XMLSchemaTestCase):
             resource = XMLResource(schema_file)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.assertEqual(resource.url, 'file://{}'.format(self.vh_schema_file))
+            self.check_url(resource.url, self.vh_schema_file)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
@@ -219,7 +222,7 @@ class TestResources(XMLSchemaTestCase):
             resource = XMLResource(schema_file, lazy=False)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, 'file://{}'.format(self.vh_schema_file))
+            self.check_url(resource.url, self.vh_schema_file)
             self.assertIsInstance(resource.document, ElementTree.ElementTree)
             self.assertIsNone(resource.text)
             resource.load()
@@ -361,10 +364,10 @@ class TestResources(XMLSchemaTestCase):
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)
-        self.assertEqual(resource.url, normalize_url(self.col_xml_file))
+        self.check_url(resource.url, normalize_url(self.col_xml_file))
         locations = resource.get_locations([('ns', 'other.xsd')])
         self.assertEqual(len(locations), 2)
-        self.check_url(locations[0][1], 'file://{}/'.format(self.col_dir) + '/other.xsd')
+        self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
 
 
 if __name__ == '__main__':
