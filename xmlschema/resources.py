@@ -55,7 +55,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
     :return: A normalized URL.
     """
     def add_trailing_slash(r):
-        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[2][-1] != '/' else r[2] , r[3], r[4]))
+        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[2][-1] != '/' else r[2], r[3], r[4]))
 
     if base_url is not None:
         base_url = base_url.replace('\\', '/')

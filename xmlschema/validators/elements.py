@@ -436,7 +436,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 for error in constraint(elem):
                     yield self._validation_error(error, validation)
 
-    def iter_decode_children(self, elem, index=0, validation='lax'):
+    def iter_decode_children(self, elem, validation='lax', index=0):
         """
         Generator function for decoding the children of an element. Before ending the generator
         yields the last index used by inner validators.
@@ -450,11 +450,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         while True:
             try:
                 child = elem[index]
-            except TypeError:
-                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
-                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
-                # decode nothing and take the next.
-                pass
             except IndexError:
                 if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                     error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
@@ -464,7 +459,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             else:
                 tag = child.tag
                 if callable(tag):
-                    # Lxml comment
+                    # When tag is a function the child is a <class 'lxml.etree._Comment'>
                     index += 1
                     continue
                 elif tag == self.name:

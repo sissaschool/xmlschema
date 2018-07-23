@@ -29,7 +29,7 @@ features/decoder/data2.xml --errors=1
 features/derivations/complex-extensions.xsd --errors=1
 features/derivations/list_types.xsd --errors=1
 features/derivations/list_types.xml --errors=2
-features/model/model.xsd --errors=2
+features/model/model.xsd --errors=4
 features/model/model-2_errors.xsd --errors=2
 features/model/billion_laughs_model.xsd
 features/model/circular_model.xsd --errors=1
@@ -59,3 +59,5 @@ issues/issue_041/issue_041.xsd
 issues/issue_041/issue_041.xml
 issues/issue_045/issue_045.xsd
 issues/issue_051/issue_051.xml
+issues/issue_073/issue_073-1.xml
+issues/issue_073/issue_073-2.xml --errors=1

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ns:items xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:ns="ns" xsi:schemaLocation="ns issue_073.xsd">
+    <a1>item1</a1>
+    <a2>item2</a2>
+    <a3>item3</a3>
+    <a4>item3</a4>
+    <a5>item3</a5>
+    <a6>item3</a6>
+    <something>unknown</something>
+    <a7>item3</a7>
+    <a8>item3</a8>
+</ns:items>
