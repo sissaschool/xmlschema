@@ -24,6 +24,8 @@ try:
 except ImportError:
     _lxml_etree = None
 
+import elementpath
+
 try:
     import xmlschema
 except ImportError:
@@ -40,6 +42,7 @@ from xmlschema.compat import PY3
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import safe_etree_parse, safe_etree_iterparse, safe_etree_fromstring
+from xmlschema.validators import XsdElement, XsdAnyElement, XsdAttribute, XsdAnyAttribute
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -415,6 +418,25 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                     deserialized_schema = pickle.loads(pickle.dumps(xs))
                     self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
                     self.assertEqual(xs.built, deserialized_schema.built)
+
+                # XPath API tests
+                if False and not inspect and not errors_:
+                    context = elementpath.XPathContext(xs)
+                    counter = 0
+
+                    print(xs.url)
+                    print("*** ELEMENTS ***")
+                    for e in xs.iter():
+                        print(e, id(e), getattr(e, 'is_global', None))
+                        counter += 1
+
+                    print("*** COMPONENTS ***")
+                    counter2 = 0
+                    for e in xs.iter_components((XsdElement, XsdAnyElement)):
+                        print(e, id(e), getattr(e, 'is_global', None))
+                        counter2 += 1
+
+                    print(counter, counter2)
 
             return errors_
 

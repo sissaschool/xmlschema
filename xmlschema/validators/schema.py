@@ -13,14 +13,15 @@ This module contains XMLSchema class creator for xmlschema package.
 """
 import os
 from collections import namedtuple
+from abc import ABCMeta
 import warnings
 import elementpath
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
-
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
+from ..etree import etree_tostring
 from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
@@ -66,7 +67,7 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 DEFUSE_CHOICES = {'always', 'remote', 'never'}
 
 
-class XMLSchemaMeta(type):
+class XMLSchemaMeta(ABCMeta):
 
     def __new__(mcs, name, bases, dict_):
 
@@ -328,17 +329,32 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
             yield xsd_element
 
-    # XML resource attributes
+    def __reversed__(self):
+        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name, reverse=True):
+            yield xsd_element
+
+    def __len__(self):
+        return len(self.elements)
+
+    # XML resource attributes access
     @property
     def root(self):
         """Root element of the schema."""
         return self.source.root
 
-    @property
-    def text(self):
-        """XML text of the schema."""
+    def get_text(self):
+        """
+        Gets the XSD text of the schema. If the source text is not available creates
+        an encoded string representation of the XSD tree.
+        """
         if self.source.text is None:
-            self.source.load()
+            if self.source.url is None:
+                return etree_tostring(self.source.root, xml_declaration=True)
+            else:
+                try:
+                    self.source.load()
+                except XMLSchemaOSError:
+                    return etree_tostring(self.source.root, xml_declaration=True)
         return self.source.text
 
     @property
@@ -711,25 +727,30 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
-    # ElementPath API
-    def iter(self, name=None):
+    # ElementPathMixin API
+    def iter(self, tag=None):
         """
-        Creates a subtree iterator (depth-first) for the XSD/XML element. If *name* is not ``None``
-        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
+        Creates a subtree iterator (depth-first) for the XSD/XML element. If *tag* is not ``None``
+        only XSD elements whose tag/name is matching are returned from the iterator.
         """
+        inner_elements = []
         for xsd_element in self.elements.values():
-            if name is None or xsd_element.name == name:
-                yield xsd_element
-            for e in xsd_element.iter(name):
-                yield e
+            for e in xsd_element.iter(tag):
+                if e.is_global or getattr(e, 'ref', None) is not None:
+                    yield e
+                elif e in inner_elements:
+                    continue
+                else:
+                    inner_elements.append(e)
+                    yield e
 
-    def iterchildren(self, name=None):
+    def iterchildren(self, tag=None):
         """
-        Creates an iterator for child XSD/XML elements, sorted by name. If *name* is not ``None``
-        only XSD/XML elements whose name/tag equals *name* are returned from the iterator.
+        Creates an iterator for the XSD global elements. If *tag* is not ``None``
+        only XSD elements whose tag/name is matching are returned from the iterator.
         """
         for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-            if name is None or xsd_element.name == name:
+            if tag is None or xsd_element.match(tag):
                 yield xsd_element
 
     # Validator methods

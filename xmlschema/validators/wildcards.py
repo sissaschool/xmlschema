@@ -13,6 +13,7 @@ This module contains classes for XML Schema wildcards.
 """
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+from ..xpath import ElementPathMixin
 from .exceptions import XMLSchemaChildrenValidationError, XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
@@ -105,7 +106,7 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
         raise NotImplementedError
 
 
-class XsdAnyElement(XsdWildcard, ParticleMixin):
+class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'any' declarations.
 

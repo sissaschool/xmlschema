@@ -9,54 +9,31 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains an XPath parser and other XPath related classes and functions.
+This module defines a mixin class for enabling XPath on schemas.
 """
-from elementpath import select, iter_select, XPath1Parser
+from collections import Sequence
+from elementpath import select, iter_select
 
 
-def relative_path(path, levels, namespaces=None):
-    """
-    Return a relative XPath expression from parsed tree.
-    
-    :param path: An XPath expression.
-    :param levels: Number of path levels to remove.
-    :param namespaces: is an optional mapping from namespace 
-    prefix to full qualified name.
-    :return: a string with a relative XPath expression.
-    """
-    parser = XPath1Parser(namespaces)
-    root_token = parser.parse(path)
-    path_parts = [t.value for t in root_token.iter()]
-    i = 0
-    if path_parts[0] == '.':
-        i += 1
-    if path_parts[i] == '/':
-        i += 1
-    for value in path_parts[i:]:
-        if levels <= 0:
-            break
-        if value == '/':
-            levels -= 1
-        i += 1
-    return ''.join(path_parts[i:])
-
-
-class ElementPathMixin(object):
+class ElementPathMixin(Sequence):
     """
     Mixin class that defines the ElementPath API for XSD classes (schemas and elements).
     """
+    _attrib = {}
+
     @property
     def tag(self):
         return getattr(self, 'name')
 
     @property
     def attrib(self):
-        return getattr(self, 'attributes')
+        return getattr(self, 'attributes', self._attrib)
+
+    def get(self, key, default=None):
+        return self.attrib.get(key, default)
 
     text = None
-
-    def __len__(self):
-        return 1
+    tail = None
 
     def iterfind(self, path, namespaces=None):
         """
@@ -106,8 +83,23 @@ class ElementPathMixin(object):
                 namespaces[''] = self.xpath_default_namespace
             return namespaces
 
-    def iter(self, name=None):
-        raise NotImplementedError
+    def __getitem__(self, i):
+        try:
+            return [e for e in self][i]
+        except AttributeError:
+            raise IndexError('child index out of range')
 
-    def iterchildren(self, name=None):
-        raise NotImplementedError
+    def __reversed__(self):
+        return reversed([e for e in self])
+
+    def __len__(self):
+        return len([e for e in self])
+
+    def __iter__(self):
+        return iter(())
+
+    def iter(self, tag=None):
+        return iter(())
+
+    def iterchildren(self, tag=None):
+        return iter(())

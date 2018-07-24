@@ -217,7 +217,7 @@ class XsdKeyref(XsdConstraint):
 
     def __init__(self, elem, schema, parent):
         self.refer = None
-        self.refer_walk = None
+        self.refer_walk = None  # Used in case of inner local scope
         super(XsdKeyref, self).__init__(elem, schema, parent)
 
     def __repr__(self):
