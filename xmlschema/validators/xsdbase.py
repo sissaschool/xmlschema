@@ -69,21 +69,21 @@ class XsdBaseComponent(object):
         else:
             raise error
 
-    def _parse_xpath_default_namespace_attribute(self, elem, namespaces, target_namespace):
+    def _parse_xpath_default_namespace(self, elem, namespaces, target_namespace, default=None):
         try:
             xpath_default_namespace = get_xpath_default_namespace_attribute(elem)
         except XMLSchemaValueError as error:
             self._parse_error(error, elem)
-            self.xpath_default_namespace = namespaces['']
+            self._xpath_default_namespace = namespaces['']
         else:
             if xpath_default_namespace == '##local':
-                self.xpath_default_namespace = ''
+                self._xpath_default_namespace = ''
             elif xpath_default_namespace == '##defaultNamespace':
-                self.xpath_default_namespace = namespaces['']
+                self._xpath_default_namespace = namespaces['']
             elif xpath_default_namespace == '##targetNamespace':
-                self.xpath_default_namespace = target_namespace
-            else:
-                self.xpath_default_namespace = xpath_default_namespace
+                self._xpath_default_namespace = target_namespace
+            elif xpath_default_namespace is not None:
+                self._xpath_default_namespace = xpath_default_namespace
 
     @property
     def built(self):
@@ -192,6 +192,13 @@ class XsdComponent(XsdBaseComponent):
     @property
     def namespaces(self):
         return self.schema.namespaces
+
+    @property
+    def xpath_default_namespace(self):
+        try:
+            return self._xpath_default_namespace
+        except AttributeError:
+            getattr(self.schema, '_xpath_default_namespace', None)
 
     @property
     def maps(self):

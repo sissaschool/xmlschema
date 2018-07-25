@@ -131,6 +131,15 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
 
+    def __iter__(self):
+        return iter(())
+
+    def iter(self, tag=None):
+        return iter(())
+
+    def iterchildren(self, tag=None):
+        return iter(())
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return

@@ -172,10 +172,10 @@ def get_xpath_default_namespace_attribute(elem):
     try:
         value = get_xsd_attribute(elem, 'xpathDefaultNamespace').strip()
     except KeyError:
-        return None
+        return
 
-    admitted_values = ('##defaultNamespace', '##targerNamespace', '##local')
-    if value == admitted_values:
+    admitted_values = {'##defaultNamespace', '##targerNamespace', '##local'}
+    if value in admitted_values:
         return value
     if len(value.split()) == 1:
         try:

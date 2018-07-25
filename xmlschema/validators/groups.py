@@ -332,14 +332,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     yield obj
 
     def iter_elements(self):
-        for item in self:
-            if isinstance(item, XsdGroup):
-                for e in item.iter_elements():
-                    yield e
-            else:
-                yield item
-                for e in self.schema.substitution_groups.get(item.name, ()):
-                    yield e
+        def _iter_elements(group):
+            for item in group:
+                if isinstance(item, XsdGroup):
+                    if item is not start_group:
+                        for e in _iter_elements(item):
+                            yield e
+                else:
+                    yield item
+                    for e in self.schema.substitution_groups.get(item.name, ()):
+                        yield e
+
+        start_group = self[0] if self.ref and isinstance(self[0], XsdGroup) else self
+        for xsd_element in _iter_elements(start_group):
+            yield xsd_element
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

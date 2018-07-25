@@ -11,15 +11,84 @@
 """
 This module defines a mixin class for enabling XPath on schemas.
 """
+from abc import abstractmethod
 from collections import Sequence
-from elementpath import select, iter_select
+from elementpath import XPath2Parser, XPathContext
+
+
+class ElementPathContext(XPathContext):
+
+    def _iter_descendants(self):
+        def iter_descendants():
+            elem = self.item
+            yield elem
+            if elem.text is not None:
+                self.item = elem.text
+                yield self.item
+            if len(elem):
+                self.size = len(elem)
+                for self.position, self.item in enumerate(elem):
+                    if getattr(self.item, 'ref', None) is not None:
+                        yield self.item
+                    else:
+                        sentinel_item = None
+                        for item in iter_descendants():
+                            if sentinel_item is None:
+                                sentinel_item = item
+                            elif sentinel_item is item:
+                                break
+                            yield item
+
+        yielded_items = []
+        for obj in iter_descendants():
+            if obj in yielded_items:
+                continue
+            else:
+                yielded_items.append(obj)
+                yield obj
+
+    def _iter_context(self):
+        def iter_context():
+            elem = self.item
+            yield elem
+            if elem.text is not None:
+                self.item = elem.text
+                yield self.item
+
+            for item in elem.attrib.items():
+                self.item = item
+                yield item
+
+            if len(elem):
+                self.size = len(elem)
+                for self.position, self.item in enumerate(elem):
+                    if getattr(self.item, 'ref', None) is not None:
+                        yield self.item
+                    else:
+                        sentinel_item = None
+                        for item in iter_context():
+                            if sentinel_item is None:
+                                sentinel_item = item
+                            elif sentinel_item is item:
+                                break
+                            yield item
+
+        yielded_items = []
+        for obj in iter_context():
+            if obj in yielded_items:
+                continue
+            else:
+                yielded_items.append(obj)
+                yield obj
 
 
 class ElementPathMixin(Sequence):
     """
-    Mixin class that defines the ElementPath API for XSD classes (schemas and elements).
+    Mixin abstract class for enabling the XPath API.
     """
     _attrib = {}
+    text = None
+    tail = None
 
     @property
     def tag(self):
@@ -32,9 +101,6 @@ class ElementPathMixin(Sequence):
     def get(self, key, default=None):
         return self.attrib.get(key, default)
 
-    text = None
-    tail = None
-
     def iterfind(self, path, namespaces=None):
         """
         Generates all matching XSD/XML element declarations by path.
@@ -46,7 +112,11 @@ class ElementPathMixin(Sequence):
         """
         if path.startswith('/'):
             path = u'.%s' % path  # Avoid document root positioning
-        return iter_select(self, path, namespaces or self.xpath_namespaces, strict=False)
+        namespaces = self.xpath_namespaces if namespaces is None else namespaces
+        parser = XPath2Parser(namespaces, strict=False)
+        root_token = parser.parse(path)
+        context = ElementPathContext(self)
+        return root_token.select(context)
 
     def find(self, path, namespaces=None):
         """
@@ -57,9 +127,14 @@ class ElementPathMixin(Sequence):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
         """
+
         if path.startswith('/'):
             path = u'.%s' % path
-        return next(iter_select(self, path, namespaces or self.xpath_namespaces, strict=False), None)
+        namespaces = self.xpath_namespaces if namespaces is None else namespaces
+        parser = XPath2Parser(namespaces, strict=False)
+        root_token = parser.parse(path)
+        context = ElementPathContext(self)
+        return next(root_token.select(context), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -73,14 +148,19 @@ class ElementPathMixin(Sequence):
         """
         if path.startswith('/'):
             path = u'.%s' % path
-        return select(self, path, namespaces or self.xpath_namespaces, strict=False)
+        namespaces = self.xpath_namespaces if namespaces is None else namespaces
+        parser = XPath2Parser(namespaces, strict=False)
+        root_token = parser.parse(path)
+        context = ElementPathContext(self)
+        return root_token.get_results(context)
 
     @property
     def xpath_namespaces(self):
         if hasattr(self, 'namespaces'):
             namespaces = {k: v for k, v in self.namespaces.items() if k}
-            if hasattr(self, 'xpath_default_namespace'):
-                namespaces[''] = self.xpath_default_namespace
+            xpath_default_namespace = getattr(self, 'xpath_default_namespace', None)
+            if xpath_default_namespace is not None:
+                namespaces[''] = xpath_default_namespace
             return namespaces
 
     def __getitem__(self, i):
@@ -95,11 +175,14 @@ class ElementPathMixin(Sequence):
     def __len__(self):
         return len([e for e in self])
 
+    @abstractmethod
     def __iter__(self):
-        return iter(())
+        pass
 
+    @abstractmethod
     def iter(self, tag=None):
-        return iter(())
+        pass
 
+    @abstractmethod
     def iterchildren(self, tag=None):
-        return iter(())
+        pass

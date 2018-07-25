@@ -286,8 +286,8 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     # ElementPathMixin API
     def __iter__(self):
         try:
-            for xsd_element in self.type.content_type.iter_elements():
-                yield xsd_element
+            for e in self.type.content_type.iter_elements():
+                yield e
         except AttributeError:
             pass  # If it's a simple type or simple content element
 
@@ -304,7 +304,11 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
                 if tag is None:
                     yield xsd_element
             elif xsd_element.ref is None:
+                elements = []
                 for e in xsd_element.iter(tag):
+                    if e in elements:
+                        break
+                    elements.append(e)
                     yield e
             elif tag is None or xsd_element.match(tag):
                 yield xsd_element

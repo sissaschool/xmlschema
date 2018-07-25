@@ -290,9 +290,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.XSD_VERSION > '1.0':
-            self.xpath_default_namespace = self._parse_xpath_default_namespace_attribute(
-                root, self.namespaces, self.target_namespace
-            )
+            self._parse_xpath_default_namespace(root, self.namespaces, self.target_namespace, default='')
 
         self.warnings.extend(self._include_schemas())
         self.warnings.extend(self._import_namespaces())
@@ -736,7 +734,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         inner_elements = []
         for xsd_element in self.elements.values():
             for e in xsd_element.iter(tag):
-                if e.is_global or getattr(e, 'ref', None) is not None:
+                if e.is_global:
                     yield e
                 elif e in inner_elements:
                     continue
