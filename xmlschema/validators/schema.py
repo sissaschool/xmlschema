@@ -728,25 +728,22 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     # ElementPathMixin API
     def iter(self, tag=None):
         """
-        Creates a subtree iterator (depth-first) for the XSD/XML element. If *tag* is not ``None``
-        only XSD elements whose tag/name is matching are returned from the iterator.
+        Creates an iterator for the XSD elements of the schema. If *tag* is not `None` or '*',
+        only XSD elements whose name matches tag are returned from the iterator.
         """
-        inner_elements = []
+        if tag == '*':
+            tag = None
         for xsd_element in self.elements.values():
             for e in xsd_element.iter(tag):
-                if e.is_global:
-                    yield e
-                elif e in inner_elements:
-                    continue
-                else:
-                    inner_elements.append(e)
-                    yield e
+                yield e
 
     def iterchildren(self, tag=None):
         """
-        Creates an iterator for the XSD global elements. If *tag* is not ``None``
-        only XSD elements whose tag/name is matching are returned from the iterator.
+        Creates an iterator for the XSD global elements of the schema. If *tag* is not `None`
+        or '*', only XSD elements whose name matches tag are returned from the iterator.
         """
+        if tag == '*':
+            tag = None
         for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
             if tag is None or xsd_element.match(tag):
                 yield xsd_element

@@ -66,6 +66,12 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
+    def __repr__(self):
+        if self.ref is None:
+            return u'%s(name=%r, is_global=%r)' % (self.__class__.__name__, self.prefixed_name, self.is_global)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         if name == "type":
             assert value is None or isinstance(value, XsdType), "Wrong value %r for attribute 'type'." % value
@@ -298,73 +304,32 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
-    def iterx(self, tag=None):
-        def _iter(elem):
+    def iter(self, tag=None):
+        """
+        Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
+        only XSD elements whose matches tag are returned from the iterator. Local elements are
+        expanded without repetitions. Element references are not expanded because the global
+        elements are not descendants of other elements.
+        """
+        def safe_iter(elem):
             if tag is None or elem.match(tag):
                 yield elem
             for child in elem:
                 if isinstance(child, XsdAnyElement):
                     if tag is None:
                         yield child
-                elif child not in elements:
-                    elements.append(child)
-                    for e in _iter(child):
+                elif child.ref:
+                    if tag is None or elem.match(tag):
+                        yield child
+                elif child not in local_elements:
+                    local_elements.append(child)
+                    for e in safe_iter(child):
                         yield e
 
-        elements = []
-        return _iter(self)
-
-    def iter(self, tag=None):
-        if tag is None:
-            for e in self._iter():
-                yield e
-        else:
-            for e in self._iter_by_tag(tag):
-                yield e
-
-    def _iter(self):
-        yield self
-        for xsd_element in self:
-            if isinstance(xsd_element, XsdAnyElement):
-                yield xsd_element
-            elif xsd_element.ref is None:
-                for e in xsd_element._iter():
-                    yield e
-            else:
-                yield xsd_element
-
-    def _iter_by_tag(self, tag):
-        if self.match(tag):
-            yield self
-        for xsd_element in self:
-            if isinstance(xsd_element, XsdAnyElement):
-                continue
-            elif xsd_element.ref is None:
-                elements = []
-                for e in xsd_element._iter_by_tag(tag):
-                    if e in elements:
-                        break
-                    elements.append(e)
-                    yield e
-            elif xsd_element.match(tag):
-                yield xsd_element
-
-    def iter2(self, tag=None):
-        if tag is None or self.match(tag):
-            yield self
-        for xsd_element in self:
-            if isinstance(xsd_element, XsdAnyElement):
-                if tag is None:
-                    yield xsd_element
-            elif xsd_element.ref is None:
-                elements = []
-                for e in xsd_element.iter(tag):
-                    if e in elements:
-                        break
-                    elements.append(e)
-                    yield e
-            elif tag is None or xsd_element.match(tag):
-                yield xsd_element
+        if tag == '*':
+            tag = None
+        local_elements = []
+        return safe_iter(self)
 
     def iterchildren(self, tag=None):
         for xsd_element in self:

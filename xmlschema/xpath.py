@@ -17,78 +17,79 @@ from elementpath import XPath2Parser, XPathContext
 
 
 class ElementPathContext(XPathContext):
-
+    """
+    XPath dynamic context class for XMLSchema. Implements safe iteration methods for
+    schema elements that recognize circular references.
+    """
     def _iter_descendants(self):
-        def iter_descendants():
-            elem = self.item
+        def safe_iter_descendants(context):
+            elem = context.item
             yield elem
             if elem.text is not None:
-                self.item = elem.text
-                yield self.item
+                context.item = elem.text
+                yield context.item
             if len(elem):
-                self.size = len(elem)
-                for self.position, self.item in enumerate(elem):
-                    if getattr(self.item, 'ref', None) is not None:
-                        yield self.item
-                    else:
-                        sentinel_item = None
-                        for item in iter_descendants():
-                            if sentinel_item is None:
-                                sentinel_item = item
-                            elif sentinel_item is item:
-                                break
+                context.size = len(elem)
+                for context.position, context.item in enumerate(elem):
+                    if getattr(context.item, 'ref', None) is not None:
+                        yield context.item
+                    elif context.item not in local_items:
+                        local_items.append(context.item)
+                        for item in safe_iter_descendants(context):
                             yield item
 
-        yielded_items = []
-        for obj in iter_descendants():
-            if obj in yielded_items:
-                continue
-            else:
-                yielded_items.append(obj)
-                yield obj
+        local_items = []
+        return safe_iter_descendants(self)
 
     def _iter_context(self):
-        def iter_context():
-            elem = self.item
+        def safe_iter_context(context):
+            elem = context.item
             yield elem
             if elem.text is not None:
-                self.item = elem.text
-                yield self.item
+                context.item = elem.text
+                yield context.item
 
             for item in elem.attrib.items():
-                self.item = item
+                context.item = item
                 yield item
 
             if len(elem):
-                self.size = len(elem)
-                for self.position, self.item in enumerate(elem):
-                    if getattr(self.item, 'ref', None) is not None:
-                        yield self.item
-                    else:
-                        sentinel_item = None
-                        for item in iter_context():
-                            if sentinel_item is None:
-                                sentinel_item = item
-                            elif sentinel_item is item:
-                                break
+                context.size = len(elem)
+                for context.position, context.item in enumerate(elem):
+                    if getattr(context.item, 'ref', None) is not None:
+                        yield context.item
+                    elif context.item not in local_items:
+                        local_items.append(context.item)
+                        for item in safe_iter_context(context):
                             yield item
 
-        yielded_items = []
-        for obj in iter_context():
-            if obj in yielded_items:
-                continue
-            else:
-                yielded_items.append(obj)
-                yield obj
+        local_items = []
+        return safe_iter_context(self)
 
 
 class ElementPathMixin(Sequence):
     """
-    Mixin abstract class for enabling the XPath API.
+    Mixin abstract class for enabling the XPath API on XSD components.
     """
     _attrib = {}
     text = None
     tail = None
+
+    @abstractmethod
+    def __iter__(self):
+        pass
+
+    def __getitem__(self, i):
+        try:
+            return [e for e in self][i]
+        except AttributeError:
+            raise IndexError('child index out of range')
+
+    def __reversed__(self):
+        return reversed([e for e in self])
+
+    def __len__(self):
+        return len([e for e in self])
 
     @property
     def tag(self):
@@ -103,12 +104,11 @@ class ElementPathMixin(Sequence):
 
     def iterfind(self, path, namespaces=None):
         """
-        Generates all matching XSD/XML element declarations by path.
+        Creates and iterator for all XSD subelements matching the path.
 
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
+        :param path: an XPath expression that considers the XSD component as the root element.
         :param namespaces: is an optional mapping from namespace prefix to full name.
-        :return: an iterable yielding all matching declarations in the XSD/XML order.
+        :return: an iterable yielding all matching XSD subelements in document order.
         """
         if path.startswith('/'):
             path = u'.%s' % path  # Avoid document root positioning
@@ -120,14 +120,12 @@ class ElementPathMixin(Sequence):
 
     def find(self, path, namespaces=None):
         """
-        Finds the first XSD/XML element or attribute matching the path.
+        Finds the first XSD subelement matching the path.
 
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
+        :param path: an XPath expression that considers the XSD component as the root element.
         :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: The first matching XSD/XML element or attribute or ``None`` if there is not match.
+        :return: The first matching XSD subelement or ``None`` if there is not match.
         """
-
         if path.startswith('/'):
             path = u'.%s' % path
         namespaces = self.xpath_namespaces if namespaces is None else namespaces
@@ -138,13 +136,12 @@ class ElementPathMixin(Sequence):
 
     def findall(self, path, namespaces=None):
         """
-        Finds all matching XSD/XML elements or attributes.
+        Finds all XSD subelements matching the path.
 
-        :param path: is an XPath expression that considers the schema as the root element \
-        with global elements as its children.
+        :param path: an XPath expression that considers the XSD component as the root element.
         :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: a list containing all matching XSD/XML elements or attributes. An empty list \
-        is returned if there is no match.
+        :return: a list containing all matching XSD subelements in document order, an empty \
+        list is returned if there is no match.
         """
         if path.startswith('/'):
             path = u'.%s' % path
@@ -162,22 +159,6 @@ class ElementPathMixin(Sequence):
             if xpath_default_namespace is not None:
                 namespaces[''] = xpath_default_namespace
             return namespaces
-
-    def __getitem__(self, i):
-        try:
-            return [e for e in self][i]
-        except AttributeError:
-            raise IndexError('child index out of range')
-
-    def __reversed__(self):
-        return reversed([e for e in self])
-
-    def __len__(self):
-        return len([e for e in self])
-
-    @abstractmethod
-    def __iter__(self):
-        pass
 
     @abstractmethod
     def iter(self, tag=None):
