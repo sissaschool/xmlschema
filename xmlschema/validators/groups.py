@@ -140,9 +140,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
     def _parse(self):
         super(XsdGroup, self)._parse()
         self._parse_particle()
+        if self and not hasattr(self, '_elem'):
+            self.clear()
 
         elem = self.elem
-        self.clear()
         if elem.tag == XSD_GROUP_TAG:
             # Global group (group)
             name = elem.get('name')
@@ -207,8 +208,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 self._parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
                 self.append(XsdAnyElement(child, self.schema))
-            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_GROUP_TAG):
+            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
                 self.append(XsdGroup(child, self.schema, mixed=self.mixed))
+            elif child.tag == XSD_GROUP_TAG:
+                xsd_group = XsdGroup(child, self.schema, mixed=self.mixed)
+                if xsd_group.name != self.name:
+                    self.append(xsd_group)
+                elif not hasattr(self, '_elem'):
+                    self._parse_error("Circular definitions detected for group %r:" % self.ref, elem)
             else:
                 raise XMLSchemaParseError("unexpected element:", elem=elem)
 
@@ -266,7 +273,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
-    def is_needless(self, parent_group):
+    def is_meaningless(self, parent_group):
+        """
+        A group that may be eliminated. A group is meaningless if one of those conditions is verified:
+
+         - the group is empty
+         - minOccurs == maxOccurs == 1 and the group has one child
+         - minOccurs == maxOccurs == 1 and the group and its parent have a sequence model
+         - minOccurs == maxOccurs == 1 and the group and its parent have a choice model
+        """
         if not self:
             return True
         elif self.min_occurs != 1 or self.max_occurs != 1:
@@ -325,27 +340,21 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
         for item in self:
             if not isinstance(item, XsdGroup):
                 yield item
-            elif item.is_global or not item.is_needless(self):
+            elif item.is_global or not item.is_meaningless(self):
                 yield item
             else:
                 for obj in item.iter_group():
                     yield obj
 
     def iter_elements(self):
-        def _iter_elements(group):
-            for item in group:
-                if isinstance(item, XsdGroup):
-                    if item is not start_group:
-                        for e in _iter_elements(item):
-                            yield e
-                else:
-                    yield item
-                    for e in self.schema.substitution_groups.get(item.name, ()):
-                        yield e
-
-        start_group = self[0] if self.ref and isinstance(self[0], XsdGroup) else self
-        for xsd_element in _iter_elements(start_group):
-            yield xsd_element
+        for item in self:
+            if isinstance(item, XsdGroup):
+                for e in item.iter_elements():
+                    yield e
+            else:
+                yield item
+                for e in self.schema.substitution_groups.get(item.name, ()):
+                    yield e
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

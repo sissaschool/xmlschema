@@ -286,17 +286,70 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     # ElementPathMixin API
     def __iter__(self):
         try:
-            for e in self.type.content_type.iter_elements():
-                yield e
+            content_iterator = self.type.content_type.iter_elements()
         except AttributeError:
-            pass  # If it's a simple type or simple content element
+            return  # It's a simple type or simple content element
+        else:
+            for e in content_iterator:
+                yield e
 
     def get_attribute(self, name):
         if name[0] != '{':
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
+    def iterx(self, tag=None):
+        def _iter(elem):
+            if tag is None or elem.match(tag):
+                yield elem
+            for child in elem:
+                if isinstance(child, XsdAnyElement):
+                    if tag is None:
+                        yield child
+                elif child not in elements:
+                    elements.append(child)
+                    for e in _iter(child):
+                        yield e
+
+        elements = []
+        return _iter(self)
+
     def iter(self, tag=None):
+        if tag is None:
+            for e in self._iter():
+                yield e
+        else:
+            for e in self._iter_by_tag(tag):
+                yield e
+
+    def _iter(self):
+        yield self
+        for xsd_element in self:
+            if isinstance(xsd_element, XsdAnyElement):
+                yield xsd_element
+            elif xsd_element.ref is None:
+                for e in xsd_element._iter():
+                    yield e
+            else:
+                yield xsd_element
+
+    def _iter_by_tag(self, tag):
+        if self.match(tag):
+            yield self
+        for xsd_element in self:
+            if isinstance(xsd_element, XsdAnyElement):
+                continue
+            elif xsd_element.ref is None:
+                elements = []
+                for e in xsd_element._iter_by_tag(tag):
+                    if e in elements:
+                        break
+                    elements.append(e)
+                    yield e
+            elif xsd_element.match(tag):
+                yield xsd_element
+
+    def iter2(self, tag=None):
         if tag is None or self.match(tag):
             yield self
         for xsd_element in self:
