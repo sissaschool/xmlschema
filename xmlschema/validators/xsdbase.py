@@ -566,7 +566,7 @@ class ValidatorMixin(object):
         :param args: arguments that maybe passed to :func:`XMLSchema.iter_decode`.
         :param kwargs: keyword arguments from the ones included in the optional \
         arguments of the :func:`XMLSchema.iter_decode`.
-        :return: A dictionary like object if the XSD component is an element, a \
+        :return: a dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
          a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
         tuple is returned, where the first item is the decoded object and the second item \
@@ -624,7 +624,27 @@ class ValidatorMixin(object):
     to_etree = encode
 
     def iter_decode(self, source, validation='lax', *args, **kwargs):
+        """
+        Creates an iterator for decoding an XML source to a Python object.
+
+        :param source: the XML data source. The argument type depends by implementation.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param args: additional arguments for the decoder API.
+        :param kwargs: keyword arguments for the decoder API.
+        :return: Yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
+        """
         raise NotImplementedError
 
     def iter_encode(self, obj, validation='lax', *args, **kwargs):
+        """
+        Creates an iterator for Encode data to an Element.
+
+        :param obj: The data that has to be encoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
+        :param args: additional arguments for the encoder API.
+        :param kwargs: keyword arguments for the encoder API.
+        :return: Yields an Element, eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
         raise NotImplementedError

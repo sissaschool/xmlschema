@@ -311,7 +311,7 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Decode an Element instance.
+        Creates an iterator for decoding an Element instance.
 
         :param elem: The Element that has to be decoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
@@ -415,7 +415,7 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
 
     def iter_decode_children(self, elem, validation='lax', index=0):
         """
-        Generator function for decoding the children of an element. Before ending the generator
+        Creates an iterator for decoding the children of an element. Before ending the generator
         yields the last index used by inner validators.
 
         :param elem: The parent Element.
@@ -470,7 +470,7 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
-        Encode data to an Element.
+        Creates an iterator for encoding data to an Element.
 
         :param obj: The data that has to be encoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.

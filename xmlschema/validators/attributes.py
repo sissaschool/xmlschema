@@ -229,12 +229,13 @@ class XsdAttributeGroup(MutableMapping, XsdDeclaration):
         XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
-        if self.name is not None:
+        if self.ref is not None:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+        elif self.name is not None:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
         elif self:
-            return u'%s(%r)' % (
-                self.__class__.__name__, [a if a.name is None else a.prefixed_name for a in self.values()]
-            )
+            names = [a if a.name is None else a.prefixed_name for a in self.values()]
+            return u'%s(%r)' % (self.__class__.__name__, names)
         else:
             return u'%s()' % self.__class__.__name__
 

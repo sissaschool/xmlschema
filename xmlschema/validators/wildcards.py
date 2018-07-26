@@ -71,7 +71,9 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
         return True
 
     def match(self, name, default_namespace=None):
-        if name[0] == '{':
+        if name is None:
+            return False
+        elif not name or name[0] == '{':
             return self.is_namespace_allowed(get_namespace(name))
         elif default_namespace is None:
             return self.is_namespace_allowed('')
@@ -108,7 +110,7 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
 
 class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     """
-    Class for XSD 1.0 'any' declarations.
+    Class for XSD 1.0 'any' wildcards.
 
     <any
       id = ID
@@ -237,7 +239,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
 class XsdAnyAttribute(XsdWildcard):
     """
-    Class for XSD 1.0 'anyAttribute' declarations.
+    Class for XSD 1.0 'anyAttribute' wildcards.
     
     <anyAttribute
       id = ID

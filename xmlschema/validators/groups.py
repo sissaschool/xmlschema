@@ -95,12 +95,13 @@ class XsdGroup(MutableSequence, XsdDeclaration, ValidatorMixin, ParticleMixin):
         XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
+        model = local_name(self.model)
         if self.name is None:
-            return u'%s(model=%r)' % (self.__class__.__name__, local_name(self.model))
+            return u'%s(model=%r)' % (self.__class__.__name__, model)
         elif self.ref is None:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return u'%s(name=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, model)
         else:
-            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return u'%s(ref=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, model)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -354,7 +355,7 @@ class XsdGroup(MutableSequence, XsdDeclaration, ValidatorMixin, ParticleMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Decode the content of an Element.
+        Creates an iterator for decoding an Element content.
 
         :param elem: The Element that has to be decoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
@@ -452,14 +453,14 @@ class XsdGroup(MutableSequence, XsdDeclaration, ValidatorMixin, ParticleMixin):
 
     def iter_decode_children(self, elem, validation='lax', index=0):
         """
-        Generator function for decoding the children of an element. Before ending the generator
-        yields the last index used by inner validators.
+        Creates an iterator for decoding the children of an element. Before ending the
+        generator yields the last index used by inner validators.
 
         :param elem: The parent Element.
         :param index: Start child index, 0 for default.
         :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
         :return: Yields a sequence of values that can be tuples and/or \
-        XMLSchemaChildrenValidationError errors and an integer at the end.
+        `XMLSchemaChildrenValidationError` errors and an integer at the end.
         """
         if not len(self):
             return  # Skip empty groups!
@@ -541,7 +542,7 @@ class XsdGroup(MutableSequence, XsdDeclaration, ValidatorMixin, ParticleMixin):
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
-        Encode data to the text and the content of an Element.
+        Creates an iterator for encoding data to a list containing Element data.
 
         :param obj: The data that has to be encoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.

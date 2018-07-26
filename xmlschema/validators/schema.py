@@ -376,11 +376,8 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     # Schema root attributes
     @property
-    def name(self):
-        return self.root.tag
-
-    @property
     def tag(self):
+        """Schema root tag. For compatibility with the ElementTree API."""
         return self.root.tag
 
     @property
@@ -726,7 +723,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
                     namespaces=None, use_defaults=True, decimal_type=None, converter=None,
                     defuse=None, timeout=None, **kwargs):
         """
-        Decode an XML data source using the schema instance.
+        Creates an iterator for decoding an XML source to a data structure.
 
         :param source: the XML data source. Can be a path to a file or an URI of a resource or \
         an opened file-like object or an Element Tree instance or a string containing XML data.
@@ -802,7 +799,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
         """
-        Encode a data structure to an ElementTree's Element.
+        Creates an iterator for encoding a data structure to an ElementTree's Element.
 
         :param obj: the data that has to be encoded.
         :param path: is an optional XPath expression for selecting the element of the schema \

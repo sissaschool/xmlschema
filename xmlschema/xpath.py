@@ -75,7 +75,10 @@ class ElementPathContext(XPathContext):
 
 class ElementPathMixin(Sequence):
     """
-    Mixin abstract class for enabling the XPath API on XSD components.
+    Mixin abstract class for enabling ElementTree and XPath API on XSD components.
+
+    :cvar text: The Element text. Its value is always `None`. For compatibility with the ElementTree API.
+    :cvar tail: The Element tail. Its value is always `None`. For compatibility with the ElementTree API.
     """
     _attrib = {}
     text = None
@@ -99,13 +102,16 @@ class ElementPathMixin(Sequence):
 
     @property
     def tag(self):
+        """Alias of the *name* attribute. For compatibility with the ElementTree API."""
         return getattr(self, 'name')
 
     @property
     def attrib(self):
+        """Returns the Element attributes. For compatibility with the ElementTree API."""
         return getattr(self, 'attributes', self._attrib)
 
     def get(self, key, default=None):
+        """Gets an Element attribute. For compatibility with the ElementTree API."""
         return self.attrib.get(key, default)
 
     @property
