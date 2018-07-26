@@ -23,12 +23,12 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from .parseutils import get_xsd_attribute
-from .xsdbase import XsdComponent, ValidatorMixin
+from .xsdbase import XsdComponent, XsdDeclaration, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 
-class XsdAttribute(XsdComponent, ValidatorMixin):
+class XsdAttribute(XsdDeclaration, ValidatorMixin):
     """
     Class for XSD 1.0 'attribute' declarations.
 
@@ -137,10 +137,6 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
         return self.elem.get('fixed')
 
     @property
-    def ref(self):
-        return self.elem.get('ref')
-
-    @property
     def form(self):
         return get_xsd_attribute(
             self.elem, 'form', ('qualified', 'unqualified'), default=None
@@ -154,15 +150,6 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
 
     def is_optional(self):
         return self.use == 'optional'
-
-    def match(self, name, default_namespace=None):
-        if name[0] == '{':
-            return self.name == name
-        elif default_namespace:
-            qname = '{%s}%s' % (default_namespace, name)
-            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
-        else:
-            return self.name == name or not self.qualified and self.local_name == name
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -222,7 +209,7 @@ class Xsd11Attribute(XsdAttribute):
     pass
 
 
-class XsdAttributeGroup(MutableMapping, XsdComponent):
+class XsdAttributeGroup(MutableMapping, XsdDeclaration):
     """
     Class for XSD 'attributeGroup' definitions.
     
@@ -242,12 +229,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
         XsdComponent.__init__(self, elem, schema, name, is_global)
 
     def __repr__(self):
-        if self.name is not None:
+        if self.ref is not None:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+        elif self.name is not None:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
         elif self:
-            return u'%s(%r)' % (
-                self.__class__.__name__, [a if a.name is None else a.prefixed_name for a in self.values()]
-            )
+            names = [a if a.name is None else a.prefixed_name for a in self.values()]
+            return u'%s(%r)' % (self.__class__.__name__, names)
         else:
             return u'%s()' % self.__class__.__name__
 
@@ -372,10 +360,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
     def admitted_tags(self):
         return {XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
                 XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}
-
-    @property
-    def ref(self):
-        return self.elem.get('ref')
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

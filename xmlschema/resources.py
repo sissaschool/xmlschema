@@ -43,25 +43,22 @@ def url_path_is_file(url):
 
 def normalize_url(url, base_url=None, keep_relative=False):
     """
-    Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file'.
-    For file paths the os.path.join is used instead of urljoin, in order to remap also relative paths.
+    Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file' and
+    backslashes are replaced with slashes. For file paths the os.path.join is used instead of
+    urljoin.
 
     :param url: a relative or absolute URL.
     :param base_url: the reference base URL for construct the normalized URL from the argument. \
     For compatibility between "os.path.join" and "urljoin" a trailing '/' is added to not empty paths.
-    :param keep_relative: if set to `True` keeps relative file paths, otherwise gets the \
-    absolute path from the current working directory.
+    :param keep_relative: if set to `True` keeps relative file paths, which would not strictly \
+    conformant to URL format specification.
     :return: A normalized URL.
     """
     def add_trailing_slash(r):
-        if not r[2] or r[2][-1] == '/':
-            return urlunsplit((r[0], r[1], r[2], r[3], r[4]))
-        elif r[2][-1] == '\\':
-            return urlunsplit((r[0], r[1], r[2][:-1] + '/', r[3], r[4]))
-        else:
-            return urlunsplit((r[0], r[1], r[2] + '/', r[3], r[4]))
+        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[2][-1] != '/' else r[2], r[3], r[4]))
 
     if base_url is not None:
+        base_url = base_url.replace('\\', '/')
         base_url_parts = urlsplit(base_url)
         base_url = add_trailing_slash(base_url_parts)
         if base_url_parts.scheme not in uses_relative:
@@ -86,9 +83,10 @@ def normalize_url(url, base_url=None, keep_relative=False):
                     url_parts.fragment,
                 ))
 
+    url = url.replace('\\', '/')
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
-        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:\Python\lib\....
+        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
     elif url_parts.scheme != 'file':
         return urlunsplit((
             url_parts.scheme,
@@ -97,10 +95,10 @@ def normalize_url(url, base_url=None, keep_relative=False):
             url_parts.query,
             url_parts.fragment,
         ))
-    elif url_parts.path[:1] in ('/', '\\'):
+    elif os.path.isabs(url_parts.path):
         return url_parts.geturl()
     elif keep_relative:
-        # Unsplitting 'file' scheme URLs breaks relative paths
+        # Can't use urlunsplit with a scheme because it converts relative paths to absolute ones.
         return 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
     else:
         return urlunsplit((

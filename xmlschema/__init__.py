@@ -14,6 +14,7 @@ from .resources import (
     normalize_url, fetch_resource, load_xml_resource, fetch_namespaces,
     fetch_schema_locations, fetch_schema, XMLResource
 )
+from .xpath import ElementPathMixin
 from .converters import (
     XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
@@ -24,9 +25,9 @@ from .validators.exceptions import (
     XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError,
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
-from .validators.schema import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
+from .validators import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"

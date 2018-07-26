@@ -4,7 +4,7 @@ tox
 elementpath>=1.0.10
 defusedxml>=0.5
 lxml
-pyyaml
+pathlib2  # For Py27 tests on resources
 Sphinx
 sphinx_rtd_theme
 -e .

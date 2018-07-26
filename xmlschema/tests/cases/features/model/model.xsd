@@ -2,10 +2,10 @@
 <!-- A sample schema for testing model validation -->
 <xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
 
-    <xs:anyattribute notNamespace="#all">
+    <xs:anyattribute notNamespace="#all"> <!-- Illegal declaration -->
     </xs:anyattribute>
 
-    <xs:annotation ciao="10" xml:lang="en"/>
+    <xs:annotation ciao="10" xml:lang="en"/> <!-- Illegal attribute -->
 
     <xs:element name="data">
         <xs:complexType>

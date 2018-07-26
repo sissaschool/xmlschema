@@ -11,7 +11,9 @@
 """
 This subpackage contains classes and constants for XML Schema components.
 """
-from .xsdbase import XsdBaseComponent, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidatorMixin
+from .xsdbase import (
+    XsdBaseComponent, XsdComponent, XsdDeclaration, XsdAnnotation, XsdType, ParticleMixin, ValidatorMixin
+)
 from .constraints import XsdSelector, XsdFieldSelector, XsdConstraint, XsdKeyref, XsdKey, XsdUnique
 from .notations import XsdNotation
 from .wildcards import XsdAnyElement, XsdAnyAttribute
@@ -28,4 +30,5 @@ from .facets import (
     DECIMAL_FACETS, DATETIME_FACETS, XsdSingleFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
 from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, xsd_build_any_content_group
-from .schema import XMLSchema, XMLSchema10
+from .globals_ import XsdGlobals
+from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10

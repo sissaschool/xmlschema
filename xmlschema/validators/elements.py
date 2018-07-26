@@ -11,11 +11,10 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
-from collections import Sequence
 from decimal import Decimal
 
 from ..compat import unicode_type
-from ..exceptions import XMLSchemaAttributeError, XMLSchemaIndexError
+from ..exceptions import XMLSchemaAttributeError
 from ..etree import etree_element, is_etree_element
 from ..converters import ElementData
 from ..qnames import (
@@ -28,7 +27,7 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdComponent, XsdDeclaration, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -37,7 +36,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 
 
-class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -66,29 +65,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
-
-    def __getitem__(self, i):
-        try:
-            elements = [e for e in self.type.content_type.iter_elements()]
-        except AttributeError:
-            raise XMLSchemaIndexError('child index out of range')
-        return elements[i]
-
-    def __iter__(self):
-        try:
-            for xsd_element in self.type.content_type.iter_elements():
-                yield xsd_element
-        except (TypeError, AttributeError):
-            return
-
-    def __reversed__(self):
-        return reversed([e for e in self.type.content_type.iter_elements()])
-
-    def __len__(self):
-        try:
-            return len([e for e in self.type.content_type.iter_elements()])
-        except AttributeError:
-            return 0
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -263,10 +239,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
     def admitted_tags(self):
         return {XSD_ELEMENT_TAG}
 
-    @property
-    def ref(self):
-        return self.elem.get('ref')
-
     # Properties inherited by references
     @property
     def abstract(self):
@@ -307,6 +279,20 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
     def substitution_group(self):
         return self.elem.get('substitutionGroup')
 
+    def __iter__(self):
+        try:
+            content_iterator = self.type.content_type.iter_elements()
+        except AttributeError:
+            return  # It's a simple type or simple content element
+        else:
+            for e in content_iterator:
+                yield e
+
+    def get_attribute(self, name):
+        if name[0] != '{':
+            return self.type.attributes[get_qname(self.type.target_namespace, name)]
+        return self.type.attributes[name]
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self
@@ -323,18 +309,9 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def match(self, name, default_namespace=None):
-        if name[0] == '{':
-            return self.name == name
-        elif default_namespace:
-            qname = '{%s}%s' % (default_namespace, name)
-            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
-        else:
-            return self.name == name or not self.qualified and self.local_name == name
-
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Decode an Element instance.
+        Creates an iterator for decoding an Element instance.
 
         :param elem: The Element that has to be decoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
@@ -436,9 +413,9 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                 for error in constraint(elem):
                     yield self._validation_error(error, validation)
 
-    def iter_decode_children(self, elem, index=0, validation='lax'):
+    def iter_decode_children(self, elem, validation='lax', index=0):
         """
-        Generator function for decoding the children of an element. Before ending the generator
+        Creates an iterator for decoding the children of an element. Before ending the generator
         yields the last index used by inner validators.
 
         :param elem: The parent Element.
@@ -450,11 +427,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
         while True:
             try:
                 child = elem[index]
-            except TypeError:
-                # elem is a lxml.etree.Element and elem[index] is a <class 'lxml.etree._Comment'>:
-                # in this case elem[index].tag is a <cyfunction Comment>, not subscriptable. So
-                # decode nothing and take the next.
-                pass
             except IndexError:
                 if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                     error = XMLSchemaChildrenValidationError(self, elem, index, self.prefixed_name)
@@ -464,7 +436,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
             else:
                 tag = child.tag
                 if callable(tag):
-                    # Lxml comment
+                    # When tag is a function the child is a <class 'lxml.etree._Comment'>
                     index += 1
                     continue
                 elif tag == self.name:
@@ -498,7 +470,7 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
-        Encode data to an Element.
+        Creates an iterator for encoding data to an Element.
 
         :param obj: The data that has to be encoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
@@ -557,39 +529,6 @@ class XsdElement(Sequence, XsdComponent, ValidatorMixin, ParticleMixin, ElementP
                     yield converter.etree_element(element_data.tag, attrib=attributes, level=level)
 
         del element_data
-
-    def get_attribute(self, name):
-        if name[0] != '{':
-            return self.type.attributes[get_qname(self.type.target_namespace, name)]
-        return self.type.attributes[name]
-
-    def iter(self, tag=None):
-        if tag is None or self.name == tag:
-            yield self
-        try:
-            for xsd_element in self.type.content_type.iter_elements():
-                if xsd_element.ref is None and not xsd_element.is_global:
-                    elements = []
-                    for e in xsd_element.iter(tag):
-                        if e in elements:
-                            break
-                        else:
-                            elements.append(e)
-                            yield e
-                elif tag is None or xsd_element.name == tag:
-                    yield xsd_element
-        except (TypeError, AttributeError):
-            # If has a simple type or simple content or xsd_element is an XsdAnyElement
-            return
-
-
-    def iterchildren(self, tag=None):
-        try:
-            for xsd_element in self.type.content_type.iter_elements():
-                if tag is None or xsd_element.match(tag):
-                    yield xsd_element
-        except (TypeError, AttributeError):
-            return
 
     def is_restriction(self, other, check_particle=True):
         if isinstance(other, XsdAnyElement):
@@ -701,3 +640,7 @@ class XsdAlternative(XsdComponent):
     @property
     def admitted_tags(self):
         return {XSD_ELEMENT_TAG}
+
+    @property
+    def built(self):
+        raise NotImplementedError

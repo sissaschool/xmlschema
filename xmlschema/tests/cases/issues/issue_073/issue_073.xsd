@@ -1,0 +1,16 @@
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+	xmlns:ns="ns" targetNamespace="ns">
+  <element name="items" type="ns:sequenceType" />
+  <complexType name="sequenceType">
+    <sequence>
+      <element type="string" name="a1" minOccurs="0" />
+      <element type="string" name="a2" minOccurs="0" />
+      <element type="string" name="a3" />
+      <element type="string" name="a4" minOccurs="0" maxOccurs="unbounded" />
+      <element type="string" name="a5" minOccurs="0" />
+      <element type="string" name="a6" minOccurs="0" />
+      <element type="string" name="a7" minOccurs="0" />
+      <element type="string" name="a8" minOccurs="0" />
+    </sequence>
+  </complexType>
+</schema>

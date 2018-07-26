@@ -142,6 +142,13 @@ def etree_getpath(elem, root):
             return path
 
 
+def etree_last_child(elem):
+    """Returns the last child of the element, ignoring children that are lxml comments."""
+    for child in reversed(elem):
+        if not callable(child.tag):
+            return child
+
+
 def etree_child_index(elem, child):
     """Return the index or raise ValueError if it is not a *child* of *elem*."""
     for index in range(len(elem)):

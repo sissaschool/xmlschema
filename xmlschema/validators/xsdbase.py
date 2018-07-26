@@ -49,6 +49,16 @@ class XsdBaseComponent(object):
         self.validation = validation
         self.errors = []  # component errors
 
+    def __str__(self):
+        # noinspection PyCompatibility,PyUnresolvedReferences
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
     def _parse(self):
         if self.errors:
             del self.errors[:]
@@ -69,21 +79,23 @@ class XsdBaseComponent(object):
         else:
             raise error
 
-    def _parse_xpath_default_namespace_attribute(self, elem, namespaces, target_namespace):
+    def _parse_xpath_default_namespace(self, elem, namespaces, target_namespace, default=None):
         try:
             xpath_default_namespace = get_xpath_default_namespace_attribute(elem)
         except XMLSchemaValueError as error:
             self._parse_error(error, elem)
-            self.xpath_default_namespace = namespaces['']
+            self._xpath_default_namespace = namespaces['']
         else:
             if xpath_default_namespace == '##local':
-                self.xpath_default_namespace = ''
+                self._xpath_default_namespace = ''
             elif xpath_default_namespace == '##defaultNamespace':
-                self.xpath_default_namespace = namespaces['']
+                self._xpath_default_namespace = namespaces['']
             elif xpath_default_namespace == '##targetNamespace':
-                self.xpath_default_namespace = target_namespace
-            else:
-                self.xpath_default_namespace = xpath_default_namespace
+                self._xpath_default_namespace = target_namespace
+            elif xpath_default_namespace is not None:
+                self._xpath_default_namespace = xpath_default_namespace
+            elif default is not None:
+                self._xpath_default_namespace = default
 
     @property
     def built(self):
@@ -141,16 +153,17 @@ class XsdBaseComponent(object):
 
 class XsdComponent(XsdBaseComponent):
     """
-    XML Schema component base class.
+    Class for schema components.
 
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
-    :param is_global: `True` if the component is a global declaration/definition, \
-    `False` if it's local.
     :param name: Name of the component, maybe overwritten by the parse of the `elem` argument.
+    :param is_global: `True` if the instance is a global component, `False` if it's local.
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
+
+    qualified = True  # For name matching, unqualified matching may be admitted only for elements and attributes.
 
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__(schema.validation)
@@ -194,6 +207,13 @@ class XsdComponent(XsdBaseComponent):
         return self.schema.namespaces
 
     @property
+    def xpath_default_namespace(self):
+        try:
+            return self._xpath_default_namespace
+        except AttributeError:
+            getattr(self.schema, '_xpath_default_namespace', None)
+
+    @property
     def maps(self):
         return self.schema.maps
 
@@ -202,16 +222,6 @@ class XsdComponent(XsdBaseComponent):
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
         else:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-
-    def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def _validation_error(self, error, validation, obj=None):
         if validation == 'skip':
@@ -285,13 +295,24 @@ class XsdComponent(XsdBaseComponent):
     def admitted_tags(self):
         raise NotImplementedError
 
+    def match(self, name, default_namespace=None):
+        """Matching method for component name."""
+        if not name or name[0] == '{':
+            return self.name == name
+        elif default_namespace:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
+        else:
+            return self.name == name or not self.qualified and self.local_name == name
+
     def iter_components(self, xsd_classes=None):
+        """Creates an iterator for XSD subcomponents."""
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
 
     def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
         """
-        Returns the etree node of the component as a string.
+        Returns the XML elements that declare or define the component as a string.
         """
         if self.elem is not None:
             return etree_tostring(self.elem, indent, max_lines, spaces_for_tab)
@@ -418,6 +439,27 @@ class XsdType(XsdComponent):
             return False
 
 
+class XsdDeclaration(XsdComponent):
+
+    def __repr__(self):
+        if self.ref is None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+
+    @property
+    def ref(self):
+        return self.elem.get('ref')
+
+    @property
+    def built(self):
+        raise NotImplementedError
+
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
+
+
 class ParticleMixin(object):
     """
     Mixin for objects related to XSD Particle Schema Components:
@@ -524,11 +566,11 @@ class ValidatorMixin(object):
         :param args: arguments that maybe passed to :func:`XMLSchema.iter_decode`.
         :param kwargs: keyword arguments from the ones included in the optional \
         arguments of the :func:`XMLSchema.iter_decode`.
-        :return: A dictionary like object if the XSD component is an element, a \
+        :return: a dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
-         a simple data type object otherwise. If *validation* argument is 'lax' and the data \
-        contain errors a 2-items tuple is returned, where the first item is the decoded \
-        object and the second item is a list containing the errors.
+         a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
+        tuple is returned, where the first item is the decoded object and the second item \
+        is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
@@ -543,7 +585,7 @@ class ValidatorMixin(object):
                     raise result
                 elif validation == 'lax':
                     errors.append(result)
-            elif errors:
+            elif validation == 'lax':
                 return result, errors
             else:
                 return result
@@ -558,9 +600,9 @@ class ValidatorMixin(object):
         :param kwargs: keyword arguments from the ones included in the optional \
         arguments of the :func:`XMLSchema.iter_encode`.
         :return: An element tree's Element if the original data is a structured data or \
-        a string if it's simple type datum. If *validation* argument is 'lax' and the data \
-        contain errors a 2-items tuple is returned, where the first item is the encoded \
-        object and the second item is a list containing the errors.
+        a string if it's simple type datum. If *validation* argument is 'lax' a 2-items \
+        tuple is returned, where the first item is the encoded object and the second item \
+        is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
@@ -575,14 +617,34 @@ class ValidatorMixin(object):
                     raise result
                 elif validation == 'lax':
                     errors.append(result)
-            elif errors:
+            elif validation == 'lax':
                 return result, errors
             else:
                 return result
     to_etree = encode
 
     def iter_decode(self, source, validation='lax', *args, **kwargs):
+        """
+        Creates an iterator for decoding an XML source to a Python object.
+
+        :param source: the XML data source. The argument type depends by implementation.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param args: additional arguments for the decoder API.
+        :param kwargs: keyword arguments for the decoder API.
+        :return: Yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
+        """
         raise NotImplementedError
 
     def iter_encode(self, obj, validation='lax', *args, **kwargs):
+        """
+        Creates an iterator for Encode data to an Element.
+
+        :param obj: The data that has to be encoded.
+        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
+        :param args: additional arguments for the encoder API.
+        :param kwargs: keyword arguments for the encoder API.
+        :return: Yields an Element, eventually preceded by a sequence of validation \
+        or encoding errors.
+        """
         raise NotImplementedError

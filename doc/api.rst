@@ -27,9 +27,10 @@ Schema level API
 .. autoclass:: xmlschema.XMLSchemaBase
 
     .. autoattribute:: root
-    .. autoattribute:: text
+    .. automethod:: get_text
     .. autoattribute:: url
 
+    .. autoattribute:: tag
     .. autoattribute:: id
     .. autoattribute:: version
     .. autoattribute:: attribute_form_default
@@ -71,6 +72,14 @@ Schema level API
 
     .. automethod:: iter_encode
 
+ElementTree and XPath API
+-------------------------
+
+.. autoclass:: xmlschema.ElementPathMixin
+
+    .. autoattribute:: tag
+    .. autoattribute:: attrib
+    .. automethod:: get
     .. automethod:: iter
     .. automethod:: iterchildren
     .. automethod:: find
@@ -123,7 +132,6 @@ Resource access API
 -------------------
 
 .. autoclass:: xmlschema.XMLResource
-    :members: source, defuse, timeout, lazy
 
     .. autoattribute:: root
     .. autoattribute:: document

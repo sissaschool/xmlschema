@@ -119,9 +119,9 @@ defining the search criteria:
 .. doctest::
 
     >>> schema.find('vh:vehicles/vh:bikes')
-    XsdElement(name='vh:bikes')
+    XsdElement(ref='vh:bikes')
     >>> pprint(schema.findall('vh:vehicles/*'))
-    [XsdElement(name='vh:cars'), XsdElement(name='vh:bikes')]
+    [XsdElement(ref='vh:cars'), XsdElement(ref='vh:bikes')]
 
 
 Validation
