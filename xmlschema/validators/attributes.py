@@ -23,12 +23,12 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from .parseutils import get_xsd_attribute
-from .xsdbase import XsdComponent, XsdDeclaration, ValidatorMixin
+from .xsdbase import XsdComponent, ValidatorMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 
-class XsdAttribute(XsdDeclaration, ValidatorMixin):
+class XsdAttribute(XsdComponent, ValidatorMixin):
     """
     Class for XSD 1.0 'attribute' declarations.
 
@@ -51,6 +51,12 @@ class XsdAttribute(XsdDeclaration, ValidatorMixin):
         super(XsdAttribute, self).__init__(elem, schema, name, is_global)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
+
+    def __repr__(self):
+        if self.ref is None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -127,6 +133,11 @@ class XsdAttribute(XsdDeclaration, ValidatorMixin):
     @property
     def admitted_tags(self):
         return {XSD_ATTRIBUTE_TAG}
+
+    # XSD declaration attributes
+    @property
+    def ref(self):
+        return self.elem.get('ref')
 
     @property
     def default(self):
@@ -209,7 +220,7 @@ class Xsd11Attribute(XsdAttribute):
     pass
 
 
-class XsdAttributeGroup(MutableMapping, XsdDeclaration):
+class XsdAttributeGroup(MutableMapping, XsdComponent):
     """
     Class for XSD 'attributeGroup' definitions.
     
@@ -360,6 +371,10 @@ class XsdAttributeGroup(MutableMapping, XsdDeclaration):
     def admitted_tags(self):
         return {XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
                 XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}
+
+    @property
+    def ref(self):
+        return self.elem.get('ref')
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

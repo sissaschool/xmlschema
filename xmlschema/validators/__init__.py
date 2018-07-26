@@ -12,7 +12,7 @@
 This subpackage contains classes and constants for XML Schema components.
 """
 from .xsdbase import (
-    XsdBaseComponent, XsdComponent, XsdDeclaration, XsdAnnotation, XsdType, ParticleMixin, ValidatorMixin
+    XsdBaseComponent, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidatorMixin
 )
 from .constraints import XsdSelector, XsdFieldSelector, XsdConstraint, XsdKeyref, XsdKey, XsdUnique
 from .notations import XsdNotation

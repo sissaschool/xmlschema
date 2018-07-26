@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+v1.0.3 (TBD)
+============
+* Improved group encoding
+
 v1.0.2 (2018-07-26)
 ===================
 * Improved ElementTree and XPath API

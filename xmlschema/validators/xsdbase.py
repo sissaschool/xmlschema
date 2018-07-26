@@ -439,27 +439,6 @@ class XsdType(XsdComponent):
             return False
 
 
-class XsdDeclaration(XsdComponent):
-
-    def __repr__(self):
-        if self.ref is None:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-        else:
-            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
-
-    @property
-    def ref(self):
-        return self.elem.get('ref')
-
-    @property
-    def built(self):
-        raise NotImplementedError
-
-    @property
-    def admitted_tags(self):
-        raise NotImplementedError
-
-
 class ParticleMixin(object):
     """
     Mixin for objects related to XSD Particle Schema Components:

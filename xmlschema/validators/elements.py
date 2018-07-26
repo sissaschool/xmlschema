@@ -27,7 +27,7 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdComponent, XsdDeclaration, XsdType, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -36,7 +36,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 
 
-class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -66,6 +66,12 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
+    def __repr__(self):
+        if self.ref is None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+
     def __setattr__(self, name, value):
         if name == "type":
             assert value is None or isinstance(value, XsdType), "Wrong value %r for attribute 'type'." % value
@@ -76,6 +82,15 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
                     elem=XSD_ATTRIBUTE_GROUP_ELEMENT, schema=self.schema
                 )
         super(XsdElement, self).__setattr__(name, value)
+
+    def __iter__(self):
+        try:
+            content_iterator = self.type.content_type.iter_elements()
+        except AttributeError:
+            return  # It's a simple type or simple content element
+        else:
+            for e in content_iterator:
+                yield e
 
     def _parse(self):
         XsdComponent._parse(self)
@@ -239,6 +254,24 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
     def admitted_tags(self):
         return {XSD_ELEMENT_TAG}
 
+    # XSD declaration attributes
+    @property
+    def ref(self):
+        return self.elem.get('ref')
+
+    # Global element's exclusive properties
+    @property
+    def final(self):
+        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+
+    @property
+    def block(self):
+        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
+
+    @property
+    def substitution_group(self):
+        return self.elem.get('substitutionGroup')
+
     # Properties inherited by references
     @property
     def abstract(self):
@@ -265,28 +298,6 @@ class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin
         if self._ref is not None:
             return self._ref.nillable
         return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
-
-    # Global element's exclusive properties
-    @property
-    def final(self):
-        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
-
-    @property
-    def block(self):
-        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
-
-    @property
-    def substitution_group(self):
-        return self.elem.get('substitutionGroup')
-
-    def __iter__(self):
-        try:
-            content_iterator = self.type.content_type.iter_elements()
-        except AttributeError:
-            return  # It's a simple type or simple content element
-        else:
-            for e in content_iterator:
-                yield e
 
     def get_attribute(self, name):
         if name[0] != '{':
