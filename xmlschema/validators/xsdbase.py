@@ -49,6 +49,16 @@ class XsdBaseComponent(object):
         self.validation = validation
         self.errors = []  # component errors
 
+    def __str__(self):
+        # noinspection PyCompatibility,PyUnresolvedReferences
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
     def _parse(self):
         if self.errors:
             del self.errors[:]
@@ -84,6 +94,8 @@ class XsdBaseComponent(object):
                 self._xpath_default_namespace = target_namespace
             elif xpath_default_namespace is not None:
                 self._xpath_default_namespace = xpath_default_namespace
+            elif default is not None:
+                self._xpath_default_namespace = default
 
     @property
     def built(self):
@@ -141,17 +153,17 @@ class XsdBaseComponent(object):
 
 class XsdComponent(XsdBaseComponent):
     """
-    XML Schema component base class.
+    Class for schema components.
 
     :param elem: ElementTree's node containing the definition.
     :param schema: The XMLSchema object that owns the definition.
-    :param is_global: `True` if the component is a global declaration/definition, \
-    `False` if it's local.
     :param name: Name of the component, maybe overwritten by the parse of the `elem` argument.
+    :param is_global: `True` if the instance is a global component, `False` if it's local.
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    qualified = True
+
+    qualified = True  # For name matching, unqualified matching may be admitted only for elements and attributes.
 
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__(schema.validation)
@@ -210,16 +222,6 @@ class XsdComponent(XsdBaseComponent):
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
         else:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-
-    def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def _validation_error(self, error, validation, obj=None):
         if validation == 'skip':
@@ -435,6 +437,27 @@ class XsdType(XsdComponent):
             return self.base_type.is_subtype(qname)
         else:
             return False
+
+
+class XsdDeclaration(XsdComponent):
+
+    def __repr__(self):
+        if self.ref is None:
+            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        else:
+            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+
+    @property
+    def ref(self):
+        return self.elem.get('ref')
+
+    @property
+    def built(self):
+        raise NotImplementedError
+
+    @property
+    def admitted_tags(self):
+        raise NotImplementedError
 
 
 class ParticleMixin(object):

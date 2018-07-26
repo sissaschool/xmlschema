@@ -27,7 +27,7 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdComponent, XsdDeclaration, XsdType, ParticleMixin, ValidatorMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -36,7 +36,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 
 
-class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(XsdDeclaration, ValidatorMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -65,12 +65,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
-
-    def __repr__(self):
-        if self.ref is None:
-            return u'%s(name=%r, is_global=%r)' % (self.__class__.__name__, self.prefixed_name, self.is_global)
-        else:
-            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -244,10 +238,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     @property
     def admitted_tags(self):
         return {XSD_ELEMENT_TAG}
-
-    @property
-    def ref(self):
-        return self.elem.get('ref')
 
     # Properties inherited by references
     @property
@@ -650,3 +640,7 @@ class XsdAlternative(XsdComponent):
     @property
     def admitted_tags(self):
         return {XSD_ELEMENT_TAG}
+
+    @property
+    def built(self):
+        raise NotImplementedError

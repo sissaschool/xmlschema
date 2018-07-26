@@ -26,7 +26,7 @@ from ..qnames import (
 from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
-from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
+from .xsdbase import ValidatorMixin, XsdComponent, XsdDeclaration, ParticleMixin
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -41,7 +41,7 @@ DUMMY_ANY_ELEMENT = etree_element(
     })
 
 
-class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
+class XsdGroup(MutableSequence, XsdDeclaration, ValidatorMixin, ParticleMixin):
     """
     A class for XSD 'group', 'choice', 'sequence' definitions and
     XSD 1.0 'all' definitions.
@@ -248,10 +248,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
     def admitted_tags(self):
         return {XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG,
                 XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
-
-    @property
-    def ref(self):
-        return self.elem.get('ref')
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
