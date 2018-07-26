@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+v1.0.2 (2018-07-26)
+===================
+* Improved ElementTree and XPath API
+
 v1.0.0 (2018-07-14)
 ===================
 * Validated data encoding to XML
