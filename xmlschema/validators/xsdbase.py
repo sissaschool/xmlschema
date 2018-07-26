@@ -151,6 +151,7 @@ class XsdComponent(XsdBaseComponent):
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
+    qualified = True
 
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__(schema.validation)
@@ -292,13 +293,24 @@ class XsdComponent(XsdBaseComponent):
     def admitted_tags(self):
         raise NotImplementedError
 
+    def match(self, name, default_namespace=None):
+        """Matching method for component name."""
+        if not name or name[0] == '{':
+            return self.name == name
+        elif default_namespace:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
+        else:
+            return self.name == name or not self.qualified and self.local_name == name
+
     def iter_components(self, xsd_classes=None):
+        """Creates an iterator for XSD subcomponents."""
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
 
     def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
         """
-        Returns the etree node of the component as a string.
+        Returns the XML elements that declare or define the component as a string.
         """
         if self.elem is not None:
             return etree_tostring(self.elem, indent, max_lines, spaces_for_tab)

@@ -289,7 +289,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
     def substitution_group(self):
         return self.elem.get('substitutionGroup')
 
-    # ElementPathMixin API
     def __iter__(self):
         try:
             content_iterator = self.type.content_type.iter_elements()
@@ -303,38 +302,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
         if name[0] != '{':
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
-
-    def iter(self, tag=None):
-        """
-        Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
-        only XSD elements whose matches tag are returned from the iterator. Local elements are
-        expanded without repetitions. Element references are not expanded because the global
-        elements are not descendants of other elements.
-        """
-        def safe_iter(elem):
-            if tag is None or elem.match(tag):
-                yield elem
-            for child in elem:
-                if isinstance(child, XsdAnyElement):
-                    if tag is None:
-                        yield child
-                elif child.ref:
-                    if tag is None or elem.match(tag):
-                        yield child
-                elif child not in local_elements:
-                    local_elements.append(child)
-                    for e in safe_iter(child):
-                        yield e
-
-        if tag == '*':
-            tag = None
-        local_elements = []
-        return safe_iter(self)
-
-    def iterchildren(self, tag=None):
-        for xsd_element in self:
-            if tag is None or xsd_element.match(tag):
-                yield xsd_element
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
@@ -351,15 +318,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
         if self.ref is None and not self.type.is_global:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
-
-    def match(self, name, default_namespace=None):
-        if name[0] == '{':
-            return self.name == name
-        elif default_namespace:
-            qname = '{%s}%s' % (default_namespace, name)
-            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
-        else:
-            return self.name == name or not self.qualified and self.local_name == name
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """

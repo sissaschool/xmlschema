@@ -439,10 +439,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     @property
     def parent_map(self):
         if self._parent_map is None:
-            self._parent_map = {
-                e: p for p in self.iter()
-                for e in p.iterchildren()
-            }
+            self._parent_map = {e: p for p in self.iter() for e in p.iterchildren()}
         return self._parent_map
 
     @classmethod
@@ -725,30 +722,6 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
         except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
-    # ElementPathMixin API
-    def iter(self, tag=None):
-        """
-        Creates an iterator for the XSD elements of the schema. If *tag* is not `None` or '*',
-        only XSD elements whose name matches tag are returned from the iterator.
-        """
-        if tag == '*':
-            tag = None
-        for xsd_element in self.elements.values():
-            for e in xsd_element.iter(tag):
-                yield e
-
-    def iterchildren(self, tag=None):
-        """
-        Creates an iterator for the XSD global elements of the schema. If *tag* is not `None`
-        or '*', only XSD elements whose name matches tag are returned from the iterator.
-        """
-        if tag == '*':
-            tag = None
-        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-            if tag is None or xsd_element.match(tag):
-                yield xsd_element
-
-    # Validator methods
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, converter=None,
                     defuse=None, timeout=None, **kwargs):

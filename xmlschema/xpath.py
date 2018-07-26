@@ -31,7 +31,10 @@ class ElementPathContext(XPathContext):
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
-                    if getattr(context.item, 'ref', None) is not None:
+                    if context.item.is_global:
+                        for item in safe_iter_descendants(context):
+                            yield item
+                    elif getattr(context.item, 'ref', None) is not None:
                         yield context.item
                     elif context.item not in local_items:
                         local_items.append(context.item)
@@ -56,7 +59,10 @@ class ElementPathContext(XPathContext):
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
-                    if getattr(context.item, 'ref', None) is not None:
+                    if context.item.is_global:
+                        for item in safe_iter_context(context):
+                            yield item
+                    elif getattr(context.item, 'ref', None) is not None:
                         yield context.item
                     elif context.item not in local_items:
                         local_items.append(context.item)
@@ -101,6 +107,22 @@ class ElementPathMixin(Sequence):
 
     def get(self, key, default=None):
         return self.attrib.get(key, default)
+
+    @property
+    def xpath_namespaces(self):
+        if hasattr(self, 'namespaces'):
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+            xpath_default_namespace = getattr(self, 'xpath_default_namespace', None)
+            if xpath_default_namespace is not None:
+                namespaces[''] = xpath_default_namespace
+            return namespaces
+
+    def match(self, tag, default_namespace=None):
+        """Matching method for element tag."""
+        if tag[0] == '{':
+            return self.tag == tag
+        elif default_namespace:
+            return self.tag in (tag, '{%s}%s' % (default_namespace, tag))
 
     def iterfind(self, path, namespaces=None):
         """
@@ -151,19 +173,40 @@ class ElementPathMixin(Sequence):
         context = ElementPathContext(self)
         return root_token.get_results(context)
 
-    @property
-    def xpath_namespaces(self):
-        if hasattr(self, 'namespaces'):
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-            xpath_default_namespace = getattr(self, 'xpath_default_namespace', None)
-            if xpath_default_namespace is not None:
-                namespaces[''] = xpath_default_namespace
-            return namespaces
-
-    @abstractmethod
     def iter(self, tag=None):
-        pass
+        """
+        Creates an iterator for the XSD element and its subelements. If tag is not `None` or '*',
+        only XSD elements whose matches tag are returned from the iterator. Local elements are
+        expanded without repetitions. Element references are not expanded because the global
+        elements are not descendants of other elements.
+        """
+        def safe_iter(elem):
+            if tag is None or elem.match(tag):
+                yield elem
+            for child in elem:
+                if child.is_global:
+                    for e in safe_iter(child):
+                        yield e
+                elif getattr(child, 'ref', None) is not None:
+                    if tag is None or elem.match(tag):
+                        yield child
+                elif child not in local_elements:
+                    local_elements.append(child)
+                    for e in safe_iter(child):
+                        yield e
 
-    @abstractmethod
+        if tag == '*':
+            tag = None
+        local_elements = []
+        return safe_iter(self)
+
     def iterchildren(self, tag=None):
-        pass
+        """
+        Creates an iterator for the child elements of the XSD component. If *tag* is not `None`
+        or '*', only XSD elements whose name matches tag are returned from the iterator.
+        """
+        if tag == '*':
+            tag = None
+        for child in self:
+            if tag is None or child.match(tag):
+                yield child

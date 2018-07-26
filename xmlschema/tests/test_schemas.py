@@ -421,17 +421,10 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                 # XPath API tests
                 if not inspect and not errors_:
                     context = ElementPathContext(xs)
-                    #import pdb
-                    #pdb.set_trace()
                     elements = [e for e in xs.iter()]
                     context_elements = [e for e in context.iter() if isinstance(e, XsdBaseComponent)]
                     self.assertEqual(context_elements, [e for e in context.iter_descendants()])
-                    try:
-                        self.assertEqual(context_elements[1:], elements)
-                    except AssertionError as err:
-                        print(str(err))
-                        import pdb
-                        pdb.set_trace()
+                    self.assertEqual(context_elements, elements)
 
             return errors_
 

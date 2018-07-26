@@ -155,15 +155,6 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
     def is_optional(self):
         return self.use == 'optional'
 
-    def match(self, name, default_namespace=None):
-        if name[0] == '{':
-            return self.name == name
-        elif default_namespace:
-            qname = '{%s}%s' % (default_namespace, name)
-            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
-        else:
-            return self.name == name or not self.qualified and self.local_name == name
-
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
