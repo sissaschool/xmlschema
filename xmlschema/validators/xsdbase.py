@@ -568,9 +568,9 @@ class ValidatorMixin(object):
         arguments of the :func:`XMLSchema.iter_decode`.
         :return: A dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
-         a simple data type object otherwise. If *validation* argument is 'lax' and the data \
-        contain errors a 2-items tuple is returned, where the first item is the decoded \
-        object and the second item is a list containing the errors.
+         a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
+        tuple is returned, where the first item is the decoded object and the second item \
+        is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
@@ -585,7 +585,7 @@ class ValidatorMixin(object):
                     raise result
                 elif validation == 'lax':
                     errors.append(result)
-            elif errors:
+            elif validation == 'lax':
                 return result, errors
             else:
                 return result
@@ -600,9 +600,9 @@ class ValidatorMixin(object):
         :param kwargs: keyword arguments from the ones included in the optional \
         arguments of the :func:`XMLSchema.iter_encode`.
         :return: An element tree's Element if the original data is a structured data or \
-        a string if it's simple type datum. If *validation* argument is 'lax' and the data \
-        contain errors a 2-items tuple is returned, where the first item is the encoded \
-        object and the second item is a list containing the errors.
+        a string if it's simple type datum. If *validation* argument is 'lax' a 2-items \
+        tuple is returned, where the first item is the encoded object and the second item \
+        is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
@@ -617,7 +617,7 @@ class ValidatorMixin(object):
                     raise result
                 elif validation == 'lax':
                     errors.append(result)
-            elif errors:
+            elif validation == 'lax':
                 return result, errors
             else:
                 return result

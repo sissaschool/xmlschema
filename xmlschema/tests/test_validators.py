@@ -329,13 +329,15 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         def check_etree_encode(self, root, converter=None, **kwargs):
             data1 = self.schema.decode(root, converter=converter, **kwargs)
+            if isinstance(data1, tuple):
+                data1 = data1[0]  # When validation='lax'
 
             for _ in iter_nested_items(data1, dict_class=ordered_dict_class):
                 pass
 
             elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
             if isinstance(elem1, tuple):
-                elem1 = elem1[0]  # Lossy converter + validation='lax'
+                elem1 = elem1[0]  # When validation='lax'
 
             # Main check: compare original an re encoded tree
             try:
@@ -352,7 +354,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     # Lossy or augmenting cases are checked after a re decoding-encoding pass
                     data2 = self.schema.decode(elem1, converter=converter, **kwargs)
                     if isinstance(data2, tuple):
-                        data2 = data2[0]  # Lossy converter + validation='lax'
+                        data2 = data2[0]
 
                     if sys.version_info >= (3, 6):
                         # For Python < 3.6 cannot ensure attribute decoding order
@@ -376,10 +378,12 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         def check_json_serialization(self, root, converter=None, **kwargs):
             data1 = xmlschema.to_json(root, schema=self.schema, converter=converter, **kwargs)
+            if isinstance(data1, tuple):
+                data1 = data1[0]
 
             elem1 = xmlschema.from_json(data1, schema=self.schema, path=root.tag, converter=converter, **kwargs)
             if isinstance(elem1, tuple):
-                elem1 = elem1[0]  # Lossy converter + validation='lax'
+                elem1 = elem1[0]
 
             data2 = xmlschema.to_json(elem1, schema=self.schema, converter=converter, **kwargs)
             if isinstance(data2, tuple):
@@ -451,7 +455,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             lax_data = self.schema.decode(xml_file, validation='lax')
             skip_data = self.schema.decode(xml_file, validation='skip')
             self.assertEqual(strict_data, self.chunks[0], msg_template % "decode() API has a different result")
-            self.assertEqual(lax_data, self.chunks[0], msg_template % "'lax' validation has a different result")
+            self.assertEqual(lax_data[0], self.chunks[0], msg_template % "'lax' validation has a different result")
             self.assertEqual(skip_data, self.chunks[0], msg_template % "'skip' validation has a different result")
 
         def check_encoding_with_element_tree(self):
@@ -798,8 +802,7 @@ class TestEncoding(XMLSchemaTestCase):
             self.check_etree_elements(expected, elem)
         else:
             obj = xsd_component.encode(data, **kwargs)
-            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list) \
-                    and isinstance(obj[1][0], Exception):
+            if isinstance(obj, tuple) and len(obj) == 2 and isinstance(obj[1], list):
                 self.assertEqual(expected, obj[0])
                 self.assertTrue(isinstance(obj[0], type(expected)))
             elif is_etree_element(obj):

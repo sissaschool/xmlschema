@@ -41,7 +41,7 @@ from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import safe_etree_parse, safe_etree_iterparse, safe_etree_fromstring
 from xmlschema.xpath import ElementPathContext
-from xmlschema.validators import XsdBaseComponent, XsdElement, XsdAnyElement, XsdAttribute, XsdAnyAttribute
+from xmlschema.validators import XsdBaseComponent
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
