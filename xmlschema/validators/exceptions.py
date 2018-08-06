@@ -13,7 +13,7 @@ This module contains exception and warning classes for the 'xmlschema.validators
 """
 from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..etree import etree_tostring, is_etree_element
+from ..etree import etree_tostring, is_etree_element, etree_getpath
 from ..qnames import qname_to_prefixed
 from ..resources import XMLResource
 
@@ -65,6 +65,14 @@ class XMLSchemaValidatorError(XMLSchemaException):
             return self.source.root
         except AttributeError:
             return None
+
+    @property
+    def path(self):
+        elem, root = self.elem, self.root
+        if elem is None or root is None:
+            return
+        else:
+            return etree_getpath(elem, root)
 
 
 class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):

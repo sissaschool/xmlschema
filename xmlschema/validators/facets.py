@@ -22,7 +22,7 @@ from ..qnames import (
     XSD_INTEGER_TYPE, local_name, xsd_qname
 )
 from ..regex import get_python_regex
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError
 from .parseutils import get_xsd_attribute, get_xsd_int_attribute, get_xsd_bool_attribute
 from .xsdbase import XsdComponent
 
