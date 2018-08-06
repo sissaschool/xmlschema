@@ -445,7 +445,7 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
         try:
             return cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
         except KeyError:
-            raise XMLSchemaNotBuiltError("missing XSD namespace in meta-schema.")
+            raise XMLSchemaNotBuiltError(cls.meta_schema, "missing XSD namespace in meta-schema.")
 
     @property
     def root_elements(self):
@@ -750,7 +750,7 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
         or decoding errors.
         """
         if not self.built:
-            raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+            raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
         elif not self.elements:
             raise XMLSchemaValueError("decoding needs at least one XSD element declaration!")
 
@@ -816,7 +816,7 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
         or encoding errors.
         """
         if not self.built:
-            raise XMLSchemaNotBuiltError("schema %r is not built." % self)
+            raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
         elif not self.elements:
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 

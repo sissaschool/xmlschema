@@ -18,35 +18,20 @@ from ..qnames import qname_to_prefixed
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
-    """Base class for XSD validator errors."""
-    def __init__(self, validator):
-        self.validator = validator
-
-
-class XMLSchemaNotBuiltError(XMLSchemaException, RuntimeError):
-    """Raised when there is an improper usage attempt of a not built XSD validator."""
-    pass
-
-
-class XMLSchemaParseError(XMLSchemaException, ValueError):
     """
-    Raised when an error is found during the building of an XSD validator.
+    Base class for XSD validator errors.
 
+    :param validator: the XSD validator.
+    :type validator: XsdValidator or function
     :param message: the error message.
     :type message: str or unicode
-    :param validator: the XSD validator.
-    :type validator: XsdValidator
-    :param elem: the XML element that contains the error.
+    :param elem: the element that contains the error.
     :type elem: Element
     """
-    def __init__(self, message, validator=None, elem=None):
-        self.message = message or u''
+    def __init__(self, validator, message=None, elem=None):
         self.validator = validator
-
-        elem = elem or getattr(validator, 'elem', None)
-        if elem is not None and not is_etree_element(elem):
-            raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(elem))
-        self.elem = elem
+        self.message = message if message is not None else u''
+        self.elem = elem if elem is not None else self.schema_elem
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
@@ -61,37 +46,64 @@ class XMLSchemaParseError(XMLSchemaException, ValueError):
     if PY3:
         __str__ = __unicode__
 
+    def __setattr__(self, name, value):
+        if name == 'elem' and value is not None and not is_etree_element(value):
+            raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
+        super(XMLSchemaValidatorError, self).__setattr__(name, value)
 
-class XMLSchemaValidationError(XMLSchemaException, ValueError):
+    @property
+    def schema_elem(self):
+        return getattr(self.validator, 'elem', None)
+
+    @property
+    def sourceline(self):
+        return getattr(self.elem, 'sourceline', None)
+
+    @property
+    def root(self):
+        try:
+            return self.source.root
+        except AttributeError:
+            return None
+
+
+class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
+    """Raised when there is an improper usage attempt of a not built XSD validator."""
+    pass
+
+
+class XMLSchemaParseError(XMLSchemaValidatorError, ValueError):
+    """Raised when an error is found during the building of an XSD validator."""
+    pass
+
+
+class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     """Raised when the XML data is not validated with the XSD component or schema."""
 
-    def __init__(self, validator, obj, reason=None, schema_elem=None, elem=None):
-        self.validator = validator
+    def __init__(self, validator, obj, reason=None):
         self.obj = obj
         self.reason = reason
-        self.schema_elem = schema_elem or getattr(validator, 'elem', None)
-        self.elem = elem or obj if is_etree_element(obj) else None
-        self.message = None
+        super(XMLSchemaValidationError, self).__init__(
+            validator=validator,
+            message=u"failed validating %r with %r.\n",
+            elem=obj if is_etree_element(obj) else None
+        )
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        msg = [self.message or u"failed validating %r with %r.\n" % (self.obj, self.validator)]
+        schema_elem, elem, sourceline = self.schema_elem, self.elem, self.sourceline
+        msg = [self.message % (self.obj, self.validator)]
         if self.reason is not None:
             msg.append(u'\nReason: %s\n' % self.reason)
-        if self.schema_elem is not None:
-            msg.append(u"\nSchema:\n\n  %s\n" % etree_tostring(self.schema_elem, max_lines=20))
-
-        elem = self.elem
-        if elem is not None:
-            if hasattr(elem, 'sourceline'):
-                msg.append(u"\nInstance (line %r):\n\n  %s\n" % (
-                    elem.sourceline, etree_tostring(elem, max_lines=20)
-                ))
-            else:
-                msg.append(u"\nInstance:\n\n  %s\n" % etree_tostring(elem, max_lines=20))
+        if schema_elem is not elem:
+            msg.append(u"\nSchema:\n\n  %s\n" % etree_tostring(schema_elem, max_lines=20))
+        if sourceline is not None:
+            msg.append(u"\nInstance (line %r):\n\n  %s\n" % (sourceline, etree_tostring(elem, max_lines=20)))
+        elif elem is not None:
+            msg.append(u"\nInstance:\n\n  %s\n" % etree_tostring(self.elem, max_lines=20))
         return u''.join(msg)
 
     if PY3:
@@ -102,27 +114,37 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     """Raised when an XML data string is not decodable to a Python object."""
 
     def __init__(self, validator, obj, decoder, reason=None):
-        super(XMLSchemaDecodeError, self).__init__(validator, obj, reason)
+        self.obj = obj
         self.decoder = decoder
-        self.message = u"failed decoding %r with %r.\n" % (obj, validator)
+        self.reason = reason
+        super(XMLSchemaValidationError, self).__init__(
+            validator=validator,
+            message=u"failed decoding %r with %r.\n",
+            elem=obj if is_etree_element(obj) else None
+        )
 
 
 class XMLSchemaEncodeError(XMLSchemaValidationError):
     """Raised when an object is not encodable to an XML data string."""
 
     def __init__(self, validator, obj, encoder, reason=None):
-        super(XMLSchemaEncodeError, self).__init__(validator, obj, reason)
+        self.obj = obj
         self.encoder = encoder
-        self.message = u"failed encoding %r with %r.\n" % (obj, validator)
+        self.reason = reason
+        super(XMLSchemaValidationError, self).__init__(
+            validator=validator,
+            message=u"failed encoding %r with %r.\n",
+            elem=obj if is_etree_element(obj) else None
+        )
 
 
 class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
     def __init__(self, validator, elem, index, expected=None):
-        elem_ref = qname_to_prefixed(elem.tag, validator.namespaces)
         self.index = index
         self.expected = expected
 
+        elem_ref = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
             reason = "The content of element %r is not complete." % elem_ref
         else:

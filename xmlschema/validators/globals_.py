@@ -416,4 +416,4 @@ class XsdGlobals(XsdValidator):
                 #         xsd_type.check_restriction()
 
         if self.validation == 'strict' and not self.built:
-            raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
+            raise XMLSchemaNotBuiltError(self, "Global map %r not built!" % self)

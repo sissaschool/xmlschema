@@ -76,7 +76,7 @@ class XsdValidator(object):
             error.validator = self
             error.elem = elem
         else:
-            error = XMLSchemaParseError(str(error), self, elem)
+            error = XMLSchemaParseError(self, str(error), elem)
 
         if self.validation == 'lax':
             self.errors.append(error)
