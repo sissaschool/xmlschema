@@ -85,9 +85,7 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
                 attribute_name = reference_to_qname(elem.attrib['ref'], self.namespaces)
             except KeyError:
                 # Missing also the 'ref' attribute
-                self.errors.append(XMLSchemaParseError(
-                    "missing both 'name' and 'ref' in attribute declaration", self
-                ))
+                self._parse_error(u"missing both 'name' and 'ref' in attribute declaration")
                 return
             else:
                 xsd_attribute = self.maps.lookup_attribute(attribute_name)
@@ -113,12 +111,9 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
         else:
             xsd_type = self.maps.lookup_type(type_qname)
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
-                raise XMLSchemaParseError("ambiguous type declaration for XSD attribute", elem=elem)
+                self._parse_error(u"ambiguous type declaration for XSD attribute")
             elif xsd_declaration:
-                raise XMLSchemaParseError(
-                    "not allowed element in XSD attribute declaration: {}".format(xsd_declaration[0]),
-                    elem=elem
-                )
+                self._parse_error(u"not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
         self.type = xsd_type
 
     @property
@@ -329,19 +324,15 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             try:
                 self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
-                self.errors.append(XMLSchemaParseError(
-                    "an attribute group declaration requires a 'name' attribute.", elem=elem
-                ))
+                self._parse_error(u"an attribute group declaration requires a 'name' attribute.")
                 return
 
         for child in self._iterparse_components(elem):
             if any_attribute:
                 if child.tag == XSD_ANY_ATTRIBUTE_TAG:
-                    self.errors.append(XMLSchemaParseError(
-                        "more anyAttribute declarations in the same attribute group:", elem=elem))
+                    self._parse_error(u"more anyAttribute declarations in the same attribute group")
                 else:
-                    self.errors.append(XMLSchemaParseError(
-                        "another declaration after anyAttribute:", elem=elem))
+                    self._parse_error(u"another declaration after anyAttribute")
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
                 self.update([(None, XsdAnyAttribute(elem=child, schema=self.schema))])
@@ -353,9 +344,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
                 ref_attribute_group = self.maps.lookup_attribute_group(qname)
                 self.update(ref_attribute_group.items())
             elif self.name is not None:
-                self.errors.append(XMLSchemaParseError(
-                    "(attribute | attributeGroup) expected, found %r:" % child, elem=elem
-                ))
+                self._parse_error("(attribute | attributeGroup) expected, found %r." % child)
 
     @property
     def built(self):

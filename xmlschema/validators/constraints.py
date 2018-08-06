@@ -12,14 +12,14 @@
 This module contains classes for other XML Schema constraints.
 """
 from collections import Counter
-from elementpath import Selector, XPath1Parser
+from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 
 XSD_CONSTRAINTS_XPATH_SYMBOLS = {
@@ -56,8 +56,8 @@ class XsdSelector(XsdComponent):
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdConstraintXPathParser)
-        except XMLSchemaParseError as err:
-            self._parse_error("invalid XPath expression: %s" % str(err), self.elem)
+        except ElementPathSyntaxError as err:
+            self._parse_error(err)
             self.xpath_selector = Selector('*', self.namespaces, parser=XsdConstraintXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute

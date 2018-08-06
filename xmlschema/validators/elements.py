@@ -178,11 +178,11 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
             elif child.tag == XSD_KEYREF_TAG:
                 constraint = XsdKeyref(child, self.schema, parent=self)
             else:
-                raise XMLSchemaParseError("unexpected child element %r:" % child, self)
+                continue  # Error already caught by validation against the meta-schema
 
             try:
                 if child != self.maps.constraints[constraint.name]:
-                    self._parse_error("duplicated identity constraint %r:" % constraint.name, child)
+                    self._parse_error(u"duplicated identity constraint %r:" % constraint.name, child)
             except KeyError:
                 self.maps.constraints[constraint.name] = child
             finally:
@@ -194,7 +194,7 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
             return
 
         if not self.is_global:
-            self._parse_error("'substitutionGroup' attribute in a local element declaration")
+            self._parse_error(u"'substitutionGroup' attribute in a local element declaration")
 
         qname = reference_to_qname(substitution_group, self.namespaces)
         if qname[0] != '{':

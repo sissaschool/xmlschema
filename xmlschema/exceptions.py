@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains the exception classes of the 'xmlschema' package.
+This module contains the exception and warning classes of the 'xmlschema' package.
 """
 from .compat import URLError
 
@@ -53,4 +53,9 @@ class XMLSchemaURLError(XMLSchemaException, URLError):
 
 class XMLSchemaRegexError(XMLSchemaException, ValueError):
     """Raised when an error is found when parsing an XML Schema regular expression."""
+    pass
+
+
+class XMLSchemaWarning(Warning):
+    """Base warning class for the XMLSchema package."""
     pass

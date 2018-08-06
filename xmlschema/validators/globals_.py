@@ -21,7 +21,7 @@ from ..qnames import (
     XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
     XSD_ANY_TYPE
 )
-from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
+from .exceptions import XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import XsdValidator
 from . import (
@@ -78,13 +78,14 @@ def create_load_function(filter_function):
 
         for qname, obj in redefinitions:
             if qname not in xsd_globals:
-                raise XMLSchemaParseError("not a redefinition!", obj[0])
-            try:
-                xsd_globals[qname].append(obj)
-            except KeyError:
-                xsd_globals[qname] = obj
-            except AttributeError:
-                xsd_globals[qname] = [xsd_globals[qname], obj]
+                obj[1]._parse_error("not a redefinition!", obj[0])
+            else:
+                try:
+                    xsd_globals[qname].append(obj)
+                except KeyError:
+                    xsd_globals[qname] = obj
+                except AttributeError:
+                    xsd_globals[qname] = [xsd_globals[qname], obj]
 
     return load_xsd_globals
 

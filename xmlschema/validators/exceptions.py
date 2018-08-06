@@ -12,51 +12,51 @@
 This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
 from ..compat import PY3
-from ..exceptions import XMLSchemaException
+from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element
 from ..qnames import qname_to_prefixed
 
 
-class XMLSchemaWarning(Warning):
-    """Base warning for XMLSchema"""
-    pass
-
-
-class XMLSchemaIncludeWarning(XMLSchemaWarning):
-    """A schema include fails."""
-    pass
-
-
-class XMLSchemaImportWarning(XMLSchemaWarning):
-    """A schema namespace import fails."""
-    pass
+class XMLSchemaValidatorError(XMLSchemaException):
+    """Base class for XSD validator errors."""
+    def __init__(self, validator):
+        self.validator = validator
 
 
 class XMLSchemaNotBuiltError(XMLSchemaException, RuntimeError):
-    """Raised when a not built XSD component or schema is used."""
+    """Raised when there is an improper usage attempt of a not built XSD validator."""
     pass
 
 
 class XMLSchemaParseError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XML Schema component."""
+    """
+    Raised when an error is found during the building of an XSD validator.
 
-    def __init__(self, message, component=None, elem=None):
+    :param message: the error message.
+    :type message: str or unicode
+    :param validator: the XSD validator.
+    :type validator: XsdValidator
+    :param elem: the XML element that contains the error.
+    :type elem: Element
+    """
+    def __init__(self, message, validator=None, elem=None):
         self.message = message or u''
-        self.component = component
-        self.elem = elem if elem is not None else getattr(component, 'elem', None)
+        self.validator = validator
+
+        elem = elem or getattr(validator, 'elem', None)
+        if elem is not None and not is_etree_element(elem):
+            raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(elem))
+        self.elem = elem
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        if is_etree_element(self.elem):
-            return u''.join([
-                self.message,
-                u"\n\n  %s\n" % etree_tostring(self.elem, max_lines=20)
-            ])
-        else:
+        if self.elem is None:
             return self.message
+        else:
+            return u"{}\n\n  {}\n".format(self.message, etree_tostring(self.elem, max_lines=20))
 
     if PY3:
         __str__ = __unicode__
@@ -138,3 +138,13 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             reason += " Tag %r expected." % expected
 
         super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason)
+
+
+class XMLSchemaIncludeWarning(XMLSchemaWarning):
+    """A schema include fails."""
+    pass
+
+
+class XMLSchemaImportWarning(XMLSchemaWarning):
+    """A schema namespace import fails."""
+    pass

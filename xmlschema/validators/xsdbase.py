@@ -73,7 +73,7 @@ class XsdValidator(object):
 
         elem = elem if elem is not None else getattr(self, 'elem', None)
         if isinstance(error, XMLSchemaParseError):
-            error.component = self
+            error.validator = self
             error.elem = elem
         else:
             error = XMLSchemaParseError(str(error), self, elem)

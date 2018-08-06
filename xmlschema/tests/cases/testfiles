@@ -44,7 +44,7 @@ issues/issue_009/issue_009.xsd --errors=2
 issues/issue_013/issue_013.xml
 issues/issue_013/misc/issue_013-1.xml
 issues/issue_013/misc/issue_013-2.xml --errors=1  # String too long
-issues/issue_018/issue_018.xsd --errors=1  # It's a XSD 1.1 schema (a wrong schema, raises a parse error)
+issues/issue_018/issue_018.xsd --errors=2  # It's a XSD 1.1 schema (duplicated errors, lax)
 issues/issue_026/issue_026-1.xml
 issues/issue_026/issue_026-2.xml --errors=1
 issues/issue_026/issue_026-3.xml --errors=1

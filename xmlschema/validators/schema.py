@@ -223,7 +223,7 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
         super(XMLSchemaBase, self).__init__(validation)
         try:
             self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
-        except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+        except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot create schema: %s' % err)
 
         self.warnings = []
@@ -236,9 +236,9 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
             raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                raise XMLSchemaParseError(
-                    "wrong namespace (%r instead of %r) for XSD resource %r." %
-                    (self.target_namespace, namespace, self.url)
+                self._parse_error(
+                    u"wrong namespace (%r instead of %r) for XSD resource %r." %
+                    (self.target_namespace, namespace, self.url), root
                 )
             else:
                 self.target_namespace = namespace  # Chameleon schema
@@ -605,10 +605,7 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
                 include_warnings.append("Redefine schema failed: %s." % str(err))
                 warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if has_xsd_components(child):
-                    if self.validation == 'lax':
-                        self.errors.append(XMLSchemaParseError(str(err), self, child))
-                    elif self.validation == 'strict':
-                        raise XMLSchemaParseError(str(err), self, child)
+                    self._parse_error(str(err), child)
 
         return include_warnings
 
@@ -634,7 +631,10 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
                 schema_url, self.target_namespace, self.validation, self.maps, self.converter,
                 self.locations, self.base_url, self.defuse, self.timeout, False
             )
-        except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+        except XMLSchemaParseError as err:
+            err.message = 'cannot include %r: %s' % (schema_url, err.message)
+            raise err
+        except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
     def _import_namespaces(self):
@@ -716,7 +716,10 @@ class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
                 schema_url, namespace, self.validation, self.maps, self.converter,
                 self.locations, self.base_url, self.defuse, self.timeout, False
             )
-        except (XMLSchemaParseError, XMLSchemaTypeError, OSError, IOError) as err:
+        except XMLSchemaParseError as err:
+            err.message = 'cannot import namespace %r: %s' % (namespace, err.message)
+            raise err
+        except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,

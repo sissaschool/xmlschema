@@ -223,7 +223,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 elif not hasattr(self, '_elem'):
                     self._parse_error("Circular definitions detected for group %r:" % self.ref, elem)
             else:
-                raise XMLSchemaParseError("unexpected element:", elem=elem)
+                continue  # Error already caught by validation against the meta-schema
 
     @property
     def built(self):
