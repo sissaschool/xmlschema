@@ -15,6 +15,7 @@ from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element
 from ..qnames import qname_to_prefixed
+from ..resources import XMLResource
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
@@ -27,11 +28,15 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :type message: str or unicode
     :param elem: the element that contains the error.
     :type elem: Element
+    :param source: the XML resource that contains the error.
+    :type elem: XMLResource
     """
-    def __init__(self, validator, message=None, elem=None):
+    def __init__(self, validator, message=None, elem=None, source=None):
         self.validator = validator
         self.message = message if message is not None else u''
-        self.elem = elem if elem is not None else self.schema_elem
+        self.elem = elem
+        self.schema_elem = getattr(validator, 'elem', None)
+        self.source = source
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
@@ -52,10 +57,6 @@ class XMLSchemaValidatorError(XMLSchemaException):
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
 
     @property
-    def schema_elem(self):
-        return getattr(self.validator, 'elem', None)
-
-    @property
     def sourceline(self):
         return getattr(self.elem, 'sourceline', None)
 
@@ -74,7 +75,13 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
 
 class XMLSchemaParseError(XMLSchemaValidatorError, ValueError):
     """Raised when an error is found during the building of an XSD validator."""
-    pass
+    def __init__(self, validator, message, elem=None):
+        super(XMLSchemaParseError, self).__init__(
+            validator=validator,
+            message=message,
+            elem=elem if elem is not None else self.schema_elem,
+            source=getattr(validator, 'source', None)
+        )
 
 
 class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):

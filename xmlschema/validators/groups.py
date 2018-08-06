@@ -23,10 +23,8 @@ from ..qnames import (
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
 )
 
-from .exceptions import (
-    XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
-)
-from .xsdbase import ValidatorMixin, XsdComponent, ParticleMixin
+from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
+from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
@@ -41,7 +39,7 @@ DUMMY_ANY_ELEMENT = etree_element(
     })
 
 
-class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
+class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     """
     A class for XSD 'group', 'choice', 'sequence' definitions and
     XSD 1.0 'all' definitions.
@@ -381,7 +379,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     if validation == 'lax':
                         cdata_index = 0
                     cdata_msg = "character data between child elements not allowed!"
-                    yield self._validation_error(cdata_msg, validation, obj=elem)
+                    yield self._validation_error(cdata_msg, validation, elem, **kwargs)
 
         if cdata_index and elem.text is not None:
             text = unicode_type(elem.text.strip())
@@ -397,7 +395,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                     if xsd_element is not None:
                         for result in xsd_element.iter_decode(child, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
-                                yield self._validation_error(result, validation)
+                                yield self._validation_error(result, validation, **kwargs)
                             else:
                                 result_list.append((child.tag, result, xsd_element))
                         if cdata_index and child.tail is not None:
@@ -408,7 +406,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 elif isinstance(obj, int):
                     break
                 elif isinstance(obj, XMLSchemaChildrenValidationError):
-                    yield self._validation_error(obj, validation)
+                    yield self._validation_error(obj, validation, **kwargs)
                     try:
                         child = elem[obj.index]
                     except IndexError:
@@ -423,7 +421,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 index = 0 if child is None else etree_child_index(elem, child) + 1
                 if validation != 'skip' and self:
                     error = XMLSchemaChildrenValidationError(self, elem, index)
-                    yield self._validation_error(error, validation)
+                    yield self._validation_error(error, validation, **kwargs)
 
                 # raw children decoding
                 for child_index, child in enumerate(elem[index:]):
@@ -431,7 +429,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                         if xsd_element.match(child.tag):
                             for result in xsd_element.iter_decode(child, validation, **kwargs):
                                 if isinstance(result, XMLSchemaValidationError):
-                                    yield self._validation_error(result, validation)
+                                    yield self._validation_error(result, validation, **kwargs)
                                 else:
                                     result_list.append((child.tag, result, xsd_element))
                             if cdata_index and child.tail is not None:
@@ -445,13 +443,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                             pass  # TODO? try to use a "default decoder"?
                         elif self and child_index > index:
                             error = XMLSchemaChildrenValidationError(self, elem, child_index)
-                            yield self._validation_error(error, validation)
+                            yield self._validation_error(error, validation, **kwargs)
 
         elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable
             expected = [e.prefixed_name for e in self.iter_elements() if e.min_occurs]
             error = XMLSchemaChildrenValidationError(self, elem, 0, expected=expected)
-            yield self._validation_error(error, validation)
+            yield self._validation_error(error, validation, **kwargs)
 
         yield result_list
 
@@ -602,7 +600,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
                 else:
                     if validation != 'skip':
                         yield self._validation_error(
-                            '%r does not match any declared element.' % name, validation, obj=value
+                            '%r does not match any declared element.' % name, validation, value, **kwargs
                         )
 
         if children:

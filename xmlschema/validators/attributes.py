@@ -23,12 +23,12 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaParseError
 from .parseutils import get_xsd_attribute
-from .xsdbase import XsdComponent, ValidatorMixin
+from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
 
-class XsdAttribute(XsdComponent, ValidatorMixin):
+class XsdAttribute(XsdComponent, ValidationMixin):
     """
     Class for XSD 1.0 'attribute' declarations.
 

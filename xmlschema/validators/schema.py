@@ -34,7 +34,7 @@ from .exceptions import (
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from .parseutils import has_xsd_components, get_xsd_derivation_attribute
-from .xsdbase import XsdValidator, ValidatorMixin
+from .xsdbase import XsdValidator, ValidationMixin
 from . import (
     XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, xsd_simple_type_factory, xsd_builtin_types_factory,
@@ -131,7 +131,7 @@ class XMLSchemaMeta(ABCMeta):
 
 
 @add_metaclass(XMLSchemaMeta)
-class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
+class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     """
     Base class for an XML Schema instance.
 

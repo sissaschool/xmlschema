@@ -27,7 +27,7 @@ from .exceptions import (
     XMLSchemaValidationError, XMLSchemaParseError, XMLSchemaChildrenValidationError
 )
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidatorMixin
+from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -36,7 +36,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 
 
-class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
+class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
     
@@ -111,7 +111,7 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
         self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
 
         if self.default is not None and self.fixed is not None:
-            self._parse_error("'default' and 'fixed' attributes are mutually exclusive", self)
+            self._parse_error("'default' and 'fixed' attributes are mutually exclusive.")
         self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
 
         # Parse element attributes
@@ -228,7 +228,7 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
                     % (self, head_element)
                 )
 
-    def _validation_error(self, error, validation, obj=None):
+    def _validation_error(self, error, validation, obj=None, **kwargs):
         if not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(self, obj, reason=unicode_type(error))
 
@@ -239,7 +239,7 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
                 error.schema_elem = self.elem
         if error.elem is None and is_etree_element(obj):
             error.elem = obj
-        return super(XsdElement, self)._validation_error(error, validation)
+        return super(XsdElement, self)._validation_error(error, validation, **kwargs)
 
     @property
     def built(self):

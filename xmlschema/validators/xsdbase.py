@@ -208,6 +208,10 @@ class XsdComponent(XsdValidator):
         super(XsdComponent, self).__setattr__(name, value)
 
     @property
+    def source(self):
+        return self.schema.source
+
+    @property
     def target_namespace(self):
         return self.schema.target_namespace
 
@@ -231,19 +235,6 @@ class XsdComponent(XsdValidator):
             return u"<%s at %#x>" % (self.__class__.__name__, id(self))
         else:
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-
-    def _validation_error(self, error, validation, obj=None):
-        if validation == 'skip':
-            raise XMLSchemaValueError("'skip' validation mode incompatible with error handling.")
-        elif not isinstance(error, XMLSchemaValidationError):
-            error = XMLSchemaValidationError(self, obj, reason=unicode_type(error))
-        elif obj and error.elem is None and is_etree_element(obj):
-            error.elem = obj
-
-        if validation == 'strict':
-            raise error
-        else:
-            return error
 
     def _parse(self):
         super(XsdComponent, self)._parse()
@@ -485,11 +476,27 @@ class ParticleMixin(object):
         return True
 
 
-class ValidatorMixin(object):
+class ValidationMixin(object):
     """
-    Mixin for implementing XML Schema validators. A derived class must implement the
+    Mixin for implementing XML data validators/decoders. A derived class must implement the
     methods `iter_decode` and `iter_encode`.
     """
+    def _validation_error(self, error, validation, obj=None, **kwargs):
+        if validation == 'skip':
+            raise XMLSchemaValueError("'skip' validation mode incompatible with error handling.")
+        elif not isinstance(error, XMLSchemaValidationError):
+            error = XMLSchemaValidationError(self, obj, unicode_type(error))
+        elif obj and error.elem is None and is_etree_element(obj):
+            error.elem = obj
+
+        if error.source is None:
+            error.source = kwargs.get('source')
+
+        if validation == 'strict':
+            raise error
+        else:
+            return error
+
     def validate(self, source, use_defaults=True):
         """
         Validates an XML data against the XSD schema/component instance.

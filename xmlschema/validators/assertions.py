@@ -12,12 +12,12 @@
 This module contains classes for other XML Schema 1.1 assertions.
 """
 from ..qnames import XSD_ASSERT_TAG, XSD_ASSERTION_TAG
-from .xsdbase import XsdComponent, ValidatorMixin
+from .xsdbase import XsdComponent, ValidationMixin
 
 
-class XsdAssert(XsdComponent, ValidatorMixin):
+class XsdAssert(XsdComponent, ValidationMixin):
     admitted_tags = {XSD_ASSERT_TAG}
 
 
-class XsdAssertion(XsdComponent, ValidatorMixin):
+class XsdAssertion(XsdComponent, ValidationMixin):
     admitted_tags = {XSD_ASSERTION_TAG}

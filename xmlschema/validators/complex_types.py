@@ -17,7 +17,7 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
-from .xsdbase import XsdType, ValidatorMixin
+from .xsdbase import XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
@@ -26,7 +26,7 @@ XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE
 EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
 
 
-class XsdComplexType(XsdType, ValidatorMixin):
+class XsdComplexType(XsdType, ValidationMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
     
@@ -453,7 +453,7 @@ class XsdComplexType(XsdType, ValidatorMixin):
             # Decode a simple content element
             if len(elem) and validation != 'skip':
                 yield self._validation_error(
-                    "a simple content element can't has child elements.", validation, elem,
+                    "a simple content element can't has child elements.", validation, elem, **kwargs
                 )
 
             if elem.text is not None:
