@@ -25,16 +25,14 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
+    admitted_tags = {XSD_NOTATION_TAG}
+
     def __init__(self, elem, schema, is_global=True):
         super(XsdNotation, self).__init__(elem, schema, is_global=is_global)
 
     @property
     def built(self):
         return True
-
-    @property
-    def admitted_tags(self):
-        return {XSD_NOTATION_TAG}
 
     def _parse(self):
         super(XsdNotation, self)._parse()

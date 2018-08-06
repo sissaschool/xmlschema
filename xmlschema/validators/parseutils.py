@@ -174,7 +174,7 @@ def get_xpath_default_namespace_attribute(elem):
     except KeyError:
         return
 
-    admitted_values = {'##defaultNamespace', '##targerNamespace', '##local'}
+    admitted_values = ('##defaultNamespace', '##targerNamespace', '##local')
     if value in admitted_values:
         return value
     if len(value.split()) == 1:

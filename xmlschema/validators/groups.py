@@ -80,6 +80,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
+    admitted_tags = {
+        XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG,
+        XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
+    }
+
     def __init__(self, elem, schema, name=None, model=None, mixed=False,
                  initlist=None, is_global=False):
         self.model = model
@@ -244,11 +249,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidatorMixin, ParticleMixin):
             return 'partial'
         else:
             return 'none'
-
-    @property
-    def admitted_tags(self):
-        return {XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG,
-                XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
     @property
     def ref(self):

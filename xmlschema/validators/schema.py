@@ -34,7 +34,7 @@ from .exceptions import (
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from .parseutils import has_xsd_components, get_xsd_derivation_attribute
-from .xsdbase import XsdBaseComponent, ValidatorMixin
+from .xsdbase import XsdValidator, ValidatorMixin
 from . import (
     XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
     XsdAtomicRestriction, xsd_simple_type_factory, xsd_builtin_types_factory,
@@ -131,7 +131,7 @@ class XMLSchemaMeta(ABCMeta):
 
 
 @add_metaclass(XMLSchemaMeta)
-class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
+class XMLSchemaBase(XsdValidator, ValidatorMixin, ElementPathMixin):
     """
     Base class for an XML Schema instance.
 
@@ -188,7 +188,7 @@ class XMLSchemaBase(XsdBaseComponent, ValidatorMixin, ElementPathMixin):
     :ivar warnings: warning messages about failure of import and include elements.
     :vartype namespaces: list
 
-    :ivar notations: `xsd:notation` declarations
+    :ivar notations: `xsd:notation` declarations.
     :vartype notations: NamespaceView
     :ivar types: `xsd:simpleType` and `xsd:complexType` global declarations.
     :vartype types: NamespaceView

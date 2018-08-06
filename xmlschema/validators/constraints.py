@@ -41,6 +41,7 @@ XsdConstraintXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
+    admitted_tags = {XSD_SELECTOR_TAG}
 
     def __init__(self, elem, schema):
         super(XsdSelector, self).__init__(elem, schema)
@@ -70,16 +71,9 @@ class XsdSelector(XsdComponent):
     def built(self):
         return True
 
-    @property
-    def admitted_tags(self):
-        return {XSD_SELECTOR_TAG}
-
 
 class XsdFieldSelector(XsdSelector):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_FIELD_TAG}
+    admitted_tags = {XSD_FIELD_TAG}
 
 
 class XsdConstraint(XsdComponent):
@@ -168,10 +162,6 @@ class XsdConstraint(XsdComponent):
         return self.selector.built and all([f.built for f in self.fields])
 
     @property
-    def admitted_tags(self):
-        raise NotImplementedError
-
-    @property
     def validation_attempted(self):
         if self.built:
             return 'full'
@@ -198,20 +188,15 @@ class XsdConstraint(XsdComponent):
 
 
 class XsdUnique(XsdConstraint):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_UNIQUE_TAG}
+    admitted_tags = {XSD_UNIQUE_TAG}
 
 
 class XsdKey(XsdConstraint):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_KEY_TAG}
+    admitted_tags = {XSD_KEY_TAG}
 
 
 class XsdKeyref(XsdConstraint):
+    admitted_tags = {XSD_KEYREF_TAG}
 
     def __init__(self, elem, schema, parent):
         self.refer = None
@@ -222,10 +207,6 @@ class XsdKeyref(XsdConstraint):
         return u'%s(name=%r, refer=%r)' % (
             self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
         )
-
-    @property
-    def admitted_tags(self):
-        return {XSD_KEYREF_TAG}
 
     def _parse(self):
         super(XsdKeyref, self)._parse()

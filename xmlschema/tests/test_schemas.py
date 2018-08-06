@@ -41,7 +41,7 @@ from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import safe_etree_parse, safe_etree_iterparse, safe_etree_fromstring
 from xmlschema.xpath import ElementPathContext
-from xmlschema.validators import XsdBaseComponent
+from xmlschema.validators import XsdValidator
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -422,7 +422,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                 if not inspect and not errors_:
                     context = ElementPathContext(xs)
                     elements = [e for e in xs.iter()]
-                    context_elements = [e for e in context.iter() if isinstance(e, XsdBaseComponent)]
+                    context_elements = [e for e in context.iter() if isinstance(e, XsdValidator)]
                     self.assertEqual(context_elements, [e for e in context.iter_descendants()])
                     self.assertEqual(context_elements, elements)
 

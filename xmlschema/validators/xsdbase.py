@@ -32,22 +32,26 @@ Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 """
 
 
-class XsdBaseComponent(object):
+class XsdValidator(object):
     """
-    Common base class for representing XML Schema components. A concrete XSD component have
-    to report its validity collecting building errors and implementing the properties.
+    Common base class for XML Schema validator, that represents a PSVI (Post Schema Validation
+    Infoset) information item. A concrete XSD validator have to report its validity collecting
+    building errors and implementing the properties.
 
-    See: https://www.w3.org/TR/xmlschema-ref/
-
-    :param validation: Defines the XSD validation mode to use for build the schema, \
-    it's value can be 'strict', 'lax' or 'skip'.
+    :param validation: defines the XSD validation mode to use for build the validator, \
+    its value can be 'strict', 'lax' or 'skip'. Strict mode is the default.
     :type validation: str
+
+    :ivar validation: XSD validation mode.
+    :vartype validation: str
+    :ivar errors: XSD validator building errors.
+    :vartype errors: list
     """
     def __init__(self, validation='strict'):
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         self.validation = validation
-        self.errors = []  # component errors
+        self.errors = []
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
@@ -100,15 +104,14 @@ class XsdBaseComponent(object):
     @property
     def built(self):
         """
-        Property that is ``True`` if schema component has been fully parsed and built, ``False`` otherwise.
+        Property that is ``True`` if schema validator has been fully parsed and built, ``False`` otherwise.
         """
         raise NotImplementedError
 
     @property
     def validation_attempted(self):
         """
-        Property that returns the XSD component validation status. It can be
-        'full', 'partial' or 'none'.
+        Property that returns the XSD validator's validation status. It can be 'full', 'partial' or 'none'.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
@@ -118,7 +121,7 @@ class XsdBaseComponent(object):
     @property
     def validity(self):
         """
-        Property that returns the XSD component validity. It can be ‘valid’, ‘invalid’ or ‘notKnown’.
+        Property that returns the XSD validator's validity. It can be ‘valid’, ‘invalid’ or ‘notKnown’.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validity
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
@@ -142,7 +145,7 @@ class XsdBaseComponent(object):
     @property
     def all_errors(self):
         """
-        A list with the errors of the XSD component and of its descendants.
+        A list with all the building errors of the XSD validator and its components.
         """
         errors = []
         for comp in self.iter_components():
@@ -151,19 +154,25 @@ class XsdBaseComponent(object):
         return errors
 
 
-class XsdComponent(XsdBaseComponent):
+class XsdComponent(XsdValidator):
     """
-    Class for schema components.
+    Class for XSD components. See: https://www.w3.org/TR/xmlschema-ref/
 
     :param elem: ElementTree's node containing the definition.
-    :param schema: The XMLSchema object that owns the definition.
-    :param name: Name of the component, maybe overwritten by the parse of the `elem` argument.
-    :param is_global: `True` if the instance is a global component, `False` if it's local.
+    :param schema: the XMLSchema object that owns the definition.
+    :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
+    :param is_global: is `True` if the instance is a global component, `False` if it's local.
+
+    :cvar admitted_tags: the set of admitted element tags for component type.
+    :vartype admitted_tags: tuple or set
+    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes..
+    :vartype qualified: bool
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
 
-    qualified = True  # For name matching, unqualified matching may be admitted only for elements and attributes.
+    admitted_tags = ()
+    qualified = True
 
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdComponent, self).__init__(schema.validation)
@@ -291,10 +300,6 @@ class XsdComponent(XsdBaseComponent):
     def built(self):
         raise NotImplementedError
 
-    @property
-    def admitted_tags(self):
-        raise NotImplementedError
-
     def match(self, name, default_namespace=None):
         """Matching method for component name."""
         if not name or name[0] == '{':
@@ -343,10 +348,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-
-    @property
-    def admitted_tags(self):
-        return {XSD_ANNOTATION_TAG}
+    admitted_tags = {XSD_ANNOTATION_TAG}
 
     @property
     def built(self):
@@ -376,10 +378,6 @@ class XsdType(XsdComponent):
 
     @property
     def built(self):
-        raise NotImplementedError
-
-    @property
-    def admitted_tags(self):
         raise NotImplementedError
 
     @staticmethod

@@ -45,6 +45,8 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
       Content: (annotation?, simpleType?)
     </attribute>
     """
+    admitted_tags = {XSD_ATTRIBUTE_TAG}
+
     def __init__(self, elem, schema, name=None, xsd_type=None, is_global=False):
         if xsd_type is not None:
             self.type = xsd_type
@@ -129,10 +131,6 @@ class XsdAttribute(XsdComponent, ValidatorMixin):
             return 'full'
         else:
             return self.type.validation_attempted
-
-    @property
-    def admitted_tags(self):
-        return {XSD_ATTRIBUTE_TAG}
 
     # XSD declaration attributes
     @property
@@ -232,6 +230,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
+    admitted_tags = {
+        XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
+        XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
+    }
+
     def __init__(self, elem, schema, name=None, derivation=None,
                  base_attributes=None, is_global=False):
         self.derivation = derivation
@@ -366,11 +369,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent):
             return 'partial'
         else:
             return 'none'
-
-    @property
-    def admitted_tags(self):
-        return {XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-                XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}
 
     @property
     def ref(self):

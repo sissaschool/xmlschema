@@ -42,6 +42,8 @@ class XsdComplexType(XsdType, ValidatorMixin):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
+    admitted_tags = {XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG}
+
     def __init__(self, elem, schema, name=None, content_type=None, attributes=None, mixed=None, is_global=False):
         self.base_type = None
         self._derivation = None
@@ -323,13 +325,6 @@ class XsdComplexType(XsdType, ValidatorMixin):
             return 'partial'
         else:
             return 'none'
-
-    @property
-    def admitted_tags(self):
-        if self.is_global:
-            return {XSD_COMPLEX_TYPE_TAG}
-        else:
-            return {XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG}
 
     @staticmethod
     def is_simple():

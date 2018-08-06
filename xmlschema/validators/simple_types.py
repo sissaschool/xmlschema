@@ -73,6 +73,8 @@ class XsdSimpleType(XsdType, ValidatorMixin):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
+    admitted_tags = {XSD_SIMPLE_TYPE_TAG}
+
     def __init__(self, elem, schema, name=None, facets=None, is_global=False):
         super(XsdSimpleType, self).__init__(elem, schema, name, is_global)
         if not hasattr(self, 'facets'):
@@ -111,10 +113,6 @@ class XsdSimpleType(XsdType, ValidatorMixin):
     @property
     def built(self):
         return True
-
-    @property
-    def admitted_tags(self):
-        return {XSD_SIMPLE_TYPE_TAG}
 
     @property
     def admitted_facets(self):
@@ -310,6 +308,8 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
+    admitted_tags = {XSD_RESTRICTION_TAG, XSD_SIMPLE_TYPE_TAG}
+
     def __init__(self, elem, schema, name=None, facets=None, base_type=None, is_global=False):
         self.base_type = base_type
         super(XsdAtomic, self).__init__(elem, schema, name, facets, is_global)
@@ -348,10 +348,6 @@ class XsdAtomic(XsdSimpleType):
             return 'full'
         else:
             return self.base_type.validation_attempted
-
-    @property
-    def admitted_tags(self):
-        return {XSD_RESTRICTION_TAG, XSD_SIMPLE_TYPE_TAG}
 
     @property
     def admitted_facets(self):
@@ -523,6 +519,7 @@ class XsdList(XsdSimpleType):
       Content: (annotation?, simpleType?)
     </list>
     """
+    admitted_tags = {XSD_LIST_TAG}
 
     def __init__(self, elem, schema, name=None, facets=None, base_type=None, is_global=False):
         super(XsdList, self).__init__(elem, schema, name, facets, is_global)
@@ -596,10 +593,6 @@ class XsdList(XsdSimpleType):
             return self.base_type.validation_attempted
 
     @property
-    def admitted_tags(self):
-        return {XSD_LIST_TAG}
-
-    @property
     def admitted_facets(self):
         return self.schema.LIST_FACETS
 
@@ -671,6 +664,8 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
+    admitted_tags = {XSD_UNION_TAG}
+
     def __init__(self, elem, schema, name=None, facets=None, member_types=None, is_global=False):
         super(XsdUnion, self).__init__(elem, schema, name, facets, is_global)
         if not hasattr(self, 'member_types'):
@@ -745,10 +740,6 @@ class XsdUnion(XsdSimpleType):
             return 'partial'
         else:
             return 'none'
-
-    @property
-    def admitted_tags(self):
-        return {XSD_UNION_TAG}
 
     @property
     def admitted_facets(self):

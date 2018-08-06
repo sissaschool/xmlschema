@@ -59,6 +59,8 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
+    admitted_tags = {XSD_ELEMENT_TAG}
+
     def __init__(self, elem, schema, name=None, is_global=False):
         super(XsdElement, self).__init__(elem, schema, name, is_global)
         if not hasattr(self, 'type'):
@@ -249,10 +251,6 @@ class XsdElement(XsdComponent, ValidatorMixin, ParticleMixin, ElementPathMixin):
             return 'full'
         else:
             return self.type.validation_attempted
-
-    @property
-    def admitted_tags(self):
-        return {XSD_ELEMENT_TAG}
 
     # XSD declaration attributes
     @property
@@ -648,9 +646,7 @@ class XsdAlternative(XsdComponent):
       Content: (annotation?, (simpleType | complexType)?)
     </alternative>
     """
-    @property
-    def admitted_tags(self):
-        return {XSD_ELEMENT_TAG}
+    admitted_tags = {XSD_ALTERNATIVE_TAG}
 
     @property
     def built(self):

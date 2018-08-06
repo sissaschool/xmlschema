@@ -23,7 +23,7 @@ from ..qnames import (
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
-from .xsdbase import XsdBaseComponent
+from .xsdbase import XsdValidator
 from . import (
     XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType,
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
@@ -169,7 +169,7 @@ lookup_group = create_lookup_function(XsdGroup)
 lookup_element = create_lookup_function(XsdElement)
 
 
-class XsdGlobals(XsdBaseComponent):
+class XsdGlobals(XsdValidator):
     """
     Mediator class for related XML schema instances. It stores the global
     declarations defined in the registered schemas. Register a schema to

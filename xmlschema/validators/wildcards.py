@@ -97,10 +97,6 @@ class XsdWildcard(XsdComponent, ValidatorMixin):
             else:
                 return namespace in any_namespaces
 
-    @property
-    def admitted_tags(self):
-        raise NotImplementedError
-
     def iter_decode(self, source, validation='lax', *args, **kwargs):
         raise NotImplementedError
 
@@ -122,13 +118,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
+    admitted_tags = {XSD_ANY_TAG}
+
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle()
-
-    @property
-    def admitted_tags(self):
-        return {XSD_ANY_TAG}
 
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
@@ -249,9 +243,7 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    @property
-    def admitted_tags(self):
-        return {XSD_ANY_ATTRIBUTE_TAG}
+    admitted_tags = {XSD_ANY_ATTRIBUTE_TAG}
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
