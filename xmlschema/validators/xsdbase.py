@@ -21,9 +21,7 @@ from ..qnames import (
     XSD_DOCUMENTATION_TAG, XML_LANG, XSD_ANY_TYPE
 )
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
-from .parseutils import (
-    get_xsd_component, iter_xsd_components, get_xsd_int_attribute, get_xpath_default_namespace_attribute
-)
+from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -62,28 +60,6 @@ class XsdValidator(object):
 
     if PY3:
         __str__ = __unicode__
-
-    def _parse(self):
-        if self.errors:
-            del self.errors[:]
-
-    def _parse_xpath_default_namespace(self, elem, namespaces, target_namespace, default=None):
-        try:
-            xpath_default_namespace = get_xpath_default_namespace_attribute(elem)
-        except XMLSchemaValueError as error:
-            self.parse_error(error, elem)
-            self._xpath_default_namespace = namespaces['']
-        else:
-            if xpath_default_namespace == '##local':
-                self._xpath_default_namespace = ''
-            elif xpath_default_namespace == '##defaultNamespace':
-                self._xpath_default_namespace = namespaces['']
-            elif xpath_default_namespace == '##targetNamespace':
-                self._xpath_default_namespace = target_namespace
-            elif xpath_default_namespace is not None:
-                self._xpath_default_namespace = xpath_default_namespace
-            elif default is not None:
-                self._xpath_default_namespace = default
 
     @property
     def built(self):
@@ -228,6 +204,10 @@ class XsdComponent(XsdValidator):
         return self.schema.target_namespace
 
     @property
+    def default_namespace(self):
+        return self.schema.namespaces.get('')
+
+    @property
     def namespaces(self):
         return self.schema.namespaces
 
@@ -249,7 +229,7 @@ class XsdComponent(XsdValidator):
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def _parse(self):
-        super(XsdComponent, self)._parse()
+        del self.errors[:]
         try:
             if self.elem[0].tag == XSD_ANNOTATION_TAG:
                 self.annotation = XsdAnnotation(self.elem[0], self.schema)
@@ -358,7 +338,7 @@ class XsdAnnotation(XsdComponent):
         return True
 
     def _parse(self):
-        super(XsdComponent, self)._parse()  # Skip parent class method (that parses also annotations)
+        del self.errors[:]
         self.appinfo = []
         self.documentation = []
         for child in self.elem:

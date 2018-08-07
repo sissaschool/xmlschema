@@ -33,7 +33,7 @@ from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError,
     XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
-from .parseutils import has_xsd_components, get_xsd_derivation_attribute
+from .parseutils import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
 from .xsdbase import XsdValidator, ValidationMixin
 from . import (
     XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
@@ -288,7 +288,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.XSD_VERSION > '1.0':
-            self._parse_xpath_default_namespace(root, self.namespaces, self.target_namespace, default='')
+            try:
+                self.xpath_default_namespace = get_xpath_default_namespace(
+                    root, self.namespaces[''], self.target_namespace, default=''
+                )
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error), root)
+                self.xpath_default_namespace = self.namespaces['']
 
         self.warnings.extend(self._include_schemas())
         self.warnings.extend(self._import_namespaces())
@@ -424,6 +430,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         for k, v in self.source.iter_location_hints():
             if not k:
                 return v
+
+    @property
+    def default_namespace(self):
+        return self.namespaces.get('')
 
     @property
     def target_prefix(self):

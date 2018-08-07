@@ -20,6 +20,7 @@ from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 
 from .exceptions import XMLSchemaValidationError
+from .parseutils import get_xpath_default_namespace
 from .xsdbase import XsdComponent
 
 XSD_CONSTRAINTS_XPATH_SYMBOLS = {
@@ -62,7 +63,13 @@ class XsdSelector(XsdComponent):
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
-            self._parse_xpath_default_namespace(self.elem, self.namespaces, self.target_namespace)
+            try:
+                self._xpath_default_namespace = get_xpath_default_namespace(
+                    self.elem, self.namespaces[''], self.target_namespace
+                )
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error))
+                self._xpath_default_namespace = self.namespaces['']
 
     def __repr__(self):
         return u'%s(path=%r)' % (self.__class__.__name__, self.path)
