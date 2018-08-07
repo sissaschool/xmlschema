@@ -30,10 +30,15 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :type elem: Element
     :param source: the XML resource that contains the error.
     :type source: XMLResource
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :type namespaces: dict
+    :ivar path: the XPath of the element, calculated when the element is set or the XML resource is set.
     """
-    def __init__(self, validator, message, elem=None, source=None):
+    def __init__(self, validator, message, elem=None, source=None, namespaces=None):
         self.validator = validator
-        self.message = message
+        message = message.strip()
+        self.message = message[:-1] if message[-1] in ('.', ':') else message
+        self.namespaces = namespaces
         self.elem = elem
         self.source = source
 
@@ -43,9 +48,17 @@ class XMLSchemaValidatorError(XMLSchemaException):
 
     def __unicode__(self):
         if self.elem is None:
-            return self.message
+            return u'%s.' % self.message
         else:
-            return u"{}\n\n  {}\n".format(self.message, etree_tostring(self.elem, max_lines=20))
+            elem, sourceline, path = etree_tostring(self.elem, max_lines=20), self.sourceline, self.path
+            msg = [u'%s:\n' % self.message]
+            if sourceline is None:
+                msg.append(u"Schema:\n\n  %s\n" % elem)
+            else:
+                msg.append(u"Schema (line %r):\n\n  %s\n" % (sourceline, elem))
+            if path is not None:
+                msg.append(u"Path: %s\n" % path)
+            return u'\n'.join(msg)
 
     if PY3:
         __str__ = __unicode__
@@ -54,6 +67,15 @@ class XMLSchemaValidatorError(XMLSchemaException):
         if name == 'elem' and value is not None and not is_etree_element(value):
             raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
+
+        # Calculate and set the element's path: have to be calculated asap because is the
+        # XML resource is lazy the intermediate nodes could be deleted.
+        if name in ('elem', 'source'):
+            elem, root = self.elem, self.root
+            if not is_etree_element(elem) or not is_etree_element(root):
+                self.path = None
+            else:
+                self.path = etree_getpath(elem, root, self.namespaces, relative=False, add_position=True)
 
     @property
     def sourceline(self):
@@ -66,14 +88,6 @@ class XMLSchemaValidatorError(XMLSchemaException):
         except AttributeError:
             return None
 
-    @property
-    def path(self):
-        elem, root = self.elem, self.root
-        if elem is None or root is None:
-            return
-        else:
-            return etree_getpath(elem, root)
-
 
 class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
     """
@@ -84,12 +98,13 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
     :param message: the error message.
     :type message: str or unicode
     """
-    def __init__(self, validator, message, elem=None):
+    def __init__(self, validator, message):
         super(XMLSchemaNotBuiltError).__init__(
             validator=validator,
             message=message,
             elem=getattr(validator, 'elem', None),
-            source=getattr(validator, 'source', None)
+            source=getattr(validator, 'source', None),
+            namespaces=getattr(validator, 'namespaces', None)
         )
 
 
@@ -109,7 +124,8 @@ class XMLSchemaParseError(XMLSchemaValidatorError, ValueError):
             validator=validator,
             message=message,
             elem=elem if elem is not None else getattr(validator, 'elem', None),
-            source=getattr(validator, 'source', None)
+            source=getattr(validator, 'source', None),
+            namespaces=getattr(validator, 'namespaces', None),
         )
 
 
@@ -125,15 +141,18 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :type reason: str or unicode
     :param source: the XML resource that contains the error.
     :type source: XMLResource
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :type namespaces: dict
     """
     _message = u"failed validating {!r} with {!r}.\n"
 
-    def __init__(self, validator, obj, reason=None, source=None):
+    def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,
             message=self._message.format(obj, validator),
             elem=obj if is_etree_element(obj) else None,
             source=source,
+            namespaces=namespaces,
         )
         self.obj = obj
         self.reason = reason
@@ -144,17 +163,19 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        schema_elem, elem, sourceline = self.schema_elem, self.elem, self.sourceline
-        msg = [self.message]
+        schema_elem, elem, sourceline, path = self.schema_elem, self.elem, self.sourceline, self.path
+        msg = [u'%s:\n' % self.message]
         if self.reason is not None:
-            msg.append(u'\nReason: %s\n' % self.reason)
+            msg.append(u'Reason: %s\n' % self.reason)
         if schema_elem is not None:
-            msg.append(u"\nSchema:\n\n  %s\n" % etree_tostring(schema_elem, max_lines=20))
+            msg.append(u"Schema:\n\n  %s\n" % etree_tostring(schema_elem, max_lines=20))
         if sourceline is not None:
-            msg.append(u"\nInstance (line %r):\n\n  %s\n" % (sourceline, etree_tostring(elem, max_lines=20)))
+            msg.append(u"Instance (line %r):\n\n  %s\n" % (sourceline, etree_tostring(elem, max_lines=20)))
         elif elem is not None:
-            msg.append(u"\nInstance:\n\n  %s\n" % etree_tostring(self.elem, max_lines=20))
-        return u''.join(msg)
+            msg.append(u"Instance:\n\n  %s\n" % etree_tostring(self.elem, max_lines=20))
+        if path is not None:
+            msg.append(u"Path: %s\n" % path)
+        return u'\n'.join(msg)
 
     if PY3:
         __str__ = __unicode__
@@ -174,11 +195,13 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     :type reason: str or unicode
     :param source: the XML resource that contains the error.
     :type source: XMLResource
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :type namespaces: dict
     """
     _message = u"failed decoding {!r} with {!r}.\n"
 
-    def __init__(self, validator, obj, decoder, reason=None, source=None):
-        super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source=None)
+    def __init__(self, validator, obj, decoder, reason=None, source=None, namespaces=None):
+        super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.decoder = decoder
 
 
@@ -196,11 +219,13 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     :type reason: str or unicode
     :param source: the XML resource that contains the error.
     :type source: XMLResource
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :type namespaces: dict
     """
     _message = u"failed encoding {!r} with {!r}.\n"
 
-    def __init__(self, validator, obj, encoder, reason=None, source=None):
-        super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source)
+    def __init__(self, validator, obj, encoder, reason=None, source=None, namespaces=None):
+        super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
         self.encoder = encoder
 
 
@@ -218,8 +243,10 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :type expected: str or list or tuple
     :param source: the XML resource that contains the error.
     :type source: XMLResource
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :type namespaces: dict
     """
-    def __init__(self, validator, elem, index, expected=None, source=None):
+    def __init__(self, validator, elem, index, expected=None, source=None, namespaces=None):
         self.index = index
         self.expected = expected
 
@@ -238,7 +265,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         elif expected is not None:
             reason += " Tag %r expected." % expected
 
-        super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source)
+        super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source, namespaces)
 
 
 class XMLSchemaIncludeWarning(XMLSchemaWarning):

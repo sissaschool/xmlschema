@@ -5,6 +5,7 @@ CHANGELOG
 v1.0.3 (TBD)
 ============
 * Improved group encoding
+* Improved validation errors to include source, error path and namespace references
 
 v1.0.2 (2018-07-26)
 ===================

@@ -71,7 +71,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
         if self.default is not None and self.fixed is not None:
-            self._parse_error("'default' and 'fixed' attributes are mutually exclusive")
+            self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
         self._parse_properties('form', 'use')
 
         try:
@@ -85,7 +85,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 attribute_name = reference_to_qname(elem.attrib['ref'], self.namespaces)
             except KeyError:
                 # Missing also the 'ref' attribute
-                self._parse_error(u"missing both 'name' and 'ref' in attribute declaration")
+                self.parse_error(u"missing both 'name' and 'ref' in attribute declaration")
                 return
             else:
                 xsd_attribute = self.maps.lookup_attribute(attribute_name)
@@ -94,7 +94,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.qualified = xsd_attribute.qualified
                 for attribute in ('form', 'type'):
                     if attribute in self.elem.attrib:
-                        self._parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
+                        self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
                 return
 
         xsd_type = None
@@ -111,9 +111,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         else:
             xsd_type = self.maps.lookup_type(type_qname)
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
-                self._parse_error(u"ambiguous type declaration for XSD attribute")
+                self.parse_error(u"ambiguous type declaration for XSD attribute")
             elif xsd_declaration:
-                self._parse_error(u"not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
+                self.parse_error(u"not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
         self.type = xsd_type
 
     @property
@@ -165,8 +165,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
-        if self.fixed is not None and text != self.fixed:
-            yield self._validation_error("value differs from fixed value", validation, text, **kwargs)
+        if self.fixed is not None and text != self.fixed and validation != 'skip':
+            yield self.validation_error("value differs from fixed value", validation, text, **kwargs)
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -321,15 +321,15 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             try:
                 self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
-                self._parse_error(u"an attribute group declaration requires a 'name' attribute.")
+                self.parse_error(u"an attribute group declaration requires a 'name' attribute.")
                 return
 
         for child in self._iterparse_components(elem):
             if any_attribute:
                 if child.tag == XSD_ANY_ATTRIBUTE_TAG:
-                    self._parse_error(u"more anyAttribute declarations in the same attribute group")
+                    self.parse_error(u"more anyAttribute declarations in the same attribute group")
                 else:
-                    self._parse_error(u"another declaration after anyAttribute")
+                    self.parse_error(u"another declaration after anyAttribute")
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
                 self.update([(None, XsdAnyAttribute(elem=child, schema=self.schema))])
@@ -341,7 +341,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 ref_attribute_group = self.maps.lookup_attribute_group(qname)
                 self.update(ref_attribute_group.items())
             elif self.name is not None:
-                self._parse_error("(attribute | attributeGroup) expected, found %r." % child)
+                self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
 
     @property
     def built(self):
@@ -381,8 +381,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         if validation != 'skip':
-                            msg = u"%r is not an attribute of the XSI namespace." % name
-                            yield self._validation_error(msg, validation, attrs, **kwargs)
+                            reason = u"%r is not an attribute of the XSI namespace." % name
+                            yield self.validation_error(reason, validation, attrs, **kwargs)
                         continue
                 else:
                     try:
@@ -390,8 +390,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         value = (name, value)
                     except KeyError:
                         if validation != 'skip':
-                            msg = u"%r attribute not allowed for element." % name
-                            yield self._validation_error(msg, validation, attrs, **kwargs)
+                            reason = u"%r attribute not allowed for element." % name
+                            yield self.validation_error(reason, validation, attrs, **kwargs)
                         continue
             else:
                 required_attributes.discard(name)
@@ -404,8 +404,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     break
 
         if required_attributes and validation != 'skip':
-            msg = u"missing required attributes: %r" % required_attributes
-            yield self._validation_error(msg, validation, attrs, **kwargs)
+            reason = u"missing required attributes: %r" % required_attributes
+            yield self.validation_error(reason, validation, attrs, **kwargs)
 
         yield result_list
 
@@ -426,16 +426,18 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        msg = u"%r is not an attribute of the XSI namespace." % name
-                        yield self._validation_error(msg, validation, attrs, **kwargs)
+                        if validation != 'skip':
+                            msg = u"%r is not an attribute of the XSI namespace." % name
+                            yield self.validation_error(msg, validation, attrs, **kwargs)
                         continue
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
                         value = (name, value)
                     except KeyError:
-                        msg = u"%r attribute not allowed for element." % name
-                        yield self._validation_error(msg, validation, attrs, **kwargs)
+                        if validation != 'skip':
+                            msg = u"%r attribute not allowed for element." % name
+                            yield self.validation_error(msg, validation, attrs, **kwargs)
                         continue
             else:
                 required_attributes.discard(name)
@@ -449,5 +451,5 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         if required_attributes and validation != 'skip':
             msg = "missing required attributes %r" % required_attributes
-            yield self._validation_error(msg, validation, attrs, **kwargs)
+            yield self.validation_error(msg, validation, attrs, **kwargs)
         yield result_list

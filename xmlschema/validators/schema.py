@@ -236,10 +236,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                self._parse_error(
-                    u"wrong namespace (%r instead of %r) for XSD resource %r." %
-                    (self.target_namespace, namespace, self.url), root
-                )
+                msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
+                self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
             else:
                 self.target_namespace = namespace  # Chameleon schema
 
@@ -284,9 +282,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             # Base schemas use single file and don't have to be checked
             return
         elif validation == 'strict':
-            self.check_schema(root)
+            self.check_schema(root, self.namespaces)
         elif validation == 'lax':
-            self.errors.extend([e for e in self.meta_schema.iter_errors(root)])
+            self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.XSD_VERSION > '1.0':
@@ -308,7 +306,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if name == 'root' and value.tag not in (XSD_SCHEMA_TAG, 'schema'):
             raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA_TAG)
         elif name == 'validation':
-            assert value in ('strict', 'lax', 'skip'), "Wrong value %r for attribute 'validation'." % value
+            if value not in ('strict', 'lax', 'skip'):
+                raise XMLSchemaValueError("Wrong value %r for attribute 'validation'." % value)
         elif name == 'maps':
             value.register(self)
             self.notations = NamespaceView(value.notations, self.target_namespace)
@@ -479,13 +478,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         return cls(*args, **kwargs)
 
     @classmethod
-    def check_schema(cls, schema):
+    def check_schema(cls, schema, namespaces=None):
         """
         Validates the given schema against the XSD meta-schema (:attr:`meta_schema`).
 
+        :param schema: the schema instance that has to be validated.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+
         :raises: :exc:`XMLSchemaValidationError` if the schema is invalid.
         """
-        for error in cls.meta_schema.iter_errors(schema):
+        for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
             raise error
 
     def build(self):
@@ -605,7 +607,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 include_warnings.append("Redefine schema failed: %s." % str(err))
                 warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if has_xsd_components(child):
-                    self._parse_error(str(err), child)
+                    self.parse_error(str(err), child)
 
         return include_warnings
 
@@ -777,6 +779,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             else:
                 for obj in xsd_element.iter_decode(
                         source.root, validation,
+                        source=source,
                         namespaces=namespaces,
                         use_defaults=use_defaults,
                         decimal_type=decimal_type,
@@ -793,6 +796,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for elem in elementpath.select(source.root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation,
+                            source=source,
                             namespaces=namespaces,
                             use_defaults=use_defaults,
                             decimal_type=decimal_type,

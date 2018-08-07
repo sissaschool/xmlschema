@@ -396,35 +396,32 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
             SchemaObserver.clear()
 
         def check_schema():
-            try:
-                if expected_errors > 0:
-                    xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
-                else:
-                    xs = schema_class(xsd_file, locations=locations, defuse=defuse)
-            except (XMLSchemaParseError, XMLSchemaURLError, KeyError) as err:
-                errors_ = [str(err)]
+            if expected_errors > 0:
+                xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
             else:
-                errors_ = xs.all_errors
+                xs = schema_class(xsd_file, locations=locations, defuse=defuse)
 
-                if inspect:
-                    components_ids = set([id(c) for c in xs.iter_components()])
-                    missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
-                    if any([c for c in missing]):
-                        raise ValueError("schema missing %d components: %r" % (len(missing), missing))
+            errors_ = xs.all_errors
 
-                # Pickling test (only for Python 3, skip inspected schema classes test)
-                if not inspect and PY3:
-                    deserialized_schema = pickle.loads(pickle.dumps(xs))
-                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
-                    self.assertEqual(xs.built, deserialized_schema.built)
+            if inspect:
+                components_ids = set([id(c) for c in xs.iter_components()])
+                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                if any([c for c in missing]):
+                    raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
-                # XPath API tests
-                if not inspect and not errors_:
-                    context = ElementPathContext(xs)
-                    elements = [e for e in xs.iter()]
-                    context_elements = [e for e in context.iter() if isinstance(e, XsdValidator)]
-                    self.assertEqual(context_elements, [e for e in context.iter_descendants()])
-                    self.assertEqual(context_elements, elements)
+            # Pickling test (only for Python 3, skip inspected schema classes test)
+            if not inspect and PY3:
+                deserialized_schema = pickle.loads(pickle.dumps(xs))
+                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                self.assertEqual(xs.built, deserialized_schema.built)
+
+            # XPath API tests
+            if not inspect and not errors_:
+                context = ElementPathContext(xs)
+                elements = [e for e in xs.iter()]
+                context_elements = [e for e in context.iter() if isinstance(e, XsdValidator)]
+                self.assertEqual(context_elements, [e for e in context.iter_descendants()])
+                self.assertEqual(context_elements, elements)
 
             return errors_
 
@@ -435,6 +432,11 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
                 self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
         else:
             errors = check_schema()
+
+        # Checks errors completeness
+        for e in errors:
+            self.assertTrue(e.path, "Missing path for: %s" % str(e))
+            self.assertTrue(e.namespaces, "Missing namespaces for: %s" % str(e))
 
         num_errors = len(errors)
         if num_errors != expected_errors:

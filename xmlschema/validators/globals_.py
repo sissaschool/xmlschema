@@ -78,7 +78,8 @@ def create_load_function(filter_function):
 
         for qname, obj in redefinitions:
             if qname not in xsd_globals:
-                obj[1]._parse_error("not a redefinition!", obj[0])
+                elem, schema = obj
+                schema.parse_error("not a redefinition!", elem)
             else:
                 try:
                     xsd_globals[qname].append(obj)

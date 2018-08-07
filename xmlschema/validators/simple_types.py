@@ -92,7 +92,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
             try:
                 self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
             except XMLSchemaValueError as err:
-                self._parse_error(err)
+                self.parse_error(unicode_type(err))
                 self.min_length = self.max_length = self.min_value = self.max_value = None
                 self.white_space = None
                 self.patterns = None
@@ -154,8 +154,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
         admitted_facets = self.admitted_facets
         if not admitted_facets.issuperset(set([k for k in facets if k is not None])):
             admitted_facets = {local_name(e) for e in admitted_facets if e}
-            msg = "one or more facets are not applicable, admitted set is %r:"
-            raise XMLSchemaValueError(msg % admitted_facets)
+            reason = "one or more facets are not applicable, admitted set is %r:"
+            raise XMLSchemaValueError(reason % admitted_facets)
 
         # Check group base_type
         base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
@@ -268,11 +268,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(text):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
             for validator in self.validators:
                 for error in validator(text):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
         yield text
 
     def iter_encode(self, obj, validation='lax', **kwargs):
@@ -280,16 +280,16 @@ class XsdSimpleType(XsdType, ValidationMixin):
             obj = self.normalize(obj)
         elif validation != 'skip':
             error = XMLSchemaEncodeError(self, obj, unicode_type)
-            yield self._validation_error(error, validation, **kwargs)
+            yield self.validation_error(error, validation, **kwargs)
 
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(obj):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
             for validator in self.validators:
                 for error in validator(obj):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
         yield obj
 
@@ -318,9 +318,8 @@ class XsdAtomic(XsdSimpleType):
             return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
-        if name == 'base_type':
-            assert value is None or isinstance(value, XsdType), \
-                "%r attribute must be an XsdType instance or None: %r" % (name, value)
+        if name == 'base_type' and value is not None and not isinstance(value, XsdType):
+            raise XMLSchemaValueError("%r attribute must be an XsdType instance or None: %r" % (name, value))
         super(XsdAtomic, self).__setattr__(name, value)
         if name in ('base_type', 'white_space'):
             if getattr(self, 'white_space', None) is None:
@@ -434,7 +433,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         text = self.normalize(text)
         if validation != 'skip' and self.patterns:
             for error in self.patterns(text):
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
 
         try:
             result = self.to_python(text)
@@ -443,14 +442,14 @@ class XsdAtomicBuiltin(XsdAtomic):
                 yield unicode_type(text)
             else:
                 error = XMLSchemaDecodeError(self, text, self.to_python, reason=str(err))
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
                 yield None
             return
 
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(result):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
         yield result
 
@@ -468,13 +467,13 @@ class XsdAtomicBuiltin(XsdAtomic):
             if types_ is not bool or (isinstance(types_, tuple) and bool in types_):
                 reason = "boolean value %r requires a %r decoder." % (obj, bool)
                 error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-                yield self._validation_error(error, validation, obj, **kwargs)
+                yield self.validation_error(error, validation, obj, **kwargs)
                 obj = self.python_type(obj)
 
         elif not isinstance(obj, self.instance_types):
             reason = "%r is not an instance of %r." % (obj, self.instance_types)
             error = XMLSchemaEncodeError(self, obj, self.from_python, reason)
-            yield self._validation_error(error, validation, obj, **kwargs)
+            yield self.validation_error(error, validation, obj, **kwargs)
             try:
                 value = self.python_type(obj)
                 if value != obj:
@@ -483,24 +482,24 @@ class XsdAtomicBuiltin(XsdAtomic):
                     obj = value
             except ValueError:
                 error = XMLSchemaEncodeError(self, obj, self.from_python)
-                yield self._validation_error(error, validation, obj, **kwargs)
+                yield self.validation_error(error, validation, obj, **kwargs)
                 yield None
                 return
 
         for validator in self.validators:
             for error in validator(obj):
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
 
         try:
             text = self.from_python(obj)
         except ValueError:
             error = XMLSchemaEncodeError(self, obj, self.from_python)
-            yield self._validation_error(error, validation, obj, **kwargs)
+            yield self.validation_error(error, validation, obj, **kwargs)
             yield None
         else:
             if self.patterns is not None:
                 for error in self.patterns(text):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
             yield text
 
 
@@ -538,7 +537,8 @@ class XsdList(XsdSimpleType):
                         return
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_LIST_TAG, self))
         elif name == 'base_type':
-            assert value.is_atomic(), "%r: a list must be based on atomic data types." % self
+            if not value.is_atomic():
+                raise XMLSchemaValueError("%r: a list must be based on atomic data types." % self)
         elif name == 'white_space' and value is None:
             value = 'collapse'
         super(XsdList, self).__setattr__(name, value)
@@ -553,25 +553,25 @@ class XsdList(XsdSimpleType):
             # Case of a local simpleType declaration inside the list tag
             base_type = xsd_simple_type_factory(child, self.schema, base_type)
             if isinstance(base_type, XMLSchemaParseError):
-                self._parse_error(base_type, elem)
+                self.parse_error(base_type, elem)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
             if 'itemType' in elem.attrib:
-                self._parse_error("ambiguous list type declaration", self)
+                self.parse_error("ambiguous list type declaration", self)
         elif 'itemType' in elem.attrib:
             # List tag with itemType attribute that refers to a global type
             item_qname = reference_to_qname(elem.attrib['itemType'], self.namespaces)
             base_type = self.maps.lookup_type(item_qname)
             if isinstance(base_type, XMLSchemaParseError):
-                self._parse_error(base_type, elem)
+                self.parse_error(base_type, elem)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         else:
-            self._parse_error("missing list type declaration", elem)
+            self.parse_error("missing list type declaration", elem)
             base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
         try:
             self.base_type = base_type
-        except AssertionError as err:
-            self._parse_error(str(err), elem)
+        except XMLSchemaValueError as err:
+            self.parse_error(str(err), elem)
             self.base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
     @property
@@ -612,20 +612,20 @@ class XsdList(XsdSimpleType):
         text = self.normalize(text)
         if validation != 'skip' and self.patterns:
             for error in self.patterns(text):
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
 
         items = []
         for chunk in text.split():
             for result in self.base_type.iter_decode(chunk, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
-                    yield self._validation_error(result, validation, **kwargs)
+                    yield self.validation_error(result, validation, **kwargs)
                 else:
                     items.append(result)
 
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(items):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
         yield items
 
@@ -636,13 +636,13 @@ class XsdList(XsdSimpleType):
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(obj):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
         encoded_items = []
         for item in obj:
             for result in self.base_type.iter_encode(item, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
-                    yield self._validation_error(result, validation, **kwargs)
+                    yield self.validation_error(result, validation, **kwargs)
                 else:
                     encoded_items.append(result)
 
@@ -684,12 +684,15 @@ class XsdUnion(XsdSimpleType):
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_UNION_TAG, self))
 
         elif name == "member_types":
-            assert value, "%r attribute cannot be empty or None." % name
-            assert all(isinstance(mt, (XsdAtomic, XsdList, XsdUnion)) for mt in value), \
-                "%r: member types must be all atomic or list types." % self  # FIXME: Union only for XSD 1.1
+            if not value:
+                raise XMLSchemaValueError("%r attribute cannot be empty or None." % name)
+            elif not all(isinstance(mt, (XsdAtomic, XsdList, XsdUnion)) for mt in value):
+                raise XMLSchemaValueError("%r: member types must be all atomic or list types." % self)
+                # FIXME: Union only for XSD 1.1
 
         elif name == 'white_space':
-            assert value is None or value == 'collapse', "Wrong value % for attribute 'white_space'." % value
+            if not (value is None or value == 'collapse'):
+                raise XMLSchemaValueError("Wrong value % for attribute 'white_space'." % value)
             value = 'collapse'
         super(XsdUnion, self).__setattr__(name, value)
 
@@ -701,7 +704,7 @@ class XsdUnion(XsdSimpleType):
         for child in self._iterparse_components(elem):
             mt = xsd_simple_type_factory(child, self.schema)
             if isinstance(mt, XMLSchemaParseError):
-                self._parse_error(mt)
+                self.parse_error(mt)
             else:
                 member_types.append(mt)
 
@@ -710,19 +713,19 @@ class XsdUnion(XsdSimpleType):
                 type_qname = reference_to_qname(name, self.namespaces)
                 mt = self.maps.lookup_type(type_qname)
                 if isinstance(mt, XMLSchemaParseError):
-                    self._parse_error(mt)
+                    self.parse_error(mt)
                 elif not isinstance(mt, XsdSimpleType):
-                    self._parse_error("a simpleType required", mt)
+                    self.parse_error("a simpleType required", mt)
                 else:
                     member_types.append(mt)
 
         if not member_types:
-            self._parse_error("missing union type declarations", elem)
+            self.parse_error("missing union type declarations", elem)
 
         try:
             self.member_types = member_types
-        except AssertionError as err:
-            self._parse_error(str(err), elem)
+        except XMLSchemaValueError as err:
+            self.parse_error(str(err), elem)
             self.member_types = [self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)]
 
     @property
@@ -760,7 +763,7 @@ class XsdUnion(XsdSimpleType):
         text = self.normalize(text)
         if validation != 'skip' and self.patterns:
             for error in self.patterns(text):
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
 
         # Try the text as a whole
         for member_type in self.member_types:
@@ -769,15 +772,15 @@ class XsdUnion(XsdSimpleType):
                     if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(result):
-                                yield self._validation_error(error, validation, **kwargs)
+                                yield self.validation_error(error, validation, **kwargs)
                     yield result
                     return
                 break
 
-        if ' ' not in text.strip():
+        if validation != 'skip' and ' ' not in text.strip():
             reason = "no type suitable for decoding %r." % text
             error = XMLSchemaDecodeError(self, text, self.member_types, reason)
-            yield self._validation_error(error, validation, **kwargs)
+            yield self.validation_error(error, validation, **kwargs)
 
         items = []
         not_decodable = []
@@ -796,15 +799,15 @@ class XsdUnion(XsdSimpleType):
                 else:
                     items.append(unicode_type(chunk))
 
-        if not_decodable:
-            reason = "no type suitable for decoding the values %r." % not_decodable
-            error = XMLSchemaDecodeError(self, text, self.member_types, reason)
-            yield self._validation_error(error, validation, **kwargs)
-
         if validation != 'skip':
+            if not_decodable:
+                reason = "no type suitable for decoding the values %r." % not_decodable
+                error = XMLSchemaDecodeError(self, text, self.member_types, reason)
+                yield self.validation_error(error, validation, **kwargs)
+
             for validator in self.validators:
                 for error in validator(items):
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
         yield items if len(items) > 1 else items[0] if items else None
 
@@ -812,13 +815,13 @@ class XsdUnion(XsdSimpleType):
         for member_type in self.member_types:
             for result in member_type.iter_encode(obj, validation='lax', **kwargs):
                 if result is not None and not isinstance(result, XMLSchemaValidationError):
-                    if validation == 'skip':
+                    if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(obj):
-                                yield self._validation_error(error, validation, **kwargs)
+                                yield self.validation_error(error, validation, **kwargs)
                         if self.patterns is not None:
                             for error in self.patterns(result):
-                                yield self._validation_error(error, validation, **kwargs)
+                                yield self.validation_error(error, validation, **kwargs)
 
                     yield result
                     return
@@ -835,10 +838,10 @@ class XsdUnion(XsdSimpleType):
                             if validation != 'skip':
                                 for validator in self.validators:
                                     for error in validator(result):
-                                        yield self._validation_error(error, validation, **kwargs)
-                            if self.patterns is not None:
-                                for error in self.patterns(result):
-                                    yield self._validation_error(error, validation, **kwargs)
+                                        yield self.validation_error(error, validation, **kwargs)
+                                if self.patterns is not None:
+                                    for error in self.patterns(result):
+                                        yield self.validation_error(error, validation, **kwargs)
 
                             results.append(result)
                             break
@@ -850,8 +853,9 @@ class XsdUnion(XsdSimpleType):
                     break
 
         if validation != 'skip':
-            error = XMLSchemaEncodeError(self, obj, self.member_types, "no type suitable for encoding the object.")
-            yield self._validation_error(error, validation, **kwargs)
+            reason = "no type suitable for encoding the object."
+            error = XMLSchemaEncodeError(self, obj, self.member_types, reason)
+            yield self.validation_error(error, validation, **kwargs)
             yield None
         else:
             yield unicode_type(obj)
@@ -896,13 +900,13 @@ class XsdAtomicRestriction(XsdAtomic):
             base_qname = reference_to_qname(elem.attrib['base'], self.namespaces)
             base_type = self.maps.lookup_type(base_qname)
             if isinstance(base_type, XMLSchemaParseError):
-                self._parse_error(base_qname)
+                self.parse_error(base_qname)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
             if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
                 if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE_TAG:
                     # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
-                    self._parse_error(
+                    self.parse_error(
                         "when a complexType with simpleContent restricts a complexType "
                         "with mixed and with emptiable content then a simpleType child "
                         "declaration is required.", elem
@@ -912,15 +916,15 @@ class XsdAtomicRestriction(XsdAtomic):
             if child.tag in {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
-                self._parse_error("unexpected tag after attribute declarations", child)
+                self.parse_error("unexpected tag after attribute declarations", child)
             elif child.tag == XSD_SIMPLE_TYPE_TAG:
                 # Case of simpleType declaration inside a restriction
                 if has_simple_type_child:
-                    self._parse_error("duplicated simpleType declaration", child)
+                    self.parse_error("duplicated simpleType declaration", child)
                 elif base_type is None:
                     base_type = xsd_simple_type_factory(child, self.schema)
                     if isinstance(base_type, XMLSchemaParseError):
-                        self._parse_error(base_type)
+                        self.parse_error(base_type)
                         base_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
                 else:
                     if base_type.is_complex() and base_type.admit_simple_restriction():
@@ -934,7 +938,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         )
                 has_simple_type_child = True
             elif child.tag not in self.schema.FACETS:
-                self._parse_error(u"unexpected tag %r in restriction:" % child)
+                self.parse_error(u"unexpected tag %r in restriction:" % child)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:
                     facets[child.tag].append(child)
@@ -946,10 +950,10 @@ class XsdAtomicRestriction(XsdAtomic):
             elif child.tag not in facets:
                 facets[child.tag] = XsdSingleFacet(base_type, child, self.schema)
             else:
-                self._parse_error(u"multiple %r constraint facet" % local_name(child.tag))
+                self.parse_error(u"multiple %r constraint facet" % local_name(child.tag))
 
         if base_type is None:
-            self._parse_error("missing base type in restriction:", self)
+            self.parse_error("missing base type in restriction:", self)
         self.base_type = base_type
         self.facets = facets
 
@@ -964,7 +968,7 @@ class XsdAtomicRestriction(XsdAtomic):
         text = self.normalize(text)
         if validation != 'skip' and self.patterns:
             for error in self.patterns(text):
-                yield self._validation_error(error, validation, **kwargs)
+                yield self.validation_error(error, validation, **kwargs)
 
         if self.base_type.is_simple():
             base_type = self.base_type
@@ -979,14 +983,14 @@ class XsdAtomicRestriction(XsdAtomic):
 
         for result in base_type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
-                yield self._validation_error(result, validation, **kwargs)
+                yield self.validation_error(result, validation, **kwargs)
                 if isinstance(result, XMLSchemaDecodeError):
                     yield unicode_type(text) if validation == 'skip' else None
             else:
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(result):
-                            yield self._validation_error(error, validation, **kwargs)
+                            yield self.validation_error(error, validation, **kwargs)
 
                 yield result
                 return
@@ -999,7 +1003,7 @@ class XsdAtomicRestriction(XsdAtomic):
             if validation != 'skip':
                 for validator in self.validators:
                     for error in validator(obj):
-                        yield self._validation_error(error, validation, **kwargs)
+                        yield self.validation_error(error, validation, **kwargs)
 
             for result in self.base_type.iter_encode(obj, validation):
                 if isinstance(result, XMLSchemaValidationError):
@@ -1038,7 +1042,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(obj):
-                            yield self._validation_error(error, validation, **kwargs)
+                            yield self.validation_error(error, validation, **kwargs)
 
                 yield result
                 return

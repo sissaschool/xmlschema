@@ -51,13 +51,13 @@ class XsdSelector(XsdComponent):
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
-            self._parse_error("'xpath' attribute required:", self.elem)
+            self.parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdConstraintXPathParser)
         except ElementPathSyntaxError as err:
-            self._parse_error(err)
+            self.parse_error(err)
             self.xpath_selector = Selector('*', self.namespaces, parser=XsdConstraintXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
@@ -87,12 +87,12 @@ class XsdConstraint(XsdComponent):
         try:
             self.name = get_qname(self.target_namespace, elem.attrib['name'])
         except KeyError:
-            self._parse_error("missing required attribute 'name'", elem)
+            self.parse_error("missing required attribute 'name'", elem)
             self.name = None
 
         child = self._parse_component(elem, required=False, strict=False)
         if child is None or child.tag != XSD_SELECTOR_TAG:
-            self._parse_error("missing 'selector' declaration.", elem)
+            self.parse_error("missing 'selector' declaration.", elem)
             self.selector = None
         else:
             self.selector = XsdSelector(child, self.schema)
@@ -102,7 +102,7 @@ class XsdConstraint(XsdComponent):
             if child.tag == XSD_FIELD_TAG:
                 self.fields.append(XsdFieldSelector(child, self.schema))
             else:
-                self._parse_error("element %r not allowed here:" % child.tag, elem)
+                self.parse_error("element %r not allowed here:" % child.tag, elem)
 
     def get_fields(self, context, decoders=None):
         """
@@ -213,7 +213,7 @@ class XsdKeyref(XsdConstraint):
         try:
             self.refer = reference_to_qname(self.elem.attrib['refer'], self.namespaces)
         except KeyError:
-            self._parse_error("missing required attribute 'refer'", self.elem)
+            self.parse_error("missing required attribute 'refer'", self.elem)
 
     def parse_refer(self):
         if self.refer is None:
@@ -240,10 +240,10 @@ class XsdKeyref(XsdConstraint):
                             break
                         elif xsd_element is self.schema:
                             self.refer_walk = None
-                            self._parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
+                            self.parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
 
         if not isinstance(refer, (XsdKey, XsdUnique)):
-            self._parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
+            self.parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
             self.refer = None
         else:
             self.refer = refer

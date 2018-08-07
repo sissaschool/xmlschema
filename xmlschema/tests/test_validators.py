@@ -426,6 +426,11 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     )
                 )
 
+            # Checks errors completeness
+            for e in self.errors:
+                self.assertTrue(e.path, "Missing path for: %s" % str(e))
+                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % str(e))
+
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
             elif len(self.chunks) > 1:
@@ -518,8 +523,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         def check_validate_and_is_valid_api(self):
             if expected_errors:
                 self.assertFalse(self.schema.is_valid(xml_file), msg_template % "file with errors is valid")
-                self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file,
-                                  msg_template % "file with errors validated")
+                self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file)
             else:
                 self.assertTrue(self.schema.is_valid(xml_file), msg_template % "file without errors is not valid")
                 self.assertEqual(self.schema.validate(xml_file), None,

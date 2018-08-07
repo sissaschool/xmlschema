@@ -156,12 +156,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 if ref is not None:
                     # Reference to a global group
                     if self.is_global:
-                        self._parse_error("a group reference cannot be global", elem)
+                        self.parse_error("a group reference cannot be global", elem)
                     self.name = reference_to_qname(ref, self.namespaces)
                     xsd_group = self.schema.maps.lookup_group(self.name)
                     if isinstance(xsd_group, tuple):
                         # Disallowed circular definition, substitute with any content group.
-                        self._parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
+                        self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
                         self.model = XSD_SEQUENCE_TAG
                         self.mixed = True
                         self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema))
@@ -169,28 +169,28 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.model = xsd_group.model
                         self.append(xsd_group)
                 else:
-                    self._parse_error("missing both attributes 'name' and 'ref'", elem)
+                    self.parse_error("missing both attributes 'name' and 'ref'", elem)
                 return
             elif ref is None:
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
                 if not self.is_global:
-                    self._parse_error("attribute 'name' not allowed for a local group", self)
+                    self.parse_error("attribute 'name' not allowed for a local group", self)
                 else:
                     if 'minOccurs' in elem.attrib:
-                        self._parse_error(
+                        self.parse_error(
                             "attribute 'minOccurs' not allowed for a global group", self
                         )
                     if 'maxOccurs' in elem.attrib:
-                        self._parse_error(
+                        self.parse_error(
                             "attribute 'maxOccurs' not allowed for a global group", self
                         )
                 if content_model.tag not in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
-                    self._parse_error('unexpected tag %r' % content_model.tag, content_model)
+                    self.parse_error('unexpected tag %r' % content_model.tag, content_model)
                     return
             else:
-                self._parse_error("found both attributes 'name' and 'ref'", elem)
+                self.parse_error("found both attributes 'name' and 'ref'", elem)
                 return
         elif elem.tag in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
             # Local group (sequence|all|choice)
@@ -200,7 +200,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             self.name = self.model = None
             return
         else:
-            self._parse_error('unexpected tag %r' % elem.tag, elem)
+            self.parse_error('unexpected tag %r' % elem.tag, elem)
             return
 
         self.model = content_model.tag
@@ -209,7 +209,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif content_model.tag == XSD_ALL_TAG:
-                self._parse_error("'all' model can contains only elements.", elem)
+                self.parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
                 self.append(XsdAnyElement(child, self.schema))
             elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
@@ -219,7 +219,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 if xsd_group.name != self.name:
                     self.append(xsd_group)
                 elif not hasattr(self, '_elem'):
-                    self._parse_error("Circular definitions detected for group %r:" % self.ref, elem)
+                    self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
             else:
                 continue  # Error already caught by validation against the meta-schema
 
@@ -370,16 +370,16 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
         result_list = []
         cdata_index = 1  # keys for CDATA sections are positive integers
+
         if validation != 'skip' and not self.mixed:
-            # Validate character data between tags
+            # Check element CDATA
             if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
-                elif validation != 'skip':
-                    if validation == 'lax':
-                        cdata_index = 0
-                    cdata_msg = "character data between child elements not allowed!"
-                    yield self._validation_error(cdata_msg, validation, elem, **kwargs)
+                else:
+                    reason = "character data between child elements not allowed!"
+                    yield self.validation_error(reason, validation, elem, **kwargs)
+                    cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and elem.text is not None:
             text = unicode_type(elem.text.strip())
@@ -395,7 +395,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     if xsd_element is not None:
                         for result in xsd_element.iter_decode(child, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
-                                yield self._validation_error(result, validation, **kwargs)
+                                yield self.validation_error(result, validation, **kwargs)
                             else:
                                 result_list.append((child.tag, result, xsd_element))
                         if cdata_index and child.tail is not None:
@@ -406,7 +406,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 elif isinstance(obj, int):
                     break
                 elif isinstance(obj, XMLSchemaChildrenValidationError):
-                    yield self._validation_error(obj, validation, **kwargs)
+                    yield self.validation_error(obj, validation, **kwargs)
                     try:
                         child = elem[obj.index]
                     except IndexError:
@@ -421,7 +421,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 index = 0 if child is None else etree_child_index(elem, child) + 1
                 if validation != 'skip' and self:
                     error = XMLSchemaChildrenValidationError(self, elem, index)
-                    yield self._validation_error(error, validation, **kwargs)
+                    yield self.validation_error(error, validation, **kwargs)
 
                 # raw children decoding
                 for child_index, child in enumerate(elem[index:]):
@@ -429,7 +429,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         if xsd_element.match(child.tag):
                             for result in xsd_element.iter_decode(child, validation, **kwargs):
                                 if isinstance(result, XMLSchemaValidationError):
-                                    yield self._validation_error(result, validation, **kwargs)
+                                    yield self.validation_error(result, validation, **kwargs)
                                 else:
                                     result_list.append((child.tag, result, xsd_element))
                             if cdata_index and child.tail is not None:
@@ -443,13 +443,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                             pass  # TODO? try to use a "default decoder"?
                         elif self and child_index > index:
                             error = XMLSchemaChildrenValidationError(self, elem, child_index)
-                            yield self._validation_error(error, validation, **kwargs)
+                            yield self.validation_error(error, validation, **kwargs)
 
         elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable
             expected = [e.prefixed_name for e in self.iter_elements() if e.min_occurs]
             error = XMLSchemaChildrenValidationError(self, elem, 0, expected=expected)
-            yield self._validation_error(error, validation, **kwargs)
+            yield self.validation_error(error, validation, **kwargs)
 
         yield result_list
 
@@ -599,9 +599,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         break
                 else:
                     if validation != 'skip':
-                        yield self._validation_error(
-                            '%r does not match any declared element.' % name, validation, value, **kwargs
-                        )
+                        reason = '%r does not match any declared element.' % name
+                        yield self.validation_error(reason, validation, value, **kwargs)
 
         if children:
             if children[-1].tail is None:

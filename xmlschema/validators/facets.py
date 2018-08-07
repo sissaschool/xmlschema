@@ -186,11 +186,11 @@ class XsdSingleFacet(XsdFacet):
 
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
             if not base_type.is_subtype(XSD_DECIMAL_TYPE):
-                self._parse_error(u"fractionDigits facet can be applied only to types derived from xs:decimal")
+                self.parse_error(u"fractionDigits facet can be applied only to types derived from xs:decimal")
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
             if self.value != 0 and base_type.is_subtype(XSD_INTEGER_TYPE):
-                self._parse_error(u"fractionDigits facet value has to be 0 for types derived from xs:integer.")
+                self.parse_error(u"fractionDigits facet value has to be 0 for types derived from xs:integer.")
 
     def __repr__(self):
         return u'%s(%r, value=%r, fixed=%r)' % (
@@ -206,21 +206,21 @@ class XsdSingleFacet(XsdFacet):
             base_facet = self.get_base_facet(self.elem.tag)
             if base_facet is not None:
                 if base_facet.fixed and value != base_facet.value:
-                    self._parse_error(u"%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
+                    self.parse_error(u"%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
                 elif self.elem.tag == XSD_WHITE_SPACE_TAG:
                     if base_facet.value == 'collapse' and value in ('preserve', 'replace'):
-                        self._parse_error(u"facet value can be only 'collapse'")
+                        self.parse_error(u"facet value can be only 'collapse'")
                     elif base_facet.value == 'replace' and value == 'preserve':
-                        self._parse_error(u"facet value can be only 'replace' or 'collapse'")
+                        self.parse_error(u"facet value can be only 'replace' or 'collapse'")
                 elif self.elem.tag == XSD_LENGTH_TAG:
                     if base_facet is not None and value != base_facet.value:
-                        self._parse_error(u"base type has a different 'length': %r" % base_facet.value)
+                        self.parse_error(u"base type has a different 'length': %r" % base_facet.value)
                 elif self.elem.tag == XSD_MIN_LENGTH_TAG:
                     if value < base_facet.value:
-                        self._parse_error(u"base type has a greater 'minLength': %r" % base_facet.value)
+                        self.parse_error(u"base type has a greater 'minLength': %r" % base_facet.value)
                 elif self.elem.tag == XSD_MAX_LENGTH_TAG:
                     if value > base_facet.value:
-                        self._parse_error(u"base type has a lesser 'maxLength': %r" % base_facet.value)
+                        self.parse_error(u"base type has a lesser 'maxLength': %r" % base_facet.value)
         super(XsdSingleFacet, self).__setattr__(name, value)
 
     def get_base_facet(self, tag):
@@ -327,7 +327,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
     def __setitem__(self, i, item):
         value = self.base_type.decode(get_xsd_attribute(item, 'value'))
         if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-            self._parse_error(u"value must match a notation global declaration", item)
+            self.parse_error(u"value must match a notation global declaration", item)
         self._elements[i] = item
         self.enumeration[i] = value
 
@@ -342,7 +342,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
         self._elements.insert(i, item)
         value = self.base_type.decode(get_xsd_attribute(item, 'value'))
         if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-            self._parse_error(u"value must match a notation global declaration", item)
+            self.parse_error(u"value must match a notation global declaration", item)
         self.enumeration.insert(i, value)
 
     def __repr__(self):

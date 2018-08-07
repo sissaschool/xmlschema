@@ -12,6 +12,7 @@
 This module contains ElementTree setup and helpers for xmlschema package.
 """
 from xml.etree import ElementTree
+from collections import Counter
 import re
 
 try:
@@ -22,7 +23,7 @@ except ImportError:
 from .compat import PY3
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
-from .qnames import get_qname
+from .qnames import get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
 import defusedxml.ElementTree
@@ -108,36 +109,67 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declar
     return xml_text
 
 
-def etree_iterpath(elem, tag=None, path='.'):
+def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):
     """
-    A version of ElementTree node's iter function that return a couple
-    with node and its relative path.
+    Creates an iterator for the element and its subelements that yield elements and paths.
+    If tag is not `None` or '*', only elements whose matches tag are returned from the iterator.
+
+    :param elem: the element to iterate.
+    :param tag: tag filtering.
+    :param path: the current path, '.' for default.
+    :param add_position: add context position to child elements that appear multiple times.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     if tag == "*":
         tag = None
     if tag is None or elem.tag == tag:
         yield elem, path
-    for child in elem:
-        if path == '/':
-            child_path = '/%s' % child.tag
-        elif path:
-            child_path = '/'.join((path, child.tag))
-        else:
-            child_path = child.tag
 
-        for _child, _child_path in etree_iterpath(child, tag, path=child_path):
+    if add_position:
+        children_tags = Counter([e.tag for e in elem])
+        positions = Counter([t for t in children_tags if children_tags[t] > 1])
+    else:
+        positions = ()
+
+    for child in elem:
+        if callable(child.tag):
+            continue  # Skip lxml comments
+
+        child_name = child.tag if namespaces is None else qname_to_prefixed(child.tag, namespaces)
+        if path == u'/':
+            child_path = u'/%s' % child_name
+        elif path:
+            child_path = u'/'.join((path, child_name))
+        else:
+            child_path = child_name
+
+        if child.tag in positions:
+            child_path += '[%d]' % positions[child.tag]
+            positions[child.tag] += 1
+
+        for _child, _child_path in etree_iterpath(child, tag, child_path, namespaces):
             yield _child, _child_path
 
 
-def etree_getpath(elem, root):
+def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False):
     """
-    Returns the relative XPath path from *root* to descendant *elem* element.
+    Returns the XPath path from *root* to descendant *elem* element.
 
-    :param elem: Descendant element.
-    :param root: Root element.
-    :return: A path string or `None` if *elem* is not a descendant of *root*.
+    :param elem: the descendant element.
+    :param root: the root element.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param relative: returns a relative path.
+    :param add_position: add context position to child elements that appear multiple times.
+    :return: An XPath expression or `None` if *elem* is not a descendant of *root*.
     """
-    for e, path in etree_iterpath(root, tag=elem.tag):
+    if relative:
+        path = '.'
+    elif namespaces:
+        path = u'/%s' % qname_to_prefixed(root.tag, namespaces)
+    else:
+        path = u'/%s' % root.tag
+
+    for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:
             return path
 
