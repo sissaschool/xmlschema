@@ -177,12 +177,12 @@ class XsdGlobals(XsdValidator):
     declarations defined in the registered schemas. Register a schema to
     add it's declarations to the global maps.
 
-    :param validator: the XMLSchema class that have to be used for initializing \
-    the object.
+    :param validator: the XMLSchema class to use for global maps.
+    :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
 
-    def __init__(self, validator):
-        super(XsdGlobals, self).__init__()
+    def __init__(self, validator, validation='strict'):
+        super(XsdGlobals, self).__init__(validation)
         self.validator = validator
 
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
@@ -199,9 +199,9 @@ class XsdGlobals(XsdValidator):
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
 
-    def copy(self):
+    def copy(self, validation=None):
         """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator)
+        obj = XsdGlobals(self.validator, validation or self.validation)
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -272,18 +272,18 @@ class XsdGlobals(XsdValidator):
     def resources(self):
         return [(schema.url, schema) for schemas in self.namespaces.values() for schema in schemas]
 
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
-
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals():
             for obj in xsd_global.iter_components(xsd_classes):
                 yield obj
+
+    def iter_schemas(self):
+        """Creates an iterator for the schemas registered in the instance."""
+        for ns_schemas in self.namespaces.values():
+            for schema in ns_schemas:
+                yield schema
 
     def iter_globals(self):
         """

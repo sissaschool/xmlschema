@@ -270,7 +270,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.meta_schema = meta_schema
                 self.maps = self.meta_schema.maps
             else:
-                self.maps = self.meta_schema.maps.copy()
+                self.maps = self.meta_schema.maps.copy(validation)
 
         elif isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
@@ -499,10 +499,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
             raise error
-
-    def build(self):
-        """Builds the schema XSD global maps."""
-        self.maps.build()
 
     @property
     def built(self):
