@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema wildcards.
 """
+from ..exceptions import XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from ..xpath import ElementPathMixin
@@ -21,8 +22,10 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 class XsdWildcard(XsdComponent, ValidationMixin):
 
-    def __init__(self, elem, schema):
-        super(XsdWildcard, self).__init__(elem, schema, is_global=False)
+    def __init__(self, elem, schema, parent):
+        if parent is None:
+            raise XMLSchemaValueError("'parent' attribute is None but %r cannot be global!" % self)
+        super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
         return u'%s(namespace=%r, process_contents=%r)' % (

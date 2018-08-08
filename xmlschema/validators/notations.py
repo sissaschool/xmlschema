@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from ..exceptions import XMLSchemaValueError
 from ..qnames import get_qname, XSD_NOTATION_TAG
 from .xsdbase import XsdComponent
 
@@ -27,8 +28,10 @@ class XsdNotation(XsdComponent):
     """
     admitted_tags = {XSD_NOTATION_TAG}
 
-    def __init__(self, elem, schema, is_global=True):
-        super(XsdNotation, self).__init__(elem, schema, is_global=is_global)
+    def __init__(self, elem, schema, parent):
+        if parent is not None:
+            raise XMLSchemaValueError("'parent' attribute is not None but %r must be global!" % self)
+        super(XsdNotation, self).__init__(elem, schema, parent)
 
     @property
     def built(self):

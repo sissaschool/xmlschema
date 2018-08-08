@@ -44,8 +44,8 @@ XsdConstraintXPathParser.build_tokenizer()
 class XsdSelector(XsdComponent):
     admitted_tags = {XSD_SELECTOR_TAG}
 
-    def __init__(self, elem, schema):
-        super(XsdSelector, self).__init__(elem, schema)
+    def __init__(self, elem, schema, parent):
+        super(XsdSelector, self).__init__(elem, schema, parent)
 
     def _parse(self):
         super(XsdSelector, self)._parse()
@@ -85,8 +85,7 @@ class XsdFieldSelector(XsdSelector):
 
 class XsdConstraint(XsdComponent):
     def __init__(self, elem, schema, parent):
-        super(XsdConstraint, self).__init__(elem, schema)
-        self.parent = parent
+        super(XsdConstraint, self).__init__(elem, schema, parent)
 
     def _parse(self):
         super(XsdConstraint, self)._parse()
@@ -102,12 +101,12 @@ class XsdConstraint(XsdComponent):
             self.parse_error("missing 'selector' declaration.", elem)
             self.selector = None
         else:
-            self.selector = XsdSelector(child, self.schema)
+            self.selector = XsdSelector(child, self.schema, self)
 
         self.fields = []
         for child in self._iterparse_components(elem, start=int(self.selector is not None)):
             if child.tag == XSD_FIELD_TAG:
-                self.fields.append(XsdFieldSelector(child, self.schema))
+                self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
                 self.parse_error("element %r not allowed here:" % child.tag, elem)
 

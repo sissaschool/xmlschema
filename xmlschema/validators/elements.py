@@ -59,8 +59,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     """
     admitted_tags = {XSD_ELEMENT_TAG}
 
-    def __init__(self, elem, schema, name=None, is_global=False):
-        super(XsdElement, self).__init__(elem, schema, name, is_global)
+    def __init__(self, elem, schema, parent, name=None):
+        super(XsdElement, self).__init__(elem, schema, parent, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
@@ -79,7 +79,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.attributes = value.attributes
             else:
                 self.attributes = self.schema.BUILDERS.attribute_group_class(
-                    elem=XSD_ATTRIBUTE_GROUP_ELEMENT, schema=self.schema
+                    XSD_ATTRIBUTE_GROUP_ELEMENT, self.schema, self
                 )
         super(XsdElement, self).__setattr__(name, value)
 
@@ -164,9 +164,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             child = self._parse_component(self.elem, required=False, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE_TAG:
-                    self.type = self.schema.BUILDERS.complex_type_class(child, self.schema)
+                    self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
                 elif child.tag == XSD_SIMPLE_TYPE_TAG:
-                    self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema)
+                    self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
                 return 1
             else:
                 self.type = None
@@ -176,11 +176,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self.constraints = {}
         for child in self._iterparse_components(self.elem, start=index):
             if child.tag == XSD_UNIQUE_TAG:
-                constraint = XsdUnique(child, self.schema, parent=self)
+                constraint = XsdUnique(child, self.schema, self)
             elif child.tag == XSD_KEY_TAG:
-                constraint = XsdKey(child, self.schema, parent=self)
+                constraint = XsdKey(child, self.schema, self)
             elif child.tag == XSD_KEYREF_TAG:
-                constraint = XsdKeyref(child, self.schema, parent=self)
+                constraint = XsdKeyref(child, self.schema, self)
             else:
                 continue  # Error already caught by validation against the meta-schema
 
@@ -631,7 +631,7 @@ class Xsd11Element(XsdElement):
         self.alternatives = []
         for child in self._iterparse_components(self.elem, start=index):
             if child.tag == XSD_ALTERNATIVE_TAG:
-                self.alternatives.append(XsdAlternative(child, self.schema))
+                self.alternatives.append(XsdAlternative(child, self.schema, self))
                 index += 1
             else:
                 break

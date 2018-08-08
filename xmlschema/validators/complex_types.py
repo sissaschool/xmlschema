@@ -23,7 +23,8 @@ from .simple_types import XsdSimpleType
 from .groups import XsdGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
-EMPTY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
+
+DUMMY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
 
 
 class XsdComplexType(XsdType, ValidationMixin):
@@ -44,19 +45,13 @@ class XsdComplexType(XsdType, ValidationMixin):
     """
     admitted_tags = {XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG}
 
-    def __init__(self, elem, schema, name=None, content_type=None, attributes=None, mixed=None, is_global=False):
+    def __init__(self, elem, schema, parent, name=None, content_type=None, attributes=None, mixed=None):
         self.base_type = None
+        self.content_type = content_type
+        self.attributes = attributes
+        self.mixed = mixed
         self._derivation = None
-        super(XsdComplexType, self).__init__(elem, schema, name, is_global)
-        if not hasattr(self, 'content_type'):
-            assert content_type is not None, "Missing 'content_type' attribute."
-            self.content_type = content_type
-        if not hasattr(self, 'attributes'):
-            assert attributes is not None, "Missing 'attributes' attribute."
-            self.attributes = attributes
-        if not hasattr(self, 'mixed'):
-            assert mixed is not None, "Missing 'mixed' attribute."
-            self.mixed = mixed
+        super(XsdComplexType, self).__init__(elem, schema, parent, name)
 
     def __repr__(self):
         if self.name is None:
@@ -69,10 +64,11 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def __setattr__(self, name, value):
         if name == 'content_type':
-            assert isinstance(value, (XsdSimpleType, XsdGroup)), \
+            assert value is None or isinstance(value, (XsdSimpleType, XsdGroup)), \
                 "The attribute 'content_type' must be a XsdSimpleType or an XsdGroup instance."
         elif name == 'attributes':
-            assert isinstance(value, XsdAttributeGroup), "The attribute 'attributes' must be an XsdAttributeGroup."
+            assert value is None or isinstance(value, XsdAttributeGroup), \
+                "The attribute 'attributes' must be an XsdAttributeGroup."
         super(XsdComplexType, self).__setattr__(name, value)
 
     def _parse(self):
@@ -97,14 +93,14 @@ class XsdComplexType(XsdType, ValidationMixin):
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
             # complexType with empty content
-            self.content_type = self.schema.BUILDERS.group_class(EMPTY_SEQUENCE_ELEM, self.schema, mixed=self.mixed)
-            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
+            self.content_type = self.schema.BUILDERS.group_class(DUMMY_SEQUENCE_ELEM, self.schema, self)
+            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
 
         elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
             #
             # complexType with child elements
-            self.content_type = self.schema.BUILDERS.group_class(content_elem, self.schema, mixed=self.mixed)
-            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
+            self.content_type = self.schema.BUILDERS.group_class(content_elem, self.schema, self)
+            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
 
         elif content_elem.tag == XSD_SIMPLE_CONTENT_TAG:
             if 'mixed' in content_elem.attrib:
@@ -147,15 +143,15 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             if self.schema.validation == 'skip':
                 self.parse_error("unexpected tag %r for complexType content:" % content_elem.tag, elem)
-            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
-            self.attributes = self.schema.BUILDERS.build_any_attribute_group(self.schema)
+            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema, self)
+            self.attributes = self.schema.BUILDERS.build_any_attribute_group(self.schema, self)
 
     def _parse_derivation_elem(self, elem):
         derivation_elem = self._parse_component(elem, required=False)
         if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG):
             self.parse_error("restriction or extension tag expected", derivation_elem)
-            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
-            self.attributes = self.schema.BUILDERS.build_any_attribute_group(self.schema)
+            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema, self)
+            self.attributes = self.schema.BUILDERS.build_any_attribute_group(self.schema, self)
             return
 
         derivation = local_name(derivation_elem.tag)
@@ -192,21 +188,18 @@ class XsdComplexType(XsdType, ValidationMixin):
         # content or a complex content with a mixed and emptiable content.
         if base_type.is_simple():
             self.parse_error("a complexType ancestor required: %r" % base_type, elem)
-            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
-            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
+            self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema, self)
+            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
         else:
             if base_type.has_simple_content() or base_type.mixed and base_type.is_emptiable():
-                self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema)
+                self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
             else:
                 self.parse_error("with simple content cannot restrict an empty or "
                                  "an element-only content type ", base_type.elem)
-                self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
+                self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema, self)
 
             self.attributes = self.schema.BUILDERS.attribute_group_class(
-                elem=elem,
-                schema=self.schema,
-                derivation='restriction',
-                base_attributes=base_type.attributes
+                elem, self.schema, self, derivation='restriction', base_attributes=base_type.attributes
             )
 
     def _parse_simple_content_extension(self, elem, base_type):
@@ -219,26 +212,23 @@ class XsdComplexType(XsdType, ValidationMixin):
 
         if base_type.is_simple():
             self.content_type = base_type
-            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema)
+            self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
         else:
             if base_type.has_simple_content():
                 self.content_type = base_type.content_type
             else:
                 self.parse_error("base type %r has not simple content." % base_type, elem)
-                self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema)
+                self.content_type = self.schema.BUILDERS.build_any_content_group(self.schema, self)
 
             self.attributes = self.schema.BUILDERS.attribute_group_class(
-                elem=elem,
-                schema=self.schema,
-                derivation='extension',
-                base_attributes=base_type.attributes
+                elem, self.schema, self, derivation='extension', base_attributes=base_type.attributes
             )
 
     def _parse_complex_content_restriction(self, elem, base_type):
         # complexContent restriction: the base type must be a complexType with a complex content.
         group_elem = self._parse_component(elem, required=False, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-            self.content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
+            self.content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
             model = self.content_type.model
             if model != XSD_SEQUENCE_TAG and model != base_type.content_type.model:
                 self.parse_error(
@@ -246,7 +236,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 )
         else:
             # Empty content model
-            self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, mixed=self.mixed)
+            self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
 
         if base_type.is_element_only() and self.content_type.mixed:
             self.parse_error(
@@ -262,10 +252,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error("The derived group %r is not a restriction of the base group." % elem, elem)
 
         self.attributes = self.schema.BUILDERS.attribute_group_class(
-            elem=elem,
-            schema=self.schema,
-            derivation='restriction',
-            base_attributes=base_type.attributes
+            elem, self.schema, self, derivation='restriction', base_attributes=base_type.attributes
         )
 
     def _parse_complex_content_extension(self, elem, base_type):
@@ -278,13 +265,12 @@ class XsdComplexType(XsdType, ValidationMixin):
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-                self.content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
+                self.content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
             else:
                 # Empty content model
-                self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, mixed=self.mixed)
+                self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
         else:
-            dummy_elem = etree_element(XSD_SEQUENCE_TAG)
-            self.content_type = self.schema.BUILDERS.group_class(dummy_elem, self.schema, mixed=self.mixed)
+            self.content_type = self.schema.BUILDERS.group_class(DUMMY_SEQUENCE_ELEM, self.schema, self)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
                 # Illegal derivation from a simple content. Applies to both XSD 1.0 and XSD 1.1.
                 # For the detailed rule refer to XSD 1.1 documentation:
@@ -293,11 +279,11 @@ class XsdComplexType(XsdType, ValidationMixin):
                     self.parse_error("base %r is simple or has a simple content." % base_type, elem)
                     base_type = self.maps.lookup_type(XSD_ANY_TYPE)
 
-                xsd_group = self.schema.BUILDERS.group_class(group_elem, self.schema, mixed=self.mixed)
+                group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
                 self.content_type.append(base_type.content_type)
-                self.content_type.append(xsd_group)
+                self.content_type.append(group)
 
-                if base_type.mixed != self.mixed and not xsd_group.is_empty():
+                if base_type.mixed != self.mixed and not group.is_empty():
                     self.parse_error("base has a different content type (mixed=%r) and the "
                                      "extension group is not empty." % base_type.mixed, elem)
                     self.mixed = base_type.mixed
@@ -305,16 +291,16 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.content_type.append(base_type.content_type)
 
         self.attributes = self.schema.BUILDERS.attribute_group_class(
-            elem=elem,
-            schema=self.schema,
-            derivation='extension',
-            base_attributes=base_type.attributes
+            elem, self.schema, self, derivation='extension', base_attributes=base_type.attributes
         )
 
     @property
     def built(self):
-        return self.content_type.built and self.attributes.built
-
+        try:
+            return self.content_type.built and self.attributes.built and self.mixed in (False, True)
+        except AttributeError:
+            return False
+        
     @property
     def validation_attempted(self):
         if self.built:

@@ -24,7 +24,7 @@ from ..etree import etree_element, is_etree_element
 from ..qnames import (
     xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ANY_TAG,
     XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ANY_TYPE,
-    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG
+    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG, XSD_ATTRIBUTE_GROUP_TAG
 )
 
 from .exceptions import XMLSchemaValidationError
@@ -42,6 +42,23 @@ _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 _RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
 _RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
 _RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
+
+
+# Dummy elements for building builtins and surrogate components
+DUMMY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
+DUMMY_ANY_ELEM = etree_element(
+    XSD_ANY_TAG,
+    attrib={
+        'namespace': '##any',
+        'processContents': 'lax',
+        'minOccurs': '0',
+        'maxOccurs': 'unbounded'
+    }
+)
+DUMMY_ATTRIBUTE_GROUP_ELEM = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
+DUMMY_ANY_ATTRIBUTE_ELEM = etree_element(
+    XSD_ANY_ATTRIBUTE_TAG, attrib={'namespace': '##any', 'processContents': 'lax'}
+)
 
 
 #
@@ -274,7 +291,11 @@ COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value
 REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'replace'})
 
 
-XSD_BUILTIN_PRIMITIVE_TYPES = [
+XSD_BUILTIN_TYPES = [
+    # ***********************
+    # *** Primitive types ***
+    # ***********************
+
     # --- String Types ---
     {
         'name': xsd_qname('string'),
@@ -380,91 +401,151 @@ XSD_BUILTIN_PRIMITIVE_TYPES = [
         'name': xsd_qname('hexBinary'),
         'python_type': (unicode_type, str),
         'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator)
-    }   # hexadecimal encoded binary value
-]
+    },   # hexadecimal encoded binary value
 
+    # *********************
+    # *** Derived types ***
+    # *********************
 
-XSD_BUILTIN_OTHER_ATOMIC_TYPES = [
     # --- String Types ---
-    (
-        xsd_qname('normalizedString'), (unicode_type, str), xsd_qname('string'), [REPLACE_WHITE_SPACE_ELEMENT]
-    ),  # line breaks are normalized
-    (
-        xsd_qname('token'), (unicode_type, str), xsd_qname('normalizedString'), [COLLAPSE_WHITE_SPACE_ELEMENT]
-    ),  # whitespace is normalized
-    (
-        xsd_qname('language'), (unicode_type, str), xsd_qname('token'), [
+    {
+        'name': xsd_qname('normalizedString'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('string'),
+        'facets': [REPLACE_WHITE_SPACE_ELEMENT]
+    },  # line breaks are normalized
+    {
+        'name': xsd_qname('token'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('normalizedString'),
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT]
+    },  # whitespaces are normalized
+    {
+        'name': xsd_qname('language'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('token'),
+        'facets': [
             etree_element(XSD_PATTERN_TAG, attrib={
                 'value': r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*"
             })
         ]
-    ),  # language codes
-    (
-        xsd_qname('Name'), (unicode_type, str), xsd_qname('token'),
-        [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\i\c*"})]
-    ),  # not starting with a digit
-    (
-        xsd_qname('NCName'), (unicode_type, str), xsd_qname('Name'),
-        [etree_element(XSD_PATTERN_TAG, attrib={'value': r"[\i-[:]][\c-[:]]*"})]
-    ),  # cannot contain colons
-    (
-        xsd_qname('ID'), (unicode_type, str), xsd_qname('NCName')
-    ),  # unique identification in document (attribute only)
-    (
-        xsd_qname('IDREF'), (unicode_type, str), xsd_qname('NCName')
-    ),  # reference to ID field in document (attribute only)
-    (
-        xsd_qname('ENTITY'), (unicode_type, str), xsd_qname('NCName')
-    ),  # reference to entity (attribute only)
-    (
-        xsd_qname('NMTOKEN'), (unicode_type, str), xsd_qname('token'),
-        [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
-    ),  # should not contain whitespace (attribute only)
+    },  # language codes
+    {
+        'name': xsd_qname('Name'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('token'),
+        'facets': [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\i\c*"})]
+    },  # not starting with a digit
+    {
+        'name': xsd_qname('NCName'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('Name'),
+        'facets': [etree_element(XSD_PATTERN_TAG, attrib={'value': r"[\i-[:]][\c-[:]]*"})]
+    },  # cannot contain colons
+    {
+        'name': xsd_qname('ID'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('NCName')
+    },  # unique identification in document (attribute only)
+    {
+        'name': xsd_qname('IDREF'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('NCName')
+    },  # reference to ID field in document (attribute only)
+    {
+        'name': xsd_qname('ENTITY'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('NCName')
+    },  # reference to entity (attribute only)
+    {
+        'name': xsd_qname('NMTOKEN'),
+        'python_type': (unicode_type, str),
+        'base_type': xsd_qname('token'),
+        'facets': [etree_element(XSD_PATTERN_TAG, attrib={'value': r"\c+"})]
+    },  # should not contain whitespace (attribute only)
 
-    # --- Numerical Types ---
-    (
-        xsd_qname('integer'), (long_type, int), xsd_qname('decimal')
-    ),  # any integer value
-    (
-        xsd_qname('long'), (long_type, int), xsd_qname('integer'), [long_validator]
-    ),  # signed 128 bit value
-    (
-        xsd_qname('int'), int, xsd_qname('long'), [int_validator]
-    ),  # signed 64 bit value
-    (
-        xsd_qname('short'), int, xsd_qname('int'), [short_validator]
-    ),  # signed 32 bit value
-    (
-        xsd_qname('byte'), int, xsd_qname('short'), [byte_validator]
-    ),  # signed 8 bit value
-    (
-        xsd_qname('nonNegativeInteger'), (long_type, int), xsd_qname('integer'), [non_negative_int_validator]
-    ),  # only zero and more value allowed [>= 0]
-    (
-        xsd_qname('positiveInteger'), (long_type, int), xsd_qname('nonNegativeInteger'), [positive_int_validator]
-    ),  # only positive value allowed [> 0]
-    (
-        xsd_qname('unsignedLong'), (long_type, int), xsd_qname('nonNegativeInteger'), [unsigned_long_validator]
-    ),  # unsigned 128 bit value
-    (
-        xsd_qname('unsignedInt'), int, xsd_qname('unsignedLong'), [unsigned_int_validator]
-    ),  # unsigned 64 bit value
-    (
-        xsd_qname('unsignedShort'), int, xsd_qname('unsignedInt'), [unsigned_short_validator]
-    ),  # unsigned 32 bit value
-    (
-        xsd_qname('unsignedByte'), int, xsd_qname('unsignedShort'), [unsigned_byte_validator]
-    ),  # unsigned 8 bit value
-    (
-        xsd_qname('nonPositiveInteger'), (long_type, int), xsd_qname('integer'), [non_positive_int_validator]
-    ),  # only zero and smaller value allowed [<= 0]
-    (
-        xsd_qname('negativeInteger'), (long_type, int), xsd_qname('nonPositiveInteger'), [negative_int_validator]
-    )   # only negative value allowed [< 0]
+    # --- Numerical derived types ---
+    {
+        'name': xsd_qname('integer'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('decimal')
+    },  # any integer value
+    {
+        'name': xsd_qname('long'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('integer'),
+        'facets': [long_validator]
+    },  # signed 128 bit value
+    {
+        'name': xsd_qname('int'),
+        'python_type': int,
+        'base_type': xsd_qname('long'),
+        'facets': [int_validator]
+    },  # signed 64 bit value
+    {
+        'name': xsd_qname('short'),
+        'python_type': int,
+        'base_type': xsd_qname('int'),
+        'facets': [short_validator]
+    },  # signed 32 bit value
+    {
+        'name': xsd_qname('byte'),
+        'python_type': int,
+        'base_type': xsd_qname('short'),
+        'facets': [byte_validator]
+    },  # signed 8 bit value
+    {
+        'name': xsd_qname('nonNegativeInteger'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('integer'),
+        'facets': [non_negative_int_validator]
+    },  # only zero and more value allowed [>= 0]
+    {
+        'name': xsd_qname('positiveInteger'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('nonNegativeInteger'),
+        'facets': [positive_int_validator]
+    },  # only positive value allowed [> 0]
+    {
+        'name': xsd_qname('unsignedLong'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('nonNegativeInteger'),
+        'facets': [unsigned_long_validator]
+    },  # unsigned 128 bit value
+    {
+        'name': xsd_qname('unsignedInt'),
+        'python_type': int,
+        'base_type': xsd_qname('unsignedLong'),
+        'facets': [unsigned_int_validator]
+    },  # unsigned 64 bit value
+    {
+        'name': xsd_qname('unsignedShort'),
+        'python_type': int,
+        'base_type': xsd_qname('unsignedInt'),
+        'facets': [unsigned_short_validator]
+    },  # unsigned 32 bit value
+    {
+        'name': xsd_qname('unsignedByte'),
+        'python_type': int,
+        'base_type': xsd_qname('unsignedShort'),
+        'facets': [unsigned_byte_validator]
+    },  # unsigned 8 bit value
+    {
+        'name': xsd_qname('nonPositiveInteger'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('integer'),
+        'facets': [non_positive_int_validator]
+    },  # only zero and smaller value allowed [<= 0]
+    {
+        'name': xsd_qname('negativeInteger'),
+        'python_type': (long_type, int),
+        'base_type': xsd_qname('nonPositiveInteger'),
+        'facets': [negative_int_validator]
+    }  # only negative value allowed [< 0]
 ]
 
 
-def xsd_build_facets(items, base_type, schema, keys):
+def xsd_build_facets(items, base_type, schema, parent, keys):
     facets = {}
     for obj in items:
         if isinstance(obj, (list, tuple, set)):
@@ -472,125 +553,90 @@ def xsd_build_facets(items, base_type, schema, keys):
         elif is_etree_element(obj):
             if obj.tag in keys:
                 if obj.tag == XSD_PATTERN_TAG:
-                    facets[obj.tag] = XsdPatternsFacet(base_type, obj, schema)
+                    facets[obj.tag] = XsdPatternsFacet(obj, schema, parent, base_type)
                 else:
-                    facets[obj.tag] = XsdSingleFacet(base_type, obj, schema)
+                    facets[obj.tag] = XsdSingleFacet(obj, schema, parent, base_type)
         elif callable(obj):
             if None in facets:
-                raise XMLSchemaValueError("Almost one callable required!!")
+                raise XMLSchemaValueError("Almost one callable for facet group!!")
             facets[None] = obj
         else:
             raise XMLSchemaValueError("Wrong type for item %r" % obj)
     return facets
 
 
-def xsd_build_any_content_group(schema):
-    return XsdGroup(
-        schema=schema,
-        elem=etree_element(XSD_SEQUENCE_TAG),
-        mixed=True,
-        initlist=[XsdAnyElement(
-            schema=schema,
-            elem=etree_element(
-                XSD_ANY_TAG,
-                attrib={
-                    'namespace': '##any',
-                    'processContents': 'lax',
-                    'minOccurs': '0',
-                    'maxOccurs': 'unbounded'
-                })
-        )]
-    )
+def xsd_build_any_content_group(schema, parent):
+    group = XsdGroup(DUMMY_SEQUENCE_ELEM, schema, parent)
+    group.append(XsdAnyElement(DUMMY_ANY_ELEM, schema, group))
+    return group
 
 
-def xsd_build_any_attribute_group(schema):
-    return XsdAttributeGroup(
-        schema=schema,
-        elem=etree_element(XSD_ANY_ATTRIBUTE_TAG),
-        base_attributes={
-            None: XsdAnyAttribute(
-                schema=schema,
-                elem=etree_element(
-                    XSD_ANY_ATTRIBUTE_TAG,
-                    attrib={'namespace': '##any', 'processContents': 'lax'}
-                )
-            )
-        })
+def xsd_build_any_attribute_group(schema, parent):
+    attribute_group = XsdAttributeGroup(DUMMY_ATTRIBUTE_GROUP_ELEM, schema, parent)
+    attribute_group[None] = XsdAnyAttribute(DUMMY_ANY_ATTRIBUTE_ELEM, schema, attribute_group)
+    return attribute_group
 
 
 def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     """
     Builds the dictionary for XML Schema built-in types mapping.
     """
-
     #
     # Special builtin types.
     #
     # xs:anyType
     # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-    xsd_types[XSD_ANY_TYPE] = XsdComplexType(
+    any_type = XsdComplexType(
         elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
         schema=meta_schema,
-        content_type=xsd_build_any_content_group(meta_schema),
-        attributes=xsd_build_any_attribute_group(meta_schema),
-        mixed=True,
-        is_global=True
+        parent=None,
+        mixed=True
     )
+    any_type.content_type = xsd_build_any_content_group(meta_schema, any_type)
+    any_type.attributes = xsd_build_any_attribute_group(meta_schema, any_type)
+    xsd_types[XSD_ANY_TYPE] = any_type
+
     # xs:anySimpleType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
         schema=meta_schema,
+        parent=None,
         name=XSD_ANY_SIMPLE_TYPE,
-        facets={k: None for k in XSD_10_FACETS},
-        is_global=True
+        facets={k: None for k in XSD_10_FACETS}
     )
+
     # xs:anyAtomicType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_ATOMIC_TYPE] = XsdAtomicRestriction(
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
         schema=meta_schema,
+        parent=None,
         name=XSD_ANY_ATOMIC_TYPE,
-        base_type=xsd_types[XSD_ANY_SIMPLE_TYPE],
-        is_global=True
+        base_type=xsd_types[XSD_ANY_SIMPLE_TYPE]
     )
 
     xsd_class = xsd_class or XsdAtomicBuiltin
-    for item in XSD_BUILTIN_PRIMITIVE_TYPES + XSD_BUILTIN_OTHER_ATOMIC_TYPES:
-        if isinstance(item, (tuple, list)):
-            name = item[0]
-            elem, schema = xsd_types[name]
-            if schema is not meta_schema:
-                raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
+    for item in XSD_BUILTIN_TYPES:
+        item = item.copy()
+        elem, schema = xsd_types[item['name']]
+        if schema is not meta_schema:
+            raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
 
-            try:
-                base_type = xsd_types[item[2]]
-            except IndexError:
-                xsd_types[name] = xsd_class(elem, schema, *item)
-            else:
-                try:
-                    facets = xsd_build_facets(item[3], base_type, meta_schema, XSD_10_FACETS)
-                except IndexError:
-                    xsd_types[name] = xsd_class(elem, schema, name, item[1], base_type, *item[3:])
-                else:
-                    xsd_types[name] = xsd_class(elem, schema, name, item[1], base_type, facets, *item[4:])
-
-        elif isinstance(item, dict):
-            item = item.copy()
-            elem, schema = xsd_types[item['name']]
-            if schema is not meta_schema:
-                raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
-
-            if item.get('base_type'):
-                base_type = item.get('base_type')
-                item['base_type'] = xsd_types[base_type]
-            elif item.get('item_type'):
-                base_type = item.get('item_type')
-                item['item_type'] = xsd_types[base_type]
-            else:
-                base_type = None
-            if 'facets' in item:
-                item['facets'] = xsd_build_facets(item['facets'], base_type, schema, XSD_10_FACETS)
-            xsd_types[item['name']] = xsd_class(elem, schema, **item)
+        if item.get('base_type'):
+            base_type = item.get('base_type')
+            item['base_type'] = xsd_types[base_type]
+        elif item.get('item_type'):
+            base_type = item.get('item_type')
+            item['item_type'] = xsd_types[base_type]
         else:
-            raise XMLSchemaValueError("Require a sequence of list/tuples or dictionaries")
+            base_type = None
+
+        if 'facets' in item:
+            facets = item.pop('facets')
+            builtin_type = xsd_class(elem, schema, **item)
+            builtin_type.facets = xsd_build_facets(facets, base_type, schema, builtin_type, XSD_10_FACETS)
+        else:
+            builtin_type = xsd_class(elem, schema, **item)
+
+        xsd_types[item['name']] = builtin_type

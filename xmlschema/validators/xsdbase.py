@@ -148,8 +148,8 @@ class XsdComponent(XsdValidator):
 
     :param elem: ElementTree's node containing the definition.
     :param schema: the XMLSchema object that owns the definition.
+    :param parent: the XSD parent, `None` means that is a global component that has the schema as parent.
     :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
-    :param is_global: is `True` if the instance is a global component, `False` if it's local.
 
     :cvar admitted_tags: the set of admitted element tags for component type.
     :vartype admitted_tags: tuple or set
@@ -162,12 +162,12 @@ class XsdComponent(XsdValidator):
     admitted_tags = ()
     qualified = True
 
-    def __init__(self, elem, schema, name=None, is_global=False):
+    def __init__(self, elem, schema, parent, name=None):
         super(XsdComponent, self).__init__(schema.validation)
         if name == '':
             raise XMLSchemaValueError("'name' cannot be an empty string!")
-        self.is_global = is_global
         self.name = name
+        self.parent = parent
         self.schema = schema
         self.elem = elem
 
@@ -194,6 +194,11 @@ class XsdComponent(XsdValidator):
                     "target namespace than %r." % (self, self.schema, value)
                 )
         super(XsdComponent, self).__setattr__(name, value)
+
+    @property
+    def is_global(self):
+        """Is `True` if the instance is a global component, `False` if it's local."""
+        return self.parent is None
 
     @property
     def source(self):
@@ -232,7 +237,7 @@ class XsdComponent(XsdValidator):
         del self.errors[:]
         try:
             if self.elem[0].tag == XSD_ANNOTATION_TAG:
-                self.annotation = XsdAnnotation(self.elem[0], self.schema)
+                self.annotation = XsdAnnotation(self.elem[0], self.schema, self)
             else:
                 self.annotation = None
         except (TypeError, IndexError):

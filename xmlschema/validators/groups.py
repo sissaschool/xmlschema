@@ -83,10 +83,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
     }
 
-    def __init__(self, elem, schema, name=None, model=None, mixed=False,
-                 initlist=None, is_global=False):
-        self.model = model
-        self.mixed = mixed
+    def __init__(self, elem, schema, parent, name=None, initlist=None):
+        self.mixed = False if parent is None else parent.mixed
         self._group = []
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
@@ -95,7 +93,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 self._group[:] = initlist._group[:]
             else:
                 self._group = list(initlist)
-        XsdComponent.__init__(self, elem, schema, name, is_global)
+        XsdComponent.__init__(self, elem, schema, parent, name)
 
     def __repr__(self):
         model = local_name(self.model)
@@ -132,10 +130,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             model = getattr(self, 'model', None)
             if model is not None and value != model:
                 raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
-        elif name == 'mixed':
-            assert value in (True, False), "A boolean value is required for attribute 'mixed'."
         elif name == '_group':
-            assert isinstance(value, list), "A list object is required for attribute '_group'."
             for item in value:
                 assert isinstance(item, (tuple, ParticleMixin)), \
                     "XsdGroup's items must be tuples or ParticleMixin instances."
@@ -164,7 +159,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
                         self.model = XSD_SEQUENCE_TAG
                         self.mixed = True
-                        self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema))
+                        self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema, self))
                     else:
                         self.model = xsd_group.model
                         self.append(xsd_group)
@@ -211,11 +206,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             elif content_model.tag == XSD_ALL_TAG:
                 self.parse_error("'all' model can contains only elements.", elem)
             elif child.tag == XSD_ANY_TAG:
-                self.append(XsdAnyElement(child, self.schema))
+                self.append(XsdAnyElement(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
-                self.append(XsdGroup(child, self.schema, mixed=self.mixed))
+                self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP_TAG:
-                xsd_group = XsdGroup(child, self.schema, mixed=self.mixed)
+                xsd_group = XsdGroup(child, self.schema, self)
                 if xsd_group.name != self.name:
                     self.append(xsd_group)
                 elif not hasattr(self, '_elem'):

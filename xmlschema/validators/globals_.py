@@ -128,7 +128,7 @@ def create_lookup_function(xsd_classes):
                     raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
                 global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
-                global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                global_map[qname] = factory_or_class(elem, schema, parent=None)
                 return global_map[qname]
 
             elif isinstance(obj, list):
@@ -145,7 +145,7 @@ def create_lookup_function(xsd_classes):
                         raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
                     global_map[qname] = obj[0],  # To catch circular builds
-                    global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                    global_map[qname] = factory_or_class(elem, schema, parent=None)
                 else:
                     # Built-in type
                     global_map[qname] = obj[0]
@@ -391,7 +391,7 @@ class XsdGlobals(XsdValidator):
                 for k in range(len(group)):
                     if isinstance(group[k], tuple):
                         elem, schema = group[k]
-                        group[k] = element_class(elem, schema)
+                        group[k] = element_class(elem, schema, group)
 
         for schema in not_built_schemas:
             # Build substitution groups from global element declarations

@@ -86,8 +86,8 @@ class XsdFacet(XsdComponent):
     """
     XML Schema constraining facets base class.
     """
-    def __init__(self, base_type, elem, schema):
-        super(XsdFacet, self).__init__(elem=elem, schema=schema)
+    def __init__(self, elem, schema, parent, base_type):
+        super(XsdFacet, self).__init__(elem, schema, parent)
         self.base_type = base_type
 
     @property
@@ -119,8 +119,8 @@ class XsdSingleFacet(XsdFacet):
         XSD_MAX_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG
     }
 
-    def __init__(self, base_type, elem, schema):
-        super(XsdSingleFacet, self).__init__(base_type, elem=elem, schema=schema)
+    def __init__(self, elem, schema, parent, base_type):
+        super(XsdSingleFacet, self).__init__(elem, schema, parent, base_type)
         self.fixed = get_xsd_bool_attribute(elem, 'fixed', default=False)
 
         # TODO: Add checks with base_type's constraints.
@@ -314,8 +314,8 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
     admitted_tags = {XSD_ENUMERATION_TAG}
 
-    def __init__(self, base_type, elem, schema):
-        XsdFacet.__init__(self, base_type, elem, schema=schema)
+    def __init__(self, elem, schema, parent, base_type):
+        XsdFacet.__init__(self, elem, schema, parent, base_type)
         self._elements = []
         self.enumeration = []
         self.append(elem)
@@ -364,8 +364,8 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
     admitted_tags = {XSD_PATTERN_TAG}
 
-    def __init__(self, base_type, elem, schema):
-        XsdFacet.__init__(self, base_type, elem, schema=schema)
+    def __init__(self, elem, schema, parent, base_type):
+        XsdFacet.__init__(self, elem, schema, parent, base_type)
         self._elements = [elem]
         value = get_xsd_attribute(elem, 'value')
         regex = get_python_regex(value)

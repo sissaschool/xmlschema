@@ -47,10 +47,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     """
     admitted_tags = {XSD_ATTRIBUTE_TAG}
 
-    def __init__(self, elem, schema, name=None, xsd_type=None, is_global=False):
+    def __init__(self, elem, schema, parent, name=None, xsd_type=None):
         if xsd_type is not None:
             self.type = xsd_type
-        super(XsdAttribute, self).__init__(elem, schema, name, is_global)
+        super(XsdAttribute, self).__init__(elem, schema, parent, name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
 
@@ -104,7 +104,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = self.schema.BUILDERS.simple_type_factory(xsd_declaration, self.schema, xsd_type)
+                xsd_type = self.schema.BUILDERS.simple_type_factory(xsd_declaration, self.schema, self)
             else:
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
@@ -227,12 +227,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
     }
 
-    def __init__(self, elem, schema, name=None, derivation=None,
-                 base_attributes=None, is_global=False):
+    def __init__(self, elem, schema, parent, name=None, derivation=None, base_attributes=None):
         self.derivation = derivation
         self._attribute_group = dict()
         self.base_attributes = base_attributes
-        XsdComponent.__init__(self, elem, schema, name, is_global)
+        XsdComponent.__init__(self, elem, schema, parent, name)
 
     def __repr__(self):
         if self.ref is not None:
@@ -316,7 +315,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             self._attribute_group.update(self.base_attributes.items())
 
         if elem.tag == XSD_ATTRIBUTE_GROUP_TAG:
-            if not self.is_global:
+            if self.parent is not None:
                 return  # Skip dummy definitions
             try:
                 self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
@@ -332,9 +331,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.parse_error(u"another declaration after anyAttribute")
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
-                self.update([(None, XsdAnyAttribute(elem=child, schema=self.schema))])
+                self.update([(None, XsdAnyAttribute(child, self.schema, self))])
             elif child.tag == XSD_ATTRIBUTE_TAG:
-                attribute = XsdAttribute(child, self.schema)
+                attribute = XsdAttribute(child, self.schema, self)
                 self[attribute.name] = attribute
             elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
                 qname = reference_to_qname(get_xsd_attribute(child, 'ref'), self.namespaces)
