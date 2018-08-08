@@ -29,6 +29,6 @@ from .facets import (
     XSD_10_FACETS, XSD_11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS,
     DECIMAL_FACETS, DATETIME_FACETS, XsdSingleFacet, XsdPatternsFacet, XsdEnumerationFacet
 )
-from .builtins import xsd_builtin_types_factory, xsd_build_any_attribute_group, xsd_build_any_content_group
+from .builtins import xsd_builtin_types_factory
 from .globals_ import XsdGlobals
 from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10

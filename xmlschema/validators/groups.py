@@ -29,7 +29,7 @@ from .wildcards import XsdAnyElement
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
-DUMMY_ANY_ELEMENT = etree_element(
+ANY_ELEMENT = etree_element(
     XSD_ANY_TAG,
     attrib={
         'namespace': '##any',
@@ -159,7 +159,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
                         self.model = XSD_SEQUENCE_TAG
                         self.mixed = True
-                        self.append(XsdAnyElement(DUMMY_ANY_ELEMENT, self.schema, self))
+                        self.append(XsdAnyElement(ANY_ELEMENT, self.schema, self))
                     else:
                         self.model = xsd_group.model
                         self.append(xsd_group)

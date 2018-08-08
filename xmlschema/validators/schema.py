@@ -21,10 +21,11 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
-from ..etree import etree_tostring
+from ..etree import etree_element, etree_tostring
 from ..qnames import (
     XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG
+    XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG,
+    XSD_SEQUENCE_TAG, XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -37,8 +38,7 @@ from .parseutils import has_xsd_components, get_xsd_derivation_attribute, get_xp
 from .xsdbase import XsdValidator, ValidationMixin
 from . import (
     XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
-    XsdAtomicRestriction, xsd_simple_type_factory, xsd_builtin_types_factory,
-    xsd_build_any_content_group, xsd_build_any_attribute_group, XsdComponent
+    XsdAtomicRestriction, XsdAnyElement, XsdAnyAttribute, xsd_simple_type_factory, XsdComponent
 )
 from .facets import XSD_10_FACETS, UNION_FACETS, LIST_FACETS
 from .globals_ import (
@@ -51,16 +51,30 @@ DEFAULT_BUILDERS = {
     'notation_class': XsdNotation,
     'complex_type_class': XsdComplexType,
     'attribute_class': XsdAttribute,
+    'any_attribute_class': XsdAnyAttribute,
     'attribute_group_class': XsdAttributeGroup,
     'group_class': XsdGroup,
     'element_class': XsdElement,
+    'any_element_class': XsdAnyElement,
     'restriction_class': XsdAtomicRestriction,
-    'simple_type_factory': xsd_simple_type_factory,
-    'builtin_types_factory': xsd_builtin_types_factory,
-    'build_any_content_group': xsd_build_any_content_group,
-    'build_any_attribute_group': xsd_build_any_attribute_group
+    'simple_type_factory': xsd_simple_type_factory
 }
 """Default options for building XSD schema elements."""
+
+
+ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
+ANY_ATTRIBUTE_ELEMENT = etree_element(
+    XSD_ANY_ATTRIBUTE_TAG, attrib={'namespace': '##any', 'processContents': 'lax'}
+)
+SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE_TAG)
+ANY_ELEMENT = etree_element(
+    XSD_ANY_TAG,
+    attrib={
+        'namespace': '##any',
+        'processContents': 'lax',
+        'minOccurs': '0',
+        'maxOccurs': 'unbounded'
+    })
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
@@ -486,6 +500,18 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def create_schema(cls, *args, **kwargs):
         """Creates a new schema instance of the same class of the caller."""
         return cls(*args, **kwargs)
+
+    def create_any_content_group(self, parent, name=None):
+        """Creates a model group related to schema instance that accepts any content."""
+        group = self.BUILDERS.group_class(SEQUENCE_ELEMENT, self, parent, name)
+        group.append(XsdAnyElement(ANY_ELEMENT, self, group))
+        return group
+
+    def create_any_attribute_group(self, parent, name=None):
+        """Creates an attribute group related to schema instance that accepts any attribute."""
+        attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent, name)
+        attribute_group[None] = XsdAnyAttribute(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
+        return attribute_group
 
     @classmethod
     def check_schema(cls, schema, namespaces=None):

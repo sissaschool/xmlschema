@@ -14,8 +14,8 @@ This module contains classes for XML Schema attributes and attribute groups.
 from collections import MutableMapping
 from decimal import Decimal
 
-from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
+from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import (
     get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,

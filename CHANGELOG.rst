@@ -4,8 +4,9 @@ CHANGELOG
 
 v1.0.3 (TBD)
 ============
-* Improved group encoding
+* Added parent reference to XSD components
 * Improved validation errors to include source, error path and namespace references
+* Improved group encoding
 
 v1.0.2 (2018-07-26)
 ===================

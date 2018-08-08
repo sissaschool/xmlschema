@@ -22,12 +22,13 @@ from ..qnames import (
     XSD_ANY_TYPE
 )
 from .exceptions import XMLSchemaNotBuiltError
-from .parseutils import get_xsd_attribute
 from .xsdbase import XsdValidator
+from .parseutils import get_xsd_attribute
 from . import (
     XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType,
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 )
+from .builtins import xsd_builtin_types_factory
 
 
 def camel_case_split(s):
@@ -369,7 +370,7 @@ class XsdGlobals(XsdValidator):
         load_xsd_groups(self.groups, not_built_schemas)
 
         if not meta_schema.built:
-            meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
+            xsd_builtin_types_factory(meta_schema, self.types)
 
         for qname in self.notations:
             self.lookup_notation(qname)

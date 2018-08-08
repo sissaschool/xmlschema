@@ -22,9 +22,8 @@ from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element, is_etree_element
 from ..qnames import (
-    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ANY_TAG,
-    XSD_ANY_ATTRIBUTE_TAG, XSD_WHITE_SPACE_TAG, XSD_PATTERN_TAG, XSD_ANY_TYPE,
-    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_SEQUENCE_TAG, XSD_ATTRIBUTE_GROUP_TAG
+    xsd_qname, XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_WHITE_SPACE_TAG,
+    XSD_PATTERN_TAG, XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE
 )
 
 from .exceptions import XMLSchemaValidationError
@@ -32,33 +31,12 @@ from .facets import (
     XsdSingleFacet, XsdPatternsFacet, XSD_10_FACETS, STRING_FACETS,
     BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
-from .simple_types import XsdSimpleType, XsdAtomicBuiltin, XsdAtomicRestriction
-from .wildcards import XsdAnyAttribute, XsdAnyElement
-from .attributes import XsdAttributeGroup
-from .complex_types import XsdComplexType
-from .groups import XsdGroup
+from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
 _RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
 _RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
 _RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
 _RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
-
-
-# Dummy elements for building builtins and surrogate components
-DUMMY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
-DUMMY_ANY_ELEM = etree_element(
-    XSD_ANY_TAG,
-    attrib={
-        'namespace': '##any',
-        'processContents': 'lax',
-        'minOccurs': '0',
-        'maxOccurs': 'unbounded'
-    }
-)
-DUMMY_ATTRIBUTE_GROUP_ELEM = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
-DUMMY_ANY_ATTRIBUTE_ELEM = etree_element(
-    XSD_ANY_ATTRIBUTE_TAG, attrib={'namespace': '##any', 'processContents': 'lax'}
-)
 
 
 #
@@ -291,7 +269,7 @@ COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value
 REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE_TAG, attrib={'value': 'replace'})
 
 
-XSD_BUILTIN_TYPES = [
+XSD_BUILTIN_TYPES = (
     # ***********************
     # *** Primitive types ***
     # ***********************
@@ -542,11 +520,12 @@ XSD_BUILTIN_TYPES = [
         'base_type': xsd_qname('nonPositiveInteger'),
         'facets': [negative_int_validator]
     }  # only negative value allowed [< 0]
-]
+)
 
 
-def xsd_build_facets(items, base_type, schema, parent, keys):
+def xsd_build_facets(schema, parent, base_type, items):
     facets = {}
+    keys = schema.FACETS
     for obj in items:
         if isinstance(obj, (list, tuple, set)):
             facets.update([(k, None) for k in obj if k in keys])
@@ -565,18 +544,6 @@ def xsd_build_facets(items, base_type, schema, parent, keys):
     return facets
 
 
-def xsd_build_any_content_group(schema, parent):
-    group = XsdGroup(DUMMY_SEQUENCE_ELEM, schema, parent)
-    group.append(XsdAnyElement(DUMMY_ANY_ELEM, schema, group))
-    return group
-
-
-def xsd_build_any_attribute_group(schema, parent):
-    attribute_group = XsdAttributeGroup(DUMMY_ATTRIBUTE_GROUP_ELEM, schema, parent)
-    attribute_group[None] = XsdAnyAttribute(DUMMY_ANY_ATTRIBUTE_ELEM, schema, attribute_group)
-    return attribute_group
-
-
 def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     """
     Builds the dictionary for XML Schema built-in types mapping.
@@ -586,14 +553,14 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     #
     # xs:anyType
     # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-    any_type = XsdComplexType(
+    any_type = meta_schema.BUILDERS.complex_type_class(
         elem=etree_element(XSD_COMPLEX_TYPE_TAG, attrib={'name': XSD_ANY_TYPE}),
         schema=meta_schema,
         parent=None,
         mixed=True
     )
-    any_type.content_type = xsd_build_any_content_group(meta_schema, any_type)
-    any_type.attributes = xsd_build_any_attribute_group(meta_schema, any_type)
+    any_type.content_type = meta_schema.create_any_content_group(any_type)
+    any_type.attributes = meta_schema.create_any_attribute_group(any_type)
     xsd_types[XSD_ANY_TYPE] = any_type
 
     # xs:anySimpleType
@@ -608,7 +575,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
 
     # xs:anyAtomicType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
-    xsd_types[XSD_ANY_ATOMIC_TYPE] = XsdAtomicRestriction(
+    xsd_types[XSD_ANY_ATOMIC_TYPE] = meta_schema.BUILDERS.restriction_class(
         elem=etree_element(XSD_SIMPLE_TYPE_TAG, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
         schema=meta_schema,
         parent=None,
@@ -634,9 +601,9 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
 
         if 'facets' in item:
             facets = item.pop('facets')
-            builtin_type = xsd_class(elem, schema, **item)
-            builtin_type.facets = xsd_build_facets(facets, base_type, schema, builtin_type, XSD_10_FACETS)
+            builtin_type = xsd_class(elem, meta_schema, **item)
+            builtin_type.facets = xsd_build_facets(meta_schema, builtin_type, base_type, facets)
         else:
-            builtin_type = xsd_class(elem, schema, **item)
+            builtin_type = xsd_class(elem, meta_schema, **item)
 
         xsd_types[item['name']] = builtin_type
