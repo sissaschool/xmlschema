@@ -23,6 +23,7 @@ from ..qnames import (
     XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, reference_to_qname, get_qname
 )
 from ..xpath import ElementPathMixin
+
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
 from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin

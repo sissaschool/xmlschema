@@ -20,12 +20,11 @@ from .converters import (
 )
 from .documents import validate, to_dict, to_json, from_json
 
-from .validators.exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
-    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from .validators import (
+    XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaValidationError,
+    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning,
+    XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 )
-from .validators import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 
 __version__ = '1.0.3'
 __author__ = "Davide Brunato"

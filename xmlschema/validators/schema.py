@@ -30,38 +30,20 @@ from ..qnames import (
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
-from .exceptions import (
+
+from . import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdValidator, ValidationMixin, XsdComponent,
+    XsdNotation, XSD_10_FACETS, XSD_11_FACETS, UNION_FACETS, LIST_FACETS, XsdComplexType,
+    XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup, XsdAtomicRestriction, XsdAnyElement,
+    XsdAnyAttribute, xsd_simple_type_factory, Xsd11Attribute, Xsd11Element, Xsd11AnyElement,
+    Xsd11AnyAttribute, Xsd11AtomicRestriction, Xsd11ComplexType, Xsd11Group, XsdGlobals
 )
 from .parseutils import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
-from .xsdbase import XsdValidator, ValidationMixin
-from . import (
-    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup,
-    XsdAtomicRestriction, XsdAnyElement, XsdAnyAttribute, xsd_simple_type_factory, XsdComponent
-)
-from .facets import XSD_10_FACETS, UNION_FACETS, LIST_FACETS
-from .globals_ import (
-    XsdGlobals, iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
-)
-
-#
-# Schema builders
-DEFAULT_BUILDERS = {
-    'notation_class': XsdNotation,
-    'complex_type_class': XsdComplexType,
-    'attribute_class': XsdAttribute,
-    'any_attribute_class': XsdAnyAttribute,
-    'attribute_group_class': XsdAttributeGroup,
-    'group_class': XsdGroup,
-    'element_class': XsdElement,
-    'any_element_class': XsdAnyElement,
-    'restriction_class': XsdAtomicRestriction,
-    'simple_type_factory': xsd_simple_type_factory
-}
-"""Default options for building XSD schema elements."""
+from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 
 
+# Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
 ANY_ATTRIBUTE_ELEMENT = etree_element(
     XSD_ANY_ATTRIBUTE_TAG, attrib={'namespace': '##any', 'processContents': 'lax'}
@@ -77,8 +59,6 @@ ANY_ELEMENT = etree_element(
     })
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-
-DEFUSE_CHOICES = {'always', 'remote', 'never'}
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -886,10 +866,40 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
 class XMLSchema10(XMLSchemaBase):
     """XSD 1.0 Schema class"""
-    XSD_VERSION = '1.1'
+    XSD_VERSION = '1.0'
     FACETS = XSD_10_FACETS
-    BUILDERS = dict(DEFAULT_BUILDERS.items())
+    BUILDERS = {
+        'notation_class': XsdNotation,
+        'complex_type_class': XsdComplexType,
+        'attribute_class': XsdAttribute,
+        'any_attribute_class': XsdAnyAttribute,
+        'attribute_group_class': XsdAttributeGroup,
+        'group_class': XsdGroup,
+        'element_class': XsdElement,
+        'any_element_class': XsdAnyElement,
+        'restriction_class': XsdAtomicRestriction,
+        'simple_type_factory': xsd_simple_type_factory
+    }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+
+
+class XMLSchema11(XMLSchemaBase):
+    """XSD 1.1 Schema class"""
+    XSD_VERSION = '1.1'
+    FACETS = XSD_11_FACETS
+    BUILDERS = {
+        'notation_class': XsdNotation,
+        'complex_type_class': Xsd11ComplexType,
+        'attribute_class': Xsd11Attribute,
+        'any_attribute_class': Xsd11AnyAttribute,
+        'attribute_group_class': XsdAttributeGroup,
+        'group_class': Xsd11Group,
+        'element_class': Xsd11Element,
+        'any_element_class': Xsd11AnyElement,
+        'restriction_class': Xsd11AtomicRestriction,
+        'simple_type_factory': xsd_simple_type_factory
+    }
+    meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
 
 
 XMLSchema = XMLSchema10

@@ -21,13 +21,9 @@ from ..qnames import (
     XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
     XSD_ANY_TYPE
 )
-from .exceptions import XMLSchemaNotBuiltError
-from .xsdbase import XsdValidator
+from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
+    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 from .parseutils import get_xsd_attribute
-from . import (
-    XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType,
-    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
-)
 from .builtins import xsd_builtin_types_factory
 
 

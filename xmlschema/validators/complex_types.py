@@ -24,7 +24,7 @@ from .groups import XsdGroup
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
 
-DUMMY_SEQUENCE_ELEM = etree_element(XSD_SEQUENCE_TAG)
+SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE_TAG)
 
 
 class XsdComplexType(XsdType, ValidationMixin):
@@ -93,7 +93,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
             #
             # complexType with empty content
-            self.content_type = self.schema.BUILDERS.group_class(DUMMY_SEQUENCE_ELEM, self.schema, self)
+            self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
             self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
 
         elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
@@ -270,7 +270,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 # Empty content model
                 self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
         else:
-            self.content_type = self.schema.BUILDERS.group_class(DUMMY_SEQUENCE_ELEM, self.schema, self)
+            self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
                 # Illegal derivation from a simple content. Applies to both XSD 1.0 and XSD 1.1.
                 # For the detailed rule refer to XSD 1.1 documentation:
