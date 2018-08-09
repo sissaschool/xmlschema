@@ -219,7 +219,7 @@ class XsdComponent(XsdValidator):
     @property
     def xpath_default_namespace(self):
         try:
-            return self._xpath_default_namespace
+            return getattr(self, '_xpath_default_namespace')
         except AttributeError:
             getattr(self.schema, '_xpath_default_namespace', None)
 
@@ -432,30 +432,30 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
-
-    def _parse_particle(self):
-        max_occurs = self.max_occurs
-        if max_occurs is not None and self.min_occurs > max_occurs:
-            getattr(self, 'parse_error')("maxOccurs must be 'unbounded' or greater than minOccurs:")
-
-    @property
-    def min_occurs(self):
-        return get_xsd_int_attribute(getattr(self, 'elem'), 'minOccurs', default=1, minimum=0)
-
-    @property
-    def max_occurs(self):
+    def _parse_particle(self, elem):
         try:
-            return get_xsd_int_attribute(getattr(self, 'elem'), 'maxOccurs', default=1, minimum=0)
+            self.min_occurs = get_xsd_int_attribute(elem, 'minOccurs', default=1, minimum=0)
         except (TypeError, ValueError):
-            if getattr(self, 'elem').attrib['maxOccurs'] == 'unbounded':
-                return None
-            raise
+            self.parse_error("minOccurs value must be a non negative integer")
+            self.min_occurs = 1
 
-    def is_optional(self):
-        return getattr(self, 'elem').get('minOccurs', '').strip() == "0"
+        try:
+            max_occurs = get_xsd_int_attribute(elem, 'maxOccurs', default=1, minimum=0)
+        except (TypeError, ValueError):
+            if elem.get('maxOccurs') == 'unbounded':
+                max_occurs = None
+            else:
+                self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
+                max_occurs = 1
+
+        if max_occurs is not None and self.min_occurs > max_occurs:
+            self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
+        self.max_occurs = max_occurs
 
     def is_emptiable(self):
         return self.min_occurs == 0
+
+    is_optional = is_emptiable
 
     def is_single(self):
         return self.max_occurs == 1
@@ -469,6 +469,9 @@ class ParticleMixin(object):
             elif self.max_occurs > other.max_occurs:
                 return False
         return True
+
+    def parse_error(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 class ValidationMixin(object):

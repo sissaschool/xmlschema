@@ -104,7 +104,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_substitution_group()
 
     def _parse_attributes(self):
-        self._parse_particle()
+        self._parse_particle(self.elem)
         self.name = None
         self._ref = None
         self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
@@ -581,11 +581,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             match_restriction = False
             for e in other.iter_group():
                 if match_restriction:
-                    if not e.is_optional():
+                    if not e.is_emptiable():
                         return False
                 elif self.is_restriction(e):
                     match_restriction = True
-                elif not e.is_optional():
+                elif not e.is_emptiable():
                     return False
         return True
 

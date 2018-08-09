@@ -125,7 +125,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     def _parse(self):
         super(XsdAnyElement, self)._parse()
-        self._parse_particle()
+        self._parse_particle(self.elem)
 
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'

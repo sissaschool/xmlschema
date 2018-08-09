@@ -137,11 +137,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def _parse(self):
         super(XsdGroup, self)._parse()
-        self._parse_particle()
         if self and not hasattr(self, '_elem'):
             self.clear()
-
         elem = self.elem
+        self._parse_particle(elem)
+
         if elem.tag == XSD_GROUP_TAG:
             # Global group (group)
             name = elem.get('name')
@@ -201,6 +201,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def _parse_content_model(self, elem, content_model):
         self.model = local_name(content_model.tag)
+        if self.model == 'all':
+            if self.max_occurs != 1:
+                self.parse_error("maxOccurs must be 1 for 'all' model groups")
+            if self.min_occurs not in (0, 1):
+                self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+
         for child in self._iterparse_components(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 # Builds inner elements and reference groups later, for avoids circularity.
@@ -321,7 +327,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     break
                 elif other.model == 'choice':
                     continue
-                elif other_item.is_optional():
+                elif other_item.is_emptiable():
                     continue
                 elif isinstance(other_item, XsdGroup) and other_item.model == 'choice' and \
                         other_item.max_occurs == 1:
@@ -498,7 +504,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                             continue
                         break
                     else:
-                        if any(not e.is_optional() for e in elements) and self.min_occurs > model_occurs:
+                        if any(not e.is_emptiable() for e in elements) and self.min_occurs > model_occurs:
                             expected = [e.prefixed_name for e in elements]
                             yield XMLSchemaChildrenValidationError(self, elem, child_index, expected)
                         yield child_index
@@ -612,15 +618,6 @@ class Xsd11Group(XsdGroup):
     """
     A class for XSD 'group', 'choice', 'sequence' definitions and 
     XSD 1.1 'all' definitions.
-
-    <all
-      id = ID
-      maxOccurs = 1 : 1
-      minOccurs = (0 | 1) : 1
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, element*)
-    </all>
-
 
     <all
       id = ID
