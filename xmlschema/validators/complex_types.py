@@ -415,14 +415,15 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             raise XMLSchemaDecodeError(self, data, "cannot decode %r data with %r" % (data, self))
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """
         Decode an Element instance.
 
-        :param elem: The Element that has to be decoded.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
-        :param kwargs: Keyword arguments for the decoding process.
-        :return: Yields a 3-tuple (simple content, complex content, attributes) containing \
+        :param elem: the Element that has to be decoded.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
+        :param kwargs: keyword arguments for the decoding process.
+        :return: yields a 3-tuple (simple content, complex content, attributes) containing \
         the decoded parts, eventually preceded by a sequence of validation or decoding errors.
         """
         for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
@@ -449,20 +450,21 @@ class XsdComplexType(XsdType, ValidationMixin):
             else:
                 yield None, None, attributes
         else:
-            for result in self.content_type.iter_decode(elem, validation, **kwargs):
+            for result in self.content_type.iter_decode(elem, validation, converter=converter, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
                     yield None, result, attributes
 
-    def iter_encode(self, element_data, validation='lax', **kwargs):
+    def iter_encode(self, element_data, validation='lax', converter=None, **kwargs):
         """
         Encode an element data instance.
 
-        :param element_data: An ElementData instance with unencoded data.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
-        :param kwargs: Keyword arguments for the encoding process.
-        :return: Yields a 3-tuple (text, content, attributes) containing the encoded parts,
+        :param element_data: an ElementData instance with unencoded data.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
+        :param kwargs: keyword arguments for the encoding process.
+        :return: yields a 3-tuple (text, content, attributes) containing the encoded parts, \
         eventually preceded by a sequence of validation or decoding errors.
         """
         for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
@@ -484,7 +486,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                     else:
                         yield result, element_data.content, attributes
         else:
-            for result in self.content_type.iter_encode(element_data.content, validation, **kwargs):
+            for result in self.content_type.iter_encode(element_data.content, validation, converter, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif result:

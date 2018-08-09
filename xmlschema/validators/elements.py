@@ -16,7 +16,7 @@ from decimal import Decimal
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaAttributeError
 from ..etree import etree_element, is_etree_element
-from ..converters import ElementData
+from ..converters import ElementData, XMLSchemaConverter
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
@@ -323,27 +323,25 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
-        :param elem: The Element that has to be decoded.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip.
-        :param kwargs: Keyword arguments for the decoding process.
-        :return: Yields a decoded object, eventually preceded by a sequence of \
+        :param elem: the Element that has to be decoded.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
+        :param kwargs: keyword arguments for the decoding process.
+        :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-
+        if not isinstance(converter, XMLSchemaConverter):
+            converter = self.schema.get_converter(converter, **kwargs)
         level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
 
         # Get the instance type: xsi:type or the schema's declaration
         if XSI_TYPE in elem.attrib:
-            type_ = self.maps.lookup_type(reference_to_qname(elem.attrib[XSI_TYPE], self.namespaces))
+            type_ = self.maps.lookup_type(converter.unmap_qname(elem.attrib[XSI_TYPE]))
         else:
             type_ = self.type
 
@@ -364,7 +362,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():
                 kwargs['default'] = self.default
-            for result in type_.iter_decode(elem, validation, level=level + 1, **kwargs):
+            for result in type_.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(result, validation, elem, **kwargs)
                 else:
@@ -487,21 +485,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield index
                 return
 
-    def iter_encode(self, obj, validation='lax', **kwargs):
+    def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
         """
         Creates an iterator for encoding data to an Element.
 
-        :param obj: The data that has to be encoded.
-        :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param kwargs: Keyword arguments for the encoding process.
-        :return: Yields an Element, eventually preceded by a sequence of validation \
-        or encoding errors.
+        :param obj: the data that has to be encoded.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
+        :param kwargs: keyword arguments for the encoding process.
+        :return: yields an Element, eventually preceded by a sequence of \
+        validation or encoding errors.
         """
-        try:
-            converter = kwargs['converter']
-        except KeyError:
-            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-
+        if not isinstance(converter, XMLSchemaConverter):
+            converter = self.schema.get_converter(converter, **kwargs)
+        kwargs.pop('name', None)
         level = kwargs.pop('level', 0)
         element_data = converter.element_encode(obj, self, level)
 
@@ -510,10 +507,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except (KeyError, AttributeError):
             type_ = self.type
         else:
-            type_ = self.maps.lookup_type(reference_to_qname(type_name, kwargs['namespaces']))
+            type_ = self.maps.lookup_type(converter.unmap_qname(type_name))
 
         if type_.is_complex():
-            for result in type_.iter_encode(element_data, validation, level=level + 1, **kwargs):
+            for result in type_.iter_encode(element_data, validation, converter, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(result, validation, obj, **kwargs)
                 else:
@@ -522,7 +519,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 yield converter.etree_element(element_data.tag, level=level)
         else:
-            # Encode a simpleType
             for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result

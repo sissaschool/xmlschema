@@ -7,6 +7,7 @@ v1.0.3 (TBD)
 * Added parent reference to XSD components
 * Improved validation errors to include source, error path and namespace references
 * Improved group encoding
+* Improved particle parsing
 
 v1.0.2 (2018-07-26)
 ===================

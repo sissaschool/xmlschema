@@ -790,13 +790,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 yield XMLSchemaValidationError(self, source.root, reason=msg)
             else:
                 for obj in xsd_element.iter_decode(
-                        source.root, validation,
-                        source=source,
-                        namespaces=namespaces,
-                        use_defaults=use_defaults,
-                        decimal_type=decimal_type,
-                        converter=converter,
-                        **kwargs):
+                        source.root, validation, converter, source=source, namespaces=namespaces,
+                        use_defaults=use_defaults, decimal_type=decimal_type, **kwargs):
                     yield obj
         else:
             xsd_element = self.find(path, namespaces=namespaces)
@@ -807,13 +802,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             else:
                 for elem in elementpath.select(source.root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
-                            elem, validation,
-                            source=source,
-                            namespaces=namespaces,
-                            use_defaults=use_defaults,
-                            decimal_type=decimal_type,
-                            converter=converter,
-                            **kwargs):
+                            elem, validation, converter, source=source, namespaces=namespaces,
+                            use_defaults=use_defaults, decimal_type=decimal_type, **kwargs):
                         yield obj
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
@@ -856,11 +846,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 msg = "unable to select an element for decoding data, provide a valid 'path' argument."
             yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
         else:
-            for result in xsd_element.iter_encode(
-                    obj, validation,
-                    namespaces=namespaces,
-                    converter=converter,
-                    **kwargs):
+            for result in xsd_element.iter_encode(obj, validation, converter, **kwargs):
                 yield result
 
 
@@ -883,6 +869,7 @@ class XMLSchema10(XMLSchemaBase):
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
 
 
+# ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
 class XMLSchema11(XMLSchemaBase):
     """XSD 1.1 Schema class"""
     XSD_VERSION = '1.1'

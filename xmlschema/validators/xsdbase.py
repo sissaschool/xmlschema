@@ -470,6 +470,14 @@ class ParticleMixin(object):
                 return False
         return True
 
+    def update_occurs(self, counter):
+        """
+        Update particle occurrences.
+
+        :param counter: a Counter object that trace occurrences for elements and groups.
+        """
+        raise NotImplementedError
+
     def parse_error(self, *args, **kwargs):
         raise NotImplementedError
 

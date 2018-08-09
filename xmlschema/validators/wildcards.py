@@ -139,7 +139,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iterchildren(self, tag=None):
         return iter(())
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -153,7 +153,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(reason, validation, elem, **kwargs)
             else:
-                for result in xsd_element.iter_decode(elem, validation, **kwargs):
+                for result in xsd_element.iter_decode(elem, validation, converter, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % elem.tag
@@ -209,11 +209,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 yield index
                 return
 
-    def iter_encode(self, obj, validation='lax', *args, **kwargs):
-        if self.process_contents == 'skip':
+    def iter_encode(self, obj, validation='lax', name=None, *args, **kwargs):
+        if name is None or self.process_contents == 'skip':
             return
 
-        name, value = obj
         namespace = get_namespace(name)
         if self.is_namespace_allowed(namespace):
             self._load_namespace(namespace)
@@ -224,11 +223,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     reason = "element %r not found." % name
                     yield self.validation_error(reason, validation, **kwargs)
             else:
-                for result in xsd_element.iter_encode(value, validation, **kwargs):
+                for result in xsd_element.iter_encode(obj, validation, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % name
-            yield self.validation_error(reason, validation, value, **kwargs)
+            yield self.validation_error(reason, validation, obj, **kwargs)
 
     def is_restriction(self, other):
         if not ParticleMixin.is_restriction(self, other):
