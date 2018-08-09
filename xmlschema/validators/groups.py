@@ -27,7 +27,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationErr
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 from .wildcards import XsdAnyElement
 
-XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
 ANY_ELEMENT = etree_element(
     XSD_ANY_TAG,
@@ -85,6 +85,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def __init__(self, elem, schema, parent, name=None, initlist=None):
         self.mixed = False if parent is None else parent.mixed
+        self.model = None
         self._group = []
         if initlist is not None:
             if isinstance(initlist, type(self._group)):
@@ -96,13 +97,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         XsdComponent.__init__(self, elem, schema, parent, name)
 
     def __repr__(self):
-        model = local_name(self.model)
         if self.name is None:
-            return u'%s(model=%r)' % (self.__class__.__name__, model)
+            return u'%s(model=%r)' % (self.__class__.__name__, self.model)
         elif self.ref is None:
-            return u'%s(name=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, model)
+            return u'%s(name=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, self.model)
         else:
-            return u'%s(ref=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, model)
+            return u'%s(ref=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, self.model)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -125,15 +125,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         self._group.insert(i, item)
 
     def __setattr__(self, name, value):
-        if name == 'model':
-            assert value in (None, XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG)
-            model = getattr(self, 'model', None)
-            if model is not None and value != model:
+        if name == 'model' and value is not None:
+            if value not in XSD_GROUP_MODELS:
+                raise XMLSchemaValueError("invalid model group %r." % value)
+            if self.model is not None and value != self.model:
                 raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
         elif name == '_group':
-            for item in value:
-                assert isinstance(item, (tuple, ParticleMixin)), \
-                    "XsdGroup's items must be tuples or ParticleMixin instances."
+            if not all(isinstance(item, (tuple, ParticleMixin)) for item in value):
+                raise XMLSchemaValueError("XsdGroup's items must be tuples or ParticleMixin instances.")
         super(XsdGroup, self).__setattr__(name, value)
 
     def _parse(self):
@@ -157,7 +156,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     if isinstance(xsd_group, tuple):
                         # Disallowed circular definition, substitute with any content group.
                         self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
-                        self.model = XSD_SEQUENCE_TAG
+                        self.model = 'sequence'
                         self.mixed = True
                         self.append(XsdAnyElement(ANY_ELEMENT, self.schema, self))
                     else:
@@ -198,7 +197,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             self.parse_error('unexpected tag %r' % elem.tag, elem)
             return
 
-        self.model = content_model.tag
+        self._parse_content_model(elem, content_model)
+
+    def _parse_content_model(self, elem, content_model):
+        self.model = local_name(content_model.tag)
         for child in self._iterparse_components(content_model):
             if child.tag == XSD_ELEMENT_TAG:
                 # Builds inner elements and reference groups later, for avoids circularity.
@@ -262,7 +264,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         return not self.mixed and not self
 
     def is_emptiable(self):
-        if self.model == XSD_CHOICE_TAG:
+        if self.model == 'choice':
             return self.min_occurs == 0 or not self or any([item.is_emptiable() for item in self])
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
@@ -282,9 +284,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
-        elif self.model == XSD_SEQUENCE_TAG and parent_group.model != XSD_SEQUENCE_TAG:
+        elif self.model == 'sequence' and parent_group.model != 'sequence':
             return False
-        elif self.model == XSD_CHOICE_TAG and parent_group.model != XSD_CHOICE_TAG:
+        elif self.model == 'choice' and parent_group.model != 'choice':
             return False
         else:
             return True
@@ -296,11 +298,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return True
         elif not other:
             return False
-        elif other.model == XSD_SEQUENCE_TAG and self.model != XSD_SEQUENCE_TAG:
+        elif other.model == 'sequence' and self.model != 'sequence':
             return False
-        elif other.model == XSD_CHOICE_TAG and self.model == XSD_ALL_TAG:
+        elif other.model == 'choice' and self.model == 'all':
             return False
-        elif other.model == XSD_ALL_TAG and self.model == XSD_CHOICE_TAG:
+        elif other.model == 'all' and self.model == 'choice':
             return False
         elif check_particle and not super(XsdGroup, self).is_restriction(other):
             return False
@@ -317,11 +319,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     break
                 elif item.is_restriction(other_item):
                     break
-                elif other.model == XSD_CHOICE_TAG:
+                elif other.model == 'choice':
                     continue
                 elif other_item.is_optional():
                     continue
-                elif isinstance(other_item, XsdGroup) and other_item.model == XSD_CHOICE_TAG and \
+                elif isinstance(other_item, XsdGroup) and other_item.model == 'choice' and \
                         other_item.max_occurs == 1:
                     if any(item.is_restriction(s) for s in other_item.iter_group()):
                         break
@@ -468,7 +470,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         while index < len(elem) and (not max_occurs or model_occurs < max_occurs):
             child_index = index
 
-            if model == XSD_SEQUENCE_TAG:
+            if model == 'sequence':
                 for item in self.iter_group():
                     for obj in item.iter_decode_children(elem, validation, child_index):
                         if isinstance(obj, tuple):
@@ -482,7 +484,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                                 yield obj
                             yield index
 
-            elif model == XSD_ALL_TAG:
+            elif model == 'all':
                 elements = [e for e in self]
                 while elements:
                     for item in elements:
@@ -503,7 +505,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         return
                     elements.remove(item)
 
-            elif model == XSD_CHOICE_TAG:
+            elif model == 'choice':
                 matched_choice = False
                 obj = None
                 for item in self.iter_group():
@@ -610,6 +612,15 @@ class Xsd11Group(XsdGroup):
     """
     A class for XSD 'group', 'choice', 'sequence' definitions and 
     XSD 1.1 'all' definitions.
+
+    <all
+      id = ID
+      maxOccurs = 1 : 1
+      minOccurs = (0 | 1) : 1
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?, element*)
+    </all>
+
 
     <all
       id = ID
