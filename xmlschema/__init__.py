@@ -16,7 +16,7 @@ from .resources import (
 )
 from .xpath import ElementPathMixin
 from .converters import (
-    XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
+    ElementData, XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from .documents import validate, to_dict, to_json, from_json
 

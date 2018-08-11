@@ -151,13 +151,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             except LookupError:
                 if self.process_contents == 'strict' and validation != 'skip':
                     reason = "element %r not found." % elem.tag
-                    yield self.validation_error(reason, validation, elem, **kwargs)
+                    yield self.validation_error(validation, reason, elem, **kwargs)
             else:
                 for result in xsd_element.iter_decode(elem, validation, converter, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % elem.tag
-            yield self.validation_error(reason, validation, elem, **kwargs)
+            yield self.validation_error(validation, reason, elem, **kwargs)
 
     def iter_decode_children(self, elem, validation='lax', index=0):
         model_occurs = 0
@@ -168,9 +168,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 child = elem[index]
             except IndexError:
                 if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    expected = "from %r namespace" % self.namespaces
-                    error = XMLSchemaChildrenValidationError(self, elem, index, expected)
-                    yield self.validation_error(error, validation)
+                    yield self.children_validation_error(validation, elem, index)
                 yield index
                 return
             else:
@@ -186,8 +184,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
                     if not self.is_namespace_allowed(namespace):
                         if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            error = XMLSchemaChildrenValidationError(self, elem, index)
-                            yield self.validation_error(error, validation)
+                            yield self.children_validation_error(validation, elem, index)
                         yield index
                         return
 
@@ -198,7 +195,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     except LookupError:
                         if validation != 'skip' and process_contents == 'strict':
                             reason = "cannot retrieve the schema for %r" % child
-                            yield self.validation_error(reason, validation, elem)
+                            yield self.validation_error(validation, reason, elem)
                         yield None, child
                     else:
                         yield xsd_element, child
@@ -209,10 +206,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 yield index
                 return
 
-    def iter_encode(self, obj, validation='lax', name=None, *args, **kwargs):
-        if name is None or self.process_contents == 'skip':
+    def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
+        if self.process_contents == 'skip':
             return
 
+        name, value = obj
         namespace = get_namespace(name)
         if self.is_namespace_allowed(namespace):
             self._load_namespace(namespace)
@@ -221,18 +219,27 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             except LookupError:
                 if self.process_contents == 'strict' and validation != 'skip':
                     reason = "element %r not found." % name
-                    yield self.validation_error(reason, validation, **kwargs)
+                    yield self.validation_error(validation, reason, **kwargs)
             else:
-                for result in xsd_element.iter_encode(obj, validation, **kwargs):
+                for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % name
-            yield self.validation_error(reason, validation, obj, **kwargs)
+            yield self.validation_error(validation, reason, value, **kwargs)
 
     def is_restriction(self, other):
         if not ParticleMixin.is_restriction(self, other):
             return False
         return True
+
+    def children_validation_error(self, validation, elem, index, expected=None, source=None, namespaces=None, **kwargs):
+        if expected is None:
+            namespace = get_namespace(elem.tag)
+            if not self.is_namespace_allowed(namespace):
+                expected = elem.tag
+            else:
+                expected = "from %r namespace" % self.namespace
+        return ParticleMixin.children_validation_error(validation, elem, index, expected, source, namespaces)
 
 
 class XsdAnyAttribute(XsdWildcard):
@@ -262,15 +269,15 @@ class XsdAnyAttribute(XsdWildcard):
             except LookupError:
                 if self.process_contents == 'strict' and validation != 'skip':
                     reason = "attribute %r not found." % name
-                    yield self.validation_error(reason, validation, attribute, **kwargs)
+                    yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
                 for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "attribute %r not allowed." % name
-            yield self.validation_error(reason, validation, attribute, **kwargs)
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
-    def iter_encode(self, attribute, validation='lax', *args, **kwargs):
+    def iter_encode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -283,13 +290,13 @@ class XsdAnyAttribute(XsdWildcard):
             except LookupError:
                 if self.process_contents == 'strict' and validation != 'skip':
                     reason = "attribute %r not found." % name
-                    yield self.validation_error(reason, validation, attribute, **kwargs)
+                    yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
                 for result in xsd_attribute.iter_encode(value, validation, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "attribute %r not allowed." % name
-            yield self.validation_error(reason, validation, attribute, **kwargs)
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
 
 class Xsd11Wildcard(XsdWildcard):
@@ -392,8 +399,8 @@ class XsdOpenContent(XsdComponent):
       Content: (annotation?), (any?)
     </openContent>
     """
-    def __init__(self, elem, schema):
-        super(XsdOpenContent, self).__init__(elem, schema, is_global=False)
+    def __init__(self, elem, schema, parent):
+        super(XsdOpenContent, self).__init__(elem, schema, parent)
         self.mode = get_xsd_attribute(
             self.elem, 'mode', enumerate=('none', 'interleave', 'suffix'), default='interleave'
         )

@@ -132,6 +132,9 @@ class XMLSchemaParseError(XMLSchemaValidatorError, ValueError):
 class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     """
     Raised when the XML data is not validated with the XSD component or schema.
+    It's used by decoding and encoding methods. Encoding validation errors do
+    not include XML data element and source, so the error is limited to a message
+    containing object representation and a reason.
 
     :param validator: the XSD validator.
     :type validator: XsdValidator or function
@@ -236,10 +239,10 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param validator: the XSD validator.
     :type validator: XsdValidator or function
     :param elem: the not validated XML element.
-    :type elem: Element
+    :type elem: Element or ElementData
     :param index: the child index.
     :type index: int
-    :param expected: the detailed reason of failed validation.
+    :param expected: the expected element tags/object names.
     :type expected: str or list or tuple
     :param source: the XML resource that contains the error.
     :type source: XMLResource

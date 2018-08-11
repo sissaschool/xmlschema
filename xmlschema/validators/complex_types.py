@@ -438,7 +438,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         if self.has_simple_content():
             if len(elem) and validation != 'skip':
                 reason = "a simple content element can't has child elements."
-                yield self.validation_error(reason, validation, elem, **kwargs)
+                yield self.validation_error(validation, reason, elem, **kwargs)
 
             if elem.text is not None:
                 text = elem.text or kwargs.pop('default', '')
@@ -450,7 +450,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             else:
                 yield None, None, attributes
         else:
-            for result in self.content_type.iter_decode(elem, validation, converter=converter, **kwargs):
+            for result in self.content_type.iter_decode(elem, validation, converter, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -461,7 +461,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         Encode an element data instance.
 
         :param element_data: an ElementData instance with unencoded data.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the encoding process.
         :return: yields a 3-tuple (text, content, attributes) containing the encoded parts, \
@@ -486,7 +486,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                     else:
                         yield result, element_data.content, attributes
         else:
-            for result in self.content_type.iter_encode(element_data.content, validation, converter, **kwargs):
+            for result in self.content_type.iter_encode(element_data, validation, converter, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif result:

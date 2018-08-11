@@ -5,7 +5,8 @@ CHANGELOG
 v1.0.3 (TBD)
 ============
 * Added parent reference to XSD components
-* Improved validation errors to include source, error path and namespace references
+* Extended validator errors classes
+* Optimized error generation using helper methods
 * Improved group encoding
 * Improved particle parsing
 

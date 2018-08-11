@@ -166,7 +166,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if not text and kwargs.get('use_defaults', True):
             text = self.default
         if self.fixed is not None and text != self.fixed and validation != 'skip':
-            yield self.validation_error("value differs from fixed value", validation, text, **kwargs)
+            yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -381,7 +381,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     except LookupError:
                         if validation != 'skip':
                             reason = u"%r is not an attribute of the XSI namespace." % name
-                            yield self.validation_error(reason, validation, attrs, **kwargs)
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
                 else:
                     try:
@@ -390,7 +390,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     except KeyError:
                         if validation != 'skip':
                             reason = u"%r attribute not allowed for element." % name
-                            yield self.validation_error(reason, validation, attrs, **kwargs)
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
             else:
                 required_attributes.discard(name)
@@ -404,7 +404,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         if required_attributes and validation != 'skip':
             reason = u"missing required attributes: %r" % required_attributes
-            yield self.validation_error(reason, validation, attrs, **kwargs)
+            yield self.validation_error(validation, reason, attrs, **kwargs)
 
         yield result_list
 
@@ -426,8 +426,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
                         if validation != 'skip':
-                            msg = u"%r is not an attribute of the XSI namespace." % name
-                            yield self.validation_error(msg, validation, attrs, **kwargs)
+                            reason = u"%r is not an attribute of the XSI namespace." % name
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
                 else:
                     try:
@@ -435,8 +435,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         value = (name, value)
                     except KeyError:
                         if validation != 'skip':
-                            msg = u"%r attribute not allowed for element." % name
-                            yield self.validation_error(msg, validation, attrs, **kwargs)
+                            reason = u"%r attribute not allowed for element." % name
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
             else:
                 required_attributes.discard(name)
@@ -449,6 +449,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     break
 
         if required_attributes and validation != 'skip':
-            msg = "missing required attributes %r" % required_attributes
-            yield self.validation_error(msg, validation, attrs, **kwargs)
+            reason = u"missing required attributes %r" % required_attributes
+            yield self.validation_error(validation, reason, attrs, **kwargs)
         yield result_list
