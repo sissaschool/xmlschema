@@ -13,7 +13,7 @@ This module contains classes for XML Schema model groups.
 """
 from collections import MutableSequence, Counter
 
-from ..compat import unicode_type
+from ..compat import PY3, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..etree import etree_last_child, etree_child_index, etree_element
 from ..qnames import local_name
@@ -37,6 +37,167 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
+
+
+def iter_elements(items):
+    for item in items:
+        if isinstance(item, XsdGroup):
+            for e in item.iter_elements():
+                yield e
+        else:
+            yield item
+            for e in item.schema.substitution_groups.get(item.name, ()):
+                yield e
+
+
+class XsdModelVisitor(object):
+    """
+    Creates an instance for visiting  an XSD model, a structure composed of group and elements,
+    counting the occurrences. Ends setting the current element to `None`.
+
+    :param root: the root XsdGroup instance of the model.
+    :ivar element: the current XSD element, initialized to the first element of the model.
+    :ivar group: the current XSD group, initialized to *root* argument.
+    :ivar iterator: the current XSD group iterator.
+    :ivar expected: the current XSD group expected items.
+    :ivar match: if the XSD group has an effective item match.
+    :ivar occurs: a Counter instance for occurrences of model elements and groups.
+    :ivar: ancestors: the stack of statuses of current group's ancestors.
+    """
+    def __init__(self, root, start=True):
+        self.root = root
+        self.group = self.iterator = self.expected = self.match = self.element = None
+        self.occurs = Counter()
+        self.ancestors = []
+        if start:
+            self.start()
+
+    def __str__(self):
+        # noinspection PyCompatibility,PyUnresolvedReferences
+        return unicode(self).encode("utf-8")
+
+    def __unicode__(self):
+        return self.__repr__()
+
+    if PY3:
+        __str__ = __unicode__
+
+    def __repr__(self):
+        return u'%s(root=%r)' % (self.__class__.__name__, self.root)
+
+    def start(self):
+        self.group = self.root
+        self.iterator = iter(self.root)
+        self.expected = self.root[:]
+        self.match = False
+        self.occurs.clear()
+        del self.ancestors[:]
+
+        while True:
+            item = next(self.iterator, None)
+            if item is None or not isinstance(item, XsdGroup):
+                self.element = item
+                break
+            elif item:
+                self.ancestors.append((self.group, self.iterator, self.expected, False))
+                self.group, self.iterator, self.expected = item, iter(item), item[:]
+
+    def stop(self):
+        while self.element is not None:
+            for e in self.advance():
+                yield e
+
+    def advance(self, match=False):
+        """
+        Generator function for advance to the next element. Yields tuples with
+        particles information when occurrence violation is found.
+
+        :param match: provides current element match.
+        """
+        def is_over(x):
+            return x.max_occurs is not None and x.max_occurs <= occurs[x]
+
+        element, occurs = self.element, self.occurs
+        if element is None:
+            raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
+
+        if match:
+            occurs[element] += 1
+            self.match = True
+            if not is_over(element):
+                return
+        try:
+            if self.stop_item(element):
+                yield element, occurs[element], element
+
+            while True:
+                while is_over(self.group):
+                    group = self.group
+                    self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
+                    self.stop_item(group)
+
+                item = next(self.iterator, None)
+                if item is None:
+                    if self.match:
+                        if not self.expected:
+                            self.iterator, self.expected = iter(self.group), self.group[:]
+                            continue
+                        elif self.group.model == 'all':
+                            self.match = False
+                            continue
+
+                    group, expected = self.group, self.expected
+                    self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
+                    if self.stop_item(group):
+                        yield group, occurs[group], list(iter_elements(expected))
+
+                elif not isinstance(item, XsdGroup):  # XsdElement or XsdAnyElement
+                    self.element, occurs[item] = item, 0
+                    return
+
+                elif item:
+                    self.ancestors.append((self.group, self.iterator, self.expected, self.match))
+                    self.group, self.iterator, self.expected, self.match = item, iter(item), item[:], False
+                    occurs[item] = 0
+
+        except IndexError:
+            self.element = None
+            if self.group.min_occurs > occurs[self.group]:
+                yield self.group, occurs[self.group], list(iter_elements(self.expected))
+
+    def stop_item(self, item):
+        """
+        Stops item match, incrementing current group counter and reporting if the item
+        has violated the minimum occurrences.
+
+        :param item: an XsdElement or an XsdAnyElement or an XsdGroup.
+        :return: `True` if the item violates the minimum occurrences, `False` otherwise.
+        """
+        occurs = self.occurs
+        if occurs[item]:
+            occurs_error = item.min_occurs > occurs[item]
+            if self.group.model == 'choice':
+                occurs[item] = 0
+                occurs[self.group] += 1
+                self.iterator, self.match = iter(self.group), False
+            else:
+                self.expected.remove(item)
+                if not self.expected:
+                    occurs[self.group] += 1
+            return occurs_error
+
+        elif self.group.model == 'sequence':
+            if self.match or not item.min_occurs:
+                self.expected.remove(item)
+                if not self.expected:
+                    occurs[self.group] += 1
+                return item.min_occurs
+            elif self.group.min_occurs <= occurs[self.group]:
+                self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
+            else:
+                return True
+
+        return False
 
 
 class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
@@ -97,11 +258,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(model=%r)' % (self.__class__.__name__, self.model)
+            return u'%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
         elif self.ref is None:
-            return u'%s(name=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, self.model)
+            return u'%s(name=%r, model=%r, occurs=%r)' % (
+                self.__class__.__name__, self.prefixed_name, self.model, self.occurs
+            )
         else:
-            return u'%s(ref=%r, model=%r)' % (self.__class__.__name__, self.prefixed_name, self.model)
+            return u'%s(ref=%r, model=%r, occurs=%r)' % (
+                self.__class__.__name__, self.prefixed_name, self.model, self.occurs
+            )
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -338,6 +503,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         return True
 
     def iter_group(self):
+        """Creates an iterator for sub elements and groups. Skips meaningless groups."""
         for item in self:
             if not isinstance(item, XsdGroup):
                 yield item
@@ -555,24 +721,28 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         (key, decoded data, decoder), eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        if element_data.content is None:
-            yield None
+        if not element_data.content:  # <tag/> or <tag></tag>
+            yield element_data.content
             return
-        elif not isinstance(converter, XMLSchemaConverter):
-            converter  = self.schema.get_converter(converter, **kwargs)
+
+        if not isinstance(converter, XMLSchemaConverter):
+            converter = self.schema.get_converter(converter, **kwargs)
+
         text = ''
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
         padding = u'\n' + u' ' * indent * level
-        occurences = Counter()
-        subgroups = []
-        last_item = None
-
         default_namespace = converter.get('')
         losslessly = converter.losslessly
-        group_iterator = iter(self.iter_group())
-        group_item = next(group_iterator, None)
+
+        model = XsdModelVisitor(self)
+        model.start()
+
+        # print("\n+++ %r +++" % model)
+        # import pdb
+        # pdb.set_trace()
+
         for position, (name, value) in enumerate(element_data.content):
             if isinstance(name, int):
                 if not children:
@@ -583,35 +753,27 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     children[-1].tail += padding + value
                 continue
 
-            if group_item is None:
+            if model.element is None:
                 if losslessly and validation != 'skip':
                     reason = 'unexpected element %r at position %r.' % (name, position)
                     yield self.validation_error(validation, reason, value, **kwargs)
-            elif False:
-                while group_item is not None:
-                    if last_item is not group_item:
-                        if last_item.min_occurs < occurences[last_item]:
-                            yield last_item.children_validation_error(validation, element_data, position)
-
-                        for parent in last_item.iter_anchestor(XsdGroup):
-                            if not parent.is_meaningless():
-                                parent.update_occurs(occurences)
-                        last_item = group_item
-
-                    if isinstance(group_item, XsdGroup):
-                        subgroups.append(group_item)
-                        group_item = next(group_iterator, None)
-
-                    elif group_item.match(name, default_namespace):
-                        occurences[group_item] += 1
-                        if isinstance(group_item, XsdAnyElement):
+            else:
+                while model.element is not None:
+                    if model.element.match(name, default_namespace):
+                        if isinstance(model.element, XsdAnyElement):
                             value = get_qname(default_namespace, name), value
-                        for result in group_item.iter_encode(value, validation, **kwargs):
+                        for result in model.element.iter_encode(value, validation, converter, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
                                 yield result
                             else:
-                                children.append(result)
+                                print(result)  # children.append(result)
+
+                        for e in model.advance(True):
+                            print(e)
                         break
+                    else:
+                        for e in model.advance(False):
+                            print(e)
                 else:
                     continue
 
@@ -632,8 +794,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     yield self.validation_error(validation, reason, value, **kwargs)
 
         # TODO?? --> with no strict validation reorder simple sequences
-        if validation != 'strict' and len(subgroups) == 1 and subgroups[0].model == 'sequence':
-            pass
+        # if validation != 'strict' and len(subgroups) == 1 and subgroups[0].model == 'sequence':
+        #    pass
+
+        # print('+++ Children: %r +++' % children)
+        # import pdb
+        # pdb.set_trace()
 
         if children:
             if children[-1].tail is None:

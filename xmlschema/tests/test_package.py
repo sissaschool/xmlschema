@@ -9,14 +9,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+Tests concerning packaging and installation environment.
+"""
 import unittest
 import glob
 import fileinput
 import os
 import re
+import xml.etree.ElementTree as ElementTree
 
 
-class TestPackage(unittest.TestCase):
+class TestPackaging(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -79,6 +83,12 @@ class TestPackage(unittest.TestCase):
                         version == match.group(1).strip('\'\"'),
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
+
+
+class TestEnvironment(unittest.TestCase):
+
+    def test_element_tree(self):
+        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
 
 
 if __name__ == '__main__':

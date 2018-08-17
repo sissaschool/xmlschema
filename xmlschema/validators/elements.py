@@ -69,9 +69,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __repr__(self):
         if self.ref is None:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return u'%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
         else:
-            return u'%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return u'%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
 
     def __setattr__(self, name, value):
         if name == "type":

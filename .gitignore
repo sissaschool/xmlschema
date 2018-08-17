@@ -3,6 +3,8 @@
 *~
 *.so
 *.egg-info
+*.json
+!xmlschema/unicode_categories.json
 .idea/
 .tox/
 .ipynb_checkpoints/

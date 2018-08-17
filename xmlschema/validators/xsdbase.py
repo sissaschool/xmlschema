@@ -709,6 +709,7 @@ class ParticleMixin(object):
         if max_occurs is not None and self.min_occurs > max_occurs:
             self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
         self.max_occurs = max_occurs
+        self.occurs = [self.min_occurs, max_occurs]
 
     def is_emptiable(self):
         return self.min_occurs == 0

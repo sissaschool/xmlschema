@@ -15,7 +15,7 @@ from ..exceptions import XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from ..xpath import ElementPathMixin
-from .exceptions import XMLSchemaChildrenValidationError, XMLSchemaNotBuiltError
+from .exceptions import XMLSchemaNotBuiltError
 from .parseutils import get_xsd_attribute
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
@@ -122,6 +122,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     </any>
     """
     admitted_tags = {XSD_ANY_TAG}
+
+    def __repr__(self):
+        return u'%s(namespace=%r, process_contents=%r, occurs=%r)' % (
+            self.__class__.__name__, self.namespace, self.process_contents, self.occurs
+        )
 
     def _parse(self):
         super(XsdAnyElement, self)._parse()
@@ -300,11 +305,6 @@ class XsdAnyAttribute(XsdWildcard):
 
 
 class Xsd11Wildcard(XsdWildcard):
-
-    def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents
-        )
 
     def _parse(self):
         super(Xsd11Wildcard, self)._parse()
