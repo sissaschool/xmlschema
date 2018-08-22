@@ -66,10 +66,28 @@ else:
 
 def is_etree_element(elem):
     """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and not isinstance(elem, ElementPathMixin)
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
 def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
+    """
+    Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
+
+    :param elem: the Element instance.
+    :param indent: the base line indentation.
+    :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
+    :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
+    :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+    :return: a Unicode string.
+    """
+    def reindent(line):
+        if not line:
+            return line
+        elif line.startswith(min_indent):
+            return line[start:] if start >= 0 else indent[start:] + line
+        else:
+            return indent + line
+
     if isinstance(elem, etree_element):
         tostring = ElementTree.tostring
     elif lxml_etree is not None:
@@ -78,35 +96,28 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declar
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
     if PY3:
-        lines = tostring(elem, encoding="unicode").splitlines()
+        xml_text = tostring(elem, encoding="unicode").replace(u'\t', u' ' * spaces_for_tab)
     else:
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        lines = unicode(tostring(elem)).splitlines()
+        xml_text = unicode(tostring(elem)).replace(u'\t', u' ' * spaces_for_tab)
+
+    lines = [u'<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
+    lines.extend(xml_text.splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
-    lines[-1] = u'  %s' % lines[-1].strip()
 
-    if max_lines is not None:
-        if indent:
-            xml_text = u'\n'.join([indent + line for line in lines[:max_lines]])
-        else:
-            xml_text = u'\n'.join(lines[:max_lines])
-        if len(lines) > max_lines + 2:
-            xml_text += u'\n%s    ...\n%s%s' % (indent, indent, lines[-1])
-        elif len(lines) > max_lines:
-            xml_text += u'\n%s%s\n%s%s' % (indent, lines[-2], indent, lines[-1])
-    elif indent:
-        xml_text = u'\n'.join([indent + line for line in lines])
+    last_indent = ' ' * min(k for k in range(len(lines[-1])) if lines[-1][k] != ' ')
+    if len(lines) > 2:
+        child_indent = ' ' * min(k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' ')
+        min_indent = min(child_indent, last_indent)
     else:
-        xml_text = u'\n'.join(lines)
+        min_indent = child_indent = last_indent
 
-    if spaces_for_tab:
-        xml_text = xml_text.replace(u'\t', u' ' * spaces_for_tab)
+    start = len(min_indent) - len(indent)
 
-    if xml_declaration:
-        xml_text = indent + u'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_text
+    if max_lines is not None and len(lines) > max_lines + 2:
+        lines = lines[:max_lines] + [child_indent + u'...'] * 2 + lines[-1:]
 
-    return xml_text
+    return u'\n'.join(reindent(line) for line in lines)
 
 
 def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):

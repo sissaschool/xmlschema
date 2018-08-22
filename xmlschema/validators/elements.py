@@ -446,7 +446,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 child = elem[index]
             except IndexError:
                 if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    yield self.children_validation_error(validation, elem, index, self.prefixed_name)
+                    yield self.children_validation_error(validation, elem, index, expected=[self])
                 yield index
                 return
             else:
@@ -466,13 +466,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                             break
                     else:
                         if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            yield self.children_validation_error(validation, elem, index, self.prefixed_name)
+                            yield self.children_validation_error(validation, elem, index, expected=[self])
                         yield index
                         return
 
                 else:
                     if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                        yield self.children_validation_error(validation, elem, index, self.prefixed_name)
+                        yield self.children_validation_error(validation, elem, index, expected=[self])
                     yield index
                     return
 
@@ -508,7 +508,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if type_.is_complex():
             for result in type_.iter_encode(element_data, validation, converter, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
-                    yield self.update_error(result, **kwargs)
+                    yield self.update_error(result, obj, **kwargs)
                 else:
                     yield converter.etree_element(element_data.tag, *result, level=level)
                     break
@@ -533,7 +533,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 for result in type_.iter_encode(element_data.text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
-                        yield self.update_error(result, **kwargs)
+                        yield self.update_error(result, obj, **kwargs)
                     else:
                         yield converter.etree_element(element_data.tag, result, attrib=attributes, level=level)
                         break

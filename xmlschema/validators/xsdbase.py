@@ -660,20 +660,22 @@ class ValidationMixin(object):
             return error
 
     @staticmethod
-    def update_error(error, elem=None, source=None, namespaces=None, **kwargs):
+    def update_error(error, obj=None, source=None, namespaces=None, **kwargs):
         """
         Helper method for updating validation incomplete errors with source and element information.
 
         :param error: a validation error instance.
-        :param elem: an element instance.
+        :param obj: the not validated XML data.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """
+        if error.obj is None and obj is not None:
+            error.obj = obj
         if error.namespaces is None and namespaces is not None:
             error.namespaces = namespaces
-        if error.elem is None and elem is not None:
-            error.elem = elem
+        if error.elem is None and is_etree_element(obj):
+            error.elem = obj
         if error.source is None and source is not None:
             error.source = source
         return error
@@ -735,7 +737,7 @@ class ParticleMixin(object):
         Il validation mode is 'lax' returns the error, otherwise raise the error.
 
         :param validation: the validation mode. Can be 'lax' or 'strict'.
-        :param elem: the instance Element in case of decoding or ElementData in case of encoding.
+        :param elem: the instance Element.
         :param index: the child index.
         :param expected: the expected element tags/object names.
         :param source: the XML resource related to the validation process.
@@ -746,6 +748,7 @@ class ParticleMixin(object):
 
         error = XMLSchemaChildrenValidationError(self, elem, index, expected, source, namespaces)
         if validation == 'strict':
+            print(error)
             raise error
         else:
             return error

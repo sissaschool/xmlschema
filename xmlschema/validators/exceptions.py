@@ -11,6 +11,7 @@
 """
 This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
+from pprint import pformat
 from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element, etree_getpath
@@ -50,12 +51,12 @@ class XMLSchemaValidatorError(XMLSchemaException):
         if self.elem is None:
             return u'%s.' % self.message
         else:
-            elem, sourceline, path = etree_tostring(self.elem, max_lines=20), self.sourceline, self.path
+            elem, sourceline, path = etree_tostring(self.elem, u'  ', 20), self.sourceline, self.path
             msg = [u'%s:\n' % self.message]
             if sourceline is None:
-                msg.append(u"Schema:\n\n  %s\n" % elem)
+                msg.append(u"Schema:\n\n%s\n" % elem)
             else:
-                msg.append(u"Schema (line %r):\n\n  %s\n" % (sourceline, elem))
+                msg.append(u"Schema (line %r):\n\n%s\n" % (sourceline, elem))
             if path is not None:
                 msg.append(u"Path: %s\n" % path)
             return u'\n'.join(msg)
@@ -171,11 +172,13 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if self.reason is not None:
             msg.append(u'Reason: %s\n' % self.reason)
         if schema_elem is not None:
-            msg.append(u"Schema:\n\n  %s\n" % etree_tostring(schema_elem, max_lines=20))
+            msg.append(u"Schema:\n\n%s\n" % etree_tostring(schema_elem, u'  ', 20))
         if sourceline is not None:
-            msg.append(u"Instance (line %r):\n\n  %s\n" % (sourceline, etree_tostring(elem, max_lines=20)))
+            msg.append(u"Instance (line %r):\n\n%s\n" % (sourceline, etree_tostring(elem, u'  ', 20)))
         elif elem is not None:
-            msg.append(u"Instance:\n\n  %s\n" % etree_tostring(self.elem, max_lines=20))
+            msg.append(u"Instance:\n\n%s\n" % etree_tostring(self.elem, u'  ', 20))
+        elif self.obj is not None:
+            msg.append(u"Instance:\n\n%s\n" % pformat(self.obj))
         if path is not None:
             msg.append(u"Path: %s\n" % path)
         return u'\n'.join(msg)
@@ -253,20 +256,21 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.index = index
         self.expected = expected
 
-        elem_ref = qname_to_prefixed(elem.tag, validator.namespaces)
+        tag = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
-            reason = "The content of element %r is not complete." % elem_ref
+            reason = u"The content of element %r is not complete." % tag
         else:
-            child_ref = qname_to_prefixed(elem[index].tag, validator.namespaces)
-            reason = "The child n.%d of element %r has a unexpected tag %r." % (index+1, elem_ref, child_ref)
+            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
+            reason = u"The child n.%d of element %r has a unexpected tag %r." % (index + 1, tag, child_tag)
 
-        if isinstance(expected, (list, tuple)):
-            if len(expected) > 1:
-                reason += " One of %r is expected." % expected
-            else:
-                reason += " Tag %r expected." % expected[0]
-        elif expected is not None:
+        if expected is None:
+            pass
+        elif not isinstance(expected, (list, tuple)):
             reason += " Tag %r expected." % expected
+        elif len(expected) > 1:
+            reason += " One of %r is expected." % [e.prefixed_name for e in expected]
+        elif expected:
+            reason += " Tag %r expected." % expected[0].prefixed_name
 
         super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source, namespaces)
 

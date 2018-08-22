@@ -50,10 +50,12 @@ def iter_elements(items):
                 yield e
 
 
-class XsdModelVisitor(object):
+class XsdModelValidator(object):
     """
-    Creates an instance for visiting  an XSD model, a structure composed of group and elements,
-    counting the occurrences. Ends setting the current element to `None`.
+    A visitor class that can be used for validating an XSD model of data related to an
+    XSD group. The visit of the model is done using an external match information,
+    counting the occurrences and yielding tuples in case of model errors.
+    Ends setting the current element to `None`.
 
     :param root: the root XsdGroup instance of the model.
     :ivar element: the current XSD element, initialized to the first element of the model.
@@ -128,7 +130,7 @@ class XsdModelVisitor(object):
                 return
         try:
             if self.stop_item(element):
-                yield element, occurs[element], element
+                yield element, occurs[element], [element]
 
             while True:
                 while is_over(self.group):
@@ -140,10 +142,15 @@ class XsdModelVisitor(object):
                 if item is None:
                     if self.match:
                         if not self.expected:
-                            self.iterator, self.expected = iter(self.group), self.group[:]
+                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
+                            continue
+                        elif all(e.min_occurs == 0 for e in self.expected):
+                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
+                            occurs[self.group] += 1
                             continue
                         elif self.group.model == 'all':
                             self.match = False
+                            self.iterator = iter(self.expected)
                             continue
 
                     group, expected = self.group, self.expected
@@ -193,6 +200,8 @@ class XsdModelVisitor(object):
                     occurs[self.group] += 1
                 return item.min_occurs
             elif self.group.min_occurs <= occurs[self.group]:
+                self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
+            elif self.ancestors and self.ancestors[-1][0].model == 'choice':
                 self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
             else:
                 return True
@@ -614,7 +623,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
         elif validation != 'skip' and not self.is_emptiable():
             # no child elements: generate errors if the model is not emptiable
-            expected = [e.prefixed_name for e in self.iter_elements() if e.min_occurs]
+            expected = [e for e in self.iter_elements() if e.min_occurs]
             yield self.children_validation_error(validation, elem, 0, expected, **kwargs)
 
         yield result_list
@@ -669,8 +678,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         break
                     else:
                         if any(not e.is_emptiable() for e in elements) and self.min_occurs > model_occurs:
-                            expected = [e.prefixed_name for e in elements]
-                            yield XMLSchemaChildrenValidationError(self, elem, child_index, expected)
+                            yield XMLSchemaChildrenValidationError(self, elem, child_index, elements)
                         yield child_index
                         return
                     elements.remove(item)
@@ -697,8 +705,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         pass
 
                     if self.min_occurs > model_occurs:
-                        expected = [e.prefixed_name for e in self.iter_elements()]
-                        yield XMLSchemaChildrenValidationError(self, elem, child_index, expected)
+                        yield XMLSchemaChildrenValidationError(self, elem, child_index, list(self.iter_elements()))
                     yield index
                     return
             else:
@@ -728,6 +735,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         if not isinstance(converter, XMLSchemaConverter):
             converter = self.schema.get_converter(converter, **kwargs)
 
+        model_errors = []
         text = ''
         children = []
         level = kwargs.get('level', 0)
@@ -736,9 +744,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 
-        model = XsdModelVisitor(self)
+        model = XsdModelValidator(self)
         model.start()
-
+        cdata_index = 0
         # print("\n+++ %r +++" % model)
         # import pdb
         # pdb.set_trace()
@@ -751,47 +759,42 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     children[-1].tail = padding + value
                 else:
                     children[-1].tail += padding + value
+                cdata_index += 1
                 continue
 
-            if model.element is None:
-                if losslessly and validation != 'skip':
-                    reason = 'unexpected element %r at position %r.' % (name, position)
-                    yield self.validation_error(validation, reason, value, **kwargs)
-            else:
-                while model.element is not None:
-                    if model.element.match(name, default_namespace):
-                        if isinstance(model.element, XsdAnyElement):
-                            value = get_qname(default_namespace, name), value
-                        for result in model.element.iter_encode(value, validation, converter, **kwargs):
-                            if isinstance(result, XMLSchemaValidationError):
-                                yield result
-                            else:
-                                print(result)  # children.append(result)
-
-                        for e in model.advance(True):
-                            print(e)
-                        break
-                    else:
-                        for e in model.advance(False):
-                            print(e)
-                else:
-                    continue
-
-            # Raw validation
-            for xsd_element in self.iter_elements():
-                if xsd_element.match(name, default_namespace):
-                    if isinstance(xsd_element, XsdAnyElement):
+            while model.element is not None:
+                if model.element.match(name, default_namespace):
+                    if isinstance(model.element, XsdAnyElement):
                         value = get_qname(default_namespace, name), value
-                    for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                    for result in model.element.iter_encode(value, validation, converter, **kwargs):
                         if isinstance(result, XMLSchemaValidationError):
                             yield result
                         else:
                             children.append(result)
+
+                    for validator, occurs, expected in model.advance(True):
+                        model_errors.append((validator, occurs, expected, position - cdata_index))
                     break
+                else:
+                    for validator, occurs, expected in model.advance():
+                        model_errors.append((validator, occurs, expected, position - cdata_index))
             else:
-                if validation != 'skip':
-                    reason = '%r does not match any declared element.' % name
-                    yield self.validation_error(validation, reason, value, **kwargs)
+                # Raw validation
+                # print("Raw validation!")
+                for xsd_element in self.iter_elements():
+                    if xsd_element.match(name, default_namespace):
+                        if isinstance(xsd_element, XsdAnyElement):
+                            value = get_qname(default_namespace, name), value
+                        for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                            if isinstance(result, XMLSchemaValidationError):
+                                yield result
+                            else:
+                                children.append(result)
+                        break
+                else:
+                    if validation != 'skip':
+                        reason = '%r does not match any declared element.' % name
+                        yield self.validation_error(validation, reason, value, **kwargs)
 
         # TODO?? --> with no strict validation reorder simple sequences
         # if validation != 'strict' and len(subgroups) == 1 and subgroups[0].model == 'sequence':
@@ -806,6 +809,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 children[-1].tail = padding[:-indent] or '\n'
             else:
                 children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
+
+        if validation != 'skip' and model_errors:
+            attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
+            if validation == 'lax' and converter.etree_element_class is not etree_element:
+                child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
+                elem = converter.etree_element(element_data.tag, text or padding, child_tags, attrib)
+            else:
+                elem = converter.etree_element(element_data.tag, text or padding, children, attrib)
+
+            for validator, occurs, expected, index in model_errors:
+                yield self.children_validation_error(validation, elem, index, expected, **kwargs)
 
         yield text or None, children
 

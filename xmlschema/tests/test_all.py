@@ -35,7 +35,7 @@ if __name__ == '__main__':
     from xmlschema.tests.test_validators import (
         make_validator_test_class, TestValidation, TestDecoding, TestEncoding
     )
-    from xmlschema.tests.test_package import TestPackage
+    from xmlschema.tests.test_package import TestPackaging
 
     print_test_header()
 
