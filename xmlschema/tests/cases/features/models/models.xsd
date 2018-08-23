@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A schema for testing model validation -->
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="comment" type="xs:string" minOccurs="4" maxOccurs="10"/>
+                <xs:element name="name" type="xs:string" maxOccurs="3"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Groups for model validation tests -->
+    <xs:group name="group01">
+        <xs:sequence>
+            <xs:element name="elem001" minOccurs="0" />
+            <xs:element name="elem002" minOccurs="0" />
+            <xs:element name="elem003" minOccurs="0" />
+        </xs:sequence>
+    </xs:group>
+
+    <xs:group name="group02">
+        <xs:sequence>
+            <xs:element name="elem004" type="xs:string" minOccurs="0"/>
+            <xs:choice minOccurs="0">
+                <xs:group ref="group01"/>
+
+                <xs:sequence>
+                    <xs:element name="elem005" type="xs:string" maxOccurs="unbounded"/>
+                </xs:sequence>
+                <xs:sequence>
+                    <xs:element name="elem006" type="xs:string" maxOccurs="unbounded"/>
+                </xs:sequence>
+                <xs:element name="elem007" />
+                <xs:sequence>
+                    <xs:element name="elem008" minOccurs="0" maxOccurs="unbounded" />
+                </xs:sequence>
+
+                <xs:sequence>
+                    <xs:element name="elem009" type="xs:string"  maxOccurs="4"/>
+                    <xs:element name="elem010" type="xs:string"  minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+
+                <xs:sequence>
+                    <xs:element name="elem011" type="xs:string" minOccurs="2" maxOccurs="2"/>
+                    <xs:element name="elem012" type="xs:string" />
+                    <xs:element name="elem013" type="xs:string" />
+                </xs:sequence>
+
+                <xs:element name="elem014" />
+            </xs:choice>
+            <xs:element name="elem015" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="elem016" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:group>
+
+</xs:schema>

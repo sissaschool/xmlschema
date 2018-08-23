@@ -5,17 +5,6 @@
     <xs:anyattribute notNamespace="#all"> <!-- Illegal declaration -->
     </xs:anyattribute>
 
-    <xs:annotation ciao="10" xml:lang="en"/> <!-- Illegal attribute -->
-
-    <xs:element name="data">
-        <xs:complexType>
-            <xs:sequence>
-                <xs:element name="comment" type="xs:string" minOccurs="4" maxOccurs="10"/>
-                <xs:element name="name" type="xs:string" maxOccurs="3"/>
-            </xs:sequence>
-        </xs:complexType>
-    </xs:element>
-
     <!-- Unexpected attribute declarations (should be inside extension tag) -->
     <xs:complexType name="A" mixed="true">
         <xs:simpleContent>

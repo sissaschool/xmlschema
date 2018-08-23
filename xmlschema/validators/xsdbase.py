@@ -731,6 +731,12 @@ class ParticleMixin(object):
                 return False
         return True
 
+    def is_missing(self, occurs):
+        return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
+
+    def is_over(self, occurs):
+        return self.max_occurs is not None and self.max_occurs <= occurs
+
     def children_validation_error(self, validation, elem, index, expected=None, source=None, namespaces=None, **kwargs):
         """
         Helper method for generating model validation errors. Incompatible with 'skip' validation mode.

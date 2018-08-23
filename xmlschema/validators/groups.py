@@ -116,9 +116,6 @@ class XsdModelValidator(object):
 
         :param match: provides current element match.
         """
-        def is_over(x):
-            return x.max_occurs is not None and x.max_occurs <= occurs[x]
-
         element, occurs = self.element, self.occurs
         if element is None:
             raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
@@ -126,14 +123,14 @@ class XsdModelValidator(object):
         if match:
             occurs[element] += 1
             self.match = True
-            if not is_over(element):
+            if not element.is_over(occurs[element]):
                 return
         try:
             if self.stop_item(element):
                 yield element, occurs[element], [element]
 
             while True:
-                while is_over(self.group):
+                while self.group.is_over(occurs[self.group]):
                     group = self.group
                     self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
                     self.stop_item(group)
@@ -144,13 +141,13 @@ class XsdModelValidator(object):
                         if not self.expected:
                             self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
                             continue
-                        elif all(e.min_occurs == 0 for e in self.expected):
-                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
-                            occurs[self.group] += 1
-                            continue
                         elif self.group.model == 'all':
                             self.match = False
                             self.iterator = iter(self.expected)
+                            continue
+                        elif all(e.min_occurs == 0 for e in self.expected):
+                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
+                            occurs[self.group] += 1
                             continue
 
                     group, expected = self.group, self.expected
@@ -169,7 +166,7 @@ class XsdModelValidator(object):
 
         except IndexError:
             self.element = None
-            if self.group.min_occurs > occurs[self.group]:
+            if self.group.is_missing(occurs[self.group]):
                 yield self.group, occurs[self.group], list(iter_elements(self.expected))
 
     def stop_item(self, item):
@@ -182,7 +179,7 @@ class XsdModelValidator(object):
         """
         occurs = self.occurs
         if occurs[item]:
-            occurs_error = item.min_occurs > occurs[item]
+            occurs_error = item.is_missing(occurs[item])
             if self.group.model == 'choice':
                 occurs[item] = 0
                 occurs[self.group] += 1
@@ -194,11 +191,11 @@ class XsdModelValidator(object):
             return occurs_error
 
         elif self.group.model == 'sequence':
-            if self.match or not item.min_occurs:
+            if self.match or item.is_emptiable():
                 self.expected.remove(item)
-                if not self.expected:
+                if self.match and not self.expected:
                     occurs[self.group] += 1
-                return item.min_occurs
+                return not item.is_emptiable()
             elif self.group.min_occurs <= occurs[self.group]:
                 self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
             elif self.ancestors and self.ancestors[-1][0].model == 'choice':
@@ -325,7 +322,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     if self.is_global:
                         self.parse_error("a group reference cannot be global", elem)
                     self.name = reference_to_qname(ref, self.namespaces)
-                    xsd_group = self.schema.maps.lookup_group(self.name)
+
+                    try:
+                        xsd_group = self.schema.maps.lookup_group(self.name)
+                    except KeyError:
+                        self.parse_error("missing group %r" % self.prefixed_name, elem)
+                        xsd_group = self.schema.create_any_content_group(self, self.name)
+
                     if isinstance(xsd_group, tuple):
                         # Disallowed circular definition, substitute with any content group.
                         self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
@@ -745,11 +748,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         losslessly = converter.losslessly
 
         model = XsdModelValidator(self)
-        model.start()
         cdata_index = 0
-        # print("\n+++ %r +++" % model)
-        # import pdb
-        # pdb.set_trace()
 
         for position, (name, value) in enumerate(element_data.content):
             if isinstance(name, int):
@@ -764,23 +763,29 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
             while model.element is not None:
                 if model.element.match(name, default_namespace):
-                    if isinstance(model.element, XsdAnyElement):
-                        value = get_qname(default_namespace, name), value
-                    for result in model.element.iter_encode(value, validation, converter, **kwargs):
-                        if isinstance(result, XMLSchemaValidationError):
-                            yield result
-                        else:
-                            children.append(result)
-
-                    for validator, occurs, expected in model.advance(True):
-                        model_errors.append((validator, occurs, expected, position - cdata_index))
-                    break
+                    xsd_element = model.element
                 else:
-                    for validator, occurs, expected in model.advance():
-                        model_errors.append((validator, occurs, expected, position - cdata_index))
+                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                        if xsd_element.match(name, default_namespace):
+                            break
+                    else:
+                        for validator, occurs, expected in model.advance():
+                            model_errors.append((validator, occurs, expected, position - cdata_index))
+                        continue
+
+                if isinstance(xsd_element, XsdAnyElement):
+                    value = get_qname(default_namespace, name), value
+                for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
+                    else:
+                        children.append(result)
+
+                for validator, occurs, expected in model.advance(True):
+                    model_errors.append((validator, occurs, expected, position - cdata_index))
+                break
             else:
-                # Raw validation
-                # print("Raw validation!")
+                # if validation != 'strict' and not converter.losslessly:
                 for xsd_element in self.iter_elements():
                     if xsd_element.match(name, default_namespace):
                         if isinstance(xsd_element, XsdAnyElement):
@@ -799,10 +804,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         # TODO?? --> with no strict validation reorder simple sequences
         # if validation != 'strict' and len(subgroups) == 1 and subgroups[0].model == 'sequence':
         #    pass
-
-        # print('+++ Children: %r +++' % children)
-        # import pdb
-        # pdb.set_trace()
 
         if children:
             if children[-1].tail is None:

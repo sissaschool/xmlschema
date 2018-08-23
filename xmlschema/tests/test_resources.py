@@ -116,10 +116,10 @@ class TestResources(XMLSchemaTestCase):
 
     def test_fetch_schema_locations(self):
         locations = fetch_schema_locations(self.col_xml_file)
-        self.check_url(locations[0], self.col_schema_file)
+        self.check_url(locations[0], self.col_xsd_file)
         self.assertEqual(locations[1][0][0], 'http://example.com/ns/collection')
-        self.check_url(locations[1][0][1], self.col_schema_file)
-        self.check_url(fetch_schema(self.vh_xml_file), self.vh_schema_file)
+        self.check_url(locations[1][0][1], self.col_xsd_file)
+        self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
 
     def test_load_xml_resource(self):
         self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
@@ -208,28 +208,28 @@ class TestResources(XMLSchemaTestCase):
             xml_file.close()
 
     def test_xml_resource_from_file(self):
-        with open(self.vh_schema_file) as schema_file:
+        with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_schema_file)
+            self.check_url(resource.url, self.vh_xsd_file)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
 
-        with open(self.vh_schema_file) as schema_file:
+        with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file, lazy=False)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_schema_file)
+            self.check_url(resource.url, self.vh_xsd_file)
             self.assertIsInstance(resource.document, ElementTree.ElementTree)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
 
     def test_xml_resource_from_string(self):
-        with open(self.vh_schema_file) as schema_file:
+        with open(self.vh_xsd_file) as schema_file:
             schema_text = schema_file.read()
 
         resource = XMLResource(schema_text)
@@ -240,7 +240,7 @@ class TestResources(XMLSchemaTestCase):
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
     def test_xml_resource_from_string_io(self):
-        with open(self.vh_schema_file) as schema_file:
+        with open(self.vh_xsd_file) as schema_file:
             schema_text = schema_file.read()
 
         schema_file = StringIO(schema_text)
@@ -265,7 +265,7 @@ class TestResources(XMLSchemaTestCase):
     def test_xml_resource_namespace(self):
         resource = XMLResource(self.vh_xml_file)
         self.assertEqual(resource.namespace, 'http://example.com/vehicles')
-        resource = XMLResource(self.vh_schema_file)
+        resource = XMLResource(self.vh_xsd_file)
         self.assertEqual(resource.namespace, 'http://www.w3.org/2001/XMLSchema')
         resource = XMLResource(self.col_xml_file)
         self.assertEqual(resource.namespace, 'http://example.com/ns/collection')
@@ -349,17 +349,17 @@ class TestResources(XMLSchemaTestCase):
             self.assertEqual(resource.url, normalize_url(self.vh_xml_file))
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
 
-        with open(self.vh_schema_file) as schema_file:
+        with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file)
-            self.assertEqual(resource.url, normalize_url(self.vh_schema_file))
+            self.assertEqual(resource.url, normalize_url(self.vh_xsd_file))
             self.assertEqual(set(resource.get_namespaces().keys()), {'xs', 'vh'})
 
         resource = XMLResource(self.col_xml_file)
         self.assertEqual(resource.url, normalize_url(self.col_xml_file))
         self.assertEqual(set(resource.get_namespaces().keys()), {'col', 'xsi'})
 
-        resource = XMLResource(self.col_schema_file)
-        self.assertEqual(resource.url, normalize_url(self.col_schema_file))
+        resource = XMLResource(self.col_xsd_file)
+        self.assertEqual(resource.url, normalize_url(self.col_xsd_file))
         self.assertEqual(set(resource.get_namespaces().keys()), {'', 'xs'})
 
     def test_xml_resource_get_locations(self):

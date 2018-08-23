@@ -72,7 +72,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
     def test_cars_model(self):
-        # Sequence with one emptiable and unlimited element.
+        # Emptiable 1:1 sequence with one emptiable and unlimited element.
         group = self.vh_schema.elements['cars'].type.content_type
 
         model = XsdModelValidator(group)
@@ -348,6 +348,40 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[0])
         for match in [False, False, False, False, True, False, True, False, False, False]:
             self.check_advance(model, match)            # <all> match, <attributeGroup> match
+        self.assertIsNone(model.element)
+
+    def test_model_group1(self):
+        group = self.models_schema.groups['group01']
+
+        model = XsdModelValidator(group)
+        self.assertEqual(model.element, group[0])
+        self.check_stop(model)
+
+        model.start()
+        self.assertEqual(model.element, group[0])
+        for match in [False, False, False]:
+            self.check_advance(model, match)
+        self.assertIsNone(model.element)
+
+        model.start()
+        for match in [False, True, False]:
+            self.check_advance(model, match)
+        self.assertIsNone(model.element)
+
+    def test_model_group2(self):
+        group = self.models_schema.groups['group02']
+
+        model = XsdModelValidator(group)
+        self.assertEqual(model.element, group[0])
+        for match in [False, False, False]:
+            self.check_advance(model, match)                # group01 not match
+        self.assertEqual(model.element, group[1][0][0][2])  # <elem003>
+        for match in [False] * 8:
+            self.check_advance(model, match)
+        self.assertEqual(model.element, group[2])           # <elem015>
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[3])           # <elem016>
+        self.check_advance_false(model)
         self.assertIsNone(model.element)
 
 
