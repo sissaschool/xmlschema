@@ -71,4 +71,24 @@
         </xs:all>
     </xs:group>
 
+    <xs:group name="group5">
+        <xs:sequence>
+            <xs:sequence>
+                <xs:element name="elem1" />
+                <xs:element name="elem2" />
+                <xs:element name="elem3" />
+                <xs:element name="elem4" />
+                <xs:element name="elem5" />
+            </xs:sequence>
+            <xs:sequence>
+                <xs:choice>
+                    <xs:element name="elem6" />
+                    <xs:element name="elem7" />
+                </xs:choice>
+                <xs:element minOccurs="0" name="elem8" />
+                <xs:element minOccurs="0" name="elem9" />
+            </xs:sequence>
+        </xs:sequence>
+    </xs:group>
+
 </xs:schema>

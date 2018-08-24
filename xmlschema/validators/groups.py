@@ -182,6 +182,7 @@ class XsdModelVisitor(object):
         occurs = self.occurs
         if occurs[item]:
             occurs_error = item.is_missing(occurs[item])
+            self.match = True
             if self.group.model == 'choice':
                 occurs[item] = 0
                 occurs[self.group] += 1
@@ -759,7 +760,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             converter = self.schema.get_converter(converter, **kwargs)
 
         model_errors = []
-        text = ''
+        text = None
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
@@ -767,13 +768,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 
-        model_visitor = XsdModelVisitor(self)
+        model = XsdModelVisitor(self)
         cdata_index = 0
 
         for position, (name, value) in enumerate(element_data.content):
             if isinstance(name, int):
                 if not children:
-                    text += padding + value
+                    text = padding + value if text is None else text + value + padding
                 elif children[-1].tail is None:
                     children[-1].tail = padding + value
                 else:
@@ -781,15 +782,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 cdata_index += 1
                 continue
 
-            while model_visitor.element is not None:
-                if model_visitor.element.match(name, default_namespace):
-                    xsd_element = model_visitor.element
+            while model.element is not None:
+                if model.element.match(name, default_namespace):
+                    xsd_element = model.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model_visitor.element.name, ()):
+                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
                         if xsd_element.match(name, default_namespace):
                             break
                     else:
-                        for validator, occurs, expected in model_visitor.advance():
+                        for validator, occurs, expected in model.advance():
                             model_errors.append((validator, occurs, expected, position - cdata_index))
                         continue
 
@@ -801,7 +802,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     else:
                         children.append(result)
 
-                for validator, occurs, expected in model_visitor.advance(True):
+                for validator, occurs, expected in model.advance(True):
                     model_errors.append((validator, occurs, expected, position - cdata_index))
                 break
             else:
@@ -823,9 +824,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         reason = '%r does not match any declared element of the model group.' % name
                         yield self.validation_error(validation, reason, value, **kwargs)
 
-        if model_visitor.element is not None:
-            index = len(element_data.content)- cdata_index
-            for validator, occurs, expected in model_visitor.stop():
+        if model.element is not None:
+            index = len(element_data.content) - cdata_index
+            for validator, occurs, expected in model.stop():
                 model_errors.append((validator, occurs, expected, index))
 
         # If the validation is not strict tries to solve model errors with a reorder of the children
@@ -842,17 +843,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
-                elem = converter.etree_element(element_data.tag, text or padding, child_tags, attrib)
+                elem = converter.etree_element(element_data.tag, text, child_tags, attrib)
             else:
-                elem = converter.etree_element(element_data.tag, text or padding, children, attrib)
-
-            import pdb
-            pdb.set_trace()
+                elem = converter.etree_element(element_data.tag, text, children, attrib)
 
             for validator, occurs, expected, index in model_errors:
                 yield self.children_validation_error(validation, elem, index, expected, **kwargs)
 
-        yield text or None, children
+        yield text, children
 
     def update_occurs(self, counter):
         """

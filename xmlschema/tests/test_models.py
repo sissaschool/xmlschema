@@ -350,6 +350,8 @@ class TestModelValidation(XMLSchemaTestCase):
             self.check_advance(model, match)            # <all> match, <attributeGroup> match
         self.assertIsNone(model.element)
 
+    #
+    # Tests on schema cases/features/models/models.xsd
     def test_model_group1(self):
         group = self.models_schema.groups['group1']
 
@@ -400,6 +402,17 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[0])
         for match in [True, False, True]:
             self.check_advance(model, match)
+        self.check_stop(model)
+
+    def test_model_group5(self):
+        group = self.models_schema.groups['group5']
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        for match in [True, True, True, True, True]:   # match [<elem1> .. <elem5>]
+            self.check_advance(model, match)
+        self.assertEqual(model.element.name, 'elem6')
+        self.check_advance_true(model)                 # match choice with <elem6>
         self.check_stop(model)
 
 

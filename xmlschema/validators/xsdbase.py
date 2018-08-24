@@ -205,22 +205,27 @@ class XsdComponent(XsdValidator):
 
     @property
     def schema_elem(self):
+        """The reference element of the schema for the component instance."""
         return self.elem
 
     @property
     def source(self):
+        """Property that references to schema source."""
         return self.schema.source
 
     @property
     def target_namespace(self):
+        """Property that references to schema's targetNamespace."""
         return self.schema.target_namespace
 
     @property
     def default_namespace(self):
+        """Property that references to schema's default namespaces."""
         return self.schema.namespaces.get('')
 
     @property
     def namespaces(self):
+        """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
 
     @property
@@ -232,6 +237,7 @@ class XsdComponent(XsdValidator):
 
     @property
     def maps(self):
+        """Property that references to schema's global maps."""
         return self.schema.maps
 
     def __repr__(self):
@@ -333,7 +339,7 @@ class XsdComponent(XsdValidator):
             else:
                 break
 
-    def to_string(self, indent='', max_lines=None, spaces_for_tab=4):
+    def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
         """
         Returns the XML elements that declare or define the component as a string.
         """
