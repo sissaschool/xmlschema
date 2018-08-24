@@ -338,6 +338,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             converter = self.schema.get_converter(converter, **kwargs)
         level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
+        xsi_nil = False
 
         # Get the instance type: xsi:type or the schema's declaration
         if XSI_TYPE in elem.attrib:
@@ -345,19 +346,34 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             type_ = self.type
 
-        # Check the xsi:nil attribute of the instance
+        # Get the xsi:nil attribute of the instance
         if validation != 'skip' and XSI_NIL in elem.attrib:
+            try:
+                xsi_nil = get_xsd_bool_attribute(elem, XSI_NIL)
+            except TypeError:
+                reason = "xsi:nil attribute must has a boolean value."
+                yield self.validation_error(validation, reason, elem, **kwargs)
+
             if not self.nillable:
                 reason = "element is not nillable."
                 yield self.validation_error(validation, reason, elem, **kwargs)
-            elif elem.text is not None:
-                try:
-                    if get_xsd_bool_attribute(elem, XSI_NIL):
-                        reason = 'xsi:nil="true" but the element is not empty.'
-                        yield self.validation_error(validation, reason, elem, **kwargs)
-                except TypeError:
-                    reason = "xsi:nil attribute must has a boolean value."
+            if xsi_nil:
+                if elem.text is not None:
+                    reason = 'xsi:nil="true" but the element is not empty.'
                     yield self.validation_error(validation, reason, elem, **kwargs)
+                else:
+                    for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
+                        if isinstance(result, XMLSchemaValidationError):
+                            yield self.update_error(result, elem, **kwargs)
+                        else:
+                            attributes = result
+                            break
+                    else:
+                        attributes = None
+
+                    element_data = ElementData(elem.tag, None, None, attributes)
+                    yield converter.element_decode(element_data, self, level)
+                    return
 
         if type_.is_complex():
             if use_defaults and type_.has_simple_content():

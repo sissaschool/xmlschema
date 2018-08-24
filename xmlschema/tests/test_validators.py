@@ -795,6 +795,27 @@ class TestDecoding(XMLSchemaTestCase):
         # Issue #66
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)
 
+    def test_issue_076_and_nillable(self):
+        xsd_string = """<?xml version="1.0" encoding="UTF-8"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+            <xs:element name="foo" type="Foo" />
+            <xs:complexType name="Foo">
+                <xs:sequence minOccurs="1" maxOccurs="1">
+                    <xs:element name="bar" type="xs:integer" nillable="true" />
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+        """
+        xsd_schema = xmlschema.XMLSchema(xsd_string)
+        xml_string_1 = "<foo><bar>0</bar></foo>"
+        xml_string_2 = """<?xml version="1.0" encoding="UTF-8"?>
+        <foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <bar xsi:nil="true"></bar>
+        </foo>
+        """
+        self.assertTrue(xsd_schema.is_valid(source=xml_string_1, use_defaults=False))
+        self.assertTrue(xsd_schema.is_valid(source=xml_string_2, use_defaults=False))
+
 
 class TestEncoding(XMLSchemaTestCase):
 
