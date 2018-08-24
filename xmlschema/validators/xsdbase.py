@@ -204,6 +204,10 @@ class XsdComponent(XsdValidator):
         return self.parent is None
 
     @property
+    def schema_elem(self):
+        return self.elem
+
+    @property
     def source(self):
         return self.schema.source
 
@@ -754,7 +758,6 @@ class ParticleMixin(object):
 
         error = XMLSchemaChildrenValidationError(self, elem, index, expected, source, namespaces)
         if validation == 'strict':
-            print(error)
             raise error
         else:
             return error

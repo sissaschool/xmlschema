@@ -160,7 +160,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         )
         self.obj = obj
         self.reason = reason
-        self.schema_elem = getattr(validator, 'elem', None)
+        self.schema_elem = getattr(validator, 'schema_elem', None)
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences

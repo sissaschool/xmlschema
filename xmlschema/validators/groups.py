@@ -50,11 +50,11 @@ def iter_elements(items):
                 yield e
 
 
-class XsdModelValidator(object):
+class XsdModelVisitor(object):
     """
-    A visitor class that can be used for validating an XSD model of data related to an
-    XSD group. The visit of the model is done using an external match information,
-    counting the occurrences and yielding tuples in case of model errors.
+    A visitor design pattern class that can be used for validating XML data related to an
+    XSD model group. The visit of the model is done using an external match information,
+    counting the occurrences and yielding tuples in case of model's item occurrence errors.
     Ends setting the current element to `None`.
 
     :param root: the root XsdGroup instance of the model.
@@ -149,6 +149,8 @@ class XsdModelValidator(object):
                             self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
                             occurs[self.group] += 1
                             continue
+                    elif self.group.model == 'all' and all(e.min_occurs == 0 for e in self.expected):
+                        occurs[self.group] += 1
 
                     group, expected = self.group, self.expected
                     self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
@@ -403,6 +405,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 continue  # Error already caught by validation against the meta-schema
 
     @property
+    def schema_elem(self):
+        return self.elem if self.name else self.parent.elem
+
+    @property
     def built(self):
         for item in self:
             try:
@@ -534,6 +540,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 yield item
                 for e in self.schema.substitution_groups.get(item.name, ()):
                     yield e
+
+    def sort_children(self, elements, default_namespace=None):
+        """
+        Sort elements by group order, that maybe partial in case of 'all' or 'choice' ordering.
+        The not matching elements are appended at the end.
+        """
+        def sorter(elem):
+            for e in elements_order:
+                if e.match(elem.tag, default_namespace):
+                    return elements_order[e]
+            return len(elements_order)
+
+        elements_order = {e: p for p, e in enumerate(self.iter_elements())}
+        return sorted(elements, key=sorter)
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """
@@ -747,7 +767,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 
-        model = XsdModelValidator(self)
+        model_visitor = XsdModelVisitor(self)
         cdata_index = 0
 
         for position, (name, value) in enumerate(element_data.content):
@@ -757,19 +777,19 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 elif children[-1].tail is None:
                     children[-1].tail = padding + value
                 else:
-                    children[-1].tail += padding + value
+                    children[-1].tail += value + padding
                 cdata_index += 1
                 continue
 
-            while model.element is not None:
-                if model.element.match(name, default_namespace):
-                    xsd_element = model.element
+            while model_visitor.element is not None:
+                if model_visitor.element.match(name, default_namespace):
+                    xsd_element = model_visitor.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in self.schema.substitution_groups.get(model_visitor.element.name, ()):
                         if xsd_element.match(name, default_namespace):
                             break
                     else:
-                        for validator, occurs, expected in model.advance():
+                        for validator, occurs, expected in model_visitor.advance():
                             model_errors.append((validator, occurs, expected, position - cdata_index))
                         continue
 
@@ -781,11 +801,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     else:
                         children.append(result)
 
-                for validator, occurs, expected in model.advance(True):
+                for validator, occurs, expected in model_visitor.advance(True):
                     model_errors.append((validator, occurs, expected, position - cdata_index))
                 break
             else:
-                # if validation != 'strict' and not converter.losslessly:
+                if losslessly:
+                    model_errors.append((self, 0, [], position - cdata_index))
+
                 for xsd_element in self.iter_elements():
                     if xsd_element.match(name, default_namespace):
                         if isinstance(xsd_element, XsdAnyElement):
@@ -798,12 +820,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         break
                 else:
                     if validation != 'skip':
-                        reason = '%r does not match any declared element.' % name
+                        reason = '%r does not match any declared element of the model group.' % name
                         yield self.validation_error(validation, reason, value, **kwargs)
 
-        # TODO?? --> with no strict validation reorder simple sequences
-        # if validation != 'strict' and len(subgroups) == 1 and subgroups[0].model == 'sequence':
-        #    pass
+        if model_visitor.element is not None:
+            index = len(element_data.content)- cdata_index
+            for validator, occurs, expected in model_visitor.stop():
+                model_errors.append((validator, occurs, expected, index))
+
+        # If the validation is not strict tries to solve model errors with a reorder of the children
+        if model_errors and validation != 'strict':
+            children = self.sort_children(children, default_namespace)
 
         if children:
             if children[-1].tail is None:
@@ -818,6 +845,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 elem = converter.etree_element(element_data.tag, text or padding, child_tags, attrib)
             else:
                 elem = converter.etree_element(element_data.tag, text or padding, children, attrib)
+
+            import pdb
+            pdb.set_trace()
 
             for validator, occurs, expected, index in model_errors:
                 yield self.children_validation_error(validation, elem, index, expected, **kwargs)

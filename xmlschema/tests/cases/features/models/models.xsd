@@ -12,47 +12,63 @@
     </xs:element>
 
     <!-- Groups for model validation tests -->
-    <xs:group name="group01">
+    <xs:group name="group1">
         <xs:sequence>
-            <xs:element name="elem001" minOccurs="0" />
-            <xs:element name="elem002" minOccurs="0" />
-            <xs:element name="elem003" minOccurs="0" />
+            <xs:element name="elem1" minOccurs="0" />
+            <xs:element name="elem2" minOccurs="0" />
+            <xs:element name="elem3" minOccurs="0" />
         </xs:sequence>
     </xs:group>
 
-    <xs:group name="group02">
+    <xs:group name="group2">
         <xs:sequence>
-            <xs:element name="elem004" type="xs:string" minOccurs="0"/>
+            <xs:element name="elem1" type="xs:string" minOccurs="0"/>
             <xs:choice minOccurs="0">
-                <xs:group ref="group01"/>
+                <xs:group ref="group1"/>
 
                 <xs:sequence>
-                    <xs:element name="elem005" type="xs:string" maxOccurs="unbounded"/>
+                    <xs:element name="elem2" type="xs:string" maxOccurs="unbounded"/>
                 </xs:sequence>
                 <xs:sequence>
-                    <xs:element name="elem006" type="xs:string" maxOccurs="unbounded"/>
+                    <xs:element name="elem3" type="xs:string" maxOccurs="unbounded"/>
                 </xs:sequence>
-                <xs:element name="elem007" />
+                <xs:element name="elem4" />
                 <xs:sequence>
-                    <xs:element name="elem008" minOccurs="0" maxOccurs="unbounded" />
-                </xs:sequence>
-
-                <xs:sequence>
-                    <xs:element name="elem009" type="xs:string"  maxOccurs="4"/>
-                    <xs:element name="elem010" type="xs:string"  minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element name="elem5" minOccurs="0" maxOccurs="unbounded" />
                 </xs:sequence>
 
                 <xs:sequence>
-                    <xs:element name="elem011" type="xs:string" minOccurs="2" maxOccurs="2"/>
-                    <xs:element name="elem012" type="xs:string" />
-                    <xs:element name="elem013" type="xs:string" />
+                    <xs:element name="elem6" type="xs:string"  maxOccurs="4"/>
+                    <xs:element name="elem7" type="xs:string"  minOccurs="0" maxOccurs="unbounded"/>
                 </xs:sequence>
 
-                <xs:element name="elem014" />
+                <xs:sequence>
+                    <xs:element name="elem8" type="xs:string" minOccurs="2" maxOccurs="2"/>
+                    <xs:element name="elem9" type="xs:string" />
+                    <xs:element name="elem10" type="xs:string" />
+                </xs:sequence>
+
+                <xs:element name="elem11" />
             </xs:choice>
-            <xs:element name="elem015" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-            <xs:element name="elem016" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="elem12" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:element name="elem13" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
+    </xs:group>
+
+    <xs:group name="group3">
+        <xs:sequence>
+            <xs:element name="elem1" />
+            <xs:element minOccurs="0" name="elem2" />
+            <xs:element name="elem3" />
+        </xs:sequence>
+    </xs:group>
+
+    <xs:group name="group4">
+        <xs:all>
+            <xs:element name="elem1" />
+            <xs:element minOccurs="0" name="elem2" />
+            <xs:element name="elem3" />
+        </xs:all>
     </xs:group>
 
 </xs:schema>

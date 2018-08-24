@@ -24,7 +24,7 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.validators import XsdModelValidator
+from xmlschema.validators import XsdModelVisitor
 from xmlschema.tests import XMLSchemaTestCase
 
 
@@ -60,12 +60,12 @@ class TestModelValidation(XMLSchemaTestCase):
         # Sequence with two not-emptiable single-occurs elements
         group = self.vh_schema.elements['vehicles'].type.content_type
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)                # <cars>
         self.check_advance_true(model)                # <bikes>
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)                # <cars>
         self.check_advance_true(model)                # <bikes>
         self.check_advance_true(model, ValueError)    # <bikes>
@@ -75,14 +75,14 @@ class TestModelValidation(XMLSchemaTestCase):
         # Emptiable 1:1 sequence with one emptiable and unlimited element.
         group = self.vh_schema.elements['cars'].type.content_type
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)     # <car>
         self.check_advance_true(model)     # <car>
         self.check_advance_true(model)     # <car>
         self.check_advance_false(model)    # (end)
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_false(model)    # <not-a-car>
         self.assertIsNone(model.element)
 
@@ -92,7 +92,7 @@ class TestModelValidation(XMLSchemaTestCase):
         # Sequence with one not-emptiable and unlimited element.
         group = self.col_schema.elements['collection'].type.content_type
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)     # <car>
         self.check_advance_true(model)     # <car>
         self.check_advance_true(model)     # <car>
@@ -100,7 +100,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_false(model)    # (end)
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_false(
             model, [(group[0], 0, [group[0]]), (group, 0, [group[0]])]
         )  # <not-a-car>
@@ -110,20 +110,20 @@ class TestModelValidation(XMLSchemaTestCase):
         # Sequence with four single elements, last two are also emptiable.
         group = self.col_schema.types['personType'].content_type
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)     # <name>
         self.check_advance_true(model)     # <born>
         self.check_advance_true(model)     # <dead>
         self.check_advance_true(model)     # <qualification>
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)     # <name>
         self.check_advance_true(model)     # <born>
         self.check_stop(model)
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)                                # <name> match
         self.check_advance_false(model, [(group[1], 0, [group[1]])])  # <born> missing!
         self.check_advance_true(model)                                # <dead> match
@@ -144,22 +144,22 @@ class TestModelValidation(XMLSchemaTestCase):
         """
         group = self.schema_class.meta_schema.groups['simpleDerivation']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_true(model)     # <restriction> match
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_false(model)    # <list> not match with <restriction>
         self.check_advance_true(model)     # <list> match
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_false(model)    # <union> not match with <restriction>
         self.check_advance_false(model)    # <union> not match with <list>
         self.check_advance_true(model)     # <union> match
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.check_advance_false(model)                          # <other> not match with <restriction>
         self.check_advance_false(model)                          # <other> not match with <list>
         self.check_advance_false(model, [(group, 0, group[:])])  # <other> not match with <union>
@@ -194,7 +194,7 @@ class TestModelValidation(XMLSchemaTestCase):
         # Sequence with an optional single element and an optional unlimited choice.
         group = self.schema_class.meta_schema.groups['simpleRestrictionModel']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0])
         self.check_advance_true(model)      # <simpleType> match
         self.assertEqual(model.element, group[1][0][0])
@@ -230,7 +230,7 @@ class TestModelValidation(XMLSchemaTestCase):
         """
         group = self.schema_class.meta_schema.groups['schemaTop']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0][0][0])
         self.check_advance_false(model)                 # <simpleType> don't match
         self.assertEqual(model.element, group[0][0][1])
@@ -282,22 +282,22 @@ class TestModelValidation(XMLSchemaTestCase):
         """
         group = self.schema_class.meta_schema.groups['attrDecls']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         for match in [False, False, True]:
             self.check_advance(model, match)
         self.assertIsNone(model.element)
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         for match in [False, True]:
             self.check_advance(model, match)
         self.assertEqual(model.element, group[0][0])
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         for match in [False, True, False, False]:
             self.check_advance(model, match)
         self.assertEqual(model.element, group[1])
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         for match in [False, True, True, False, True, False, False]:
             self.check_advance(model, match)
         self.assertEqual(model.element, group[1])
@@ -326,7 +326,7 @@ class TestModelValidation(XMLSchemaTestCase):
         """
         group = self.schema_class.meta_schema.groups['complexTypeModel']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0])
         self.check_advance_true(model)                  # <simpleContent> match
         self.assertIsNone(model.element)
@@ -351,9 +351,9 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
     def test_model_group1(self):
-        group = self.models_schema.groups['group01']
+        group = self.models_schema.groups['group1']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0])
         self.check_stop(model)
 
@@ -369,20 +369,38 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
     def test_model_group2(self):
-        group = self.models_schema.groups['group02']
+        group = self.models_schema.groups['group2']
 
-        model = XsdModelValidator(group)
+        model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0])
         for match in [False, False, False]:
-            self.check_advance(model, match)                # group01 not match
-        self.assertEqual(model.element, group[1][0][0][2])  # <elem003>
+            self.check_advance(model, match)                # group1 do not match
+        self.assertEqual(model.element, group[1][0][0][2])  # <elem3> of group1
         for match in [False] * 8:
             self.check_advance(model, match)
-        self.assertEqual(model.element, group[2])           # <elem015>
+        self.assertEqual(model.element, group[2])           # <elem12>
         self.check_advance_false(model)
-        self.assertEqual(model.element, group[3])           # <elem016>
+        self.assertEqual(model.element, group[3])           # <elem13>
         self.check_advance_false(model)
         self.assertIsNone(model.element)
+
+    def test_model_group3(self):
+        group = self.models_schema.groups['group3']
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0])
+        for match in [True, False, True]:
+            self.check_advance(model, match)
+        self.check_stop(model)
+
+    def test_model_group4(self):
+        group = self.models_schema.groups['group4']
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0])
+        for match in [True, False, True]:
+            self.check_advance(model, match)
+        self.check_stop(model)
 
 
 if __name__ == '__main__':

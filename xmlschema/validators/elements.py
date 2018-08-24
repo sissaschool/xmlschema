@@ -564,7 +564,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             elif not all(k in other.constraints for k in self.constraints):
                 return False
-        elif other.model == XSD_CHOICE_TAG:
+        elif other.model == 'choice':
             if ParticleMixin.is_restriction(self, other):
                 return any(self.is_restriction(e, False) for e in other.iter_group())
             else:
