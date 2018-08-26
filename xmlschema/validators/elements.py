@@ -338,74 +338,41 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             converter = self.schema.get_converter(converter, **kwargs)
         level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
-        xsi_nil = False
+        value = children = attributes = None
 
         # Get the instance type: xsi:type or the schema's declaration
         if XSI_TYPE in elem.attrib:
-            type_ = self.maps.lookup_type(converter.unmap_qname(elem.attrib[XSI_TYPE]))
+            xsd_type = self.maps.lookup_type(converter.unmap_qname(elem.attrib[XSI_TYPE]))
+            attribute_group = getattr(xsd_type, 'attributes', self.attributes)
         else:
-            type_ = self.type
+            xsd_type = self.type
+            attribute_group = self.attributes
 
-        # Get the xsi:nil attribute of the instance
+        # Decode attributes
+        for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
+            if isinstance(result, XMLSchemaValidationError):
+                yield self.update_error(result, elem, **kwargs)
+            else:
+                attributes = result
+
+        # Checks the xsi:nil attribute of the instance
         if validation != 'skip' and XSI_NIL in elem.attrib:
+            if not self.nillable:
+                yield self.validation_error(validation, "element is not nillable.", elem, **kwargs)
             try:
-                xsi_nil = get_xsd_bool_attribute(elem, XSI_NIL)
+                if get_xsd_bool_attribute(elem, XSI_NIL):
+                    if elem.text is not None:
+                        reason = "xsi:nil='true' but the element is not empty."
+                        yield self.validation_error(validation, reason, elem, **kwargs)
+                    else:
+                        element_data = ElementData(elem.tag, None, None, attributes)
+                        yield converter.element_decode(element_data, self, level)
+                        return
             except TypeError:
                 reason = "xsi:nil attribute must has a boolean value."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
-            if not self.nillable:
-                reason = "element is not nillable."
-                yield self.validation_error(validation, reason, elem, **kwargs)
-            if xsi_nil:
-                if elem.text is not None:
-                    reason = 'xsi:nil="true" but the element is not empty.'
-                    yield self.validation_error(validation, reason, elem, **kwargs)
-                else:
-                    for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
-                        if isinstance(result, XMLSchemaValidationError):
-                            yield self.update_error(result, elem, **kwargs)
-                        else:
-                            attributes = result
-                            break
-                    else:
-                        attributes = None
-
-                    element_data = ElementData(elem.tag, None, None, attributes)
-                    yield converter.element_decode(element_data, self, level)
-                    return
-
-        if type_.is_complex():
-            if use_defaults and type_.has_simple_content():
-                kwargs['default'] = self.default
-            for result in type_.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield self.update_error(result, elem, **kwargs)
-                else:
-                    if isinstance(result[0], Decimal):
-                        try:
-                            element_data = ElementData(elem.tag, kwargs.get('decimal_type')(result[0]), *result[1:])
-                        except TypeError:
-                            element_data = ElementData(elem.tag, *result)
-                    else:
-                        element_data = ElementData(elem.tag, *result)
-                    yield converter.element_decode(element_data, self, level)
-                    del result
-        else:
-            # simpleType
-            if not elem.attrib:
-                attributes = None
-            else:
-                # Decode with an empty XsdAttributeGroup validator (only XML and XSD default attrs)
-                for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield self.update_error(result, elem, **kwargs)
-                    else:
-                        attributes = result
-                        break
-                else:
-                    attributes = None
-
+        if xsd_type.is_simple():
             if len(elem) and validation != 'skip':
                 reason = "a simpleType element can't has child elements."
                 yield self.validation_error(validation, reason, elem, **kwargs)
@@ -415,31 +382,51 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if text is None:
                     text = self.fixed
                 elif text != self.fixed:
-                    reason = "must has a fixed value %r." % self.fixed
+                    reason = "must has the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
-            elif not text and use_defaults:
-                default = self.default
-                if default is not None:
-                    text = default
+            elif not text and use_defaults and self.default is not None:
+                text = self.default
 
             if text is None:
-                for result in type_.iter_decode('', validation, **kwargs):
+                for result in xsd_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.update_error(result, elem, **kwargs)
-                yield None
             else:
-                for result in type_.iter_decode(text, validation, **kwargs):
+                for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.update_error(result, elem, **kwargs)
                     else:
-                        if isinstance(result, Decimal):
-                            try:
-                                result = kwargs.get('decimal_type')(result)
-                            except TypeError:
-                                pass
-                        element_data = ElementData(elem.tag, result, None, attributes)
-                        yield converter.element_decode(element_data, self, level)
-                        del result
+                        value = result
+
+        elif xsd_type.has_simple_content():
+            if len(elem) and validation != 'skip':
+                reason = "a simple content element can't has child elements."
+                yield self.validation_error(validation, reason, elem, **kwargs)
+
+            if elem.text is not None:
+                text = elem.text or self.default if use_defaults else elem.text
+                for result in xsd_type.content_type.iter_decode(text, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield self.update_error(result, elem, **kwargs)
+                    else:
+                        value = result
+        else:
+            for result in xsd_type.content_type.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield self.update_error(result, elem, **kwargs)
+                else:
+                    children = result
+
+        if isinstance(value, Decimal):
+            try:
+                value = kwargs['decimal_type'](value)
+            except (KeyError, TypeError):
+                pass
+
+        element_data = ElementData(elem.tag, value, children, attributes)
+        yield converter.element_decode(element_data, self, level)
+        if children is not None:
+            del children
 
         if validation != 'skip':
             for constraint in self.constraints.values():

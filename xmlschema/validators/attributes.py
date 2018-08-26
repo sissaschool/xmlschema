@@ -369,6 +369,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         yield obj
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
+        if not attrs and not self:
+            return
+
         result_list = []
         required_attributes = self.required.copy()
         for name, value in attrs.items():
