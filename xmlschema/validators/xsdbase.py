@@ -604,26 +604,38 @@ class ValidationMixin(object):
         """
         raise NotImplementedError
 
-    def validation_error(self, validation, reason, obj=None, source=None, namespaces=None, **kwargs):
+    def validation_error(self, validation, error, obj=None, source=None, namespaces=None, **kwargs):
         """
-        Helper method for generating validation errors. Incompatible with 'skip' validation mode.
-        Il validation mode is 'lax' returns the error, otherwise raises the error.
+        Helper method for generating and updating validation errors. Incompatible with 'skip'
+        validation mode. Il validation mode is 'lax' returns the error, otherwise raises the error.
 
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param reason: the detailed reason of failed validation.
+        :param error: an error instance or the detailed reason of failed validation.
         :param obj: the instance related to the error.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
-        error = XMLSchemaValidationError(self, obj, reason, source, namespaces)
-        if validation == 'strict':
-            raise error
+        if not isinstance(error, XMLSchemaValidationError):
+            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
         else:
+            if error.obj is None and obj is not None:
+                error.obj = obj
+            if error.namespaces is None and namespaces is not None:
+                error.namespaces = namespaces
+            if error.elem is None and is_etree_element(obj):
+                error.elem = obj
+            if error.source is None and source is not None:
+                error.source = source
+
+        if validation == 'lax':
             return error
+        elif validation == 'strict':
+            raise error
+        elif validation == 'skip':
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        else:
+            raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
     def decode_error(self, validation, obj, decoder, reason=None, source=None, namespaces=None, **kwargs):
         """
@@ -638,14 +650,15 @@ class ValidationMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
         error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
-        if validation == 'strict':
-            raise error
-        else:
+        if validation == 'lax':
             return error
+        elif validation == 'strict':
+            raise error
+        elif validation == 'skip':
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        else:
+            raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
     def encode_error(self, validation, obj, encoder, reason=None, source=None, namespaces=None, **kwargs):
         """
@@ -660,35 +673,15 @@ class ValidationMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: other keyword arguments of the validation process.
         """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
         error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
-        if validation == 'strict':
-            raise error
-        else:
+        if validation == 'lax':
             return error
-
-    @staticmethod
-    def update_error(error, obj=None, source=None, namespaces=None, **kwargs):
-        """
-        Helper method for updating validation incomplete errors with source and element information.
-
-        :param error: a validation error instance.
-        :param obj: the not validated XML data.
-        :param source: the XML resource related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
-        """
-        if error.obj is None and obj is not None:
-            error.obj = obj
-        if error.namespaces is None and namespaces is not None:
-            error.namespaces = namespaces
-        if error.elem is None and is_etree_element(obj):
-            error.elem = obj
-        if error.source is None and source is not None:
-            error.source = source
-        return error
+        elif validation == 'strict':
+            raise error
+        elif validation == 'skip':
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        else:
+            raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
 
 class ParticleMixin(object):

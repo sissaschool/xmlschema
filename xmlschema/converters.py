@@ -23,19 +23,6 @@ ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes']
 "Namedtuple for Element data interchange between decoders and converters."
 
 
-def data_to_element(element_data):
-    """
-    Builds an element tree compact representation of an ElementData instance.
-    """
-    elem = etree_element(element_data.tag, attrib={k: unicode_type(v) for k, v in element_data.attributes})
-    elem.text = unicode_type(element_data.text)
-    for tag, value in element_data.content:
-        if isinstance(tag, int):
-            continue
-        elem.append()
-    content = [etree_element(k) for k, v in elem.content]
-
-
 class XMLSchemaConverter(NamespaceMapper):
     """
     Generic XML Schema based converter class. A converter is used to compose

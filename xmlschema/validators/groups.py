@@ -759,7 +759,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         if not isinstance(converter, XMLSchemaConverter):
             converter = self.schema.get_converter(converter, **kwargs)
 
-        model_errors = []
+        errors = []
         text = None
         children = []
         level = kwargs.get('level', 0)
@@ -791,7 +791,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                             break
                     else:
                         for validator, occurs, expected in model.advance():
-                            model_errors.append((validator, occurs, expected, position - cdata_index))
+                            errors.append((validator, occurs, expected, position - cdata_index))
                         continue
 
                 if isinstance(xsd_element, XsdAnyElement):
@@ -803,11 +803,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         children.append(result)
 
                 for validator, occurs, expected in model.advance(True):
-                    model_errors.append((validator, occurs, expected, position - cdata_index))
+                    errors.append((validator, occurs, expected, position - cdata_index))
                 break
             else:
                 if losslessly:
-                    model_errors.append((self, 0, [], position - cdata_index))
+                    errors.append((self, 0, [], position - cdata_index))
 
                 for xsd_element in self.iter_elements():
                     if xsd_element.match(name, default_namespace):
@@ -827,10 +827,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         if model.element is not None:
             index = len(element_data.content) - cdata_index
             for validator, occurs, expected in model.stop():
-                model_errors.append((validator, occurs, expected, index))
+                errors.append((validator, occurs, expected, index))
 
         # If the validation is not strict tries to solve model errors with a reorder of the children
-        if model_errors and validation != 'strict':
+        if errors and validation != 'strict':
             children = self.sort_children(children, default_namespace)
 
         if children:
@@ -839,7 +839,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             else:
                 children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
 
-        if validation != 'skip' and model_errors:
+        if validation != 'skip' and errors:
             attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
@@ -847,7 +847,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             else:
                 elem = converter.etree_element(element_data.tag, text, children, attrib)
 
-            for validator, occurs, expected, index in model_errors:
+            for validator, occurs, expected, index in errors:
                 yield self.children_validation_error(validation, elem, index, expected, **kwargs)
 
         yield text, children
