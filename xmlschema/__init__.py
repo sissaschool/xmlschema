@@ -16,18 +16,17 @@ from .resources import (
 )
 from .xpath import ElementPathMixin
 from .converters import (
-    XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
+    ElementData, XMLSchemaConverter, ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from .documents import validate, to_dict, to_json, from_json
 
-from .validators.exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
-    XMLSchemaEncodeError, XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from .validators import (
+    XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaValidationError,
+    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning,
+    XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 )
-from .validators import XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"

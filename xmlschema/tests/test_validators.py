@@ -426,6 +426,11 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     )
                 )
 
+            # Checks errors completeness
+            for e in self.errors:
+                self.assertTrue(e.path, "Missing path for: %s" % str(e))
+                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % str(e))
+
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
             elif len(self.chunks) > 1:
@@ -518,8 +523,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
         def check_validate_and_is_valid_api(self):
             if expected_errors:
                 self.assertFalse(self.schema.is_valid(xml_file), msg_template % "file with errors is valid")
-                self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file,
-                                  msg_template % "file with errors validated")
+                self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file)
             else:
                 self.assertTrue(self.schema.is_valid(xml_file), msg_template % "file without errors is not valid")
                 self.assertEqual(self.schema.validate(xml_file), None,
@@ -570,6 +574,21 @@ class TestValidation(XMLSchemaTestCase):
 
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
+
+    def test_document_validate_api(self):
+        self.assertIsNone(xmlschema.validate(self.vh_xml_file))
+        self.assertIsNone(xmlschema.validate(self.vh_xml_file, use_defaults=False))
+
+        vh_2_file = self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')
+        self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_file)
+
+        try:
+            xmlschema.validate(vh_2_file, namespaces={'vhx': "http://example.com/vehicles"})
+        except XMLSchemaValidationError as err:
+            path_line = str(err).splitlines()[-1]
+        else:
+            path_line = ''
+        self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
 
 
 class TestDecoding(XMLSchemaTestCase):
@@ -791,6 +810,27 @@ class TestDecoding(XMLSchemaTestCase):
         # Issue #66
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)
 
+    def test_issue_076_and_nillable(self):
+        xsd_string = """<?xml version="1.0" encoding="UTF-8"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+            <xs:element name="foo" type="Foo" />
+            <xs:complexType name="Foo">
+                <xs:sequence minOccurs="1" maxOccurs="1">
+                    <xs:element name="bar" type="xs:integer" nillable="true" />
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+        """
+        xsd_schema = xmlschema.XMLSchema(xsd_string)
+        xml_string_1 = "<foo><bar>0</bar></foo>"
+        xml_string_2 = """<?xml version="1.0" encoding="UTF-8"?>
+        <foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <bar xsi:nil="true"></bar>
+        </foo>
+        """
+        self.assertTrue(xsd_schema.is_valid(source=xml_string_1, use_defaults=False))
+        self.assertTrue(xsd_schema.is_valid(source=xml_string_2, use_defaults=False))
+
 
 class TestEncoding(XMLSchemaTestCase):
 
@@ -981,15 +1021,20 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('B3', False)]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n  </ns:A>',
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</ns:A>',
             indent=0,
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>hello\n  </ns:A>',
+            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
             indent=0, cdata_prefix='#'
+        )
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
 
 

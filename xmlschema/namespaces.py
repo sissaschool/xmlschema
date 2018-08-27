@@ -119,6 +119,10 @@ class NamespaceMapper(MutableMapping):
     def __len__(self):
         return len(self._namespaces)
 
+    @property
+    def default_namespace(self):
+        return self._namespaces.get('')
+
     def clear(self):
         self._namespaces.clear()
 

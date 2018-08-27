@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- A sample schema for testing model validation -->
+<!-- Illegal minOccurs and maxOccurs declarations -->
 <xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
     <xs:element name="data">
         <xs:complexType>

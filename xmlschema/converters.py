@@ -13,7 +13,7 @@ This module contains converter classes and definitions.
 from collections import namedtuple, OrderedDict
 import string
 
-from .compat import ordered_dict_class
+from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import NamespaceMapper, XSI_NAMESPACE

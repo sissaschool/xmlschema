@@ -21,13 +21,10 @@ from ..qnames import (
     XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
     XSD_ANY_TYPE
 )
-from .exceptions import XMLSchemaParseError, XMLSchemaNotBuiltError
+from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
+    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 from .parseutils import get_xsd_attribute
-from .xsdbase import XsdBaseComponent
-from . import (
-    XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType,
-    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
-)
+from .builtins import xsd_builtin_types_factory
 
 
 def camel_case_split(s):
@@ -78,13 +75,15 @@ def create_load_function(filter_function):
 
         for qname, obj in redefinitions:
             if qname not in xsd_globals:
-                raise XMLSchemaParseError("not a redefinition!", obj[0])
-            try:
-                xsd_globals[qname].append(obj)
-            except KeyError:
-                xsd_globals[qname] = obj
-            except AttributeError:
-                xsd_globals[qname] = [xsd_globals[qname], obj]
+                elem, schema = obj
+                schema.parse_error("not a redefinition!", elem)
+            else:
+                try:
+                    xsd_globals[qname].append(obj)
+                except KeyError:
+                    xsd_globals[qname] = obj
+                except AttributeError:
+                    xsd_globals[qname] = [xsd_globals[qname], obj]
 
     return load_xsd_globals
 
@@ -126,7 +125,7 @@ def create_lookup_function(xsd_classes):
                     raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
                 global_map[qname] = obj,  # Encapsulate into a single-item tuple to catch circular builds
-                global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                global_map[qname] = factory_or_class(elem, schema, parent=None)
                 return global_map[qname]
 
             elif isinstance(obj, list):
@@ -143,7 +142,7 @@ def create_lookup_function(xsd_classes):
                         raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
                     global_map[qname] = obj[0],  # To catch circular builds
-                    global_map[qname] = factory_or_class(elem, schema, is_global=True)
+                    global_map[qname] = factory_or_class(elem, schema, parent=None)
                 else:
                     # Built-in type
                     global_map[qname] = obj[0]
@@ -169,18 +168,18 @@ lookup_group = create_lookup_function(XsdGroup)
 lookup_element = create_lookup_function(XsdElement)
 
 
-class XsdGlobals(XsdBaseComponent):
+class XsdGlobals(XsdValidator):
     """
     Mediator class for related XML schema instances. It stores the global
     declarations defined in the registered schemas. Register a schema to
     add it's declarations to the global maps.
 
-    :param validator: the XMLSchema class that have to be used for initializing \
-    the object.
+    :param validator: the XMLSchema class to use for global maps.
+    :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
 
-    def __init__(self, validator):
-        super(XsdGlobals, self).__init__()
+    def __init__(self, validator, validation='strict'):
+        super(XsdGlobals, self).__init__(validation)
         self.validator = validator
 
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
@@ -197,9 +196,9 @@ class XsdGlobals(XsdBaseComponent):
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
 
-    def copy(self):
+    def copy(self, validation=None):
         """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator)
+        obj = XsdGlobals(self.validator, validation or self.validation)
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -270,18 +269,18 @@ class XsdGlobals(XsdBaseComponent):
     def resources(self):
         return [(schema.url, schema) for schemas in self.namespaces.values() for schema in schemas]
 
-    def iter_schemas(self):
-        """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
-
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals():
             for obj in xsd_global.iter_components(xsd_classes):
                 yield obj
+
+    def iter_schemas(self):
+        """Creates an iterator for the schemas registered in the instance."""
+        for ns_schemas in self.namespaces.values():
+            for schema in ns_schemas:
+                yield schema
 
     def iter_globals(self):
         """
@@ -367,7 +366,7 @@ class XsdGlobals(XsdBaseComponent):
         load_xsd_groups(self.groups, not_built_schemas)
 
         if not meta_schema.built:
-            meta_schema.BUILDERS.builtin_types_factory(meta_schema, self.types)
+            xsd_builtin_types_factory(meta_schema, self.types)
 
         for qname in self.notations:
             self.lookup_notation(qname)
@@ -389,7 +388,7 @@ class XsdGlobals(XsdBaseComponent):
                 for k in range(len(group)):
                     if isinstance(group[k], tuple):
                         elem, schema = group[k]
-                        group[k] = element_class(elem, schema)
+                        group[k] = element_class(elem, schema, group)
 
         for schema in not_built_schemas:
             # Build substitution groups from global element declarations
@@ -415,4 +414,4 @@ class XsdGlobals(XsdBaseComponent):
                 #         xsd_type.check_restriction()
 
         if self.validation == 'strict' and not self.built:
-            raise XMLSchemaNotBuiltError("Global map %r not built!" % self)
+            raise XMLSchemaNotBuiltError(self, "Global map %r not built!" % self)

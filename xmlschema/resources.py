@@ -17,9 +17,8 @@ from .compat import (
     pathname2url, URLError, uses_relative
 )
 from .etree import (
-    is_etree_element, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error,
-    safe_etree_parse, safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error,
-    etree_tostring, etree_register_namespace
+    is_etree_element, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error, safe_etree_parse,
+    safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error, etree_tostring
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
@@ -413,9 +412,7 @@ class XMLResource(object):
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
-        for prefix, uri in self.get_namespaces().items():
-            etree_register_namespace(prefix, uri)
-        return etree_tostring(self._root, indent, max_lines, spaces_for_tab, xml_declaration)
+        return etree_tostring(self._root, self.get_namespaces(), indent, max_lines, spaces_for_tab, xml_declaration)
 
     def copy(self, **kwargs):
         """Resource copy method. Change init parameters with keyword arguments."""

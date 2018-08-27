@@ -12,14 +12,15 @@
 This module contains classes for other XML Schema constraints.
 """
 from collections import Counter
-from elementpath import Selector, XPath1Parser
+from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
 from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
                       XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
 
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError
+from .parseutils import get_xpath_default_namespace
 from .xsdbase import XsdComponent
 
 XSD_CONSTRAINTS_XPATH_SYMBOLS = {
@@ -41,27 +42,34 @@ XsdConstraintXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
+    admitted_tags = {XSD_SELECTOR_TAG}
 
-    def __init__(self, elem, schema):
-        super(XsdSelector, self).__init__(elem, schema)
+    def __init__(self, elem, schema, parent):
+        super(XsdSelector, self).__init__(elem, schema, parent)
 
     def _parse(self):
         super(XsdSelector, self)._parse()
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
-            self._parse_error("'xpath' attribute required:", self.elem)
+            self.parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdConstraintXPathParser)
-        except XMLSchemaParseError as err:
-            self._parse_error("invalid XPath expression: %s" % str(err), self.elem)
+        except ElementPathSyntaxError as err:
+            self.parse_error(err)
             self.xpath_selector = Selector('*', self.namespaces, parser=XsdConstraintXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
-            self._parse_xpath_default_namespace(self.elem, self.namespaces, self.target_namespace)
+            try:
+                self._xpath_default_namespace = get_xpath_default_namespace(
+                    self.elem, self.namespaces[''], self.target_namespace
+                )
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error))
+                self._xpath_default_namespace = self.namespaces['']
 
     def __repr__(self):
         return u'%s(path=%r)' % (self.__class__.__name__, self.path)
@@ -70,22 +78,14 @@ class XsdSelector(XsdComponent):
     def built(self):
         return True
 
-    @property
-    def admitted_tags(self):
-        return {XSD_SELECTOR_TAG}
-
 
 class XsdFieldSelector(XsdSelector):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_FIELD_TAG}
+    admitted_tags = {XSD_FIELD_TAG}
 
 
 class XsdConstraint(XsdComponent):
     def __init__(self, elem, schema, parent):
-        super(XsdConstraint, self).__init__(elem, schema)
-        self.parent = parent
+        super(XsdConstraint, self).__init__(elem, schema, parent)
 
     def _parse(self):
         super(XsdConstraint, self)._parse()
@@ -93,22 +93,22 @@ class XsdConstraint(XsdComponent):
         try:
             self.name = get_qname(self.target_namespace, elem.attrib['name'])
         except KeyError:
-            self._parse_error("missing required attribute 'name'", elem)
+            self.parse_error("missing required attribute 'name'", elem)
             self.name = None
 
         child = self._parse_component(elem, required=False, strict=False)
         if child is None or child.tag != XSD_SELECTOR_TAG:
-            self._parse_error("missing 'selector' declaration.", elem)
+            self.parse_error("missing 'selector' declaration.", elem)
             self.selector = None
         else:
-            self.selector = XsdSelector(child, self.schema)
+            self.selector = XsdSelector(child, self.schema, self)
 
         self.fields = []
         for child in self._iterparse_components(elem, start=int(self.selector is not None)):
             if child.tag == XSD_FIELD_TAG:
-                self.fields.append(XsdFieldSelector(child, self.schema))
+                self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
-                self._parse_error("element %r not allowed here:" % child.tag, elem)
+                self.parse_error("element %r not allowed here:" % child.tag, elem)
 
     def get_fields(self, context, decoders=None):
         """
@@ -168,10 +168,6 @@ class XsdConstraint(XsdComponent):
         return self.selector.built and all([f.built for f in self.fields])
 
     @property
-    def admitted_tags(self):
-        raise NotImplementedError
-
-    @property
     def validation_attempted(self):
         if self.built:
             return 'full'
@@ -198,20 +194,15 @@ class XsdConstraint(XsdComponent):
 
 
 class XsdUnique(XsdConstraint):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_UNIQUE_TAG}
+    admitted_tags = {XSD_UNIQUE_TAG}
 
 
 class XsdKey(XsdConstraint):
-
-    @property
-    def admitted_tags(self):
-        return {XSD_KEY_TAG}
+    admitted_tags = {XSD_KEY_TAG}
 
 
 class XsdKeyref(XsdConstraint):
+    admitted_tags = {XSD_KEYREF_TAG}
 
     def __init__(self, elem, schema, parent):
         self.refer = None
@@ -223,16 +214,12 @@ class XsdKeyref(XsdConstraint):
             self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
         )
 
-    @property
-    def admitted_tags(self):
-        return {XSD_KEYREF_TAG}
-
     def _parse(self):
         super(XsdKeyref, self)._parse()
         try:
             self.refer = reference_to_qname(self.elem.attrib['refer'], self.namespaces)
         except KeyError:
-            self._parse_error("missing required attribute 'refer'", self.elem)
+            self.parse_error("missing required attribute 'refer'", self.elem)
 
     def parse_refer(self):
         if self.refer is None:
@@ -250,8 +237,9 @@ class XsdKeyref(XsdConstraint):
                 refer = None
             else:
                 self.refer_walk = []
-                parent_map = self.schema.parent_map
-                xsd_element = parent_map[refer.parent]
+                xsd_element = refer.parent.parent
+                if xsd_element is None:
+                    xsd_element = self.schema
                 while True:
                     if self.refer_walk.append(xsd_element):
                         if xsd_element is self.parent:
@@ -259,10 +247,10 @@ class XsdKeyref(XsdConstraint):
                             break
                         elif xsd_element is self.schema:
                             self.refer_walk = None
-                            self._parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
+                            self.parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
 
         if not isinstance(refer, (XsdKey, XsdUnique)):
-            self._parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
+            self.parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
             self.refer = None
         else:
             self.refer = refer

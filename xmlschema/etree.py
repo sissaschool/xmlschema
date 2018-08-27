@@ -12,6 +12,7 @@
 This module contains ElementTree setup and helpers for xmlschema package.
 """
 from xml.etree import ElementTree
+from collections import Counter
 import re
 
 try:
@@ -22,7 +23,7 @@ except ImportError:
 from .compat import PY3
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
-from .qnames import get_qname
+from .qnames import get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
 import defusedxml.ElementTree
@@ -65,79 +66,131 @@ else:
 
 def is_etree_element(elem):
     """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and not isinstance(elem, ElementPathMixin)
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
-def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
+def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
+    """
+    Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
+
+    :param elem: the Element instance.
+    :param namespaces: is an optional mapping from namespace prefix to URI. Provided namespaces are \
+    registered before serialization.
+    :param indent: the base line indentation.
+    :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
+    :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
+    :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+    :return: a Unicode string.
+    """
+    def reindent(line):
+        if not line:
+            return line
+        elif line.startswith(min_indent):
+            return line[start:] if start >= 0 else indent[start:] + line
+        else:
+            return indent + line
+
     if isinstance(elem, etree_element):
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
+
     elif lxml_etree is not None:
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                if prefix:
+                    lxml_etree_register_namespace(prefix, uri)
         tostring = lxml_etree.tostring
     else:
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
     if PY3:
-        lines = tostring(elem, encoding="unicode").splitlines()
+        xml_text = tostring(elem, encoding="unicode").replace(u'\t', u' ' * spaces_for_tab)
     else:
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        lines = unicode(tostring(elem)).splitlines()
+        xml_text = unicode(tostring(elem)).replace(u'\t', u' ' * spaces_for_tab)
+
+    lines = [u'<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
+    lines.extend(xml_text.splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
-    lines[-1] = u'  %s' % lines[-1].strip()
 
-    if max_lines is not None:
-        if indent:
-            xml_text = u'\n'.join([indent + line for line in lines[:max_lines]])
-        else:
-            xml_text = u'\n'.join(lines[:max_lines])
-        if len(lines) > max_lines + 2:
-            xml_text += u'\n%s    ...\n%s%s' % (indent, indent, lines[-1])
-        elif len(lines) > max_lines:
-            xml_text += u'\n%s%s\n%s%s' % (indent, lines[-2], indent, lines[-1])
-    elif indent:
-        xml_text = u'\n'.join([indent + line for line in lines])
+    last_indent = ' ' * min(k for k in range(len(lines[-1])) if lines[-1][k] != ' ')
+    if len(lines) > 2:
+        child_indent = ' ' * min(k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' ')
+        min_indent = min(child_indent, last_indent)
     else:
-        xml_text = u'\n'.join(lines)
+        min_indent = child_indent = last_indent
 
-    if spaces_for_tab:
-        xml_text = xml_text.replace(u'\t', u' ' * spaces_for_tab)
+    start = len(min_indent) - len(indent)
 
-    if xml_declaration:
-        xml_text = indent + u'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_text
+    if max_lines is not None and len(lines) > max_lines + 2:
+        lines = lines[:max_lines] + [child_indent + u'...'] * 2 + lines[-1:]
 
-    return xml_text
+    return u'\n'.join(reindent(line) for line in lines)
 
 
-def etree_iterpath(elem, tag=None, path='.'):
+def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):
     """
-    A version of ElementTree node's iter function that return a couple
-    with node and its relative path.
+    Creates an iterator for the element and its subelements that yield elements and paths.
+    If tag is not `None` or '*', only elements whose matches tag are returned from the iterator.
+
+    :param elem: the element to iterate.
+    :param tag: tag filtering.
+    :param path: the current path, '.' for default.
+    :param add_position: add context position to child elements that appear multiple times.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
     """
     if tag == "*":
         tag = None
     if tag is None or elem.tag == tag:
         yield elem, path
-    for child in elem:
-        if path == '/':
-            child_path = '/%s' % child.tag
-        elif path:
-            child_path = '/'.join((path, child.tag))
-        else:
-            child_path = child.tag
 
-        for _child, _child_path in etree_iterpath(child, tag, path=child_path):
+    if add_position:
+        children_tags = Counter([e.tag for e in elem])
+        positions = Counter([t for t in children_tags if children_tags[t] > 1])
+    else:
+        positions = ()
+
+    for child in elem:
+        if callable(child.tag):
+            continue  # Skip lxml comments
+
+        child_name = child.tag if namespaces is None else qname_to_prefixed(child.tag, namespaces)
+        if path == u'/':
+            child_path = u'/%s' % child_name
+        elif path:
+            child_path = u'/'.join((path, child_name))
+        else:
+            child_path = child_name
+
+        if child.tag in positions:
+            child_path += '[%d]' % positions[child.tag]
+            positions[child.tag] += 1
+
+        for _child, _child_path in etree_iterpath(child, tag, child_path, namespaces):
             yield _child, _child_path
 
 
-def etree_getpath(elem, root):
+def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False):
     """
-    Returns the relative XPath path from *root* to descendant *elem* element.
+    Returns the XPath path from *root* to descendant *elem* element.
 
-    :param elem: Descendant element.
-    :param root: Root element.
-    :return: A path string or `None` if *elem* is not a descendant of *root*.
+    :param elem: the descendant element.
+    :param root: the root element.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param relative: returns a relative path.
+    :param add_position: add context position to child elements that appear multiple times.
+    :return: An XPath expression or `None` if *elem* is not a descendant of *root*.
     """
-    for e, path in etree_iterpath(root, tag=elem.tag):
+    if relative:
+        path = '.'
+    elif namespaces:
+        path = u'/%s' % qname_to_prefixed(root.tag, namespaces)
+    else:
+        path = u'/%s' % root.tag
+
+    for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:
             return path
 

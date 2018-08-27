@@ -9,14 +9,18 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+Tests concerning packaging and installation environment.
+"""
 import unittest
 import glob
 import fileinput
 import os
 import re
+import xml.etree.ElementTree as ElementTree
 
 
-class TestPackage(unittest.TestCase):
+class TestPackaging(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -27,7 +31,7 @@ class TestPackage(unittest.TestCase):
             cls.package_dir = None
 
         cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
-        cls.get_version = re.compile(r"(?:\bversion|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
+        cls.get_version = re.compile(r"(?:\brelease|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
     def test_missing_debug_statements(self):
         # Exclude explicit debug statements written in the code
@@ -56,7 +60,7 @@ class TestPackage(unittest.TestCase):
             self.assertIsNone(match, message % (lineno, filename, match.group(0) if match else None))
 
     def test_version(self):
-        message = "\nFound a different version at line %d or file %r: %r (maybe %r)."
+        message = "\nFound a different version at line %d or file %r: %r (may be %r)."
 
         files = [os.path.join(self.source_dir, '__init__.py')]
         if self.package_dir is not None:
@@ -79,6 +83,12 @@ class TestPackage(unittest.TestCase):
                         version == match.group(1).strip('\'\"'),
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
+
+
+class TestEnvironment(unittest.TestCase):
+
+    def test_element_tree(self):
+        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
 
 
 if __name__ == '__main__':

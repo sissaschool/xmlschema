@@ -22,7 +22,7 @@ import logging
 
 from functools import wraps
 
-import xmlschema
+from xmlschema import XMLSchema, XMLSchema10
 import xmlschema.validators
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
@@ -94,10 +94,10 @@ class SchemaObserver(object):
         del cls.components[:]
 
 
-class ObservedXMLSchema10(xmlschema.XMLSchema10):
+class ObservedXMLSchema10(XMLSchema10):
     BUILDERS = {
-        k: SchemaObserver.observe_builder(v)
-        for k, v in xmlschema.validators.schema.DEFAULT_BUILDERS.items()
+        k: SchemaObserver.observe_builder(getattr(XMLSchema10.BUILDERS, k))
+        for k in getattr(XMLSchema10.BUILDERS, '_fields')
     }
 
 
@@ -251,28 +251,31 @@ class XMLSchemaTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.schema_class = xmlschema.XMLSchema
-        cls.xsd_types = xmlschema.XMLSchema.builtin_types()
+        cls.schema_class = XMLSchema
+        cls.xsd_types = XMLSchema.builtin_types()
         cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
         cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
 
         cls.vh_dir = cls.abspath('cases/examples/vehicles')
-        cls.vh_schema_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
+        cls.vh_xsd_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
         cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
-        cls.vh_schema = xmlschema.XMLSchema(cls.vh_schema_file)
+        cls.vh_schema = XMLSchema(cls.vh_xsd_file)
         cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
 
         cls.col_dir = cls.abspath('cases/examples/collection')
-        cls.col_schema_file = cls.abspath('cases/examples/collection/collection.xsd')
+        cls.col_xsd_file = cls.abspath('cases/examples/collection/collection.xsd')
         cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
         cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
-        cls.col_schema = xmlschema.XMLSchema(cls.col_schema_file)
+        cls.col_schema = XMLSchema(cls.col_xsd_file)
         cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
 
-        cls.st_schema_file = cls.abspath('cases/features/decoder/simple-types.xsd')
-        cls.st_schema = xmlschema.XMLSchema(cls.st_schema_file)
+        cls.st_xsd_file = cls.abspath('cases/features/decoder/simple-types.xsd')
+        cls.st_schema = xmlschema.XMLSchema(cls.st_xsd_file)
+
+        cls.models_xsd_file = cls.abspath('cases/features/models/models.xsd')
+        cls.models_schema = xmlschema.XMLSchema(cls.models_xsd_file)
 
     @classmethod
     def abspath(cls, path):

@@ -15,7 +15,7 @@ from .resources import fetch_schema_locations
 from .validators.schema import XMLSchema
 
 
-def validate(xml_document, schema=None, cls=None, use_defaults=True, locations=None, base_url=None):
+def validate(xml_document, schema=None, cls=None, use_defaults=True, namespaces=None, locations=None, base_url=None):
     """
     Validates an XML document against a schema instance. This function builds an
     :class:`XMLSchema` object for validating the XML document. Raises an
@@ -29,6 +29,7 @@ def validate(xml_document, schema=None, cls=None, use_defaults=True, locations=N
     :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
     :param use_defaults: defines when to use elements and attribute defaults for filling \
     missing required values.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
     :param locations: additional schema location hints, in case a schema instance has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
     default uses the directory where the XSD or alternatively the XML document is located.
@@ -39,7 +40,7 @@ def validate(xml_document, schema=None, cls=None, use_defaults=True, locations=N
         schema = cls(schema, validation='strict', locations=locations)
     elif not isinstance(schema, XMLSchema):
         schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
-    schema.validate(xml_document, use_defaults)
+    schema.validate(xml_document, use_defaults, namespaces)
 
 
 def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True,

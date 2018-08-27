@@ -2,6 +2,14 @@
 CHANGELOG
 *********
 
+v1.0.3 (2018-08-26)
+===================
+* Improved model validation for XSD groups encoding
+* Added parent reference to XSD components
+* Extended validator errors classes
+* Optimized error generation using helper methods
+* Improved particle parsing
+
 v1.0.2 (2018-07-26)
 ===================
 * Improved ElementTree and XPath API
