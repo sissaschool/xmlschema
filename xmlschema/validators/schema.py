@@ -346,12 +346,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         if self.source.text is None:
             if self.source.url is None:
-                return etree_tostring(self.source.root, xml_declaration=True)
+                return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
             else:
                 try:
                     self.source.load()
                 except XMLSchemaOSError:
-                    return etree_tostring(self.source.root, xml_declaration=True)
+                    return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
         return self.source.text
 
     @property
@@ -505,6 +505,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
             raise error
+
+    def build(self):
+        """Builds the schema XSD global maps."""
+        self.maps.build()
 
     @property
     def built(self):

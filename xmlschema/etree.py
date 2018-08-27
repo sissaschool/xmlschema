@@ -69,11 +69,13 @@ def is_etree_element(elem):
     return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
-def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
+def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
     """
     Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
 
     :param elem: the Element instance.
+    :param namespaces: is an optional mapping from namespace prefix to URI. Provided namespaces are \
+    registered before serialization.
     :param indent: the base line indentation.
     :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
     :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
@@ -89,8 +91,16 @@ def etree_tostring(elem, indent='', max_lines=None, spaces_for_tab=4, xml_declar
             return indent + line
 
     if isinstance(elem, etree_element):
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
+
     elif lxml_etree is not None:
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                if prefix:
+                    lxml_etree_register_namespace(prefix, uri)
         tostring = lxml_etree.tostring
     else:
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))

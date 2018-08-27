@@ -65,7 +65,14 @@ cannot knows anything about the schema's source location:
     Traceback (most recent call last):
     ...
     ...
-    XMLSchemaKeyError: "missing a XsdElement object for u'{http://example.com/vehicles}cars'!"
+    xmlschema.validators.exceptions.XMLSchemaParseError: unknown element '{http://example.com/vehicles}cars':
+
+    Schema:
+
+      <xs:element xmlns:xs="http://www.w3.org/2001/XMLSchema" ref="vh:cars" />
+
+    Path: /xs:schema/xs:element/xs:complexType/xs:sequence/xs:element
+
 
 XSD declarations
 ----------------
@@ -82,9 +89,9 @@ attributes of the schema instance:
     >>> schema.types
     NamespaceView({'vehicleType': XsdComplexType(name='vehicleType')})
     >>> pprint(dict(schema.elements))
-    {'bikes': XsdElement(name='vh:bikes'),
-     'cars': XsdElement(name='vh:cars'),
-     'vehicles': XsdElement(name='vh:vehicles')}
+    {'bikes': XsdElement(name='vh:bikes', occurs=[1, 1]),
+     'cars': XsdElement(name='vh:cars', occurs=[1, 1]),
+     'vehicles': XsdElement(name='vh:vehicles', occurs=[1, 1])}
     >>> schema.attributes
     NamespaceView({'step': XsdAttribute(name='vh:step')})
 
@@ -119,9 +126,10 @@ defining the search criteria:
 .. doctest::
 
     >>> schema.find('vh:vehicles/vh:bikes')
-    XsdElement(ref='vh:bikes')
+    XsdElement(ref='vh:bikes', occurs=[1, 1])
     >>> pprint(schema.findall('vh:vehicles/*'))
-    [XsdElement(ref='vh:cars'), XsdElement(ref='vh:bikes')]
+    [XsdElement(ref='vh:cars', occurs=[1, 1]),
+     XsdElement(ref='vh:bikes', occurs=[1, 1])]
 
 
 Validation
@@ -203,7 +211,7 @@ Each schema component includes methods for data conversion:
     >>> schema.types['vehicleType'].decode
     <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
     >>> schema.elements['cars'].encode
-    <bound method ValidatorMixin.encode of XsdElement(name='vh:cars')>
+    <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
 
 
 Those methods can be used to decode the correspondents parts of the XML document:

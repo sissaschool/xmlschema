@@ -11,7 +11,6 @@
 """
 This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
-from pprint import pformat
 from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element, etree_getpath
@@ -51,12 +50,14 @@ class XMLSchemaValidatorError(XMLSchemaException):
         if self.elem is None:
             return u'%s.' % self.message
         else:
-            elem, sourceline, path = etree_tostring(self.elem, u'  ', 20), self.sourceline, self.path
+            elem, path = self.elem, self.path
             msg = [u'%s:\n' % self.message]
-            if sourceline is None:
-                msg.append(u"Schema:\n\n%s\n" % elem)
-            else:
-                msg.append(u"Schema (line %r):\n\n%s\n" % (sourceline, elem))
+            if elem is not None:
+                s = etree_tostring(self.elem, self.namespaces, u'  ', 20)
+                if hasattr(elem, 'sourceline'):
+                    msg.append(u"Schema (line %r):\n\n%s\n" % (elem.sourceline, s))
+                else:
+                    msg.append(u"Schema:\n\n%s\n" % elem)
             if path is not None:
                 msg.append(u"Path: %s\n" % path)
             return u'\n'.join(msg)
@@ -160,25 +161,24 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         )
         self.obj = obj
         self.reason = reason
-        self.schema_elem = getattr(validator, 'schema_elem', None)
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        schema_elem, elem, sourceline, path = self.schema_elem, self.elem, self.sourceline, self.path
+        elem, path = self.elem, self.path
         msg = [u'%s:\n' % self.message]
         if self.reason is not None:
             msg.append(u'Reason: %s\n' % self.reason)
-        if schema_elem is not None:
-            msg.append(u"Schema:\n\n%s\n" % etree_tostring(schema_elem, u'  ', 20))
-        if sourceline is not None:
-            msg.append(u"Instance (line %r):\n\n%s\n" % (sourceline, etree_tostring(elem, u'  ', 20)))
-        elif elem is not None:
-            msg.append(u"Instance:\n\n%s\n" % etree_tostring(self.elem, u'  ', 20))
-        elif self.obj is not None:
-            msg.append(u"Instance:\n\n%s\n" % pformat(self.obj))
+        if hasattr(self.validator, 'tostring'):
+            msg.append(u"Schema:\n\n%s\n" % self.validator.tostring(u'  ', 20))
+        if elem is not None:
+            s = etree_tostring(elem, self.namespaces, u'  ', 20)
+            if hasattr(elem, 'sourceline'):
+                msg.append(u"Instance (line %r):\n\n%s\n" % (elem.sourceline, s))
+            else:
+                msg.append(u"Instance:\n\n%s\n" % s)
         if path is not None:
             msg.append(u"Path: %s\n" % path)
         return u'\n'.join(msg)

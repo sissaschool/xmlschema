@@ -575,6 +575,21 @@ class TestValidation(XMLSchemaTestCase):
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
+    def test_document_validate_api(self):
+        self.assertIsNone(xmlschema.validate(self.vh_xml_file))
+        self.assertIsNone(xmlschema.validate(self.vh_xml_file, use_defaults=False))
+
+        vh_2_file = self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')
+        self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_file)
+
+        try:
+            xmlschema.validate(vh_2_file, namespaces={'vhx': "http://example.com/vehicles"})
+        except XMLSchemaValidationError as err:
+            path_line = str(err).splitlines()[-1]
+        else:
+            path_line = ''
+        self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+
 
 class TestDecoding(XMLSchemaTestCase):
 
