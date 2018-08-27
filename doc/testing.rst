@@ -11,8 +11,11 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_meta.py**
     Tests for the XSD meta-schema and XSD builtins
 
-**test_xpath.py**
-    Tests for XPath parsing and selectors
+**test_models.py**
+    Tests concerning model groups validation.
+
+**test_package.py**
+    Tests regarding packaging and forgotten development code
 
 **test_resources.py**
     Tests about XML/XSD resources access
@@ -26,8 +29,8 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_validators.py**
     Tests regarding XML data validation/decoding/encoding
 
-**test_package.py**
-    Tests regarding packaging and forgotten development code
+**test_xpath.py**
+    Tests for XPath parsing and selectors
 
 You can run all tests with the script *test_all.py*. From the project source base, if you have
 the *tox automation tool* installed, you can run all tests with all supported Python's versions

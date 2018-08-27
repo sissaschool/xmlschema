@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the group models validation.
+This module runs tests concerning model groups validation.
 """
 import unittest
 import os

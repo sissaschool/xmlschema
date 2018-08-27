@@ -361,6 +361,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @property
     def base_url(self):
+        """The base URL of the source of the schema."""
         return self.source.base_url
 
     @property
@@ -427,10 +428,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @property
     def default_namespace(self):
+        """The namespace associated to the empty prefix ''."""
         return self.namespaces.get('')
 
     @property
     def target_prefix(self):
+        """The prefix associated to the *targetNamespace*."""
         for prefix, namespace in self.namespaces.items():
             if namespace == self.target_namespace:
                 return prefix
@@ -438,6 +441,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @property
     def parent_map(self):
+        warnings.warn(
+            "This property will be removed in future versions. "
+            "Use the 'parent' attribute of the element instead.",
+            DeprecationWarning, stacklevel=2
+        )
         if self._parent_map is None:
             self._parent_map = {e: p for p in self.iter() for e in p.iterchildren()}
         return self._parent_map

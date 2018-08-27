@@ -36,18 +36,22 @@ Schema level API
     .. autoattribute:: attribute_form_default
     .. autoattribute:: element_form_default
     .. autoattribute:: block_default
+    .. autoattribute:: final_default
+
     .. autoattribute:: schema_location
     .. autoattribute:: no_namespace_schema_location
     .. autoattribute:: target_prefix
+    .. autoattribute:: default_namespace
     .. autoattribute:: base_url
-    .. autoattribute:: parent_map
     .. autoattribute:: root_elements
+    .. autoattribute:: builtin_types
 
     .. automethod:: get_locations
     .. automethod:: include_schema
     .. automethod:: import_schema
     .. automethod:: create_schema
-    .. automethod:: get_converter
+    .. automethod:: create_any_content_group
+    .. automethod:: create_any_attribute_group
 
     .. automethod:: check_schema
     .. automethod:: build
@@ -58,6 +62,7 @@ Schema level API
     .. automethod:: iter_components
     .. automethod:: iter_globals
 
+    .. automethod:: get_converter
     .. automethod:: validate
     .. automethod:: is_valid
     .. automethod:: iter_errors
@@ -168,10 +173,15 @@ Errors and exceptions
 ---------------------
 
 .. autoexception:: xmlschema.XMLSchemaException
+.. autoexception:: xmlschema.XMLSchemaRegexError
+
+.. autoexception:: xmlschema.XMLSchemaValidatorError
 .. autoexception:: xmlschema.XMLSchemaNotBuiltError
 .. autoexception:: xmlschema.XMLSchemaParseError
-.. autoexception:: xmlschema.XMLSchemaRegexError
 .. autoexception:: xmlschema.XMLSchemaValidationError
 .. autoexception:: xmlschema.XMLSchemaDecodeError
 .. autoexception:: xmlschema.XMLSchemaEncodeError
 .. autoexception:: xmlschema.XMLSchemaChildrenValidationError
+
+.. autoexception:: xmlschema.XMLSchemaIncludeWarning
+.. autoexception:: xmlschema.XMLSchemaImportWarning

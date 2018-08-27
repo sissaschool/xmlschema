@@ -237,8 +237,9 @@ class XsdKeyref(XsdConstraint):
                 refer = None
             else:
                 self.refer_walk = []
-                parent_map = self.schema.parent_map
-                xsd_element = parent_map[refer.parent]
+                xsd_element = refer.parent.parent
+                if xsd_element is None:
+                    xsd_element = self.schema
                 while True:
                     if self.refer_walk.append(xsd_element):
                         if xsd_element is self.parent:
