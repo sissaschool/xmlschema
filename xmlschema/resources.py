@@ -518,7 +518,7 @@ class XMLResource(object):
         :return: A dictionary for mapping namespace prefixes to full URI.
         """
         def update_nsmap(prefix, uri):
-            if prefix not in nsmap:
+            if prefix not in nsmap and (prefix or not local_root):
                 nsmap[prefix] = uri
             elif not any(uri == ns for ns in nsmap.values()):
                 if not prefix:
@@ -536,7 +536,9 @@ class XMLResource(object):
                         prefix += '2'
                 nsmap[prefix] = uri
 
+        local_root = self.root.tag[0] != '{'
         nsmap = {}
+
         if self._url is not None:
             resource = self.open()
             try:

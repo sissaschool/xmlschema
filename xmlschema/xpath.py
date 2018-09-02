@@ -14,6 +14,7 @@ This module defines a mixin class for enabling XPath on schemas.
 from abc import abstractmethod
 from collections import Sequence
 from elementpath import XPath2Parser, XPathContext
+from .qnames import XSD_SCHEMA_TAG
 
 
 class ElementPathContext(XPathContext):
@@ -83,6 +84,8 @@ class ElementPathMixin(Sequence):
     _attrib = {}
     text = None
     tail = None
+    namespaces = {}
+    xpath_default_namespace = None
 
     @abstractmethod
     def __iter__(self):
@@ -114,22 +117,6 @@ class ElementPathMixin(Sequence):
         """Gets an Element attribute. For compatibility with the ElementTree API."""
         return self.attrib.get(key, default)
 
-    @property
-    def xpath_namespaces(self):
-        if hasattr(self, 'namespaces'):
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-            xpath_default_namespace = getattr(self, 'xpath_default_namespace', None)
-            if xpath_default_namespace is not None:
-                namespaces[''] = xpath_default_namespace
-            return namespaces
-
-    def match(self, tag, default_namespace=None):
-        """Matching method for element tag."""
-        if tag[0] == '{':
-            return self.tag == tag
-        elif default_namespace:
-            return self.tag in (tag, '{%s}%s' % (default_namespace, tag))
-
     def iterfind(self, path, namespaces=None):
         """
         Creates and iterator for all XSD subelements matching the path.
@@ -138,10 +125,13 @@ class ElementPathMixin(Sequence):
         :param namespaces: is an optional mapping from namespace prefix to full name.
         :return: an iterable yielding all matching XSD subelements in document order.
         """
-        if path.startswith('/'):
-            path = u'.%s' % path  # Avoid document root positioning
-        namespaces = self.xpath_namespaces if namespaces is None else namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        path = path.strip()
+        if path.startswith('/') and not path.startswith('//'):
+            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+        if namespaces is None:
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+
+        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
         context = ElementPathContext(self)
         return root_token.select(context)
@@ -154,10 +144,12 @@ class ElementPathMixin(Sequence):
         :param namespaces: an optional mapping from namespace prefix to full name.
         :return: The first matching XSD subelement or ``None`` if there is not match.
         """
-        if path.startswith('/'):
-            path = u'.%s' % path
-        namespaces = self.xpath_namespaces if namespaces is None else namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        path = path.strip()
+        if path.startswith('/') and not path.startswith('//'):
+            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+        if namespaces is None:
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
         context = ElementPathContext(self)
         return next(root_token.select(context), None)
@@ -171,10 +163,13 @@ class ElementPathMixin(Sequence):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
-        if path.startswith('/'):
-            path = u'.%s' % path
-        namespaces = self.xpath_namespaces if namespaces is None else namespaces
-        parser = XPath2Parser(namespaces, strict=False)
+        path = path.strip()
+        if path.startswith('/') and not path.startswith('//'):
+            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+        if namespaces is None:
+            namespaces = {k: v for k, v in self.namespaces.items() if k}
+
+        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
         context = ElementPathContext(self)
         return root_token.get_results(context)

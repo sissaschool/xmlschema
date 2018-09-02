@@ -169,6 +169,9 @@ class XsdComponent(XsdValidator):
         super(XsdComponent, self).__init__(schema.validation)
         if name == '':
             raise XMLSchemaValueError("'name' cannot be an empty string!")
+        assert name is None or name[0] == '{' or not schema.target_namespace, \
+            "name=%r argument: can be None or a qualified name of the target namespace." % name
+
         self.name = name
         self.parent = parent
         self.schema = schema
@@ -307,7 +310,7 @@ class XsdComponent(XsdValidator):
             return self.name == name
         elif default_namespace:
             qname = '{%s}%s' % (default_namespace, name)
-            return self.name == name or self.name == qname or not self.qualified and self.local_name == name
+            return self.name == qname or not self.qualified and self.local_name == name
         else:
             return self.name == name or not self.qualified and self.local_name == name
 

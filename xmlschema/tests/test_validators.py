@@ -305,7 +305,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
     rel_path = os.path.relpath(test_file)
     msg_template = "\n\n{}: %s.".format(rel_path)
 
-    class TestValidator(unittest.TestCase):
+    class TestValidator(XMLSchemaTestCase):
 
         @classmethod
         def setUpClass(cls):
@@ -320,12 +320,6 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True
-
-        def check_etree_elements(self, elem, other):
-            try:
-                self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
-            except AssertionError as err:
-                self.assertEqual(err, None)
 
         def check_etree_encode(self, root, converter=None, **kwargs):
             data1 = self.schema.decode(root, converter=converter, **kwargs)
@@ -421,8 +415,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             if len(self.errors) != expected_errors:
                 raise ValueError(
-                    "n.%d errors expected, found %d: %s" % (
-                        expected_errors, len(self.errors), '\n++++++\n'.join([str(e) for e in self.errors])
+                    "file %r: n.%d errors expected, found %d: %s" % (
+                        rel_path, expected_errors, len(self.errors), '\n++++++\n'.join([str(e) for e in self.errors])
                     )
                 )
 
@@ -810,7 +804,8 @@ class TestDecoding(XMLSchemaTestCase):
         # Issue #66
         self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)
 
-    def test_issue_076_and_nillable(self):
+    def test_nillable(self):
+        # Issue #76
         xsd_string = """<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
             <xs:element name="foo" type="Foo" />
@@ -830,6 +825,19 @@ class TestDecoding(XMLSchemaTestCase):
         """
         self.assertTrue(xsd_schema.is_valid(source=xml_string_1, use_defaults=False))
         self.assertTrue(xsd_schema.is_valid(source=xml_string_2, use_defaults=False))
+        obj = xsd_schema.decode(xml_string_2, use_defaults=False)
+        self.check_etree_elements(etree_fromstring(xml_string_2), xsd_schema.encode(obj))
+
+    def test_default_namespace(self):
+        # Issue #77
+        xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://example.com/foo">
+            <xs:element name="foo" type="xs:string" />
+        </xs:schema>""")
+        self.assertEqual(xs.to_dict("""<foo xmlns="http://example.com/foo">bar</foo>""",
+                                    path='/foo', namespaces={'': 'http://example.com/foo'}), 'bar')
+        self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
+                                    path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 
 
 class TestEncoding(XMLSchemaTestCase):
