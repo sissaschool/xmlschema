@@ -306,13 +306,15 @@ class XsdComponent(XsdValidator):
 
     def match(self, name, default_namespace=None):
         """Matching method for component name."""
-        if not name or name[0] == '{':
+        if not name:
             return self.name == name
-        elif default_namespace:
-            qname = '{%s}%s' % (default_namespace, name)
-            return self.name == qname or not self.qualified and self.local_name == name
-        else:
+        elif name[0] == '{':
+            return self.qualified_name == name
+        elif not default_namespace:
             return self.name == name or not self.qualified and self.local_name == name
+        else:
+            qname = '{%s}%s' % (default_namespace, name)
+            return self.qualified_name == qname or not self.qualified and self.local_name == name
 
     def iter_components(self, xsd_classes=None):
         """
@@ -748,7 +750,8 @@ class ParticleMixin(object):
     def is_over(self, occurs):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def children_validation_error(self, validation, elem, index, expected=None, source=None, namespaces=None, **kwargs):
+    def children_validation_error(self, validation, elem, index, occurs=0, expected=None,
+                                  source=None, namespaces=None, **kwargs):
         """
         Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raise the error.
@@ -756,6 +759,7 @@ class ParticleMixin(object):
         :param validation: the validation mode. Can be 'lax' or 'strict'.
         :param elem: the instance Element.
         :param index: the child index.
+        :param occurs: the child tag occurs.
         :param expected: the expected element tags/object names.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
@@ -763,7 +767,7 @@ class ParticleMixin(object):
         if validation == 'skip':
             raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
 
-        error = XMLSchemaChildrenValidationError(self, elem, index, expected, source, namespaces)
+        error = XMLSchemaChildrenValidationError(self, elem, index, occurs, expected, source, namespaces)
         if validation == 'strict':
             raise error
         else:

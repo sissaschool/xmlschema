@@ -101,9 +101,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
         model = XsdModelVisitor(group)
-        self.check_advance_false(
-            model, [(group[0], 0, [group[0]]), (group, 0, [group[0]])]
-        )  # <not-a-car>
+        self.check_advance_false(model, [(group[0], 0, [group[0]])])  # <not-a-car>
         self.assertIsNone(model.element)
 
     def test_person_type_model(self):
@@ -414,6 +412,28 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element.name, 'elem6')
         self.check_advance_true(model)                 # match choice with <elem6>
         self.check_stop(model)
+
+    def test_model_group6(self):
+        group = self.models_schema.groups['group6']
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_true(model)                 # match choice with <elem1>
+        self.check_advance_true(model)                 # match choice with <elem2>
+        self.assertIsNone(model.element)
+
+    #
+    # Tests on schemas
+    def test_schema_document_model(self):
+        group = self.schema_class.meta_schema.elements['schema'].type.content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        # import pdb
+        # pdb.set_trace()
+        self.check_advance_false(model)                 # eg. anyAttribute
+
+
 
 
 if __name__ == '__main__':

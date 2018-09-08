@@ -252,13 +252,16 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator, elem, index, expected=None, source=None, namespaces=None):
+    def __init__(self, validator, elem, index, occurs=0, expected=None, source=None, namespaces=None):
         self.index = index
         self.expected = expected
 
         tag = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
             reason = u"The content of element %r is not complete." % tag
+        elif occurs:
+            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
+            reason = u"Too many occurrences of tag %r for child n.%d of element %r." % (child_tag, index + 1, tag)
         else:
             child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
             reason = u"The child n.%d of element %r has a unexpected tag %r." % (index + 1, tag, child_tag)
@@ -268,7 +271,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         elif not isinstance(expected, (list, tuple)):
             reason += " Tag %r expected." % expected
         elif len(expected) > 1:
-            reason += " One of %r is expected." % [e.prefixed_name for e in expected]
+            reason += " Tags %r are expected." % [e.prefixed_name for e in expected]
         elif expected:
             reason += " Tag %r expected." % expected[0].prefixed_name
 

@@ -14,8 +14,8 @@ This module contains classes for XML Schema model groups.
 from collections import MutableSequence, Counter
 
 from ..compat import PY3, unicode_type
-from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..etree import etree_last_child, etree_child_index, etree_element
+from ..exceptions import XMLSchemaValueError
+from ..etree import etree_element
 from ..qnames import local_name
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
@@ -39,18 +39,7 @@ ANY_ELEMENT = etree_element(
     })
 
 
-def iter_elements(items):
-    for item in items:
-        if isinstance(item, XsdGroup):
-            for e in item.iter_elements():
-                yield e
-        else:
-            yield item
-            for e in item.schema.substitution_groups.get(item.name, ()):
-                yield e
-
-
-class XsdModelVisitor(object):
+class XsdModelVisitor(MutableSequence):
     """
     A visitor design pattern class that can be used for validating XML data related to an
     XSD model group. The visit of the model is done using an external match information,
@@ -60,19 +49,17 @@ class XsdModelVisitor(object):
     :param root: the root XsdGroup instance of the model.
     :ivar element: the current XSD element, initialized to the first element of the model.
     :ivar group: the current XSD group, initialized to *root* argument.
-    :ivar iterator: the current XSD group iterator.
     :ivar expected: the current XSD group expected items.
     :ivar match: if the XSD group has an effective item match.
     :ivar occurs: a Counter instance for occurrences of model elements and groups.
-    :ivar: ancestors: the stack of statuses of current group's ancestors.
     """
-    def __init__(self, root, start=True):
+    def __init__(self, root):
         self.root = root
-        self.group = self.iterator = self.expected = self.match = self.element = None
         self.occurs = Counter()
-        self.ancestors = []
-        if start:
-            self.start()
+        self._ancestors = []
+        self.element = None
+        self.group, self._items, self.expected, self.match = root, iter(root), root[:], False
+        self._start()
 
     def __str__(self):
         # noinspection PyCompatibility,PyUnresolvedReferences
@@ -87,22 +74,80 @@ class XsdModelVisitor(object):
     def __repr__(self):
         return u'%s(root=%r)' % (self.__class__.__name__, self.root)
 
-    def start(self):
-        self.group = self.root
-        self.iterator = iter(self.root)
-        self.expected = self.root[:]
-        self.match = False
-        self.occurs.clear()
-        del self.ancestors[:]
+    # Implements the abstract methods of MutableSequence
+    def __getitem__(self, i):
+        return self._ancestors[i]
 
+    def __setitem__(self, i, item):
+        self._ancestors[i] = item
+
+    def __delitem__(self, i):
+        del self._ancestors[i]
+
+    def __len__(self):
+        return len(self._ancestors)
+
+    def insert(self, i, item):
+        self._ancestors.insert(i, item)
+
+    def clear(self):
+        del self._ancestors[:]
+        self.occurs.clear()
+        self.element = None
+        self.group, self._items, self.expected, self.match = self.root, iter(self.root), self.root[:], False
+        self._start()
+
+    start = clear
+
+    def _start(self):
         while True:
-            item = next(self.iterator, None)
+            item = next(self._items, None)
             if item is None or not isinstance(item, XsdGroup):
                 self.element = item
                 break
             elif item:
-                self.ancestors.append((self.group, self.iterator, self.expected, False))
-                self.group, self.iterator, self.expected = item, iter(item), item[:]
+                self.append((self.group, self._items, self.expected, self.match))
+                self.group, self._items, self.expected, self.match = item, iter(item), item[:], False
+
+    def iter_expected(self):
+        """Iterates expected items, yielding elements."""
+        for item in self.expected:
+            if isinstance(item, XsdGroup):
+                for e in item.iter_elements():
+                    yield e
+            else:
+                yield item
+                for e in item.schema.substitution_groups.get(item.name, ()):
+                    yield e
+
+    def iter_ahead(self):
+        """Iterates next items, yielding elements and required information."""
+        def _iter_ahead(items):
+            for item in items:
+                if isinstance(item, XsdGroup):
+                    required = item.min_occurs > 0 and (len(item) == 1 or item.model != 'choice')
+                    for e, req in _iter_ahead(item):
+                        yield e, required and req
+                elif not self.occurs[item]:
+                    yield item, not item.is_emptiable()
+                    for e in item.schema.substitution_groups.get(item.name, ()):
+                        yield e, not e.is_emptiable()
+
+        match = self.match
+        expected = self.expected
+        if not expected:
+            return
+        elif self.occurs[expected[0]]:
+            for e, r in _iter_ahead(expected[1:]):
+                yield e, match and r
+        else:
+            for e, r in _iter_ahead(expected):
+                yield e, match and r
+
+        for item in reversed(self):
+            match = item[3]
+            for e, r in _iter_ahead(item[2]):
+                yield e, match and r
 
     def stop(self):
         while self.element is not None:
@@ -131,45 +176,37 @@ class XsdModelVisitor(object):
 
             while True:
                 while self.group.is_over(occurs[self.group]):
-                    group = self.group
-                    self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
-                    self.stop_item(group)
+                    self.stop_item(self.group)
 
-                item = next(self.iterator, None)
+                item = next(self._items, None)
                 if item is None:
-                    if self.match:
-                        if not self.expected:
-                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
-                            continue
-                        elif self.group.model == 'all':
-                            self.match = False
-                            self.iterator = iter(self.expected)
-                            continue
-                        elif all(e.min_occurs == 0 for e in self.expected):
-                            self.iterator, self.expected, self.match = iter(self.group), self.group[:], False
+                    if not self.match:
+                        if self.group.model == 'all' and all(e.min_occurs == 0 for e in self.expected):
                             occurs[self.group] += 1
-                            continue
-                    elif self.group.model == 'all' and all(e.min_occurs == 0 for e in self.expected):
+                        group, expected = self.group, self.expected
+                        if self.stop_item(group) and expected:
+                            yield group, occurs[group], list(self.iter_expected())
+                    elif not self.expected:
+                        self._items, self.expected, self.match = iter(self.group), self.group[:], False
+                    elif self.group.model == 'all':
+                        self._items, self.match = iter(self.expected), False
+                    elif all(e.min_occurs == 0 for e in self.expected):
+                        self._items, self.expected, self.match = iter(self.group), self.group[:], False
                         occurs[self.group] += 1
-
-                    group, expected = self.group, self.expected
-                    self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
-                    if self.stop_item(group):
-                        yield group, occurs[group], list(iter_elements(expected))
 
                 elif not isinstance(item, XsdGroup):  # XsdElement or XsdAnyElement
                     self.element, occurs[item] = item, 0
                     return
 
                 elif item:
-                    self.ancestors.append((self.group, self.iterator, self.expected, self.match))
-                    self.group, self.iterator, self.expected, self.match = item, iter(item), item[:], False
+                    self.append((self.group, self._items, self.expected, self.match))
+                    self.group, self._items, self.expected, self.match = item, iter(item), item[:], False
                     occurs[item] = 0
 
         except IndexError:
             self.element = None
-            if self.group.is_missing(occurs[self.group]):
-                yield self.group, occurs[self.group], list(iter_elements(self.expected))
+            if self.group.is_missing(occurs[self.group]) and self.expected:
+                yield self.group, occurs[self.group], list(self.iter_expected())
 
     def stop_item(self, item):
         """
@@ -179,31 +216,37 @@ class XsdModelVisitor(object):
         :param item: an XsdElement or an XsdAnyElement or an XsdGroup.
         :return: `True` if the item violates the minimum occurrences, `False` otherwise.
         """
-        occurs = self.occurs
-        if occurs[item]:
-            occurs_error = item.is_missing(occurs[item])
+        if isinstance(item, XsdGroup):
+            self.group, self._items, self.expected, self.match = self.pop()
+
+        occurs = self.occurs[item]
+        if occurs:
             self.match = True
             if self.group.model == 'choice':
-                occurs[item] = 0
-                occurs[self.group] += 1
-                self.iterator, self.match = iter(self.group), False
+                self.occurs[item] = 0
+                self.occurs[self.group] += 1
+                self._items, self.match = iter(self.group), False
             else:
                 self.expected.remove(item)
                 if not self.expected:
-                    occurs[self.group] += 1
-            return occurs_error
+                    self.occurs[self.group] += 1
+            return item.is_missing(occurs)
 
         elif self.group.model == 'sequence':
-            if self.match or item.is_emptiable():
+            if self.match:
                 self.expected.remove(item)
-                if self.match and not self.expected:
-                    occurs[self.group] += 1
+                if not self.expected:
+                    self.occurs[self.group] += 1
                 return not item.is_emptiable()
-            elif self.group.min_occurs <= occurs[self.group]:
-                self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
-            elif self.ancestors and self.ancestors[-1][0].model == 'choice':
-                self.group, self.iterator, self.expected, self.match = self.ancestors.pop()
+            elif item.is_emptiable():
+                self.expected.remove(item)
+                return False
+            elif self.group.min_occurs <= self.occurs[self.group]:
+                self.group, self._items, self.expected, self.match = self.pop()
+            elif self and self[-1][0].model == 'choice':
+                self.group, self._items, self.expected, self.match = self.pop()
             else:
+                self.expected.remove(item)
                 return True
 
         return False
@@ -589,66 +632,89 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        if len(elem):
-            child, obj = None, 0
-            for obj in self.iter_decode_children(elem, validation):
-                if isinstance(obj, tuple):
-                    xsd_element, child = obj
-                    if xsd_element is not None:
-                        for result in xsd_element.iter_decode(child, validation, converter, **kwargs):
-                            if isinstance(result, XMLSchemaValidationError):
-                                yield result
-                            else:
-                                result_list.append((child.tag, result, xsd_element))
-                        if cdata_index and child.tail is not None:
-                            tail = unicode_type(child.tail.strip())
-                            if tail:
-                                result_list.append((cdata_index, tail, None))
-                                cdata_index += 1
-                elif isinstance(obj, int):
-                    break
-                elif isinstance(obj, XMLSchemaChildrenValidationError):
-                    yield obj
-                    try:
-                        child = elem[obj.index]
-                    except IndexError:
-                        pass  # Missing child node at the end
+        model = XsdModelVisitor(self)
+
+        errors = []
+        elements = [e for e in self.iter_elements()]
+
+        if not isinstance(converter, XMLSchemaConverter):
+            converter = self.schema.get_converter(converter, **kwargs)
+        default_namespace = converter.get('')
+
+        for position, child in enumerate(elem):
+            if callable(child.tag):
+                continue  # child is a <class 'lxml.etree._Comment'>
+
+            while model.element is not None:
+                if model.element.match(child.tag, default_namespace):
+                    xsd_element = model.element
                 else:
-                    raise XMLSchemaTypeError("wrong type %r from children decoding: %r" % (type(obj), obj))
-            else:
-                assert isinstance(obj, int), "children decoding must ends with an index."
-
-            # Unvalidated residual content, lxml comments excluded: model broken, perform a raw decoding.
-            if child is not etree_last_child(elem):
-                index = 0 if child is None else etree_child_index(elem, child) + 1
-                if validation != 'skip' and self:
-                    yield self.children_validation_error(validation, elem, index, **kwargs)
-
-                # raw children decoding
-                for child_index, child in enumerate(elem[index:]):
-                    for xsd_element in self.iter_elements():
-                        if xsd_element.match(child.tag):
-                            for result in xsd_element.iter_decode(child, validation, converter, **kwargs):
-                                if isinstance(result, XMLSchemaValidationError):
-                                    yield result
-                                else:
-                                    result_list.append((child.tag, result, xsd_element))
-                            if cdata_index and child.tail is not None:
-                                tail = unicode_type(child.tail.strip())
-                                if tail:
-                                    result_list.append((cdata_index, tail, None))
-                                    cdata_index += 1
+                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                        if xsd_element.match(child.tag, default_namespace):
                             break
                     else:
-                        if validation == 'skip':
-                            pass  # TODO? try to use a "default decoder"?
-                        elif self and child_index > index:
-                            yield self.children_validation_error(validation, elem, index, **kwargs)
+                        if child.tag == 'somethingXXX':
+                            import pdb
+                            pdb.set_trace()
 
-        elif validation != 'skip' and not self.is_emptiable():
-            # no child elements: generate errors if the model is not emptiable
-            expected = [e for e in self.iter_elements() if e.min_occurs]
-            yield self.children_validation_error(validation, elem, 0, expected, **kwargs)
+                        for e, required in model.iter_ahead():
+                            if e.match(child.tag, default_namespace):
+                                for validator, occurs, expected in model.advance(False):
+                                    errors.append((validator, occurs, expected, position))
+                                break
+                            elif required:
+                                import pdb
+                                pdb.set_trace()
+                                errors.append((self, 0, [e], position))
+                                break
+                        else:
+                            import pdb
+                            pdb.set_trace()
+                            errors.append((self, 0, model.expected, position))
+                            xsd_element = None
+                            break
+                        continue
+
+                for validator, occurs, expected in model.advance(True):
+                    errors.append((validator, occurs, expected, position))
+                break
+            else:
+                for xsd_element in elements:
+                    if xsd_element.match(child.tag, default_namespace):
+                        errors.append((xsd_element, 1, [], position))
+                        break
+                else:
+                    errors.append((self, 0, [], position))
+                    continue
+
+            if xsd_element is None:
+                # TODO: use a default decoder str-->str??
+                continue
+
+            for result in xsd_element.iter_decode(child, validation, converter, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    result_list.append((child.tag, result, xsd_element))
+
+            if cdata_index and child.tail is not None:
+                tail = unicode_type(child.tail.strip())
+                if tail:
+                    if result_list and isinstance(result_list[-1][0], int):
+                        tail = result_list[-1][1] + ' ' + tail
+                        result_list[-1] = result_list[-1][0], tail, None
+                    else:
+                        result_list.append((cdata_index, tail, None))
+                        cdata_index += 1
+
+        if model.element is not None:
+            index = len(elem)
+            for validator, occurs, expected in model.stop():
+                errors.append((validator, occurs, expected, index))
+
+        if validation != 'skip' and errors:
+            for validator, occurs, expected, index in errors:
+                yield self.children_validation_error(validation, elem, index, occurs, expected, **kwargs)
 
         yield result_list
 
@@ -848,7 +914,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 elem = converter.etree_element(element_data.tag, text, children, attrib)
 
             for validator, occurs, expected, index in errors:
-                yield self.children_validation_error(validation, elem, index, expected, **kwargs)
+                yield self.children_validation_error(validation, elem, index, occurs, expected, **kwargs)
 
         yield text, children
 
