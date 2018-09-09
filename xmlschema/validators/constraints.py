@@ -259,7 +259,7 @@ class XsdKeyref(XsdConstraint):
         refer_elem = elem
         for xsd_element in self.refer_walk:
             for child in refer_elem:
-                if xsd_element.match(child.tag):
+                if xsd_element.is_matching(child.tag):
                     refer_elem = child
                     break
             else:

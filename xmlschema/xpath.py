@@ -182,14 +182,14 @@ class ElementPathMixin(Sequence):
         elements are not descendants of other elements.
         """
         def safe_iter(elem):
-            if tag is None or elem.match(tag):
+            if tag is None or elem.is_matching(tag):
                 yield elem
             for child in elem:
                 if child.is_global:
                     for e in safe_iter(child):
                         yield e
                 elif getattr(child, 'ref', None) is not None:
-                    if tag is None or elem.match(tag):
+                    if tag is None or elem.is_matching(tag):
                         yield child
                 elif child not in local_elements:
                     local_elements.append(child)
@@ -209,5 +209,5 @@ class ElementPathMixin(Sequence):
         if tag == '*':
             tag = None
         for child in self:
-            if tag is None or child.match(tag):
+            if tag is None or child.is_matching(tag):
                 yield child

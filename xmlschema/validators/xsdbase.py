@@ -304,8 +304,14 @@ class XsdComponent(XsdValidator):
     def built(self):
         raise NotImplementedError
 
-    def match(self, name, default_namespace=None):
-        """Matching method for component name."""
+    def is_matching(self, name, default_namespace=None):
+        """
+        Returns `True` if the component name is matching the name provided as argument, `False` otherwise.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used if it's not None and not empty for completing the name \
+        argument in case it's a local name.
+        """
         if not name:
             return self.name == name
         elif name[0] == '{':
@@ -315,6 +321,10 @@ class XsdComponent(XsdValidator):
         else:
             qname = '{%s}%s' % (default_namespace, name)
             return self.qualified_name == qname or not self.qualified and self.local_name == name
+
+    def match(self, name, default_namespace=None):
+        """Returns the component if its name is matching the name provided as argument, `None` otherwise."""
+        return self if self.is_matching(name, default_namespace) else None
 
     def iter_components(self, xsd_classes=None):
         """

@@ -73,7 +73,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
-    def match(self, name, default_namespace=None):
+    def is_matching(self, name, default_namespace=None):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -134,6 +134,16 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
+
+    def match(self, name, default_namespace=None):
+        if self.is_matching(name, default_namespace):
+            try:
+                if name[0] != '{' and default_namespace:
+                    return self.maps.lookup_element(u'{%s}%s' % (default_namespace, name))
+                else:
+                    return self.maps.lookup_element(name)
+            except LookupError:
+                pass
 
     def __iter__(self):
         return iter(())
@@ -260,6 +270,16 @@ class XsdAnyAttribute(XsdWildcard):
     </anyAttribute>
     """
     admitted_tags = {XSD_ANY_ATTRIBUTE_TAG}
+
+    def match(self, name, default_namespace=None):
+        if self.is_matching(name, default_namespace):
+            try:
+                if name[0] != '{' and default_namespace:
+                    return self.maps.lookup_attribute(u'{%s}%s' % (default_namespace, name))
+                else:
+                    return self.maps.lookup_attribute(name)
+            except LookupError:
+                pass
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':

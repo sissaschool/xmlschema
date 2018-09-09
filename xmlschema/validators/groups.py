@@ -120,34 +120,26 @@ class XsdModelVisitor(MutableSequence):
                 for e in item.schema.substitution_groups.get(item.name, ()):
                     yield e
 
-    def iter_ahead(self):
+    def iter_forward(self):
         """Iterates next items, yielding elements and required information."""
-        def _iter_ahead(items):
+        def iter_forward(items):
             for item in items:
                 if isinstance(item, XsdGroup):
-                    required = item.min_occurs > 0 and (len(item) == 1 or item.model != 'choice')
-                    for e, req in _iter_ahead(item):
-                        yield e, required and req
+                    for e in iter_forward(item):
+                        yield e
                 elif not self.occurs[item]:
-                    yield item, not item.is_emptiable()
+                    yield item
                     for e in item.schema.substitution_groups.get(item.name, ()):
-                        yield e, not e.is_emptiable()
+                        yield e
 
-        match = self.match
         expected = self.expected
-        if not expected:
-            return
-        elif self.occurs[expected[0]]:
-            for e, r in _iter_ahead(expected[1:]):
-                yield e, match and r
-        else:
-            for e, r in _iter_ahead(expected):
-                yield e, match and r
+        if expected:
+            for xsd_element in iter_forward(expected[1:] if self.occurs[expected[0]] else expected):
+                yield xsd_element
 
         for item in reversed(self):
-            match = item[3]
-            for e, r in _iter_ahead(item[2]):
-                yield e, match and r
+            for xsd_element in iter_forward(item[2]):
+                yield xsd_element
 
     def stop(self):
         while self.element is not None:
@@ -592,7 +584,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         """
         def sorter(elem):
             for e in elements_order:
-                if e.match(elem.tag, default_namespace):
+                if e.is_matching(elem.tag, default_namespace):
                     return elements_order[e]
             return len(elements_order)
 
@@ -646,30 +638,23 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
             while model.element is not None:
-                if model.element.match(child.tag, default_namespace):
+                if model.element.is_matching(child.tag, default_namespace):
                     xsd_element = model.element
                 else:
                     for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
-                        if xsd_element.match(child.tag, default_namespace):
+                        if xsd_element.is_matching(child.tag, default_namespace):
                             break
                     else:
                         if child.tag == 'somethingXXX':
                             import pdb
                             pdb.set_trace()
 
-                        for e, required in model.iter_ahead():
-                            if e.match(child.tag, default_namespace):
+                        for e in model.iter_forward():
+                            if e.is_matching(child.tag, default_namespace):
                                 for validator, occurs, expected in model.advance(False):
                                     errors.append((validator, occurs, expected, position))
                                 break
-                            elif required:
-                                import pdb
-                                pdb.set_trace()
-                                errors.append((self, 0, [e], position))
-                                break
                         else:
-                            import pdb
-                            pdb.set_trace()
                             errors.append((self, 0, model.expected, position))
                             xsd_element = None
                             break
@@ -680,7 +665,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 break
             else:
                 for xsd_element in elements:
-                    if xsd_element.match(child.tag, default_namespace):
+                    if xsd_element.is_matching(child.tag, default_namespace):
                         errors.append((xsd_element, 1, [], position))
                         break
                 else:
@@ -849,11 +834,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 continue
 
             while model.element is not None:
-                if model.element.match(name, default_namespace):
+                if model.element.is_matching(name, default_namespace):
                     xsd_element = model.element
                 else:
                     for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
-                        if xsd_element.match(name, default_namespace):
+                        if xsd_element.is_matching(name, default_namespace):
                             break
                     else:
                         for validator, occurs, expected in model.advance():
@@ -876,7 +861,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     errors.append((self, 0, [], position - cdata_index))
 
                 for xsd_element in self.iter_elements():
-                    if xsd_element.match(name, default_namespace):
+                    if xsd_element.is_matching(name, default_namespace):
                         if isinstance(xsd_element, XsdAnyElement):
                             value = get_qname(default_namespace, name), value
                         for result in xsd_element.iter_encode(value, validation, converter, **kwargs):

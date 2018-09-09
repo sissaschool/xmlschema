@@ -13,7 +13,7 @@ This module contains converter classes and definitions.
 from collections import namedtuple, OrderedDict
 import string
 
-from .compat import ordered_dict_class, unicode_type
+from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import NamespaceMapper, XSI_NAMESPACE
@@ -274,8 +274,9 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    if xsd_child.match(ns_name, self.get('')):
-                        if xsd_child.type.is_list():
+                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    if matched_element is not None:
+                        if matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
                             for item in value:
@@ -284,7 +285,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
                         for xsd_attribute in xsd_element.attributes.values():
-                            if xsd_attribute.match(ns_name):
+                            if xsd_attribute.is_matching(ns_name):
                                 attributes[ns_name] = value
                                 break
                         else:
@@ -404,8 +405,9 @@ class ParkerConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            if xsd_child.match(ns_name, self.get('')):
-                                if xsd_child.type.is_list():
+                            matched_element = xsd_child.match(ns_name, self.get(''))
+                            if matched_element is not None:
+                                if matched_element.type.is_list():
                                     content.append((ns_name, value))
                                 else:
                                     for item in value:
@@ -549,8 +551,9 @@ class BadgerFishConverter(XMLSchemaConverter):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    if xsd_child.match(ns_name, self.get('')):
-                        if xsd_child.type.is_list():
+                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    if matched_element is not None:
+                        if matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
                             for item in value:
@@ -559,7 +562,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
                         for xsd_attribute in xsd_element.attributes.values():
-                            if xsd_attribute.match(ns_name):
+                            if xsd_attribute.is_matching(ns_name):
                                 attributes[ns_name] = value
                                 break
                         else:
@@ -669,8 +672,9 @@ class AbderaConverter(XMLSchemaConverter):
                     else:
                         ns_name = unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            if xsd_child.match(ns_name, self.get('')):
-                                if xsd_child.type.is_list():
+                            matched_element = xsd_child.match(ns_name, self.get(''))
+                            if matched_element is not None:
+                                if matched_element.type.is_list():
                                     content.append((ns_name, value))
                                 else:
                                     for item in value:
@@ -740,7 +744,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         data_len = len(obj)
         if data_len == 1:
-            if not xsd_element.match(unmap_qname(obj[0]), self.get('')):
+            if not xsd_element.is_matching(unmap_qname(obj[0]), self.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
@@ -758,7 +762,7 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             content_index = 2
 
-        if not xsd_element.match(unmap_qname(obj[0]), self.get('')):
+        if not xsd_element.is_matching(unmap_qname(obj[0]), self.get('')):
             raise XMLSchemaValueError("Unmatched tag")
 
         if data_len <= content_index:
