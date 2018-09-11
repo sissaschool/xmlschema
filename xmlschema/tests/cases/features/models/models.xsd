@@ -104,4 +104,19 @@
         </xs:choice>
     </xs:group>
 
+    <xs:group name="group7">
+        <xs:sequence>
+            <xs:element name="elem1" type="xs:string"/>
+            <xs:element name="elem2" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:complexType name="complexType7">
+        <xs:group ref="group7" />
+    </xs:complexType>
+
+    <xs:complexType name="complexType7_emptiable">
+        <xs:group ref="group7" minOccurs="0"/>
+    </xs:complexType>
+
 </xs:schema>

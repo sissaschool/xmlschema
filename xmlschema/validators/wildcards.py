@@ -247,14 +247,15 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return False
         return True
 
-    def children_validation_error(self, validation, elem, index, expected=None, source=None, namespaces=None, **kwargs):
+    def children_validation_error(self, validation, elem, index, occurs=0, expected=None,
+                                  source=None, namespaces=None, **kwargs):
         if expected is None:
             namespace = get_namespace(elem.tag)
             if not self.is_namespace_allowed(namespace):
                 expected = elem.tag
             else:
                 expected = "from %r namespace" % self.namespace
-        return ParticleMixin.children_validation_error(validation, elem, index, expected, source, namespaces)
+        return ParticleMixin.children_validation_error(validation, elem, index, occurs, expected, source, namespaces)
 
 
 class XsdAnyAttribute(XsdWildcard):

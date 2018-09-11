@@ -109,8 +109,12 @@ class XsdModelVisitor(MutableSequence):
                 self.append((self.group, self._items, self.expected, self.match))
                 self.group, self._items, self.expected, self.match = item, iter(item), item[:], False
 
+    @property
+    def parent_group(self):
+        return self[-1][0] if self else None
+
     def iter_expected(self):
-        """Iterates expected items, yielding elements."""
+        """Iterates the expected elements of the current and descendant groups."""
         for item in self.expected:
             if isinstance(item, XsdGroup):
                 for e in item.iter_elements():
@@ -137,8 +141,8 @@ class XsdModelVisitor(MutableSequence):
             for xsd_element in iter_forward(expected[1:] if self.occurs[expected[0]] else expected):
                 yield xsd_element
 
-        for item in reversed(self):
-            for xsd_element in iter_forward(item[2]):
+        for k in range(-1, -len(self)-1, -1):
+            for xsd_element in iter_forward(self[k][2]):
                 yield xsd_element
 
     def stop(self):
@@ -153,6 +157,45 @@ class XsdModelVisitor(MutableSequence):
 
         :param match: provides current element match.
         """
+        def stop_item(item):
+            """
+            Stops element or group matching, incrementing current group counter.
+            Returns `True` if the item has violated the minimum occurrences.
+            """
+            if isinstance(item, XsdGroup):
+                self.group, self._items, self.expected, self.match = self.pop()
+
+            item_occurs = occurs[item]
+            if item_occurs:
+                self.match = True
+                if self.group.model == 'choice':
+                    occurs[item] = 0
+                    occurs[self.group] += 1
+                    self._items, self.match = iter(self.group), False
+                else:
+                    self.expected.remove(item)
+                    if not self.expected:
+                        self.occurs[self.group] += 1
+                return item.is_missing(item_occurs)
+
+            elif self.group.model == 'sequence':
+                if self.match:
+                    self.expected.remove(item)
+                    if not self.expected:
+                        occurs[self.group] += 1
+                    return not item.is_emptiable()
+                elif item.is_emptiable():
+                    self.expected.remove(item)
+                    return False
+                elif self.group.min_occurs <= occurs[self.group]:
+                    self.group, self._items, self.expected, self.match = self.pop()
+                    return False
+                elif self:
+                    return stop_item(self.group)
+                else:
+                    self.expected.remove(item)
+                    return True
+
         element, occurs = self.element, self.occurs
         if element is None:
             raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
@@ -163,20 +206,20 @@ class XsdModelVisitor(MutableSequence):
             if not element.is_over(occurs[element]):
                 return
         try:
-            if self.stop_item(element):
+            if stop_item(element):
                 yield element, occurs[element], [element]
 
             while True:
                 while self.group.is_over(occurs[self.group]):
-                    self.stop_item(self.group)
+                    stop_item(self.group)
 
-                item = next(self._items, None)
-                if item is None:
+                obj = next(self._items, None)
+                if obj is None:
                     if not self.match:
                         if self.group.model == 'all' and all(e.min_occurs == 0 for e in self.expected):
                             occurs[self.group] += 1
                         group, expected = self.group, self.expected
-                        if self.stop_item(group) and expected:
+                        if stop_item(group) and expected:
                             yield group, occurs[group], list(self.iter_expected())
                     elif not self.expected:
                         self._items, self.expected, self.match = iter(self.group), self.group[:], False
@@ -186,62 +229,19 @@ class XsdModelVisitor(MutableSequence):
                         self._items, self.expected, self.match = iter(self.group), self.group[:], False
                         occurs[self.group] += 1
 
-                elif not isinstance(item, XsdGroup):  # XsdElement or XsdAnyElement
-                    self.element, occurs[item] = item, 0
+                elif not isinstance(obj, XsdGroup):  # XsdElement or XsdAnyElement
+                    self.element, occurs[obj] = obj, 0
                     return
 
-                elif item:
+                elif obj:
                     self.append((self.group, self._items, self.expected, self.match))
-                    self.group, self._items, self.expected, self.match = item, iter(item), item[:], False
-                    occurs[item] = 0
+                    self.group, self._items, self.expected, self.match = obj, iter(obj), obj[:], False
+                    occurs[obj] = 0
 
         except IndexError:
             self.element = None
             if self.group.is_missing(occurs[self.group]) and self.expected:
                 yield self.group, occurs[self.group], list(self.iter_expected())
-
-    def stop_item(self, item):
-        """
-        Stops item match, incrementing current group counter and reporting if the item
-        has violated the minimum occurrences.
-
-        :param item: an XsdElement or an XsdAnyElement or an XsdGroup.
-        :return: `True` if the item violates the minimum occurrences, `False` otherwise.
-        """
-        if isinstance(item, XsdGroup):
-            self.group, self._items, self.expected, self.match = self.pop()
-
-        occurs = self.occurs[item]
-        if occurs:
-            self.match = True
-            if self.group.model == 'choice':
-                self.occurs[item] = 0
-                self.occurs[self.group] += 1
-                self._items, self.match = iter(self.group), False
-            else:
-                self.expected.remove(item)
-                if not self.expected:
-                    self.occurs[self.group] += 1
-            return item.is_missing(occurs)
-
-        elif self.group.model == 'sequence':
-            if self.match:
-                self.expected.remove(item)
-                if not self.expected:
-                    self.occurs[self.group] += 1
-                return not item.is_emptiable()
-            elif item.is_emptiable():
-                self.expected.remove(item)
-                return False
-            elif self.group.min_occurs <= self.occurs[self.group]:
-                self.group, self._items, self.expected, self.match = self.pop()
-            elif self and self[-1][0].model == 'choice':
-                self.group, self._items, self.expected, self.match = self.pop()
-            else:
-                self.expected.remove(item)
-                return True
-
-        return False
 
 
 class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
@@ -493,7 +493,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
-    def is_meaningless(self, parent_group):
+    def is_meaningless(self, parent_group=None):
         """
         A group that may be eliminated. A group is meaningless if one of those conditions is verified:
 
@@ -508,6 +508,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
+        elif parent_group is None:
+            return False
         elif self.model == 'sequence' and parent_group.model != 'sequence':
             return False
         elif self.model == 'choice' and parent_group.model != 'choice':
@@ -645,10 +647,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         if xsd_element.is_matching(child.tag, default_namespace):
                             break
                     else:
-                        if child.tag == 'somethingXXX':
-                            import pdb
-                            pdb.set_trace()
-
                         for e in model.iter_forward():
                             if e.is_matching(child.tag, default_namespace):
                                 for validator, occurs, expected in model.advance(False):

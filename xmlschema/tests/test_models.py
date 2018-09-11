@@ -422,6 +422,19 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)                 # match choice with <elem2>
         self.assertIsNone(model.element)
 
+    def test_model_group7(self):
+        group = self.models_schema.types['complexType7'].content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_stop(model, [(group[0][0], 0, [group[0][0]])])
+
+        group = self.models_schema.types['complexType7_emptiable'].content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_stop(model)
+
     #
     # Tests on schemas
     def test_schema_document_model(self):
@@ -429,11 +442,7 @@ class TestModelValidation(XMLSchemaTestCase):
 
         model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
-        # import pdb
-        # pdb.set_trace()
         self.check_advance_false(model)                 # eg. anyAttribute
-
-
 
 
 if __name__ == '__main__':
