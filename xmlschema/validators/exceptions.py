@@ -53,11 +53,11 @@ class XMLSchemaValidatorError(XMLSchemaException):
             elem, path = self.elem, self.path
             msg = [u'%s:\n' % self.message]
             if elem is not None:
-                s = etree_tostring(self.elem, self.namespaces, u'  ', 20)
+                elem_as_string = etree_tostring(self.elem, self.namespaces, u'  ', 20)
                 if hasattr(elem, 'sourceline'):
-                    msg.append(u"Schema (line %r):\n\n%s\n" % (elem.sourceline, s))
+                    msg.append(u"Schema (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
                 else:
-                    msg.append(u"Schema:\n\n%s\n" % elem)
+                    msg.append(u"Schema:\n\n%s\n" % elem_as_string)
             if path is not None:
                 msg.append(u"Path: %s\n" % path)
             return u'\n'.join(msg)
@@ -174,11 +174,11 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if hasattr(self.validator, 'tostring'):
             msg.append(u"Schema:\n\n%s\n" % self.validator.tostring(u'  ', 20))
         if elem is not None:
-            s = etree_tostring(elem, self.namespaces, u'  ', 20)
+            elem_as_string = etree_tostring(elem, self.namespaces, u'  ', 20)
             if hasattr(elem, 'sourceline'):
-                msg.append(u"Instance (line %r):\n\n%s\n" % (elem.sourceline, s))
+                msg.append(u"Instance (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
             else:
-                msg.append(u"Instance:\n\n%s\n" % s)
+                msg.append(u"Instance:\n\n%s\n" % elem_as_string)
         if path is not None:
             msg.append(u"Path: %s\n" % path)
         return u'\n'.join(msg)
@@ -245,6 +245,10 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :type elem: Element or ElementData
     :param index: the child index.
     :type index: int
+    :param particle: the validator particle that generated the error. Maybe the validator itself.
+    :type particle: ParticleMixin
+    :param occurs: the particle occurrences.
+    :type occurs: int
     :param expected: the expected element tags/object names.
     :type expected: str or list or tuple
     :param source: the XML resource that contains the error.
@@ -252,14 +256,16 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator, elem, index, occurs=0, expected=None, source=None, namespaces=None):
+    def __init__(self, validator, elem, index, particle, occurs=0, expected=None, source=None, namespaces=None):
         self.index = index
+        self.particle = particle
+        self.occurs = occurs
         self.expected = expected
 
         tag = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
             reason = u"The content of element %r is not complete." % tag
-        elif occurs:
+        elif occurs > particle.min_occurs:
             child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
             reason = u"Too many occurrences of tag %r for child n.%d of element %r." % (child_tag, index + 1, tag)
         else:

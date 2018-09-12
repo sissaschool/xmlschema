@@ -419,58 +419,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for error in constraint(elem):
                     yield self.validation_error(validation, error, elem, **kwargs)
 
-    def iter_decode_children(self, elem, validation='lax', index=0):
-        """
-        Creates an iterator for decoding the children of an element. Before ending the generator
-        yields the last index used by inner validators.
-
-        :param elem: The parent Element.
-        :param index: Start child index, 0 for default.
-        :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
-        :return: Yields a sequence of values that can be tuples and/or errors and an integer at the end.
-        """
-        model_occurs = 0
-        while True:
-            try:
-                child = elem[index]
-            except IndexError:
-                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    yield self.children_validation_error(validation, elem, index, expected=[self])
-                yield index
-                return
-            else:
-                tag = child.tag
-                if callable(tag):
-                    # When tag is a function the child is a <class 'lxml.etree._Comment'>
-                    index += 1
-                    continue
-                elif tag == self.name:
-                    yield self, child
-                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
-                    yield self, child
-                elif self.name in self.maps.substitution_groups:
-                    for e in self.schema.substitution_groups[self.name]:
-                        if tag == e.name:
-                            yield e, child
-                            break
-                    else:
-                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            yield self.children_validation_error(validation, elem, index, expected=[self])
-                        yield index
-                        return
-
-                else:
-                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                        yield self.children_validation_error(validation, elem, index, expected=[self])
-                    yield index
-                    return
-
-            index += 1
-            model_occurs += 1
-            if self.max_occurs is not None and model_occurs >= self.max_occurs:
-                yield index
-                return
-
     def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
         """
         Creates an iterator for encoding data to an Element.

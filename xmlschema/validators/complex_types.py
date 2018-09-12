@@ -259,7 +259,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         # complexContent extension: base type must be a complex type with complex content.
         # A dummy sequence group is added if the base type has not empty content model.
         if getattr(base_type.content_type, 'model', None) == 'all':
-            self.parse_error("XSD 1.0 do not allows 'ALL' group extensions", elem)
+            self.parse_error("XSD 1.0 does not allow extension of an 'ALL' model group.", elem)
 
         group_elem = self._parse_component(elem, required=False, strict=False)
         if base_type.is_empty():
