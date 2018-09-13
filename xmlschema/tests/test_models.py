@@ -235,7 +235,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)                  # <complexType> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0][0][0])
         self.check_advance_false(model)                 # <simpleType> don't match
         self.assertEqual(model.element, group[0][0][1])
@@ -251,7 +251,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[3])
         self.check_advance_false(model, [(group, 0, group[0][0][:]+group[1:])])  # <notation> don't match
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0][0][0])
         self.check_advance_false(model)                 # <simpleType> don't match
         self.assertEqual(model.element, group[0][0][1])
@@ -329,20 +329,20 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)                  # <simpleContent> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, True]:
             self.check_advance(model, match)            # <complexContent> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False, False, True]:
             self.check_advance(model, match)            # <all> match
         self.check_stop(model)
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False, False, True, False, True, False, False, False]:
             self.check_advance(model, match)            # <all> match, <attributeGroup> match
@@ -357,13 +357,13 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[0])
         self.check_stop(model)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False]:
             self.check_advance(model, match)
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         for match in [False, True, False]:
             self.check_advance(model, match)
         self.assertIsNone(model.element)
