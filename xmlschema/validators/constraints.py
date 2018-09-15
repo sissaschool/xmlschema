@@ -11,6 +11,7 @@
 """
 This module contains classes for other XML Schema constraints.
 """
+from __future__ import unicode_literals
 from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
@@ -74,7 +75,7 @@ class XsdSelector(XsdComponent):
                 self._xpath_default_namespace = self.namespaces['']
 
     def __repr__(self):
-        return u'%s(path=%r)' % (self.__class__.__name__, self.path)
+        return '%s(path=%r)' % (self.__class__.__name__, self.path)
 
     @property
     def built(self):
@@ -212,7 +213,7 @@ class XsdKeyref(XsdConstraint):
         super(XsdKeyref, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return u'%s(name=%r, refer=%r)' % (
+        return '%s(name=%r, refer=%r)' % (
             self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
         )
 

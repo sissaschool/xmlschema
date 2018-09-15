@@ -11,6 +11,7 @@
 """
 This module parse and translate XML regular expressions to Python regex syntax.
 """
+from __future__ import unicode_literals
 import re
 from collections import MutableSet
 from sys import maxunicode
@@ -31,13 +32,13 @@ def get_unicode_subset(key):
 
 
 I_SHORTCUT_REPLACE = (
-    u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+    "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
 C_SHORTCUT_REPLACE = (
-    u"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-    u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    "\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
+    "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
 S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
@@ -65,7 +66,7 @@ class XsdRegexCharGroup(MutableSet):
             self.add(char)
 
     def __repr__(self):
-        return u"<%s %s at %d>" % (self.__class__.__name__, self, id(self))
+        return '<%s %s at %d>' % (self.__class__.__name__, self, id(self))
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -73,11 +74,11 @@ class XsdRegexCharGroup(MutableSet):
 
     def __unicode__(self):
         if not self.negative:
-            return u'[%s]' % unicode_type(self.positive)
+            return '[%s]' % unicode_type(self.positive)
         elif not self.positive:
-            return u'[^%s]' % unicode_type(self.negative)
+            return '[^%s]' % unicode_type(self.negative)
         else:
-            return u'[%s%s]' % (
+            return '[%s%s]' % (
                 unicode_type(UnicodeSubset(self.negative.complement())), unicode_type(self.positive)
             )
 
@@ -248,15 +249,15 @@ def get_python_regex(xml_regex, debug=False):
         elif ch == '\\':
             pos += 1
             if pos >= len(xml_regex):
-                regex.append(u'\\')
+                regex.append('\\')
             elif xml_regex[pos] == 'i':
-                regex.append(u'[%s]' % I_SHORTCUT_REPLACE)
+                regex.append('[%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'I':
-                regex.append(u'[^%s]' % I_SHORTCUT_REPLACE)
+                regex.append('[^%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'c':
-                regex.append(u'[%s]' % C_SHORTCUT_REPLACE)
+                regex.append('[%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'C':
-                regex.append(u'[^%s]' % C_SHORTCUT_REPLACE)
+                regex.append('[^%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] in 'pP':
                 start_pos = pos - 1
                 try:
@@ -270,14 +271,14 @@ def get_python_regex(xml_regex, debug=False):
 
                 p_shortcut_set = get_unicode_subset(xml_regex[start_pos + 3:pos])
                 if xml_regex[start_pos + 1] == 'p':
-                    regex.append(u'[%s]' % p_shortcut_set)
+                    regex.append('[%s]' % p_shortcut_set)
                 else:
-                    regex.append(u'[^%s]' % p_shortcut_set)
+                    regex.append('[^%s]' % p_shortcut_set)
             else:
-                regex.append(u'\\%s' % xml_regex[pos])
+                regex.append('\\%s' % xml_regex[pos])
         else:
             regex.append(ch)
         pos += 1
 
     regex.append(r'$')
-    return u''.join(regex)
+    return ''.join(regex)

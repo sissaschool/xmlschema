@@ -12,6 +12,7 @@
 This module contains functions and classes for managing namespaces's  
 XSD declarations/definitions.
 """
+from __future__ import unicode_literals
 import re
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap

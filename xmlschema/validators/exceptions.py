@@ -11,6 +11,8 @@
 """
 This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
+from __future__ import unicode_literals
+
 from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element, etree_getpath
@@ -48,19 +50,19 @@ class XMLSchemaValidatorError(XMLSchemaException):
 
     def __unicode__(self):
         if self.elem is None:
-            return u'%s.' % self.message
+            return '%s.' % self.message
         else:
             elem, path = self.elem, self.path
-            msg = [u'%s:\n' % self.message]
+            msg = ['%s:\n' % self.message]
             if elem is not None:
-                elem_as_string = etree_tostring(self.elem, self.namespaces, u'  ', 20)
+                elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
                 if hasattr(elem, 'sourceline'):
-                    msg.append(u"Schema (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
+                    msg.append("Schema (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
                 else:
-                    msg.append(u"Schema:\n\n%s\n" % elem_as_string)
+                    msg.append("Schema:\n\n%s\n" % elem_as_string)
             if path is not None:
-                msg.append(u"Path: %s\n" % path)
-            return u'\n'.join(msg)
+                msg.append("Path: %s\n" % path)
+            return '\n'.join(msg)
 
     if PY3:
         __str__ = __unicode__
@@ -149,7 +151,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = u"failed validating {!r} with {!r}.\n"
+    _message = "failed validating {!r} with {!r}.\n"
 
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
         super(XMLSchemaValidationError, self).__init__(
@@ -168,20 +170,20 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
 
     def __unicode__(self):
         elem, path = self.elem, self.path
-        msg = [u'%s:\n' % self.message]
+        msg = ['%s:\n' % self.message]
         if self.reason is not None:
-            msg.append(u'Reason: %s\n' % self.reason)
+            msg.append('Reason: %s\n' % self.reason)
         if hasattr(self.validator, 'tostring'):
-            msg.append(u"Schema:\n\n%s\n" % self.validator.tostring(u'  ', 20))
+            msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
         if elem is not None:
-            elem_as_string = etree_tostring(elem, self.namespaces, u'  ', 20)
+            elem_as_string = etree_tostring(elem, self.namespaces, '  ', 20)
             if hasattr(elem, 'sourceline'):
-                msg.append(u"Instance (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
+                msg.append("Instance (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
             else:
-                msg.append(u"Instance:\n\n%s\n" % elem_as_string)
+                msg.append("Instance:\n\n%s\n" % elem_as_string)
         if path is not None:
-            msg.append(u"Path: %s\n" % path)
-        return u'\n'.join(msg)
+            msg.append("Path: %s\n" % path)
+        return '\n'.join(msg)
 
     if PY3:
         __str__ = __unicode__
@@ -204,7 +206,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = u"failed decoding {!r} with {!r}.\n"
+    _message = "failed decoding {!r} with {!r}.\n"
 
     def __init__(self, validator, obj, decoder, reason=None, source=None, namespaces=None):
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
@@ -228,7 +230,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = u"failed encoding {!r} with {!r}.\n"
+    _message = "failed encoding {!r} with {!r}.\n"
 
     def __init__(self, validator, obj, encoder, reason=None, source=None, namespaces=None):
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
@@ -264,17 +266,17 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
         tag = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
-            reason = u"The content of element %r is not complete." % tag
+            reason = "The content of element %r is not complete." % tag
         else:
             child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
-            reason = u"Unexpected child with tag %r at position %d." % (child_tag, index + 1)
+            reason = "Unexpected child with tag %r at position %d." % (child_tag, index + 1)
 
         if occurs and particle.is_missing(occurs):
-            reason += u" The particle %r occurs %d times but the minimum is %d." % (
+            reason += " The particle %r occurs %d times but the minimum is %d." % (
                 particle, occurs, particle.min_occurs
             )
         elif particle.is_over(occurs):
-            reason += u" The particle %r occurs %d times but the maximum is %d." % (
+            reason += " The particle %r occurs %d times but the maximum is %d." % (
                 particle, occurs, particle.max_occurs
             )
 

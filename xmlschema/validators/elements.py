@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
+from __future__ import unicode_literals
 from decimal import Decimal
 
 from ..exceptions import XMLSchemaAttributeError
@@ -61,6 +62,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
+        self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
@@ -68,9 +70,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __repr__(self):
         if self.ref is None:
-            return u'%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
         else:
-            return u'%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -186,7 +188,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             try:
                 if child != self.maps.constraints[constraint.name]:
-                    self.parse_error(u"duplicated identity constraint %r:" % constraint.name, child)
+                    self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
             except KeyError:
                 self.maps.constraints[constraint.name] = child
             finally:
@@ -198,7 +200,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         if not self.is_global:
-            self.parse_error(u"'substitutionGroup' attribute in a local element declaration")
+            self.parse_error("'substitutionGroup' attribute in a local element declaration")
 
         qname = prefixed_to_qname(substitution_group, self.namespaces)
         if qname[0] != '{':

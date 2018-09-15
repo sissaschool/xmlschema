@@ -10,6 +10,7 @@
 """
 This module contains converter classes and definitions.
 """
+from __future__ import unicode_literals
 from collections import namedtuple, OrderedDict
 import string
 
@@ -113,7 +114,7 @@ class XMLSchemaConverter(NamespaceMapper):
             return
         elif self.attr_prefix:
             for name, value in attributes:
-                yield u'%s%s' % (self.attr_prefix, self.map_qname(name)), value
+                yield '%s%s' % (self.attr_prefix, self.map_qname(name)), value
         else:
             for name, value in attributes:
                 yield self.map_qname(name), value
@@ -142,7 +143,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     yield name, value, xsd_child
             except TypeError:
                 if self.cdata_prefix is not None:
-                    yield u'%s%s' % (self.cdata_prefix, name), value, xsd_child
+                    yield '%s%s' % (self.cdata_prefix, name), value, xsd_child
 
     def etree_element(self, tag, text=None, children=None, attrib=None, level=0):
         """
@@ -167,11 +168,11 @@ class XMLSchemaConverter(NamespaceMapper):
 
         if children:
             elem.extend(children)
-            elem.text = text or u'\n' + u' ' * self.indent * (level + 1)
-            elem.tail = u'\n' + u' ' * self.indent * level
+            elem.text = text or '\n' + ' ' * self.indent * (level + 1)
+            elem.tail = '\n' + ' ' * self.indent * level
         else:
             elem.text = text
-            elem.tail = u'\n' + u' ' * self.indent * level
+            elem.tail = '\n' + ' ' * self.indent * level
 
         return elem
 
@@ -188,7 +189,7 @@ class XMLSchemaConverter(NamespaceMapper):
         if level == 0 and xsd_element.is_global and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
-                (u'%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
+                ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
@@ -458,7 +459,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         has_local_root = not len(self)
         result_dict = dict_class([t for t in self.map_attributes(data.attributes)])
         if has_local_root:
-            result_dict[u'@xmlns'] = dict_class()
+            result_dict['@xmlns'] = dict_class()
 
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if data.text is not None and data.text != '':
@@ -468,14 +469,14 @@ class BadgerFishConverter(XMLSchemaConverter):
             list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
-                    if u'@xmlns' in value:
-                        self.transfer(value[u'@xmlns'])
-                        if not value[u'@xmlns']:
-                            del value[u'@xmlns']
-                    elif u'@xmlns' in value[name]:
-                        self.transfer(value[name][u'@xmlns'])
-                        if not value[name][u'@xmlns']:
-                            del value[name][u'@xmlns']
+                    if '@xmlns' in value:
+                        self.transfer(value['@xmlns'])
+                        if not value['@xmlns']:
+                            del value['@xmlns']
+                    elif '@xmlns' in value[name]:
+                        self.transfer(value[name]['@xmlns'])
+                        if not value[name]['@xmlns']:
+                            del value[name]['@xmlns']
                     if len(value) == 1:
                         value = value[name]
                 except (TypeError, KeyError):
@@ -501,9 +502,9 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         if has_local_root:
             if self:
-                result_dict[u'@xmlns'].update(self)
+                result_dict['@xmlns'].update(self)
             else:
-                del result_dict[u'@xmlns']
+                del result_dict['@xmlns']
             return dict_class([(tag, result_dict)])
         else:
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
@@ -515,7 +516,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         try:
-            self.update(obj[u'@xmlns'])
+            self.update(obj['@xmlns'])
         except KeyError:
             pass
 
@@ -531,7 +532,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         content = []
         attributes = self.dict()
         for name, value in element_data.items():
-            if name == u'@xmlns':
+            if name == '@xmlns':
                 continue
             elif text_key and name == text_key:
                 text = element_data[text_key]

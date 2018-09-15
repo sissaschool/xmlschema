@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema wildcards.
 """
+from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
@@ -21,6 +22,7 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
 class XsdWildcard(XsdComponent, ValidationMixin):
+    names = ()
 
     def __init__(self, elem, schema, parent):
         if parent is None:
@@ -28,7 +30,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
+        return '%s(namespace=%r, process_contents=%r)' % (
             self.__class__.__name__, self.namespace, self.process_contents
         )
 
@@ -124,7 +126,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     admitted_tags = {XSD_ANY_TAG}
 
     def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r, occurs=%r)' % (
+        return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
             self.__class__.__name__, self.namespace, self.process_contents, self.occurs
         )
 
@@ -139,7 +141,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         if self.is_matching(name, default_namespace):
             try:
                 if name[0] != '{' and default_namespace:
-                    return self.maps.lookup_element(u'{%s}%s' % (default_namespace, name))
+                    return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
                 else:
                     return self.maps.lookup_element(name)
             except LookupError:
@@ -219,7 +221,7 @@ class XsdAnyAttribute(XsdWildcard):
         if self.is_matching(name, default_namespace):
             try:
                 if name[0] != '{' and default_namespace:
-                    return self.maps.lookup_attribute(u'{%s}%s' % (default_namespace, name))
+                    return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
                 else:
                     return self.maps.lookup_attribute(name)
             except LookupError:

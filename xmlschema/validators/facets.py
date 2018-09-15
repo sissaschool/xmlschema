@@ -11,6 +11,7 @@
 """
 This module contains declarations and classes for XML Schema constraint facets.
 """
+from __future__ import unicode_literals
 import re
 from collections import MutableSequence
 
@@ -186,14 +187,14 @@ class XsdSingleFacet(XsdFacet):
 
         elif elem.tag == XSD_FRACTION_DIGITS_TAG:
             if not base_type.is_subtype(XSD_DECIMAL_TYPE):
-                self.parse_error(u"fractionDigits facet can be applied only to types derived from xs:decimal")
+                self.parse_error("fractionDigits facet can be applied only to types derived from xs:decimal")
             self.value = get_xsd_int_attribute(elem, 'value', minimum=0)
             self.validator = self.fraction_digits_validator
             if self.value != 0 and base_type.is_subtype(XSD_INTEGER_TYPE):
-                self.parse_error(u"fractionDigits facet value has to be 0 for types derived from xs:integer.")
+                self.parse_error("fractionDigits facet value has to be 0 for types derived from xs:integer.")
 
     def __repr__(self):
-        return u'%s(%r, value=%r, fixed=%r)' % (
+        return '%s(%r, value=%r, fixed=%r)' % (
             self.__class__.__name__, local_name(self.elem.tag), self.value, self.fixed
         )
 
@@ -206,21 +207,21 @@ class XsdSingleFacet(XsdFacet):
             base_facet = self.get_base_facet(self.elem.tag)
             if base_facet is not None:
                 if base_facet.fixed and value != base_facet.value:
-                    self.parse_error(u"%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
+                    self.parse_error("%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
                 elif self.elem.tag == XSD_WHITE_SPACE_TAG:
                     if base_facet.value == 'collapse' and value in ('preserve', 'replace'):
-                        self.parse_error(u"facet value can be only 'collapse'")
+                        self.parse_error("facet value can be only 'collapse'")
                     elif base_facet.value == 'replace' and value == 'preserve':
-                        self.parse_error(u"facet value can be only 'replace' or 'collapse'")
+                        self.parse_error("facet value can be only 'replace' or 'collapse'")
                 elif self.elem.tag == XSD_LENGTH_TAG:
                     if base_facet is not None and value != base_facet.value:
-                        self.parse_error(u"base type has a different 'length': %r" % base_facet.value)
+                        self.parse_error("base type has a different 'length': %r" % base_facet.value)
                 elif self.elem.tag == XSD_MIN_LENGTH_TAG:
                     if value < base_facet.value:
-                        self.parse_error(u"base type has a greater 'minLength': %r" % base_facet.value)
+                        self.parse_error("base type has a greater 'minLength': %r" % base_facet.value)
                 elif self.elem.tag == XSD_MAX_LENGTH_TAG:
                     if value > base_facet.value:
-                        self.parse_error(u"base type has a lesser 'maxLength': %r" % base_facet.value)
+                        self.parse_error("base type has a lesser 'maxLength': %r" % base_facet.value)
         super(XsdSingleFacet, self).__setattr__(name, value)
 
     def get_base_facet(self, tag):
@@ -241,9 +242,9 @@ class XsdSingleFacet(XsdFacet):
 
     def white_space_validator(self, x):
         if self.value in ('collapse', 'replace'):
-            if u'\t' in x or u'\n' in x:
+            if '\t' in x or '\n' in x:
                 yield XMLSchemaValidationError(self, x)
-            if self.value == 'collapse' and u'  ' in x:
+            if self.value == 'collapse' and '  ' in x:
                 yield XMLSchemaValidationError(self, x)
 
     def length_validator(self, x):
@@ -327,7 +328,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
     def __setitem__(self, i, item):
         value = self.base_type.decode(get_xsd_attribute(item, 'value'))
         if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-            self.parse_error(u"value must match a notation global declaration", item)
+            self.parse_error("value must match a notation global declaration", item)
         self._elements[i] = item
         self.enumeration[i] = value
 
@@ -342,16 +343,16 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
         self._elements.insert(i, item)
         value = self.base_type.decode(get_xsd_attribute(item, 'value'))
         if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-            self.parse_error(u"value must match a notation global declaration", item)
+            self.parse_error("value must match a notation global declaration", item)
         self.enumeration.insert(i, value)
 
     def __repr__(self):
         if len(self.enumeration) > 5:
-            return u'%s(%r)' % (
+            return '%s(%r)' % (
                 self.__class__.__name__, '[%s, ...]' % ', '.join(map(repr, self.enumeration[:5]))
             )
         else:
-            return u'%s(%r)' % (self.__class__.__name__, self.enumeration)
+            return '%s(%r)' % (self.__class__.__name__, self.enumeration)
 
     def __call__(self, value):
         if value not in self.enumeration:
@@ -397,7 +398,7 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         self.regexps.insert(i, value)
 
     def __repr__(self):
-        return u'%s(%r)' % (self.__class__.__name__, self.regexps)
+        return '%s(%r)' % (self.__class__.__name__, self.regexps)
 
     def __call__(self, text):
         if all(pattern.search(text) is None for pattern in self.patterns):

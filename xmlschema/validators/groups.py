@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema model groups.
 """
+from __future__ import unicode_literals
 from collections import MutableSequence, Counter
 
 from ..compat import PY3, unicode_type
@@ -75,7 +76,7 @@ class XsdModelVisitor(MutableSequence):
         __str__ = __unicode__
 
     def __repr__(self):
-        return u'%s(root=%r)' % (self.__class__.__name__, self.root)
+        return '%s(root=%r)' % (self.__class__.__name__, self.root)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -289,13 +290,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
+            return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
         elif self.ref is None:
-            return u'%s(name=%r, model=%r, occurs=%r)' % (
+            return '%s(name=%r, model=%r, occurs=%r)' % (
                 self.__class__.__name__, self.prefixed_name, self.model, self.occurs
             )
         else:
-            return u'%s(ref=%r, model=%r, occurs=%r)' % (
+            return '%s(ref=%r, model=%r, occurs=%r)' % (
                 self.__class__.__name__, self.prefixed_name, self.model, self.occurs
             )
 
@@ -624,12 +625,18 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
+            if not default_namespace or child.tag[0] == '{':
+                tag = child.tag
+            else:
+                tag = '{%s}%s' % (default_namespace, child.tag)
+
             while model.element is not None:
-                if model.element.is_matching(child.tag, default_namespace):
+                if tag in model.element.names or model.element.name is None \
+                        and model.element.is_matching(child.tag, default_namespace):
                     xsd_element = model.element
                 else:
                     for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
-                        if xsd_element.is_matching(child.tag, default_namespace):
+                        if tag in xsd_element.names:
                             break
                     else:
                         for particle, occurs, expected in model.advance(False):
@@ -644,7 +651,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 break
             else:
                 for xsd_element in self.iter_elements():
-                    if xsd_element.is_matching(child.tag, default_namespace):
+                    if tag in xsd_element.names or xsd_element.name is None \
+                            and xsd_element.is_matching(child.tag, default_namespace):
                         if not model.broken:
                             model.broken = True
                             errors.append((index, xsd_element, 0, []))
@@ -710,7 +718,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         children = []
         level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
-        padding = u'\n' + u' ' * indent * level
+        padding = '\n' + ' ' * indent * level
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 

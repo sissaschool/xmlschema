@@ -11,6 +11,7 @@
 """
 This module defines a mixin class for enabling XPath on schemas.
 """
+from __future__ import unicode_literals
 from abc import abstractmethod
 from collections import Sequence
 from elementpath import XPath2Parser, XPathContext
@@ -127,7 +128,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA_TAG, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 
@@ -146,7 +147,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA_TAG, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
         parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
@@ -165,7 +166,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = u''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA_TAG, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 

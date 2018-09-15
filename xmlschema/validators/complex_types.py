@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import unicode_literals
 from ..etree import etree_element
 from ..qnames import (
     get_qname, prefixed_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
@@ -55,12 +56,12 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(content=%r, attributes=%r)' % (
+            return '%s(content=%r, attributes=%r)' % (
                 self.__class__.__name__, self.content_type_label,
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'content_type':

@@ -11,6 +11,7 @@
 """
 This module contains ElementTree setup and helpers for xmlschema package.
 """
+from __future__ import unicode_literals
 from xml.etree import ElementTree
 from collections import Counter
 import re
@@ -106,11 +107,11 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
     if PY3:
-        xml_text = tostring(elem, encoding="unicode").replace(u'\t', u' ' * spaces_for_tab)
+        xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
     else:
-        xml_text = unicode(tostring(elem)).replace(u'\t', u' ' * spaces_for_tab)
+        xml_text = unicode(tostring(elem)).replace('\t', ' ' * spaces_for_tab)
 
-    lines = [u'<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
@@ -125,9 +126,9 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     start = len(min_indent) - len(indent)
 
     if max_lines is not None and len(lines) > max_lines + 2:
-        lines = lines[:max_lines] + [child_indent + u'...'] * 2 + lines[-1:]
+        lines = lines[:max_lines] + [child_indent + '...'] * 2 + lines[-1:]
 
-    return u'\n'.join(reindent(line) for line in lines)
+    return '\n'.join(reindent(line) for line in lines)
 
 
 def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):
@@ -157,10 +158,10 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
             continue  # Skip lxml comments
 
         child_name = child.tag if namespaces is None else qname_to_prefixed(child.tag, namespaces)
-        if path == u'/':
-            child_path = u'/%s' % child_name
+        if path == '/':
+            child_path = '/%s' % child_name
         elif path:
-            child_path = u'/'.join((path, child_name))
+            child_path = '/'.join((path, child_name))
         else:
             child_path = child_name
 
@@ -186,9 +187,9 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     if relative:
         path = '.'
     elif namespaces:
-        path = u'/%s' % qname_to_prefixed(root.tag, namespaces)
+        path = '/%s' % qname_to_prefixed(root.tag, namespaces)
     else:
-        path = u'/%s' % root.tag
+        path = '/%s' % root.tag
 
     for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:

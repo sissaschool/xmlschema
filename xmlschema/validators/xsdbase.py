@@ -11,6 +11,7 @@
 """
 This module contains base functions and classes XML Schema components.
 """
+from __future__ import unicode_literals
 import re
 
 from ..compat import PY3, string_base_type
@@ -137,7 +138,7 @@ class XsdValidator(object):
         elif isinstance(error, string_base_type):
             error = XMLSchemaParseError(self, str(error), elem)
         else:
-            raise XMLSchemaValueError(u"'error' argument must be a parse error or a string, not %r." % error)
+            raise XMLSchemaValueError("'error' argument must be a parse error or a string, not %r." % error)
 
         if self.validation == 'lax':
             self.errors.append(error)
@@ -245,9 +246,9 @@ class XsdComponent(XsdValidator):
 
     def __repr__(self):
         if self.name is None:
-            return u"<%s at %#x>" % (self.__class__.__name__, id(self))
+            return '<%s at %#x>' % (self.__class__.__name__, id(self))
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def _parse(self):
         del self.errors[:]
