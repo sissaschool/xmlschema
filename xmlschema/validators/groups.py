@@ -49,6 +49,7 @@ class XsdModelVisitor(MutableSequence):
     :param root: the root XsdGroup instance of the model.
     :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
     :ivar element: the current XSD element, initialized to the first element of the model.
+    :ivar broken: a boolean value that records if the model is still usable.
     :ivar group: the current XSD group, initialized to *root* argument.
     :ivar iterator: the current XSD group iterator.
     :ivar items: the current XSD group unmatched items.
@@ -96,6 +97,7 @@ class XsdModelVisitor(MutableSequence):
         del self._subgroups[:]
         self.occurs.clear()
         self.element = None
+        self.broken = False
         self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
 
     def _start(self):
@@ -121,27 +123,6 @@ class XsdModelVisitor(MutableSequence):
                 expected.append(item)
                 expected.extend(item.schema.substitution_groups.get(item.name, ()))
         return expected
-
-    def iter_forward(self):
-        """Iterates next elements of the model."""
-        def iter_forward(items):
-            for item in items:
-                if isinstance(item, XsdGroup):
-                    for e in iter_forward(item):
-                        yield e
-                elif not self.occurs[item]:
-                    yield item
-                    for e in item.schema.substitution_groups.get(item.name, ()):
-                        yield e
-
-        expected = self.items
-        if self.items:
-            for xsd_element in iter_forward(expected[1:] if self.occurs[expected[0]] else expected):
-                yield xsd_element
-
-        for k in range(-1, -len(self)-1, -1):
-            for xsd_element in iter_forward(reversed(self[k][2])):
-                yield xsd_element
 
     def restart(self):
         self.clear()
@@ -653,8 +634,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     else:
                         for particle, occurs, expected in model.advance(False):
                             errors.append((index, particle, occurs, expected))
-                            model.clear()  # Broken model: continues with raw decoding.
-                            model.broken = True
+                            model.clear()
+                            model.broken = True  # the model is broken, continues with raw decoding.
                             break
                         continue
 
