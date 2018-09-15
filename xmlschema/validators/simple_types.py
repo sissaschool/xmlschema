@@ -16,7 +16,7 @@ from decimal import DecimalException
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
-    get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
+    get_qname, prefixed_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
     XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
@@ -569,7 +569,7 @@ class XsdList(XsdSimpleType):
                 self.parse_error("ambiguous list type declaration", self)
         elif 'itemType' in elem.attrib:
             # List tag with itemType attribute that refers to a global type
-            item_qname = reference_to_qname(elem.attrib['itemType'], self.namespaces)
+            item_qname = prefixed_to_qname(elem.attrib['itemType'], self.namespaces)
             base_type = self.maps.lookup_type(item_qname)
             if isinstance(base_type, XMLSchemaParseError):
                 self.parse_error(base_type, elem)
@@ -726,7 +726,7 @@ class XsdUnion(XsdSimpleType):
 
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
-                type_qname = reference_to_qname(name, self.namespaces)
+                type_qname = prefixed_to_qname(name, self.namespaces)
                 mt = self.maps.lookup_type(type_qname)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
@@ -925,7 +925,7 @@ class XsdAtomicRestriction(XsdAtomic):
         has_simple_type_child = False
 
         if 'base' in elem.attrib:
-            base_qname = reference_to_qname(elem.attrib['base'], self.namespaces)
+            base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
             base_type = self.maps.lookup_type(base_qname)
             if isinstance(base_type, XMLSchemaParseError):
                 self.parse_error(base_qname)

@@ -17,7 +17,7 @@ from decimal import Decimal
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import (
-    get_qname, local_name, reference_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
+    get_qname, local_name, prefixed_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
@@ -82,7 +82,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         except KeyError:
             # No 'name' attribute, must be a reference
             try:
-                attribute_name = reference_to_qname(elem.attrib['ref'], self.namespaces)
+                attribute_name = prefixed_to_qname(elem.attrib['ref'], self.namespaces)
             except KeyError:
                 # Missing also the 'ref' attribute
                 self.parse_error(u"missing both 'name' and 'ref' in attribute declaration")
@@ -100,7 +100,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         xsd_type = None
         xsd_declaration = self._parse_component(elem, required=False)
         try:
-            type_qname = reference_to_qname(elem.attrib['type'], self.namespaces)
+            type_qname = prefixed_to_qname(elem.attrib['type'], self.namespaces)
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
@@ -336,7 +336,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 attribute = XsdAttribute(child, self.schema, self)
                 self[attribute.name] = attribute
             elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
-                qname = reference_to_qname(get_xsd_attribute(child, 'ref'), self.namespaces)
+                qname = prefixed_to_qname(get_xsd_attribute(child, 'ref'), self.namespaces)
                 ref_attribute_group = self.maps.lookup_attribute_group(qname)
                 self.update(ref_attribute_group.items())
             elif self.name is not None:

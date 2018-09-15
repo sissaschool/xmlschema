@@ -18,7 +18,7 @@ from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import local_name
 from ..qnames import (
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, reference_to_qname, get_qname,
+    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, prefixed_to_qname, get_qname,
     XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
 )
 from ..converters import XMLSchemaConverter
@@ -47,18 +47,19 @@ class XsdModelVisitor(MutableSequence):
     Ends setting the current element to `None`.
 
     :param root: the root XsdGroup instance of the model.
+    :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
     :ivar element: the current XSD element, initialized to the first element of the model.
     :ivar group: the current XSD group, initialized to *root* argument.
     :ivar iterator: the current XSD group iterator.
     :ivar items: the current XSD group unmatched items.
     :ivar match: if the XSD group has an effective item match.
-    :ivar occurs: a Counter instance for occurrences of model elements and groups.
     """
     def __init__(self, root):
         self.root = root
         self.occurs = Counter()
-        self._ancestors = []
+        self._subgroups = []
         self.element = None
+        self.broken = False
         self.group, self.iterator, self.items, self.match = root, iter(root), root[::-1], False
         self._start()
 
@@ -77,22 +78,22 @@ class XsdModelVisitor(MutableSequence):
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
-        return self._ancestors[i]
+        return self._subgroups[i]
 
     def __setitem__(self, i, item):
-        self._ancestors[i] = item
+        self._subgroups[i] = item
 
     def __delitem__(self, i):
-        del self._ancestors[i]
+        del self._subgroups[i]
 
     def __len__(self):
-        return len(self._ancestors)
+        return len(self._subgroups)
 
     def insert(self, i, item):
-        self._ancestors.insert(i, item)
+        self._subgroups.insert(i, item)
 
     def clear(self):
-        del self._ancestors[:]
+        del self._subgroups[:]
         self.occurs.clear()
         self.element = None
         self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
@@ -364,7 +365,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     # Reference to a global group
                     if self.is_global:
                         self.parse_error("a group reference cannot be global", elem)
-                    self.name = reference_to_qname(ref, self.namespaces)
+                    self.name = prefixed_to_qname(ref, self.namespaces)
 
                     try:
                         xsd_group = self.schema.maps.lookup_group(self.name)
@@ -633,7 +634,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
         model = XsdModelVisitor(self)
         errors = []
-        elements = [e for e in self.iter_elements()]
 
         if not isinstance(converter, XMLSchemaConverter):
             converter = self.schema.get_converter(converter, **kwargs)
@@ -651,19 +651,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         if xsd_element.is_matching(child.tag, default_namespace):
                             break
                     else:
-                        if validation != 'lax':
-                            for particle, occurs, expected in model.advance(False):
-                                errors.append((index, particle, occurs, expected))
-                            continue
-
-                        for e in model.iter_forward():
-                            if e.is_matching(child.tag, default_namespace):
-                                for particle, occurs, expected in model.advance(False):
-                                    errors.append((index, particle, occurs, expected))
-                                break
-                        else:
-                            errors.append((index, self, 0, model.items))
-                            xsd_element = None
+                        for particle, occurs, expected in model.advance(False):
+                            errors.append((index, particle, occurs, expected))
+                            model.clear()  # Broken model: continues with raw decoding.
+                            model.broken = True
                             break
                         continue
 
@@ -671,13 +662,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     errors.append((index, particle, occurs, expected))
                 break
             else:
-                for xsd_element in elements:
+                for xsd_element in self.iter_elements():
                     if xsd_element.is_matching(child.tag, default_namespace):
-                        errors.append((index, xsd_element, 1, []))
+                        if not model.broken:
+                            model.broken = True
+                            errors.append((index, xsd_element, 0, []))
                         break
                 else:
-                    errors.append((index, self, 0, []))
-                    continue
+                    errors.append((index, self, 0, None))
+                    xsd_element = None
+                    if not model.broken:
+                        model.broken = True
 
             if xsd_element is None:
                 # TODO: use a default decoder str-->str??
@@ -705,8 +700,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 errors.append((index, particle, occurs, expected))
 
         if validation != 'skip' and errors:
-            for index, particle, occurs, expected in errors:
-                yield self.children_validation_error(validation, elem, index, particle, occurs, expected, **kwargs)
+            for model_error in errors:
+                yield self.children_validation_error(validation, elem, *model_error, **kwargs)
 
         yield result_list
 

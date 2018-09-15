@@ -11,37 +11,46 @@
 """
 This module contains functions for manipulating fully qualified names and XML Schema tags.
 """
+from __future__ import unicode_literals
 from .namespaces import get_namespace, XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
 
 #
 # Functions for handling fully qualified names
+def xsd_qname(name):
+    """Builds the XSD namespace's QName from a local name."""
+    return '{%s}%s' % (XSD_NAMESPACE, name)
+
+
 def get_qname(uri, name):
     """
-    Returns a fully qualified Name from URI and local part. If the URI is empty
-    or None, or if the name is already in QName format, returns the 'name' argument.
+    Returns a fully qualified name from URI and local part. If any argument has boolean value
+    `False` or if the name is already a fully qualified name, returns the *name* argument.
 
     :param uri: namespace URI
-    :param name: local name/tag
-    :return: string
+    :param name: local or qualified name
+    :return: string or the name argument
     """
-    if uri and name[0] not in ('{', '.', '/', '['):
-        return u"{%s}%s" % (uri, name)
-    else:
+    if not uri or not name or name[0] in ('{', '.', '/', '['):
         return name
+    else:
+        return '{%s}%s' % (uri, name)
 
 
 def local_name(qname):
     """
-    Return the local part of a QName.
+    Return the local part of a qualified name. If the name is `None` or empty
+    returns the *name* argument.
 
-    :param qname: QName or universal name formatted string.
+    :param qname: QName or universal name formatted string, or `None`.
     """
     try:
         if qname[0] != '{':
             return qname
         return qname[qname.rindex('}') + 1:]
+    except IndexError:
+        return ''
     except ValueError:
         raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
     except TypeError:
@@ -50,141 +59,62 @@ def local_name(qname):
         raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
 
 
-def xsd_qname(name):
+def prefixed_to_qname(name, namespaces):
     """
-    Builds a QName for XSD namespace from a local name.
-
-    :param name: local name/tag
-    :return: fully qualified name for XSD namespace
+    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
+    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
+    
+    :param name: a local name or a prefixed name or a fully qualified name or `None`.
+    :param namespaces: a map from prefixes to namespace URIs.
+    :return: string with a FQN or a local name or the name argument.
     """
-    if name[0] != '{':
-        return u"{%s}%s" % (XSD_NAMESPACE, name)
-    elif not name.startswith('{%s}' % XSD_NAMESPACE):
-        raise XMLSchemaValueError("%r is not a name of the XSD namespace" % name)
-    else:
+    if not name or name[0] == '{':
         return name
 
-
-def reference_to_qname(ref, namespaces):
-    """
-    Transforms a reference into a fully qualified name using a namespace map.
-    
-    :param ref: a local name, a prefixed name or a fully qualified name.
-    :param namespaces: Dictionary with the map from prefixes to namespace URIs.
-    :return: String with a FQN or a local name.
-    """
-    if ref and ref[0] == '{':
-        return ref
-
     try:
-        prefix, name = ref.split(':')
+        prefix, name = name.split(':')
     except ValueError:
-        if ':' in ref:
-            raise XMLSchemaValueError("wrong format for reference name %r" % ref)
+        if ':' in name:
+            raise XMLSchemaValueError("wrong format for reference name %r" % name)
         try:
             uri = namespaces['']
         except KeyError:
-            return ref
+            return name
         else:
-            return u'{%s}%s' % (uri, ref) if uri else ref
+            return '{%s}%s' % (uri, name) if uri else name
     else:
         if not prefix or not name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % ref)
+            raise XMLSchemaValueError("wrong format for reference name %r" % name)
         try:
             uri = namespaces[prefix]
         except KeyError:
             raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
         else:
-            return u'{%s}%s' % (uri, name) if uri else name
+            return '{%s}%s' % (uri, name) if uri else name
 
 
 def qname_to_prefixed(qname, namespaces):
     """
-    Transforms a fully qualified name into a prefixed reference using a namespace map.
-    
-    :param qname: a fully qualified name or a local name.
-    :param namespaces: Dictionary with the map from prefixes to namespace URIs.
-    :return: String with a prefixed or local reference.
-    """
-    qname_uri = get_namespace(qname)
-    for prefix, uri in sorted(namespaces.items(), reverse=True):
-        if uri != qname_uri:
-            continue
-        if prefix:
-            return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
-        else:
-            return qname.replace(u'{%s}' % uri, '')
-    return qname
-
-
-def split_to_prefixed(qname, namespaces):
-    """
-    Transforms a fully qualified name into a prefixed reference using
-    a namespace map. Returns also the qname's URI and matched prefix.
+    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
+    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
 
     :param qname: a fully qualified name or a local name.
-    :param namespaces: Dictionary with the map from prefixes to namespace URIs.
-    :return: A prefixed FQN or local reference, a prefix and an URI. Prefix and URI
-    are None if the namespace isn't in the `namespaces` map.
+    :param namespaces: a map from prefixes to namespace URIs.
+    :return: string with a prefixed or local reference.
     """
-    qname_uri = get_namespace(qname)
-    for prefix, uri in namespaces.items():
-        if uri != qname_uri:
-            continue
-        if prefix:
-            return qname.replace(u'{%s}' % uri, u'%s:' % prefix), prefix, uri
+    if not qname:
+        return qname
+
+    namespace = get_namespace(qname)
+    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
+        if not uri:
+            return '%s:%s' % (prefix, qname) if prefix else qname
+        elif prefix:
+            return qname.replace('{%s}' % uri, '%s:' % prefix)
         else:
-            return qname.replace(u'{%s}' % uri, ''), prefix, uri
-    return qname, None, None
-
-
-def split_qname(qname):
-    """
-    Splits a universal name format (QName) into namespace URI and local part.
-
-    :param qname: QName or universal name formatted string.
-    :return: A couple with namespace URI and the local part. Namespace URI is None \
-    if there is only the local part.
-    """
-    if qname[0] == '{':
-        try:
-            return qname[1:].split('}')
-        except ValueError:
-            raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
-    return None, qname
-
-
-def split_reference(ref, namespaces):
-    """
-    Processes a reference name using namespaces information. A reference
-    is a local name or a name with a namespace prefix (e.g. "xs:string").
-    A couple with fully qualified name and namespace is returned.
-    If no namespace association is possible returns a local name and None
-    when the reference is only a local name or raise a ValueError otherwise.
-
-    :param ref: Reference or fully qualified name (QName).
-    :param namespaces: Dictionary that maps the namespace prefix into URI.
-    :return: A couple with qname and namespace.
-    """
-    if ref and ref[0] == '{':
-        return ref, ref[1:].split('}')[0] if ref[0] == '{' else ''
-
-    try:
-        prefix, name = ref.split(":")
-    except ValueError:
-        try:
-            uri = namespaces['']
-        except KeyError:
-            return ref, ''
-        else:
-            return u"{%s}%s" % (uri, ref) if uri else ref, uri
+            return qname.replace('{%s}' % uri, '')
     else:
-        try:
-            uri = namespaces[prefix]
-        except KeyError as err:
-            raise XMLSchemaValueError("unknown namespace prefix %s for reference %r" % (err, ref))
-        else:
-            return u"{%s}%s" % (uri, name) if uri else name, uri
+        return qname
 
 
 #

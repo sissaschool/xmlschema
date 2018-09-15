@@ -16,7 +16,7 @@ import re
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
 from ..qnames import (
-    get_qname, local_name, reference_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
+    get_qname, local_name, prefixed_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
     XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
     XSD_ANY_TYPE
@@ -394,7 +394,7 @@ class XsdGlobals(XsdValidator):
             # Build substitution groups from global element declarations
             for xsd_element in schema.elements.values():
                 if xsd_element.substitution_group:
-                    qname = reference_to_qname(xsd_element.substitution_group, xsd_element.schema.namespaces)
+                    qname = prefixed_to_qname(xsd_element.substitution_group, xsd_element.schema.namespaces)
                     if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
                         xsd_element.type = self.elements[qname].type
                     try:

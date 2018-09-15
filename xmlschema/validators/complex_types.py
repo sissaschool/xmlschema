@@ -10,7 +10,7 @@
 #
 from ..etree import etree_element
 from ..qnames import (
-    get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
+    get_qname, prefixed_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
@@ -167,7 +167,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.parse_error("'base' attribute required", elem)
             return self.maps.lookup_type(XSD_ANY_TYPE)
 
-        base_qname = reference_to_qname(content_base, self.namespaces)
+        base_qname = prefixed_to_qname(content_base, self.namespaces)
         try:
             base_type = self.maps.lookup_type(base_qname)
         except KeyError:

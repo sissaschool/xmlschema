@@ -19,7 +19,7 @@ from ..converters import ElementData, XMLSchemaConverter
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
-    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, reference_to_qname, get_qname
+    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, prefixed_to_qname, get_qname
 )
 from ..xpath import ElementPathMixin
 
@@ -114,7 +114,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Parse element attributes
         try:
-            element_name = reference_to_qname(self.elem.attrib['ref'], self.namespaces)
+            element_name = prefixed_to_qname(self.elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
             try:
@@ -154,7 +154,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self._parse_component(self.elem, required=False, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in self.elem.attrib:
-            type_qname = reference_to_qname(self.elem.attrib['type'], self.namespaces)
+            type_qname = prefixed_to_qname(self.elem.attrib['type'], self.namespaces)
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
@@ -200,7 +200,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if not self.is_global:
             self.parse_error(u"'substitutionGroup' attribute in a local element declaration")
 
-        qname = reference_to_qname(substitution_group, self.namespaces)
+        qname = prefixed_to_qname(substitution_group, self.namespaces)
         if qname[0] != '{':
             qname = get_qname(self.target_namespace, qname)
         try:

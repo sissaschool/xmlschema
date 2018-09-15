@@ -265,21 +265,35 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         tag = qname_to_prefixed(elem.tag, validator.namespaces)
         if index >= len(elem):
             reason = u"The content of element %r is not complete." % tag
-        elif occurs > particle.min_occurs:
-            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
-            reason = u"Too many occurrences of tag %r for child n.%d of element %r." % (child_tag, index + 1, tag)
         else:
             child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
-            reason = u"The child n.%d of element %r has a unexpected tag %r." % (index + 1, tag, child_tag)
+            reason = u"Unexpected child with tag %r at position %d." % (child_tag, index + 1)
+
+        if occurs and particle.is_missing(occurs):
+            reason += u" The particle %r occurs %d times but the minimum is %d." % (
+                particle, occurs, particle.min_occurs
+            )
+        elif particle.is_over(occurs):
+            reason += u" The particle %r occurs %d times but the maximum is %d." % (
+                particle, occurs, particle.max_occurs
+            )
 
         if expected is None:
             pass
-        elif not isinstance(expected, (list, tuple)):
-            reason += " Tag %r expected." % expected
-        elif len(expected) > 1:
-            reason += " Tags %r are expected." % [e.prefixed_name for e in expected]
-        elif expected:
-            reason += " Tag %r expected." % expected[0].prefixed_name
+        else:
+            expected_tags = []
+            for xsd_element in expected:
+                if xsd_element.name is not None:
+                    expected_tags.append(repr(xsd_element.prefixed_name))
+                elif xsd_element.process_contents == 'strict':
+                    expected_tags.append('from %r namespace/s' % xsd_element.namespace)
+
+            if not expected_tags:
+                reason += " No child element is expected at this point."
+            elif len(expected_tags) > 1:
+                reason += " Tags %s are expected." % expected_tags
+            else:
+                reason += " Tag %s expected." % expected_tags[0]
 
         super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source, namespaces)
 
