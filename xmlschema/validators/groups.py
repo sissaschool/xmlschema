@@ -632,7 +632,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
             while model.element is not None:
                 if tag in model.element.names or model.element.name is None \
-                        and model.element.is_matching(child.tag, default_namespace):
+                        and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
                     for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
@@ -736,12 +736,18 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 cdata_index += 1
                 continue
 
+            if not default_namespace or name[0] == '{':
+                tag = name
+            else:
+                tag = '{%s}%s' % (default_namespace, name)
+
             while model.element is not None:
-                if model.element.is_matching(name, default_namespace):
+                if tag in model.element.names or model.element.name is None \
+                        and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
                     for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
-                        if xsd_element.is_matching(name, default_namespace):
+                        if tag in xsd_element.names:
                             break
                     else:
                         for particle, occurs, expected in model.advance():
@@ -764,7 +770,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     errors.append((index - cdata_index, self, 0, []))
 
                 for xsd_element in self.iter_elements():
-                    if xsd_element.is_matching(name, default_namespace):
+                    if tag in xsd_element.names or xsd_element.name is None \
+                            and xsd_element.is_matching(name, default_namespace):
                         if isinstance(xsd_element, XsdAnyElement):
                             value = get_qname(default_namespace, name), value
                         for result in xsd_element.iter_encode(value, validation, converter, **kwargs):

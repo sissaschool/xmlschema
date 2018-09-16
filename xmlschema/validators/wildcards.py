@@ -22,7 +22,7 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
 class XsdWildcard(XsdComponent, ValidationMixin):
-    names = ()
+    names = {}
 
     def __init__(self, elem, schema, parent):
         if parent is None:
