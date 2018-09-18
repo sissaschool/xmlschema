@@ -63,4 +63,11 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <!-- Issue 079 -->
+    <xs:simpleType name="issue079Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[^\n\t]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
 </xs:schema>

@@ -14,7 +14,7 @@ This module contains namespace related constants, functions and classes.
 import re
 from collections import Mapping, MutableMapping
 
-_RE_MATCH_NAMESPACE = re.compile(r'{([^}]*)}')
+NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 # Namespaces for W3C core standards
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
@@ -45,7 +45,7 @@ VC_NAMESPACE = "http://www.w3.org/2007/XMLSchema-versioning"
 
 def get_namespace(name):
     try:
-        return _RE_MATCH_NAMESPACE.match(name).group(1)
+        return NAMESPACE_PATTERN.match(name).group(1)
     except (AttributeError, TypeError):
         return ''
 

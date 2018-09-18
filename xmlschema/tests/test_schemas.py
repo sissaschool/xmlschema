@@ -33,8 +33,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema import (
-    XMLSchemaParseError, XMLSchemaURLError, XMLSchemaBase, XMLSchema,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+    XMLSchemaParseError, XMLSchemaBase, XMLSchema, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from xmlschema.compat import PY3
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase

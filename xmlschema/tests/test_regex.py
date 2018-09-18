@@ -12,9 +12,11 @@
 """
 This module runs tests on XML Schema regular expressions.
 """
+from __future__ import unicode_literals
 import unittest
 import sys
 import os
+import re
 from unicodedata import category
 
 try:
@@ -28,6 +30,7 @@ except ImportError:
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import unicode_chr
 from xmlschema.codepoints import iter_code_points, UnicodeSubset, UNICODE_CATEGORIES
+from xmlschema.regex import get_python_regex
 
 
 class TestCodePoints(unittest.TestCase):
@@ -155,6 +158,19 @@ class TestUnicodeCategories(unittest.TestCase):
                 self.assertTrue(
                     False, "Wrong category %r for code point %d (should be %r)." % (uc, cp, key)
                 )
+
+
+class TestPatterns(unittest.TestCase):
+    """
+    Test of specific regex patterns and their application.
+    """
+    def test_issue_079(self):
+        # Do not escape special characters in character class
+        regex = get_python_regex('[^\n\t]+')
+        self.assertEqual(regex, '^[^\t\n]+$')
+        pattern = re.compile(regex)
+        print(regex, pattern)
+
 
 
 if __name__ == '__main__':

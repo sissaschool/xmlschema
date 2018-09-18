@@ -16,7 +16,7 @@ import re
 from collections import MutableSet
 from sys import maxunicode
 
-from .compat import PY3, unicode_type
+from .compat import PY3, unicode_type, string_base_type
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 
@@ -29,6 +29,7 @@ def get_unicode_subset(key):
         return _UNICODE_SUBSETS[key]
     except KeyError:
         raise XMLSchemaRegexError("%r don't match to any Unicode category or block.")
+
 
 
 I_SHORTCUT_REPLACE = (
@@ -51,12 +52,45 @@ W_SHORTCUT_SET._code_points = sorted(
     UNICODE_CATEGORIES['C'].code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
 )
 
+# Single and Multi character escapes
+CHARACTER_ESCAPES = {
+    # Single-character escapes
+    '\\n': '\n',
+    '\\r': '\r',
+    '\\t': '\t',
+    '\\|': '|',
+    '\\.': '.',
+    '\\-': '-',
+    '\\^': '^',
+    '\\?': '?',
+    '\\*': '*',
+    '\\+': '+',
+    '\\{': '{',
+    '\\}': '}',
+    '\\(': '(',
+    '\\)': ')',
+    '\\[': '[',
+    '\\]': ']',
+
+    # Multi-character escapes
+    '\\s': S_SHORTCUT_SET,
+    '\\S': S_SHORTCUT_SET,
+    '\\d': D_SHORTCUT_SET,
+    '\\D': D_SHORTCUT_SET,
+    '\\i': I_SHORTCUT_SET,
+    '\\I': I_SHORTCUT_SET,
+    '\\c': C_SHORTCUT_SET,
+    '\\C': C_SHORTCUT_SET,
+    '\\w': W_SHORTCUT_SET,
+    '\\W': W_SHORTCUT_SET,
+}
+
 
 class XsdRegexCharGroup(MutableSet):
     """
     A set subclass to represent XML Schema regex character groups.
     """
-    _re_char_group = re.compile(r'(\\[sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
+    _re_char_group = re.compile(r'(\\[nrt\\|.\-^?*+{}()\[\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([a-zA-Z\-0-9]+)}')
 
     def __init__(self, *args):
@@ -114,26 +148,14 @@ class XsdRegexCharGroup(MutableSet):
 
     def add(self, s):
         for part in self._re_char_group.split(s):
-            if part == '\\s':
-                self.positive |= S_SHORTCUT_SET
-            elif part == '\\S':
-                self.negative |= S_SHORTCUT_SET
-            elif part == '\\d':
-                self.positive |= D_SHORTCUT_SET
-            elif part == '\\D':
-                self.negative |= D_SHORTCUT_SET
-            elif part == '\\i':
-                self.positive |= I_SHORTCUT_SET
-            elif part == '\\I':
-                self.negative |= I_SHORTCUT_SET
-            elif part == '\\c':
-                self.positive |= C_SHORTCUT_SET
-            elif part == '\\C':
-                self.negative |= C_SHORTCUT_SET
-            elif part == '\\w':
-                self.positive |= W_SHORTCUT_SET
-            elif part == '\\W':
-                self.negative |= W_SHORTCUT_SET
+            if part in CHARACTER_ESCAPES:
+                value = CHARACTER_ESCAPES[part]
+                if isinstance(value, string_base_type):
+                    self.positive.update(value)
+                elif part[-1].islower():
+                    self.positive |= value
+                else:
+                    self.negative |= value
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive |= get_unicode_subset(part[3:-1])
@@ -144,26 +166,14 @@ class XsdRegexCharGroup(MutableSet):
 
     def discard(self, s):
         for part in self._re_char_group.split(s):
-            if part == '\\s':
-                self.positive -= S_SHORTCUT_SET
-            elif part == '\\S':
-                self.negative -= S_SHORTCUT_SET
-            elif part == '\\d':
-                self.positive -= D_SHORTCUT_SET
-            elif part == '\\D':
-                self.negative -= D_SHORTCUT_SET
-            elif part == '\\i':
-                self.positive -= I_SHORTCUT_REPLACE
-            elif part == '\\I':
-                self.negative -= I_SHORTCUT_REPLACE
-            elif part == '\\c':
-                self.positive -= C_SHORTCUT_REPLACE
-            elif part == '\\C':
-                self.negative -= C_SHORTCUT_REPLACE
-            elif part == '\\w':
-                self.positive -= W_SHORTCUT_SET
-            elif part == '\\W':
-                self.negative -= W_SHORTCUT_SET
+            if part in CHARACTER_ESCAPES:
+                value = CHARACTER_ESCAPES[part]
+                if isinstance(value, string_base_type):
+                    self.positive.difference_update(value)
+                elif part[-1].islower():
+                    self.positive -= value
+                else:
+                    self.negative -= value
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive -= get_unicode_subset(part[3:-1])

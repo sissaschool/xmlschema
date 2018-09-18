@@ -35,6 +35,7 @@ from xmlschema import (
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import ordered_dict_class
+from xmlschema.namespaces import NAMESPACE_PATTERN
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
@@ -420,10 +421,14 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                     )
                 )
 
-            # Checks errors completeness
+            # Checks errors correctness
             for e in self.errors:
-                self.assertTrue(e.path, "Missing path for: %s" % str(e))
-                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % str(e))
+                error_string = str(e)
+                self.assertTrue(e.path, "Missing path for: %s" % error_string)
+                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
+                # if NAMESPACE_PATTERN.search('\n'.join(error_string.split('\n')[1:])):
+                #    print(error_string)
+                #self.assertIsNone(NAMESPACE_PATTERN.search(error_string))
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
@@ -583,6 +588,10 @@ class TestValidation(XMLSchemaTestCase):
         else:
             path_line = ''
         self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+
+        # Issue #80
+        vh_2_xt = _ElementTree.parse(vh_2_file)
+        self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
 
 class TestDecoding(XMLSchemaTestCase):
