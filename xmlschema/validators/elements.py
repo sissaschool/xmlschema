@@ -449,16 +449,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
                     yield self, child
                 elif self.name in self.maps.substitution_groups:
-                    for e in self.schema.substitution_groups[self.name]:
+                    for e in self.maps.substitution_groups[self.name]:
                         if tag == e.name:
                             yield e, child
                             break
-                    else:
-                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            yield self.children_validation_error(validation, elem, index, expected=[self])
-                        yield index
-                        return
-
                 else:
                     if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
                         yield self.children_validation_error(validation, elem, index, expected=[self])
