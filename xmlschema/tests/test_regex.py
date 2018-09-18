@@ -169,8 +169,8 @@ class TestPatterns(unittest.TestCase):
         regex = get_python_regex('[^\n\t]+')
         self.assertEqual(regex, '^[^\t\n]+$')
         pattern = re.compile(regex)
-        print(regex, pattern)
-
+        self.assertIsNone(pattern.search('first\tsecond\tthird'))
+        self.assertEqual(pattern.search('first second third').group(0), 'first second third')
 
 
 if __name__ == '__main__':
