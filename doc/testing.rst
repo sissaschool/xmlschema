@@ -9,6 +9,9 @@ library. The test scripts are located under the installation base into ``tests/`
 subdirectory. There are several test scripts, each one for a different topic:
 
 **test_helpers.py**
+    Tests for ElementTree functionalities
+
+**test_helpers.py**
     Tests for helper functions and classes
 
 **test_meta.py**
