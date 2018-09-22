@@ -11,9 +11,12 @@
 """
 This module contains ElementTree setup and helpers for xmlschema package.
 """
-from xml.etree import ElementTree
+from __future__ import unicode_literals
 from collections import Counter
+import importlib
 import re
+
+import xml.etree.ElementTree as ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -26,26 +29,71 @@ from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespa
 from .qnames import get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
-import defusedxml.ElementTree
 
 # Register missing namespaces into imported ElementTree module
-ElementTree.register_namespace('xslt', XSLT_NAMESPACE)
-ElementTree.register_namespace('hfp', HFP_NAMESPACE)
-ElementTree.register_namespace('vc', VC_NAMESPACE)
+etree_register_namespace = ElementTree.register_namespace
+etree_register_namespace('xslt', XSLT_NAMESPACE)
+etree_register_namespace('hfp', HFP_NAMESPACE)
+etree_register_namespace('vc', VC_NAMESPACE)
 
-# Define alias for ElementTree API for internal module imports
+etree_element = ElementTree.Element
+etree_parse_error = ElementTree.ParseError
 etree_parse = ElementTree.parse
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
-etree_parse_error = ElementTree.ParseError
-etree_element = ElementTree.Element
-etree_register_namespace = ElementTree.register_namespace
 
-# Safe APIs from defusedxml package
-safe_etree_parse = defusedxml.ElementTree.parse
-safe_etree_iterparse = defusedxml.ElementTree.iterparse
-safe_etree_fromstring = defusedxml.ElementTree.fromstring
-safe_etree_parse_error = defusedxml.ElementTree.ParseError
+
+# Safe ElementTree
+class LazyDefusedElementTree(object):
+    """
+    Lazy importer of defused ElementTree to postpone C ElementTree override.
+    """
+    def __init__(self):
+        self._defused_etree = None
+        self.element_tree = ElementTree
+        self.etree_element = etree_element
+
+    def _import(self):
+        """Import the safe module and update set PyElementTree with the pure python module."""
+        self._defused_etree = importlib.import_module('defusedxml.ElementTree')
+        import xml.etree.ElementTree as PurePythonElementTree
+        self.element_tree = PurePythonElementTree
+        self.etree_element = PurePythonElementTree.Element
+
+    @property
+    def parse(self):
+        try:
+            return self._defused_etree.parse
+        except AttributeError:
+            self._import()
+            return self._defused_etree.parse
+
+    @property
+    def iterparse(self):
+        try:
+            return self._defused_etree.iterparse
+        except AttributeError:
+            self._import()
+            return self._defused_etree.iterparse
+
+    @property
+    def fromstring(self):
+        try:
+            return self._defused_etree.fromstring
+        except AttributeError:
+            self._import()
+            return self._defused_etree.fromstring
+
+    @property
+    def parse_error(self):
+        try:
+            return self._defused_etree.ParseError
+        except AttributeError:
+            return etree_parse_error
+
+
+defused_etree = LazyDefusedElementTree()
+
 
 # Lxml APIs
 if lxml_etree is not None:
@@ -96,6 +144,12 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
                 etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
 
+    elif isinstance(elem, defused_etree.etree_element):
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                defused_etree.element_tree.register_namespace(prefix, uri)
+        tostring = defused_etree.element_tree.tostring
+
     elif lxml_etree is not None:
         if namespaces:
             for prefix, uri in namespaces.items():
@@ -106,11 +160,11 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
     if PY3:
-        xml_text = tostring(elem, encoding="unicode").replace(u'\t', u' ' * spaces_for_tab)
+        xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
     else:
-        xml_text = unicode(tostring(elem)).replace(u'\t', u' ' * spaces_for_tab)
+        xml_text = unicode(tostring(elem)).replace('\t', ' ' * spaces_for_tab)
 
-    lines = [u'<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
@@ -125,9 +179,9 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     start = len(min_indent) - len(indent)
 
     if max_lines is not None and len(lines) > max_lines + 2:
-        lines = lines[:max_lines] + [child_indent + u'...'] * 2 + lines[-1:]
+        lines = lines[:max_lines] + [child_indent + '...'] * 2 + lines[-1:]
 
-    return u'\n'.join(reindent(line) for line in lines)
+    return '\n'.join(reindent(line) for line in lines)
 
 
 def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):
@@ -157,10 +211,10 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
             continue  # Skip lxml comments
 
         child_name = child.tag if namespaces is None else qname_to_prefixed(child.tag, namespaces)
-        if path == u'/':
-            child_path = u'/%s' % child_name
+        if path == '/':
+            child_path = '/%s' % child_name
         elif path:
-            child_path = u'/'.join((path, child_name))
+            child_path = '/'.join((path, child_name))
         else:
             child_path = child_name
 
@@ -186,9 +240,9 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     if relative:
         path = '.'
     elif namespaces:
-        path = u'/%s' % qname_to_prefixed(root.tag, namespaces)
+        path = '/%s' % qname_to_prefixed(root.tag, namespaces)
     else:
-        path = u'/%s' % root.tag
+        path = '/%s' % root.tag
 
     for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:

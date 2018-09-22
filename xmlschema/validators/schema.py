@@ -798,8 +798,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if path is None:
             xsd_element = self.find(source.root.tag, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
-                msg = "%r is not a global element of the schema!" % source.root.tag
-                yield XMLSchemaValidationError(self, source.root, reason=msg)
+                reason = "%r is not a global element of the schema!" % source.root.tag
+                yield XMLSchemaValidationError(self, source.root, reason, source, namespaces)
             else:
                 for obj in xsd_element.iter_decode(
                         source.root, validation, converter, source=source, namespaces=namespaces,
@@ -808,9 +808,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             xsd_element = self.find(path, namespaces=namespaces)
             if not isinstance(xsd_element, XsdElement):
-                msg = "the path %r doesn't match any element of the schema!" % path
+                reason = "the path %r doesn't match any element of the schema!" % path
                 obj = elementpath.select(source.root, path, namespaces=namespaces) or source.root
-                yield XMLSchemaValidationError(self, obj, reason=msg)
+                yield XMLSchemaValidationError(self, obj, reason, source, namespaces)
             else:
                 for elem in elementpath.select(source.root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(

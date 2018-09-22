@@ -8,9 +8,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from __future__ import unicode_literals
 from ..etree import etree_element
 from ..qnames import (
-    get_qname, reference_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
+    get_qname, prefixed_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
@@ -55,12 +56,12 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(content=%r, attributes=%r)' % (
+            return '%s(content=%r, attributes=%r)' % (
                 self.__class__.__name__, self.content_type_label,
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'content_type':
@@ -167,7 +168,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.parse_error("'base' attribute required", elem)
             return self.maps.lookup_type(XSD_ANY_TYPE)
 
-        base_qname = reference_to_qname(content_base, self.namespaces)
+        base_qname = prefixed_to_qname(content_base, self.namespaces)
         try:
             base_type = self.maps.lookup_type(base_qname)
         except KeyError:
@@ -259,7 +260,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         # complexContent extension: base type must be a complex type with complex content.
         # A dummy sequence group is added if the base type has not empty content model.
         if getattr(base_type.content_type, 'model', None) == 'all':
-            self.parse_error("XSD 1.0 do not allows 'ALL' group extensions", elem)
+            self.parse_error("XSD 1.0 does not allow extension of an 'ALL' model group.", elem)
 
         group_elem = self._parse_component(elem, required=False, strict=False)
         if base_type.is_empty():

@@ -11,13 +11,16 @@
 """
 This module contains classes for other XML Schema constraints.
 """
+from __future__ import unicode_literals
 from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
-from ..qnames import (get_qname, reference_to_qname, XSD_UNIQUE_TAG, XSD_KEY_TAG,
-                      XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG)
+from ..qnames import (
+    get_qname, prefixed_to_qname, qname_to_prefixed, XSD_UNIQUE_TAG,
+    XSD_KEY_TAG, XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG
+)
 
 from .exceptions import XMLSchemaValidationError
 from .parseutils import get_xpath_default_namespace
@@ -72,7 +75,7 @@ class XsdSelector(XsdComponent):
                 self._xpath_default_namespace = self.namespaces['']
 
     def __repr__(self):
-        return u'%s(path=%r)' % (self.__class__.__name__, self.path)
+        return '%s(path=%r)' % (self.__class__.__name__, self.path)
 
     @property
     def built(self):
@@ -210,14 +213,14 @@ class XsdKeyref(XsdConstraint):
         super(XsdKeyref, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return u'%s(name=%r, refer=%r)' % (
+        return '%s(name=%r, refer=%r)' % (
             self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
         )
 
     def _parse(self):
         super(XsdKeyref, self)._parse()
         try:
-            self.refer = reference_to_qname(self.elem.attrib['refer'], self.namespaces)
+            self.refer = prefixed_to_qname(self.elem.attrib['refer'], self.namespaces)
         except KeyError:
             self.parse_error("missing required attribute 'refer'", self.elem)
 
@@ -259,7 +262,7 @@ class XsdKeyref(XsdConstraint):
         refer_elem = elem
         for xsd_element in self.refer_walk:
             for child in refer_elem:
-                if xsd_element.match(child.tag):
+                if xsd_element.is_matching(child.tag):
                     refer_elem = child
                     break
             else:
@@ -289,9 +292,6 @@ class XsdKeyref(XsdConstraint):
                     continue
 
             if v not in refer_values:
-                yield XMLSchemaValidationError(
-                    validator=self,
-                    obj=elem,
-                    reason="Key %r with value %r not found for identity constraint "
-                           "of element %r." % (self.name, v, elem.tag)
-                )
+                reason = "Key %r with value %r not found for identity constraint of element %r." \
+                         % (self.prefixed_name, v, qname_to_prefixed(elem.tag, self.namespaces))
+                yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)

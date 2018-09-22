@@ -19,7 +19,6 @@ import glob
 import fileinput
 import argparse
 import logging
-
 from functools import wraps
 
 from xmlschema import XMLSchema, XMLSchema10
@@ -200,11 +199,14 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             test_args.locations = {k.strip('\'"'): v for k, v in test_args.locations}
 
         test_file = os.path.join(os.path.dirname(fileinput.filename()), test_args.filename)
-        if not os.path.isfile(test_file):
-            logger.debug("Skip %s: not a file.", test_file)
+        if os.path.isdir(test_file):
+            logger.debug("Skip %s: is a directory.", test_file)
             continue
         elif os.path.splitext(test_file)[1].lower() != '.%s' % suffix:
             logger.debug("Skip %s: wrong suffix.", test_file)
+            continue
+        elif not os.path.isfile(test_file):
+            logger.error("Skip %s: is not a file.", test_file)
             continue
 
         test_num += 1

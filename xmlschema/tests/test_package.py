@@ -13,11 +13,50 @@
 Tests concerning packaging and installation environment.
 """
 import unittest
+import importlib
 import glob
 import fileinput
 import os
 import re
-import xml.etree.ElementTree as ElementTree
+import sys
+
+try:
+    import xmlschema
+except ImportError:
+    # Adds the package base dir path as first search path for imports
+    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    sys.path.insert(0, pkg_base_dir)
+    import xmlschema
+
+from xmlschema.etree import defused_etree, etree_tostring
+
+# Import ElementTree and defusedxml.ElementTree
+import xml.etree.ElementTree as ElementTree         # Original module with C extensions
+defused_etree.fromstring('<A/>')                    # Lazy import of defusedxml.ElementTree
+import xml.etree.ElementTree as PyElementTree       # Pure Python import
+
+
+class TestEnvironment(unittest.TestCase):
+
+    def test_element_tree(self):
+        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
+        elem = PyElementTree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element />')
+        self.assertEqual(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+
+    def test_pure_python_element_tree(self):
+        if sys.version_info >= (3,):
+            self.assertEqual(PyElementTree.Element, PyElementTree._Element_Py)  # C extensions disabled by defusedxml
+            self.assertNotEqual(ElementTree.Element, PyElementTree.Element)
+        else:
+            self.assertNotEqual(PyElementTree.Element, PyElementTree._Element_Py)
+
+        elem = PyElementTree.Element('element')
+        self.assertEqual(etree_tostring(elem), '<element />')
+
+    def test_defused_etree(self):
+        self.assertEqual(defused_etree.element_tree, PyElementTree)
+        self.assertEqual(defused_etree.etree_element, PyElementTree.Element)
 
 
 class TestPackaging(unittest.TestCase):
@@ -36,7 +75,7 @@ class TestPackaging(unittest.TestCase):
     def test_missing_debug_statements(self):
         # Exclude explicit debug statements written in the code
         exclude = {
-            'regex.py': [230, 231],
+            'regex.py': [240, 241],
         }
 
         message = "\nFound a debug missing statement at line %d or file %r: %r"
@@ -85,11 +124,6 @@ class TestPackaging(unittest.TestCase):
                     )
 
 
-class TestEnvironment(unittest.TestCase):
-
-    def test_element_tree(self):
-        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
-
-
 if __name__ == '__main__':
+
     unittest.main()

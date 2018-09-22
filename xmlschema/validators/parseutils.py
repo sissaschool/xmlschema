@@ -11,6 +11,7 @@
 """
 This module contains utility functions and classes.
 """
+from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from ..qnames import XSD_ANNOTATION_TAG
 

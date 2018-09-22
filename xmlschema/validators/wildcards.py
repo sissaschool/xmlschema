@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema wildcards.
 """
+from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
@@ -21,6 +22,7 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
 class XsdWildcard(XsdComponent, ValidationMixin):
+    names = {}
 
     def __init__(self, elem, schema, parent):
         if parent is None:
@@ -28,7 +30,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r)' % (
+        return '%s(namespace=%r, process_contents=%r)' % (
             self.__class__.__name__, self.namespace, self.process_contents
         )
 
@@ -73,7 +75,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
-    def match(self, name, default_namespace=None):
+    def is_matching(self, name, default_namespace=None):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -124,7 +126,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     admitted_tags = {XSD_ANY_TAG}
 
     def __repr__(self):
-        return u'%s(namespace=%r, process_contents=%r, occurs=%r)' % (
+        return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
             self.__class__.__name__, self.namespace, self.process_contents, self.occurs
         )
 
@@ -134,6 +136,16 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
+
+    def match(self, name, default_namespace=None):
+        if self.is_matching(name, default_namespace):
+            try:
+                if name[0] != '{' and default_namespace:
+                    return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
+                else:
+                    return self.maps.lookup_element(name)
+            except LookupError:
+                pass
 
     def __iter__(self):
         return iter(())
@@ -164,53 +176,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             reason = "element %r not allowed here." % elem.tag
             yield self.validation_error(validation, reason, elem, **kwargs)
 
-    def iter_decode_children(self, elem, validation='lax', index=0):
-        model_occurs = 0
-        process_contents = self.process_contents
-        max_occurs = self.max_occurs
-        while True:
-            try:
-                child = elem[index]
-            except IndexError:
-                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    yield self.children_validation_error(validation, elem, index)
-                yield index
-                return
-            else:
-                tag = child.tag
-                if callable(tag):
-                    # When tag is a function the child is a <class 'lxml.etree._Comment'>
-                    index += 1
-                    continue
-                elif process_contents == 'skip':
-                    yield None, child
-                else:
-                    namespace = get_namespace(tag)
-
-                    if not self.is_namespace_allowed(namespace):
-                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            yield self.children_validation_error(validation, elem, index)
-                        yield index
-                        return
-
-                    self._load_namespace(namespace)
-
-                    try:
-                        xsd_element = self.maps.lookup_element(tag)
-                    except LookupError:
-                        if validation != 'skip' and process_contents == 'strict':
-                            reason = "cannot retrieve the schema for %r" % child
-                            yield self.validation_error(validation, reason, elem)
-                        yield None, child
-                    else:
-                        yield xsd_element, child
-
-            index += 1
-            model_occurs += 1
-            if max_occurs is not None and model_occurs >= max_occurs:
-                yield index
-                return
-
     def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
         if self.process_contents == 'skip':
             return
@@ -237,15 +202,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return False
         return True
 
-    def children_validation_error(self, validation, elem, index, expected=None, source=None, namespaces=None, **kwargs):
-        if expected is None:
-            namespace = get_namespace(elem.tag)
-            if not self.is_namespace_allowed(namespace):
-                expected = elem.tag
-            else:
-                expected = "from %r namespace" % self.namespace
-        return ParticleMixin.children_validation_error(validation, elem, index, expected, source, namespaces)
-
 
 class XsdAnyAttribute(XsdWildcard):
     """
@@ -260,6 +216,16 @@ class XsdAnyAttribute(XsdWildcard):
     </anyAttribute>
     """
     admitted_tags = {XSD_ANY_ATTRIBUTE_TAG}
+
+    def match(self, name, default_namespace=None):
+        if self.is_matching(name, default_namespace):
+            try:
+                if name[0] != '{' and default_namespace:
+                    return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
+                else:
+                    return self.maps.lookup_attribute(name)
+            except LookupError:
+                pass
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':

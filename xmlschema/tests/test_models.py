@@ -101,9 +101,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
         model = XsdModelVisitor(group)
-        self.check_advance_false(
-            model, [(group[0], 0, [group[0]]), (group, 0, [group[0]])]
-        )  # <not-a-car>
+        self.check_advance_false(model, [(group[0], 0, [group[0]])])  # <not-a-car>
         self.assertIsNone(model.element)
 
     def test_person_type_model(self):
@@ -237,7 +235,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)                  # <complexType> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0][0][0])
         self.check_advance_false(model)                 # <simpleType> don't match
         self.assertEqual(model.element, group[0][0][1])
@@ -253,7 +251,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[3])
         self.check_advance_false(model, [(group, 0, group[0][0][:]+group[1:])])  # <notation> don't match
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0][0][0])
         self.check_advance_false(model)                 # <simpleType> don't match
         self.assertEqual(model.element, group[0][0][1])
@@ -331,20 +329,20 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)                  # <simpleContent> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, True]:
             self.check_advance(model, match)            # <complexContent> match
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False, False, True]:
             self.check_advance(model, match)            # <all> match
         self.check_stop(model)
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False, False, True, False, True, False, False, False]:
             self.check_advance(model, match)            # <all> match, <attributeGroup> match
@@ -359,13 +357,13 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[0])
         self.check_stop(model)
 
-        model.start()
+        model.restart()
         self.assertEqual(model.element, group[0])
         for match in [False, False, False]:
             self.check_advance(model, match)
         self.assertIsNone(model.element)
 
-        model.start()
+        model.restart()
         for match in [False, True, False]:
             self.check_advance(model, match)
         self.assertIsNone(model.element)
@@ -414,6 +412,37 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element.name, 'elem6')
         self.check_advance_true(model)                 # match choice with <elem6>
         self.check_stop(model)
+
+    def test_model_group6(self):
+        group = self.models_schema.groups['group6']
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_true(model)                 # match choice with <elem1>
+        self.check_advance_true(model)                 # match choice with <elem2>
+        self.assertIsNone(model.element)
+
+    def test_model_group7(self):
+        group = self.models_schema.types['complexType7'].content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_stop(model, [(group[0][0], 0, [group[0][0]])])
+
+        group = self.models_schema.types['complexType7_emptiable'].content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_stop(model)
+
+    #
+    # Tests on schemas
+    def test_schema_document_model(self):
+        group = self.schema_class.meta_schema.elements['schema'].type.content_type
+
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_false(model)                 # eg. anyAttribute
 
 
 if __name__ == '__main__':

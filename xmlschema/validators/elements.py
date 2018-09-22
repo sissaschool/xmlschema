@@ -11,6 +11,7 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
+from __future__ import unicode_literals
 from decimal import Decimal
 
 from ..exceptions import XMLSchemaAttributeError
@@ -19,7 +20,7 @@ from ..converters import ElementData, XMLSchemaConverter
 from ..qnames import (
     XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
     XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
-    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, reference_to_qname, get_qname
+    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, prefixed_to_qname, get_qname
 )
 from ..xpath import ElementPathMixin
 
@@ -61,6 +62,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
+        self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if not hasattr(self, 'qualified'):
@@ -68,9 +70,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __repr__(self):
         if self.ref is None:
-            return u'%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
         else:
-            return u'%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -114,7 +116,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Parse element attributes
         try:
-            element_name = reference_to_qname(self.elem.attrib['ref'], self.namespaces)
+            element_name = prefixed_to_qname(self.elem.attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
             try:
@@ -154,7 +156,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self._parse_component(self.elem, required=False, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in self.elem.attrib:
-            type_qname = reference_to_qname(self.elem.attrib['type'], self.namespaces)
+            type_qname = prefixed_to_qname(self.elem.attrib['type'], self.namespaces)
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
@@ -186,7 +188,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             try:
                 if child != self.maps.constraints[constraint.name]:
-                    self.parse_error(u"duplicated identity constraint %r:" % constraint.name, child)
+                    self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
             except KeyError:
                 self.maps.constraints[constraint.name] = child
             finally:
@@ -198,9 +200,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         if not self.is_global:
-            self.parse_error(u"'substitutionGroup' attribute in a local element declaration")
+            self.parse_error("'substitutionGroup' attribute in a local element declaration")
 
-        qname = reference_to_qname(substitution_group, self.namespaces)
+        qname = prefixed_to_qname(substitution_group, self.namespaces)
         if qname[0] != '{':
             qname = get_qname(self.target_namespace, qname)
         try:
@@ -418,58 +420,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for constraint in self.constraints.values():
                 for error in constraint(elem):
                     yield self.validation_error(validation, error, elem, **kwargs)
-
-    def iter_decode_children(self, elem, validation='lax', index=0):
-        """
-        Creates an iterator for decoding the children of an element. Before ending the generator
-        yields the last index used by inner validators.
-
-        :param elem: The parent Element.
-        :param index: Start child index, 0 for default.
-        :param validation: Validation mode that can be 'strict', 'lax' or 'skip'.
-        :return: Yields a sequence of values that can be tuples and/or errors and an integer at the end.
-        """
-        model_occurs = 0
-        while True:
-            try:
-                child = elem[index]
-            except IndexError:
-                if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                    yield self.children_validation_error(validation, elem, index, expected=[self])
-                yield index
-                return
-            else:
-                tag = child.tag
-                if callable(tag):
-                    # When tag is a function the child is a <class 'lxml.etree._Comment'>
-                    index += 1
-                    continue
-                elif tag == self.name:
-                    yield self, child
-                elif not self.qualified and tag == get_qname(self.target_namespace, self.name):
-                    yield self, child
-                elif self.name in self.maps.substitution_groups:
-                    for e in self.schema.substitution_groups[self.name]:
-                        if tag == e.name:
-                            yield e, child
-                            break
-                    else:
-                        if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                            yield self.children_validation_error(validation, elem, index, expected=[self])
-                        yield index
-                        return
-
-                else:
-                    if validation != 'skip' and model_occurs == 0 and self.min_occurs > 0:
-                        yield self.children_validation_error(validation, elem, index, expected=[self])
-                    yield index
-                    return
-
-            index += 1
-            model_occurs += 1
-            if self.max_occurs is not None and model_occurs >= self.max_occurs:
-                yield index
-                return
 
     def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
         """

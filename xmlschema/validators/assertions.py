@@ -11,6 +11,7 @@
 """
 This module contains classes for other XML Schema 1.1 assertions.
 """
+from __future__ import unicode_literals
 from ..qnames import XSD_ASSERT_TAG, XSD_ASSERTION_TAG
 from .xsdbase import XsdComponent, ValidationMixin
 

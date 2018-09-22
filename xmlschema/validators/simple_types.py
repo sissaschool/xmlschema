@@ -11,12 +11,13 @@
 """
 This module contains classes for XML Schema simple data types.
 """
+from __future__ import unicode_literals
 from decimal import DecimalException
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
-    get_qname, reference_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
+    get_qname, prefixed_to_qname, XSD_SIMPLE_TYPE_TAG, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE_TAG,
     XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG, XSD_ENUMERATION_TAG, XSD_PATTERN_TAG,
     XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG,
     XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_WHITE_SPACE_TAG, local_name,
@@ -320,9 +321,9 @@ class XsdAtomic(XsdSimpleType):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(primitive_type=%r)' % (self.__class__.__name__, self.primitive_type.local_name)
+            return '%s(primitive_type=%r)' % (self.__class__.__name__, self.primitive_type.local_name)
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'base_type' and value is not None and not isinstance(value, XsdType):
@@ -534,9 +535,9 @@ class XsdList(XsdSimpleType):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(item_type=%r)' % (self.__class__.__name__, self.base_type)
+            return '%s(item_type=%r)' % (self.__class__.__name__, self.base_type)
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None and value.tag != XSD_LIST_TAG:
@@ -569,7 +570,7 @@ class XsdList(XsdSimpleType):
                 self.parse_error("ambiguous list type declaration", self)
         elif 'itemType' in elem.attrib:
             # List tag with itemType attribute that refers to a global type
-            item_qname = reference_to_qname(elem.attrib['itemType'], self.namespaces)
+            item_qname = prefixed_to_qname(elem.attrib['itemType'], self.namespaces)
             base_type = self.maps.lookup_type(item_qname)
             if isinstance(base_type, XMLSchemaParseError):
                 self.parse_error(base_type, elem)
@@ -662,7 +663,7 @@ class XsdList(XsdSimpleType):
                 else:
                     encoded_items.append(result)
 
-        yield u' '.join(item for item in encoded_items if item is not None)
+        yield ' '.join(item for item in encoded_items if item is not None)
 
 
 class XsdUnion(XsdSimpleType):
@@ -686,9 +687,9 @@ class XsdUnion(XsdSimpleType):
 
     def __repr__(self):
         if self.name is None:
-            return u'%s(member_types=%r)' % (self.__class__.__name__, self.member_types)
+            return '%s(member_types=%r)' % (self.__class__.__name__, self.member_types)
         else:
-            return u'%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None and value.tag != XSD_UNION_TAG:
@@ -726,7 +727,7 @@ class XsdUnion(XsdSimpleType):
 
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
-                type_qname = reference_to_qname(name, self.namespaces)
+                type_qname = prefixed_to_qname(name, self.namespaces)
                 mt = self.maps.lookup_type(type_qname)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
@@ -799,7 +800,7 @@ class XsdUnion(XsdSimpleType):
                 break
 
         if validation != 'skip' and ' ' not in text.strip():
-            reason = u"no type suitable for decoding %r." % text
+            reason = "no type suitable for decoding %r." % text
             yield self.decode_error(validation, text, self.member_types, reason)
 
         items = []
@@ -821,7 +822,7 @@ class XsdUnion(XsdSimpleType):
 
         if validation != 'skip':
             if not_decodable:
-                reason = u"no type suitable for decoding the values %r." % not_decodable
+                reason = "no type suitable for decoding the values %r." % not_decodable
                 yield self.decode_error(validation, text, self.member_types, reason)
 
             for validator in self.validators:
@@ -925,7 +926,7 @@ class XsdAtomicRestriction(XsdAtomic):
         has_simple_type_child = False
 
         if 'base' in elem.attrib:
-            base_qname = reference_to_qname(elem.attrib['base'], self.namespaces)
+            base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
             base_type = self.maps.lookup_type(base_qname)
             if isinstance(base_type, XMLSchemaParseError):
                 self.parse_error(base_qname)
@@ -965,7 +966,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     )
                 has_simple_type_child = True
             elif child.tag not in self.schema.FACETS:
-                self.parse_error(u"unexpected tag %r in restriction:" % child)
+                self.parse_error("unexpected tag %r in restriction:" % child)
             elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
                 try:
                     facets[child.tag].append(child)
@@ -977,7 +978,7 @@ class XsdAtomicRestriction(XsdAtomic):
             elif child.tag not in facets:
                 facets[child.tag] = XsdSingleFacet(child, self.schema, self, base_type)
             else:
-                self.parse_error(u"multiple %r constraint facet" % local_name(child.tag))
+                self.parse_error("multiple %r constraint facet" % local_name(child.tag))
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)

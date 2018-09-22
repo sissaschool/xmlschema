@@ -11,11 +11,12 @@
 """
 This module parse and translate XML regular expressions to Python regex syntax.
 """
+from __future__ import unicode_literals
 import re
 from collections import MutableSet
 from sys import maxunicode
 
-from .compat import PY3, unicode_type
+from .compat import PY3, unicode_type, string_base_type
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 
@@ -31,13 +32,13 @@ def get_unicode_subset(key):
 
 
 I_SHORTCUT_REPLACE = (
-    u":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
-    u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+    "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
 C_SHORTCUT_REPLACE = (
-    u"\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
-    u"\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
+    "\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
+    "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
 S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
@@ -50,12 +51,45 @@ W_SHORTCUT_SET._code_points = sorted(
     UNICODE_CATEGORIES['C'].code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
 )
 
+# Single and Multi character escapes
+CHARACTER_ESCAPES = {
+    # Single-character escapes
+    '\\n': '\n',
+    '\\r': '\r',
+    '\\t': '\t',
+    '\\|': '|',
+    '\\.': '.',
+    '\\-': '-',
+    '\\^': '^',
+    '\\?': '?',
+    '\\*': '*',
+    '\\+': '+',
+    '\\{': '{',
+    '\\}': '}',
+    '\\(': '(',
+    '\\)': ')',
+    '\\[': '[',
+    '\\]': ']',
+
+    # Multi-character escapes
+    '\\s': S_SHORTCUT_SET,
+    '\\S': S_SHORTCUT_SET,
+    '\\d': D_SHORTCUT_SET,
+    '\\D': D_SHORTCUT_SET,
+    '\\i': I_SHORTCUT_SET,
+    '\\I': I_SHORTCUT_SET,
+    '\\c': C_SHORTCUT_SET,
+    '\\C': C_SHORTCUT_SET,
+    '\\w': W_SHORTCUT_SET,
+    '\\W': W_SHORTCUT_SET,
+}
+
 
 class XsdRegexCharGroup(MutableSet):
     """
     A set subclass to represent XML Schema regex character groups.
     """
-    _re_char_group = re.compile(r'(\\[sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
+    _re_char_group = re.compile(r'(\\[nrt\\|.\-^?*+{}()\[\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([a-zA-Z\-0-9]+)}')
 
     def __init__(self, *args):
@@ -65,7 +99,7 @@ class XsdRegexCharGroup(MutableSet):
             self.add(char)
 
     def __repr__(self):
-        return u"<%s %s at %d>" % (self.__class__.__name__, self, id(self))
+        return '<%s %s at %d>' % (self.__class__.__name__, self, id(self))
 
     def __str__(self):
         # noinspection PyCompatibility
@@ -73,11 +107,11 @@ class XsdRegexCharGroup(MutableSet):
 
     def __unicode__(self):
         if not self.negative:
-            return u'[%s]' % unicode_type(self.positive)
+            return '[%s]' % unicode_type(self.positive)
         elif not self.positive:
-            return u'[^%s]' % unicode_type(self.negative)
+            return '[^%s]' % unicode_type(self.negative)
         else:
-            return u'[%s%s]' % (
+            return '[%s%s]' % (
                 unicode_type(UnicodeSubset(self.negative.complement())), unicode_type(self.positive)
             )
 
@@ -113,26 +147,14 @@ class XsdRegexCharGroup(MutableSet):
 
     def add(self, s):
         for part in self._re_char_group.split(s):
-            if part == '\\s':
-                self.positive |= S_SHORTCUT_SET
-            elif part == '\\S':
-                self.negative |= S_SHORTCUT_SET
-            elif part == '\\d':
-                self.positive |= D_SHORTCUT_SET
-            elif part == '\\D':
-                self.negative |= D_SHORTCUT_SET
-            elif part == '\\i':
-                self.positive |= I_SHORTCUT_SET
-            elif part == '\\I':
-                self.negative |= I_SHORTCUT_SET
-            elif part == '\\c':
-                self.positive |= C_SHORTCUT_SET
-            elif part == '\\C':
-                self.negative |= C_SHORTCUT_SET
-            elif part == '\\w':
-                self.positive |= W_SHORTCUT_SET
-            elif part == '\\W':
-                self.negative |= W_SHORTCUT_SET
+            if part in CHARACTER_ESCAPES:
+                value = CHARACTER_ESCAPES[part]
+                if isinstance(value, string_base_type):
+                    self.positive.update(value)
+                elif part[-1].islower():
+                    self.positive |= value
+                else:
+                    self.negative |= value
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive |= get_unicode_subset(part[3:-1])
@@ -143,26 +165,14 @@ class XsdRegexCharGroup(MutableSet):
 
     def discard(self, s):
         for part in self._re_char_group.split(s):
-            if part == '\\s':
-                self.positive -= S_SHORTCUT_SET
-            elif part == '\\S':
-                self.negative -= S_SHORTCUT_SET
-            elif part == '\\d':
-                self.positive -= D_SHORTCUT_SET
-            elif part == '\\D':
-                self.negative -= D_SHORTCUT_SET
-            elif part == '\\i':
-                self.positive -= I_SHORTCUT_REPLACE
-            elif part == '\\I':
-                self.negative -= I_SHORTCUT_REPLACE
-            elif part == '\\c':
-                self.positive -= C_SHORTCUT_REPLACE
-            elif part == '\\C':
-                self.negative -= C_SHORTCUT_REPLACE
-            elif part == '\\w':
-                self.positive -= W_SHORTCUT_SET
-            elif part == '\\W':
-                self.negative -= W_SHORTCUT_SET
+            if part in CHARACTER_ESCAPES:
+                value = CHARACTER_ESCAPES[part]
+                if isinstance(value, string_base_type):
+                    self.positive.difference_update(value)
+                elif part[-1].islower():
+                    self.positive -= value
+                else:
+                    self.negative -= value
             elif self._re_unicode_ref.search(part) is not None:
                 if part.startswith('\\p'):
                     self.positive -= get_unicode_subset(part[3:-1])
@@ -229,12 +239,12 @@ def get_python_regex(xml_regex, debug=False):
     if debug:
         import pdb
         pdb.set_trace()
-    regex = ['^']
+    regex = ['^(']
     pos = 0
     while pos < len(xml_regex):
         ch = xml_regex[pos]
         if ch == '.':
-            regex.append(r'[^\r\n]')
+            regex.append('[^\r\n]')
         elif ch in ('^', '$'):
             regex.append(r'\%s' % ch)
         elif ch == '[':
@@ -248,15 +258,15 @@ def get_python_regex(xml_regex, debug=False):
         elif ch == '\\':
             pos += 1
             if pos >= len(xml_regex):
-                regex.append(u'\\')
+                regex.append('\\')
             elif xml_regex[pos] == 'i':
-                regex.append(u'[%s]' % I_SHORTCUT_REPLACE)
+                regex.append('[%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'I':
-                regex.append(u'[^%s]' % I_SHORTCUT_REPLACE)
+                regex.append('[^%s]' % I_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'c':
-                regex.append(u'[%s]' % C_SHORTCUT_REPLACE)
+                regex.append('[%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] == 'C':
-                regex.append(u'[^%s]' % C_SHORTCUT_REPLACE)
+                regex.append('[^%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] in 'pP':
                 start_pos = pos - 1
                 try:
@@ -270,14 +280,14 @@ def get_python_regex(xml_regex, debug=False):
 
                 p_shortcut_set = get_unicode_subset(xml_regex[start_pos + 3:pos])
                 if xml_regex[start_pos + 1] == 'p':
-                    regex.append(u'[%s]' % p_shortcut_set)
+                    regex.append('[%s]' % p_shortcut_set)
                 else:
-                    regex.append(u'[^%s]' % p_shortcut_set)
+                    regex.append('[^%s]' % p_shortcut_set)
             else:
-                regex.append(u'\\%s' % xml_regex[pos])
+                regex.append('\\%s' % xml_regex[pos])
         else:
             regex.append(ch)
         pos += 1
 
-    regex.append(r'$')
-    return u''.join(regex)
+    regex.append(r')$')
+    return ''.join(regex)

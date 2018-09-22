@@ -8,11 +8,17 @@ The tests of the *xmlschema* library are implemented using the Python's *unitest
 library. The test scripts are located under the installation base into ``tests/``
 subdirectory. There are several test scripts, each one for a different topic:
 
+**test_helpers.py**
+    Tests for ElementTree functionalities
+
+**test_helpers.py**
+    Tests for helper functions and classes
+
 **test_meta.py**
     Tests for the XSD meta-schema and XSD builtins
 
 **test_models.py**
-    Tests concerning model groups validation.
+    Tests concerning model groups validation
 
 **test_package.py**
     Tests regarding packaging and forgotten development code
