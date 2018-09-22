@@ -31,7 +31,6 @@ def get_unicode_subset(key):
         raise XMLSchemaRegexError("%r don't match to any Unicode category or block.")
 
 
-
 I_SHORTCUT_REPLACE = (
     ":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
     "\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
@@ -240,12 +239,12 @@ def get_python_regex(xml_regex, debug=False):
     if debug:
         import pdb
         pdb.set_trace()
-    regex = ['^']
+    regex = ['^(']
     pos = 0
     while pos < len(xml_regex):
         ch = xml_regex[pos]
         if ch == '.':
-            regex.append(r'[^\r\n]')
+            regex.append('[^\r\n]')
         elif ch in ('^', '$'):
             regex.append(r'\%s' % ch)
         elif ch == '[':
@@ -290,5 +289,5 @@ def get_python_regex(xml_regex, debug=False):
             regex.append(ch)
         pos += 1
 
-    regex.append(r'$')
+    regex.append(r')$')
     return ''.join(regex)

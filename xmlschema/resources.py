@@ -17,8 +17,8 @@ from .compat import (
     pathname2url, URLError, uses_relative
 )
 from .etree import (
-    is_etree_element, etree_parse, etree_iterparse, etree_fromstring, etree_parse_error, safe_etree_parse,
-    safe_etree_fromstring, safe_etree_iterparse, safe_etree_parse_error, etree_tostring
+    defused_etree, is_etree_element, etree_parse, etree_iterparse,
+    etree_fromstring, etree_parse_error, etree_tostring
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
@@ -283,7 +283,7 @@ class XMLResource(object):
                         return root, None, source, None
                 else:
                     return self.fromstring(source), None, source, None
-            except (etree_parse_error, safe_etree_parse_error, UnicodeEncodeError):
+            except (etree_parse_error, defused_etree.parse_error, UnicodeEncodeError):
                 if '\n' in source:
                     raise
             finally:
@@ -390,7 +390,7 @@ class XMLResource(object):
     def parse(self):
         """The ElementTree parse method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_parse
+            return defused_etree.parse
         else:
             return etree_parse
 
@@ -398,7 +398,7 @@ class XMLResource(object):
     def iterparse(self):
         """The ElementTree iterparse method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_iterparse
+            return defused_etree.iterparse
         else:
             return etree_iterparse
 
@@ -406,7 +406,7 @@ class XMLResource(object):
     def fromstring(self):
         """The ElementTree fromstring method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return safe_etree_fromstring
+            return defused_etree.fromstring
         else:
             return etree_fromstring
 
@@ -544,7 +544,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(resource, events=('start-ns',)):
                     update_nsmap(*node)
-            except (etree_parse_error, safe_etree_parse_error):
+            except (etree_parse_error, defused_etree.parse_error):
                 pass
             finally:
                 resource.close()
@@ -552,7 +552,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
                     update_nsmap(*node)
-            except (etree_parse_error, safe_etree_parse_error):
+            except (etree_parse_error, defused_etree.parse_error):
                 pass
         else:
             # Warning: can extracts namespace information only from lxml etree structures

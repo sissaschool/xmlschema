@@ -167,10 +167,172 @@ class TestPatterns(unittest.TestCase):
     def test_issue_079(self):
         # Do not escape special characters in character class
         regex = get_python_regex('[^\n\t]+')
-        self.assertEqual(regex, '^[^\t\n]+$')
+        self.assertEqual(regex, '^([^\t\n]+)$')
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('first\tsecond\tthird'))
         self.assertEqual(pattern.search('first second third').group(0), 'first second third')
+
+    def test_dot_wildcard(self):
+        regex = get_python_regex('.+')
+        self.assertEqual(regex, '^([^\r\n]+)$')
+        pattern = re.compile(regex)
+        self.assertIsNone(pattern.search('line1\rline2\r'))
+        self.assertIsNone(pattern.search('line1\nline2'))
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNotNone(pattern.search('\\'))
+        self.assertEqual(pattern.search('abc').group(0), 'abc')
+
+        regex = get_python_regex('.+T.+(Z|[+-].+)')
+        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\+\-][^\r\n]+))$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('12T0A3+36').group(0), '12T0A3+36')
+        self.assertEqual(pattern.search('12T0A3Z').group(0), '12T0A3Z')
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNone(pattern.search('12T0A3Z2'))
+
+    def test_not_spaces(self):
+        regex = get_python_regex("[\S' ']{1,10}")
+        if sys.version_info <= (3,):
+            self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\uffff ']{1,10})$")
+        else:
+            self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$")
+
+        pattern = re.compile(regex)
+        self.assertIsNone(pattern.search('alpha\r'))
+        self.assertEqual(pattern.search('beta').group(0), 'beta')
+        self.assertEqual(pattern.search('beta\n').group(0), 'beta')  # $ matches also a \n at last position
+        self.assertIsNone(pattern.search('beta\n '))
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNone(pattern.search('over the maximum length!'))
+        self.assertIsNotNone(pattern.search('\\'))
+        self.assertEqual(pattern.search('abc').group(0), 'abc')
+
+    def test_category_escape(self):
+        regex = get_python_regex('\\p{IsBasicLatin}*')
+        self.assertEqual(regex, '^([\x00-\x7f]*)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('').group(0), '')
+        self.assertEqual(pattern.search('e').group(0), 'e')
+        self.assertIsNone(pattern.search('è'))
+
+        regex = get_python_regex('[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*')
+        self.assertEqual(regex, '^([\x00-\xff]*)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('e').group(0), 'e')
+        self.assertEqual(pattern.search('è').group(0), 'è')
+        self.assertIsNone(pattern.search('Ĭ'))
+
+    def test_digit_shortcut(self):
+        regex = get_python_regex('\d{1,3}\.\d{1,2}')
+        self.assertEqual(regex, '^(\d{1,3}\.\d{1,2})$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('12.40').group(0), '12.40')
+        self.assertEqual(pattern.search('867.00').group(0), '867.00')
+        self.assertEqual(pattern.search('867.00\n').group(0), '867.00')
+        self.assertIsNone(pattern.search('867.00 '))
+        self.assertIsNone(pattern.search('867.000'))
+        self.assertIsNone(pattern.search('1867.0'))
+        self.assertIsNone(pattern.search('a1.13'))
+
+        regex = get_python_regex('[-+]?(\d+|\d+(\.\d+)?%)')
+        self.assertEqual(regex, '^([\+\-]?(\d+|\d+(\.\d+)?%))$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('78.8%').group(0), '78.8%')
+        self.assertIsNone(pattern.search('867.00'))
+
+    def test_character_class_reordering(self):
+        regex = get_python_regex('[A-Z ]')
+        self.assertEqual(regex, '^([ A-Z])$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('A').group(0), 'A')
+        self.assertEqual(pattern.search('Z').group(0), 'Z')
+        self.assertEqual(pattern.search('Q').group(0), 'Q')
+        self.assertEqual(pattern.search(' ').group(0), ' ')
+        self.assertIsNone(pattern.search('  '))
+        self.assertIsNone(pattern.search('AA'))
+
+        regex = get_python_regex('[0-9.,DHMPRSTWYZ/:+\-]+')
+        self.assertEqual(regex, '^([\+-\-\.-:DHMPR-TWYZ]+)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('12,40').group(0), '12,40')
+        self.assertEqual(pattern.search('YYYY:MM:DD').group(0), 'YYYY:MM:DD')
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNone(pattern.search('C'))
+
+        regex = get_python_regex('[^: \n\r\t]+')
+        self.assertEqual(regex, '^([^\t\n\r :]+)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('56,41').group(0), '56,41')
+        self.assertEqual(pattern.search('56,41\n').group(0), '56,41')
+        self.assertIsNone(pattern.search('13:20'))
+
+        regex = get_python_regex('[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?')
+        self.assertEqual(regex, '^([\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('fa9').group(0), 'fa9')
+        self.assertEqual(pattern.search('-x_1:_tZ-\n').group(0), '-x_1:_tZ-')
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNone(pattern.search('+78'))
+
+        regex = get_python_regex('[!%\^\*@~;#,|/]')
+        self.assertEqual(regex, '^([!#%\*,/;@\^\|~])$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('#').group(0), '#')
+        self.assertEqual(pattern.search('!').group(0), '!')
+        self.assertEqual(pattern.search('^').group(0), '^')
+        self.assertEqual(pattern.search('|').group(0), '|')
+        self.assertEqual(pattern.search('*').group(0), '*')
+        self.assertIsNone(pattern.search('**'))
+        self.assertIsNone(pattern.search('b'))
+        self.assertIsNone(pattern.search(''))
+
+        regex = get_python_regex('[A-Za-z]+:[A-Za-z][A-Za-z0-9\\-]+')
+        self.assertEqual(regex, '^([A-Za-z]+:[A-Za-z][\\-0-9A-Za-z]+)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('zk:xy-9s').group(0), 'zk:xy-9s')
+        self.assertIsNone(pattern.search('xx:y'))
+
+    def test_occurrences_qualifiers(self):
+        regex = get_python_regex('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?')
+        self.assertEqual(regex, '^(#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('#F3D').group(0), '#F3D')
+        self.assertEqual(pattern.search('#F3D\n').group(0), '#F3D')
+        self.assertEqual(pattern.search('#F3DA30').group(0), '#F3DA30')
+        self.assertIsNone(pattern.search('#F3'))
+        self.assertIsNone(pattern.search('#F3D '))
+        self.assertIsNone(pattern.search('F3D'))
+        self.assertIsNone(pattern.search(''))
+
+    def test_or_operator(self):
+        regex = get_python_regex('0|1')
+        self.assertEqual(regex, '^(0|1)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('0').group(0), '0')
+        self.assertEqual(pattern.search('1').group(0), '1')
+        self.assertEqual(pattern.search('1\n').group(0), '1')
+        self.assertIsNone(pattern.search(''))
+        self.assertIsNone(pattern.search('2'))
+        self.assertIsNone(pattern.search('01'))
+        self.assertIsNone(pattern.search('1\n '))
+
+        regex = get_python_regex('\d+[%]|\d*\.\d+[%]')
+        self.assertEqual(regex, '^(\d+[%]|\d*\.\d+[%])$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('99%').group(0), '99%')
+        self.assertEqual(pattern.search('99.9%').group(0), '99.9%')
+        self.assertEqual(pattern.search('.90%').group(0), '.90%')
+        self.assertIsNone(pattern.search('%'))
+        self.assertIsNone(pattern.search('90.%'))
+
+        regex = get_python_regex('([ -~]|\n|\r|\t)*')
+        self.assertEqual(regex, '^(([ -~]|\n|\r|\t)*)$')
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('ciao\t-~ ').group(0), 'ciao\t-~ ')
+        self.assertEqual(pattern.search('\r\r').group(0), '\r\r')
+        self.assertEqual(pattern.search('\n -.abc').group(0), '\n -.abc')
+        self.assertIsNone(pattern.search('à'))
+        self.assertIsNone(pattern.search('\t\n à'))
 
 
 if __name__ == '__main__':

@@ -12,9 +12,11 @@
 This module contains ElementTree setup and helpers for xmlschema package.
 """
 from __future__ import unicode_literals
-from xml.etree import ElementTree
 from collections import Counter
+import importlib
 import re
+
+import xml.etree.ElementTree as ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -27,26 +29,71 @@ from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespa
 from .qnames import get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
-import defusedxml.ElementTree
 
 # Register missing namespaces into imported ElementTree module
-ElementTree.register_namespace('xslt', XSLT_NAMESPACE)
-ElementTree.register_namespace('hfp', HFP_NAMESPACE)
-ElementTree.register_namespace('vc', VC_NAMESPACE)
+etree_register_namespace = ElementTree.register_namespace
+etree_register_namespace('xslt', XSLT_NAMESPACE)
+etree_register_namespace('hfp', HFP_NAMESPACE)
+etree_register_namespace('vc', VC_NAMESPACE)
 
-# Define alias for ElementTree API for internal module imports
+etree_element = ElementTree.Element
+etree_parse_error = ElementTree.ParseError
 etree_parse = ElementTree.parse
 etree_iterparse = ElementTree.iterparse
 etree_fromstring = ElementTree.fromstring
-etree_parse_error = ElementTree.ParseError
-etree_element = ElementTree.Element
-etree_register_namespace = ElementTree.register_namespace
 
-# Safe APIs from defusedxml package
-safe_etree_parse = defusedxml.ElementTree.parse
-safe_etree_iterparse = defusedxml.ElementTree.iterparse
-safe_etree_fromstring = defusedxml.ElementTree.fromstring
-safe_etree_parse_error = defusedxml.ElementTree.ParseError
+
+# Safe ElementTree
+class LazyDefusedElementTree(object):
+    """
+    Lazy importer of defused ElementTree to postpone C ElementTree override.
+    """
+    def __init__(self):
+        self._defused_etree = None
+        self.element_tree = ElementTree
+        self.etree_element = etree_element
+
+    def _import(self):
+        """Import the safe module and update set PyElementTree with the pure python module."""
+        self._defused_etree = importlib.import_module('defusedxml.ElementTree')
+        import xml.etree.ElementTree as PurePythonElementTree
+        self.element_tree = PurePythonElementTree
+        self.etree_element = PurePythonElementTree.Element
+
+    @property
+    def parse(self):
+        try:
+            return self._defused_etree.parse
+        except AttributeError:
+            self._import()
+            return self._defused_etree.parse
+
+    @property
+    def iterparse(self):
+        try:
+            return self._defused_etree.iterparse
+        except AttributeError:
+            self._import()
+            return self._defused_etree.iterparse
+
+    @property
+    def fromstring(self):
+        try:
+            return self._defused_etree.fromstring
+        except AttributeError:
+            self._import()
+            return self._defused_etree.fromstring
+
+    @property
+    def parse_error(self):
+        try:
+            return self._defused_etree.ParseError
+        except AttributeError:
+            return etree_parse_error
+
+
+defused_etree = LazyDefusedElementTree()
+
 
 # Lxml APIs
 if lxml_etree is not None:
@@ -96,6 +143,12 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
             for prefix, uri in namespaces.items():
                 etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
+
+    elif isinstance(elem, defused_etree.etree_element):
+        if namespaces:
+            for prefix, uri in namespaces.items():
+                defused_etree.element_tree.register_namespace(prefix, uri)
+        tostring = defused_etree.element_tree.tostring
 
     elif lxml_etree is not None:
         if namespaces:

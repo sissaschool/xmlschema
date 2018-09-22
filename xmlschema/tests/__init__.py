@@ -19,7 +19,6 @@ import glob
 import fileinput
 import argparse
 import logging
-
 from functools import wraps
 
 from xmlschema import XMLSchema, XMLSchema10

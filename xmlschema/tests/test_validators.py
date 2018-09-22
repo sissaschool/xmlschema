@@ -19,7 +19,6 @@ import sys
 import pickle
 from decimal import Decimal
 import base64
-from xml.etree import ElementTree as _ElementTree
 import warnings
 
 try:
@@ -29,6 +28,8 @@ except ImportError:
     pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
+
+from xml.etree import ElementTree as _ElementTree
 
 from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
@@ -428,7 +429,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
                 self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
                 # if NAMESPACE_PATTERN.search('\n'.join(error_string.split('\n')[1:])):
                 #    print(error_string)
-                #self.assertIsNone(NAMESPACE_PATTERN.search(error_string))
+                # self.assertIsNone(NAMESPACE_PATTERN.search(error_string))
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
@@ -441,7 +442,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
         def check_schema_serialization(self):
             # Repeat with serialized-deserialized schema (only for Python 3)
-            deserialized_schema = pickle.loads(pickle.dumps(self.schema))
+            serialized_schema = pickle.dumps(self.schema)
+            deserialized_schema = pickle.loads(serialized_schema)
             errors = []
             chunks = []
             for obj in deserialized_schema.iter_decode(xml_file):
