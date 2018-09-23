@@ -21,7 +21,7 @@ CHANGELOG
 ======================
 * Improved ElementTree and XPath API
 
-`v1.0.0`_ (2018-07-14)
+`v1.0.1`_ (2018-07-14)
 ======================
 * Validated data encoding to XML
 * Improved converters with decoding/encoding of namespace information
