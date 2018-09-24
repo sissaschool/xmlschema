@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.0.5`_ (TBD)
+===============
+* Fix for issue #82
+* Improved namespace mapping for error messages
+
 `v1.0.4`_ (2018-09-22)
 ======================
 * Unification of XSD group decode and encode methods

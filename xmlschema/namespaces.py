@@ -157,7 +157,10 @@ class NamespaceMapper(MutableMapping):
         try:
             prefix, name = qname.split(':', 1)
         except ValueError:
-            return qname
+            if self.get(''):
+                return u'{%s}%s' % (self.get(''), qname)
+            else:
+                return qname
         else:
             try:
                 uri = self._namespaces[prefix]
