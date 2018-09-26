@@ -90,10 +90,16 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error("missing both 'name' and 'ref' in attribute declaration")
                 return
             else:
-                xsd_attribute = self.maps.lookup_attribute(attribute_name)
+                try:
+                    xsd_attribute = self.maps.lookup_attribute(attribute_name)
+                except LookupError:
+                    self.parse_error("unknown attribute %r" % elem.attrib['ref'])
+                    self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                else:
+                    self.type = xsd_attribute.type
+                    self.qualified = xsd_attribute.qualified
+
                 self.name = attribute_name
-                self.type = xsd_attribute.type
-                self.qualified = xsd_attribute.qualified
                 for attribute in ('form', 'type'):
                     if attribute in self.elem.attrib:
                         self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
@@ -110,7 +116,12 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 # Empty declaration means xsdAnySimpleType
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
         else:
-            xsd_type = self.maps.lookup_type(type_qname)
+            try:
+                xsd_type = self.maps.lookup_type(type_qname)
+            except LookupError:
+                self.parse_error("unknown type %r." % elem.attrib['type'], elem)
+                xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
                 self.parse_error("ambiguous type declaration for XSD attribute")
             elif xsd_declaration:
@@ -330,16 +341,29 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.parse_error("more anyAttribute declarations in the same attribute group")
                 else:
                     self.parse_error("another declaration after anyAttribute")
+
             elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
                 any_attribute = True
                 self.update([(None, XsdAnyAttribute(child, self.schema, self))])
+
             elif child.tag == XSD_ATTRIBUTE_TAG:
                 attribute = XsdAttribute(child, self.schema, self)
                 self[attribute.name] = attribute
+
             elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
-                qname = prefixed_to_qname(get_xsd_attribute(child, 'ref'), self.namespaces)
-                ref_attribute_group = self.maps.lookup_attribute_group(qname)
-                self.update(ref_attribute_group.items())
+                try:
+                    name = get_xsd_attribute(child, 'ref')
+                except KeyError as err:
+                    self.parse_error(str(err), elem)
+                else:
+                    qname = prefixed_to_qname(name, self.namespaces)
+                    try:
+                        attribute_group = self.maps.lookup_attribute_group(qname)
+                    except LookupError:
+                        self.parse_error("unknown attribute group %r" % name, elem)
+                    else:
+                        self.update(attribute_group.items())
+
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
 

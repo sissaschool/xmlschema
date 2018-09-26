@@ -356,6 +356,29 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </simpleType>
             """)
 
+    def test_wrong_attribute(self):
+        self.check_schema("""
+            <attributeGroup name="alpha">
+                <attribute name="name" type="string"/>
+                <attribute ref="phone"/>  <!-- Missing "phone" attribute -->
+            </attributeGroup>
+            """, XMLSchemaParseError)
+
+    def test_wrong_attribute_group(self):
+        self.check_schema("""
+            <attributeGroup name="alpha">
+                <attribute name="name" type="string"/>
+                <attributeGroup ref="beta"/>  <!-- Missing "beta" attribute group -->
+            </attributeGroup>
+            """, XMLSchemaParseError)
+        schema = self.check_schema("""
+            <attributeGroup name="alpha">
+                <attribute name="name" type="string"/>
+                <attributeGroup name="beta"/>  <!-- attribute "name" instead of "ref" -->
+            </attributeGroup>
+            """, validation='lax')
+        self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
+
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_remote_schemas(self):
         # Tests with Dublin Core schemas that also use imports
