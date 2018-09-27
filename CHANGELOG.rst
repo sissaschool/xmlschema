@@ -193,3 +193,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.2: https://github.com/brunato/xmlschema/compare/v1.0.1...v1.0.2
 .. _v1.0.3: https://github.com/brunato/xmlschema/compare/v1.0.2...v1.0.3
 .. _v1.0.4: https://github.com/brunato/xmlschema/compare/v1.0.3...v1.0.4
+.. _v1.0.5: https://github.com/brunato/xmlschema/compare/v1.0.4...v1.0.5
