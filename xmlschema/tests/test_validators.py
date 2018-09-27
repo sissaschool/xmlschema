@@ -35,15 +35,14 @@ from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
-from xmlschema.compat import ordered_dict_class
-from xmlschema.namespaces import NAMESPACE_PATTERN
+from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
     etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
 )
-from xmlschema.qnames import local_name
+from xmlschema.qnames import local_name, XSI_TYPE
 
 
 _VEHICLES_DICT = {
@@ -333,19 +332,29 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
             if isinstance(elem1, tuple):
-                elem1 = elem1[0]  # When validation='lax'
+                # When validation='lax'
+                if converter is not ParkerConverter:
+                    for e in elem1[1]:
+                        self.check_namespace_prefixes(unicode_type(e))
+                elem1 = elem1[0]
 
-            # Main check: compare original an re encoded tree
+            # Checks the encoded element to not contains reserved namespace prefixes
+            if 'namespaces' in kwargs and all('ns%d' % k not in kwargs['namespaces'] for k in range(10)):
+                self.check_namespace_prefixes(etree_tostring(elem1, namespaces=kwargs['namespaces']))
+
+            # Main check: compare original a re encoded tree
             try:
                 etree_elements_assert_equal(root, elem1, strict=False)
             except AssertionError as err:
                 # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
-                # or it the XML case has defaults taken from the schema or some part of data
+                # or if the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) and not skip_strict:
                     if debug_mode:
                         pdb.set_trace()
                     raise AssertionError(str(err) + msg_template % "encoded tree differs from original")
+                elif converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
+                    return  # can't check encode equivalence if xsi:type is provided
                 else:
                     # Lossy or augmenting cases are checked after a re decoding-encoding pass
                     data2 = self.schema.decode(elem1, converter=converter, **kwargs)
@@ -385,7 +394,9 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             if isinstance(data2, tuple):
                 data2 = data2[0]
 
-            if sys.version_info >= (3, 6):
+            if converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
+                return  # can't check encode equivalence if xsi:type is provided
+            elif sys.version_info >= (3, 6):
                 self.assertEqual(data2, data1, msg_template % "serialized data changed at second pass")
             else:
                 elem2 = xmlschema.from_json(data2, schema=self.schema, path=root.tag, converter=converter, **kwargs)
@@ -424,12 +435,10 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             # Checks errors correctness
             for e in self.errors:
-                error_string = str(e)
+                error_string = unicode_type(e)
                 self.assertTrue(e.path, "Missing path for: %s" % error_string)
                 self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
-                # if NAMESPACE_PATTERN.search('\n'.join(error_string.split('\n')[1:])):
-                #    print(error_string)
-                # self.assertIsNone(NAMESPACE_PATTERN.search(error_string))
+                self.check_namespace_prefixes(error_string)
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")

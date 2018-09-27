@@ -562,18 +562,22 @@ class XsdList(XsdSimpleType):
         child = self._parse_component(elem, required=False)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
-            base_type = xsd_simple_type_factory(child, self.schema, self)
-            if isinstance(base_type, XMLSchemaParseError):
-                self.parse_error(base_type, elem)
+            try:
+                base_type = xsd_simple_type_factory(child, self.schema, self)
+            except XMLSchemaParseError as err:
+                self.parse_error(err, elem)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+
             if 'itemType' in elem.attrib:
                 self.parse_error("ambiguous list type declaration", self)
+
         elif 'itemType' in elem.attrib:
             # List tag with itemType attribute that refers to a global type
             item_qname = prefixed_to_qname(elem.attrib['itemType'], self.namespaces)
-            base_type = self.maps.lookup_type(item_qname)
-            if isinstance(base_type, XMLSchemaParseError):
-                self.parse_error(base_type, elem)
+            try:
+                base_type = self.maps.lookup_type(item_qname)
+            except LookupError:
+                self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         else:
             self.parse_error("missing list type declaration", elem)
@@ -728,10 +732,16 @@ class XsdUnion(XsdSimpleType):
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
                 type_qname = prefixed_to_qname(name, self.namespaces)
-                mt = self.maps.lookup_type(type_qname)
-                if isinstance(mt, XMLSchemaParseError):
-                    self.parse_error(mt)
-                elif not isinstance(mt, XsdSimpleType):
+                try:
+                    mt = self.maps.lookup_type(type_qname)
+                except LookupError:
+                    self.parse_error("unknown member type %r" % type_qname)
+                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                except XMLSchemaParseError as err:
+                    self.parse_error(err)
+                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+
+                if not isinstance(mt, XsdSimpleType):
                     self.parse_error("a simpleType required", mt)
                 else:
                     member_types.append(mt)
@@ -927,9 +937,13 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if 'base' in elem.attrib:
             base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
-            base_type = self.maps.lookup_type(base_qname)
-            if isinstance(base_type, XMLSchemaParseError):
-                self.parse_error(base_qname)
+            try:
+                base_type = self.maps.lookup_type(base_qname)
+            except LookupError:
+                self.parse_error("unknown type %r." % elem.attrib['base'])
+                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            except XMLSchemaParseError as err:
+                self.parse_error(err)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
             if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
@@ -951,10 +965,12 @@ class XsdAtomicRestriction(XsdAtomic):
                 if has_simple_type_child:
                     self.parse_error("duplicated simpleType declaration", child)
                 elif base_type is None:
-                    base_type = xsd_simple_type_factory(child, self.schema, self)
-                    if isinstance(base_type, XMLSchemaParseError):
-                        self.parse_error(base_type)
+                    try:
+                        base_type = xsd_simple_type_factory(child, self.schema, self)
+                    except XMLSchemaParseError as err:
+                        self.parse_error(err)
                         base_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+
                 elif base_type.is_complex() and base_type.admit_simple_restriction():
                     base_type = self.schema.BUILDERS.complex_type_class(
                         elem=elem,

@@ -99,7 +99,7 @@ def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
         try:
             return kwargs['default']
         except KeyError:
-            raise XMLSchemaKeyError("attribute {} expected".format(err), elem)
+            raise XMLSchemaKeyError("attribute {} expected for {}.".format(err, elem))
     else:
         if enumeration and value not in enumeration:
             raise XMLSchemaValueError("wrong value %r for %r attribute." % (value, attribute))

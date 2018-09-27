@@ -329,12 +329,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         value = content = attributes = None
 
         # Get the instance type: xsi:type or the schema's declaration
-        if XSI_TYPE in elem.attrib:
-            xsd_type = self.maps.lookup_type(converter.unmap_qname(elem.attrib[XSI_TYPE]))
-            attribute_group = getattr(xsd_type, 'attributes', self.attributes)
-        else:
+        if XSI_TYPE not in elem.attrib:
             xsd_type = self.type
             attribute_group = self.attributes
+        else:
+            xsi_type = elem.attrib[XSI_TYPE]
+            try:
+                xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
+            except KeyError:
+                yield self.validation_error(validation, "unknown type %r" % xsi_type, elem, **kwargs)
+                xsd_type = self.type
+                attribute_group = self.attributes
+            else:
+                attribute_group = getattr(xsd_type, 'attributes', self.attributes)
 
         # Decode attributes
         for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
@@ -445,11 +452,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         if element_data.attributes is not None and XSI_TYPE in element_data.attributes:
             xsi_type = element_data.attributes[XSI_TYPE]
-            xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
+            try:
+                xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
+            except KeyError:
+                errors.append("unknown type %r" % xsi_type)
+                xsd_type = self.type
+                attribute_group = self.attributes
+            else:
+                attribute_group = getattr(xsd_type, 'attributes', self.attributes)
+
         else:
             xsd_type = self.type
+            attribute_group = self.attributes
 
-        for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
+        for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 errors.append(result)
             else:
