@@ -2,10 +2,10 @@
 CHANGELOG
 *********
 
-`v1.0.5`_ (TBD)
-===============
-* Fix for issue #82
-* Improved namespace mapping for error messages
+`v1.0.5`_ (2018-09-27)
+======================
+* Fix for issue #82 and for similar unprotected XSD component lookups
+* Added checks for namespace mapping of encoded trees and error messages
 
 `v1.0.4`_ (2018-09-22)
 ======================
@@ -168,28 +168,28 @@ v0.9.6 (2017-05-05)
 * Added iterfind(), find() and findall() APIs for searching XSD element declarations using XPath
 
 
-.. _v0.9.7: https://github.com/brunato/xmlschema/compare/0.9.6...0.9.7
-.. _v0.9.8: https://github.com/brunato/xmlschema/compare/0.9.7...0.9.8
-.. _v0.9.9: https://github.com/brunato/xmlschema/compare/0.9.8...0.9.9
-.. _v0.9.10: https://github.com/brunato/xmlschema/compare/0.9.9...0.9.10
-.. _v0.9.12: https://github.com/brunato/xmlschema/compare/0.9.10...0.9.12
-.. _v0.9.14: https://github.com/brunato/xmlschema/compare/0.9.12...0.9.14
-.. _v0.9.15: https://github.com/brunato/xmlschema/compare/0.9.14...0.9.15
-.. _v0.9.16: https://github.com/brunato/xmlschema/compare/0.9.15...0.9.16
-.. _v0.9.17: https://github.com/brunato/xmlschema/compare/0.9.16...0.9.17
-.. _v0.9.18: https://github.com/brunato/xmlschema/compare/0.9.17...0.9.18
-.. _v0.9.20: https://github.com/brunato/xmlschema/compare/0.9.18...0.9.20
-.. _v0.9.21: https://github.com/brunato/xmlschema/compare/0.9.20...0.9.21
-.. _v0.9.23: https://github.com/brunato/xmlschema/compare/0.9.21...0.9.23
-.. _v0.9.24: https://github.com/brunato/xmlschema/compare/0.9.23...0.9.24
-.. _v0.9.25: https://github.com/brunato/xmlschema/compare/0.9.24...0.9.25
-.. _v0.9.26: https://github.com/brunato/xmlschema/compare/0.9.25...0.9.26
-.. _v0.9.27: https://github.com/brunato/xmlschema/compare/0.9.26...0.9.27
-.. _v0.9.28: https://github.com/brunato/xmlschema/compare/0.9.27...0.9.28
-.. _v0.9.29: https://github.com/brunato/xmlschema/compare/0.9.28...0.9.29
-.. _v0.9.30: https://github.com/brunato/xmlschema/compare/0.9.29...0.9.30
-.. _v0.9.31: https://github.com/brunato/xmlschema/compare/0.9.30...0.9.31
-.. _v1.0.1: https://github.com/brunato/xmlschema/compare/0.9.31...1.0.1
-.. _v1.0.2: https://github.com/brunato/xmlschema/compare/1.0.1...1.0.2
-.. _v1.0.3: https://github.com/brunato/xmlschema/compare/1.0.2...1.0.3
-.. _v1.0.4: https://github.com/brunato/xmlschema/compare/1.0.3...1.0.4
+.. _v0.9.7: https://github.com/brunato/xmlschema/compare/v0.9.6...v0.9.7
+.. _v0.9.8: https://github.com/brunato/xmlschema/compare/v0.9.7...v0.9.8
+.. _v0.9.9: https://github.com/brunato/xmlschema/compare/v0.9.8...v0.9.9
+.. _v0.9.10: https://github.com/brunato/xmlschema/compare/v0.9.9...v0.9.10
+.. _v0.9.12: https://github.com/brunato/xmlschema/compare/v0.9.10...v0.9.12
+.. _v0.9.14: https://github.com/brunato/xmlschema/compare/v0.9.12...v0.9.14
+.. _v0.9.15: https://github.com/brunato/xmlschema/compare/v0.9.14...v0.9.15
+.. _v0.9.16: https://github.com/brunato/xmlschema/compare/v0.9.15...v0.9.16
+.. _v0.9.17: https://github.com/brunato/xmlschema/compare/v0.9.16...v0.9.17
+.. _v0.9.18: https://github.com/brunato/xmlschema/compare/v0.9.17...v0.9.18
+.. _v0.9.20: https://github.com/brunato/xmlschema/compare/v0.9.18...v0.9.20
+.. _v0.9.21: https://github.com/brunato/xmlschema/compare/v0.9.20...v0.9.21
+.. _v0.9.23: https://github.com/brunato/xmlschema/compare/v0.9.21...v0.9.23
+.. _v0.9.24: https://github.com/brunato/xmlschema/compare/v0.9.23...v0.9.24
+.. _v0.9.25: https://github.com/brunato/xmlschema/compare/v0.9.24...v0.9.25
+.. _v0.9.26: https://github.com/brunato/xmlschema/compare/v0.9.25...v0.9.26
+.. _v0.9.27: https://github.com/brunato/xmlschema/compare/v0.9.26...v0.9.27
+.. _v0.9.28: https://github.com/brunato/xmlschema/compare/v0.9.27...v0.9.28
+.. _v0.9.29: https://github.com/brunato/xmlschema/compare/v0.9.28...v0.9.29
+.. _v0.9.30: https://github.com/brunato/xmlschema/compare/v0.9.29...v0.9.30
+.. _v0.9.31: https://github.com/brunato/xmlschema/compare/v0.9.30...v0.9.31
+.. _v1.0.1: https://github.com/brunato/xmlschema/compare/v0.9.31...v1.0.1
+.. _v1.0.2: https://github.com/brunato/xmlschema/compare/v1.0.1...v1.0.2
+.. _v1.0.3: https://github.com/brunato/xmlschema/compare/v1.0.2...v1.0.3
+.. _v1.0.4: https://github.com/brunato/xmlschema/compare/v1.0.3...v1.0.4

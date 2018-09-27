@@ -35,7 +35,7 @@ except ImportError:
 from xmlschema import (
     XMLSchemaParseError, XMLSchemaBase, XMLSchema, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
-from xmlschema.compat import PY3
+from xmlschema.compat import PY3, unicode_type
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import defused_etree
@@ -457,8 +457,10 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
 
         # Checks errors completeness
         for e in errors:
-            self.assertTrue(e.path, "Missing path for: %s" % str(e))
-            self.assertTrue(e.namespaces, "Missing namespaces for: %s" % str(e))
+            error_string = unicode_type(e)
+            self.assertTrue(e.path, "Missing path for: %s" % error_string)
+            self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
+            self.check_namespace_prefixes(error_string)
 
         num_errors = len(errors)
         if num_errors != expected_errors:
@@ -475,7 +477,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
     rel_path = os.path.relpath(test_file)
     class_name = 'TestSchema{0:03}'.format(test_num)
     return type(
-        class_name, (unittest.TestCase,),
+        class_name, (XMLSchemaTestCase,),
         {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
     )
 

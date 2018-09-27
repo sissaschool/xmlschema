@@ -192,9 +192,7 @@ class TestPatterns(unittest.TestCase):
 
     def test_not_spaces(self):
         regex = get_python_regex("[\S' ']{1,10}")
-        if sys.version_info <= (3,):
-            self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\uffff ']{1,10})$")
-        else:
+        if sys.version_info >= (3,):
             self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$")
 
         pattern = re.compile(regex)

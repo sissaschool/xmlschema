@@ -48,6 +48,8 @@ def has_network_access(*locations):
 
 SKIP_REMOTE_TESTS = not has_network_access('http://www.sissa.it', 'http://www.w3.org/', 'http://dublincore.org/')
 
+PROTECTED_PREFIX_PATTERN = re.compile("ns\d:")
+
 
 def print_test_header():
     header = "Test %r" % xmlschema
@@ -326,7 +328,15 @@ class XMLSchemaTestCase(unittest.TestCase):
         return schema.elements[name]
 
     def check_etree_elements(self, elem, other):
+        """Checks if two ElementTree elements are equal."""
         try:
             self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
         except AssertionError as err:
             self.assertIsNone(err, None)
+
+    def check_namespace_prefixes(self, s):
+        """Checks that a string doesn't contain protected prefixes (ns0, ns1 ...)."""
+        match = PROTECTED_PREFIX_PATTERN.search(s)
+        if match:
+            msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
+            self.assertIsNone(match, msg)

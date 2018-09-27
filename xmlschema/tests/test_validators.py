@@ -35,8 +35,7 @@ from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
-from xmlschema.compat import ordered_dict_class
-from xmlschema.namespaces import NAMESPACE_PATTERN
+from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
@@ -333,7 +332,15 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
             if isinstance(elem1, tuple):
-                elem1 = elem1[0]  # When validation='lax'
+                # When validation='lax'
+                if converter is not ParkerConverter:
+                    for e in elem1[1]:
+                        self.check_namespace_prefixes(unicode_type(e))
+                elem1 = elem1[0]
+
+            # Checks the encoded element to not contains reserved namespace prefixes
+            if 'namespaces' in kwargs and all('ns%d' % k not in kwargs['namespaces'] for k in range(10)):
+                self.check_namespace_prefixes(etree_tostring(elem1, namespaces=kwargs['namespaces']))
 
             # Main check: compare original a re encoded tree
             try:
@@ -428,12 +435,10 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             # Checks errors correctness
             for e in self.errors:
-                error_string = str(e)
+                error_string = unicode_type(e)
                 self.assertTrue(e.path, "Missing path for: %s" % error_string)
                 self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
-                # if NAMESPACE_PATTERN.search('\n'.join(error_string.split('\n')[1:])):
-                #    print(error_string)
-                # self.assertIsNone(NAMESPACE_PATTERN.search(error_string))
+                self.check_namespace_prefixes(error_string)
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
