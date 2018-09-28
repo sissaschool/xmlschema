@@ -143,7 +143,19 @@ class TestParseUtils(XMLSchemaTestCase):
         self.assertRaises(ValueError, list, iter_xsd_components(elem))
 
     def test_has_xsd_components(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_SCHEMA_TAG)
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertTrue(has_xsd_components(elem))
+
+        elem.clear()
+        self.assertFalse(has_xsd_components(elem))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertFalse(has_xsd_components(elem))
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertTrue(has_xsd_components(elem))
+        self.assertFalse(has_xsd_components(elem, start=1))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertRaises(ValueError, list, iter_xsd_components(elem))
 
     def test_get_xsd_component(self):
         raise NotImplementedError
