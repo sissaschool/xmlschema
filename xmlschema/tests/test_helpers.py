@@ -26,10 +26,11 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
+from xmlschema.etree import etree_element
 from xmlschema.namespaces import get_namespace, XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.qnames import (
     xsd_qname, get_qname, local_name, prefixed_to_qname, qname_to_prefixed,
-    XSI_TYPE, XSD_SCHEMA_TAG, XSD_ELEMENT_TAG, XSD_SIMPLE_TYPE_TAG
+    XSI_TYPE, XSD_SCHEMA_TAG, XSD_ELEMENT_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ANNOTATION_TAG
 )
 from xmlschema.validators.parseutils import (
     get_xsd_annotation, iter_xsd_components, has_xsd_components, get_xsd_component,
@@ -112,7 +113,19 @@ class TestQualifiedNames(unittest.TestCase):
 class TestParseUtils(XMLSchemaTestCase):
 
     def test_get_xsd_annotation(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_SCHEMA_TAG)
+
+        self.assertIsNone(get_xsd_annotation(elem))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertEqual(get_xsd_annotation(elem), elem[0])
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertEqual(get_xsd_annotation(elem), elem[0])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertIsNone(get_xsd_annotation(elem))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertIsNone(get_xsd_annotation(elem))
 
     def test_iter_xsd_components(self):
         raise NotImplementedError

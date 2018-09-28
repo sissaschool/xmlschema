@@ -40,7 +40,7 @@ from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import defused_etree
 from xmlschema.xpath import ElementPathContext
-from xmlschema.validators import XsdValidator
+from xmlschema.validators import XsdValidator, XMLSchema10, XMLSchema11
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -394,6 +394,15 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertEqual(dcterms_schema.source.parse, defused_etree.parse)
         self.assertEqual(dcterms_schema.source.iterparse, defused_etree.iterparse)
         self.assertEqual(dcterms_schema.source.fromstring, defused_etree.fromstring)
+
+
+class TestXMLSchema11(XMLSchemaTestCase):
+
+    schema_class = XMLSchema11
+
+    def test_nothing(self):
+        print(self.schema_class)
+
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):

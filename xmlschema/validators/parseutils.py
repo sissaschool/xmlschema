@@ -27,7 +27,7 @@ def get_xsd_annotation(elem):
     try:
         return elem[0] if elem[0].tag == XSD_ANNOTATION_TAG else None
     except (TypeError, IndexError):
-        return None
+        return
 
 
 def iter_xsd_components(elem, start=0):
