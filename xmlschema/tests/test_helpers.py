@@ -31,6 +31,12 @@ from xmlschema.qnames import (
     xsd_qname, get_qname, local_name, prefixed_to_qname, qname_to_prefixed,
     XSI_TYPE, XSD_SCHEMA_TAG, XSD_ELEMENT_TAG, XSD_SIMPLE_TYPE_TAG
 )
+from xmlschema.validators.parseutils import (
+    get_xsd_annotation, iter_xsd_components, has_xsd_components, get_xsd_component,
+    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
+    get_xsd_derivation_attribute, get_xpath_default_namespace
+)
+from xmlschema.tests import XMLSchemaTestCase
 
 
 class TestNamespaces(unittest.TestCase):
@@ -101,6 +107,36 @@ class TestQualifiedNames(unittest.TestCase):
         self.assertEqual(qname_to_prefixed('type', {'': XSI_NAMESPACE}), 'type')
         self.assertEqual(qname_to_prefixed('type', {'ns': ''}), 'ns:type')
         self.assertEqual(qname_to_prefixed('type', {'': ''}), 'type')
+
+
+class TestParseUtils(XMLSchemaTestCase):
+
+    def test_get_xsd_annotation(self):
+        raise NotImplementedError
+
+    def test_iter_xsd_components(self):
+        raise NotImplementedError
+
+    def test_has_xsd_components(self):
+        raise NotImplementedError
+
+    def test_get_xsd_component(self):
+        raise NotImplementedError
+
+    def test_get_xsd_attribute(self):
+        raise NotImplementedError
+
+    def test_get_xsd_bool_attribute(self):
+        raise NotImplementedError
+
+    def test_get_xsd_int_attribute(self):
+        raise NotImplementedError
+
+    def test_get_xsd_derivation_attribute(self):
+        raise NotImplementedError
+
+    def test_get_xpath_default_namespace(self):
+        raise NotImplementedError
 
 
 if __name__ == '__main__':

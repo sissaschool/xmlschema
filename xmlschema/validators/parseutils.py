@@ -9,15 +9,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains utility functions and classes.
+This module contains helper functions for XSD parsing.
 """
 from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from ..qnames import XSD_ANNOTATION_TAG
 
 
-#
-# Functions for parsing XSD components and attributes from etree elements
 def get_xsd_annotation(elem):
     """
     Returns the annotation of an XSD component.

@@ -26,7 +26,7 @@ from .validators import (
     XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
-__version__ = '1.0.5'
+__version__ = '1.0.6'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"
