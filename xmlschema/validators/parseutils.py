@@ -33,6 +33,10 @@ def get_xsd_annotation(elem):
 def iter_xsd_components(elem, start=0):
     """
     Returns an iterator for XSD child components, excluding the annotation.
+
+    :param elem: the ElementTree's parent Element.
+    :param start: the start child component to yield, the optional annotation is not counted. \
+    With the default value 0 starts from the first component.
     """
     counter = 0
     for child in elem:

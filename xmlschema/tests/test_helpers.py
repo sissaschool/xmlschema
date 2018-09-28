@@ -128,7 +128,19 @@ class TestParseUtils(XMLSchemaTestCase):
         self.assertIsNone(get_xsd_annotation(elem))
 
     def test_iter_xsd_components(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_SCHEMA_TAG)
+        self.assertFalse(list(iter_xsd_components(elem)))
+        self.assertFalse(list(iter_xsd_components(elem, start=1)))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertFalse(list(iter_xsd_components(elem)))
+        self.assertFalse(list(iter_xsd_components(elem, start=1)))
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertEqual(list(iter_xsd_components(elem)), [elem[1]])
+        elem.append(etree_element(XSD_SIMPLE_TYPE_TAG))
+        self.assertEqual(list(iter_xsd_components(elem)), elem[1:])
+        self.assertEqual(list(iter_xsd_components(elem, start=1)), [elem[2]])
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertRaises(ValueError, list, iter_xsd_components(elem))
 
     def test_has_xsd_components(self):
         raise NotImplementedError
