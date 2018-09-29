@@ -34,7 +34,7 @@ def iter_xsd_components(elem, start=0):
     """
     Returns an iterator for XSD child components, excluding the annotation.
 
-    :param elem: the ElementTree's parent Element.
+    :param elem: the parent Element.
     :param start: the start child component to yield, the optional annotation is not counted. \
     With the default value 0 starts from the first component.
     """
@@ -63,6 +63,11 @@ def has_xsd_components(elem, start=0):
 def get_xsd_component(elem, required=True, strict=True):
     """
     Returns the first XSD component child, excluding the annotation.
+
+    :param elem: the parent Element.
+    :param required: if `True`, that is the default, raises a *ValueError* if there \
+    is not any component; with `False` in those cases `None` is returned.
+    :param strict: raises a *ValueError* if there is more than one component.
     """
     components_iterator = iter_xsd_components(elem)
     try:
@@ -85,7 +90,7 @@ def get_xsd_component(elem, required=True, strict=True):
 def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
     """
     Get an element's attribute and throws a schema error if the attribute is absent
-    and a default is not provided in keyword arguments. The value of the attribute
+    and a default is not provided with keyword arguments. The value of the attribute
     can be checked with a list of admitted values.
 
     :param elem: The Element instance.

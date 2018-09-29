@@ -158,7 +158,29 @@ class TestParseUtils(XMLSchemaTestCase):
         self.assertRaises(ValueError, list, iter_xsd_components(elem))
 
     def test_get_xsd_component(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_SCHEMA_TAG)
+        self.assertRaises(ValueError, get_xsd_component, elem)
+        self.assertIsNone(get_xsd_component(elem, required=False))
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertEqual(get_xsd_component(elem), elem[0])
+        elem.append(etree_element(XSD_SIMPLE_TYPE_TAG))
+        self.assertRaises(ValueError, get_xsd_component, elem)
+        self.assertEqual(get_xsd_component(elem, strict=False), elem[0])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertRaises(ValueError, get_xsd_component, elem)
+        self.assertIsNone(get_xsd_component(elem, required=False))
+        elem.append(etree_element(XSD_SIMPLE_TYPE_TAG))
+        self.assertEqual(get_xsd_component(elem), elem[1])
+        elem.append(etree_element(XSD_ELEMENT_TAG))
+        self.assertRaises(ValueError, get_xsd_component, elem)
+        self.assertEqual(get_xsd_component(elem, strict=False), elem[1])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        elem.append(etree_element(XSD_ANNOTATION_TAG))
+        self.assertRaises(ValueError, get_xsd_component, elem, True, False)
 
     def test_get_xsd_attribute(self):
         raise NotImplementedError
