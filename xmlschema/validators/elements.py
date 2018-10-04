@@ -25,7 +25,7 @@ from ..qnames import (
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
-from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .parseutils import get_xml_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
@@ -282,7 +282,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def form(self):
         if self._ref is not None:
             return self._ref.form
-        return get_xsd_attribute(self.elem, 'form', ('qualified', 'unqualified'), default=None)
+        return get_xml_attribute(self.elem, 'form', ('qualified', 'unqualified'), default=None)
 
     @property
     def nillable(self):

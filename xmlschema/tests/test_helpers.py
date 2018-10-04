@@ -34,7 +34,7 @@ from xmlschema.qnames import (
 )
 from xmlschema.validators.parseutils import (
     get_xsd_annotation, iter_xsd_components, has_xsd_components, get_xsd_component,
-    get_xsd_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
+    get_xml_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
     get_xsd_derivation_attribute, get_xpath_default_namespace
 )
 from xmlschema.tests import XMLSchemaTestCase

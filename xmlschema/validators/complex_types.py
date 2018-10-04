@@ -17,7 +17,7 @@ from ..qnames import (
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import get_xsd_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .parseutils import get_xml_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
@@ -163,7 +163,7 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def _parse_base_type(self, elem, complex_content=False):
         try:
-            content_base = get_xsd_attribute(elem, 'base')
+            content_base = elem.attrib['base']
         except KeyError:
             self.parse_error("'base' attribute required", elem)
             return self.maps.lookup_type(XSD_ANY_TYPE)

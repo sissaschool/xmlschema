@@ -24,7 +24,7 @@ from ..qnames import (
 )
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
     XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
-from .parseutils import get_xsd_attribute
+from .parseutils import get_xml_attribute
 from .builtins import xsd_builtin_types_factory
 
 
@@ -62,11 +62,11 @@ def create_load_function(filter_function):
             target_namespace = schema.target_namespace
             for elem in iterchildren_xsd_redefine(schema.root):
                 for child in filter_function(elem):
-                    qname = get_qname(target_namespace, get_xsd_attribute(child, 'name'))
+                    qname = get_qname(target_namespace, child.attrib['name'])
                     redefinitions.append((qname, (child, schema)))
 
             for elem in filter_function(schema.root):
-                qname = get_qname(target_namespace, get_xsd_attribute(elem, 'name'))
+                qname = get_qname(target_namespace, elem.attrib['name'])
                 try:
                     xsd_globals[qname].append((elem, schema))
                 except KeyError:

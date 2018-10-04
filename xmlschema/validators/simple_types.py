@@ -28,7 +28,7 @@ from .exceptions import (
 )
 from .parseutils import get_xsd_derivation_attribute, get_xsd_component
 from .xsdbase import XsdType, ValidationMixin
-from .facets import XsdFacet, XSD_10_FACETS, XsdPatternsFacet, XsdSingleFacet, XsdEnumerationFacet
+from .facets import XsdFacet, XSD_10_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -114,7 +114,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
     @property
     def admitted_facets(self):
-        return self.schema.FACETS
+        return set(self.schema.FACETS)
 
     @property
     def final(self):
@@ -361,10 +361,10 @@ class XsdAtomic(XsdSimpleType):
         try:
             facets = set(primitive_type.facets.keys())
         except AttributeError:
-            return XSD_10_FACETS.union({None})
+            return set(XSD_10_FACETS).union({None})
         else:
             try:
-                return self.schema.FACETS.intersection(facets)
+                return set(self.schema.FACETS).intersection(facets)
             except AttributeError:
                 return set(primitive_type.facets.keys()).union({None})
 
@@ -981,20 +981,19 @@ class XsdAtomicRestriction(XsdAtomic):
                         mixed=base_type.mixed
                     )
                 has_simple_type_child = True
-            elif child.tag not in self.schema.FACETS:
-                self.parse_error("unexpected tag %r in restriction:" % child)
-            elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
-                try:
-                    facets[child.tag].append(child)
-                except KeyError:
-                    if child.tag == XSD_ENUMERATION_TAG:
-                        facets[child.tag] = XsdEnumerationFacet(child, self.schema, self, base_type)
-                    else:
-                        facets[child.tag] = XsdPatternsFacet(child, self.schema, self, base_type)
-            elif child.tag not in facets:
-                facets[child.tag] = XsdSingleFacet(child, self.schema, self, base_type)
             else:
-                self.parse_error("multiple %r constraint facet" % local_name(child.tag))
+                try:
+                    facet_class = self.schema.FACETS[child.tag]
+                except KeyError:
+                    self.parse_error("unexpected tag %r in restriction:" % child.tag)
+                    continue
+
+                if child.tag not in facets:
+                    facets[child.tag] = facet_class(child, self.schema, self, base_type)
+                elif child.tag in (XSD_ENUMERATION_TAG, XSD_PATTERN_TAG):
+                    facets[child.tag].append(child)
+                else:
+                    self.parse_error("multiple %r constraint facet" % local_name(child.tag))
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)

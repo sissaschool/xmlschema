@@ -87,18 +87,18 @@ def get_xsd_component(elem, required=True, strict=True):
             raise XMLSchemaValueError("too many XSD components")
 
 
-def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
+def get_xml_attribute(elem, attribute, enumeration=None, **kwargs):
     """
-    Get an element's attribute and throws a schema error if the attribute is absent
-    and a default is not provided with keyword arguments. The value of the attribute
-    can be checked with a list of admitted values.
+    Get an element's attribute and throws a KeyError if the attribute is absent and
+    a default is not provided with keyword arguments. The value of the attribute
+    can be checked against a sequence of admitted values.
 
-    :param elem: The Element instance.
-    :param attribute: The name of the XML attribute.
-    :param enumeration: Container with the admitted values for the attribute.
-    :param kwargs: Optional keyword arguments for a default value or for
-    an enumeration with admitted values.
-    :return: The attribute value in a string or the default value.
+    :param elem: the Element instance.
+    :param attribute: the name of the XML attribute.
+    :param enumeration: sequence with the admitted values for the attribute.
+    :param kwargs: optional keyword arguments for a default value or for an \
+    enumeration with admitted values.
+    :return: the attribute value in a string or the default value.
     """
     try:
         value = elem.attrib[attribute]
@@ -114,7 +114,7 @@ def get_xsd_attribute(elem, attribute, enumeration=None, **kwargs):
 
 
 def get_xsd_bool_attribute(elem, attribute, **kwargs):
-    value = get_xsd_attribute(elem, attribute, **kwargs)
+    value = get_xml_attribute(elem, attribute, **kwargs)
     if isinstance(value, bool):
         return value
     elif value in ('true', '1'):
@@ -136,7 +136,7 @@ def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
     :param minimum: Optional minimum integer value for the attribute.
     :return: Integer containing the attribute value.
     """
-    value = get_xsd_attribute(elem, attribute, **kwargs)
+    value = get_xml_attribute(elem, attribute, **kwargs)
     try:
         value = int(value)
     except TypeError:
@@ -162,7 +162,7 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     :param values: Sequence of admitted values when the attribute value is not '#all'.
     :return: A string.
     """
-    value = get_xsd_attribute(elem, attribute, default='')
+    value = get_xml_attribute(elem, attribute, default='')
     items = value.split()
     if len(items) == 1 and items[0] == "#all":
         return ' '.join(values)
@@ -177,7 +177,7 @@ def get_xpath_default_namespace(elem, default_namespace, target_namespace, defau
     and field XSD 1.1 declarations, checking if the value is conforming to the specification.
     """
     try:
-        value = get_xsd_attribute(elem, 'xpathDefaultNamespace').strip()
+        value = elem.attrib['xpathDefaultNamespace'].strip()
     except KeyError:
         return
 

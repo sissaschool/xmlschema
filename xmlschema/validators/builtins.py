@@ -526,16 +526,12 @@ XSD_BUILTIN_TYPES = (
 
 def xsd_build_facets(schema, parent, base_type, items):
     facets = {}
-    keys = schema.FACETS
     for obj in items:
         if isinstance(obj, (list, tuple, set)):
-            facets.update([(k, None) for k in obj if k in keys])
+            facets.update([(k, None) for k in obj if k in schema.FACETS])
         elif is_etree_element(obj):
-            if obj.tag in keys:
-                if obj.tag == XSD_PATTERN_TAG:
-                    facets[obj.tag] = XsdPatternsFacet(obj, schema, parent, base_type)
-                else:
-                    facets[obj.tag] = XsdSingleFacet(obj, schema, parent, base_type)
+            if obj.tag in schema.FACETS:
+                facets[obj.tag] = schema.FACETS[obj.tag](obj, schema, parent, base_type)
         elif callable(obj):
             if None in facets:
                 raise XMLSchemaValueError("Almost one callable for facet group!!")

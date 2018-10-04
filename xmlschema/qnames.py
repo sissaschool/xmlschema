@@ -166,7 +166,6 @@ XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
 XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
 XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
 XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
-XSD_WHITE_SPACE_ENUM = ('preserve', 'replace', 'collapse')
 XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
 XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
 XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')

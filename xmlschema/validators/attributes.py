@@ -23,7 +23,7 @@ from ..qnames import (
     XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
 )
 from .exceptions import XMLSchemaValidationError
-from .parseutils import get_xsd_attribute
+from .parseutils import get_xml_attribute
 from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
@@ -154,13 +154,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
     @property
     def form(self):
-        return get_xsd_attribute(
+        return get_xml_attribute(
             self.elem, 'form', ('qualified', 'unqualified'), default=None
         )
 
     @property
     def use(self):
-        return get_xsd_attribute(
+        return get_xml_attribute(
             self.elem, 'use', ('optional', 'prohibited', 'required'), default='optional'
         )
 
@@ -352,7 +352,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
             elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
                 try:
-                    name = get_xsd_attribute(child, 'ref')
+                    name = child.attrib['ref']
                 except KeyError as err:
                     self.parse_error(str(err), elem)
                 else:

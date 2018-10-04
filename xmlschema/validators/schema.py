@@ -79,10 +79,10 @@ class XMLSchemaMeta(ABCMeta):
             raise XMLSchemaValueError("Validator class XSD version must be '1.0' or '1.1', not %r." % xsd_version)
 
         facets = dict_.get('FACETS') or get_attribute('FACETS', *bases)
-        if not isinstance(facets, set):
-            raise XMLSchemaValueError("Validator class FACETS must be a set(), not %r." % type(facets))
-        dict_['LIST_FACETS'] = facets.intersection(LIST_FACETS)
-        dict_['UNION_FACETS'] = facets.intersection(UNION_FACETS)
+        if not isinstance(facets, dict):
+            raise XMLSchemaValueError("Validator class FACETS must be a dict(), not %r." % type(facets))
+        dict_['LIST_FACETS'] = set(facets).intersection(LIST_FACETS)
+        dict_['UNION_FACETS'] = set(facets).intersection(UNION_FACETS)
 
         builders = dict_.get('BUILDERS') or get_attribute('BUILDERS', *bases)
         if isinstance(builders, dict):

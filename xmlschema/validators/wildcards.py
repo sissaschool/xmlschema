@@ -17,7 +17,7 @@ from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
 from ..xpath import ElementPathMixin
 from .exceptions import XMLSchemaNotBuiltError
-from .parseutils import get_xsd_attribute
+from .parseutils import get_xml_attribute
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
@@ -38,7 +38,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self)._parse()
 
         # Parse namespace and processContents
-        namespace = get_xsd_attribute(self.elem, 'namespace', default='##any')
+        namespace = get_xml_attribute(self.elem, 'namespace', default='##any')
         items = namespace.strip().split()
         if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
             self.namespace = namespace.strip()
@@ -48,7 +48,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             self.namespace = namespace.strip()
 
-        self.process_contents = get_xsd_attribute(
+        self.process_contents = get_xml_attribute(
             self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
         )
 
@@ -367,6 +367,6 @@ class XsdOpenContent(XsdComponent):
     """
     def __init__(self, elem, schema, parent):
         super(XsdOpenContent, self).__init__(elem, schema, parent)
-        self.mode = get_xsd_attribute(
+        self.mode = get_xml_attribute(
             self.elem, 'mode', enumerate=('none', 'interleave', 'suffix'), default='interleave'
         )
