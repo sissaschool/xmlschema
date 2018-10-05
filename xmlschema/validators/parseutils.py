@@ -131,22 +131,20 @@ def get_xpath_default_namespace(elem, default_namespace, target_namespace, defau
     Get the xpathDefaultNamespace attribute value for alternative, assert, assertion, selector
     and field XSD 1.1 declarations, checking if the value is conforming to the specification.
     """
-    try:
-        value = elem.attrib['xpathDefaultNamespace'].strip()
-    except KeyError:
-        return
+    value = elem.get('xpathDefaultNamespace')
+    if value is None:
+        return default
 
+    value = value.strip()
     if value == '##local':
         return ''
     elif value == '##defaultNamespace':
         return default_namespace
     elif value == '##targetNamespace':
         return target_namespace
-    elif value is None:
-        return default
     elif len(value.split()) == 1:
-        return value.strip()
+        return value
     else:
         admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
-        msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %r)."
-        raise XMLSchemaValueError(msg % (value, '|'.join(admitted_values)))
+        msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %s)."
+        raise XMLSchemaValueError(msg % (value, ' | '.join(admitted_values)))

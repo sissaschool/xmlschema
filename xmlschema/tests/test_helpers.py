@@ -214,7 +214,19 @@ class TestParseUtils(XMLSchemaTestCase):
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
 
     def test_get_xpath_default_namespace(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'xpathDefaultNamespace': '##local '})
+        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), '')
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'xpathDefaultNamespace': ' ##defaultNamespace'})
+        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns0')
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'xpathDefaultNamespace': ' ##targetNamespace'})
+        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns1')
+        elem = etree_element(XSD_ELEMENT_TAG)
+        self.assertIsNone(get_xpath_default_namespace(elem, 'ns0', 'ns1'))
+        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns2')
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'xpathDefaultNamespace': 'ns3'})
+        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns3')
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'xpathDefaultNamespace': 'ns3 ns4'})
+        self.assertRaises(ValueError, get_xpath_default_namespace, elem, 'ns0', 'ns1', 'ns2')
 
 
 if __name__ == '__main__':
