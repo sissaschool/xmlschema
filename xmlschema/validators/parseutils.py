@@ -89,7 +89,7 @@ def get_xsd_component(elem, required=True, strict=True):
 
 def get_xml_bool_attribute(elem, attribute, default=None):
     """
-    Gets an XML boolean attribute.
+    Get an XML boolean attribute.
 
     :param elem: the Element instance.
     :param attribute: the attribute name.
@@ -115,11 +115,11 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     :param elem: the Element instance.
     :param attribute: the attribute name.
     :param values: sequence of admitted values when the attribute value is not '#all'.
-    :return: A string.
+    :return: a string.
     """
     value = elem.get(attribute, '')
     items = value.split()
-    if len(items) == 1 and items[0] == "#all":
+    if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))

@@ -200,7 +200,18 @@ class TestParseUtils(XMLSchemaTestCase):
         self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 'True')
 
     def test_get_xsd_derivation_attribute(self):
-        raise NotImplementedError
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={
+            'a1': 'extension', 'a2': ' restriction', 'a3': '#all', 'a4': 'other',
+            'a5': 'restriction extension restriction ', 'a6': 'other restriction'
+        })
+        values = ('extension', 'restriction')
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a1', values), 'extension')
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a2', values), ' restriction')
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a3', values), 'extension restriction')
+        self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a4', values)
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values), 'restriction extension restriction ')
+        self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
 
     def test_get_xpath_default_namespace(self):
         raise NotImplementedError
