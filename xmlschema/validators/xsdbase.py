@@ -25,7 +25,7 @@ from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
     XMLSchemaEncodeError, XMLSchemaChildrenValidationError
 )
-from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
+from .parseutils import get_xsd_component, iter_xsd_components
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -718,24 +718,30 @@ class ParticleMixin(object):
 
     def _parse_particle(self, elem):
         try:
-            self.min_occurs = get_xsd_int_attribute(elem, 'minOccurs', default=1, minimum=0)
+            self.min_occurs = int(elem.attrib['minOccurs'])
+            if self.min_occurs < 0:
+                raise ValueError()
+        except KeyError:
+            self.min_occurs = 1
         except (TypeError, ValueError):
             self.parse_error("minOccurs value must be a non negative integer")
             self.min_occurs = 1
 
-        try:
-            max_occurs = get_xsd_int_attribute(elem, 'maxOccurs', default=1, minimum=0)
-        except (TypeError, ValueError):
-            if elem.get('maxOccurs') == 'unbounded':
-                max_occurs = None
-            else:
+        if 'maxOccurs' not in elem.attrib:
+            self.max_occurs = 1
+        elif elem.attrib['maxOccurs'] == 'unbounded':
+            self.max_occurs = None
+        else:
+            try:
+                self.max_occurs = int(elem.attrib['maxOccurs'])
+            except ValueError:
                 self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
-                max_occurs = 1
+                self.max_occurs = 1
+            else:
+                if self.min_occurs > self.max_occurs:
+                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
 
-        if max_occurs is not None and self.min_occurs > max_occurs:
-            self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
-        self.max_occurs = max_occurs
-        self.occurs = [self.min_occurs, max_occurs]
+        self.occurs = [self.min_occurs, self.max_occurs]
 
     def is_emptiable(self):
         return self.min_occurs == 0

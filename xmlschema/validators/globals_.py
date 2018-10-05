@@ -24,7 +24,6 @@ from ..qnames import (
 )
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
     XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
-from .parseutils import get_xml_attribute
 from .builtins import xsd_builtin_types_factory
 
 

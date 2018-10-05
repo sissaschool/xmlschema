@@ -87,34 +87,8 @@ def get_xsd_component(elem, required=True, strict=True):
             raise XMLSchemaValueError("too many XSD components")
 
 
-def get_xml_attribute(elem, attribute, enumeration=None, **kwargs):
-    """
-    Get an element's attribute and throws a KeyError if the attribute is absent and
-    a default is not provided with keyword arguments. The value of the attribute
-    can be checked against a sequence of admitted values.
-
-    :param elem: the Element instance.
-    :param attribute: the name of the XML attribute.
-    :param enumeration: sequence with the admitted values for the attribute.
-    :param kwargs: optional keyword arguments for a default value or for an \
-    enumeration with admitted values.
-    :return: the attribute value in a string or the default value.
-    """
-    try:
-        value = elem.attrib[attribute]
-    except (KeyError, AttributeError) as err:
-        try:
-            return kwargs['default']
-        except KeyError:
-            raise XMLSchemaKeyError("attribute {} expected for {}.".format(err, elem))
-    else:
-        if enumeration and value not in enumeration:
-            raise XMLSchemaValueError("wrong value %r for %r attribute." % (value, attribute))
-        return value
-
-
-def get_xsd_bool_attribute(elem, attribute, **kwargs):
-    value = get_xml_attribute(elem, attribute, **kwargs)
+def get_xsd_bool_attribute(elem, attribute, default=False):
+    value = elem.get(attribute, default)
     if isinstance(value, bool):
         return value
     elif value in ('true', '1'):
@@ -123,33 +97,6 @@ def get_xsd_bool_attribute(elem, attribute, **kwargs):
         return False
     else:
         raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
-
-
-def get_xsd_int_attribute(elem, attribute, minimum=None, **kwargs):
-    """
-    Get an element's attribute converting it to an int(). Throws an
-    error if the attribute is not found and the default is None.
-    Checks the value when a minimum is provided.
-
-    :param elem: The Element's instance.
-    :param attribute: The attribute name.
-    :param minimum: Optional minimum integer value for the attribute.
-    :return: Integer containing the attribute value.
-    """
-    value = get_xml_attribute(elem, attribute, **kwargs)
-    try:
-        value = int(value)
-    except TypeError:
-        raise XMLSchemaTypeError("wrong type for attribute %r: %r" % (attribute, value))
-    except ValueError:
-        raise XMLSchemaValueError("wrong value for attribute %r: %r" % (attribute, value))
-    else:
-        if minimum is None or value >= minimum:
-            return value
-        else:
-            raise XMLSchemaValueError(
-                "attribute %r value must be greater or equal to %r" % (attribute, minimum)
-            )
 
 
 def get_xsd_derivation_attribute(elem, attribute, values):
@@ -162,7 +109,7 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     :param values: Sequence of admitted values when the attribute value is not '#all'.
     :return: A string.
     """
-    value = get_xml_attribute(elem, attribute, default='')
+    value = elem.get(attribute, '')
     items = value.split()
     if len(items) == 1 and items[0] == "#all":
         return ' '.join(values)

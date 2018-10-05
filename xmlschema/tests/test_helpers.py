@@ -34,8 +34,7 @@ from xmlschema.qnames import (
 )
 from xmlschema.validators.parseutils import (
     get_xsd_annotation, iter_xsd_components, has_xsd_components, get_xsd_component,
-    get_xml_attribute, get_xsd_bool_attribute, get_xsd_int_attribute,
-    get_xsd_derivation_attribute, get_xpath_default_namespace
+    get_xsd_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
 )
 from xmlschema.tests import XMLSchemaTestCase
 
@@ -182,13 +181,7 @@ class TestParseUtils(XMLSchemaTestCase):
         elem.append(etree_element(XSD_ANNOTATION_TAG))
         self.assertRaises(ValueError, get_xsd_component, elem, True, False)
 
-    def test_get_xsd_attribute(self):
-        raise NotImplementedError
-
     def test_get_xsd_bool_attribute(self):
-        raise NotImplementedError
-
-    def test_get_xsd_int_attribute(self):
         raise NotImplementedError
 
     def test_get_xsd_derivation_attribute(self):

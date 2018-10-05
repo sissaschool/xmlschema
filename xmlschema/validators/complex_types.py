@@ -17,7 +17,7 @@ from ..qnames import (
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import get_xml_attribute, get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .parseutils import get_xsd_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
