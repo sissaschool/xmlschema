@@ -87,13 +87,21 @@ def get_xsd_component(elem, required=True, strict=True):
             raise XMLSchemaValueError("too many XSD components")
 
 
-def get_xsd_bool_attribute(elem, attribute, default=False):
+def get_xml_bool_attribute(elem, attribute, default=None):
+    """
+    Gets an XML boolean attribute.
+
+    :param elem: the Element instance.
+    :param attribute: the attribute name.
+    :param default: default value, accepted values are `True` or `False`.
+    :return: `True` or `False`.
+    """
     value = elem.get(attribute, default)
-    if isinstance(value, bool):
-        return value
-    elif value in ('true', '1'):
+    if value is None:
+        raise XMLSchemaKeyError(attribute)
+    elif value in ('true', '1') or value is True:
         return True
-    elif value in ('false', '0'):
+    elif value in ('false', '0') or value is False:
         return False
     else:
         raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
@@ -104,9 +112,9 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.
 
-    :param elem: The Element's instance.
-    :param attribute: The attribute name.
-    :param values: Sequence of admitted values when the attribute value is not '#all'.
+    :param elem: the Element instance.
+    :param attribute: the attribute name.
+    :param values: sequence of admitted values when the attribute value is not '#all'.
     :return: A string.
     """
     value = elem.get(attribute, '')

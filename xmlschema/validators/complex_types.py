@@ -17,7 +17,7 @@ from ..qnames import (
     XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .parseutils import get_xml_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
@@ -78,7 +78,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         if elem.tag == XSD_RESTRICTION_TAG:
             return  # a local restriction is already parsed by the caller
 
-        self.mixed = get_xsd_bool_attribute(elem, 'mixed', default=False)
+        self.mixed = get_xml_bool_attribute(elem, 'mixed', default=False)
         self._parse_properties('abstract', 'block', 'final')
 
         try:
@@ -362,7 +362,7 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     @property
     def abstract(self):
-        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+        return get_xml_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
     def block(self):

@@ -25,7 +25,7 @@ from ..qnames import (
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
-from .parseutils import get_xsd_bool_attribute, get_xsd_derivation_attribute
+from .parseutils import get_xml_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
@@ -268,7 +268,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def abstract(self):
         if self._ref is not None:
             return self._ref.abstract
-        return get_xsd_bool_attribute(self.elem, 'abstract', default=False)
+        return get_xml_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
     def default(self):
@@ -291,7 +291,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def nillable(self):
         if self._ref is not None:
             return self._ref.nillable
-        return get_xsd_bool_attribute(self.elem, 'nillable', default=False)
+        return get_xml_bool_attribute(self.elem, 'nillable', default=False)
 
     def get_attribute(self, name):
         if name[0] != '{':
@@ -358,7 +358,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if not self.nillable:
                 yield self.validation_error(validation, "element is not nillable.", elem, **kwargs)
             try:
-                if get_xsd_bool_attribute(elem, XSI_NIL):
+                if get_xml_bool_attribute(elem, XSI_NIL):
                     if elem.text is not None:
                         reason = "xsi:nil='true' but the element is not empty."
                         yield self.validation_error(validation, reason, elem, **kwargs)

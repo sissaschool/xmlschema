@@ -34,7 +34,7 @@ from xmlschema.qnames import (
 )
 from xmlschema.validators.parseutils import (
     get_xsd_annotation, iter_xsd_components, has_xsd_components, get_xsd_component,
-    get_xsd_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
+    get_xml_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
 )
 from xmlschema.tests import XMLSchemaTestCase
 
@@ -181,8 +181,23 @@ class TestParseUtils(XMLSchemaTestCase):
         elem.append(etree_element(XSD_ANNOTATION_TAG))
         self.assertRaises(ValueError, get_xsd_component, elem, True, False)
 
-    def test_get_xsd_bool_attribute(self):
-        raise NotImplementedError
+    def test_get_xml_bool_attribute(self):
+        elem = etree_element(XSD_ELEMENT_TAG, attrib={'a1': 'true', 'a2': '1', 'a3': 'false', 'a4': '0', 'a5': 'x'})
+        self.assertEqual(get_xml_bool_attribute(elem, 'a1'), True)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a2'), True)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a3'), False)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a4'), False)
+        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a5')
+        self.assertRaises(KeyError, get_xml_bool_attribute, elem, 'a6')
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', True), True)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'true'), True)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '1'), True)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', False), False)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'false'), False)
+        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '0'), False)
+        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 1)
+        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 0)
+        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 'True')
 
     def test_get_xsd_derivation_attribute(self):
         raise NotImplementedError
