@@ -86,12 +86,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         super(XsdElement, self).__setattr__(name, value)
 
     def __iter__(self):
-        try:
-            content_iterator = self.type.content_type.iter_elements()
-        except AttributeError:
-            return  # It's a simple type or simple content element
-        else:
-            for e in content_iterator:
+        if not self.type.has_simple_content():
+            for e in self.type.content_type.iter_subelements():
                 yield e
 
     def _parse(self):

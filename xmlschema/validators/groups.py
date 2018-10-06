@@ -557,6 +557,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 for obj in item.iter_group():
                     yield obj
 
+    def iter_subelements(self):
+        for item in self:
+            if isinstance(item, XsdGroup):
+                for e in item.iter_subelements():
+                    yield e
+            else:
+                yield item
+
     def iter_elements(self):
         for item in self:
             if isinstance(item, XsdGroup):
