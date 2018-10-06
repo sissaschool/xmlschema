@@ -122,7 +122,7 @@ class XsdModelVisitor(MutableSequence):
                 expected.extend(item.iter_elements())
             else:
                 expected.append(item)
-                expected.extend(item.schema.substitution_groups.get(item.name, ()))
+                expected.extend(item.maps.substitution_groups.get(item.name, ()))
         return expected
 
     def restart(self):
@@ -564,7 +564,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     yield e
             else:
                 yield item
-                for e in self.schema.substitution_groups.get(item.name, ()):
+                for e in self.maps.substitution_groups.get(item.name, ()):
                     yield e
 
     def sort_children(self, elements, default_namespace=None):
@@ -635,7 +635,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
                         if tag in xsd_element.names:
                             break
                     else:
@@ -746,7 +746,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
                         if tag in xsd_element.names:
                             break
                     else:

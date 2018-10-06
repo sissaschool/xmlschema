@@ -396,13 +396,9 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertEqual(dcterms_schema.source.fromstring, defused_etree.fromstring)
 
 
-class TestXMLSchema11(XMLSchemaTestCase):
+class TestXMLSchema11(TestXMLSchema10):
 
     schema_class = XMLSchema11
-
-    def test_nothing(self):
-        print(self.schema_class)
-
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
