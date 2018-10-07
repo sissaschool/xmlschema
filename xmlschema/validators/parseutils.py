@@ -12,8 +12,15 @@
 This module contains helper functions for XSD parsing.
 """
 from __future__ import unicode_literals
+import re
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from ..qnames import XSD_ANNOTATION_TAG
+
+
+RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$")
+RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
+RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
+RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
 
 
 def get_xsd_annotation(elem):

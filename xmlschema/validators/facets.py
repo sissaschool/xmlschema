@@ -25,6 +25,7 @@ from ..qnames import (
 )
 from ..regex import get_python_regex
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
+from .parseutils import RE_ISO_TIMEZONE
 from .xsdbase import XsdComponent
 
 
@@ -32,6 +33,7 @@ XSD_BASE64_BINARY = xsd_qname('base64Binary')
 XSD_HEX_BINARY = xsd_qname('hexBinary')
 
 XSD_WHITE_SPACE_ENUM = {'preserve', 'replace', 'collapse'}
+XSD_EXPLICIT_TIMEZONE_ENUM = {'required', 'prohibited', 'optional'}
 
 
 class XsdFacet(XsdComponent):
@@ -110,10 +112,8 @@ class XsdSingleFacet(XsdFacet):
         for error in self.validator(*args, **kwargs):
             yield error
 
-    def get_value(self, elem):
-        return elem.attrib['value']
-
-    def dummy_validator(self, x):
+    @staticmethod
+    def dummy_validator(x):
         return ()
 
 
@@ -317,6 +317,29 @@ class XsdFractionDigitsFacet(XsdSingleFacet):
     def fraction_digits_validator(self, x):
         if len(str(x).strip('0').partition('.')[2]) > self.value:
             yield XMLSchemaValidationError(self, x, "the number of fraction digits is greater than %r." % self.value)
+
+
+class XsdExplicitTimezoneFacet(XsdSingleFacet):
+    admitted_tags = XSD_EXPLICIT_TIMEZONE_TAG,
+
+    def _parse_value(self, elem):
+        self.value = value = elem.attrib['value']
+        if value == 'optional':
+            self.validator = self.dummy_validator
+        elif value == 'prohibited':
+            self.validator = self.prohibited_timezone_validator
+        elif value == 'required':
+            self.validator = self.required_timezone_validator
+        else:
+            self.parse_error("attribute 'value' must be one of %r" % XSD_EXPLICIT_TIMEZONE_ENUM)
+
+    def required_timezone_validator(self, x):
+        if RE_ISO_TIMEZONE.search(x) is None:
+            yield XMLSchemaValidationError(self, x, "time zone required for value %r." % self.value)
+
+    def prohibited_timezone_validator(self, x):
+        if RE_ISO_TIMEZONE.search(x) is not None:
+            yield XMLSchemaValidationError(self, x, "time zone prohibited for value %r." % self.value)
 
 
 class XsdEnumerationFacet(MutableSequence, XsdFacet):

@@ -15,7 +15,6 @@ Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
 """
 from __future__ import unicode_literals
 import datetime
-import re
 import base64
 from decimal import Decimal
 
@@ -28,16 +27,11 @@ from ..qnames import (
 )
 
 from .exceptions import XMLSchemaValidationError
+from .parseutils import RE_ISO_TIMEZONE, RE_DURATION, RE_HEX_BINARY, RE_NOT_BASE64_BINARY
 from .facets import (
-    XsdSingleFacet, XsdPatternsFacet, XSD_10_FACETS, STRING_FACETS,
-    BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
+    XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
-
-_RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:[0-1][0-9]|2[0-3]):[0-5][0-9])$")
-_RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
-_RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
-_RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
 
 
 #
@@ -197,7 +191,7 @@ def g_day_validator(x):
 
 
 def duration_validator(x):
-    if _RE_DURATION.match(x) is None:
+    if RE_DURATION.match(x) is None:
         yield XMLSchemaValidationError(duration_validator, x, "wrong format (PnYnMnDTnHnMnS required).")
 
 
@@ -211,7 +205,7 @@ def datetime_iso8601_validator(date_string, *date_formats):
     :return: True if the string is a valid datetime, False if not.
     """
     try:
-        date_string, time_zone, _ = _RE_ISO_TIMEZONE.split(date_string)
+        date_string, time_zone, _ = RE_ISO_TIMEZONE.split(date_string)
     except ValueError:
         pass
 
@@ -232,12 +226,12 @@ def datetime_iso8601_validator(date_string, *date_formats):
 
 
 def hex_binary_validator(x):
-    if len(x) % 2 or _RE_HEX_BINARY.match(x) is None:
+    if len(x) % 2 or RE_HEX_BINARY.match(x) is None:
         yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
 
 
 def base64_binary_validator(x):
-    match = _RE_NOT_BASE64_BINARY.search(x)
+    match = RE_NOT_BASE64_BINARY.search(x)
     if match is not None:
         reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
         yield XMLSchemaValidationError(base64_binary_validator, x, reason)

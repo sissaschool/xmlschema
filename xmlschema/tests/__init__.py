@@ -21,8 +21,9 @@ import argparse
 import logging
 from functools import wraps
 
+import xmlschema
 from xmlschema import XMLSchema, XMLSchema10
-import xmlschema.validators
+from xmlschema.validators import XMLSchema11
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import (
@@ -228,7 +229,11 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             test_class = test_class_builder(test_file, test_args, test_num)
 
         test_classes[test_class.__name__] = test_class
-        logger.debug("Add test class %r.", test_class.__name__)
+        logger.debug("Add XSD 1.0 test class %r.", test_class.__name__)
+
+        # test_class = test_class_builder(test_file, test_args, test_num, XMLSchema11)
+        # test_classes[test_class.__name__] = test_class
+        # logger.debug("Add XSD 1.1 test class for %r.", test_class.__name__)
 
     if line_buffer:
         raise ValueError("Not completed line continuation at the end!")

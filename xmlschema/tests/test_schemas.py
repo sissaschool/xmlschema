@@ -40,7 +40,7 @@ from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
 from xmlschema.etree import defused_etree
 from xmlschema.xpath import ElementPathContext
-from xmlschema.validators import XsdValidator, XMLSchema10, XMLSchema11
+from xmlschema.validators import XsdValidator, XMLSchema11
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -401,9 +401,11 @@ class TestXMLSchema11(TestXMLSchema10):
     schema_class = XMLSchema11
 
 
-def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
+def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
 
     xsd_file = test_file
+    if schema_class is None:
+        schema_class = XMLSchema
 
     # Extract schema test arguments
     expected_errors = test_args.errors
@@ -445,9 +447,9 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
             # XPath API tests
             if not inspect and not errors_:
                 context = ElementPathContext(xs)
-                elements = [e for e in xs.iter()]
-                context_elements = [e for e in context.iter() if isinstance(e, XsdValidator)]
-                self.assertEqual(context_elements, [e for e in context.iter_descendants()])
+                elements = [x for x in xs.iter()]
+                context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
+                self.assertEqual(context_elements, [x for x in context.iter_descendants()])
                 self.assertEqual(context_elements, elements)
 
             return errors_
@@ -480,7 +482,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=XMLSch
             self.assertTrue(True, "Successfully created schema for {}".format(xsd_file))
 
     rel_path = os.path.relpath(test_file)
-    class_name = 'TestSchema{0:03}'.format(test_num)
+    class_name = 'Test{}_{:03}'.format(schema_class.__name__, test_num)
     return type(
         class_name, (XMLSchemaTestCase,),
         {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
