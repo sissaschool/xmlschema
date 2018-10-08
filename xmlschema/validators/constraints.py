@@ -18,8 +18,8 @@ from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_getpath
 from ..qnames import (
-    get_qname, prefixed_to_qname, qname_to_prefixed, XSD_UNIQUE_TAG,
-    XSD_KEY_TAG, XSD_KEYREF_TAG, XSD_SELECTOR_TAG, XSD_FIELD_TAG
+    get_qname, prefixed_to_qname, qname_to_prefixed, XSD_UNIQUE,
+    XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 )
 
 from .exceptions import XMLSchemaValidationError
@@ -45,7 +45,7 @@ XsdConstraintXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
-    admitted_tags = {XSD_SELECTOR_TAG}
+    admitted_tags = {XSD_SELECTOR}
 
     def __init__(self, elem, schema, parent):
         super(XsdSelector, self).__init__(elem, schema, parent)
@@ -83,7 +83,7 @@ class XsdSelector(XsdComponent):
 
 
 class XsdFieldSelector(XsdSelector):
-    admitted_tags = {XSD_FIELD_TAG}
+    admitted_tags = {XSD_FIELD}
 
 
 class XsdConstraint(XsdComponent):
@@ -100,7 +100,7 @@ class XsdConstraint(XsdComponent):
             self.name = None
 
         child = self._parse_component(elem, required=False, strict=False)
-        if child is None or child.tag != XSD_SELECTOR_TAG:
+        if child is None or child.tag != XSD_SELECTOR:
             self.parse_error("missing 'selector' declaration.", elem)
             self.selector = None
         else:
@@ -108,7 +108,7 @@ class XsdConstraint(XsdComponent):
 
         self.fields = []
         for child in self._iterparse_components(elem, start=int(self.selector is not None)):
-            if child.tag == XSD_FIELD_TAG:
+            if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
                 self.parse_error("element %r not allowed here:" % child.tag, elem)
@@ -197,15 +197,15 @@ class XsdConstraint(XsdComponent):
 
 
 class XsdUnique(XsdConstraint):
-    admitted_tags = {XSD_UNIQUE_TAG}
+    admitted_tags = {XSD_UNIQUE}
 
 
 class XsdKey(XsdConstraint):
-    admitted_tags = {XSD_KEY_TAG}
+    admitted_tags = {XSD_KEY}
 
 
 class XsdKeyref(XsdConstraint):
-    admitted_tags = {XSD_KEYREF_TAG}
+    admitted_tags = {XSD_KEYREF}
 
     def __init__(self, elem, schema, parent):
         self.refer = None

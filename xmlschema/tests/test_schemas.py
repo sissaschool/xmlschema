@@ -37,7 +37,7 @@ from xmlschema import (
 )
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
-from xmlschema.qnames import XSD_LIST_TAG, XSD_UNION_TAG
+from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.etree import defused_etree
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
@@ -92,9 +92,9 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </simpleType>
         """)
         xs.types['test_list'].elem = xs.root[0]  # elem.tag == 'simpleType'
-        self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST_TAG)
+        self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST)
         xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
-        self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION_TAG)
+        self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
     def test_wrong_includes_and_imports(self):
 
@@ -399,6 +399,28 @@ class TestXMLSchema10(XMLSchemaTestCase):
 class TestXMLSchema11(TestXMLSchema10):
 
     schema_class = XMLSchema11
+
+    def test_explicit_timezone_facet(self):
+        schema = self.check_schema("""
+            <simpleType name='opt-tz-date'>
+              <restriction base='date'>
+                <explicitTimezone value='optional'/>
+              </restriction>
+            </simpleType>
+            <simpleType name='req-tz-date'>
+              <restriction base='date'>
+                <explicitTimezone value='required'/>
+              </restriction>
+            </simpleType>
+            <simpleType name='no-tz-date'>
+              <restriction base='date'>
+                <explicitTimezone value='prohibited'/>
+              </restriction>
+            </simpleType>
+            """)
+        self.assertTrue(schema.types['req-tz-date'].is_valid('2002-10-10-05:00'))
+        self.assertTrue(schema.types['req-tz-date'].is_valid('2002-10-10Z'))
+        self.assertFalse(schema.types['req-tz-date'].is_valid('2002-10-10'))
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):

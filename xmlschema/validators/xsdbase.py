@@ -18,8 +18,8 @@ from ..compat import PY3, string_base_type
 from ..etree import etree_tostring, is_etree_element
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import (
-    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG,
-    XSD_DOCUMENTATION_TAG, XML_LANG, XSD_ANY_TYPE
+    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION, XSD_APPINFO,
+    XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
 )
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
@@ -253,7 +253,7 @@ class XsdComponent(XsdValidator):
     def _parse(self):
         del self.errors[:]
         try:
-            if self.elem[0].tag == XSD_ANNOTATION_TAG:
+            if self.elem[0].tag == XSD_ANNOTATION:
                 self.annotation = XsdAnnotation(self.elem[0], self.schema, self)
             else:
                 self.annotation = None
@@ -387,7 +387,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-    admitted_tags = {XSD_ANNOTATION_TAG}
+    admitted_tags = {XSD_ANNOTATION}
 
     @property
     def built(self):
@@ -398,12 +398,12 @@ class XsdAnnotation(XsdComponent):
         self.appinfo = []
         self.documentation = []
         for child in self.elem:
-            if child.tag == XSD_APPINFO_TAG:
+            if child.tag == XSD_APPINFO:
                 for key in child.attrib:
                     if key != 'source':
                         self.parse_error("wrong attribute %r for appinfo declaration." % key)
                 self.appinfo.append(child)
-            elif child.tag == XSD_DOCUMENTATION_TAG:
+            elif child.tag == XSD_DOCUMENTATION:
                 for key in child.attrib:
                     if key not in ['source', XML_LANG]:
                         self.parse_error("wrong attribute %r for documentation declaration." % key)

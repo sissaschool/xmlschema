@@ -17,9 +17,9 @@ import re
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
 from ..qnames import (
-    get_qname, local_name, prefixed_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
-    XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
-    XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
+    get_qname, local_name, prefixed_to_qname, XSD_INCLUDE, XSD_IMPORT,
+    XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
+    XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT,
     XSD_ANY_TYPE
 )
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
@@ -46,9 +46,9 @@ def iterchildren_by_tag(tag):
     return iterfind_function
 
 
-iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
-iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
-iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
+iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT)
+iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE)
+iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE)
 
 
 #
@@ -88,13 +88,13 @@ def create_load_function(filter_function):
     return load_xsd_globals
 
 
-load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE_TAG))
-load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_TAG))
-load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP_TAG))
-load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE_TAG))
-load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT_TAG))
-load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
-load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
+load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE))
+load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE))
+load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP))
+load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE))
+load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT))
+load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP))
+load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION))
 
 
 def create_lookup_function(xsd_classes):

@@ -30,7 +30,7 @@ from xmlschema.etree import (
     is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
 )
 from xmlschema.resources import fetch_namespaces
-from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
+from xmlschema.qnames import XSD_SCHEMA, get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
 logger = logging.getLogger('xmlschema.tests')
@@ -299,7 +299,7 @@ class XMLSchemaTestCase(unittest.TestCase):
         :return: An schema source string, an ElementTree's Element or a full pathname.
         """
         if is_etree_element(source):
-            if source.tag in (XSD_SCHEMA_TAG, 'schema'):
+            if source.tag in (XSD_SCHEMA, 'schema'):
                 return source
             elif get_namespace(source.tag):
                 raise XMLSchemaValueError("source %r namespace has to be empty." % source)

@@ -14,7 +14,7 @@ This module contains classes for XML Schema wildcards.
 from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
-from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE
 from ..xpath import ElementPathMixin
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
@@ -122,7 +122,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
-    admitted_tags = {XSD_ANY_TAG}
+    admitted_tags = {XSD_ANY}
 
     def __repr__(self):
         return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -214,7 +214,7 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    admitted_tags = {XSD_ANY_ATTRIBUTE_TAG}
+    admitted_tags = {XSD_ANY_ATTRIBUTE}
 
     def match(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):

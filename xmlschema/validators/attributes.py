@@ -18,9 +18,9 @@ from decimal import Decimal
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import (
-    get_qname, local_name, prefixed_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE_TAG,
-    XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
+    get_qname, local_name, prefixed_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
 )
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin
@@ -45,7 +45,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    admitted_tags = {XSD_ATTRIBUTE_TAG}
+    admitted_tags = {XSD_ATTRIBUTE}
 
     def __init__(self, elem, schema, parent, name=None, xsd_type=None):
         if xsd_type is not None:
@@ -121,7 +121,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error("unknown type %r." % elem.attrib['type'], elem)
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
-            if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE_TAG:
+            if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE:
                 self.parse_error("ambiguous type declaration for XSD attribute")
             elif xsd_declaration:
                 self.parse_error("not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
@@ -236,8 +236,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     </attributeGroup>
     """
     admitted_tags = {
-        XSD_ATTRIBUTE_GROUP_TAG, XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-        XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG
+        XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
+        XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
 
     def __init__(self, elem, schema, parent, name=None, derivation=None, base_attributes=None):
@@ -327,7 +327,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if self.base_attributes is not None:
             self._attribute_group.update(self.base_attributes.items())
 
-        if elem.tag == XSD_ATTRIBUTE_GROUP_TAG:
+        if elem.tag == XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
                 return  # Skip dummy definitions
             try:
@@ -338,20 +338,20 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         for child in self._iterparse_components(elem):
             if any_attribute:
-                if child.tag == XSD_ANY_ATTRIBUTE_TAG:
+                if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
                 else:
                     self.parse_error("another declaration after anyAttribute")
 
-            elif child.tag == XSD_ANY_ATTRIBUTE_TAG:
+            elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = True
                 self.update([(None, XsdAnyAttribute(child, self.schema, self))])
 
-            elif child.tag == XSD_ATTRIBUTE_TAG:
+            elif child.tag == XSD_ATTRIBUTE:
                 attribute = XsdAttribute(child, self.schema, self)
                 self[attribute.name] = attribute
 
-            elif child.tag == XSD_ATTRIBUTE_GROUP_TAG:
+            elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
                     name = child.attrib['ref']
                 except KeyError as err:

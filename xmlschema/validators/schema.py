@@ -23,9 +23,9 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESP
 from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
 from ..etree import etree_element, etree_tostring
 from ..qnames import (
-    XSD_SCHEMA_TAG, XSD_NOTATION_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG, XSD_GROUP_TAG, XSD_ELEMENT_TAG,
-    XSD_SEQUENCE_TAG, XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+    XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
+    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT,
+    XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
 )
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -44,13 +44,13 @@ from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, iterchi
 
 
 # Elements for building dummy groups
-ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
+ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
 ANY_ATTRIBUTE_ELEMENT = etree_element(
-    XSD_ANY_ATTRIBUTE_TAG, attrib={'namespace': '##any', 'processContents': 'lax'}
+    XSD_ANY_ATTRIBUTE, attrib={'namespace': '##any', 'processContents': 'lax'}
 )
-SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE_TAG)
+SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
 ANY_ELEMENT = etree_element(
-    XSD_ANY_TAG,
+    XSD_ANY,
     attrib={
         'namespace': '##any',
         'processContents': 'lax',
@@ -88,13 +88,13 @@ class XMLSchemaMeta(ABCMeta):
         if isinstance(builders, dict):
             dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
             dict_['TAG_MAP'] = {
-                XSD_NOTATION_TAG: builders['notation_class'],
-                XSD_SIMPLE_TYPE_TAG: builders['simple_type_factory'],
-                XSD_COMPLEX_TYPE_TAG: builders['complex_type_class'],
-                XSD_ATTRIBUTE_TAG: builders['attribute_class'],
-                XSD_ATTRIBUTE_GROUP_TAG: builders['attribute_group_class'],
-                XSD_GROUP_TAG: builders['group_class'],
-                XSD_ELEMENT_TAG: builders['element_class'],
+                XSD_NOTATION: builders['notation_class'],
+                XSD_SIMPLE_TYPE: builders['simple_type_factory'],
+                XSD_COMPLEX_TYPE: builders['complex_type_class'],
+                XSD_ATTRIBUTE: builders['attribute_class'],
+                XSD_ATTRIBUTE_GROUP: builders['attribute_group_class'],
+                XSD_GROUP: builders['group_class'],
+                XSD_ELEMENT: builders['element_class'],
             }
         elif builders is None:
             raise XMLSchemaValueError("Validator class doesn't have defined builders.")
@@ -303,8 +303,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
-        if name == 'root' and value.tag not in (XSD_SCHEMA_TAG, 'schema'):
-            raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA_TAG)
+        if name == 'root' and value.tag not in (XSD_SCHEMA, 'schema'):
+            raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA)
         elif name == 'validation':
             if value not in ('strict', 'lax', 'skip'):
                 raise XMLSchemaValueError("Wrong value %r for attribute 'validation'." % value)

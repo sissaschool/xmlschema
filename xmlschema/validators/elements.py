@@ -18,9 +18,9 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..etree import etree_element
 from ..converters import ElementData, XMLSchemaConverter
 from ..qnames import (
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_COMPLEX_TYPE_TAG, XSD_SIMPLE_TYPE_TAG, XSD_ALTERNATIVE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TYPE,
-    XSD_UNIQUE_TAG, XSD_KEY_TAG, XSD_KEYREF_TAG, XSI_NIL, XSI_TYPE, prefixed_to_qname, get_qname
+    XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP,
+    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE,
+    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, prefixed_to_qname, get_qname
 )
 from ..xpath import ElementPathMixin
 
@@ -31,8 +31,8 @@ from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
-XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
-XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP_TAG)
+XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
+XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
 
 
 class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
@@ -58,7 +58,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    admitted_tags = {XSD_ELEMENT_TAG}
+    admitted_tags = {XSD_ELEMENT}
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
@@ -161,9 +161,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             child = self._parse_component(self.elem, required=False, strict=False)
             if child is not None:
-                if child.tag == XSD_COMPLEX_TYPE_TAG:
+                if child.tag == XSD_COMPLEX_TYPE:
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
-                elif child.tag == XSD_SIMPLE_TYPE_TAG:
+                elif child.tag == XSD_SIMPLE_TYPE:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
                 return 1
             else:
@@ -173,11 +173,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def _parse_constraints(self, index=0):
         self.constraints = {}
         for child in self._iterparse_components(self.elem, start=index):
-            if child.tag == XSD_UNIQUE_TAG:
+            if child.tag == XSD_UNIQUE:
                 constraint = XsdUnique(child, self.schema, self)
-            elif child.tag == XSD_KEY_TAG:
+            elif child.tag == XSD_KEY:
                 constraint = XsdKey(child, self.schema, self)
-            elif child.tag == XSD_KEYREF_TAG:
+            elif child.tag == XSD_KEYREF:
                 constraint = XsdKeyref(child, self.schema, self)
             else:
                 continue  # Error already caught by validation against the meta-schema
@@ -602,7 +602,7 @@ class Xsd11Element(XsdElement):
     def _parse_alternatives(self, index=0):
         self.alternatives = []
         for child in self._iterparse_components(self.elem, start=index):
-            if child.tag == XSD_ALTERNATIVE_TAG:
+            if child.tag == XSD_ALTERNATIVE:
                 self.alternatives.append(XsdAlternative(child, self.schema, self))
                 index += 1
             else:
@@ -628,7 +628,7 @@ class XsdAlternative(XsdComponent):
       Content: (annotation?, (simpleType | complexType)?)
     </alternative>
     """
-    admitted_tags = {XSD_ALTERNATIVE_TAG}
+    admitted_tags = {XSD_ALTERNATIVE}
 
     @property
     def built(self):

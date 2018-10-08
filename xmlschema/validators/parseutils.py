@@ -14,7 +14,7 @@ This module contains helper functions for XSD parsing.
 from __future__ import unicode_literals
 import re
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
-from ..qnames import XSD_ANNOTATION_TAG
+from ..qnames import XSD_ANNOTATION
 
 
 RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$")
@@ -32,7 +32,7 @@ def get_xsd_annotation(elem):
     the XSD information item doesn't have an annotation.
     """
     try:
-        return elem[0] if elem[0].tag == XSD_ANNOTATION_TAG else None
+        return elem[0] if elem[0].tag == XSD_ANNOTATION else None
     except (TypeError, IndexError):
         return
 
@@ -47,7 +47,7 @@ def iter_xsd_components(elem, start=0):
     """
     counter = 0
     for child in elem:
-        if child.tag == XSD_ANNOTATION_TAG:
+        if child.tag == XSD_ANNOTATION:
             if counter > 0:
                 raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
         else:

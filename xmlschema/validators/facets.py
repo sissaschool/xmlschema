@@ -17,23 +17,17 @@ from collections import MutableSequence
 
 from ..compat import unicode_type
 from ..qnames import (
-    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
-    XSD_PATTERN_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
-    XSD_MIN_EXCLUSIVE_TAG, XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_ASSERTION_TAG,
-    XSD_EXPLICIT_TIMEZONE_TAG, XSD_NOTATION_TYPE, XSD_DECIMAL_TYPE, XSD_INTEGER_TYPE,
-    local_name, xsd_qname
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE,
+    XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
+    XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION,
+    XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_DECIMAL, XSD_INTEGER,
+    XSD_BASE64_BINARY, XSD_HEX_BINARY
 )
 from ..regex import get_python_regex
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .parseutils import RE_ISO_TIMEZONE
 from .xsdbase import XsdComponent
 
-
-XSD_BASE64_BINARY = xsd_qname('base64Binary')
-XSD_HEX_BINARY = xsd_qname('hexBinary')
-
-XSD_WHITE_SPACE_ENUM = {'preserve', 'replace', 'collapse'}
-XSD_EXPLICIT_TIMEZONE_ENUM = {'required', 'prohibited', 'optional'}
 
 
 class XsdFacet(XsdComponent):
@@ -55,7 +49,12 @@ class XsdFacet(XsdComponent):
         else:
             return self.base_type.validation_attempted
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, value):
+        for error in self.validator(value):
+            yield error
+
+    @staticmethod
+    def validator(x):
         return ()
 
     @property
@@ -93,7 +92,7 @@ class XsdSingleFacet(XsdFacet):
         try:
             self._parse_value(elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
-            self.value, self.validator = None, self.dummy_validator
+            self.value = None
             self.parse_error(unicode_type(err))
         else:
             if base_facet is not None and base_facet.fixed and \
@@ -104,44 +103,36 @@ class XsdSingleFacet(XsdFacet):
         self.value = elem.attrib['value']
 
     def __repr__(self):
-        return '%s(%r, value=%r, fixed=%r)' % (
-            self.__class__.__name__, local_name(self.elem.tag), self.value, self.fixed
-        )
-
-    def __call__(self, *args, **kwargs):
-        for error in self.validator(*args, **kwargs):
-            yield error
-
-    @staticmethod
-    def dummy_validator(x):
-        return ()
+        return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
 
 
 class XsdWhiteSpaceFacet(XsdSingleFacet):
-    admitted_tags = XSD_WHITE_SPACE_TAG,
+    admitted_tags = XSD_WHITE_SPACE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
-        self.validator = self.white_space_validator
-
-        if value not in XSD_WHITE_SPACE_ENUM:
-            self.parse_error("attribute 'value' must be one of %r" % XSD_WHITE_SPACE_ENUM)
-
         if self.base_value == 'collapse' and value in ('preserve', 'replace'):
             self.parse_error("facet value can be only 'collapse'")
         elif self.base_value == 'replace' and value == 'preserve':
             self.parse_error("facet value can be only 'replace' or 'collapse'")
+        elif value == 'replace':
+            self.validator = self.replace_white_space_validator
+        elif value == 'collapse':
+            self.validator = self.collapse_white_space_validator
+        elif value != 'preserve':
+            self.parse_error("attribute 'value' must be one of ('preserve', 'replace', 'collapse').")
 
-    def white_space_validator(self, x):
-        if self.value in ('collapse', 'replace'):
-            if '\t' in x or '\n' in x:
-                yield XMLSchemaValidationError(self, x)
-            if self.value == 'collapse' and '  ' in x:
-                yield XMLSchemaValidationError(self, x)
+    def replace_white_space_validator(self, x):
+        if '\t' in x or '\n' in x:
+            yield XMLSchemaValidationError(self, x)
+
+    def collapse_white_space_validator(self, x):
+        if '\t' in x or '\n' in x or '  ' in x:
+            yield XMLSchemaValidationError(self, x)
 
 
 class XsdLengthFacet(XsdSingleFacet):
-    admitted_tags = XSD_LENGTH_TAG,
+    admitted_tags = XSD_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -173,7 +164,7 @@ class XsdLengthFacet(XsdSingleFacet):
 
 
 class XsdMinLengthFacet(XsdSingleFacet):
-    admitted_tags = XSD_MIN_LENGTH_TAG,
+    admitted_tags = XSD_MIN_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -205,7 +196,7 @@ class XsdMinLengthFacet(XsdSingleFacet):
 
 
 class XsdMaxLengthFacet(XsdSingleFacet):
-    admitted_tags = XSD_MAX_LENGTH_TAG,
+    admitted_tags = XSD_MAX_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -237,7 +228,7 @@ class XsdMaxLengthFacet(XsdSingleFacet):
 
 
 class XsdMinInclusiveFacet(XsdSingleFacet):
-    admitted_tags = XSD_MIN_INCLUSIVE_TAG,
+    admitted_tags = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -249,7 +240,7 @@ class XsdMinInclusiveFacet(XsdSingleFacet):
 
 
 class XsdMinExclusiveFacet(XsdSingleFacet):
-    admitted_tags = XSD_MIN_EXCLUSIVE_TAG,
+    admitted_tags = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -261,7 +252,7 @@ class XsdMinExclusiveFacet(XsdSingleFacet):
 
 
 class XsdMaxInclusiveFacet(XsdSingleFacet):
-    admitted_tags = XSD_MAX_INCLUSIVE_TAG,
+    admitted_tags = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -273,7 +264,7 @@ class XsdMaxInclusiveFacet(XsdSingleFacet):
 
 
 class XsdMaxExclusiveFacet(XsdSingleFacet):
-    admitted_tags = XSD_MAX_EXCLUSIVE_TAG,
+    admitted_tags = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -285,7 +276,7 @@ class XsdMaxExclusiveFacet(XsdSingleFacet):
 
 
 class XsdTotalDigitsFacet(XsdSingleFacet):
-    admitted_tags = XSD_TOTAL_DIGITS_TAG,
+    admitted_tags = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -299,18 +290,18 @@ class XsdTotalDigitsFacet(XsdSingleFacet):
 
 
 class XsdFractionDigitsFacet(XsdSingleFacet):
-    admitted_tags = XSD_FRACTION_DIGITS_TAG,
+    admitted_tags = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
-        if not base_type.is_subtype(XSD_DECIMAL_TYPE):
+        if not base_type.is_subtype(XSD_DECIMAL):
             self.parse_error("fractionDigits facet can be applied only to types derived from xs:decimal")
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
         if self.value < 0:
             raise ValueError("'value' must be greater or equal than 0")
-        elif self.value > 0 and self.base_type.is_subtype(XSD_INTEGER_TYPE):
+        elif self.value > 0 and self.base_type.is_subtype(XSD_INTEGER):
             raise ValueError("fractionDigits facet value has to be 0 for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 
@@ -320,18 +311,16 @@ class XsdFractionDigitsFacet(XsdSingleFacet):
 
 
 class XsdExplicitTimezoneFacet(XsdSingleFacet):
-    admitted_tags = XSD_EXPLICIT_TIMEZONE_TAG,
+    admitted_tags = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
-        if value == 'optional':
-            self.validator = self.dummy_validator
-        elif value == 'prohibited':
+        if value == 'prohibited':
             self.validator = self.prohibited_timezone_validator
         elif value == 'required':
             self.validator = self.required_timezone_validator
-        else:
-            self.parse_error("attribute 'value' must be one of %r" % XSD_EXPLICIT_TIMEZONE_ENUM)
+        elif value != 'optional':
+            self.parse_error("attribute 'value' must be one of ('required', 'prohibited', 'optional').")
 
     def required_timezone_validator(self, x):
         if RE_ISO_TIMEZONE.search(x) is None:
@@ -344,7 +333,7 @@ class XsdExplicitTimezoneFacet(XsdSingleFacet):
 
 class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
-    admitted_tags = {XSD_ENUMERATION_TAG}
+    admitted_tags = {XSD_ENUMERATION}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -394,7 +383,7 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
 
 class XsdPatternsFacet(MutableSequence, XsdFacet):
 
-    admitted_tags = {XSD_PATTERN_TAG}
+    admitted_tags = {XSD_PATTERN}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -438,59 +427,59 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
 
 XSD_10_FACETS = {
-    XSD_WHITE_SPACE_TAG: XsdWhiteSpaceFacet,
-    XSD_LENGTH_TAG: XsdLengthFacet,
-    XSD_MIN_LENGTH_TAG: XsdMinLengthFacet,
-    XSD_MAX_LENGTH_TAG: XsdMaxLengthFacet,
-    XSD_MIN_INCLUSIVE_TAG: XsdMinInclusiveFacet,
-    XSD_MIN_EXCLUSIVE_TAG: XsdMinExclusiveFacet,
-    XSD_MAX_INCLUSIVE_TAG: XsdMaxInclusiveFacet,
-    XSD_MAX_EXCLUSIVE_TAG: XsdMaxExclusiveFacet,
-    XSD_TOTAL_DIGITS_TAG: XsdTotalDigitsFacet,
-    XSD_FRACTION_DIGITS_TAG: XsdFractionDigitsFacet,
-    XSD_ENUMERATION_TAG: XsdEnumerationFacet,
-    XSD_PATTERN_TAG: XsdPatternsFacet,
+    XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
+    XSD_LENGTH: XsdLengthFacet,
+    XSD_MIN_LENGTH: XsdMinLengthFacet,
+    XSD_MAX_LENGTH: XsdMaxLengthFacet,
+    XSD_MIN_INCLUSIVE: XsdMinInclusiveFacet,
+    XSD_MIN_EXCLUSIVE: XsdMinExclusiveFacet,
+    XSD_MAX_INCLUSIVE: XsdMaxInclusiveFacet,
+    XSD_MAX_EXCLUSIVE: XsdMaxExclusiveFacet,
+    XSD_TOTAL_DIGITS: XsdTotalDigitsFacet,
+    XSD_FRACTION_DIGITS: XsdFractionDigitsFacet,
+    XSD_ENUMERATION: XsdEnumerationFacet,
+    XSD_PATTERN: XsdPatternsFacet,
 }
 
 XSD_11_FACETS = XSD_10_FACETS.copy()
 XSD_11_FACETS.update({
-    XSD_ASSERTION_TAG: None,
-    XSD_EXPLICIT_TIMEZONE_TAG: None
+    XSD_ASSERTION: None,
+    XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
 #
 # Admitted facets sets for Atomic Types, List Type and Union Type
 STRING_FACETS = {
-    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
-    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTION_TAG
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
+    XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
 }
 
-BOOLEAN_FACETS = {XSD_PATTERN_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTION_TAG}
+BOOLEAN_FACETS = {XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION}
 
 FLOAT_FACETS = {
-    XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG,
-    XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTION_TAG
+    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE,
+    XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_ASSERTION
 }
 
 DECIMAL_FACETS = {
-    XSD_TOTAL_DIGITS_TAG, XSD_FRACTION_DIGITS_TAG, XSD_PATTERN_TAG, XSD_ENUMERATION_TAG,
-    XSD_WHITE_SPACE_TAG, XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
-    XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTION_TAG
+    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_PATTERN, XSD_ENUMERATION,
+    XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
+    XSD_MIN_EXCLUSIVE, XSD_ASSERTION
 }
 
 DATETIME_FACETS = {
-    XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG,
-    XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG,
-    XSD_MIN_EXCLUSIVE_TAG, XSD_ASSERTION_TAG, XSD_EXPLICIT_TIMEZONE_TAG
+    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE,
+    XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
+    XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
 }
 
 LIST_FACETS = {
-    XSD_LENGTH_TAG, XSD_MIN_LENGTH_TAG, XSD_MAX_LENGTH_TAG, XSD_PATTERN_TAG,
-    XSD_ENUMERATION_TAG, XSD_WHITE_SPACE_TAG, XSD_ASSERTION_TAG
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
+    XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
 }
 
-UNION_FACETS = {XSD_PATTERN_TAG, XSD_ENUMERATION_TAG, XSD_ASSERTION_TAG}
+UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
 
 XSD_MIN_MAX_FACETS = {
-    XSD_MAX_INCLUSIVE_TAG, XSD_MAX_EXCLUSIVE_TAG, XSD_MIN_INCLUSIVE_TAG, XSD_MIN_EXCLUSIVE_TAG
+    XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE
 }

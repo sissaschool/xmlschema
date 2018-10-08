@@ -11,10 +11,10 @@
 from __future__ import unicode_literals
 from ..etree import etree_element
 from ..qnames import (
-    get_qname, prefixed_to_qname, local_name, XSD_GROUP_TAG, XSD_ATTRIBUTE_GROUP_TAG,
-    XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, XSD_ANY_ATTRIBUTE_TAG,
-    XSD_ATTRIBUTE_TAG, XSD_COMPLEX_CONTENT_TAG, XSD_RESTRICTION_TAG, XSD_COMPLEX_TYPE_TAG,
-    XSD_EXTENSION_TAG, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT_TAG, XSD_ANY_SIMPLE_TYPE
+    get_qname, prefixed_to_qname, local_name, XSD_GROUP, XSD_ATTRIBUTE_GROUP,
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE,
+    XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE,
+    XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE
 )
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .parseutils import get_xml_bool_attribute, get_xsd_derivation_attribute
@@ -23,9 +23,9 @@ from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
 
-XSD_MODEL_GROUP_TAGS = {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}
+XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
-SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE_TAG)
+SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
 
 
 class XsdComplexType(XsdType, ValidationMixin):
@@ -44,7 +44,7 @@ class XsdComplexType(XsdType, ValidationMixin):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    admitted_tags = {XSD_COMPLEX_TYPE_TAG, XSD_RESTRICTION_TAG}
+    admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
 
     def __init__(self, elem, schema, parent, name=None, content_type=None, attributes=None, mixed=None):
         self.base_type = None
@@ -75,7 +75,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse(self):
         super(XsdComplexType, self)._parse()
         elem = self.elem
-        if elem.tag == XSD_RESTRICTION_TAG:
+        if elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
         self.mixed = get_xml_bool_attribute(elem, 'mixed', default=False)
@@ -91,19 +91,19 @@ class XsdComplexType(XsdType, ValidationMixin):
 
         content_elem = self._parse_component(elem, required=False, strict=False)
         if content_elem is None or content_elem.tag in \
-                {XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ANY_ATTRIBUTE_TAG}:
+                {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
             #
             # complexType with empty content
             self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
             self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
 
-        elif content_elem.tag in {XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
+        elif content_elem.tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
             #
             # complexType with child elements
             self.content_type = self.schema.BUILDERS.group_class(content_elem, self.schema, self)
             self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self)
 
-        elif content_elem.tag == XSD_SIMPLE_CONTENT_TAG:
+        elif content_elem.tag == XSD_SIMPLE_CONTENT:
             if 'mixed' in content_elem.attrib:
                 self.parse_error("'mixed' attribute not allowed with simpleContent", content_elem)
 
@@ -112,7 +112,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 return
 
             self.base_type = self._parse_base_type(derivation_elem)
-            if derivation_elem.tag == XSD_RESTRICTION_TAG:
+            if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_simple_content_restriction(derivation_elem, self.base_type)
             else:
                 self._parse_simple_content_extension(derivation_elem, self.base_type)
@@ -121,7 +121,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 k = 2 if content_elem is not elem[0] else 1
                 self.parse_error("unexpected tag %r after simpleContent declaration:" % elem[k].tag, elem)
 
-        elif content_elem.tag == XSD_COMPLEX_CONTENT_TAG:
+        elif content_elem.tag == XSD_COMPLEX_CONTENT:
             #
             # complexType with complexContent restriction/extension
             if 'mixed' in content_elem.attrib:
@@ -132,7 +132,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 return
 
             self.base_type = self._parse_base_type(derivation_elem, complex_content=True)
-            if derivation_elem.tag == XSD_RESTRICTION_TAG:
+            if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, self.base_type)
             else:
                 self._parse_complex_content_extension(derivation_elem, self.base_type)
@@ -149,7 +149,7 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def _parse_derivation_elem(self, elem):
         derivation_elem = self._parse_component(elem, required=False)
-        if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG):
+        if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION, XSD_EXTENSION):
             self.parse_error("restriction or extension tag expected", derivation_elem)
             self.content_type = self.schema.create_any_content_group(self)
             self.attributes = self.schema.create_any_attribute_group(self)
@@ -208,7 +208,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         # with simple content.
         child = self._parse_component(elem, required=False, strict=False)
         if child is not None and child.tag not in \
-                {XSD_ATTRIBUTE_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ANY_ATTRIBUTE_TAG}:
+                {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE}:
             self.parse_error("unexpected tag %r." % child.tag, child)
 
         if base_type.is_simple():
@@ -271,7 +271,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 # Empty content model
                 self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
         else:
-            sequence_elem = etree_element(XSD_SEQUENCE_TAG)
+            sequence_elem = etree_element(XSD_SEQUENCE)
             sequence_elem.text = '\n    '
             self.content_type = self.schema.BUILDERS.group_class(sequence_elem, self.schema, self)
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:

@@ -10,7 +10,7 @@
 #
 from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError
-from ..qnames import get_qname, XSD_NOTATION_TAG
+from ..qnames import get_qname, XSD_NOTATION
 from .xsdbase import XsdComponent
 
 
@@ -27,7 +27,7 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
-    admitted_tags = {XSD_NOTATION_TAG}
+    admitted_tags = {XSD_NOTATION}
 
     def __init__(self, elem, schema, parent):
         if parent is not None:
