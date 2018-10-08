@@ -15,17 +15,15 @@ from __future__ import unicode_literals
 import re
 
 from ..compat import PY3, string_base_type
-from ..etree import etree_tostring, is_etree_element
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import (
-    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION, XSD_APPINFO,
-    XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
-)
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
+from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
+from ..etree import etree_tostring, is_etree_element
+
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
     XMLSchemaEncodeError, XMLSchemaChildrenValidationError
 )
-from .parseutils import get_xsd_component, iter_xsd_components
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """

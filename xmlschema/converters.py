@@ -17,8 +17,8 @@ import string
 from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
-from .namespaces import NamespaceMapper, XSI_NAMESPACE
-
+from .namespaces import XSI_NAMESPACE
+from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 "Namedtuple for Element data interchange between decoders and converters."

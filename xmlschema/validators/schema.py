@@ -19,14 +19,12 @@ import elementpath
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XLINK_NAMESPACE
-from ..namespaces import NamespaceResourcesMap, NamespaceView, XHTML_NAMESPACE
+from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
+from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
+    XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring
-from ..qnames import (
-    XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
-    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT,
-    XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-)
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -39,7 +37,6 @@ from . import (
     XsdAnyAttribute, xsd_simple_type_factory, Xsd11Attribute, Xsd11Element, Xsd11AnyElement,
     Xsd11AnyAttribute, Xsd11AtomicRestriction, Xsd11ComplexType, Xsd11Group, XsdGlobals
 )
-from .parseutils import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
 
 

@@ -20,7 +20,6 @@ from decimal import Decimal
 
 from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
-from ..etree import etree_element, is_etree_element
 from ..qnames import (
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_WHITE_SPACE, XSD_PATTERN, XSD_ANY_TYPE,
     XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_DECIMAL, XSD_INTEGER, XSD_DOUBLE, XSD_FLOAT,
@@ -31,9 +30,9 @@ from ..qnames import (
     XSD_POSITIVE_INTEGER, XSD_NON_NEGATIVE_INTEGER, XSD_NON_POSITIVE_INTEGER, XSD_UNSIGNED_BYTE,
     XSD_UNSIGNED_INT, XSD_UNSIGNED_LONG, XSD_UNSIGNED_SHORT, XSD_NEGATIVE_INTEGER
 )
-
+from ..helpers import ISO_TIMEZONE_PATTERN, DURATION_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
+from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
-from .parseutils import RE_ISO_TIMEZONE, RE_DURATION, RE_HEX_BINARY, RE_NOT_BASE64_BINARY
 from .facets import (
     XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 )
@@ -197,7 +196,7 @@ def g_day_validator(x):
 
 
 def duration_validator(x):
-    if RE_DURATION.match(x) is None:
+    if DURATION_PATTERN.match(x) is None:
         yield XMLSchemaValidationError(duration_validator, x, "wrong format (PnYnMnDTnHnMnS required).")
 
 
@@ -211,7 +210,7 @@ def datetime_iso8601_validator(date_string, *date_formats):
     :return: True if the string is a valid datetime, False if not.
     """
     try:
-        date_string, time_zone, _ = RE_ISO_TIMEZONE.split(date_string)
+        date_string, time_zone, _ = ISO_TIMEZONE_PATTERN.split(date_string)
     except ValueError:
         pass
 
@@ -232,12 +231,12 @@ def datetime_iso8601_validator(date_string, *date_formats):
 
 
 def hex_binary_validator(x):
-    if len(x) % 2 or RE_HEX_BINARY.match(x) is None:
+    if len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None:
         yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
 
 
 def base64_binary_validator(x):
-    match = RE_NOT_BASE64_BINARY.search(x)
+    match = NOT_BASE64_BINARY_PATTERN.search(x)
     if match is not None:
         reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
         yield XMLSchemaValidationError(base64_binary_validator, x, reason)

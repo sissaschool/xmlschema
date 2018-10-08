@@ -9,112 +9,37 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for manipulating fully qualified names and XML Schema tags.
+This module contains qualified names definitions.
 """
 from __future__ import unicode_literals
-from .namespaces import get_namespace, XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
+
+
+def xsd_qname(name):
+    return '{http://www.w3.org/2001/XMLSchema}%s' % name
+
+
+def xml_qname(name):
+    return '{http://www.w3.org/XML/1998/namespace}%s' % name
+
+
+def xsi_qname(name):
+    return '{http://www.w3.org/2001/XMLSchema-instance}%s' % name
 
 
 #
-# Functions for handling fully qualified names
-def xsd_qname(name):
-    """Builds the XSD namespace's QName from a local name."""
-    return '{%s}%s' % (XSD_NAMESPACE, name)
+# XML attributes
+XML_LANG = xml_qname('lang')
+XML_SPACE = xml_qname('space')
+XML_BASE = xml_qname('base')
+XML_ID = xml_qname('id')
+XML_SPECIAL_ATTRS = xml_qname('specialAttrs')
 
-
-def get_qname(uri, name):
-    """
-    Returns a fully qualified name from URI and local part. If any argument has boolean value
-    `False` or if the name is already a fully qualified name, returns the *name* argument.
-
-    :param uri: namespace URI
-    :param name: local or qualified name
-    :return: string or the name argument
-    """
-    if not uri or not name or name[0] in ('{', '.', '/', '['):
-        return name
-    else:
-        return '{%s}%s' % (uri, name)
-
-
-def local_name(qname):
-    """
-    Return the local part of a qualified name. If the name is `None` or empty
-    returns the *name* argument.
-
-    :param qname: QName or universal name formatted string, or `None`.
-    """
-    try:
-        if qname[0] != '{':
-            return qname
-        return qname[qname.rindex('}') + 1:]
-    except IndexError:
-        return ''
-    except ValueError:
-        raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
-    except TypeError:
-        if qname is None:
-            return qname
-        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
-
-
-def prefixed_to_qname(name, namespaces):
-    """
-    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
-    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
-    
-    :param name: a local name or a prefixed name or a fully qualified name or `None`.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a FQN or a local name or the name argument.
-    """
-    if not name or name[0] == '{':
-        return name
-
-    try:
-        prefix, name = name.split(':')
-    except ValueError:
-        if ':' in name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces['']
-        except KeyError:
-            return name
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-    else:
-        if not prefix or not name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-
-
-def qname_to_prefixed(qname, namespaces):
-    """
-    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
-    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
-
-    :param qname: a fully qualified name or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a prefixed or local reference.
-    """
-    if not qname:
-        return qname
-
-    namespace = get_namespace(qname)
-    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
-        if not uri:
-            return '%s:%s' % (prefix, qname) if prefix else qname
-        elif prefix:
-            return qname.replace('{%s}' % uri, '%s:' % prefix)
-        else:
-            return qname.replace('{%s}' % uri, '')
-    else:
-        return qname
+#
+# XML Schema Instance attributes
+XSI_NIL = xsi_qname('nil')
+XSI_TYPE = xsi_qname('type')
+XSI_SCHEMA_LOCATION = xsi_qname('schemaLocation')
+XSI_NONS_SCHEMA_LOCATION = xsi_qname('noNamespaceSchemaLocation')
 
 
 #
@@ -173,10 +98,10 @@ XSD_TOTAL_DIGITS = xsd_qname('totalDigits')
 XSD_FRACTION_DIGITS = xsd_qname('fractionDigits')
 
 # XSD 1.1 elements
-XSD_OPEN_CONTENT = xsd_qname('openContent')      # open content model
-XSD_ALTERNATIVE = xsd_qname('alternative')      # conditional type assignment
-XSD_ASSERT = xsd_qname('assert')            # complex type assertions
-XSD_ASSERTION = xsd_qname('assertion')      # facets
+XSD_OPEN_CONTENT = xsd_qname('openContent')            # open content model
+XSD_ALTERNATIVE = xsd_qname('alternative')             # conditional type assignment
+XSD_ASSERT = xsd_qname('assert')                       # complex type assertions
+XSD_ASSERTION = xsd_qname('assertion')                 # facets
 XSD_EXPLICIT_TIMEZONE = xsd_qname('explicitTimezone')
 
 # Identity constraints
@@ -185,24 +110,6 @@ XSD_KEY = xsd_qname('key')
 XSD_KEYREF = xsd_qname('keyref')
 XSD_SELECTOR = xsd_qname('selector')
 XSD_FIELD = xsd_qname('field')
-
-
-#
-# XML attributes
-XML_LANG = get_qname(XML_NAMESPACE, 'lang')
-XML_SPACE = get_qname(XML_NAMESPACE, 'space')
-XML_BASE = get_qname(XML_NAMESPACE, 'base')
-XML_ID = get_qname(XML_NAMESPACE, 'id')
-XML_SPECIAL_ATTRS = get_qname(XML_NAMESPACE, 'specialAttrs')
-
-
-#
-# XML Schema Instance attributes
-XSI_NIL = get_qname(XSI_NAMESPACE, 'nil')
-XSI_TYPE = get_qname(XSI_NAMESPACE, 'type')
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'noNamespaceSchemaLocation')
-
 
 #
 # XSD Builtin Types
@@ -233,10 +140,8 @@ XSD_QNAME = xsd_qname('QName')
 XSD_NOTATION_TYPE = xsd_qname('NOTATION')
 XSD_ANY_URI = xsd_qname('anyURI')
 XSD_BOOLEAN = xsd_qname('boolean')
-
 XSD_BASE64_BINARY = xsd_qname('base64Binary')
 XSD_HEX_BINARY = xsd_qname('hexBinary')
-
 XSD_NORMALIZED_STRING = xsd_qname('normalizedString')
 XSD_TOKEN = xsd_qname('token')
 XSD_LANGUAGE = xsd_qname('language')

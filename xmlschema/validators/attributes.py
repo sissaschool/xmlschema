@@ -16,12 +16,11 @@ from collections import MutableMapping
 from decimal import Decimal
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..namespaces import get_namespace, XSI_NAMESPACE
-from ..qnames import (
-    get_qname, local_name, prefixed_to_qname, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE,
-    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-)
+from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
+    XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
+from ..helpers import get_namespace, get_qname, local_name, prefixed_to_qname
+from ..namespaces import XSI_NAMESPACE
+
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType

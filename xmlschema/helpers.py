@@ -9,18 +9,120 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains helper functions for XSD parsing.
+This module contains various helper functions for XML/XSD processing and parsing.
 """
-from __future__ import unicode_literals
 import re
-from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
-from ..qnames import XSD_ANNOTATION
+
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
+from .qnames import XSD_ANNOTATION
 
 
-RE_ISO_TIMEZONE = re.compile(r"(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$")
-RE_DURATION = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
-RE_HEX_BINARY = re.compile(r"^[0-9a-fA-F]+$")
-RE_NOT_BASE64_BINARY = re.compile(r"[^0-9a-zA-z+/= \t\n]")
+NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+ISO_TIMEZONE_PATTERN = re.compile(r"(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$")
+DURATION_PATTERN = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
+HEX_BINARY_PATTERN = re.compile(r"^[0-9a-fA-F]+$")
+NOT_BASE64_BINARY_PATTERN = re.compile(r"[^0-9a-zA-z+/= \t\n]")
+
+
+def get_namespace(name):
+    try:
+        return NAMESPACE_PATTERN.match(name).group(1)
+    except (AttributeError, TypeError):
+        return ''
+
+
+def get_qname(uri, name):
+    """
+    Returns a fully qualified name from URI and local part. If any argument has boolean value
+    `False` or if the name is already a fully qualified name, returns the *name* argument.
+
+    :param uri: namespace URI
+    :param name: local or qualified name
+    :return: string or the name argument
+    """
+    if not uri or not name or name[0] in ('{', '.', '/', '['):
+        return name
+    else:
+        return '{%s}%s' % (uri, name)
+
+
+def local_name(qname):
+    """
+    Return the local part of a qualified name. If the name is `None` or empty
+    returns the *name* argument.
+
+    :param qname: QName or universal name formatted string, or `None`.
+    """
+    try:
+        if qname[0] != '{':
+            return qname
+        return qname[qname.rindex('}') + 1:]
+    except IndexError:
+        return ''
+    except ValueError:
+        raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
+    except TypeError:
+        if qname is None:
+            return qname
+        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
+
+
+def prefixed_to_qname(name, namespaces):
+    """
+    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
+    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
+
+    :param name: a local name or a prefixed name or a fully qualified name or `None`.
+    :param namespaces: a map from prefixes to namespace URIs.
+    :return: string with a FQN or a local name or the name argument.
+    """
+    if not name or name[0] == '{':
+        return name
+
+    try:
+        prefix, name = name.split(':')
+    except ValueError:
+        if ':' in name:
+            raise XMLSchemaValueError("wrong format for reference name %r" % name)
+        try:
+            uri = namespaces['']
+        except KeyError:
+            return name
+        else:
+            return '{%s}%s' % (uri, name) if uri else name
+    else:
+        if not prefix or not name:
+            raise XMLSchemaValueError("wrong format for reference name %r" % name)
+        try:
+            uri = namespaces[prefix]
+        except KeyError:
+            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
+        else:
+            return '{%s}%s' % (uri, name) if uri else name
+
+
+def qname_to_prefixed(qname, namespaces):
+    """
+    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
+    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
+
+    :param qname: a fully qualified name or a local name.
+    :param namespaces: a map from prefixes to namespace URIs.
+    :return: string with a prefixed or local reference.
+    """
+    if not qname:
+        return qname
+
+    namespace = get_namespace(qname)
+    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
+        if not uri:
+            return '%s:%s' % (prefix, qname) if prefix else qname
+        elif prefix:
+            return qname.replace('{%s}' % uri, '%s:' % prefix)
+        else:
+            return qname.replace('{%s}' % uri, '')
+    else:
+        return qname
 
 
 def get_xsd_annotation(elem):

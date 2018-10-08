@@ -9,15 +9,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import unicode_literals
-from ..etree import etree_element
-from ..qnames import (
-    get_qname, prefixed_to_qname, local_name, XSD_GROUP, XSD_ATTRIBUTE_GROUP,
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE,
-    XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE,
+
+from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE, \
     XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE
-)
+from ..helpers import get_qname, local_name, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..etree import etree_element
+
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import get_xml_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdType, ValidationMixin
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType

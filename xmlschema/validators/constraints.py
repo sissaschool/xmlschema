@@ -16,14 +16,11 @@ from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
+from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed, get_xpath_default_namespace
 from ..etree import etree_getpath
-from ..qnames import (
-    get_qname, prefixed_to_qname, qname_to_prefixed, XSD_UNIQUE,
-    XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-)
 
 from .exceptions import XMLSchemaValidationError
-from .parseutils import get_xpath_default_namespace
 from .xsdbase import XsdComponent
 
 XSD_CONSTRAINTS_XPATH_SYMBOLS = {

@@ -30,7 +30,8 @@ from xmlschema.etree import (
     is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
 )
 from xmlschema.resources import fetch_namespaces
-from xmlschema.qnames import XSD_SCHEMA, get_namespace
+from xmlschema.qnames import XSD_SCHEMA
+from xmlschema.helpers import get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
 logger = logging.getLogger('xmlschema.tests')

@@ -17,16 +17,14 @@ from decimal import DecimalException
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
-    get_qname, prefixed_to_qname, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE,
-    XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ENUMERATION, XSD_PATTERN,
-    XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, local_name,
-    XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION,
+    XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE,
+    XSD_ENUMERATION, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION,
+    XSD_RESTRICTION, XSD_ANNOTATION,
 )
-from .exceptions import (
-    XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
-)
-from .parseutils import get_xsd_derivation_attribute, get_xsd_component
+from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
+
+from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdType, ValidationMixin
 from .facets import XsdFacet, XSD_10_FACETS
 

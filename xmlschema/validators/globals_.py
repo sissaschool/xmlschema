@@ -14,14 +14,14 @@ XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re
+
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
-from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
-from ..qnames import (
-    get_qname, local_name, prefixed_to_qname, XSD_INCLUDE, XSD_IMPORT,
-    XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE,
-    XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT,
-    XSD_ANY_TYPE
-)
+from ..namespaces import XSD_NAMESPACE
+from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
+from ..helpers import get_qname, local_name, prefixed_to_qname
+from ..namespaces import NamespaceResourcesMap
+
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
     XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
 from .builtins import xsd_builtin_types_factory

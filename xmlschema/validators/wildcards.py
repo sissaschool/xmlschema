@@ -12,10 +12,13 @@
 This module contains classes for XML Schema wildcards.
 """
 from __future__ import unicode_literals
+
 from ..exceptions import XMLSchemaValueError
-from ..namespaces import get_namespace, XSI_NAMESPACE
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE
+from ..helpers import get_namespace
+from ..namespaces import XSI_NAMESPACE
 from ..xpath import ElementPathMixin
+
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 

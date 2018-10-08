@@ -17,11 +17,10 @@ from collections import MutableSequence, Counter
 from ..compat import PY3, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import local_name
 from ..qnames import (
-    XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, prefixed_to_qname, get_qname,
-    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION,
+    XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION,
 )
+from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
 from ..converters import XMLSchemaConverter
 
 from .exceptions import XMLSchemaValidationError

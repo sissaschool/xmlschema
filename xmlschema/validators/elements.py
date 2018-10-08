@@ -15,17 +15,15 @@ from __future__ import unicode_literals
 from decimal import Decimal
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
+    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
+    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE
+from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 from ..converters import ElementData, XMLSchemaConverter
-from ..qnames import (
-    XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP,
-    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE,
-    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, prefixed_to_qname, get_qname
-)
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
-from .parseutils import get_xml_bool_attribute, get_xsd_derivation_attribute
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
 from .constraints import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement

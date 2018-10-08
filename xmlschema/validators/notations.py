@@ -9,8 +9,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import unicode_literals
+
 from ..exceptions import XMLSchemaValueError
-from ..qnames import get_qname, XSD_NOTATION
+from ..qnames import XSD_NOTATION
+from ..helpers import get_qname
+
 from .xsdbase import XsdComponent
 
 

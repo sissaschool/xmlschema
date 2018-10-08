@@ -16,18 +16,15 @@ import re
 from collections import MutableSequence
 
 from ..compat import unicode_type
-from ..qnames import (
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE,
-    XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
-    XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION,
-    XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_DECIMAL, XSD_INTEGER,
-    XSD_BASE64_BINARY, XSD_HEX_BINARY
-)
+from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
+    XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
+    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
+    XSD_DECIMAL, XSD_INTEGER, XSD_BASE64_BINARY, XSD_HEX_BINARY
+from ..helpers import ISO_TIMEZONE_PATTERN
 from ..regex import get_python_regex
-from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .parseutils import RE_ISO_TIMEZONE
-from .xsdbase import XsdComponent
 
+from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
+from .xsdbase import XsdComponent
 
 
 class XsdFacet(XsdComponent):
@@ -323,11 +320,11 @@ class XsdExplicitTimezoneFacet(XsdSingleFacet):
             self.parse_error("attribute 'value' must be one of ('required', 'prohibited', 'optional').")
 
     def required_timezone_validator(self, x):
-        if RE_ISO_TIMEZONE.search(x) is None:
+        if ISO_TIMEZONE_PATTERN.search(x) is None:
             yield XMLSchemaValidationError(self, x, "time zone required for value %r." % self.value)
 
     def prohibited_timezone_validator(self, x):
-        if RE_ISO_TIMEZONE.search(x) is not None:
+        if ISO_TIMEZONE_PATTERN.search(x) is not None:
             yield XMLSchemaValidationError(self, x, "time zone prohibited for value %r." % self.value)
 
 
