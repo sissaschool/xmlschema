@@ -14,28 +14,18 @@ Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
 'ENTITIES', 'IDREFS') are created using the XSD meta-schema.
 """
 from __future__ import unicode_literals
+
 import datetime
 import base64
 from decimal import Decimal
 
 from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
-from ..qnames import (
-    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_WHITE_SPACE, XSD_PATTERN, XSD_ANY_TYPE,
-    XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_DECIMAL, XSD_INTEGER, XSD_DOUBLE, XSD_FLOAT,
-    XSD_STRING, XSD_DATE, XSD_DATETIME, XSD_TIME, XSD_GDAY, XSD_GMONTH, XSD_GYEAR, XSD_GMONTH_DAY,
-    XSD_GYEAR_MONTH, XSD_DURATION, XSD_QNAME, XSD_ANY_URI, XSD_NOTATION_TYPE, XSD_HEX_BINARY,
-    XSD_BASE64_BINARY, XSD_BOOLEAN, XSD_NORMALIZED_STRING, XSD_TOKEN, XSD_NMTOKEN, XSD_LANGUAGE,
-    XSD_NAME, XSD_NCNAME, XSD_ID, XSD_IDREF, XSD_ENTITY, XSD_LONG, XSD_SHORT, XSD_INT, XSD_BYTE,
-    XSD_POSITIVE_INTEGER, XSD_NON_NEGATIVE_INTEGER, XSD_NON_POSITIVE_INTEGER, XSD_UNSIGNED_BYTE,
-    XSD_UNSIGNED_INT, XSD_UNSIGNED_LONG, XSD_UNSIGNED_SHORT, XSD_NEGATIVE_INTEGER
-)
+from ..qnames import *
 from ..helpers import ISO_TIMEZONE_PATTERN, DURATION_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
-from .facets import (
-    XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
-)
+from .facets import XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
 
@@ -519,8 +509,29 @@ XSD_BUILTIN_TYPES = (
         'python_type': (long_type, int),
         'base_type': XSD_NON_POSITIVE_INTEGER,
         'facets': [negative_int_validator]
-    }  # only negative value allowed [< 0]
+    },  # only negative value allowed [< 0]
+
+    # --- Datetime derived types ---
+    {
+        'name': XSD_DATE_TIME_STAMP,
+        'python_type': (unicode_type, str),
+        'base_type': XSD_DATETIME,
+        'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, attrib={'value': 'required'})],
+    },  # CCYY-MM-DDThh:mm:ss with required timezone
+    {
+        'name': XSD_DAY_TIME_DURATION,
+        'python_type': (unicode_type, str),
+        'base_type': XSD_DURATION,
+        'facets': [],
+    },  # PnYnMnDTnHnMnS with month equals to 0
+    {
+        'name': XSD_YEAR_MONTH_DURATION,
+        'python_type': (unicode_type, str),
+        'base_type': XSD_DURATION,
+        'facets': [],
+    },  # PnYnMnDTnHnMnS with month equals to 0
 )
+
 
 
 def xsd_build_facets(schema, parent, base_type, items):

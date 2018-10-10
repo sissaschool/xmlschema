@@ -209,18 +209,18 @@ class TestGlobalMaps(unittest.TestCase):
 
     def test_globals(self):
         self.assertTrue(len(meta_schema.maps.notations) == 2)
-        self.assertTrue(len(meta_schema.maps.types) == 105)
+        self.assertTrue(len(meta_schema.maps.types) == 108)
         self.assertTrue(len(meta_schema.maps.attributes) == 18)
         self.assertTrue(len(meta_schema.maps.attribute_groups) == 9)
         self.assertTrue(len(meta_schema.maps.groups) == 18)
         self.assertTrue(len(meta_schema.maps.elements) == 47)
-        self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 202)
 
         self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
 
     def test_build(self):
         meta_schema.maps.build()
-        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
+        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 202)
         self.assertTrue(meta_schema.maps.built)
         meta_schema.maps.clear()
         meta_schema.maps.build()
@@ -234,8 +234,8 @@ class TestGlobalMaps(unittest.TestCase):
                 total_counter += 1
                 if c.is_global:
                     global_counter += 1
-        self.assertTrue(global_counter == 199)
-        self.assertTrue(total_counter == 945)
+        self.assertTrue(global_counter == 202)
+        self.assertTrue(total_counter == 948)
 
 
 # TODO: Add tests for base schemas files.

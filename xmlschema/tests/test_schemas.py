@@ -36,8 +36,8 @@ from xmlschema import (
     XMLSchemaParseError, XMLSchemaBase, XMLSchema, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 )
 from xmlschema.compat import PY3, unicode_type
-from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.qnames import XSD_LIST, XSD_UNION
+from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.etree import defused_etree
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
