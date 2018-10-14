@@ -29,7 +29,7 @@ except ImportError:
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import unicode_chr
-from xmlschema.codepoints import iter_code_points, UnicodeSubset, UNICODE_CATEGORIES
+from xmlschema.codepoints import iter_code_points, UnicodeSubset, build_unicode_categories, UNICODE_CATEGORIES
 from xmlschema.regex import get_python_regex
 
 
@@ -119,34 +119,20 @@ class TestUnicodeCategories(unittest.TestCase):
     """
     Test the subsets of Unicode categories, mainly to check the loaded JSON file.
     """
+    def test_build_unicode_categories(self):
+        categories = build_unicode_categories('not_existing_file.json')
+        self.assertEqual(sum(len(v) for k, v in categories.items() if len(k) > 1), sys.maxunicode + 1)
+        self.assertEqual(min([min(s) for s in categories.values()]), 0)
+        self.assertEqual(max([max(s) for s in categories.values()]), sys.maxunicode)
+        base_sets = [set(v) for k, v in categories.items() if len(k) > 1]
+        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
 
-    def test_disjunction(self):
+    def test_unicode_categories(self):
+        self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1), sys.maxunicode + 1)
+        self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
+        self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
-        self.assertFalse(
-            any([s.intersection(t) for s in base_sets for t in base_sets if s != t]),
-            "The Unicode categories are not mutually disjoined."
-        )
-
-    def test_conjunctions(self):
-        n_code_points = sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1)
-        self.assertTrue(
-            n_code_points == sys.maxunicode + 1,
-            "The Unicode categories have a wrong number of elements: %d (!= %d) " % (n_code_points, sys.maxunicode + 1)
-        )
-
-    def test_max_value(self):
-        max_code_point = max([max(s) for s in UNICODE_CATEGORIES.values()])
-        self.assertTrue(
-            max_code_point <= sys.maxunicode,
-            "The Unicode categories have a code point greater than %d: %d" % (sys.maxunicode, max_code_point)
-        )
-
-    def test_min_value(self):
-        min_code_point = min([min(s) for s in UNICODE_CATEGORIES.values()])
-        self.assertTrue(
-            min_code_point >= 0,
-            "The Unicode categories have negative code points: %d" % min_code_point
-        )
+        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
 
     @unittest.skipIf(not ((3, 6) <= sys.version_info < (3, 7)), "Test only for Python 3.6")
     def test_unicodedata_category(self):
