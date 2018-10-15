@@ -49,7 +49,7 @@ def code_point_repr(cp):
         return start_char + end_char
 
 
-def parse_character_group(s, expand_ranges=False):
+def iterparse_character_group(s, expand_ranges=False):
     """
     Parse a regex character group part, generating a sequence of code points
     and code points ranges. An unescaped hyphen (-) that is not at the start
@@ -93,7 +93,7 @@ def parse_character_group(s, expand_ranges=False):
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
                         yield cp
                 else:
-                    yield ord(char), ord(end_char)
+                    yield ord(char), ord(end_char) + 1
         elif s[i] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
@@ -131,22 +131,22 @@ def iter_code_points(items, reverse=False):
     prev_start_cp = prev_end_cp = None
     for cp in items:
         if isinstance(cp, int):
-            start_cp = end_cp = cp
+            start_cp, end_cp = cp, cp + 1
         else:
             start_cp, end_cp = cp
 
         try:
             if reverse:
-                if prev_start_cp - 1 <= end_cp:
+                if prev_start_cp <= end_cp:
                     prev_start_cp = min(prev_start_cp, start_cp)
                     continue
-            elif prev_end_cp + 1 >= start_cp:
+            elif prev_end_cp >= start_cp:
                 prev_end_cp = max(prev_end_cp, end_cp)
                 continue
         except TypeError:
             prev_start_cp, prev_end_cp = start_cp, end_cp
         else:
-            if prev_end_cp > prev_start_cp:
+            if prev_end_cp > prev_start_cp + 1:
                 yield prev_start_cp, prev_end_cp
                 prev_start_cp, prev_end_cp = start_cp, end_cp
             else:
@@ -154,7 +154,7 @@ def iter_code_points(items, reverse=False):
                 prev_start_cp, prev_end_cp = start_cp, end_cp
     else:
         if prev_start_cp is not None:
-            if prev_end_cp > prev_start_cp:
+            if prev_end_cp > prev_start_cp + 1:
                 yield prev_start_cp, prev_end_cp
             else:
                 yield prev_start_cp
@@ -213,7 +213,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(item, int):
                 yield item
             else:
-                for cp in range(item[1], item[0] - 1, -1):
+                for cp in reversed(range(item[0], item[1])):
                     yield cp
 
     def complement(self):
@@ -223,13 +223,13 @@ class UnicodeSubset(MutableSet):
                 break
             if isinstance(cp, int):
                 diff = cp - last
-                start_cp = end_cp = cp
+                start_cp, end_cp = cp, cp + 1
             else:
                 start_cp, end_cp = cp
                 diff = start_cp - last
 
             if diff > 2:
-                yield last, start_cp - 1
+                yield last, start_cp
             elif diff == 2:
                 yield last
                 yield last + 1
@@ -237,7 +237,7 @@ class UnicodeSubset(MutableSet):
                 yield last
             elif diff != 0:
                 raise XMLSchemaValueError("code points unordered")
-            last = end_cp + 1
+            last = end_cp
 
         if last == maxunicode:
             yield maxunicode
@@ -257,7 +257,7 @@ class UnicodeSubset(MutableSet):
             if not isinstance(cp, int):
                 if cp[0] > code_point:
                     return False
-                elif cp[1] < code_point:
+                elif cp[1] <= code_point:
                     continue
                 else:
                     return True
@@ -272,7 +272,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(item, int):
                 yield item
             else:
-                for cp in range(item[0], item[1] + 1):
+                for cp in range(item[0], item[1]):
                     yield cp
 
     def __len__(self):
@@ -284,7 +284,7 @@ class UnicodeSubset(MutableSet):
     def update(self, *others):
         for values in others:
             if isinstance(values, (str, unicode_type, bytes)):
-                for cp in iter_code_points(parse_character_group(values), reverse=True):
+                for cp in iter_code_points(iterparse_character_group(values), reverse=True):
                     self.add(cp)
             else:
                 for cp in iter_code_points(values, reverse=True):
@@ -294,17 +294,17 @@ class UnicodeSubset(MutableSet):
         if isinstance(value, int):
             if not (0 <= value <= maxunicode):
                 raise XMLSchemaValueError("not a Unicode code point: %r" % value)
-            start_value = end_value = value
+            start_value, end_value = value, value + 1
         else:
             start_value, end_value = value
-            if not (0 <= start_value <= end_value <= maxunicode) \
+            if not (0 <= start_value <= end_value <= maxunicode + 1) \
                     or not isinstance(start_value, int) or not isinstance(end_value, int):
                 raise XMLSchemaValueError("not a Unicode code point range: %r" % value)
 
         code_points = self._code_points
         for pos, cp in enumerate(code_points):
             if isinstance(cp, int):
-                start_cp = end_cp = cp
+                start_cp, end_cp = cp, cp + 1
             else:
                 start_cp, end_cp = cp
 
@@ -317,23 +317,16 @@ class UnicodeSubset(MutableSet):
                     higher_limit = higher_limit[0]
 
             if start_value < start_cp:
-                if start_value == start_cp - 1 or end_value >= start_cp - 1:
-                    if end_cp > start_cp:
-                        code_points[pos] = start_value, max(min(end_value, higher_limit - 1), end_cp)
-                    else:
-                        code_points[pos] = start_value, max(min(end_value, higher_limit - 1), end_cp)
+                if end_value > start_cp - 1:
+                    code_points[pos] = start_value, max(min(end_value, higher_limit), end_cp)
                 elif isinstance(value, list):
                     code_points.insert(pos, tuple(value))
                 else:
                     code_points.insert(pos, value)
-                break
-
-            elif start_value > end_cp + 1:
+            elif start_value > end_cp:
                 continue
-            elif end_cp > start_cp:
-                code_points[pos] = start_cp, max(min(end_value, higher_limit - 1), end_cp)
-            elif end_value > start_cp:
-                code_points[pos] = start_cp, min(end_value, higher_limit - 1)
+            else:
+                code_points[pos] = start_cp, max(min(end_value, higher_limit), end_cp)
             break
         else:
             self._code_points.append(tuple(value) if isinstance(value, list) else value)
@@ -341,7 +334,7 @@ class UnicodeSubset(MutableSet):
     def difference_update(self, *others):
         for values in others:
             if isinstance(values, (str, unicode_type, bytes)):
-                for cp in iter_code_points(parse_character_group(values), reverse=True):
+                for cp in iter_code_points(iterparse_character_group(values), reverse=True):
                     self.discard(cp)
             else:
                 for cp in iter_code_points(values, reverse=True):
@@ -351,43 +344,43 @@ class UnicodeSubset(MutableSet):
         if isinstance(value, int):
             if not (0 <= value <= maxunicode):
                 raise XMLSchemaValueError("not a Unicode code point: %r" % value)
-            start_value = end_value = value
+            start_value, end_value = value, value + 1
         else:
             start_value, end_value = value
-            if not (0 <= start_value <= end_value <= maxunicode) \
+            if not (0 <= start_value <= end_value <= maxunicode + 1) \
                     or not isinstance(start_value, int) or not isinstance(end_value, int):
                 raise XMLSchemaValueError("not a Unicode code point range: %r" % value)
 
         code_points = self._code_points
         for pos in reversed(range(len(code_points))):
             if isinstance(code_points[pos], int):
-                start_cp = end_cp = code_points[pos]
+                start_cp = code_points[pos]
+                end_cp = start_cp + 1
             else:
                 start_cp, end_cp = code_points[pos]
 
-            if start_value > end_cp:
+            if start_value >= end_cp:
                 break
             elif end_value >= end_cp:
                 if start_value <= start_cp:
                     del code_points[pos]
                 elif start_value - start_cp > 1:
-                    code_points[pos] = start_cp, start_value - 1
+                    code_points[pos] = start_cp, start_value
                 else:
                     code_points[pos] = start_cp
-                continue
-            elif end_value >= start_cp:
+            elif end_value > start_cp:
                 if start_value <= start_cp:
                     if end_cp - end_value > 1:
-                        code_points[pos] = end_value + 1, end_cp
+                        code_points[pos] = end_value, end_cp
                     else:
-                        code_points[pos] = end_cp
+                        code_points[pos] = end_cp - 1
                 else:
                     if end_cp - end_value > 1:
-                        code_points.insert(pos + 1, (end_value + 1, end_cp))
+                        code_points.insert(pos + 1, (end_value, end_cp))
                     else:
-                        code_points.insert(pos + 1, end_cp)
+                        code_points.insert(pos + 1, end_cp - 1)
                     if start_value - start_cp > 1:
-                        code_points[pos] = start_cp, start_value - 1
+                        code_points[pos] = start_cp, start_value
                     else:
                         code_points[pos] = start_cp
 
@@ -473,7 +466,7 @@ def get_unicodedata_categories():
             categories[last_category].append(start_cp)
             categories[last_category].append(start_cp + 1)
         else:
-            categories[last_category].append((start_cp, cp - 1))
+            categories[last_category].append((start_cp, cp))
 
     categories = defaultdict(list)
     last_category = 'Cc'
@@ -518,7 +511,7 @@ def build_unicode_categories(filename=None):
         categories = get_unicodedata_categories()  # for Python 2.7
     else:
         if filename is None:
-            filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
+            filename = os.path.join(os.path.dirname(__file__), 'unicode_categoriesxxx.json')
         try:
             with open(filename, 'r') as fp:
                 categories = json.load(fp)

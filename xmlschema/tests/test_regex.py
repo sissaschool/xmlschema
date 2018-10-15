@@ -59,29 +59,29 @@ class TestUnicodeSubset(unittest.TestCase):
         self.assertEqual(cds, [10, 50, 90])
         self.assertRaises(XMLSchemaValueError, cds.add, -1)
         self.assertRaises(XMLSchemaValueError, cds.add, sys.maxunicode + 1)
-        cds.add((100, 20000))
-        cds.discard((100, 19000))
-        self.assertEqual(cds, [10, 50, 90, (19001, 20000)])
+        cds.add((100, 20001))
+        cds.discard((100, 19001))
+        self.assertEqual(cds, [10, 50, 90, (19001, 20001)])
         cds.add(0)
         cds.discard(1)
-        self.assertEqual(cds, [0, 10, 50, 90, (19001, 20000)])
+        self.assertEqual(cds, [0, 10, 50, 90, (19001, 20001)])
         cds.discard(0)
-        self.assertEqual(cds, [10, 50, 90, (19001, 20000)])
+        self.assertEqual(cds, [10, 50, 90, (19001, 20001)])
         cds.discard((10, 100))
-        self.assertEqual(cds, [(19001, 20000)])
+        self.assertEqual(cds, [(19001, 20001)])
         cds.add(20)
         cds.add(19)
         cds.add(30)
         cds.add([30, 33])
         cds.add(30000)
         cds.add(30001)
-        self.assertEqual(cds, [(19, 20), (30, 33), (19001, 20000), (30000, 30001)])
+        self.assertEqual(cds, [(19, 21), (30, 33), (19001, 20001), (30000, 30002)])
         cds.add(22)
         cds.add(21)
         cds.add(22)
-        self.assertEqual(cds, [(19, 21), 22, (30, 33), (19001, 20000), (30000, 30001)])
+        self.assertEqual(cds, [(19, 22), 22, (30, 33), (19001, 20001), (30000, 30002)])
         cds.discard((90, 50000))
-        self.assertEqual(cds, [(19, 21), 22, (30, 33)])
+        self.assertEqual(cds, [(19, 22), 22, (30, 33)])
         cds.discard(21)
         cds.discard(19)
         self.assertEqual(cds, [20, 22, (30, 33)])
@@ -90,21 +90,21 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_complement(self):
         cds = UnicodeSubset([50, 90, 10, 90])
-        self.assertEqual(list(cds.complement()), [(0, 9), (11, 49), (51, 89), (91, sys.maxunicode)])
+        self.assertEqual(list(cds.complement()), [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode)])
         cds.add(11)
-        self.assertEqual(list(cds.complement()), [(0, 9), (12, 49), (51, 89), (91, sys.maxunicode)])
-        cds.add((0, 9))
-        self.assertEqual(list(cds.complement()), [(12, 49), (51, 89), (91, sys.maxunicode)])
+        self.assertEqual(list(cds.complement()), [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode)])
+        cds.add((0, 10))
+        self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode)])
 
     def test_union_and_intersection(self):
         cds1 = UnicodeSubset([50, (90, 200), 10])
         cds2 = UnicodeSubset([10, 51, (89, 150), 90])
-        self.assertEqual(cds1 | cds2, [10, (50, 51), (89, 200)])
+        self.assertEqual(cds1 | cds2, [10, (50, 52), (89, 200)])
         self.assertEqual(cds1 & cds2, [10, (90, 150)])
 
     def test_max_and_min(self):
-        cds1 = UnicodeSubset([10, 51, (89, 150), 90])
-        cds2 = UnicodeSubset([0, 2, (80, 200), 10000])
+        cds1 = UnicodeSubset([10, 51, (89, 151), 90])
+        cds2 = UnicodeSubset([0, 2, (80, 201), 10000])
         cds3 = UnicodeSubset([1])
         self.assertEqual((min(cds1), max(cds1)), (10, 150))
         self.assertEqual((min(cds2), max(cds2)), (0, 10000))
@@ -112,7 +112,7 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_subtraction(self):
         cds = UnicodeSubset([0, 2, (80, 200), 10000])
-        self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 119), (122, 149), 10000])
+        self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 120), (122, 150), 10000])
 
 
 class TestUnicodeCategories(unittest.TestCase):
@@ -193,14 +193,14 @@ class TestPatterns(unittest.TestCase):
 
     def test_category_escape(self):
         regex = get_python_regex('\\p{IsBasicLatin}*')
-        self.assertEqual(regex, '^([\x00-\x7f]*)$')
+        self.assertEqual(regex, '^([\x00-\x80]*)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('').group(0), '')
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertIsNone(pattern.search('è'))
 
         regex = get_python_regex('[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*')
-        self.assertEqual(regex, '^([\x00-\xff]*)$')
+        self.assertEqual(regex, '^([\x00-\u0100]*)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertEqual(pattern.search('è').group(0), 'è')
