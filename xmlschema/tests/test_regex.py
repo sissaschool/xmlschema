@@ -36,23 +36,29 @@ from xmlschema.regex import get_python_regex
 class TestCodePoints(unittest.TestCase):
 
     def test_iter_code_points(self):
-        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 21), 25])
-        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 21), 25])
-        self.assertEqual(list(iter_code_points({2, 120, 121, (150, 260)})), [2, (120, 121), (150, 260)])
+        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 21), 21])), [(9, 22), 25])
+        self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 22), 25])
+        self.assertEqual(list(iter_code_points({2, 120, 121, (150, 260)})), [2, (120, 122), (150, 260)])
         self.assertEqual(
             list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0])),
-            [0, (8, 22), 25]
+            [0, (8, 23), 25]
         )
         self.assertEqual(
-            list(e for e in iter_code_points([10, 20, 11, 12, 25, (9, 20)], reverse=True)), [25, (9, 20)]
+            list(e for e in iter_code_points([10, 20, 11, 12, 25, (9, 21)], reverse=True)), [25, (9, 21)]
         )
         self.assertEqual(
             list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0], reverse=True)),
-            [25, (8, 22), 0]
+            [25, (8, 23), 0]
         )
 
 
 class TestUnicodeSubset(unittest.TestCase):
+
+    def test_creation(self):
+        cds = UnicodeSubset([(0, 9), 11, 12, (14, 32), (33, sys.maxunicode + 1)])
+        self.assertEqual(cds, [(0, 9), (11, 13), (14, 32), (33, sys.maxunicode + 1)])
+        self.assertEqual(UnicodeSubset('0-9'), [(48, 58)])
+        self.assertEqual(UnicodeSubset('0-9:'), [(48, 59)])
 
     def test_modify(self):
         cds = UnicodeSubset([50, 90, 10, 90])
@@ -90,11 +96,11 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_complement(self):
         cds = UnicodeSubset([50, 90, 10, 90])
-        self.assertEqual(list(cds.complement()), [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode)])
+        self.assertEqual(list(cds.complement()), [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode + 1)])
         cds.add(11)
-        self.assertEqual(list(cds.complement()), [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode)])
+        self.assertEqual(list(cds.complement()), [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode + 1)])
         cds.add((0, 10))
-        self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode)])
+        self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
 
     def test_union_and_intersection(self):
         cds1 = UnicodeSubset([50, (90, 200), 10])
@@ -193,14 +199,14 @@ class TestPatterns(unittest.TestCase):
 
     def test_category_escape(self):
         regex = get_python_regex('\\p{IsBasicLatin}*')
-        self.assertEqual(regex, '^([\x00-\x80]*)$')
+        self.assertEqual(regex, '^([\x00-\x7f]*)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('').group(0), '')
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertIsNone(pattern.search('è'))
 
         regex = get_python_regex('[\\p{IsBasicLatin}\\p{IsLatin-1Supplement}]*')
-        self.assertEqual(regex, '^([\x00-\u0100]*)$')
+        self.assertEqual(regex, '^([\x00-\xff]*)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('e').group(0), 'e')
         self.assertEqual(pattern.search('è').group(0), 'è')
@@ -317,6 +323,12 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('\n -.abc').group(0), '\n -.abc')
         self.assertIsNone(pattern.search('à'))
         self.assertIsNone(pattern.search('\t\n à'))
+
+    def test_character_class_shortcuts(self):
+        regex = get_python_regex("[\i-[:]][\c-[:]]*")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('x11').group(0), 'x11')
+        self.assertIsNone(pattern.search('3a'))
 
 
 if __name__ == '__main__':

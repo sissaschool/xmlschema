@@ -99,7 +99,7 @@ class XsdRegexCharGroup(MutableSet):
             self.add(char)
 
     def __repr__(self):
-        return '<%s %s at %d>' % (self.__class__.__name__, self, id(self))
+        return '<%s at %d>' % (self.__class__.__name__, id(self))
 
     def __str__(self):
         # noinspection PyCompatibility

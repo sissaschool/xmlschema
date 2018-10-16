@@ -27,8 +27,65 @@ CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
 UCS4_MAXUNICODE = 1114111
 
 
+def code_point_order(cp):
+    """Ordering function for code points."""
+    return cp if isinstance(cp, int) else cp[0]
+
+
+def code_point_reverse_order(cp):
+    """Reverse ordering function for code points."""
+    return cp if isinstance(cp, int) else cp[1] - 1
+
+
+def iter_code_points(code_points, reverse=False):
+    """
+    Iterates a code points sequence. The code points are accorpated in ranges when are contiguous.
+
+    :param code_points: an iterable with code points and code point ranges.
+    :param reverse: if `True` reverses the order of the sequence.
+    :return: yields code points or code point ranges.
+    """
+    start_cp = end_cp = None
+    if reverse:
+        code_points = sorted(code_points, key=code_point_reverse_order, reverse=True)
+    else:
+        code_points = sorted(code_points, key=code_point_order)
+
+    for cp in code_points:
+        if isinstance(cp, int):
+            cp = cp, cp + 1
+
+        if start_cp is None:
+            start_cp, end_cp = cp
+            continue
+        elif reverse:
+            if start_cp <= cp[1]:
+                start_cp = min(start_cp, cp[0])
+                continue
+        elif end_cp >= cp[0]:
+            end_cp = max(end_cp, cp[1])
+            continue
+
+        if end_cp > start_cp + 1:
+            yield start_cp, end_cp
+        else:
+            yield start_cp
+        start_cp, end_cp = cp
+    else:
+        if start_cp is not None:
+            if end_cp > start_cp + 1:
+                yield start_cp, end_cp
+            else:
+                yield start_cp
+
+
 def code_point_repr(cp):
-    if not isinstance(cp, tuple):
+    """
+    Returns the string representation of a code point.
+
+    :param cp: an integer or a tuple with at least two integers. Values must be in interval [0, sys.maxunicode].
+    """
+    if isinstance(cp, int):
         if cp in CHARACTER_GROUP_ESCAPED:
             return '\%s' % unicode_chr(cp)
         return unicode_chr(cp)
@@ -38,12 +95,13 @@ def code_point_repr(cp):
     else:
         start_char = unicode_chr(cp[0])
 
-    if cp[1] in CHARACTER_GROUP_ESCAPED:
-        end_char = '\%s' % unicode_chr(cp[1])
+    end_cp = cp[1] - 1  # Character ranges include the right bound
+    if end_cp in CHARACTER_GROUP_ESCAPED:
+        end_char = '\%s' % unicode_chr(end_cp)
     else:
-        end_char = unicode_chr(cp[1])
+        end_char = unicode_chr(end_cp)
 
-    if cp[1] > cp[0] + 1:
+    if end_cp > cp[0] + 1:
         return '%s-%s' % (start_char, end_char)
     else:
         return start_char + end_char
@@ -61,103 +119,65 @@ def iterparse_character_group(s, expand_ranges=False):
     """
     escaped = False
     char = None
-    last_index = len(s) - 1
+    length = len(s)
     string_iter = iter(range(len(s)))
-    for i in string_iter:
-        if i == 0:
+    for k in string_iter:
+        if k == 0:
             char = s[0]
             if char == '\\':
                 escaped = True
-            elif char in r'[]' and len(s) > 1:
+            elif char in r'[]' and length > 1:
                 raise XMLSchemaRegexError("bad character %r at position 0" % char)
             elif expand_ranges:
                 yield ord(char)
-            elif last_index <= 1 or s[1] != '-':
+            elif length <= 2 or s[1] != '-':
                 yield ord(char)
-        elif s[i] == '-':
-            if escaped or (i == len(s) - 1):
-                char = s[i]
+        elif s[k] == '-':
+            if escaped or (k == length - 1):
+                char = s[k]
                 yield ord(char)
                 escaped = False
             else:
-                i = next(string_iter)
-                end_char = s[i]
-                if end_char == '\\' and (i < len(s) - 1) and s[i + 1] in r'-|.^?*+{}()[]':
-                    i = next(string_iter)
-                    end_char = s[i]
+                k = next(string_iter)
+                end_char = s[k]
+                if end_char == '\\' and (k < length - 1) and s[k + 1] in r'-|.^?*+{}()[]':
+                    k = next(string_iter)
+                    end_char = s[k]
                 if ord(char) > ord(end_char):
                     raise XMLSchemaRegexError(
-                        "bad character range %r-%r at position %d: %r" % (char, end_char, i - 2, s)
+                        "bad character range %r-%r at position %d: %r" % (char, end_char, k - 2, s)
                     )
                 if expand_ranges:
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
                         yield cp
                 else:
                     yield ord(char), ord(end_char) + 1
-        elif s[i] in r'|.^?*+{}()':
+        elif s[k] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
-            char = s[i]
+            char = s[k]
             yield ord(char)
-        elif s[i] in r'[]':
-            if not escaped and len(s) > 1:
-                raise XMLSchemaRegexError("bad character %r at position %d" % (s[i], i))
+        elif s[k] in r'[]':
+            if not escaped and length > 1:
+                raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
             escaped = False
-            char = s[i]
+            char = s[k]
             yield ord(char)
-        elif s[i] == '\\':
+        elif s[k] == '\\':
             if escaped:
                 escaped = False
                 char = '\\'
-                yield ord(char)
+                yield ord('\\')
             else:
                 escaped = True
         else:
             if escaped:
                 escaped = False
                 yield ord('\\')
-            char = s[i]
+            char = s[k]
             yield ord(char)
     if escaped:
         yield ord('\\')
-
-
-def iter_code_points(items, reverse=False):
-    if reverse:
-        items = sorted(items, reverse=reverse, key=lambda x: x if isinstance(x, int) else x[1])
-    else:
-        items = sorted(items, key=lambda x: x if isinstance(x, int) else x[0])
-
-    prev_start_cp = prev_end_cp = None
-    for cp in items:
-        if isinstance(cp, int):
-            start_cp, end_cp = cp, cp + 1
-        else:
-            start_cp, end_cp = cp
-
-        try:
-            if reverse:
-                if prev_start_cp <= end_cp:
-                    prev_start_cp = min(prev_start_cp, start_cp)
-                    continue
-            elif prev_end_cp >= start_cp:
-                prev_end_cp = max(prev_end_cp, end_cp)
-                continue
-        except TypeError:
-            prev_start_cp, prev_end_cp = start_cp, end_cp
-        else:
-            if prev_end_cp > prev_start_cp + 1:
-                yield prev_start_cp, prev_end_cp
-                prev_start_cp, prev_end_cp = start_cp, end_cp
-            else:
-                yield prev_start_cp
-                prev_start_cp, prev_end_cp = start_cp, end_cp
-    else:
-        if prev_start_cp is not None:
-            if prev_end_cp > prev_start_cp + 1:
-                yield prev_start_cp, prev_end_cp
-            else:
-                yield prev_start_cp
 
 
 class UnicodeSubset(MutableSet):
@@ -242,7 +262,7 @@ class UnicodeSubset(MutableSet):
         if last == maxunicode:
             yield maxunicode
         elif last < maxunicode:
-            yield last, maxunicode
+            yield last, maxunicode + 1
 
     def iter_characters(self):
         return map(chr, self.__iter__())
