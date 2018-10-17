@@ -18,7 +18,7 @@ import os
 from sys import maxunicode
 from collections import defaultdict, Iterable, MutableSet
 
-from .compat import PY3, unicode_chr, unicode_type
+from .compat import PY3, unicode_chr, string_base_type
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
 CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
@@ -77,6 +77,23 @@ def iter_code_points(code_points, reverse=False):
                 yield start_cp, end_cp
             else:
                 yield start_cp
+
+
+def check_code_point(cp):
+    """
+    Checks a code point or code point range.
+
+    :return: a valid code point range.
+    """
+    if isinstance(cp, int):
+        if not (0 <= cp <= maxunicode):
+            raise XMLSchemaValueError("not a Unicode code point: %r" % cp)
+        return cp, cp + 1
+    else:
+        if not (0 <= cp[0] < cp[1] <= maxunicode + 1) \
+                or not isinstance(cp[0], int) or not isinstance(cp[1], int):
+            raise XMLSchemaValueError("not a Unicode code point range: %r" % cp)
+        return cp
 
 
 def code_point_repr(cp):
@@ -167,7 +184,7 @@ def iterparse_character_group(s, expand_ranges=False):
             if escaped:
                 escaped = False
                 char = '\\'
-                yield ord('\\')
+                yield ord(char)
             else:
                 escaped = True
         else:
@@ -213,7 +230,6 @@ class UnicodeSubset(MutableSet):
         return "<%s %r at %d>" % (self.__class__.__name__, str(self._code_points), id(self))
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -237,63 +253,63 @@ class UnicodeSubset(MutableSet):
                     yield cp
 
     def complement(self):
-        last = 0
+        last_cp = 0
         for cp in self._code_points:
-            if last > maxunicode:
+            if last_cp > maxunicode:
                 break
-            if isinstance(cp, int):
-                diff = cp - last
-                start_cp, end_cp = cp, cp + 1
-            else:
-                start_cp, end_cp = cp
-                diff = start_cp - last
+            elif isinstance(cp, int):
+                cp = cp, cp + 1
 
+            diff = cp[0] - last_cp
             if diff > 2:
-                yield last, start_cp
+                yield last_cp, cp[0]
             elif diff == 2:
-                yield last
-                yield last + 1
+                yield last_cp
+                yield last_cp + 1
             elif diff == 1:
-                yield last
+                yield last_cp
             elif diff != 0:
-                raise XMLSchemaValueError("code points unordered")
-            last = end_cp
+                raise XMLSchemaValueError("instance code points unordered")
+            last_cp = cp[1]
 
-        if last == maxunicode:
+        if last_cp < maxunicode:
+            yield last_cp, maxunicode + 1
+        elif last_cp == maxunicode:
             yield maxunicode
-        elif last < maxunicode:
-            yield last, maxunicode + 1
 
     def iter_characters(self):
         return map(chr, self.__iter__())
 
     #
     # MutableSet's abstract methods implementation
-    def __contains__(self, code_point):
-        if not isinstance(code_point, int):
-            code_point = ord(code_point)
+    def __contains__(self, value):
+        if not isinstance(value, int):
+            try:
+                value = ord(value)
+            except TypeError:
+                raise XMLSchemaTypeError("%r: argument must be a code point or a character." % value)
 
         for cp in self._code_points:
             if not isinstance(cp, int):
-                if cp[0] > code_point:
+                if cp[0] > value:
                     return False
-                elif cp[1] <= code_point:
+                elif cp[1] <= value:
                     continue
                 else:
                     return True
-            elif cp > code_point:
+            elif cp > value:
                 return False
-            elif cp == code_point:
+            elif cp == value:
                 return True
         return False
 
     def __iter__(self):
-        for item in self._code_points:
-            if isinstance(item, int):
-                yield item
+        for cp in self._code_points:
+            if isinstance(cp, int):
+                yield cp
             else:
-                for cp in range(item[0], item[1]):
-                    yield cp
+                for k in range(*cp):
+                    yield k
 
     def __len__(self):
         k = 0
@@ -302,107 +318,85 @@ class UnicodeSubset(MutableSet):
         return k
 
     def update(self, *others):
-        for values in others:
-            if isinstance(values, (str, unicode_type, bytes)):
-                for cp in iter_code_points(iterparse_character_group(values), reverse=True):
+        for value in others:
+            if isinstance(value, string_base_type):
+                for cp in iter_code_points(iterparse_character_group(value), reverse=True):
                     self.add(cp)
             else:
-                for cp in iter_code_points(values, reverse=True):
+                for cp in iter_code_points(value, reverse=True):
                     self.add(cp)
 
     def add(self, value):
-        if isinstance(value, int):
-            if not (0 <= value <= maxunicode):
-                raise XMLSchemaValueError("not a Unicode code point: %r" % value)
-            start_value, end_value = value, value + 1
-        else:
-            start_value, end_value = value
-            if not (0 <= start_value <= end_value <= maxunicode + 1) \
-                    or not isinstance(start_value, int) or not isinstance(end_value, int):
-                raise XMLSchemaValueError("not a Unicode code point range: %r" % value)
-
+        start_value, end_value = check_code_point(value)
         code_points = self._code_points
-        for pos, cp in enumerate(code_points):
+        last_index = len(code_points) - 1
+        for k, cp in enumerate(code_points):
             if isinstance(cp, int):
-                start_cp, end_cp = cp, cp + 1
-            else:
-                start_cp, end_cp = cp
+                cp = cp, cp + 1
 
-            try:
-                higher_limit = code_points[pos + 1]
-            except IndexError:
-                higher_limit = maxunicode + 1
-            else:
-                if not isinstance(higher_limit, int):
-                    higher_limit = higher_limit[0]
-
-            if start_value < start_cp:
-                if end_value > start_cp - 1:
-                    code_points[pos] = start_value, max(min(end_value, higher_limit), end_cp)
-                elif isinstance(value, list):
-                    code_points.insert(pos, tuple(value))
-                else:
-                    code_points.insert(pos, value)
-            elif start_value > end_cp:
+            if end_value < cp[0]:
+                code_points.insert(k, value if isinstance(value, int) else tuple(value))
+            elif start_value > cp[1]:
                 continue
-            else:
-                code_points[pos] = start_cp, max(min(end_value, higher_limit), end_cp)
+            elif end_value > cp[1]:
+                if k == last_index:
+                    code_points[k] = min(cp[0], start_value), end_value
+                else:
+                    next_cp = code_points[k + 1]
+                    higher_bound = next_cp if isinstance(next_cp, int) else next_cp[0]
+                    if end_value <= higher_bound:
+                        code_points[k] = min(cp[0], start_value), end_value
+                    else:
+                        code_points[k] = min(cp[0], start_value), higher_bound
+                        start_value = higher_bound
+                        continue
+            elif start_value < cp[0]:
+                code_points[k] = start_value, cp[1]
             break
         else:
             self._code_points.append(tuple(value) if isinstance(value, list) else value)
 
     def difference_update(self, *others):
-        for values in others:
-            if isinstance(values, (str, unicode_type, bytes)):
-                for cp in iter_code_points(iterparse_character_group(values), reverse=True):
+        for value in others:
+            if isinstance(value, string_base_type):
+                for cp in iter_code_points(iterparse_character_group(value), reverse=True):
                     self.discard(cp)
             else:
-                for cp in iter_code_points(values, reverse=True):
+                for cp in iter_code_points(value, reverse=True):
                     self.discard(cp)
 
     def discard(self, value):
-        if isinstance(value, int):
-            if not (0 <= value <= maxunicode):
-                raise XMLSchemaValueError("not a Unicode code point: %r" % value)
-            start_value, end_value = value, value + 1
-        else:
-            start_value, end_value = value
-            if not (0 <= start_value <= end_value <= maxunicode + 1) \
-                    or not isinstance(start_value, int) or not isinstance(end_value, int):
-                raise XMLSchemaValueError("not a Unicode code point range: %r" % value)
-
+        start_cp, end_cp = check_code_point(value)
         code_points = self._code_points
-        for pos in reversed(range(len(code_points))):
-            if isinstance(code_points[pos], int):
-                start_cp = code_points[pos]
-                end_cp = start_cp + 1
-            else:
-                start_cp, end_cp = code_points[pos]
+        for k in reversed(range(len(code_points))):
+            cp = code_points[k]
+            if isinstance(cp, int):
+                cp = cp, cp + 1
 
-            if start_value >= end_cp:
+            if start_cp >= cp[1]:
                 break
-            elif end_value >= end_cp:
-                if start_value <= start_cp:
-                    del code_points[pos]
-                elif start_value - start_cp > 1:
-                    code_points[pos] = start_cp, start_value
+            elif end_cp >= cp[1]:
+                if start_cp <= cp[0]:
+                    del code_points[k]
+                elif start_cp - cp[0] > 1:
+                    code_points[k] = cp[0], start_cp
                 else:
-                    code_points[pos] = start_cp
-            elif end_value > start_cp:
-                if start_value <= start_cp:
-                    if end_cp - end_value > 1:
-                        code_points[pos] = end_value, end_cp
+                    code_points[k] = cp[0]
+            elif end_cp > cp[0]:
+                if start_cp <= cp[0]:
+                    if cp[1] - end_cp > 1:
+                        code_points[k] = end_cp, cp[1]
                     else:
-                        code_points[pos] = end_cp - 1
+                        code_points[k] = cp[1] - 1
                 else:
-                    if end_cp - end_value > 1:
-                        code_points.insert(pos + 1, (end_value, end_cp))
+                    if cp[1] - end_cp > 1:
+                        code_points.insert(k + 1, (end_cp, cp[1]))
                     else:
-                        code_points.insert(pos + 1, end_cp - 1)
-                    if start_value - start_cp > 1:
-                        code_points[pos] = start_cp, start_value
+                        code_points.insert(k + 1, cp[1] - 1)
+                    if start_cp - cp[0] > 1:
+                        code_points[k] = cp[0], start_cp
                     else:
-                        code_points[pos] = start_cp
+                        code_points[k] = cp[0]
 
     #
     # MutableSet's mixin methods override
