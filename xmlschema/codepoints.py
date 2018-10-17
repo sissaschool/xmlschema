@@ -155,16 +155,20 @@ def iterparse_character_group(s, expand_ranges=False):
                 yield ord(char)
                 escaped = False
             else:
-                k = next(string_iter)
-                end_char = s[k]
-                if end_char == '\\' and (k < length - 1) and s[k + 1] in r'-|.^?*+{}()[]':
+                try:
                     k = next(string_iter)
                     end_char = s[k]
+                    if end_char == '\\' and (k < length - 1) and s[k + 1] in r'-|.^?*+{}()[]':
+                        k = next(string_iter)
+                        end_char = s[k]
+                except StopIteration:
+                    msg = "bad character range %r-%r at position %d: %r" % (char, s[-1], k - 2, s)
+                    raise XMLSchemaRegexError(msg)
+
                 if ord(char) > ord(end_char):
-                    raise XMLSchemaRegexError(
-                        "bad character range %r-%r at position %d: %r" % (char, end_char, k - 2, s)
-                    )
-                if expand_ranges:
+                    msg = "bad character range %r-%r at position %d: %r" % (char, end_char, k - 2, s)
+                    raise XMLSchemaRegexError(msg)
+                elif expand_ranges:
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
                         yield cp
                 else:
