@@ -12,6 +12,7 @@
                 <xs:element name="date_and_time" type="xs:dateTime" minOccurs="0"/>
                 <xs:element name="name" type="none_empty_string" minOccurs="0"/>
                 <xs:element name="config" type="config" minOccurs="0"/>
+                <xs:element name="dateTimeWithTZOffset" type="xs:dateTime" minOccurs="0"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>

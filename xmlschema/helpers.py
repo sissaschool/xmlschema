@@ -18,6 +18,7 @@ from .qnames import XSD_ANNOTATION
 
 
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+FRACTION_DIGITS_PATTERN = re.compile(r"\.(\d+)$")
 ISO_TIMEZONE_PATTERN = re.compile(r"(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$")
 DURATION_PATTERN = re.compile(r"(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$")
 HEX_BINARY_PATTERN = re.compile(r"^[0-9a-fA-F]+$")

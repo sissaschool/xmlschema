@@ -22,7 +22,8 @@ from decimal import Decimal
 from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..qnames import *
-from ..helpers import ISO_TIMEZONE_PATTERN, DURATION_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
+from ..helpers import FRACTION_DIGITS_PATTERN, ISO_TIMEZONE_PATTERN, DURATION_PATTERN, \
+    HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
 from .facets import XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
@@ -209,9 +210,13 @@ def datetime_iso8601_validator(date_string, *date_formats):
 
     for fmt in date_formats:
         try:
-            datetime.datetime.strptime(date_string, fmt)
+            if '%f' in fmt:
+                date_string_part, fraction_digits, _ = FRACTION_DIGITS_PATTERN.split(date_string)
+                datetime.datetime.strptime('%s.%s' % (date_string_part, fraction_digits[:6]), fmt)
+            else:
+                datetime.datetime.strptime(date_string, fmt)
         except ValueError:
-            pass
+            continue
         else:
             break
     else:
@@ -531,7 +536,6 @@ XSD_BUILTIN_TYPES = (
         'facets': [],
     },  # PnYnMnDTnHnMnS with month equals to 0
 )
-
 
 
 def xsd_build_facets(schema, parent, base_type, items):
