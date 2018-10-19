@@ -66,3 +66,5 @@ issues/issue_045/issue_045.xsd
 issues/issue_051/issue_051.xml
 issues/issue_073/issue_073-1.xml
 issues/issue_073/issue_073-2.xml --errors=1
+issues/issue_086/issue_086-1.xml
+issues/issue_086/issue_086-2.xml

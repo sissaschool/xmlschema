@@ -17,9 +17,8 @@ from collections import MutableSequence, Counter
 from ..compat import PY3, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import (
-    XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION,
-)
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
+    XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
 from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
 from ..converters import XMLSchemaConverter
 
@@ -143,7 +142,9 @@ class XsdModelVisitor(MutableSequence):
         def stop_item(item):
             """
             Stops element or group matching, incrementing current group counter.
-            Returns `True` if the item has violated the minimum occurrences.
+
+            :return: `True` if the item has violated the minimum occurrences for itself \
+            or for the current group, `False` otherwise.
             """
             if isinstance(item, XsdGroup):
                 self.group, self.iterator, self.items, self.match = self.pop()
@@ -174,10 +175,7 @@ class XsdModelVisitor(MutableSequence):
                 elif item.is_emptiable():
                     self.items.pop()
                     return False
-                elif self.group.min_occurs <= occurs[self.group]:
-                    self.group, self.iterator, self.items, self.match = self.pop()
-                    return False
-                elif self:
+                elif self.group.min_occurs <= occurs[self.group] or self:
                     return stop_item(self.group)
                 else:
                     self.items.pop()
