@@ -13,6 +13,7 @@
                 <xs:element name="name" type="none_empty_string" minOccurs="0"/>
                 <xs:element name="config" type="config" minOccurs="0"/>
                 <xs:element name="dateTimeWithTZOffset" type="xs:dateTime" minOccurs="0"/>
+                <xs:element name="duration" type="xs:duration" minOccurs="0"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -117,7 +118,7 @@
     </xs:simpleType>
 
     <!-- For testing issue #83 -->
-        <xs:simpleType name="config">
+    <xs:simpleType name="config">
         <xs:restriction base="xs:string">
             <xs:whiteSpace value="collapse"/>
             <xs:pattern value="(word|other)|(alternative)"/>

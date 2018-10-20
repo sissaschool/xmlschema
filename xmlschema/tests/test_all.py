@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     from xmlschema.tests import tests_factory, print_test_header, get_testfiles
     from xmlschema.tests.test_helpers import TestHelpers
-    from xmlschema.tests.test_meta import TestBuiltinTypes, TestGlobalMaps
+    from xmlschema.tests.test_meta import TestXsd10BuiltinTypes, TestGlobalMaps
     from xmlschema.tests.test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories, TestPatterns
     from xmlschema.tests.test_xpath import XsdXPathTest
     from xmlschema.tests.test_resources import TestResources

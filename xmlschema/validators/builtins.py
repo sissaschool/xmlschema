@@ -23,7 +23,7 @@ from ..compat import long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..qnames import *
 from ..helpers import FRACTION_DIGITS_PATTERN, ISO_TIMEZONE_PATTERN, DURATION_PATTERN, \
-    HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
+    DAY_TIME_DURATION_PATTERN, YEAR_MONTH_DURATION_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
 from .facets import XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
@@ -189,6 +189,16 @@ def g_day_validator(x):
 def duration_validator(x):
     if DURATION_PATTERN.match(x) is None:
         yield XMLSchemaValidationError(duration_validator, x, "wrong format (PnYnMnDTnHnMnS required).")
+
+
+def day_time_duration_validator(x):
+    if DURATION_PATTERN.match(x) is None or DAY_TIME_DURATION_PATTERN.match(x) is None:
+        yield XMLSchemaValidationError(day_time_duration_validator, x, "wrong format (PnDTnHnMnS required).")
+
+
+def year_month_duration_validator(x):
+    if DURATION_PATTERN.match(x) is None or YEAR_MONTH_DURATION_PATTERN.match(x) is None:
+        yield XMLSchemaValidationError(year_month_duration_validator, x, "wrong format (PnYnM required).")
 
 
 def datetime_iso8601_validator(date_string, *date_formats):
@@ -516,7 +526,7 @@ XSD_BUILTIN_TYPES = (
         'facets': [negative_int_validator]
     },  # only negative value allowed [< 0]
 
-    # --- Datetime derived types ---
+    # --- Datetime derived types (XSD 1.1) ---
     {
         'name': XSD_DATE_TIME_STAMP,
         'python_type': (unicode_type, str),
@@ -527,14 +537,14 @@ XSD_BUILTIN_TYPES = (
         'name': XSD_DAY_TIME_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
-        'facets': [],
-    },  # PnYnMnDTnHnMnS with month equals to 0
+        'facets': [day_time_duration_validator],
+    },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
-        'facets': [],
-    },  # PnYnMnDTnHnMnS with month equals to 0
+        'facets': [year_month_duration_validator],
+    },  # PnYnMnDTnHnMnS with day and time equals to 0
 )
 
 
@@ -595,7 +605,12 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     )
 
     xsd_class = xsd_class or XsdAtomicBuiltin
-    for item in XSD_BUILTIN_TYPES:
+    if meta_schema.XSD_VERSION == '1.0':
+        slicing = slice(-3)
+    else:
+        slicing = slice(len(XSD_BUILTIN_TYPES))
+
+    for item in XSD_BUILTIN_TYPES[slicing]:
         item = item.copy()
         name = item['name']
         try:
