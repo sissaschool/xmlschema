@@ -26,7 +26,6 @@ except ImportError:
     import xmlschema
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
-from xmlschema.helpers import DURATION_PATTERN
 from xmlschema.validators.builtins import datetime_validator
 
 xsd_10_meta_schema = xmlschema.XMLSchema.meta_schema
@@ -224,57 +223,45 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
     def test_date_time_stamp(self):
         date_time_stamp_type = self.meta_schema.types['dateTimeStamp']
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertTrue(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
-        self.assertFalse(date_time_stamp_type.is_valid())
+        self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08-03:00'))
+        self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08Z'))
+        self.assertFalse(date_time_stamp_type.is_valid('2003-10-20T16:50:08'))
+        self.assertFalse(date_time_stamp_type.is_valid('1980-02-28T17:09:20.1'))
+        self.assertFalse(date_time_stamp_type.is_valid(''))
 
     def test_day_time_duration_type(self):
         day_time_duration_type = self.meta_schema.types['dayTimeDuration']
-        self.assertTrue(day_time_duration_type.is_valid('P3Y4M'))
-        self.assertTrue(day_time_duration_type.is_valid('P15M'))
-        self.assertTrue(day_time_duration_type.is_valid('P0Y'))
-        self.assertTrue(day_time_duration_type.is_valid('P0Y23M'))
-        self.assertTrue(day_time_duration_type.is_valid('-P8Y'))
-        self.assertIsNone(DURATION_PATTERN.search(''))
-        print(DURATION_PATTERN.search(''))
-        import pdb
-        pdb.set_trace()
+        self.assertTrue(day_time_duration_type.is_valid('P7DT15H40M0S'))
+        self.assertTrue(day_time_duration_type.is_valid('-P10D'))
+        self.assertTrue(day_time_duration_type.is_valid('P0D'))
+        self.assertTrue(day_time_duration_type.is_valid('PT13M'))
+        self.assertTrue(day_time_duration_type.is_valid('P0DT17M'))
+        self.assertTrue(day_time_duration_type.is_valid('PT3H20M10.5S'))
+        self.assertFalse(day_time_duration_type.is_valid('PT5D'))
+        self.assertFalse(day_time_duration_type.is_valid('PT3HM10S'))
+        self.assertFalse(day_time_duration_type.is_valid('P7DT'))
+        self.assertFalse(day_time_duration_type.is_valid('PT3H1.4M'))
+        self.assertFalse(day_time_duration_type.is_valid('P-5D'))
+        self.assertFalse(day_time_duration_type.is_valid('P1D5H'))
+        self.assertFalse(day_time_duration_type.is_valid('PT10M21.S'))
+        self.assertFalse(day_time_duration_type.is_valid('P'))
         self.assertFalse(day_time_duration_type.is_valid(''))
-        self.assertFalse(day_time_duration_type.is_valid(''))
-        self.assertFalse(day_time_duration_type.is_valid(''))
-        self.assertFalse(day_time_duration_type.is_valid(''))
-        self.assertFalse(day_time_duration_type.is_valid('P1.2Y'))
-        self.assertFalse(day_time_duration_type.is_valid('P2YM'))
-        self.assertFalse(day_time_duration_type.is_valid('P-1Y'))
 
     def test_year_month_duration_type(self):
         year_month_duration_type = self.meta_schema.types['yearMonthDuration']
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertTrue(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
-        self.assertFalse(year_month_duration_type.is_valid())
+        self.assertTrue(year_month_duration_type.is_valid('P3Y4M'))
+        self.assertTrue(year_month_duration_type.is_valid('P15M'))
+        self.assertTrue(year_month_duration_type.is_valid('P0Y'))
+        self.assertTrue(year_month_duration_type.is_valid('P0Y23M'))
+        self.assertTrue(year_month_duration_type.is_valid('-P8Y'))
+        self.assertFalse(year_month_duration_type.is_valid('3Y4M'))
+        self.assertFalse(year_month_duration_type.is_valid('P6M1Y'))
+        self.assertFalse(year_month_duration_type.is_valid('P'))
+        self.assertFalse(year_month_duration_type.is_valid('P1Y6M15D'))
+        self.assertFalse(year_month_duration_type.is_valid('P1.2Y'))
+        self.assertFalse(year_month_duration_type.is_valid('P2YM'))
+        self.assertFalse(year_month_duration_type.is_valid('P-1Y'))
+        self.assertFalse(year_month_duration_type.is_valid(''))
 
 
 class TestGlobalMaps(unittest.TestCase):

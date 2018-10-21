@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.0.6`_ (TBD)
-===============
-* Started XSD 1.1 development
+`v1.0.6`_ (2018-10-21)
+======================
+* Fixes for issues #85 and #86
+* XSD 1.1 development: added explicitTimezone facet and XSD 1.1 builtin types
 
 `v1.0.5`_ (2018-09-27)
 ======================
