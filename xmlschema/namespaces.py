@@ -9,14 +9,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains namespace related constants, functions and classes.
+This module contains namespace definitions for W3C core standards and namespace related classes.
 """
-import re
-from collections import Mapping, MutableMapping
+from __future__ import unicode_literals
 
-NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+from collections import MutableMapping, Mapping
+from .helpers import get_namespace
 
-# Namespaces for W3C core standards
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
 
@@ -41,13 +40,6 @@ HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 
 VC_NAMESPACE = "http://www.w3.org/2007/XMLSchema-versioning"
 "URI of the XML Schema Versioning namespace (vc)"
-
-
-def get_namespace(name):
-    try:
-        return NAMESPACE_PATTERN.match(name).group(1)
-    except (AttributeError, TypeError):
-        return ''
 
 
 class NamespaceResourcesMap(MutableMapping):

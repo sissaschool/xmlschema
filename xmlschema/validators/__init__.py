@@ -30,4 +30,4 @@ from .groups import XsdModelVisitor, XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 
 from .globals_ import XsdGlobals
-from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10
+from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11

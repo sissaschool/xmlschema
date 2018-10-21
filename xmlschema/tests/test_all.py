@@ -26,13 +26,13 @@ if __name__ == '__main__':
         import xmlschema
 
     from xmlschema.tests import tests_factory, print_test_header, get_testfiles
-    from xmlschema.tests.test_helpers import TestNamespaces, TestQualifiedNames
-    from xmlschema.tests.test_meta import TestBuiltinTypes, TestGlobalMaps
+    from xmlschema.tests.test_helpers import TestHelpers
+    from xmlschema.tests.test_meta import TestXsd10BuiltinTypes, TestGlobalMaps
     from xmlschema.tests.test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories, TestPatterns
     from xmlschema.tests.test_xpath import XsdXPathTest
     from xmlschema.tests.test_resources import TestResources
     from xmlschema.tests.test_models import TestModelValidation
-    from xmlschema.tests.test_schemas import make_schema_test_class, TestXMLSchema10
+    from xmlschema.tests.test_schemas import make_schema_test_class, TestXMLSchema10, TestXMLSchema11
     from xmlschema.tests.test_validators import (
         make_validator_test_class, TestValidation, TestDecoding, TestEncoding
     )

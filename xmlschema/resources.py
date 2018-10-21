@@ -16,13 +16,13 @@ from .compat import (
     PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
     pathname2url, URLError, uses_relative
 )
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
+from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+from .helpers import get_namespace
 from .etree import (
     defused_etree, is_etree_element, etree_parse, etree_iterparse,
     etree_fromstring, etree_parse_error, etree_tostring
 )
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
-from .namespaces import get_namespace
-from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')

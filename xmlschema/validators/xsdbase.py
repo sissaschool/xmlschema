@@ -15,17 +15,15 @@ from __future__ import unicode_literals
 import re
 
 from ..compat import PY3, string_base_type
-from ..etree import etree_tostring, is_etree_element
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import (
-    local_name, get_qname, qname_to_prefixed, XSD_ANNOTATION_TAG, XSD_APPINFO_TAG,
-    XSD_DOCUMENTATION_TAG, XML_LANG, XSD_ANY_TYPE
-)
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
+from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
+from ..etree import etree_tostring, is_etree_element
+
 from .exceptions import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
     XMLSchemaEncodeError, XMLSchemaChildrenValidationError
 )
-from .parseutils import get_xsd_component, iter_xsd_components, get_xsd_int_attribute
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -253,7 +251,7 @@ class XsdComponent(XsdValidator):
     def _parse(self):
         del self.errors[:]
         try:
-            if self.elem[0].tag == XSD_ANNOTATION_TAG:
+            if self.elem[0].tag == XSD_ANNOTATION:
                 self.annotation = XsdAnnotation(self.elem[0], self.schema, self)
             else:
                 self.annotation = None
@@ -387,7 +385,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-    admitted_tags = {XSD_ANNOTATION_TAG}
+    admitted_tags = {XSD_ANNOTATION}
 
     @property
     def built(self):
@@ -398,12 +396,12 @@ class XsdAnnotation(XsdComponent):
         self.appinfo = []
         self.documentation = []
         for child in self.elem:
-            if child.tag == XSD_APPINFO_TAG:
+            if child.tag == XSD_APPINFO:
                 for key in child.attrib:
                     if key != 'source':
                         self.parse_error("wrong attribute %r for appinfo declaration." % key)
                 self.appinfo.append(child)
-            elif child.tag == XSD_DOCUMENTATION_TAG:
+            elif child.tag == XSD_DOCUMENTATION:
                 for key in child.attrib:
                     if key not in ['source', XML_LANG]:
                         self.parse_error("wrong attribute %r for documentation declaration." % key)
@@ -718,24 +716,30 @@ class ParticleMixin(object):
 
     def _parse_particle(self, elem):
         try:
-            self.min_occurs = get_xsd_int_attribute(elem, 'minOccurs', default=1, minimum=0)
+            self.min_occurs = int(elem.attrib['minOccurs'])
+            if self.min_occurs < 0:
+                raise ValueError()
+        except KeyError:
+            self.min_occurs = 1
         except (TypeError, ValueError):
             self.parse_error("minOccurs value must be a non negative integer")
             self.min_occurs = 1
 
-        try:
-            max_occurs = get_xsd_int_attribute(elem, 'maxOccurs', default=1, minimum=0)
-        except (TypeError, ValueError):
-            if elem.get('maxOccurs') == 'unbounded':
-                max_occurs = None
-            else:
+        if 'maxOccurs' not in elem.attrib:
+            self.max_occurs = 1
+        elif elem.attrib['maxOccurs'] == 'unbounded':
+            self.max_occurs = None
+        else:
+            try:
+                self.max_occurs = int(elem.attrib['maxOccurs'])
+            except ValueError:
                 self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
-                max_occurs = 1
+                self.max_occurs = 1
+            else:
+                if self.min_occurs > self.max_occurs:
+                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
 
-        if max_occurs is not None and self.min_occurs > max_occurs:
-            self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
-        self.max_occurs = max_occurs
-        self.occurs = [self.min_occurs, max_occurs]
+        self.occurs = [self.min_occurs, self.max_occurs]
 
     def is_emptiable(self):
         return self.min_occurs == 0

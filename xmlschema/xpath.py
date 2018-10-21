@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 from abc import abstractmethod
 from collections import Sequence
 from elementpath import XPath2Parser, XPathContext
-from .qnames import XSD_SCHEMA_TAG
+from .qnames import XSD_SCHEMA
 
 
 class ElementPathContext(XPathContext):
@@ -128,7 +128,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 
@@ -147,7 +147,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
         parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
@@ -166,7 +166,7 @@ class ElementPathMixin(Sequence):
         """
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA_TAG, path])
+            path = ''.join(['/', XSD_SCHEMA, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 

@@ -9,207 +9,184 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions for manipulating fully qualified names and XML Schema tags.
+This module contains qualified names constants.
 """
 from __future__ import unicode_literals
-from .namespaces import get_namespace, XML_NAMESPACE, XSD_NAMESPACE, XSI_NAMESPACE
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
+
+
+def xsd_qname(name):
+    return '{http://www.w3.org/2001/XMLSchema}%s' % name
+
+
+def xml_qname(name):
+    return '{http://www.w3.org/XML/1998/namespace}%s' % name
+
+
+def xsi_qname(name):
+    return '{http://www.w3.org/2001/XMLSchema-instance}%s' % name
 
 
 #
-# Functions for handling fully qualified names
-def xsd_qname(name):
-    """Builds the XSD namespace's QName from a local name."""
-    return '{%s}%s' % (XSD_NAMESPACE, name)
+# XML attributes
+XML_LANG = xml_qname('lang')
+XML_SPACE = xml_qname('space')
+XML_BASE = xml_qname('base')
+XML_ID = xml_qname('id')
+XML_SPECIAL_ATTRS = xml_qname('specialAttrs')
 
-
-def get_qname(uri, name):
-    """
-    Returns a fully qualified name from URI and local part. If any argument has boolean value
-    `False` or if the name is already a fully qualified name, returns the *name* argument.
-
-    :param uri: namespace URI
-    :param name: local or qualified name
-    :return: string or the name argument
-    """
-    if not uri or not name or name[0] in ('{', '.', '/', '['):
-        return name
-    else:
-        return '{%s}%s' % (uri, name)
-
-
-def local_name(qname):
-    """
-    Return the local part of a qualified name. If the name is `None` or empty
-    returns the *name* argument.
-
-    :param qname: QName or universal name formatted string, or `None`.
-    """
-    try:
-        if qname[0] != '{':
-            return qname
-        return qname[qname.rindex('}') + 1:]
-    except IndexError:
-        return ''
-    except ValueError:
-        raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
-    except TypeError:
-        if qname is None:
-            return qname
-        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
-
-
-def prefixed_to_qname(name, namespaces):
-    """
-    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
-    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
-    
-    :param name: a local name or a prefixed name or a fully qualified name or `None`.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a FQN or a local name or the name argument.
-    """
-    if not name or name[0] == '{':
-        return name
-
-    try:
-        prefix, name = name.split(':')
-    except ValueError:
-        if ':' in name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces['']
-        except KeyError:
-            return name
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-    else:
-        if not prefix or not name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-
-
-def qname_to_prefixed(qname, namespaces):
-    """
-    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
-    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
-
-    :param qname: a fully qualified name or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a prefixed or local reference.
-    """
-    if not qname:
-        return qname
-
-    namespace = get_namespace(qname)
-    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
-        if not uri:
-            return '%s:%s' % (prefix, qname) if prefix else qname
-        elif prefix:
-            return qname.replace('{%s}' % uri, '%s:' % prefix)
-        else:
-            return qname.replace('{%s}' % uri, '')
-    else:
-        return qname
+#
+# XML Schema Instance attributes
+XSI_NIL = xsi_qname('nil')
+XSI_TYPE = xsi_qname('type')
+XSI_SCHEMA_LOCATION = xsi_qname('schemaLocation')
+XSI_NONS_SCHEMA_LOCATION = xsi_qname('noNamespaceSchemaLocation')
 
 
 #
 # XML Schema fully qualified names
-XSD_SCHEMA_TAG = xsd_qname('schema')
+XSD_SCHEMA = xsd_qname('schema')
 
 # Annotations
-XSD_ANNOTATION_TAG = xsd_qname('annotation')
-XSD_APPINFO_TAG = xsd_qname('appinfo')
-XSD_DOCUMENTATION_TAG = xsd_qname('documentation')
+XSD_ANNOTATION = xsd_qname('annotation')
+XSD_APPINFO = xsd_qname('appinfo')
+XSD_DOCUMENTATION = xsd_qname('documentation')
 
 # Composing schemas
-XSD_INCLUDE_TAG = xsd_qname('include')
-XSD_IMPORT_TAG = xsd_qname('import')
-XSD_REDEFINE_TAG = xsd_qname('redefine')
+XSD_INCLUDE = xsd_qname('include')
+XSD_IMPORT = xsd_qname('import')
+XSD_REDEFINE = xsd_qname('redefine')
 
 # Structures
-XSD_SIMPLE_TYPE_TAG = xsd_qname('simpleType')
-XSD_COMPLEX_TYPE_TAG = xsd_qname('complexType')
-XSD_ATTRIBUTE_TAG = xsd_qname('attribute')
-XSD_ELEMENT_TAG = xsd_qname('element')
-XSD_NOTATION_TAG = xsd_qname('notation')
-XSD_NOTATION_TYPE = xsd_qname('NOTATION')
+XSD_SIMPLE_TYPE = xsd_qname('simpleType')
+XSD_COMPLEX_TYPE = xsd_qname('complexType')
+XSD_ATTRIBUTE = xsd_qname('attribute')
+XSD_ELEMENT = xsd_qname('element')
+XSD_NOTATION = xsd_qname('notation')
 
 # Grouping
-XSD_GROUP_TAG = xsd_qname('group')
-XSD_ATTRIBUTE_GROUP_TAG = xsd_qname('attributeGroup')
+XSD_GROUP = xsd_qname('group')
+XSD_ATTRIBUTE_GROUP = xsd_qname('attributeGroup')
 
 # simpleType declaration elements
-XSD_RESTRICTION_TAG = xsd_qname('restriction')
-XSD_LIST_TAG = xsd_qname('list')
-XSD_UNION_TAG = xsd_qname('union')
+XSD_RESTRICTION = xsd_qname('restriction')
+XSD_LIST = xsd_qname('list')
+XSD_UNION = xsd_qname('union')
 
 # complexType content
-XSD_EXTENSION_TAG = xsd_qname('extension')
-XSD_SEQUENCE_TAG = xsd_qname('sequence')
-XSD_CHOICE_TAG = xsd_qname('choice')
-XSD_ALL_TAG = xsd_qname('all')
-XSD_ANY_TAG = xsd_qname('any')
-XSD_SIMPLE_CONTENT_TAG = xsd_qname('simpleContent')
-XSD_COMPLEX_CONTENT_TAG = xsd_qname('complexContent')
-XSD_ANY_ATTRIBUTE_TAG = xsd_qname('anyAttribute')
+XSD_EXTENSION = xsd_qname('extension')
+XSD_SEQUENCE = xsd_qname('sequence')
+XSD_CHOICE = xsd_qname('choice')
+XSD_ALL = xsd_qname('all')
+XSD_ANY = xsd_qname('any')
+XSD_SIMPLE_CONTENT = xsd_qname('simpleContent')
+XSD_COMPLEX_CONTENT = xsd_qname('complexContent')
+XSD_ANY_ATTRIBUTE = xsd_qname('anyAttribute')
 
 #
 #  Facets (lexical, pre-lexical and value-based facets)
-XSD_ENUMERATION_TAG = xsd_qname('enumeration')
-XSD_LENGTH_TAG = xsd_qname('length')
-XSD_MIN_LENGTH_TAG = xsd_qname('minLength')
-XSD_MAX_LENGTH_TAG = xsd_qname('maxLength')
-XSD_PATTERN_TAG = xsd_qname('pattern')              # lexical facet
-XSD_WHITE_SPACE_TAG = xsd_qname('whiteSpace')       # pre-lexical facet
-XSD_WHITE_SPACE_ENUM = ('preserve', 'replace', 'collapse')
-XSD_MAX_INCLUSIVE_TAG = xsd_qname('maxInclusive')
-XSD_MAX_EXCLUSIVE_TAG = xsd_qname('maxExclusive')
-XSD_MIN_INCLUSIVE_TAG = xsd_qname('minInclusive')
-XSD_MIN_EXCLUSIVE_TAG = xsd_qname('minExclusive')
-XSD_TOTAL_DIGITS_TAG = xsd_qname('totalDigits')
-XSD_FRACTION_DIGITS_TAG = xsd_qname('fractionDigits')
+XSD_ENUMERATION = xsd_qname('enumeration')
+XSD_LENGTH = xsd_qname('length')
+XSD_MIN_LENGTH = xsd_qname('minLength')
+XSD_MAX_LENGTH = xsd_qname('maxLength')
+XSD_PATTERN = xsd_qname('pattern')              # lexical facet
+XSD_WHITE_SPACE = xsd_qname('whiteSpace')       # pre-lexical facet
+XSD_MAX_INCLUSIVE = xsd_qname('maxInclusive')
+XSD_MAX_EXCLUSIVE = xsd_qname('maxExclusive')
+XSD_MIN_INCLUSIVE = xsd_qname('minInclusive')
+XSD_MIN_EXCLUSIVE = xsd_qname('minExclusive')
+XSD_TOTAL_DIGITS = xsd_qname('totalDigits')
+XSD_FRACTION_DIGITS = xsd_qname('fractionDigits')
 
 # XSD 1.1 elements
-XSD_OPEN_CONTENT_TAG = xsd_qname('openContent')      # open content model
-XSD_ALTERNATIVE_TAG = xsd_qname('alternative')      # conditional type assignment
-XSD_ASSERT_TAG = xsd_qname('assert')            # complex type assertions
-XSD_ASSERTION_TAG = xsd_qname('assertion')      # facets
-XSD_EXPLICIT_TIMEZONE_TAG = xsd_qname('explicitTimezone')
+XSD_OPEN_CONTENT = xsd_qname('openContent')            # open content model
+XSD_ALTERNATIVE = xsd_qname('alternative')             # conditional type assignment
+XSD_ASSERT = xsd_qname('assert')                       # complex type assertions
+XSD_ASSERTION = xsd_qname('assertion')                 # facets
+XSD_EXPLICIT_TIMEZONE = xsd_qname('explicitTimezone')
 
 # Identity constraints
-XSD_UNIQUE_TAG = xsd_qname('unique')
-XSD_KEY_TAG = xsd_qname('key')
-XSD_KEYREF_TAG = xsd_qname('keyref')
-XSD_SELECTOR_TAG = xsd_qname('selector')
-XSD_FIELD_TAG = xsd_qname('field')
+XSD_UNIQUE = xsd_qname('unique')
+XSD_KEY = xsd_qname('key')
+XSD_KEYREF = xsd_qname('keyref')
+XSD_SELECTOR = xsd_qname('selector')
+XSD_FIELD = xsd_qname('field')
+
+#
+# XSD Builtin Types
 
 # Special XSD built-in types.
 XSD_ANY_TYPE = xsd_qname('anyType')
 XSD_ANY_SIMPLE_TYPE = xsd_qname('anySimpleType')
 XSD_ANY_ATOMIC_TYPE = xsd_qname('anyAtomicType')
-XSD_SPECIAL_TYPES = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
 
 # Other XSD built-in types.
-XSD_DECIMAL_TYPE = xsd_qname('decimal')
-XSD_INTEGER_TYPE = xsd_qname('integer')
+XSD_DECIMAL = xsd_qname('decimal')
+XSD_STRING = xsd_qname('string')
+XSD_DOUBLE = xsd_qname('double')
+XSD_FLOAT = xsd_qname('float')
 
+XSD_DATE = xsd_qname('date')
+XSD_DATETIME = xsd_qname('dateTime')
+XSD_GDAY = xsd_qname('gDay')
+XSD_GMONTH = xsd_qname('gMonth')
+XSD_GMONTH_DAY = xsd_qname('gMonthDay')
+XSD_GYEAR = xsd_qname('gYear')
+XSD_GYEAR_MONTH = xsd_qname('gYearMonth')
+XSD_TIME = xsd_qname('time')
+XSD_DURATION = xsd_qname('duration')
 
-#
-# XML attributes
-XML_LANG = get_qname(XML_NAMESPACE, 'lang')
-XML_SPACE = get_qname(XML_NAMESPACE, 'space')
-XML_BASE = get_qname(XML_NAMESPACE, 'base')
-XML_ID = get_qname(XML_NAMESPACE, 'id')
-XML_SPECIAL_ATTRS = get_qname(XML_NAMESPACE, 'specialAttrs')
+XSD_QNAME = xsd_qname('QName')
+XSD_NOTATION_TYPE = xsd_qname('NOTATION')
+XSD_ANY_URI = xsd_qname('anyURI')
+XSD_BOOLEAN = xsd_qname('boolean')
+XSD_BASE64_BINARY = xsd_qname('base64Binary')
+XSD_HEX_BINARY = xsd_qname('hexBinary')
+XSD_NORMALIZED_STRING = xsd_qname('normalizedString')
+XSD_TOKEN = xsd_qname('token')
+XSD_LANGUAGE = xsd_qname('language')
+XSD_NAME = xsd_qname('Name')
+XSD_NCNAME = xsd_qname('NCName')
+XSD_ID = xsd_qname('ID')
+XSD_IDREF = xsd_qname('IDREF')
+XSD_ENTITY = xsd_qname('ENTITY')
+XSD_NMTOKEN = xsd_qname('NMTOKEN')
 
-#
-# XML Schema Instance attributes
-XSI_NIL = get_qname(XSI_NAMESPACE, 'nil')
-XSI_TYPE = get_qname(XSI_NAMESPACE, 'type')
-XSI_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'schemaLocation')
-XSI_NONS_SCHEMA_LOCATION = get_qname(XSI_NAMESPACE, 'noNamespaceSchemaLocation')
+XSD_INTEGER = xsd_qname('integer')
+XSD_LONG = xsd_qname('long')
+XSD_INT = xsd_qname('int')
+XSD_SHORT = xsd_qname('short')
+XSD_BYTE = xsd_qname('byte')
+XSD_NON_NEGATIVE_INTEGER = xsd_qname('nonNegativeInteger')
+XSD_POSITIVE_INTEGER = xsd_qname('positiveInteger')
+XSD_UNSIGNED_LONG = xsd_qname('unsignedLong')
+XSD_UNSIGNED_INT = xsd_qname('unsignedInt')
+XSD_UNSIGNED_SHORT = xsd_qname('unsignedShort')
+XSD_UNSIGNED_BYTE = xsd_qname('unsignedByte')
+XSD_NON_POSITIVE_INTEGER = xsd_qname('nonPositiveInteger')
+XSD_NEGATIVE_INTEGER = xsd_qname('negativeInteger')
+
+# XSD 1.1 built-in types
+XSD_DATE_TIME_STAMP = xsd_qname('dateTimeStamp')
+XSD_DAY_TIME_DURATION = xsd_qname('dayTimeDuration')
+XSD_YEAR_MONTH_DURATION = xsd_qname('yearMonthDuration')
+
+__all__ = [
+    'XML_LANG', 'XML_ID', 'XML_BASE', 'XML_SPACE', 'XML_SPECIAL_ATTRS', 'XSI_TYPE', 'XSI_NIL',
+    'XSI_SCHEMA_LOCATION', 'XSI_NONS_SCHEMA_LOCATION', 'XSD_SCHEMA', 'XSD_ANNOTATION', 'XSD_APPINFO',
+    'XSD_DOCUMENTATION', 'XSD_INCLUDE', 'XSD_IMPORT', 'XSD_REDEFINE', 'XSD_SIMPLE_TYPE', 'XSD_COMPLEX_TYPE',
+    'XSD_ATTRIBUTE', 'XSD_ELEMENT', 'XSD_NOTATION', 'XSD_GROUP', 'XSD_ATTRIBUTE_GROUP', 'XSD_RESTRICTION',
+    'XSD_LIST', 'XSD_UNION', 'XSD_EXTENSION', 'XSD_SEQUENCE', 'XSD_CHOICE', 'XSD_ALL', 'XSD_ANY',
+    'XSD_SIMPLE_CONTENT', 'XSD_COMPLEX_CONTENT', 'XSD_ANY_ATTRIBUTE', 'XSD_ENUMERATION', 'XSD_LENGTH',
+    'XSD_MIN_LENGTH', 'XSD_MAX_LENGTH', 'XSD_PATTERN', 'XSD_WHITE_SPACE', 'XSD_MAX_INCLUSIVE',
+    'XSD_MAX_EXCLUSIVE', 'XSD_MIN_INCLUSIVE', 'XSD_MIN_EXCLUSIVE', 'XSD_TOTAL_DIGITS', 'XSD_FRACTION_DIGITS',
+    'XSD_OPEN_CONTENT', 'XSD_ALTERNATIVE', 'XSD_ASSERT', 'XSD_ASSERTION', 'XSD_EXPLICIT_TIMEZONE',
+    'XSD_UNIQUE', 'XSD_KEY', 'XSD_KEYREF', 'XSD_SELECTOR', 'XSD_FIELD', 'XSD_ANY_TYPE', 'XSD_ANY_SIMPLE_TYPE',
+    'XSD_ANY_ATOMIC_TYPE', 'XSD_DECIMAL', 'XSD_STRING', 'XSD_DOUBLE', 'XSD_FLOAT', 'XSD_DATE', 'XSD_DATETIME',
+    'XSD_GDAY', 'XSD_GMONTH', 'XSD_GMONTH_DAY', 'XSD_GYEAR', 'XSD_GYEAR_MONTH', 'XSD_TIME', 'XSD_DURATION',
+    'XSD_QNAME', 'XSD_NOTATION_TYPE', 'XSD_ANY_URI', 'XSD_BOOLEAN', 'XSD_BASE64_BINARY', 'XSD_HEX_BINARY',
+    'XSD_NORMALIZED_STRING', 'XSD_TOKEN', 'XSD_LANGUAGE', 'XSD_NAME', 'XSD_NCNAME', 'XSD_ID', 'XSD_IDREF',
+    'XSD_ENTITY', 'XSD_NMTOKEN', 'XSD_INTEGER', 'XSD_LONG', 'XSD_INT', 'XSD_SHORT', 'XSD_BYTE',
+    'XSD_NON_NEGATIVE_INTEGER', 'XSD_POSITIVE_INTEGER', 'XSD_UNSIGNED_LONG', 'XSD_UNSIGNED_INT',
+    'XSD_UNSIGNED_SHORT', 'XSD_UNSIGNED_BYTE', 'XSD_NON_POSITIVE_INTEGER', 'XSD_NEGATIVE_INTEGER',
+    'XSD_DATE_TIME_STAMP', 'XSD_DAY_TIME_DURATION', 'XSD_YEAR_MONTH_DURATION',
+]

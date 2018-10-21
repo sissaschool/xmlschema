@@ -42,8 +42,8 @@ from xmlschema.etree import (
     etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
     etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
 )
-from xmlschema.qnames import local_name, XSI_TYPE
-
+from xmlschema.qnames import XSI_TYPE
+from xmlschema.helpers import local_name
 
 _VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',

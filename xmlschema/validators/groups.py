@@ -17,11 +17,9 @@ from collections import MutableSequence, Counter
 from ..compat import PY3, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import local_name
-from ..qnames import (
-    XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG, prefixed_to_qname, get_qname,
-    XSD_COMPLEX_TYPE_TAG, XSD_ELEMENT_TAG, XSD_ANY_TAG, XSD_RESTRICTION_TAG, XSD_EXTENSION_TAG,
-)
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
+    XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
+from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
 from ..converters import XMLSchemaConverter
 
 from .exceptions import XMLSchemaValidationError
@@ -31,7 +29,7 @@ from .wildcards import XsdAnyElement
 XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
 ANY_ELEMENT = etree_element(
-    XSD_ANY_TAG,
+    XSD_ANY,
     attrib={
         'namespace': '##any',
         'processContents': 'lax',
@@ -122,7 +120,7 @@ class XsdModelVisitor(MutableSequence):
                 expected.extend(item.iter_elements())
             else:
                 expected.append(item)
-                expected.extend(item.schema.substitution_groups.get(item.name, ()))
+                expected.extend(item.maps.substitution_groups.get(item.name, ()))
         return expected
 
     def restart(self):
@@ -144,7 +142,9 @@ class XsdModelVisitor(MutableSequence):
         def stop_item(item):
             """
             Stops element or group matching, incrementing current group counter.
-            Returns `True` if the item has violated the minimum occurrences.
+
+            :return: `True` if the item has violated the minimum occurrences for itself \
+            or for the current group, `False` otherwise.
             """
             if isinstance(item, XsdGroup):
                 self.group, self.iterator, self.items, self.match = self.pop()
@@ -175,10 +175,7 @@ class XsdModelVisitor(MutableSequence):
                 elif item.is_emptiable():
                     self.items.pop()
                     return False
-                elif self.group.min_occurs <= occurs[self.group]:
-                    self.group, self.iterator, self.items, self.match = self.pop()
-                    return False
-                elif self:
+                elif self.group.min_occurs <= occurs[self.group] or self:
                     return stop_item(self.group)
                 else:
                     self.items.pop()
@@ -271,8 +268,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     </sequence>
     """
     admitted_tags = {
-        XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG,
-        XSD_GROUP_TAG, XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG
+        XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION,
+        XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
     def __init__(self, elem, schema, parent, name=None, initlist=None):
@@ -338,7 +335,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         elem = self.elem
         self._parse_particle(elem)
 
-        if elem.tag == XSD_GROUP_TAG:
+        if elem.tag == XSD_GROUP:
             # Global group (group)
             name = elem.get('name')
             ref = elem.get('ref')
@@ -382,17 +379,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.parse_error(
                             "attribute 'maxOccurs' not allowed for a global group", self
                         )
-                if content_model.tag not in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
+                if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
                     self.parse_error('unexpected tag %r' % content_model.tag, content_model)
                     return
             else:
                 self.parse_error("found both attributes 'name' and 'ref'", elem)
                 return
-        elif elem.tag in {XSD_SEQUENCE_TAG, XSD_ALL_TAG, XSD_CHOICE_TAG}:
+        elif elem.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
             # Local group (sequence|all|choice)
             content_model = elem
             self.name = None
-        elif elem.tag in {XSD_COMPLEX_TYPE_TAG, XSD_EXTENSION_TAG, XSD_RESTRICTION_TAG}:
+        elif elem.tag in {XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION}:
             self.name = self.model = None
             return
         else:
@@ -410,16 +407,16 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
         for child in self._iterparse_components(content_model):
-            if child.tag == XSD_ELEMENT_TAG:
+            if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
-            elif content_model.tag == XSD_ALL_TAG:
+            elif content_model.tag == XSD_ALL:
                 self.parse_error("'all' model can contains only elements.", elem)
-            elif child.tag == XSD_ANY_TAG:
+            elif child.tag == XSD_ANY:
                 self.append(XsdAnyElement(child, self.schema, self))
-            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG):
+            elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
                 self.append(XsdGroup(child, self.schema, self))
-            elif child.tag == XSD_GROUP_TAG:
+            elif child.tag == XSD_GROUP:
                 xsd_group = XsdGroup(child, self.schema, self)
                 if xsd_group.name != self.name:
                     self.append(xsd_group)
@@ -557,6 +554,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 for obj in item.iter_group():
                     yield obj
 
+    def iter_subelements(self):
+        for item in self:
+            if isinstance(item, XsdGroup):
+                for e in item.iter_subelements():
+                    yield e
+            else:
+                yield item
+
     def iter_elements(self):
         for item in self:
             if isinstance(item, XsdGroup):
@@ -564,7 +569,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     yield e
             else:
                 yield item
-                for e in self.schema.substitution_groups.get(item.name, ()):
+                for e in self.maps.substitution_groups.get(item.name, ()):
                     yield e
 
     def sort_children(self, elements, default_namespace=None):
@@ -635,7 +640,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
                         if tag in xsd_element.names:
                             break
                     else:
@@ -746,7 +751,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.schema.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
                         if tag in xsd_element.names:
                             break
                     else:
@@ -855,14 +860,14 @@ class Xsd11Group(XsdGroup):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
         for child in self._iterparse_components(content_model):
-            if child.tag == XSD_ELEMENT_TAG:
+            if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
-            elif child.tag == XSD_ANY_TAG:
+            elif child.tag == XSD_ANY:
                 self.append(XsdAnyElement(child, self.schema, self))
-            elif child.tag in (XSD_SEQUENCE_TAG, XSD_CHOICE_TAG, XSD_ALL_TAG):
+            elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
                 self.append(XsdGroup(child, self.schema, self))
-            elif child.tag == XSD_GROUP_TAG:
+            elif child.tag == XSD_GROUP:
                 xsd_group = XsdGroup(child, self.schema, self)
                 if xsd_group.name != self.name:
                     self.append(xsd_group)

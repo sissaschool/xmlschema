@@ -11,6 +11,9 @@
                 <xs:element name="simple_boolean" type="xs:boolean" minOccurs="0" maxOccurs="4"/>
                 <xs:element name="date_and_time" type="xs:dateTime" minOccurs="0"/>
                 <xs:element name="name" type="none_empty_string" minOccurs="0"/>
+                <xs:element name="config" type="config" minOccurs="0"/>
+                <xs:element name="dateTimeWithTZOffset" type="xs:dateTime" minOccurs="0"/>
+                <xs:element name="duration" type="xs:duration" minOccurs="0"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -114,4 +117,11 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <!-- For testing issue #83 -->
+    <xs:simpleType name="config">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:pattern value="(word|other)|(alternative)"/>
+        </xs:restriction>
+    </xs:simpleType>
 </xs:schema>

@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.0.6`_ (2018-10-21)
+======================
+* Fixes for issues #85 and #86
+* XSD 1.1 development: added explicitTimezone facet and XSD 1.1 builtin types
+
 `v1.0.5`_ (2018-09-27)
 ======================
 * Fix for issue #82 and for similar unprotected XSD component lookups
@@ -194,3 +199,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.3: https://github.com/brunato/xmlschema/compare/v1.0.2...v1.0.3
 .. _v1.0.4: https://github.com/brunato/xmlschema/compare/v1.0.3...v1.0.4
 .. _v1.0.5: https://github.com/brunato/xmlschema/compare/v1.0.4...v1.0.5
+.. _v1.0.6: https://github.com/brunato/xmlschema/compare/v1.0.5...v1.0.6

@@ -14,17 +14,16 @@ XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re
+
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
-from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
-from ..qnames import (
-    get_qname, local_name, prefixed_to_qname, XSD_INCLUDE_TAG, XSD_IMPORT_TAG,
-    XSD_REDEFINE_TAG, XSD_NOTATION_TAG, XSD_SIMPLE_TYPE_TAG, XSD_COMPLEX_TYPE_TAG,
-    XSD_GROUP_TAG, XSD_ATTRIBUTE_TAG, XSD_ATTRIBUTE_GROUP_TAG, XSD_ELEMENT_TAG,
-    XSD_ANY_TYPE
-)
+from ..namespaces import XSD_NAMESPACE
+from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
+from ..helpers import get_qname, local_name, prefixed_to_qname
+from ..namespaces import NamespaceResourcesMap
+
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
     XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
-from .parseutils import get_xsd_attribute
 from .builtins import xsd_builtin_types_factory
 
 
@@ -47,9 +46,9 @@ def iterchildren_by_tag(tag):
     return iterfind_function
 
 
-iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT_TAG)
-iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE_TAG)
-iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE_TAG)
+iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT)
+iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE)
+iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE)
 
 
 #
@@ -62,11 +61,11 @@ def create_load_function(filter_function):
             target_namespace = schema.target_namespace
             for elem in iterchildren_xsd_redefine(schema.root):
                 for child in filter_function(elem):
-                    qname = get_qname(target_namespace, get_xsd_attribute(child, 'name'))
+                    qname = get_qname(target_namespace, child.attrib['name'])
                     redefinitions.append((qname, (child, schema)))
 
             for elem in filter_function(schema.root):
-                qname = get_qname(target_namespace, get_xsd_attribute(elem, 'name'))
+                qname = get_qname(target_namespace, elem.attrib['name'])
                 try:
                     xsd_globals[qname].append((elem, schema))
                 except KeyError:
@@ -89,13 +88,13 @@ def create_load_function(filter_function):
     return load_xsd_globals
 
 
-load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE_TAG))
-load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_TAG))
-load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP_TAG))
-load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE_TAG))
-load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT_TAG))
-load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP_TAG))
-load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION_TAG))
+load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE))
+load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE))
+load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP))
+load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE))
+load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT))
+load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP))
+load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION))
 
 
 def create_lookup_function(xsd_classes):

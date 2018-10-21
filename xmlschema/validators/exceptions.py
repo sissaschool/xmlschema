@@ -16,7 +16,7 @@ from __future__ import unicode_literals
 from ..compat import PY3
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element, etree_getpath
-from ..qnames import qname_to_prefixed
+from ..helpers import qname_to_prefixed
 from ..resources import XMLResource
 
 

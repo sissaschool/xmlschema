@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module parse and translate XML regular expressions to Python regex syntax.
+Parse and translate XML regular expressions to Python regex syntax.
 """
 from __future__ import unicode_literals
 import re
@@ -99,10 +99,9 @@ class XsdRegexCharGroup(MutableSet):
             self.add(char)
 
     def __repr__(self):
-        return '<%s %s at %d>' % (self.__class__.__name__, self, id(self))
+        return '<%s at %d>' % (self.__class__.__name__, id(self))
 
     def __str__(self):
-        # noinspection PyCompatibility
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -189,13 +188,19 @@ class XsdRegexCharGroup(MutableSet):
         self.positive, self.negative = self.negative, self.positive
 
 
-def parse_character_class(xml_regex, start_pos):
-    if xml_regex[start_pos] != '[':
-        raise XMLSchemaRegexError(
-            'not a character class at position %d: %r' % (start_pos, xml_regex)
-        )
-    pos = start_pos + 1
+def parse_character_class(xml_regex, class_pos):
+    """
+    Parses a character class of an XML Schema regular expression.
 
+    :param xml_regex: the source XML Schema regular expression.
+    :param class_pos: the position of the character class in the source string, \
+    must coincide with a '[' character.
+    :return: an `XsdRegexCharGroup` instance and the first position after the character class.
+    """
+    if xml_regex[class_pos] != '[':
+        raise XMLSchemaRegexError('not a character class at position %d: %r' % (class_pos, xml_regex))
+
+    pos = class_pos + 1
     if xml_regex[pos] == '^':
         pos += 1
         negative = True
@@ -208,9 +213,7 @@ def parse_character_class(xml_regex, start_pos):
             pos += 2
         elif xml_regex[pos] == ']' or xml_regex[pos:pos + 2] == '-[':
             if pos == group_pos:
-                raise XMLSchemaRegexError(
-                    "empty character class at position %d: %r" % (start_pos, xml_regex)
-                )
+                raise XMLSchemaRegexError("empty character class at position %d: %r" % (class_pos, xml_regex))
             char_group = XsdRegexCharGroup(xml_regex[group_pos:pos])
             if negative:
                 char_group.complement()
@@ -224,21 +227,16 @@ def parse_character_class(xml_regex, start_pos):
         subtracted_group, pos = parse_character_class(xml_regex, pos)
         pos += 1
         if xml_regex[pos] != ']':
-            raise XMLSchemaRegexError(
-                "unterminated character group at position %d: %r" % (start_pos, xml_regex)
-            )
+            raise XMLSchemaRegexError("unterminated character group at position %d: %r" % (class_pos, xml_regex))
         char_group -= subtracted_group
 
     return char_group, pos
 
 
-def get_python_regex(xml_regex, debug=False):
+def get_python_regex(xml_regex):
     """
-    Get a Python's compatible regex from a XML regex expression.
+    Translates an XML regex expression to a Python compatible expression.
     """
-    if debug:
-        import pdb
-        pdb.set_trace()
     regex = ['^(']
     pos = 0
     while pos < len(xml_regex):
@@ -268,7 +266,7 @@ def get_python_regex(xml_regex, debug=False):
             elif xml_regex[pos] == 'C':
                 regex.append('[^%s]' % C_SHORTCUT_REPLACE)
             elif xml_regex[pos] in 'pP':
-                start_pos = pos - 1
+                block_pos = pos - 1
                 try:
                     if xml_regex[pos + 1] != '{':
                         raise XMLSchemaValueError("a '{' expected, found %r." % xml_regex[pos + 1])
@@ -276,10 +274,10 @@ def get_python_regex(xml_regex, debug=False):
                         pos += 1
                 except (IndexError, ValueError):
                     raise XMLSchemaRegexError(
-                        "truncated unicode block escape at position %d: %r" % (start_pos, xml_regex))
+                        "truncated unicode block escape at position %d: %r" % (block_pos, xml_regex))
 
-                p_shortcut_set = get_unicode_subset(xml_regex[start_pos + 3:pos])
-                if xml_regex[start_pos + 1] == 'p':
+                p_shortcut_set = get_unicode_subset(xml_regex[block_pos + 3:pos])
+                if xml_regex[block_pos + 1] == 'p':
                     regex.append('[%s]' % p_shortcut_set)
                 else:
                     regex.append('[^%s]' % p_shortcut_set)

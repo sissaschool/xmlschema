@@ -26,14 +26,20 @@ except ImportError:
     import xmlschema
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
+from xmlschema.validators.builtins import datetime_validator
 
-meta_schema = xmlschema.XMLSchema.meta_schema
+xsd_10_meta_schema = xmlschema.XMLSchema.meta_schema
+xsd_11_meta_schema = xmlschema.validators.XMLSchema11.meta_schema
 
 
-class TestBuiltinTypes(unittest.TestCase):
+class TestXsd10BuiltinTypes(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.meta_schema = xsd_10_meta_schema
 
     def test_boolean_decode(self):
-        xsd_type = meta_schema.types['boolean']
+        xsd_type = self.meta_schema.types['boolean']
         self.assertTrue(xsd_type.decode(' true  \n') is True)
         self.assertTrue(xsd_type.decode(' 0  \n') is False)
         self.assertTrue(xsd_type.decode(' 1  \n') is True)
@@ -42,7 +48,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaDecodeError, xsd_type.decode, ' alpha  \n')
 
     def test_boolean_encode(self):
-        xsd_type = meta_schema.types['boolean']
+        xsd_type = self.meta_schema.types['boolean']
         self.assertTrue(xsd_type.encode(True) == 'true')
         self.assertTrue(xsd_type.encode(False) == 'false')
         self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 1)
@@ -51,7 +57,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 'alpha')
 
     def test_integer_decode(self):
-        xsd_types = meta_schema.types
+        xsd_types = self.meta_schema.types
         self.assertTrue(xsd_types['integer'].decode(' 1000  \n') == 1000)
         self.assertTrue(xsd_types['integer'].decode(' -19  \n') == -19)
         self.assertTrue(xsd_types['integer'].decode(' 0\n') == 0)
@@ -61,7 +67,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
 
     def test_integer_encode(self):
-        xsd_types = meta_schema.types
+        xsd_types = self.meta_schema.types
         self.assertTrue(xsd_types['integer'].encode(1000) == '1000')
         self.assertTrue(xsd_types['integer'].encode(-19) == '-19')
         self.assertTrue(xsd_types['integer'].encode(0) == '0')
@@ -70,7 +76,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
 
     def test_float_decode(self):
-        xsd_types = meta_schema.types
+        xsd_types = self.meta_schema.types
         self.assertTrue(xsd_types['float'].decode(' 1000.1  \n') == 1000.10)
         self.assertTrue(xsd_types['float'].decode(' -19  \n') == -19.0)
         self.assertTrue(xsd_types['double'].decode(' 0.0001\n') == 0.0001)
@@ -78,7 +84,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaDecodeError, xsd_types['double'].decode, ' alpha  \n')
 
     def test_float_encode(self):
-        float_type = meta_schema.types['float']
+        float_type = self.meta_schema.types['float']
         self.assertTrue(float_type.encode(1000.0) == '1000.0')
         self.assertTrue(float_type.encode(-19.0) == '-19.0')
         self.assertTrue(float_type.encode(0.0) == '0.0')
@@ -86,7 +92,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, 'alpha')
 
     def test_time_type(self):
-        time_type = meta_schema.types['time']
+        time_type = self.meta_schema.types['time']
         self.assertTrue(time_type.is_valid('14:35:00'))
         self.assertTrue(time_type.is_valid('14:35:20.5345'))
         self.assertTrue(time_type.is_valid('14:35:00-01:00'))
@@ -99,7 +105,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(time_type.is_valid('14:35.5:00'))
 
     def test_datetime_type(self):
-        datetime_type = meta_schema.types['dateTime']
+        datetime_type = self.meta_schema.types['dateTime']
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00'))
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:20.6'))
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00-03:00'))
@@ -110,14 +116,18 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(datetime_type.is_valid('07-05-10T14:35:00'))
         self.assertFalse(datetime_type.is_valid('2007-05-10'))
 
+        # Issue #85
+        self.assertTrue(datetime_type.is_valid('2018-10-10T13:57:53.0702116-04:00'))
+        self.assertListEqual(list(datetime_validator('2018-10-10T13:57:53.0702116-04:00')), [])
+
     def test_date_type(self):
-        date_type = meta_schema.types['date']
+        date_type = self.meta_schema.types['date']
         self.assertTrue(date_type.is_valid('2012-05-31'))
         self.assertTrue(date_type.is_valid('-0065-10-15'))
         self.assertTrue(date_type.is_valid('12012-05-31'))
         self.assertTrue(date_type.is_valid('2012-05-31-05:00'))
         self.assertTrue(date_type.is_valid('2015-06-30Z'))
-        if meta_schema.version > '1.0':
+        if self.meta_schema.version > '1.0':
             self.assertTrue(date_type.is_valid('0000-01-01'))
         else:
             self.assertFalse(date_type.is_valid('0000-01-01'))
@@ -129,7 +139,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(date_type.is_valid(''))
 
     def test_g_year_type(self):
-        g_year_type = meta_schema.types['gYear']
+        g_year_type = self.meta_schema.types['gYear']
         self.assertTrue(g_year_type.is_valid('2007'))
         self.assertTrue(g_year_type.is_valid('2013-01:00'))
         self.assertTrue(g_year_type.is_valid('102013-01:00'))
@@ -142,7 +152,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(g_year_type.is_valid(''))
 
     def test_g_year_month_type(self):
-        g_year_month_type = meta_schema.types['gYearMonth']
+        g_year_month_type = self.meta_schema.types['gYearMonth']
         self.assertTrue(g_year_month_type.is_valid('2010-07'))
         self.assertTrue(g_year_month_type.is_valid('2020-01-05:00'))
         self.assertFalse(g_year_month_type.is_valid('99-02'))
@@ -152,7 +162,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(g_year_month_type.is_valid(''))
 
     def test_g_month_type(self):
-        g_month_type = meta_schema.types['gMonth']
+        g_month_type = self.meta_schema.types['gMonth']
         self.assertTrue(g_month_type.is_valid('--08'))
         self.assertTrue(g_month_type.is_valid('--05-03:00'))
         self.assertFalse(g_month_type.is_valid('03'))
@@ -162,7 +172,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(g_month_type.is_valid(''))
 
     def test_g_month_day_type(self):
-        g_month_day_type = meta_schema.types['gMonthDay']
+        g_month_day_type = self.meta_schema.types['gMonthDay']
         self.assertTrue(g_month_day_type.is_valid('--12-24'))
         self.assertTrue(g_month_day_type.is_valid('--04-25Z'))
         self.assertFalse(g_month_day_type.is_valid('12-24'))
@@ -172,7 +182,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(g_month_day_type.is_valid(''))
 
     def test_g_day_type(self):
-        g_day_type = meta_schema.types['gDay']
+        g_day_type = self.meta_schema.types['gDay']
         self.assertTrue(g_day_type.is_valid('---19'))
         self.assertTrue(g_day_type.is_valid('---07'))
         self.assertFalse(g_day_type.is_valid('---32'))
@@ -182,7 +192,7 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(g_day_type.is_valid(''))
 
     def test_duration_type(self):
-        duration_type = meta_schema.types['duration']
+        duration_type = self.meta_schema.types['duration']
         self.assertTrue(duration_type.is_valid('-P809YT3H5M5S'))
         self.assertTrue(duration_type.is_valid('P5Y7M20DT3H5M5S'))
         self.assertTrue(duration_type.is_valid('P1DT6H'))
@@ -205,37 +215,114 @@ class TestBuiltinTypes(unittest.TestCase):
         self.assertFalse(duration_type.is_valid(''))
 
 
+class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.meta_schema = xsd_11_meta_schema
+
+    def test_date_time_stamp(self):
+        date_time_stamp_type = self.meta_schema.types['dateTimeStamp']
+        self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08-03:00'))
+        self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08Z'))
+        self.assertFalse(date_time_stamp_type.is_valid('2003-10-20T16:50:08'))
+        self.assertFalse(date_time_stamp_type.is_valid('1980-02-28T17:09:20.1'))
+        self.assertFalse(date_time_stamp_type.is_valid(''))
+
+    def test_day_time_duration_type(self):
+        day_time_duration_type = self.meta_schema.types['dayTimeDuration']
+        self.assertTrue(day_time_duration_type.is_valid('P7DT15H40M0S'))
+        self.assertTrue(day_time_duration_type.is_valid('-P10D'))
+        self.assertTrue(day_time_duration_type.is_valid('P0D'))
+        self.assertTrue(day_time_duration_type.is_valid('PT13M'))
+        self.assertTrue(day_time_duration_type.is_valid('P0DT17M'))
+        self.assertTrue(day_time_duration_type.is_valid('PT3H20M10.5S'))
+        self.assertFalse(day_time_duration_type.is_valid('PT5D'))
+        self.assertFalse(day_time_duration_type.is_valid('PT3HM10S'))
+        self.assertFalse(day_time_duration_type.is_valid('P7DT'))
+        self.assertFalse(day_time_duration_type.is_valid('PT3H1.4M'))
+        self.assertFalse(day_time_duration_type.is_valid('P-5D'))
+        self.assertFalse(day_time_duration_type.is_valid('P1D5H'))
+        self.assertFalse(day_time_duration_type.is_valid('PT10M21.S'))
+        self.assertFalse(day_time_duration_type.is_valid('P'))
+        self.assertFalse(day_time_duration_type.is_valid(''))
+
+    def test_year_month_duration_type(self):
+        year_month_duration_type = self.meta_schema.types['yearMonthDuration']
+        self.assertTrue(year_month_duration_type.is_valid('P3Y4M'))
+        self.assertTrue(year_month_duration_type.is_valid('P15M'))
+        self.assertTrue(year_month_duration_type.is_valid('P0Y'))
+        self.assertTrue(year_month_duration_type.is_valid('P0Y23M'))
+        self.assertTrue(year_month_duration_type.is_valid('-P8Y'))
+        self.assertFalse(year_month_duration_type.is_valid('3Y4M'))
+        self.assertFalse(year_month_duration_type.is_valid('P6M1Y'))
+        self.assertFalse(year_month_duration_type.is_valid('P'))
+        self.assertFalse(year_month_duration_type.is_valid('P1Y6M15D'))
+        self.assertFalse(year_month_duration_type.is_valid('P1.2Y'))
+        self.assertFalse(year_month_duration_type.is_valid('P2YM'))
+        self.assertFalse(year_month_duration_type.is_valid('P-1Y'))
+        self.assertFalse(year_month_duration_type.is_valid(''))
+
+
 class TestGlobalMaps(unittest.TestCase):
 
-    def test_globals(self):
-        self.assertTrue(len(meta_schema.maps.notations) == 2)
-        self.assertTrue(len(meta_schema.maps.types) == 105)
-        self.assertTrue(len(meta_schema.maps.attributes) == 18)
-        self.assertTrue(len(meta_schema.maps.attribute_groups) == 9)
-        self.assertTrue(len(meta_schema.maps.groups) == 18)
-        self.assertTrue(len(meta_schema.maps.elements) == 47)
-        self.assertTrue(len([e.is_global for e in meta_schema.maps.iter_globals()]) == 199)
+    def test_xsd_10_globals(self):
+        self.assertEqual(len(xsd_10_meta_schema.maps.notations), 2)
+        self.assertEqual(len(xsd_10_meta_schema.maps.types), 105)
+        self.assertEqual(len(xsd_10_meta_schema.maps.attributes), 18)
+        self.assertEqual(len(xsd_10_meta_schema.maps.attribute_groups), 9)
+        self.assertEqual(len(xsd_10_meta_schema.maps.groups), 18)
+        self.assertEqual(len(xsd_10_meta_schema.maps.elements), 47)
+        self.assertEqual(len([e.is_global for e in xsd_10_meta_schema.maps.iter_globals()]), 199)
+        self.assertEqual(len(xsd_10_meta_schema.maps.substitution_groups), 0)
 
-        self.assertTrue(len(meta_schema.maps.substitution_groups) == 0)
+    def test_xsd_11_globals(self):
+        self.assertEqual(len(xsd_11_meta_schema.maps.notations), 2)
+        self.assertEqual(len(xsd_11_meta_schema.maps.types), 115)
+        self.assertEqual(len(xsd_11_meta_schema.maps.attributes), 18)
+        self.assertEqual(len(xsd_11_meta_schema.maps.attribute_groups), 10)
+        self.assertEqual(len(xsd_11_meta_schema.maps.groups), 19)
+        self.assertEqual(len(xsd_11_meta_schema.maps.elements), 53)
+        self.assertEqual(len([e.is_global for e in xsd_11_meta_schema.maps.iter_globals()]), 217)
+        self.assertEqual(len(xsd_11_meta_schema.maps.substitution_groups), 1)
 
-    def test_build(self):
-        meta_schema.maps.build()
-        self.assertTrue(len([e for e in meta_schema.maps.iter_globals()]) == 199)
-        self.assertTrue(meta_schema.maps.built)
-        meta_schema.maps.clear()
-        meta_schema.maps.build()
-        self.assertTrue(meta_schema.maps.built)
+    def test_xsd_10_build(self):
+        xsd_10_meta_schema.maps.build()
+        self.assertEqual(len([e for e in xsd_10_meta_schema.maps.iter_globals()]), 199)
+        self.assertTrue(xsd_10_meta_schema.maps.built)
+        xsd_10_meta_schema.maps.clear()
+        xsd_10_meta_schema.maps.build()
+        self.assertTrue(xsd_10_meta_schema.maps.built)
 
-    def test_components(self):
+    def test_xsd_11_build(self):
+        xsd_11_meta_schema.maps.build()
+        self.assertEqual(len([e for e in xsd_11_meta_schema.maps.iter_globals()]), 217)
+        self.assertTrue(xsd_11_meta_schema.maps.built)
+        xsd_11_meta_schema.maps.clear()
+        xsd_11_meta_schema.maps.build()
+        self.assertTrue(xsd_11_meta_schema.maps.built)
+
+    def test_xsd_10_components(self):
         total_counter = 0
         global_counter = 0
-        for g in meta_schema.maps.iter_globals():
+        for g in xsd_10_meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
                 if c.is_global:
                     global_counter += 1
-        self.assertTrue(global_counter == 199)
-        self.assertTrue(total_counter == 945)
+        self.assertEqual(global_counter, 199)
+        self.assertEqual(total_counter, 945)
+
+    def test_xsd_11_components(self):
+        total_counter = 0
+        global_counter = 0
+        for g in xsd_11_meta_schema.maps.iter_globals():
+            for c in g.iter_components():
+                total_counter += 1
+                if c.is_global:
+                    global_counter += 1
+        self.assertEqual(global_counter, 217)
+        self.assertEqual(total_counter, 1087)
 
 
 # TODO: Add tests for base schemas files.

@@ -30,25 +30,56 @@ from xmlschema.tests import XMLSchemaTestCase
 
 class TestModelValidation(XMLSchemaTestCase):
 
-    def check_advance(self, model, match, expected=None):
-        if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, lambda x: list(model.advance(x)), match)
-        else:
-            self.assertEqual([e for e in model.advance(match)], expected or [])
+    # --- Test helper functions ---
 
     def check_advance_true(self, model, expected=None):
+        """
+        Advances a model with a match condition and checks the expected error list or exception.
+
+        :param model: an XsdModelVisitor instance.
+        :param expected: can be an exception class or a list. Leaving `None` means that an empty \
+        list is expected.
+        """
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, lambda x: list(model.advance(x)), True)
         else:
             self.assertEqual([e for e in model.advance(True)], expected or [])
 
     def check_advance_false(self, model, expected=None):
+        """
+        Advances a model with a no-match condition and checks the expected error list or  or exception.
+
+        :param model: an XsdModelVisitor instance.
+        :param expected: can be an exception class or a list. Leaving `None` means that an empty \
+        list is expected.
+        """
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, lambda x: list(model.advance(x)), False)
         else:
             self.assertEqual([e for e in model.advance(False)], expected or [])
 
+    def check_advance(self, model, match, expected=None):
+        """
+        Advances a model with an argument match condition and checks the expected error list.
+
+        :param model: an XsdModelVisitor instance.
+        :param match: the matching boolean condition.
+        :param expected: can be an exception class or a list. Leaving `None` means that an empty \
+        list is expected.
+        """
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, lambda x: list(model.advance(x)), match)
+        else:
+            self.assertEqual([e for e in model.advance(match)], expected or [])
+
     def check_stop(self, model, expected=None):
+        """
+        Stops a model and checks the expected errors list.
+
+        :param model: an XsdModelVisitor instance.
+        :param expected: can be an exception class or a list. Leaving `None` means that an empty \
+        list is expected.
+        """
         if isinstance(expected, type) and issubclass(expected, Exception):
             self.assertRaises(expected, lambda: list(model.stop()))
         else:
@@ -286,8 +317,8 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertIsNone(model.element)
 
         model = XsdModelVisitor(group)
-        for match in [False, True]:
-            self.check_advance(model, match)
+        self.check_advance_false(model)
+        self.check_advance_true(model)
         self.assertEqual(model.element, group[0][0])
 
         model = XsdModelVisitor(group)
@@ -331,8 +362,8 @@ class TestModelValidation(XMLSchemaTestCase):
 
         model.restart()
         self.assertEqual(model.element, group[0])
-        for match in [False, True]:
-            self.check_advance(model, match)            # <complexContent> match
+        self.check_advance_false(model)
+        self.check_advance_true(model)                  # <complexContent> match
         self.assertIsNone(model.element)
 
         model.restart()
@@ -348,6 +379,15 @@ class TestModelValidation(XMLSchemaTestCase):
             self.check_advance(model, match)            # <all> match, <attributeGroup> match
         self.assertIsNone(model.element)
 
+    def test_schema_document_model(self):
+        group = self.schema_class.meta_schema.elements['schema'].type.content_type
+
+        # A schema model with a wrong tag
+        model = XsdModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_false(model)                 # eg. anyAttribute
+        self.check_stop(model)
+
     #
     # Tests on schema cases/features/models/models.xsd
     def test_model_group1(self):
@@ -359,8 +399,8 @@ class TestModelValidation(XMLSchemaTestCase):
 
         model.restart()
         self.assertEqual(model.element, group[0])
-        for match in [False, False, False]:
-            self.check_advance(model, match)
+        for _ in range(3):
+            self.check_advance_false(model)
         self.assertIsNone(model.element)
 
         model.restart()
@@ -373,11 +413,11 @@ class TestModelValidation(XMLSchemaTestCase):
 
         model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0])
-        for match in [False, False, False]:
-            self.check_advance(model, match)                # group1 do not match
+        for _ in range(3):
+            self.check_advance_false(model)                 # group1 do not match
         self.assertEqual(model.element, group[1][0][0][2])  # <elem3> of group1
-        for match in [False] * 8:
-            self.check_advance(model, match)
+        for _ in range(8):
+            self.check_advance_false(model)
         self.assertEqual(model.element, group[2])           # <elem12>
         self.check_advance_false(model)
         self.assertEqual(model.element, group[3])           # <elem13>
@@ -407,8 +447,8 @@ class TestModelValidation(XMLSchemaTestCase):
 
         model = XsdModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
-        for match in [True, True, True, True, True]:   # match [<elem1> .. <elem5>]
-            self.check_advance(model, match)
+        for _ in range(5):   # match [<elem1> .. <elem5>]
+            self.check_advance_true(model)
         self.assertEqual(model.element.name, 'elem6')
         self.check_advance_true(model)                 # match choice with <elem6>
         self.check_stop(model)
@@ -436,13 +476,62 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_stop(model)
 
     #
-    # Tests on schemas
-    def test_schema_document_model(self):
-        group = self.schema_class.meta_schema.elements['schema'].type.content_type
+    # Tests on issues
+    def test_issue_086(self):
+        issue_086_xsd = self.abspath('cases/issues/issue_086/issue_086.xsd')
+        schema = self.schema_class(issue_086_xsd)
+        group = schema.types['Foo'].content_type
 
+        # issue_086-1.xml sequence simulation
         model = XsdModelVisitor(group)
-        self.assertEqual(model.element, group[0][0])
-        self.check_advance_false(model)                 # eg. anyAttribute
+        self.assertEqual(model.element, group[0])
+        self.check_advance_true(model)  # <header> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_true(model)  # <a> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_true(model)  # <a> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][1][0])  # 'b' element
+        self.check_advance_true(model)  # <b> matching
+        self.assertEqual(model.element, group[1][1][0])  # 'b' element
+        self.check_advance_true(model)  # <b> matching
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element (choice group restarted)
+        self.check_advance_false(model)
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][2][0])  # 'c' element
+        self.check_advance_true(model)  # <c> matching
+        self.assertEqual(model.element, group[1][2][0])  # 'c' element
+        self.check_advance_true(model)  # <c> matching
+        self.check_stop(model)
+
+        # issue_086-2.xml sequence simulation
+        model = XsdModelVisitor(group)
+        self.check_advance_true(model)  # <header> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][1][0])  # 'b' element
+        self.check_advance_true(model)  # <b> matching
+        self.assertEqual(model.element, group[1][1][0])  # 'b' element
+        self.check_advance_true(model)  # <b> matching
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element (choice group restarted)
+        self.check_advance_false(model)
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][2][0])  # 'c' element
+        self.check_advance_true(model)  # <c> matching
+        self.assertEqual(model.element, group[1][2][0])  # 'c' element
+        self.check_advance_true(model)  # <c> matching
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_true(model)  # <a> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_advance_true(model)  # <a> matching
+        self.assertEqual(model.element, group[1][0][0])  # 'a' element
+        self.check_stop(model)
 
 
 if __name__ == '__main__':

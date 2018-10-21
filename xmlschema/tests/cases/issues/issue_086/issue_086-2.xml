@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<foo xmlns='' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="issue_086.xsd">
+  <header>0</header>
+  <b>
+    <spam>second</spam>
+  </b>
+  <b>
+    <spam>second</spam>
+  </b>
+  <c>
+    <spam>third</spam>
+  </c>
+  <c>
+    <spam>third</spam>
+  </c>
+  <a>
+    <spam>first</spam>
+  </a>
+  <a>
+    <spam>first</spam>
+  </a>
+</foo>

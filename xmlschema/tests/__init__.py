@@ -21,15 +21,17 @@ import argparse
 import logging
 from functools import wraps
 
+import xmlschema
 from xmlschema import XMLSchema, XMLSchema10
-import xmlschema.validators
+from xmlschema.validators import XMLSchema11
 from xmlschema.compat import urlopen, URLError
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import (
     is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
 )
 from xmlschema.resources import fetch_namespaces
-from xmlschema.qnames import XSD_SCHEMA_TAG, get_namespace
+from xmlschema.qnames import XSD_SCHEMA
+from xmlschema.helpers import get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
 logger = logging.getLogger('xmlschema.tests')
@@ -228,7 +230,11 @@ def tests_factory(test_class_builder, testfiles, suffix="xml"):
             test_class = test_class_builder(test_file, test_args, test_num)
 
         test_classes[test_class.__name__] = test_class
-        logger.debug("Add test class %r.", test_class.__name__)
+        logger.debug("Add XSD 1.0 test class %r.", test_class.__name__)
+
+        # test_class = test_class_builder(test_file, test_args, test_num, XMLSchema11)
+        # test_classes[test_class.__name__] = test_class
+        # logger.debug("Add XSD 1.1 test class for %r.", test_class.__name__)
 
     if line_buffer:
         raise ValueError("Not completed line continuation at the end!")
@@ -253,10 +259,11 @@ class XMLSchemaTestCase(unittest.TestCase):
         {1}
     </schema>"""
 
+    schema_class = XMLSchema
+
     @classmethod
     def setUpClass(cls):
-        cls.schema_class = XMLSchema
-        cls.xsd_types = XMLSchema.builtin_types()
+        cls.xsd_types = cls.schema_class.builtin_types()
         cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
         cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
@@ -265,21 +272,21 @@ class XMLSchemaTestCase(unittest.TestCase):
         cls.vh_xsd_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
         cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
-        cls.vh_schema = XMLSchema(cls.vh_xsd_file)
+        cls.vh_schema = cls.schema_class(cls.vh_xsd_file)
         cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
 
         cls.col_dir = cls.abspath('cases/examples/collection')
         cls.col_xsd_file = cls.abspath('cases/examples/collection/collection.xsd')
         cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
         cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
-        cls.col_schema = XMLSchema(cls.col_xsd_file)
+        cls.col_schema = cls.schema_class(cls.col_xsd_file)
         cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
 
         cls.st_xsd_file = cls.abspath('cases/features/decoder/simple-types.xsd')
-        cls.st_schema = xmlschema.XMLSchema(cls.st_xsd_file)
+        cls.st_schema = cls.schema_class(cls.st_xsd_file)
 
         cls.models_xsd_file = cls.abspath('cases/features/models/models.xsd')
-        cls.models_schema = xmlschema.XMLSchema(cls.models_xsd_file)
+        cls.models_schema = cls.schema_class(cls.models_xsd_file)
 
     @classmethod
     def abspath(cls, path):
@@ -293,7 +300,7 @@ class XMLSchemaTestCase(unittest.TestCase):
         :return: An schema source string, an ElementTree's Element or a full pathname.
         """
         if is_etree_element(source):
-            if source.tag in (XSD_SCHEMA_TAG, 'schema'):
+            if source.tag in (XSD_SCHEMA, 'schema'):
                 return source
             elif get_namespace(source.tag):
                 raise XMLSchemaValueError("source %r namespace has to be empty." % source)

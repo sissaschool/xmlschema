@@ -12,12 +12,14 @@
 This module contains classes for XML Schema wildcards.
 """
 from __future__ import unicode_literals
+
 from ..exceptions import XMLSchemaValueError
-from ..namespaces import get_namespace, XSI_NAMESPACE
-from ..qnames import XSD_ANY_TAG, XSD_ANY_ATTRIBUTE_TAG
+from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE
+from ..helpers import get_namespace
+from ..namespaces import XSI_NAMESPACE
 from ..xpath import ElementPathMixin
+
 from .exceptions import XMLSchemaNotBuiltError
-from .parseutils import get_xsd_attribute
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
@@ -38,7 +40,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self)._parse()
 
         # Parse namespace and processContents
-        namespace = get_xsd_attribute(self.elem, 'namespace', default='##any')
+        namespace = self.elem.get('namespace', '##any')
         items = namespace.strip().split()
         if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
             self.namespace = namespace.strip()
@@ -48,9 +50,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             self.namespace = namespace.strip()
 
-        self.process_contents = get_xsd_attribute(
-            self.elem, 'processContents', ('lax', 'skip', 'strict'), default='strict'
-        )
+        self.process_contents = self.elem.get('processContents', 'strict')
+        if self.process_contents not in ('lax', 'skip', 'strict'):
+            self.parse_error("wrong value %r for 'processContents' attribute." % self.process_contents)
 
     def _load_namespace(self, namespace):
         if namespace in self.schema.maps.namespaces:
@@ -123,7 +125,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
-    admitted_tags = {XSD_ANY_TAG}
+    admitted_tags = {XSD_ANY}
 
     def __repr__(self):
         return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -215,7 +217,7 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    admitted_tags = {XSD_ANY_ATTRIBUTE_TAG}
+    admitted_tags = {XSD_ANY_ATTRIBUTE}
 
     def match(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):
@@ -367,6 +369,7 @@ class XsdOpenContent(XsdComponent):
     """
     def __init__(self, elem, schema, parent):
         super(XsdOpenContent, self).__init__(elem, schema, parent)
-        self.mode = get_xsd_attribute(
-            self.elem, 'mode', enumerate=('none', 'interleave', 'suffix'), default='interleave'
-        )
+        self.mode = self.elem.get('mode', 'interleave')
+        if self.mode not in ('none', 'interleave', 'suffix'):
+            self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
+
