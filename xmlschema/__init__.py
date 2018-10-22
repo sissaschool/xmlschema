@@ -26,13 +26,13 @@ from .validators import (
     XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
-__version__ = '1.0.6'
+__version__ = '1.0.7'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2018, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 
-# Backward compatibility
+# Backward compatibility (will be removed in 1.1 version)
 XMLSchema_v1_0 = XMLSchema10
 etree_get_namespaces = fetch_namespaces

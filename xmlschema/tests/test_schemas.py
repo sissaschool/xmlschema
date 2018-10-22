@@ -422,6 +422,26 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertTrue(schema.types['req-tz-date'].is_valid('2002-10-10Z'))
         self.assertFalse(schema.types['req-tz-date'].is_valid('2002-10-10'))
 
+    def test_assertion_facet(self):
+        schema = self.check_schema("""
+            <simpleType name='DimensionType'>
+              <restriction base='integer'>
+                <assertion test='string-length($value) &gt; 1'/>
+              </restriction>
+            </simpleType>
+            <simpleType name='req-tz-date'>
+              <restriction base='date'>
+                <explicitTimezone value='required'/>
+              </restriction>
+            </simpleType>
+            <simpleType name='no-tz-date'>
+              <restriction base='date'>
+                <explicitTimezone value='prohibited'/>
+              </restriction>
+            </simpleType>
+            """)
+        # self.assertTrue(schema.types['DimensionType'].is_valid('2'))
+
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
 

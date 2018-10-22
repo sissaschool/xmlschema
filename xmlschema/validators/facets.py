@@ -14,13 +14,15 @@ This module contains declarations and classes for XML Schema constraint facets.
 from __future__ import unicode_literals
 import re
 from collections import MutableSequence
+from elementpath import XPath2Parser, XPathContext, ElementPathSyntaxError
 
 from ..compat import unicode_type
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
     XSD_DECIMAL, XSD_INTEGER, XSD_BASE64_BINARY, XSD_HEX_BINARY
-from ..helpers import ISO_TIMEZONE_PATTERN
+from ..helpers import ISO_TIMEZONE_PATTERN, get_xpath_default_namespace
+from ..etree import etree_element
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -386,19 +388,18 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
         self._elements = [elem]
         value = elem.attrib['value']
-        regex = get_python_regex(value)
-        self.patterns = [re.compile(regex)]
         self.regexps = [value]
+        self.patterns = [re.compile(get_python_regex(value))]
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
         return self._elements[i]
 
-    def __setitem__(self, i, item):
-        self._elements[i] = item
-        value = item.attrib['value']
+    def __setitem__(self, i, elem):
+        self._elements[i] = elem
+        value = elem.attrib['value']
+        self.regexps[i] = value
         self.patterns[i] = re.compile(get_python_regex(value))
-        self.regexps.insert(i, value)
 
     def __delitem__(self, i):
         del self._elements[i]
@@ -408,19 +409,83 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
     def __len__(self):
         return len(self._elements)
 
-    def insert(self, i, item):
-        self._elements.insert(i, item)
-        value = item.attrib['value']
-        self.patterns.insert(i, re.compile(get_python_regex(value)))
+    def insert(self, i, elem):
+        self._elements.insert(i, elem)
+        value = elem.attrib['value']
         self.regexps.insert(i, value)
+        self.patterns.insert(i, re.compile(get_python_regex(value)))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.regexps)
 
     def __call__(self, text):
         if all(pattern.search(text) is None for pattern in self.patterns):
-            msg = "value don't match any pattern of %r."
+            msg = "value doesn't match any pattern of %r."
             yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+
+
+class XsdAssertionsFacet(MutableSequence, XsdFacet):
+
+    admitted_tags = {XSD_ASSERTION}
+
+    def __init__(self, elem, schema, parent, base_type):
+        XsdFacet.__init__(self, elem, schema, parent, base_type)
+        self._elements = [elem]
+        path, root = self._parse_assertion(elem)
+        self.paths = [path]
+        self.tokens = [root]
+
+    def _parse_assertion(self, elem):
+        try:
+            path = elem.attrib['test']
+        except KeyError as err:
+            self.parse_error(str(err), elem=elem)
+            path = 'true()'
+
+        try:
+            default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
+        except ValueError as err:
+            self.parse_error(str(err), elem=elem)
+            parser = XPath2Parser(self.namespaces, strict=False)
+        else:
+            parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+
+        try:
+            return path, parser.parse(path)
+        except ElementPathSyntaxError as err:
+            self.parse_error(str(err), elem=elem)
+            return path, parser.parse('true()')
+
+    # Implements the abstract methods of MutableSequence
+    def __getitem__(self, i):
+        return self._elements[i]
+
+    def __setitem__(self, i, elem):
+        self._elements[i] = elem
+        self.paths[i], self.tokens[i] = self._parse_assertion(elem)
+
+    def __delitem__(self, i):
+        del self._elements[i]
+        del self.paths[i]
+        del self.tokens[i]
+
+    def __len__(self):
+        return len(self._elements)
+
+    def insert(self, i, elem):
+        self._elements.insert(i, elem)
+        path, root = self._parse_assertion(elem)
+        self.paths.insert(i, path)
+        self.tokens.insert(i, root)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.paths)
+
+    def __call__(self, value):
+        elem = etree_element('root')
+        if not all(token.evaluate(XPathContext(elem, variables={'value': str(value)})) for token in self.tokens):
+            msg = "value is not true with all expressions of %r."
+            yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
 
 
 XSD_10_FACETS = {
@@ -440,7 +505,7 @@ XSD_10_FACETS = {
 
 XSD_11_FACETS = XSD_10_FACETS.copy()
 XSD_11_FACETS.update({
-    XSD_ASSERTION: None,
+    XSD_ASSERTION: XsdAssertionsFacet,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
