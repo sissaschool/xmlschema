@@ -127,7 +127,13 @@ class XsdValidator(object):
         if self.validation == 'skip':
             return
 
-        elem = elem if elem is not None else getattr(self, 'elem', None)
+        if is_etree_element(elem):
+            elem = elem
+        elif elem is None:
+            elem = getattr(self, 'elem', None)
+        else:
+            raise XMLSchemaValueError("'elem' argument must be an Element instance, not %r." % elem)
+
         if isinstance(error, XMLSchemaParseError):
             error.validator = self
             error.namespaces = getattr(self, 'namespaces', None)
@@ -523,7 +529,7 @@ class ValidationMixin(object):
         :param use_defaults: Use schema's default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        for result in self.iter_decode(source, path, use_defaults=use_defaults, namespaces=namespaces):
+        for result in self.iter_decode(source, path=path, use_defaults=use_defaults, namespaces=namespaces):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:

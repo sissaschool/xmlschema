@@ -202,11 +202,17 @@ class XsdKey(XsdConstraint):
 
 
 class XsdKeyref(XsdConstraint):
+    """
+    Implementation of xs:keyref.
+
+    :ivar refer: reference to a *xs:key* declaration that must be in the same element \
+    or in a descendant element.
+    """
     admitted_tags = {XSD_KEYREF}
 
     def __init__(self, elem, schema, parent):
         self.refer = None
-        self.refer_walk = None  # Used in case of inner local scope
+        self.refer_path = '.'
         super(XsdKeyref, self).__init__(elem, schema, parent)
 
     def __repr__(self):
@@ -228,47 +234,34 @@ class XsdKeyref(XsdConstraint):
             return  # referenced key/unique constraint already set
 
         try:
-            refer = self.parent.constraints[self.refer]
-            self.refer_walk = []
+            self.refer = self.parent.constraints[self.refer]
         except KeyError:
             try:
-                refer = self.schema.constraints[self.refer]
+                self.refer = self.maps.constraints[self.refer]
             except KeyError:
-                refer = None
+                self.parse_error("refer=%r must reference to a key/unique constraint." % self.elem.get('refer'))
+                self.refer = None
             else:
-                self.refer_walk = []
-                xsd_element = refer.parent.parent
-                if xsd_element is None:
-                    xsd_element = self.schema
-                while True:
-                    if self.refer_walk.append(xsd_element):
-                        if xsd_element is self.parent:
-                            self.refer_walk.reverse()
-                            break
-                        elif xsd_element is self.schema:
-                            self.refer_walk = None
-                            self.parse_error("%r is not defined in a descendant element." % self.refer, self.refer)
-
-        if not isinstance(refer, (XsdKey, XsdUnique)):
-            self.parse_error("attribute 'refer' doesn't refer to a key/unique constraint.", self.refer)
-            self.refer = None
-        else:
-            self.refer = refer
+                refer_path = []
+                xsd_component = self.refer.parent
+                while xsd_component is not None:
+                    if xsd_component is self.parent:
+                        refer_path.reverse()
+                        self.refer_path = '/'.join(refer_path)
+                        break
+                    elif hasattr(xsd_component, 'tag'):
+                        refer_path.append(xsd_component.name)
+                    xsd_component = xsd_component.parent
+                else:
+                    self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
+                    self.refer = None
 
     def get_refer_values(self, elem):
-        refer_elem = elem
-        for xsd_element in self.refer_walk:
-            for child in refer_elem:
-                if xsd_element.is_matching(child.tag):
-                    refer_elem = child
-                    break
-            else:
-                raise XMLSchemaValueError("Missing key reference %r" % self.refer)
-
         values = set()
-        for v in self.refer.iter_values(refer_elem):
-            if not isinstance(v, XMLSchemaValidationError):
-                values.add(v)
+        for e in elem.iterfind(self.refer_path):
+            for v in self.refer.iter_values(e):
+                if not isinstance(v, XMLSchemaValidationError):
+                    values.add(v)
         return values
 
     def validator(self, elem):

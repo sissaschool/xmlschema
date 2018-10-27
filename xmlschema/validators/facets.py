@@ -483,9 +483,12 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
 
     def __call__(self, value):
         elem = etree_element('root')
-        if not all(token.evaluate(XPathContext(elem, variables={'value': str(value)})) for token in self.tokens):
-            msg = "value is not true with all expressions of %r."
-            yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
+        try:
+            if not all(token.evaluate(XPathContext(elem, variables={'value': value})) for token in self.tokens):
+                msg = "value is not true with all expressions of %r."
+                yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
+        except TypeError as err:
+            yield XMLSchemaValidationError(self, value, reason=str(err))
 
 
 XSD_10_FACETS = {

@@ -32,9 +32,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import (
-    XMLSchemaParseError, XMLSchemaBase, XMLSchema, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-)
+from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaValidationError, \
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
@@ -426,21 +425,22 @@ class TestXMLSchema11(TestXMLSchema10):
         schema = self.check_schema("""
             <simpleType name='DimensionType'>
               <restriction base='integer'>
-                <assertion test='string-length($value) &gt; 1'/>
-              </restriction>
-            </simpleType>
-            <simpleType name='req-tz-date'>
-              <restriction base='date'>
-                <explicitTimezone value='required'/>
-              </restriction>
-            </simpleType>
-            <simpleType name='no-tz-date'>
-              <restriction base='date'>
-                <explicitTimezone value='prohibited'/>
+                <assertion test='string-length($value) &lt; 2'/>
               </restriction>
             </simpleType>
             """)
-        # self.assertTrue(schema.types['DimensionType'].is_valid('2'))
+        self.assertFalse(schema.types['DimensionType'].is_valid('2'))
+        self.assertRaises(XMLSchemaValidationError, schema.types['DimensionType'].validate, '2')
+
+        schema = self.check_schema("""
+            <simpleType name='MeasureType'>
+              <restriction base='integer'>
+                <assertion test='$value &gt; 0'/>
+              </restriction>
+            </simpleType>
+            """)
+        self.assertTrue(schema.types['MeasureType'].is_valid('10'))
+        self.assertFalse(schema.types['MeasureType'].is_valid('-0.5'))
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
