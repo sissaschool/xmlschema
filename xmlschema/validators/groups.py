@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 from collections import MutableSequence, Counter
 
 from ..compat import PY3, unicode_type
-from ..exceptions import XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
     XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
@@ -23,7 +23,8 @@ from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
 from ..converters import XMLSchemaConverter
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
+from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin, XsdType
+from .elements import XsdElement
 from .wildcards import XsdAnyElement
 
 XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
@@ -432,17 +433,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     @property
     def built(self):
         for item in self:
-            try:
-                if not item.ref and not item.built:
+            if isinstance(item, XsdAnyElement):
+                if not item.built:
                     return False
-            except AttributeError:
-                if isinstance(item, tuple):
-                    return False
-                elif isinstance(item, XsdAnyElement):
-                    if not item.built:
-                        return False
-                else:
-                    raise
+            elif isinstance(item, tuple):
+                return False
+            elif not isinstance(item, (XsdElement, XsdGroup)):
+                raise XMLSchemaTypeError("wrong type for item %r of %r." % (item, self))
+            elif item.parent is None:
+                continue
+            elif item.parent is not self.parent and isinstance(item.parent, XsdType) and item.parent.parent is None:
+                continue
+            elif not item.ref and not item.built:
+                return False
+
         return True
 
     @property
@@ -462,9 +466,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for item in self:
-            if not item.is_global:
-                for obj in item.iter_components(xsd_classes):
-                    yield obj
+            if item.parent is None:
+                continue
+            elif item.parent is not self.parent and isinstance(item.parent, XsdType) and item.parent.parent is None:
+                continue
+            for obj in item.iter_components(xsd_classes):
+                yield obj
 
     def clear(self):
         del self._group[:]

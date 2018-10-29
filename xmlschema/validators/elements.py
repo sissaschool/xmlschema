@@ -230,7 +230,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def built(self):
-        return self.type.is_global or self.type.built
+        return self.type.parent is None or self.type.built
 
     @property
     def validation_attempted(self):

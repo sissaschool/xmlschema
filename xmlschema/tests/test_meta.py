@@ -311,7 +311,7 @@ class TestGlobalMaps(unittest.TestCase):
                 if c.is_global:
                     global_counter += 1
         self.assertEqual(global_counter, 199)
-        self.assertEqual(total_counter, 945)
+        self.assertEqual(total_counter, 894)
 
     def test_xsd_11_components(self):
         total_counter = 0
@@ -322,7 +322,7 @@ class TestGlobalMaps(unittest.TestCase):
                 if c.is_global:
                     global_counter += 1
         self.assertEqual(global_counter, 217)
-        self.assertEqual(total_counter, 1087)
+        self.assertEqual(total_counter, 1025)
 
 
 # TODO: Add tests for base schemas files.

@@ -103,7 +103,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
     :type message: str or unicode
     """
     def __init__(self, validator, message):
-        super(XMLSchemaNotBuiltError).__init__(
+        super(XMLSchemaNotBuiltError, self).__init__(
             validator=validator,
             message=message,
             elem=getattr(validator, 'elem', None),
