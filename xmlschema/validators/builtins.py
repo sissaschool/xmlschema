@@ -10,8 +10,9 @@
 #
 """
 This module contains definitions and functions for XSD builtin datatypes.
-Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
-'ENTITIES', 'IDREFS') are created using the XSD meta-schema.
+
+Only atomic builtins are created, the list builtins types ('NMTOKENS', 'ENTITIES', 'IDREFS')
+are created using the XSD 1.0 meta-schema or with and additional base schema for XSD 1.1.
 """
 from __future__ import unicode_literals
 
