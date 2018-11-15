@@ -184,7 +184,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if child != self.maps.constraints[constraint.name]:
                     self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
             except KeyError:
-                self.maps.constraints[constraint.name] = child
+                self.maps.constraints[constraint.name] = constraint
             finally:
                 self.constraints[constraint.name] = constraint
 
@@ -230,7 +230,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def built(self):
-        return self.type.is_global or self.type.built
+        return self.type.parent is None or self.type.built
 
     @property
     def validation_attempted(self):

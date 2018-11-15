@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Chameleon schema for defining XSD 1.1 list type builtins for the xmlschema library. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:simpleType name="IDREFS" id="IDREFS">
+        <xs:restriction>
+            <xs:simpleType>
+                <xs:list itemType="xs:IDREF"/>
+            </xs:simpleType>
+            <xs:minLength value="1" id="IDREFS.minLength"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ENTITIES" id="ENTITIES">
+        <xs:restriction>
+            <xs:simpleType>
+                <xs:list itemType="xs:ENTITY"/>
+            </xs:simpleType>
+            <xs:minLength value="1" id="ENTITIES.minLength"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NMTOKENS" id="NMTOKENS">
+        <xs:restriction>
+            <xs:simpleType>
+                <xs:list itemType="xs:NMTOKEN"/>
+            </xs:simpleType>
+            <xs:minLength value="1" id="NMTOKENS.minLength"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

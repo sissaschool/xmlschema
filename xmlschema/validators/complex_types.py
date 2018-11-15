@@ -374,10 +374,10 @@ class XsdComplexType(XsdType, ValidationMixin):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if not self.attributes.is_global:
+        if self.attributes.parent is not None:
             for obj in self.attributes.iter_components(xsd_classes):
                 yield obj
-        if not self.content_type.is_global:
+        if self.content_type.parent is not None:
             for obj in self.content_type.iter_components(xsd_classes):
                 yield obj
 

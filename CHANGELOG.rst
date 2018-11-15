@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.0.7`_ (TBD)
+===============
+* XSD 1.1 development: added assertion facet
+
 `v1.0.6`_ (2018-10-21)
 ======================
 * Fixes for issues #85 and #86

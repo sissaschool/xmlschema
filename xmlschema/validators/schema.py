@@ -56,6 +56,10 @@ ANY_ELEMENT = etree_element(
     })
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
+XML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd')
+HFP_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd')
+XSI_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd')
+XLINK_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xlink.xsd')
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -111,7 +115,10 @@ class XMLSchemaMeta(ABCMeta):
 
         base_schemas = dict_.get('BASE_SCHEMAS') or get_attribute('BASE_SCHEMAS', *bases)
         for uri, pathname in list(base_schemas.items()):
-            meta_schema.import_schema(namespace=uri, location=pathname)
+            if uri == XSD_NAMESPACE:
+                meta_schema.include_schema(location=pathname)
+            else:
+                meta_schema.import_schema(namespace=uri, location=pathname)
         meta_schema.maps.build()
         dict_['meta_schema'] = meta_schema
 
@@ -201,12 +208,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     TAG_MAP = None
 
     meta_schema = None
-    BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-        HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
-        XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd')
-    }
+    BASE_SCHEMAS = None
     _parent_map = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
@@ -876,6 +878,12 @@ class XMLSchema10(XMLSchemaBase):
         'simple_type_factory': xsd_simple_type_factory
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
+    BASE_SCHEMAS = {
+        XML_NAMESPACE: XML_SCHEMA_FILE,
+        HFP_NAMESPACE: HFP_SCHEMA_FILE,
+        XSI_NAMESPACE: XSI_SCHEMA_FILE,
+        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
+    }
 
 
 # ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
@@ -896,6 +904,13 @@ class XMLSchema11(XMLSchemaBase):
         'simple_type_factory': xsd_simple_type_factory
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+    BASE_SCHEMAS = {
+        XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/list_builtins.xsd'),
+        XML_NAMESPACE: XML_SCHEMA_FILE,
+        HFP_NAMESPACE: HFP_SCHEMA_FILE,
+        XSI_NAMESPACE: XSI_SCHEMA_FILE,
+        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
+    }
 
 
 XMLSchema = XMLSchema10

@@ -14,6 +14,8 @@ examples/collection/collection2.xsd --inspect   # key constraint
 examples/collection/collection2.xml --errors 1
 examples/collection/collection3.xsd      # key and keyref constraints
 examples/collection/collection3.xml --errors 1
+examples/collection/collection3bis.xsd
+examples/collection/collection3bis.xml --errors 1
 examples/collection/collection4.xml      # Many XML comments inserted
 examples/vehicles/vehicles.xsd --inspect
 examples/vehicles/vehicles.xml

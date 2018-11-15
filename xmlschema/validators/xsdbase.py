@@ -14,7 +14,7 @@ This module contains base functions and classes XML Schema components.
 from __future__ import unicode_literals
 import re
 
-from ..compat import PY3, string_base_type
+from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
 from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
@@ -127,16 +127,24 @@ class XsdValidator(object):
         if self.validation == 'skip':
             return
 
-        elem = elem if elem is not None else getattr(self, 'elem', None)
+        if is_etree_element(elem):
+            elem = elem
+        elif elem is None:
+            elem = getattr(self, 'elem', None)
+        else:
+            raise XMLSchemaValueError("'elem' argument must be an Element instance, not %r." % elem)
+
         if isinstance(error, XMLSchemaParseError):
             error.validator = self
             error.namespaces = getattr(self, 'namespaces', None)
             error.elem = elem
             error.source = getattr(self, 'source', None)
+        elif isinstance(error, Exception):
+            error = XMLSchemaParseError(self, unicode_type(error), elem)
         elif isinstance(error, string_base_type):
-            error = XMLSchemaParseError(self, str(error), elem)
+            error = XMLSchemaParseError(self, error, elem)
         else:
-            raise XMLSchemaValueError("'error' argument must be a parse error or a string, not %r." % error)
+            raise XMLSchemaValueError("'error' argument must be an exception or a string, not %r." % error)
 
         if self.validation == 'lax':
             self.errors.append(error)
@@ -523,7 +531,7 @@ class ValidationMixin(object):
         :param use_defaults: Use schema's default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        for result in self.iter_decode(source, path, use_defaults=use_defaults, namespaces=namespaces):
+        for result in self.iter_decode(source, path=path, use_defaults=use_defaults, namespaces=namespaces):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
             else:
@@ -623,7 +631,7 @@ class ValidationMixin(object):
         """
         raise NotImplementedError
 
-    def validation_error(self, validation, error, obj=None, source=None, namespaces=None, **kwargs):
+    def validation_error(self, validation, error, obj=None, source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating and updating validation errors. Incompatible with 'skip'
         validation mode. Il validation mode is 'lax' returns the error, otherwise raises the error.
@@ -633,7 +641,7 @@ class ValidationMixin(object):
         :param obj: the instance related to the error.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
+        :param _kwargs: keyword arguments of the validation process that are not used.
         """
         if not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
@@ -656,7 +664,7 @@ class ValidationMixin(object):
         else:
             raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
-    def decode_error(self, validation, obj, decoder, reason=None, source=None, namespaces=None, **kwargs):
+    def decode_error(self, validation, obj, decoder, reason=None, source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating decode errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raises the error.
@@ -667,7 +675,7 @@ class ValidationMixin(object):
         :param reason: the detailed reason of failed validation.
         :param source: the XML resource that contains the error.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
+        :param _kwargs: keyword arguments of the validation process that are not used.
         """
         error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
         if validation == 'lax':
@@ -679,7 +687,7 @@ class ValidationMixin(object):
         else:
             raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
-    def encode_error(self, validation, obj, encoder, reason=None, source=None, namespaces=None, **kwargs):
+    def encode_error(self, validation, obj, encoder, reason=None, source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating encode errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raises the error.
@@ -690,7 +698,7 @@ class ValidationMixin(object):
         :param reason: the detailed reason of failed validation.
         :param source: the XML resource that contains the error.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: other keyword arguments of the validation process.
+        :param _kwargs: keyword arguments of the validation process that are not used.
         """
         error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
         if validation == 'lax':
@@ -766,7 +774,7 @@ class ParticleMixin(object):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
-                                  source=None, namespaces=None, **kwargs):
+                                  source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raise the error.
@@ -779,6 +787,7 @@ class ParticleMixin(object):
         :param expected: the expected element tags/object names.
         :param source: the XML resource related to the validation process.
         :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param _kwargs: keyword arguments of the validation process that are not used.
         """
         if validation == 'skip':
             raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")

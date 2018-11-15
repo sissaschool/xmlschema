@@ -10,8 +10,9 @@
 #
 """
 This module contains definitions and functions for XSD builtin datatypes.
-Only atomic builtins are created because the 3 list builtins types ('NMTOKENS',
-'ENTITIES', 'IDREFS') are created using the XSD meta-schema.
+
+Only atomic builtins are created, the list builtins types ('NMTOKENS', 'ENTITIES', 'IDREFS')
+are created using the XSD 1.0 meta-schema or with and additional base schema for XSD 1.1.
 """
 from __future__ import unicode_literals
 
@@ -38,7 +39,7 @@ def byte_validator(x):
 
 
 def short_validator(x):
-    if not (-2**16 <= x < 2**16):
+    if not (-2**15 <= x < 2**15):
         yield XMLSchemaValidationError(short_validator, x, "value must be -2^16 <= x < 2^16.")
 
 
@@ -58,7 +59,7 @@ def unsigned_byte_validator(x):
 
 
 def unsigned_short_validator(x):
-    if not (0 <= x < 2**32):
+    if not (0 <= x < 2**16):
         yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^32.")
 
 
