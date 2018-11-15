@@ -39,7 +39,7 @@ def byte_validator(x):
 
 
 def short_validator(x):
-    if not (-2**16 <= x < 2**16):
+    if not (-2**15 <= x < 2**15):
         yield XMLSchemaValidationError(short_validator, x, "value must be -2^16 <= x < 2^16.")
 
 
@@ -59,7 +59,7 @@ def unsigned_byte_validator(x):
 
 
 def unsigned_short_validator(x):
-    if not (0 <= x < 2**32):
+    if not (0 <= x < 2**16):
         yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^32.")
 
 

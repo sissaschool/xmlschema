@@ -14,7 +14,7 @@ This module contains declarations and classes for XML Schema constraint facets.
 from __future__ import unicode_literals
 import re
 from collections import MutableSequence
-from elementpath import XPath2Parser, XPathContext, ElementPathSyntaxError
+from elementpath import XMLSchemaProxy, XPath2Parser, XPathContext, ElementPathSyntaxError
 
 from ..compat import unicode_type
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
@@ -53,7 +53,7 @@ class XsdFacet(XsdComponent):
             yield error
 
     @staticmethod
-    def validator(x):
+    def validator(_):
         return ()
 
     @property
@@ -446,9 +446,11 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
             default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
         except ValueError as err:
             self.parse_error(str(err), elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False)
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
+                                  build_constructors=True)
         else:
-            parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
+                                  default_namespace=default_namespace, build_constructors=True)
 
         try:
             return path, parser.parse(path)

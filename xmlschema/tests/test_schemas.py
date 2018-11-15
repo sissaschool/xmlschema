@@ -440,7 +440,26 @@ class TestXMLSchema11(TestXMLSchema10):
             </simpleType>
             """)
         self.assertTrue(schema.types['MeasureType'].is_valid('10'))
-        self.assertFalse(schema.types['MeasureType'].is_valid('-0.5'))
+        self.assertFalse(schema.types['MeasureType'].is_valid('-1.5'))
+
+        schema = self.check_schema("""
+            <simpleType name='RestrictedDateTimeType'>
+              <restriction base='dateTime'>
+                <assertion test="$value > '1999-12-31T23:59:59'"/>
+              </restriction>
+            </simpleType>
+            """)
+        self.assertRaises(ValueError, schema.types['RestrictedDateTimeType'].is_valid, '2000-01-01T12:00:00')
+
+        # TODO: needs a new release of the elementpath package for full implementing the time based facets
+        # schema = self.check_schema("""
+        #    <simpleType name='RestrictedDateTimeType'>
+        #      <restriction base='dateTime'>
+        #        <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
+        #      </restriction>
+        #    </simpleType>
+        #    """)
+        # self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
