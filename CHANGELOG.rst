@@ -2,9 +2,11 @@
 CHANGELOG
 *********
 
-`v1.0.7`_ (TBD)
-===============
-* XSD 1.1 development: added assertion facet
+`v1.0.7`_ (2018-11-15)
+======================
+* Fixes for issues #87 and #88
+* Merged with PR #89 (simpleType restriction annotation parsing)
+* XSD 1.1 development: added assertion facet (still to be completed)
 
 `v1.0.6`_ (2018-10-21)
 ======================
@@ -204,3 +206,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.4: https://github.com/brunato/xmlschema/compare/v1.0.3...v1.0.4
 .. _v1.0.5: https://github.com/brunato/xmlschema/compare/v1.0.4...v1.0.5
 .. _v1.0.6: https://github.com/brunato/xmlschema/compare/v1.0.5...v1.0.6
+.. _v1.0.7: https://github.com/brunato/xmlschema/compare/v1.0.6...v1.0.7
