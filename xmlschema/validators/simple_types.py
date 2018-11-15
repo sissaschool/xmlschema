@@ -25,7 +25,7 @@ from ..qnames import (
 from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
-from .xsdbase import XsdType, ValidationMixin
+from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
 from .facets import XsdFacet, XSD_10_FACETS
 
 
@@ -37,7 +37,7 @@ def xsd_simple_type_factory(elem, schema, parent):
     else:
         if name == XSD_ANY_SIMPLE_TYPE:
             return
-
+    annotation = None
     try:
         child = elem[0]
     except IndexError:
@@ -46,17 +46,21 @@ def xsd_simple_type_factory(elem, schema, parent):
         if child.tag == XSD_ANNOTATION:
             try:
                 child = elem[1]
+                annotation = XsdAnnotation(elem[0], schema, child)
             except IndexError:
                 return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
     if child.tag == XSD_RESTRICTION:
-        return XsdAtomicRestriction(child, schema, parent, name=name)
+        result = XsdAtomicRestriction(child, schema, parent, name=name)
     elif child.tag == XSD_LIST:
-        return XsdList(child, schema, parent, name=name)
+        result = XsdList(child, schema, parent, name=name)
     elif child.tag == XSD_UNION:
-        return XsdUnion(child, schema, parent, name=name)
+        result = XsdUnion(child, schema, parent, name=name)
     else:
-        return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+        result = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+    if annotation is not None:
+        result.annotation = annotation
+    return result
 
 
 class XsdSimpleType(XsdType, ValidationMixin):
