@@ -126,6 +126,19 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </simpleType>
             """, XMLSchemaParseError)
 
+    def test_restriction_has_annotation(self):
+        # Wrong namespace for element type's reference
+        schema = self.check_schema("""
+            <simpleType name='Magic'>
+                <annotation>
+                    <documentation> stuff </documentation>
+                </annotation>
+                <restriction base='string'>
+                    <enumeration value='A'/>
+                </restriction>
+            </simpleType>""")
+        self.assertIsNotNone(schema.types["Magic"].annotation)
+
     def test_facets(self):
         # Issue #55 and a near error (derivation from xs:integer)
         self.check_schema("""
