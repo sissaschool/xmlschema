@@ -18,11 +18,8 @@ setup(
     name='xmlschema',
     version='1.0.7',
     install_requires=['elementpath>=1.0.12', 'defusedxml>=0.5'],
-    packages=['xmlschema', 'xmlschema.validators', 'xmlschema.tests'],
-    package_data={'xmlschema': [
-        'unicode_categories.json', 'validators/schemas/*.xsd', 'validators/schemas/*/*.xsd',
-        'tests/cases/*', 'tests/cases/*/*', 'tests/cases/*/*/*', 'tests/resources/*'
-    ]},
+    packages=['xmlschema'],
+    include_package_data = True,
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
