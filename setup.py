@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 # Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
