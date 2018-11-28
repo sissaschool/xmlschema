@@ -19,7 +19,7 @@ setup(
     version='1.0.7',
     install_requires=['elementpath>=1.0.12', 'defusedxml>=0.5'],
     packages=['xmlschema'],
-    include_package_data = True,
+    include_package_data=True,
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
