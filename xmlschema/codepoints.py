@@ -104,17 +104,17 @@ def code_point_repr(cp):
     """
     if isinstance(cp, int):
         if cp in CHARACTER_GROUP_ESCAPED:
-            return '\%s' % unicode_chr(cp)
+            return r'\%s' % unicode_chr(cp)
         return unicode_chr(cp)
 
     if cp[0] in CHARACTER_GROUP_ESCAPED:
-        start_char = '\%s' % unicode_chr(cp[0])
+        start_char = r'\%s' % unicode_chr(cp[0])
     else:
         start_char = unicode_chr(cp[0])
 
     end_cp = cp[1] - 1  # Character ranges include the right bound
     if end_cp in CHARACTER_GROUP_ESCAPED:
-        end_char = '\%s' % unicode_chr(end_cp)
+        end_char = r'\%s' % unicode_chr(end_cp)
     else:
         end_char = unicode_chr(end_cp)
 
