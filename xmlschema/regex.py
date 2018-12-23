@@ -13,10 +13,9 @@ Parse and translate XML regular expressions to Python regex syntax.
 """
 from __future__ import unicode_literals
 import re
-from collections import MutableSet
 from sys import maxunicode
 
-from .compat import PY3, unicode_type, string_base_type
+from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 

@@ -13,8 +13,9 @@ This module defines a mixin class for enabling XPath on schemas.
 """
 from __future__ import unicode_literals
 from abc import abstractmethod
-from collections import Sequence
 from elementpath import XPath2Parser, XPathContext
+
+from .compat import Sequence
 from .qnames import XSD_SCHEMA
 
 

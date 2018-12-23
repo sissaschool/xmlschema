@@ -12,9 +12,9 @@
 This module contains classes for XML Schema attributes and attribute groups.
 """
 from __future__ import unicode_literals
-from collections import MutableMapping
 from decimal import Decimal
 
+from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE

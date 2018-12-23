@@ -13,7 +13,7 @@ This module contains namespace definitions for W3C core standards and namespace 
 """
 from __future__ import unicode_literals
 
-from collections import MutableMapping, Mapping
+from .compat import MutableMapping, Mapping
 from .helpers import get_namespace
 
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'

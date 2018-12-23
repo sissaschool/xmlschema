@@ -12,9 +12,9 @@
 This module contains classes for XML Schema model groups.
 """
 from __future__ import unicode_literals
-from collections import MutableSequence, Counter
+from collections import Counter
 
-from ..compat import PY3, unicode_type
+from ..compat import PY3, unicode_type, MutableSequence
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \

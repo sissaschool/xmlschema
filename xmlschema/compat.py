@@ -20,12 +20,14 @@ try:
     from urllib.parse import uses_relative, urlparse, urlunsplit
     from urllib.error import URLError
     from io import StringIO
+    from collections.abc import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
 except ImportError:
-    # Python 2 imports
+    # Python 2.7 imports
     from urllib import pathname2url
     from urllib2 import urlopen, URLError
     from urlparse import urlsplit, urljoin, uses_relative, urlparse, urlunsplit
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
+    from collections import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
 
 
 PY3 = sys.version_info[0] == 3

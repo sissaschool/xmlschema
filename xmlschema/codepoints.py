@@ -16,9 +16,9 @@ from __future__ import unicode_literals
 import json
 import os
 from sys import maxunicode
-from collections import defaultdict, Iterable, MutableSet
+from collections import defaultdict
 
-from .compat import PY3, unicode_chr, string_base_type
+from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
 CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
