@@ -446,11 +446,10 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
             default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
         except ValueError as err:
             self.parse_error(str(err), elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  build_constructors=True)
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema))
         else:
             parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  default_namespace=default_namespace, build_constructors=True)
+                                  default_namespace=default_namespace)
 
         try:
             return path, parser.parse(path)
