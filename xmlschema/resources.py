@@ -523,12 +523,12 @@ class XMLResource(object):
             elif not any(uri == ns for ns in nsmap.values()):
                 if not prefix:
                     try:
-                        prefix = re.search('(\w+)$', uri.strip()).group()
+                        prefix = re.search(r'(\w+)$', uri.strip()).group()
                     except AttributeError:
                         return
 
                 while prefix in nsmap:
-                    match = re.search('(\d+)$', prefix)
+                    match = re.search(r'(\d+)$', prefix)
                     if match:
                         index = int(match.group()) + 1
                         prefix = prefix[:match.span()[0]] + str(index)
