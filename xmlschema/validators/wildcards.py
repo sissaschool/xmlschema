@@ -158,6 +158,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iterchildren(self, tag=None):
         return iter(())
 
+    def iter_substitutes(self, tag=None):
+        return iter(())
+
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         if self.process_contents == 'skip':
             return

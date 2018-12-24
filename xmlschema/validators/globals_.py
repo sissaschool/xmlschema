@@ -402,6 +402,19 @@ class XsdGlobals(XsdValidator):
                     except KeyError:
                         self.substitution_groups[qname] = {xsd_element}
 
+            # Checks substitution groups
+            for qname in self.substitution_groups:
+                try:
+                    xsd_element = self.elements[qname]
+                except KeyError:
+                    raise XMLSchemaKeyError("missing global element %r in %r." % (qname, schema) )
+                else:
+                    for e in xsd_element.iter_substitutes():
+                        if e is xsd_element:
+                            raise XMLSchemaValueError(
+                                "circularity found for element %r in substitution groups of %r" % (e, schema)
+                            )
+
             if schema.meta_schema is not None:
                 # Set referenced key/unique constraints for keyrefs
                 for constraint in schema.iter_components(XsdKeyref):

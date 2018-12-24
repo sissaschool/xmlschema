@@ -647,7 +647,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in model.element.iter_substitutes():
                         if tag in xsd_element.names:
                             break
                     else:
@@ -758,7 +758,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in model.element.iter_substitutes():
                         if tag in xsd_element.names:
                             break
                     else:

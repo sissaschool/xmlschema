@@ -308,6 +308,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
+    def iter_substitutes(self):
+        for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+            yield xsd_element
+            for e in xsd_element.iter_substitutes():
+                yield e
+
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """
         Creates an iterator for decoding an Element instance.
