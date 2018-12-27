@@ -9,7 +9,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from setuptools import setup
+from setuptools import setup, find_packages
 
 with open("README.rst") as readme:
     long_description = readme.read()
@@ -20,7 +20,6 @@ setup(
     install_requires=['elementpath>=1.1.0', 'defusedxml>=0.5'],
     packages=['xmlschema'],
     include_package_data=True,
-    exclude_package_date={'xmlschema': ['tests/extra-*']},
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',

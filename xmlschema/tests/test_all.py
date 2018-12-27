@@ -25,7 +25,7 @@ if __name__ == '__main__':
         sys.path.insert(0, pkg_base_dir)
         import xmlschema
 
-    from xmlschema.tests import tests_factory, print_test_header, get_testfiles
+    from xmlschema.tests import print_test_header, tests_factory
     from xmlschema.tests.test_helpers import TestHelpers
     from xmlschema.tests.test_meta import TestXsd10BuiltinTypes, TestGlobalMaps
     from xmlschema.tests.test_regex import TestCodePoints, TestUnicodeSubset, TestUnicodeCategories, TestPatterns
@@ -39,8 +39,6 @@ if __name__ == '__main__':
     from xmlschema.tests.test_package import TestPackaging
 
     print_test_header()
-
-    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    globals().update(tests_factory(make_schema_test_class, testfiles, 'xsd'))
-    globals().update(tests_factory(make_validator_test_class, testfiles, 'xml'))
+    globals().update(tests_factory(make_schema_test_class, 'xsd'))
+    globals().update(tests_factory(make_validator_test_class, 'xml'))
     unittest.main()

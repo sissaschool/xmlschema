@@ -40,7 +40,7 @@ from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import (
     etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
-    etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
+    etree_elements_assert_equal, lxml_etree, lxml_etree_parse, lxml_etree_element
 )
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.helpers import local_name
@@ -291,7 +291,19 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
+def make_validator_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=False):
+    """
+    Creates a validator test class.
+
+    :param test_file: the XML test file path.
+    :param test_args: line arguments for test case.
+    :param test_num: a positive integer number associated with the test case.
+    :param schema_class: the schema class to use.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
+    Works only for XSD 1.0 tests.
+    """
+    if schema_class is None:
+        schema_class = XMLSchema
 
     # Extract schema test arguments
     expected_errors = test_args.errors
@@ -317,6 +329,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
             source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
             cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
+            if check_with_lxml and lxml_etree is not None:
+                cls.lxml_schema = lxml_etree.parse(source)
 
             cls.errors = []
             cls.chunks = []
@@ -543,6 +557,19 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             self.assertEqual(len(list(self.schema.iter_errors(xml_file))), expected_errors,
                              msg_template % "wrong number of errors (%d expected)" % expected_errors)
 
+        def check_lxml_validation(self):
+            try:
+                schema = lxml_etree.XMLSchema(self.lxml_schema.getroot())
+            except lxml_etree.XMLSchemaParseError:
+                print("\nSkip lxml.etree.XMLSchema validation test for {!r} ({})".
+                    format(rel_path, TestValidator.__name__, ))
+            else:
+                xml_tree = lxml_etree_parse(xml_file)
+                if self.errors:
+                    self.assertFalse(schema.validate(xml_tree))
+                else:
+                    self.assertTrue(schema.validate(xml_tree))
+
         def test_decoding_and_encoding(self):
             self.check_decoding_with_element_tree()
 
@@ -557,6 +584,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
 
             self.check_iter_errors()
             self.check_validate_and_is_valid_api()
+            if check_with_lxml and lxml_etree is not None:
+                self.check_lxml_validation()
 
     TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
     return TestValidator
@@ -1067,10 +1096,9 @@ class TestEncoding(XMLSchemaTestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory, get_testfiles
+    from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    decoder_tests = tests_factory(make_validator_test_class, testfiles, 'xml')
+    decoder_tests = tests_factory(make_validator_test_class, 'xml')
     globals().update(decoder_tests)
     unittest.main()

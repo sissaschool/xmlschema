@@ -12,17 +12,13 @@
 """
 This module runs tests concerning the building of XSD schemas with the 'xmlschema' package.
 """
+from __future__ import print_function, unicode_literals
 import unittest
 import os
 import sys
 import pickle
+import time
 import warnings
-
-try:
-    # noinspection PyPackageRequirements
-    import lxml.etree as _lxml_etree
-except ImportError:
-    _lxml_etree = None
 
 try:
     import xmlschema
@@ -37,7 +33,9 @@ from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaVa
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
+from xmlschema.etree import lxml_etree
 from xmlschema.etree import defused_etree
+
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
 
@@ -475,8 +473,17 @@ class TestXMLSchema11(TestXMLSchema10):
         # self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
 
 
-def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
+def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=True):
+    """
+    Creates a schema test class.
 
+    :param test_file: the schema test file path.
+    :param test_args: line arguments for test case.
+    :param test_num: a positive integer number associated with the test case.
+    :param schema_class: the schema class to use.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
+    Works only for XSD 1.0 tests.
+    """
     xsd_file = test_file
     if schema_class is None:
         schema_class = XMLSchema
@@ -528,6 +535,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
 
             return errors_
 
+        start_time = time.time()
         if expected_warnings > 0:
             with warnings.catch_warnings(record=True) as ctx:
                 warnings.simplefilter("always")
@@ -536,7 +544,31 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
         else:
             errors = check_schema()
 
-        # Checks errors completeness
+        # Check with lxml.etree.XMLSchema class
+        if check_with_lxml and lxml_etree is not None:
+            schema_time = time.time() - start_time
+            start_time = time.time()
+            lxs = lxml_etree.parse(xsd_file)
+            try:
+                lxml_etree.XMLSchema(lxs.getroot())
+            except lxml_etree.XMLSchemaParseError as err:
+                if not errors:
+                    print("\nSchema error with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        rel_path, class_name, unicode_type(err)
+                    ))
+            else:
+                if errors:
+                    print("\nUnrecognized errors with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        rel_path, class_name, '\n++++++\n'.join([unicode_type(e) for e in errors])
+                    ))
+                lxml_schema_time = time.time() - start_time
+                if lxml_schema_time >= schema_time:
+                    print(
+                        "\nSlower lxml.etree.XMLSchema ({:.3f}s VS {:.3f}s) with file {!r} ({})".format(
+                            lxml_schema_time, schema_time, rel_path, class_name
+                        ))
+
+        # Check errors completeness
         for e in errors:
             error_string = unicode_type(e)
             self.assertTrue(e.path, "Missing path for: %s" % error_string)
@@ -558,16 +590,15 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
     rel_path = os.path.relpath(test_file)
     class_name = 'Test{}_{:03}'.format(schema_class.__name__, test_num)
     return type(
-        class_name, (XMLSchemaTestCase,),
-        {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
-    )
+        class_name, (XMLSchemaTestCase,), {
+            'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema
+        })
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, get_testfiles, tests_factory
+    from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    schema_tests = tests_factory(make_schema_test_class, testfiles, suffix='xsd')
+    schema_tests = tests_factory(make_schema_test_class, 'xsd')
     globals().update(schema_tests)
     unittest.main()
