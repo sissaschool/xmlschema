@@ -28,8 +28,7 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaValidationError, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
@@ -433,44 +432,49 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(schema.types['req-tz-date'].is_valid('2002-10-10'))
 
     def test_assertion_facet(self):
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name='DimensionType'>
               <restriction base='integer'>
                 <assertion test='string-length($value) &lt; 2'/>
               </restriction>
-            </simpleType>
-            """)
-        self.assertFalse(schema.types['DimensionType'].is_valid('2'))
-        self.assertRaises(XMLSchemaValidationError, schema.types['DimensionType'].validate, '2')
+            </simpleType>""", XMLSchemaParseError)
 
         schema = self.check_schema("""
             <simpleType name='MeasureType'>
               <restriction base='integer'>
                 <assertion test='$value &gt; 0'/>
               </restriction>
-            </simpleType>
-            """)
+            </simpleType>""")
         self.assertTrue(schema.types['MeasureType'].is_valid('10'))
         self.assertFalse(schema.types['MeasureType'].is_valid('-1.5'))
 
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name='RestrictedDateTimeType'>
               <restriction base='dateTime'>
                 <assertion test="$value > '1999-12-31T23:59:59'"/>
               </restriction>
-            </simpleType>
-            """)
-        self.assertRaises(ValueError, schema.types['RestrictedDateTimeType'].is_valid, '2000-01-01T12:00:00')
+            </simpleType>""", XMLSchemaParseError)
 
-        # TODO: needs a new release of the elementpath package for full implementing the time based facets
-        # schema = self.check_schema("""
-        #    <simpleType name='RestrictedDateTimeType'>
-        #      <restriction base='dateTime'>
-        #        <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
-        #      </restriction>
-        #    </simpleType>
-        #    """)
-        # self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
+        schema = self.check_schema("""
+            <simpleType name='RestrictedDateTimeType'>
+              <restriction base='dateTime'>
+                <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
+              </restriction>
+            </simpleType>""")
+        self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
+
+        schema = self.check_schema("""<simpleType name="Percentage">
+              <restriction base="integer">
+                <assertion test="$value >= 0"/>
+                <assertion test="$value &lt;= 100"/>
+              </restriction>
+            </simpleType>""")
+        self.assertTrue(schema.types['Percentage'].is_valid('10'))
+        self.assertTrue(schema.types['Percentage'].is_valid('100'))
+        self.assertTrue(schema.types['Percentage'].is_valid('0'))
+        self.assertFalse(schema.types['Percentage'].is_valid('-1'))
+        self.assertFalse(schema.types['Percentage'].is_valid('101'))
+        self.assertFalse(schema.types['Percentage'].is_valid('90.1'))
 
 
 def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=True):

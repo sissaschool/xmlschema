@@ -13,6 +13,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from __future__ import unicode_literals
 from decimal import Decimal
+from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
@@ -185,10 +186,15 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield result
             elif isinstance(result, Decimal):
                 try:
-                    yield kwargs.get('decimal_type')(result)
-                except TypeError:
+                    yield kwargs['decimal_type'](result)
+                except (KeyError, TypeError):
                     yield result
                 break
+            elif isinstance(result, (AbstractDateTime, Duration)):
+                try:
+                    yield result if kwargs['datetime_types'] is True else str(result)
+                except KeyError:
+                    yield str(result)
             else:
                 yield result
                 break

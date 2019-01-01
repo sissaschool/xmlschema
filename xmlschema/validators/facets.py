@@ -451,10 +451,20 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
                                   default_namespace=default_namespace)
 
         try:
-            return path, parser.parse(path)
+            root_token = parser.parse(path)
         except ElementPathSyntaxError as err:
-            self.parse_error(str(err), elem=elem)
+            self.parse_error(err, elem=elem)
             return path, parser.parse('true()')
+
+        primitive_type = self.base_type.primitive_type
+        context = XPathContext(root=etree_element('root'), variables={'value': primitive_type.value})
+        try:
+            root_token.evaluate(context)
+        except (TypeError, ValueError) as err:
+            self.parse_error(err, elem=elem)
+            return path, parser.parse('true()')
+        else:
+            return path, root_token
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -482,13 +492,10 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
         return '%s(%r)' % (self.__class__.__name__, self.paths)
 
     def __call__(self, value):
-        elem = etree_element('root')
-        try:
-            if not all(token.evaluate(XPathContext(elem, variables={'value': value})) for token in self.tokens):
-                msg = "value is not true with all expressions of %r."
-                yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
-        except TypeError as err:
-            yield XMLSchemaValidationError(self, value, reason=str(err))
+        context = XPathContext(root=etree_element('root'), variables={'value': value})
+        if not all(token.evaluate(context) for token in self.tokens):
+            msg = "value is not true with all expressions of %r."
+            yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
 
 
 XSD_10_FACETS = {

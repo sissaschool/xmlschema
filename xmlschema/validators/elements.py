@@ -13,6 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
+from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
@@ -420,6 +421,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 value = kwargs['decimal_type'](value)
             except (KeyError, TypeError):
                 pass
+        elif isinstance(value, (AbstractDateTime, Duration)):
+            try:
+                if kwargs['datetime_types'] is not True:
+                    value = str(value)
+            except KeyError:
+                value = str(value)
 
         element_data = ElementData(elem.tag, value, content, attributes)
         yield converter.element_decode(element_data, self, level)
