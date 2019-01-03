@@ -314,7 +314,8 @@ XSD_BUILTIN_TYPES = (
     {
         'name': XSD_DATE,
         'python_type': (unicode_type, str, datatypes.Date),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, date_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT), # date_validator),
+        'to_python': datatypes.Date.fromstring,
         'value': datatypes.Date.fromstring('2000-01-01'),
     },  # CCYY-MM-DD
     {
@@ -327,45 +328,50 @@ XSD_BUILTIN_TYPES = (
     {
         'name': XSD_GDAY,
         'python_type': (unicode_type, str, datatypes.GregorianDay),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_day_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT), # g_day_validator),
+        'to_python': datatypes.GregorianDay.fromstring,
         'value': datatypes.GregorianDay.fromstring('---31'),
     },  # DD
     {
         'name': XSD_GMONTH,
         'python_type': (unicode_type, str, datatypes.GregorianMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_month_validator),
+        'to_python': datatypes.GregorianMonth.fromstring,
         'value': datatypes.GregorianMonth.fromstring('--12'),
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
         'python_type': (unicode_type, str, datatypes.GregorianMonthDay),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_day_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_month_day_validator),
+        'to_python': datatypes.GregorianMonthDay.fromstring,
         'value': datatypes.GregorianMonthDay.fromstring('--12-01'),
     },  # MM-DD
     {
         'name': XSD_GYEAR,
         'python_type': (unicode_type, str, datatypes.GregorianYear),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_validator),
+        'to_python': datatypes.GregorianYear.fromstring,
         'value': datatypes.GregorianYear.fromstring('1999'),
     },  # CCYY
     {
         'name': XSD_GYEAR_MONTH,
         'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_month_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_month_validator),
+        'to_python': datatypes.GregorianYearMonth.fromstring,
         'value': datatypes.GregorianYearMonth.fromstring('1999-09'),
     },  # CCYY-MM
     {
         'name': XSD_TIME,
         'python_type': (unicode_type, str, datatypes.Time),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, time_validator),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # time_validator),
+        'to_python': datatypes.Time.fromstring,
         'value': datatypes.Time.fromstring('09:26:54'),
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
         'python_type': (unicode_type, str, datatypes.Duration),
-        'facets': (
-            FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, duration_validator
-        ),
+        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # duration_validator),
+        'to_python': datatypes.Duration.fromstring,
         'value': datatypes.Duration.fromstring('P1MT1S'),
     },  # PnYnMnDTnHnMnS
 
