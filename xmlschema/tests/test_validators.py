@@ -748,19 +748,13 @@ class TestDecoding(XMLSchemaTestCase):
         xs = self.get_schema('<element name="dt1" type="dateTime"/>')
         self.assertEqual(xs.decode('<ns:dt1 xmlns:ns="ns">2019-01-01T13:40:00</ns:dt1>'), '2019-01-01T13:40:00')
         self.assertEqual(xs.decode('<ns:dt1 xmlns:ns="ns">2019-01-01T13:40:00</ns:dt1>', datetime_types=True),
-                         datatypes.DateTime.fromstring('2019-01-01T13:40:00'))
+                         datatypes.DateTime10.fromstring('2019-01-01T13:40:00'))
 
         xs = self.get_schema('<element name="dur1" type="duration"/>')
         self.assertEqual(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>'), 'P5Y3M2DT12H30.001S')
         print(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>', datetime_types=True))
         self.assertEqual(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>', datetime_types=True),
                          datatypes.Duration.fromstring('P5Y3M2DT12H30.001S'))
-
-        return
-        xt = _ElementTree.XML('<ns:data xmlns:ns="ns">'
-                              '<dateTimeWithTZOffset>2019-01-01T13:40:00</dateTimeWithTZOffset>'
-                              '</ns:data>')
-        print(self.st_schema.decode(xt))
 
     def test_converters(self):
         filename = self.col_xml_file

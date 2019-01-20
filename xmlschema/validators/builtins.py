@@ -277,7 +277,7 @@ COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': '
 REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': 'replace'})
 
 
-XSD_BUILTIN_TYPES = (
+XSD_COMMON_BUILTIN_TYPES = (
     # ***********************
     # *** Primitive types ***
     # ***********************
@@ -310,21 +310,7 @@ XSD_BUILTIN_TYPES = (
         'value': 1.0,
     },  # 32 bit floating point
 
-    # ---Dates and Times---
-    {
-        'name': XSD_DATE,
-        'python_type': (unicode_type, str, datatypes.Date),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT), # date_validator),
-        'to_python': datatypes.Date.fromstring,
-        'value': datatypes.Date.fromstring('2000-01-01'),
-    },  # CCYY-MM-DD
-    {
-        'name': XSD_DATETIME,
-        'python_type': (unicode_type, str, datatypes.DateTime),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # datetime_validator),
-        'to_python': datatypes.DateTime.fromstring,
-        'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
-    },  # CCYY-MM-DDThh:mm:ss
+    # --- Dates and Times (not year related) ---
     {
         'name': XSD_GDAY,
         'python_type': (unicode_type, str, datatypes.GregorianDay),
@@ -346,20 +332,6 @@ XSD_BUILTIN_TYPES = (
         'to_python': datatypes.GregorianMonthDay.fromstring,
         'value': datatypes.GregorianMonthDay.fromstring('--12-01'),
     },  # MM-DD
-    {
-        'name': XSD_GYEAR,
-        'python_type': (unicode_type, str, datatypes.GregorianYear),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_validator),
-        'to_python': datatypes.GregorianYear.fromstring,
-        'value': datatypes.GregorianYear.fromstring('1999'),
-    },  # CCYY
-    {
-        'name': XSD_GYEAR_MONTH,
-        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_month_validator),
-        'to_python': datatypes.GregorianYearMonth.fromstring,
-        'value': datatypes.GregorianYearMonth.fromstring('1999-09'),
-    },  # CCYY-MM
     {
         'name': XSD_TIME,
         'python_type': (unicode_type, str, datatypes.Time),
@@ -554,14 +526,77 @@ XSD_BUILTIN_TYPES = (
         'base_type': XSD_NON_POSITIVE_INTEGER,
         'facets': [negative_int_validator]
     },  # only negative value allowed [< 0]
+)
 
+XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+    # --- Year related primitive types (year 0 not allowed) ---
+    {
+        'name': XSD_DATETIME,
+        'python_type': (unicode_type, str, datatypes.DateTime),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # datetime_validator),
+        'to_python': datatypes.DateTime10.fromstring,
+        'value': datatypes.DateTime10.fromstring('2000-01-01T12:00:00'),
+    },  # CCYY-MM-DDThh:mm:ss
+    {
+        'name': XSD_DATE,
+        'python_type': (unicode_type, str, datatypes.Date),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT), # date_validator),
+        'to_python': datatypes.Date10.fromstring,
+        'value': datatypes.Date10.fromstring('2000-01-01'),
+    },  # [-][Y*]YYYY-MM-DD
+    {
+        'name': XSD_GYEAR,
+        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_validator),
+        'to_python': datatypes.GregorianYear10.fromstring,
+        'value': datatypes.GregorianYear10.fromstring('1999'),
+    },  # [-][Y*]YYYY
+    {
+        'name': XSD_GYEAR_MONTH,
+        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_month_validator),
+        'to_python': datatypes.GregorianYearMonth10.fromstring,
+        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+    },  # [-][Y*]YYYY-MM
+)
+
+XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+    # --- Year related primitive types (year 0 allowed and mapped to 1 BCE) ---
+    {
+        'name': XSD_DATETIME,
+        'python_type': (unicode_type, str, datatypes.DateTime),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # datetime_validator),
+        'to_python': datatypes.DateTime.fromstring,
+        'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
+    },  # [-][Y*]YYYY-MM-DDThh:mm:ss
+    {
+        'name': XSD_DATE,
+        'python_type': (unicode_type, str, datatypes.Date),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # date_validator),
+        'to_python': datatypes.Date.fromstring,
+        'value': datatypes.Date.fromstring('2000-01-01'),
+    },  # [-][Y*]YYYY-MM-DD
+    {
+        'name': XSD_GYEAR,
+        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_validator),
+        'to_python': datatypes.GregorianYear10.fromstring,
+        'value': datatypes.GregorianYear10.fromstring('1999'),
+    },  # [-][Y*]YYYY
+    {
+        'name': XSD_GYEAR_MONTH,
+        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),  # g_year_month_validator),
+        'to_python': datatypes.GregorianYearMonth10.fromstring,
+        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+    },  # [-][Y*]YYYY-MM
     # --- Datetime derived types (XSD 1.1) ---
     {
         'name': XSD_DATE_TIME_STAMP,
         'python_type': (unicode_type, str),
         'base_type': XSD_DATETIME,
         'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, attrib={'value': 'required'})],
-    },  # CCYY-MM-DDThh:mm:ss with required timezone
+    },  # [-][Y*]YYYY-MM-DDThh:mm:ss with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
         'python_type': (unicode_type, str),
@@ -634,12 +669,12 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     )
 
     xsd_class = xsd_class or XsdAtomicBuiltin
-    if meta_schema.XSD_VERSION == '1.0':
-        slicing = slice(-3)
+    if meta_schema.XSD_VERSION == '1.1':
+        builtin_types = XSD_11_BUILTIN_TYPES
     else:
-        slicing = slice(len(XSD_BUILTIN_TYPES))
+        builtin_types = XSD_10_BUILTIN_TYPES
 
-    for item in XSD_BUILTIN_TYPES[slicing]:
+    for item in builtin_types:
         item = item.copy()
         name = item['name']
         try:
