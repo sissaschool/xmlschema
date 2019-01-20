@@ -45,6 +45,7 @@ from xmlschema.etree import (
 )
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.helpers import local_name
+from xmlschema.validators import XMLSchema11
 
 _VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -745,15 +746,15 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xd, _DATA_DICT)
 
     def test_datetime_types(self):
-        xs = self.get_schema('<element name="dt1" type="dateTime"/>')
-        self.assertEqual(xs.decode('<ns:dt1 xmlns:ns="ns">2019-01-01T13:40:00</ns:dt1>'), '2019-01-01T13:40:00')
-        self.assertEqual(xs.decode('<ns:dt1 xmlns:ns="ns">2019-01-01T13:40:00</ns:dt1>', datetime_types=True),
+        xs = self.get_schema('<element name="dt" type="dateTime"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
                          datatypes.DateTime10.fromstring('2019-01-01T13:40:00'))
 
-        xs = self.get_schema('<element name="dur1" type="duration"/>')
-        self.assertEqual(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>'), 'P5Y3M2DT12H30.001S')
-        print(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>', datetime_types=True))
-        self.assertEqual(xs.decode('<ns:dur1 xmlns:ns="ns">P5Y3MT60H30.001S</ns:dur1>', datetime_types=True),
+    def test_duration_type(self):
+        xs = self.get_schema('<element name="td" type="duration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>'), 'P5Y3MT60H30.001S')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True),
                          datatypes.Duration.fromstring('P5Y3M2DT12H30.001S'))
 
     def test_converters(self):
@@ -900,6 +901,27 @@ class TestDecoding(XMLSchemaTestCase):
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), 'bar')
         self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
+
+class TestDecoding11(TestDecoding):
+    schema_class = XMLSchema11
+
+    def test_datetime_types(self):
+        xs = self.get_schema('<element name="dt" type="dateTime"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
+                         datatypes.DateTime.fromstring('2019-01-01T13:40:00'))
+
+    def test_derived_duration_types(self):
+        xs = self.get_schema('<element name="td" type="yearMonthDuration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P0Y4M</ns:td>'), 'P0Y4M')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2Y10M</ns:td>', datetime_types=True),
+                         datatypes.Duration.fromstring('P2Y10M'))
+
+        xs = self.get_schema('<element name="td" type="dayTimeDuration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>'), 'P2DT6H30M30.001S')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT26H</ns:td>'), 'P2DT26H')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>', datetime_types=True),
+                         datatypes.Duration.fromstring('P2DT6H30M30.001S'))
 
 
 class TestEncoding(XMLSchemaTestCase):

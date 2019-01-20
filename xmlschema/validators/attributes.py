@@ -192,9 +192,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 break
             elif isinstance(result, (AbstractDateTime, Duration)):
                 try:
-                    yield result if kwargs['datetime_types'] is True else str(result)
+                    yield result if kwargs['datetime_types'] is True else text
                 except KeyError:
-                    yield str(result)
+                    yield text
             else:
                 yield result
                 break

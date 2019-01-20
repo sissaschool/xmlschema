@@ -424,9 +424,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elif isinstance(value, (AbstractDateTime, Duration)):
             try:
                 if kwargs['datetime_types'] is not True:
-                    value = str(value)
+                    value = elem.text
             except KeyError:
-                value = str(value)
+                value = elem.text
 
         element_data = ElementData(elem.tag, value, content, attributes)
         yield converter.element_decode(element_data, self, level)
