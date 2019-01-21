@@ -33,9 +33,8 @@ if __name__ == '__main__':
     from xmlschema.tests.test_resources import TestResources
     from xmlschema.tests.test_models import TestModelValidation
     from xmlschema.tests.test_schemas import make_schema_test_class, TestXMLSchema10, TestXMLSchema11
-    from xmlschema.tests.test_validators import (
-        make_validator_test_class, TestValidation, TestDecoding, TestEncoding
-    )
+    from xmlschema.tests.test_validators import make_validator_test_class, TestValidation, TestDecoding, \
+        TestDecoding11, TestEncoding, TestEncoding11
     from xmlschema.tests.test_package import TestPackaging
 
     print_test_header()

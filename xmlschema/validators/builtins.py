@@ -394,7 +394,7 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
         'to_python': datatypes.DateTime10.fromstring,
         'value': datatypes.DateTime10.fromstring('2000-01-01T12:00:00'),
-    },  # CCYY-MM-DDThh:mm:ss
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
         'python_type': (unicode_type, str, datatypes.Date),
@@ -426,7 +426,7 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
         'to_python': datatypes.DateTime.fromstring,
         'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
-    },  # [-][Y*]YYYY-MM-DDThh:mm:ss
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
         'python_type': (unicode_type, str, datatypes.Date),
@@ -453,8 +453,9 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'name': XSD_DATE_TIME_STAMP,
         'python_type': (unicode_type, str),
         'base_type': XSD_DATETIME,
+        'to_python': datatypes.DateTime.fromstring,
         'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, attrib={'value': 'required'})],
-    },  # [-][Y*]YYYY-MM-DDThh:mm:ss with required timezone
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
         'python_type': (unicode_type, str),

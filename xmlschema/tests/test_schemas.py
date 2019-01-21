@@ -594,7 +594,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
     rel_path = os.path.relpath(test_file)
     class_name = 'Test{}_{:03}'.format(schema_class.__name__, test_num)
     return type(
-        class_name, (XMLSchemaTestCase,), {
+        class_name if PY3 else str(class_name), (XMLSchemaTestCase,), {
             'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema
         })
 

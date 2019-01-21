@@ -564,7 +564,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 schema = lxml_etree.XMLSchema(self.lxml_schema.getroot())
             except lxml_etree.XMLSchemaParseError:
                 print("\nSkip lxml.etree.XMLSchema validation test for {!r} ({})".
-                    format(rel_path, TestValidator.__name__, ))
+                      format(rel_path, TestValidator.__name__, ))
             else:
                 xml_tree = lxml_etree_parse(xml_file)
                 if self.errors:
@@ -751,6 +751,11 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
                          datatypes.DateTime10.fromstring('2019-01-01T13:40:00'))
 
+        xs = self.get_schema('<element name="dt" type="date"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+                         datatypes.Date10.fromstring('2001-04-15'))
+
     def test_duration_type(self):
         xs = self.get_schema('<element name="td" type="duration"/>')
         self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>'), 'P5Y3MT60H30.001S')
@@ -902,6 +907,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 
+
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
 
@@ -910,6 +916,11 @@ class TestDecoding11(TestDecoding):
         self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
         self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
                          datatypes.DateTime.fromstring('2019-01-01T13:40:00'))
+
+        xs = self.get_schema('<element name="dt" type="date"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+                         datatypes.Date.fromstring('2001-04-15'))
 
     def test_derived_duration_types(self):
         xs = self.get_schema('<element name="td" type="yearMonthDuration"/>')
@@ -1128,6 +1139,10 @@ class TestEncoding(XMLSchemaTestCase):
             data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
             expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
+
+
+class TestEncoding11(TestEncoding):
+    schema_class = XMLSchema11
 
 
 if __name__ == '__main__':
