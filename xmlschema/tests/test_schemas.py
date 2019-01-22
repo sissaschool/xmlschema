@@ -33,7 +33,7 @@ from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.etree import lxml_etree
-from xmlschema.etree import defused_etree
+from xmlschema.etree import etree_safe_parse, etree_safe_iterparse, etree_safe_fromstring
 
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
@@ -397,12 +397,12 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertTrue(isinstance(dcterms_schema, self.schema_class))
 
         # Check XML resource defusing
-        self.assertEqual(dc_schema.source.parse, defused_etree.parse)
-        self.assertEqual(dc_schema.source.iterparse, defused_etree.iterparse)
-        self.assertEqual(dc_schema.source.fromstring, defused_etree.fromstring)
-        self.assertEqual(dcterms_schema.source.parse, defused_etree.parse)
-        self.assertEqual(dcterms_schema.source.iterparse, defused_etree.iterparse)
-        self.assertEqual(dcterms_schema.source.fromstring, defused_etree.fromstring)
+        self.assertEqual(dc_schema.source.parse, etree_safe_parse)
+        self.assertEqual(dc_schema.source.iterparse, etree_safe_iterparse)
+        self.assertEqual(dc_schema.source.fromstring, etree_safe_fromstring)
+        self.assertEqual(dcterms_schema.source.parse, etree_safe_parse)
+        self.assertEqual(dcterms_schema.source.iterparse, etree_safe_iterparse)
+        self.assertEqual(dcterms_schema.source.fromstring, etree_safe_fromstring)
 
 
 class TestXMLSchema11(TestXMLSchema10):

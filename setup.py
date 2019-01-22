@@ -17,7 +17,7 @@ with open("README.rst") as readme:
 setup(
     name='xmlschema',
     version='1.0.8',
-    install_requires=['elementpath>=1.1.1', 'defusedxml>=0.5'],
+    install_requires=['elementpath>=1.1.2'],
     packages=['xmlschema'],
     include_package_data=True,
     author='Davide Brunato',

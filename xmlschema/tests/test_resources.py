@@ -35,9 +35,8 @@ from xmlschema import (
 )
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
-from xmlschema.etree import (
-    ElementTree, defused_etree, etree_parse, etree_iterparse, etree_fromstring, lxml_etree_parse, is_etree_element
-)
+from xmlschema.etree import ElementTree, etree_parse, etree_iterparse, etree_fromstring, \
+    etree_safe_parse, etree_safe_iterparse, etree_safe_fromstring, lxml_etree_parse, is_etree_element
 
 
 def is_windows_path(path):
@@ -278,9 +277,9 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(resource.fromstring, etree_fromstring)
 
         resource.defuse = 'always'
-        self.assertEqual(resource.parse, defused_etree.parse)
-        self.assertEqual(resource.iterparse, defused_etree.iterparse)
-        self.assertEqual(resource.fromstring, defused_etree.fromstring)
+        self.assertEqual(resource.parse, etree_safe_parse)
+        self.assertEqual(resource.iterparse, etree_safe_iterparse)
+        self.assertEqual(resource.fromstring, etree_safe_fromstring)
 
         resource.defuse = 'remote'
         self.assertEqual(resource.parse, etree_parse)
@@ -288,9 +287,9 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(resource.fromstring, etree_fromstring)
 
         resource._url = 'http://localhost'
-        self.assertEqual(resource.parse, defused_etree.parse)
-        self.assertEqual(resource.iterparse, defused_etree.iterparse)
-        self.assertEqual(resource.fromstring, defused_etree.fromstring)
+        self.assertEqual(resource.parse, etree_safe_parse)
+        self.assertEqual(resource.iterparse, etree_safe_iterparse)
+        self.assertEqual(resource.fromstring, etree_safe_fromstring)
 
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse=None)

@@ -5,6 +5,7 @@ CHANGELOG
 `v1.0.8`_ (TBD)
 ===============
 * DateTime XSD builtin types decoding
+* Dependency *defusedxml* package replaced by a custom XMLParser
 
 `v1.0.7`_ (2018-11-15)
 ======================

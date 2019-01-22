@@ -28,12 +28,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.etree import defused_etree, etree_tostring
-
-# Import ElementTree and defusedxml.ElementTree
-import xml.etree.ElementTree as ElementTree         # Original module with C extensions
-defused_etree.fromstring('<A/>')                    # Lazy import of defusedxml.ElementTree
-import xml.etree.ElementTree as PyElementTree       # Pure Python import
+from xmlschema.etree import PyElementTree, etree_tostring
+import xml.etree.ElementTree as ElementTree
 
 
 class TestEnvironment(unittest.TestCase):
@@ -53,10 +49,6 @@ class TestEnvironment(unittest.TestCase):
 
         elem = PyElementTree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element />')
-
-    def test_defused_etree(self):
-        self.assertEqual(defused_etree.element_tree, PyElementTree)
-        self.assertEqual(defused_etree.etree_element, PyElementTree.Element)
 
 
 class TestPackaging(unittest.TestCase):
