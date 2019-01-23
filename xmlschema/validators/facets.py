@@ -424,7 +424,17 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
 
 class XsdAssertionsFacet(MutableSequence, XsdFacet):
+    """
+    Sequence of XSD simpleType assertions.
 
+    <assertion
+      id = ID
+      test = an XPath expression
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </assertion>
+    """
     admitted_tags = {XSD_ASSERTION}
 
     def __init__(self, elem, schema, parent, base_type):

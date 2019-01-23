@@ -13,13 +13,15 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
+from elementpath import XMLSchemaProxy, XPath2Parser, XPathContext, ElementPathSyntaxError
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE
-from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, \
+    get_xsd_derivation_attribute, get_xpath_default_namespace
 from ..etree import etree_element
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -601,12 +603,8 @@ class Xsd11Element(XsdElement):
         self._parse_attributes()
         index = self._parse_type()
         index = self._parse_alternatives(index)
-        if self.type is None:
-            if not self.alternatives:
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
-        elif self.alternatives:
-            self.parse_error("types alternatives incompatible with type specification.")
-
+        if self.type is None and not self.alternatives:
+            self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         self._parse_constraints(index)
         self._parse_substitution_group()
 
@@ -640,6 +638,25 @@ class XsdAlternative(XsdComponent):
     </alternative>
     """
     admitted_tags = {XSD_ALTERNATIVE}
+
+    def _parse(self):
+        XsdComponent._parse(self)
+        elem = self.elem
+        try:
+            self.path = elem.attrib['test']
+        except KeyError as err:
+            self.parse_error(str(err), elem=elem)
+            self.path = 'true()'
+
+        try:
+            default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
+        except ValueError as err:
+            self.parse_error(str(err), elem=elem)
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema))
+        else:
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
+                                  default_namespace=default_namespace)
+        self.token = parser.parse(self.path)
 
     @property
     def built(self):

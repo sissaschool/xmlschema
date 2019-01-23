@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XSD 1.1 schema example with defaultAttributes -->
+<xs:schema xmlns:ns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns">
+
+    <xs:attribute name="choice" type="xs:string"/>
+
+    <xs:element name="value" type="ns:node-type">
+        <xs:alternative test="@choice='int'" type="xs:integer"/>
+        <xs:alternative test="@choice='float'" type="xs:float"/>
+    </xs:element>
+
+    <xs:complexType name="node-type" mixed="true">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute ref="choice"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>
