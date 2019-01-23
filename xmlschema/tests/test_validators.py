@@ -636,6 +636,25 @@ class TestValidation(XMLSchemaTestCase):
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
 
+class TestValidation11(TestValidation):
+    schema_class = XMLSchema11
+
+    def test_default_attributes(self):
+        """<?xml version="1.0" encoding="UTF-8"?>
+                <ns:node xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="ns ./default_attributes.xsd" colour="red">Root Node</ns:node>
+        """
+        xs = self.schema_class(self.abspath('cases/features/attributes/default_attributes.xsd'))
+        self.assertTrue(xs.is_valid("<tree xmlns='ns'>"
+                                    "   <node node-id='1'>alpha</node>"
+                                    "   <node node-id='2' colour='red'>beta</node>"
+                                    "</tree>"))
+        self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
+                                     "   <node>alpha</node>"  # Misses required attribute 
+                                     "   <node node-id='2' colour='red'>beta</node>"
+                                     "</tree>"))
+
+
 class TestDecoding(XMLSchemaTestCase):
 
     def check_decode(self, xsd_component, data, expected, **kwargs):

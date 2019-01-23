@@ -517,4 +517,13 @@ class Xsd11ComplexType(XsdComplexType):
       (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """
-    pass
+    def _parse(self):
+        super(Xsd11ComplexType, self)._parse()
+        if isinstance(self.schema.default_attributes, XsdAttributeGroup) and self.default_attributes_apply:
+            self.attributes.update(
+                (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
+            )
+
+    @property
+    def default_attributes_apply(self):
+        return get_xml_bool_attribute(self.elem, 'defaultAttributesApply', default=True)

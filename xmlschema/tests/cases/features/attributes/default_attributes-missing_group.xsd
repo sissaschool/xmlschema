@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XSD 1.1 schema example with defaultAttributes -->
+<xs:schema xmlns:ns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="ns" defaultAttributes="ns:default_attrs">
+
+    <xs:element name="tree">
+        <xs:complexType defaultAttributesApply="false">
+            <xs:sequence>
+                <xs:element name="node" maxOccurs="unbounded" type="ns:node-type"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="node-type" mixed="true">
+        <xs:simpleContent>
+            <xs:extension base="xs:string"/>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>

@@ -24,6 +24,10 @@ examples/vehicles/vehicles-2_errors.xml --errors=2
 examples/vehicles/vehicles-3_errors.xml --errors=3
 
 # Cases on specific XSD or package features
+features/attributes/default_attributes.xsd --errors=2
+features/attributes/default_attributes.xsd --version=1.1
+features/attributes/default_attributes-missing_group.xsd --version=1.1 --errors=1
+
 features/builtins/builtins.xsd
 features/builtins/builtins.xml
 features/decoder/simple-types.xsd

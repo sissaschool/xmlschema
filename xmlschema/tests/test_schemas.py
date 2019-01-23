@@ -501,11 +501,6 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
     debug_mode = test_args.debug
 
     def test_schema(self):
-        if debug_mode:
-            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
-            import pdb
-            pdb.set_trace()
-
         if inspect:
             SchemaObserver.clear()
 
@@ -538,6 +533,11 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
                 self.assertEqual(context_elements, elements)
 
             return errors_
+
+        if debug_mode:
+            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+            import pdb
+            pdb.set_trace()
 
         start_time = time.time()
         if expected_warnings > 0:

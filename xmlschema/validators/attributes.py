@@ -373,6 +373,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
 
+        if self.parent is None and getattr(self.schema, 'default_attributes', None) == self.name:
+            self.schema.default_attributes = self
+
     @property
     def built(self):
         return all([attr.built for attr in self.values()])

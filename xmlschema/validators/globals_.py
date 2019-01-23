@@ -19,7 +19,7 @@ from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueEr
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
-from ..helpers import get_qname, local_name, prefixed_to_qname
+from ..helpers import get_qname, local_name, prefixed_to_qname, qname_to_prefixed
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
@@ -425,6 +425,12 @@ class XsdGlobals(XsdValidator):
                 # if schema.validation != 'skip':
                 #     for xsd_type in schema.iter_components(XsdComplexType):
                 #         xsd_type.check_restriction()
+
+            if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
+                if not isinstance(schema.default_attributes, XsdAttributeGroup):
+                    schema.default_attributes = None
+                    schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
+                                       .format(schema.root.get('defaultAttributes'), schema), schema.root)
 
         if self.validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map %r not built!" % self)

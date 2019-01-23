@@ -9,7 +9,20 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains XMLSchema class creator for xmlschema package.
+This module contains XMLSchema classes creator for xmlschema package.
+
+Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.0 and
+XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
+the standard.
+
+Those are the differences between XSD 1.0 and XSD 1.1 and their current development status:
+
+  * All model extended for content groups
+  * Assertions for simple types
+  * Default attributes for complex types
+  * TODO: Alternative type for elements
+  * TODO: Assert for complex types
+  * TODO: OpenContent for complex types
 """
 import os
 from collections import namedtuple
@@ -21,7 +34,8 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
+from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute, \
+    get_xpath_default_namespace
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring
@@ -247,6 +261,24 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         self.converter = self.get_converter(converter)
 
+        # XSD 1.1 attributes "defaultAttributes" and "xpathDefaultNamespace"
+        if self.XSD_VERSION > '1.0':
+            try:
+                self.default_attributes = prefixed_to_qname(root.attrib['defaultAttributes'], self.namespaces)
+            except KeyError:
+                self.default_attributes = None
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error), root)
+                self.default_attributes = None
+
+            try:
+                self.xpath_default_namespace = get_xpath_default_namespace(
+                    root, self.namespaces[''], self.target_namespace, default=''
+                )
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error), root)
+                self.xpath_default_namespace = self.namespaces['']
+
         # Create or set the XSD global maps instance
         if global_maps is None:
             if self.meta_schema is None:
@@ -270,6 +302,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
+
         # Validate the schema document
         if self.meta_schema is None:
             # Base schemas use single file and don't have to be checked
@@ -279,16 +312,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         elif validation == 'lax':
             self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
 
-        # XSD 1.1 xpathDefaultNamespace attribute
-        if self.XSD_VERSION > '1.0':
-            try:
-                self.xpath_default_namespace = get_xpath_default_namespace(
-                    root, self.namespaces[''], self.target_namespace, default=''
-                )
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error), root)
-                self.xpath_default_namespace = self.namespaces['']
-
+        # Includes and imports schemas (errors are treated as warnings)
         self.warnings.extend(self._include_schemas())
         self.warnings.extend(self._import_namespaces())
 
@@ -866,7 +890,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
 
 class XMLSchema10(XMLSchemaBase):
-    """XSD 1.0 Schema class"""
+    """
+    XSD 1.0 schema class.
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
+      attributeGroup) | element | attribute | notation), annotation*)*)
+    </schema>
+    """
     XSD_VERSION = '1.0'
     FACETS = XSD_10_FACETS
     BUILDERS = {
@@ -892,7 +932,39 @@ class XMLSchema10(XMLSchemaBase):
 
 # ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
 class XMLSchema11(XMLSchemaBase):
-    """XSD 1.1 Schema class"""
+    """
+    XSD 1.1 schema class.
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      defaultAttributes = QName
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))  : ##local
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | override | annotation)*, (defaultOpenContent, annotation*)?,
+      ((simpleType | complexType | group | attributeGroup | element | attribute | notation), annotation*)*)
+    </schema>
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
+      attributeGroup) | element | attribute | notation), annotation*)*)
+    </schema>
+    """
     XSD_VERSION = '1.1'
     FACETS = XSD_11_FACETS
     BUILDERS = {
