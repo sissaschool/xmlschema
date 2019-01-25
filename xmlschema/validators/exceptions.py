@@ -112,7 +112,7 @@ class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
         )
 
 
-class XMLSchemaParseError(XMLSchemaValidatorError, ValueError):
+class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):
     """
     Raised when an error is found during the building of an XSD validator.
 

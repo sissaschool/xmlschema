@@ -35,8 +35,7 @@ from xmlschema import (
 )
 from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
-from xmlschema.etree import ElementTree, etree_parse, etree_iterparse, etree_fromstring, \
-    etree_safe_parse, etree_safe_iterparse, etree_safe_fromstring, lxml_etree_parse, is_etree_element
+from xmlschema.etree import ElementTree, lxml_etree, is_etree_element
 
 
 def is_windows_path(path):
@@ -148,7 +147,7 @@ class TestResources(XMLSchemaTestCase):
         self.assertTrue(resource.text.startswith('<?xml'))
 
     def test_xml_resource_from_element_tree(self):
-        vh_etree = etree_parse(self.vh_xml_file)
+        vh_etree = ElementTree.parse(self.vh_xml_file)
         vh_root = vh_etree.getroot()
 
         resource = XMLResource(vh_etree)
@@ -169,9 +168,9 @@ class TestResources(XMLSchemaTestCase):
         resource.load()
         self.assertIsNone(resource.text)
 
-    @unittest.skipIf(lxml_etree_parse is None, "Skip: lxml is not installed.")
+    @unittest.skipIf(lxml_etree is None, "Skip: lxml is not available.")
     def test_xml_resource_from_lxml(self):
-        vh_etree = lxml_etree_parse(self.vh_xml_file)
+        vh_etree = lxml_etree.parse(self.vh_xml_file)
         vh_root = vh_etree.getroot()
 
         resource = XMLResource(vh_etree)
@@ -272,25 +271,6 @@ class TestResources(XMLSchemaTestCase):
     def test_xml_resource_defuse(self):
         resource = XMLResource(self.vh_xml_file, defuse='never')
         self.assertEqual(resource.defuse, 'never')
-        self.assertEqual(resource.parse, etree_parse)
-        self.assertEqual(resource.iterparse, etree_iterparse)
-        self.assertEqual(resource.fromstring, etree_fromstring)
-
-        resource.defuse = 'always'
-        self.assertEqual(resource.parse, etree_safe_parse)
-        self.assertEqual(resource.iterparse, etree_safe_iterparse)
-        self.assertEqual(resource.fromstring, etree_safe_fromstring)
-
-        resource.defuse = 'remote'
-        self.assertEqual(resource.parse, etree_parse)
-        self.assertEqual(resource.iterparse, etree_iterparse)
-        self.assertEqual(resource.fromstring, etree_fromstring)
-
-        resource._url = 'http://localhost'
-        self.assertEqual(resource.parse, etree_safe_parse)
-        self.assertEqual(resource.iterparse, etree_safe_iterparse)
-        self.assertEqual(resource.fromstring, etree_safe_fromstring)
-
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse=None)
 

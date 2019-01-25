@@ -51,21 +51,29 @@ else:
     # If Python 2 or if the C module is not available
     PyElementTree = ElementTree
 
+
 # ElementTree APIs
 etree_element = ElementTree.Element
-etree_parse_error = ElementTree.ParseError
-etree_parse = ElementTree.parse
-etree_iterparse = ElementTree.iterparse
-etree_fromstring = ElementTree.fromstring
 etree_register_namespace = ElementTree.register_namespace
+ParseError = ElementTree.ParseError
 
 etree_register_namespace('xslt', XSLT_NAMESPACE)
 etree_register_namespace('hfp', HFP_NAMESPACE)
 etree_register_namespace('vc', VC_NAMESPACE)
 
+
+# Pure Python ElementTree APIs
+py_etree_element = PyElementTree.Element
+py_etree_register_namespace = ElementTree.register_namespace
+PyParseError = PyElementTree.ParseError
+
+py_etree_register_namespace('xslt', XSLT_NAMESPACE)
+py_etree_register_namespace('hfp', HFP_NAMESPACE)
+py_etree_register_namespace('vc', VC_NAMESPACE)
+
+
 # Lxml APIs
 if lxml_etree is not None:
-    lxml_etree_parse = lxml_etree.parse
     lxml_etree_element = lxml_etree.Element
     lxml_etree_comment = lxml_etree.Comment
     lxml_etree_register_namespace = lxml_etree.register_namespace
@@ -74,32 +82,21 @@ if lxml_etree is not None:
     lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
     lxml_etree_register_namespace('vc', VC_NAMESPACE)
 else:
-    lxml_etree_parse = None
     lxml_etree_element = None
     lxml_etree_comment = None
     lxml_etree_register_namespace = None
 
 
-# Pure Python APIs
-py_etree_element = PyElementTree.Element
-py_etree_parse_error = PyElementTree.ParseError
-py_etree_register_namespace = ElementTree.register_namespace
-
-py_etree_register_namespace('xslt', XSLT_NAMESPACE)
-py_etree_register_namespace('hfp', HFP_NAMESPACE)
-py_etree_register_namespace('vc', VC_NAMESPACE)
-
-
-# Safe XML Parser and APIs
-class SafeXMLParserError(PyElementTree.ParseError):
-    pass
-
-
 class SafeXMLParser(PyElementTree.XMLParser):
     """
-    An XMLParser that forbids entities processing.
+    An XMLParser that forbids entities processing. Drops the *html* argument that is deprecated
+    since version 3.4.
+
+    :param target: the target object called by the `feed()` method of the parser, \
+    that defaults to `TreeBuilder`.
+    :param encoding: if provided, its value overrides the encoding specified in the XML file.
     """
-    def __init__(self, html=0, target=None, encoding=None):
+    def __init__(self, target=None, encoding=None):
         super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
         parser = self.parser if PY3 else self._parser
         parser.EntityDeclHandler = self.entity_declaration
@@ -107,34 +104,15 @@ class SafeXMLParser(PyElementTree.XMLParser):
         parser.ExternalEntityRefHandler = self.external_entity_reference
 
     def entity_declaration(self, entity_name, is_parameter_entity, value, base, system_id, public_id, notation_name):
-        raise SafeXMLParserError("Entities are forbidden (entity_name={!r})".format(entity_name))
+        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
 
     def unparsed_entity_declaration(self, entity_name, base, system_id, public_id, notation_name):
-        raise SafeXMLParserError("Entities are forbidden (entity_name={!r})".format(entity_name))
+        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
 
     def external_entity_reference(self, context, base, system_id, public_id):
-        raise SafeXMLParserError(
+        raise ParseError(
             "External references are forbidden (system_id={!r}, public_id={!r})".format(system_id, public_id)
         )
-
-
-def etree_safe_parse(source, parser=None):
-    if parser is None:
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-    return PyElementTree.parse(source, parser)
-
-
-def etree_safe_iterparse(source, events=None, parser=None):
-    if parser is None:
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-    return PyElementTree.iterparse(source, events, parser)
-
-
-def etree_safe_fromstring(text, parser=None):
-    if parser is None:
-        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-    parser.feed(text)
-    return parser.close()
 
 
 def is_etree_element(elem):

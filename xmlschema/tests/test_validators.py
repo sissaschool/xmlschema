@@ -30,8 +30,6 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xml.etree import ElementTree as _ElementTree
-
 from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
@@ -39,10 +37,8 @@ from xmlschema import (
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema.etree import (
-    etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
-    etree_elements_assert_equal, lxml_etree, lxml_etree_parse, lxml_etree_element
-)
+from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
+    etree_elements_assert_equal, lxml_etree, lxml_etree_element
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.helpers import local_name
 from xmlschema.validators import XMLSchema11
@@ -490,7 +486,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
             self.assertEqual(skip_data, self.chunks[0], msg_template % "'skip' validation has a different result")
 
         def check_encoding_with_element_tree(self):
-            root = etree_parse(xml_file).getroot()
+            root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
@@ -510,7 +506,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
             self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_decoding_and_encoding_with_lxml(self):
-            xml_tree = lxml_etree_parse(xml_file)
+            xml_tree = lxml_etree.parse(xml_file)
             namespaces = fetch_namespaces(xml_file)
             errors = []
             chunks = []
@@ -566,7 +562,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 print("\nSkip lxml.etree.XMLSchema validation test for {!r} ({})".
                       format(rel_path, TestValidator.__name__, ))
             else:
-                xml_tree = lxml_etree_parse(xml_file)
+                xml_tree = lxml_etree.parse(xml_file)
                 if self.errors:
                     self.assertFalse(schema.validate(xml_tree))
                 else:
@@ -581,7 +577,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
             if not self.errors:
                 self.check_encoding_with_element_tree()
 
-            if lxml_etree_parse is not None:
+            if lxml_etree is not None:
                 self.check_decoding_and_encoding_with_lxml()
 
             self.check_iter_errors()
@@ -603,11 +599,11 @@ class TestValidation(XMLSchemaTestCase):
         else:
             self.assertFalse(xsd_component.is_valid(data, use_defaults))
 
-    @unittest.skipIf(lxml_etree_parse is None, "The lxml library is not installed.")
+    @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
         xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
-        xt1 = lxml_etree_parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
-        xt2 = lxml_etree_parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
+        xt1 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        xt2 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
         self.assertTrue(xs.is_valid(xt1))
         self.assertFalse(xs.is_valid(xt2))
         self.assertTrue(xs.validate(xt1) is None)
@@ -632,7 +628,7 @@ class TestValidation(XMLSchemaTestCase):
         self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
 
         # Issue #80
-        vh_2_xt = _ElementTree.parse(vh_2_file)
+        vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
 
@@ -670,15 +666,15 @@ class TestDecoding(XMLSchemaTestCase):
                 self.assertEqual(expected, obj)
                 self.assertTrue(isinstance(obj, type(expected)))
 
-    @unittest.skipIf(lxml_etree_parse is None, "Skip if lxml library is not installed.")
+    @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
-        vh_xml_tree = lxml_etree_parse(self.vh_xml_file)
+        vh_xml_tree = lxml_etree.parse(self.vh_xml_file)
         self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
         self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
-        col_xml_tree = _ElementTree.parse(self.col_xml_file)
+        vh_xml_tree = ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = ElementTree.parse(self.col_xml_file)
 
         xml_dict = self.vh_schema.to_dict(vh_xml_tree)
         self.assertNotEqual(xml_dict, _VEHICLES_DICT)
@@ -718,8 +714,8 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_json_dump_and_load(self):
-        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
-        col_xml_tree = _ElementTree.parse(self.col_xml_file)
+        vh_xml_tree = ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = ElementTree.parse(self.col_xml_file)
         with open(self.vh_json_file, 'w') as f:
             xmlschema.to_json(self.vh_xml_file, f)
 
@@ -739,7 +735,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_etree_elements(col_xml_tree, root)
 
     def test_path(self):
-        xt = _ElementTree.parse(self.vh_xml_file)
+        xt = ElementTree.parse(self.vh_xml_file)
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:cars', namespaces=self.vh_namespaces)
         self.assertEqual(xd['vh:car'], _VEHICLES_DICT['vh:cars']['vh:car'])
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.vh_namespaces)
@@ -749,18 +745,18 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
+            ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
             namespaces=self.vh_namespaces
         )
 
     def test_validation_skip(self):
-        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
+        xt = ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
         xd = self.st_schema.decode(xt, validation='skip', namespaces={'ns': 'ns'})
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes(self):
-        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
+        xt = ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
         xd = self.st_schema.to_dict(xt, namespaces=self.default_namespaces)
         self.assertEqual(xd, _DATA_DICT)
 
@@ -816,9 +812,9 @@ class TestDecoding(XMLSchemaTestCase):
 
     def test_any_type(self):
         any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
-        xml_data_1 = _ElementTree.Element('dummy')
+        xml_data_1 = ElementTree.Element('dummy')
         self.assertEqual(any_type.decode(xml_data_1), (None, [], []))
-        xml_data_2 = _ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
+        xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
         self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
 
     def test_choice_model_decoding(self):
@@ -913,7 +909,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(xsd_schema.is_valid(source=xml_string_1, use_defaults=False))
         self.assertTrue(xsd_schema.is_valid(source=xml_string_2, use_defaults=False))
         obj = xsd_schema.decode(xml_string_2, use_defaults=False)
-        self.check_etree_elements(etree_fromstring(xml_string_2), xsd_schema.encode(obj))
+        self.check_etree_elements(ElementTree.fromstring(xml_string_2), xsd_schema.encode(obj))
 
     def test_default_namespace(self):
         # Issue #77
@@ -975,7 +971,7 @@ class TestEncoding(XMLSchemaTestCase):
 
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
-        xt = _ElementTree.parse(filename)
+        xt = ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=ordered_dict_class)
         elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.col_namespaces)
 
@@ -1118,15 +1114,15 @@ class TestEncoding(XMLSchemaTestCase):
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
-            etree_fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
+            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1},
-            etree_fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
+            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '$': 'simple '},
-            etree_fromstring('<A xmlns="ns" a1="10">simple </A>')
+            ElementTree.fromstring('<A xmlns="ns" a1="10">simple </A>')
         )
         self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
 
