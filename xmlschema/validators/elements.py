@@ -13,7 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
-from elementpath import XMLSchemaProxy, XPath2Parser, XPathContext, ElementPathSyntaxError
+from elementpath import XPath2Parser, ElementPathSyntaxError
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
@@ -645,18 +645,23 @@ class XsdAlternative(XsdComponent):
         try:
             self.path = elem.attrib['test']
         except KeyError as err:
-            self.parse_error(str(err), elem=elem)
+            self.parse_error(err, elem=elem)
             self.path = 'true()'
 
         try:
             default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
         except ValueError as err:
-            self.parse_error(str(err), elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema))
+            self.parse_error(err, elem=elem)
+            parser = XPath2Parser(self.namespaces, strict=False)
         else:
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  default_namespace=default_namespace)
-        self.token = parser.parse(self.path)
+            parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+
+        try:
+            self.token = parser.parse(self.path)
+        except ElementPathSyntaxError as err:
+            self.parse_error(err, elem=elem)
+            self.token = parser.parse('true()')
+            self.path = 'true()'
 
     @property
     def built(self):

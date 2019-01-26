@@ -511,9 +511,16 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
 
             # Pickling test (only for Python 3, skip inspected schema classes test)
             if not inspect and PY3:
-                deserialized_schema = pickle.loads(pickle.dumps(xs))
-                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
-                self.assertEqual(xs.built, deserialized_schema.built)
+                try:
+                    obj = pickle.dumps(xs)
+                    deserialized_schema = pickle.loads(obj)
+                except pickle.PicklingError:
+                    import pdb
+                    pdb.set_trace()
+                    raise
+                else:
+                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                    self.assertEqual(xs.built, deserialized_schema.built)
 
             # XPath API tests
             if not inspect and not errors_:

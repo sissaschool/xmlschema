@@ -128,7 +128,7 @@ class XsdValidator(object):
             return
 
         if is_etree_element(elem):
-            elem = elem
+            pass
         elif elem is None:
             elem = getattr(self, 'elem', None)
         else:
@@ -148,6 +148,8 @@ class XsdValidator(object):
 
         if self.validation == 'lax':
             self.errors.append(error)
+        elif PY3:
+            raise error from None
         else:
             raise error
 

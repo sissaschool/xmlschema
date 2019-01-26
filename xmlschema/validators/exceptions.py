@@ -38,14 +38,12 @@ class XMLSchemaValidatorError(XMLSchemaException):
     """
     def __init__(self, validator, message, elem=None, source=None, namespaces=None):
         self.validator = validator
-        message = message.strip()
         self.message = message[:-1] if message[-1] in ('.', ':') else message
         self.namespaces = namespaces
         self.elem = elem
         self.source = source
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
@@ -151,12 +149,10 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = "failed validating {!r} with {!r}.\n"
-
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,
-            message=self._message.format(obj, validator),
+            message="failed validating {!r} with {!r}.\n".format(obj, validator),
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,
@@ -206,7 +202,7 @@ class XMLSchemaDecodeError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = "failed decoding {!r} with {!r}.\n"
+    message = "failed decoding {!r} with {!r}.\n"
 
     def __init__(self, validator, obj, decoder, reason=None, source=None, namespaces=None):
         super(XMLSchemaDecodeError, self).__init__(validator, obj, reason, source, namespaces)
@@ -230,7 +226,7 @@ class XMLSchemaEncodeError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    _message = "failed encoding {!r} with {!r}.\n"
+    message = "failed encoding {!r} with {!r}.\n"
 
     def __init__(self, validator, obj, encoder, reason=None, source=None, namespaces=None):
         super(XMLSchemaEncodeError, self).__init__(validator, obj, reason, source, namespaces)
