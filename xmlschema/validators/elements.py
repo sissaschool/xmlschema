@@ -13,7 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
-from elementpath import XPath2Parser, ElementPathSyntaxError
+from elementpath import XPath2Parser, ElementPathSyntaxError, XPathContext, boolean_value
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
@@ -23,7 +23,7 @@ from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE
 from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, \
     get_xsd_derivation_attribute, get_xpath_default_namespace
 from ..etree import etree_element
-from ..converters import ElementData, XMLSchemaConverter
+from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
@@ -95,9 +95,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         XsdComponent._parse(self)
         self._parse_attributes()
         index = self._parse_type()
-        if self.type is None:
-            self.type = self.maps.lookup_type(XSD_ANY_TYPE)
-
         self._parse_constraints(index)
         self._parse_substitution_group()
 
@@ -168,7 +165,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
                 return 1
             else:
-                self.type = None
+                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         return 0
 
     def _parse_constraints(self, index=0):
@@ -295,6 +292,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
+    def get_type(self, elem):
+        return self.type
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self
@@ -336,20 +336,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Get the instance type: xsi:type or the schema's declaration
         if XSI_TYPE not in elem.attrib:
-            xsd_type = self.type
-            attribute_group = self.attributes
+            xsd_type = self.get_type(elem)
         else:
             xsi_type = elem.attrib[XSI_TYPE]
             try:
                 xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
             except KeyError:
                 yield self.validation_error(validation, "unknown type %r" % xsi_type, elem, **kwargs)
-                xsd_type = self.type
-                attribute_group = self.attributes
-            else:
-                attribute_group = getattr(xsd_type, 'attributes', self.attributes)
+                xsd_type = self.get_type(elem)
 
         # Decode attributes
+        attribute_group = getattr(xsd_type, 'attributes', self.attributes)
         for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, elem, **kwargs)
@@ -462,21 +459,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         children = element_data.content
         attributes = ()
 
-        if element_data.attributes is not None and XSI_TYPE in element_data.attributes:
+        if element_data.attributes and XSI_TYPE in element_data.attributes:
             xsi_type = element_data.attributes[XSI_TYPE]
             try:
                 xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
             except KeyError:
                 errors.append("unknown type %r" % xsi_type)
-                xsd_type = self.type
-                attribute_group = self.attributes
-            else:
-                attribute_group = getattr(xsd_type, 'attributes', self.attributes)
-
+                xsd_type = self.get_type(element_data)
         else:
-            xsd_type = self.type
-            attribute_group = self.attributes
+            xsd_type = self.get_type(element_data)
 
+        attribute_group = getattr(xsd_type, 'attributes', self.attributes)
         for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 errors.append(result)
@@ -603,19 +596,20 @@ class Xsd11Element(XsdElement):
         self._parse_attributes()
         index = self._parse_type()
         index = self._parse_alternatives(index)
-        if self.type is None and not self.alternatives:
-            self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         self._parse_constraints(index)
         self._parse_substitution_group()
 
     def _parse_alternatives(self, index=0):
-        self.alternatives = []
-        for child in self._iterparse_components(self.elem, start=index):
-            if child.tag == XSD_ALTERNATIVE:
-                self.alternatives.append(XsdAlternative(child, self.schema, self))
-                index += 1
-            else:
-                break
+        if self._ref is not None:
+            self.alternatives = self._ref.alternatives
+        else:
+            self.alternatives = []
+            for child in self._iterparse_components(self.elem, start=index):
+                if child.tag == XSD_ALTERNATIVE:
+                    self.alternatives.append(XsdAlternative(child, self.schema, self))
+                    index += 1
+                else:
+                    break
         return index
 
     @property
@@ -624,6 +618,24 @@ class Xsd11Element(XsdElement):
             return self.elem.attrib['targetNamespace']
         except KeyError:
             return self.schema.target_namespace
+
+    def get_type(self, elem):
+        if not self.alternatives:
+            return self.type
+
+        if isinstance(elem, ElementData):
+            if elem.attributes:
+                attrib = {k: raw_xml_encode(v) for k, v in elem.attributes.items()}
+                elem = etree_element(elem.tag, attrib=attrib)
+            else:
+                elem = etree_element(elem.tag)
+
+        print(elem, self.alternatives)
+        breakpoint()
+        for alt in self.alternatives:
+            if alt.type is not None and boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
+                return alt.type
+        return self.type
 
 
 class XsdAlternative(XsdComponent):
@@ -639,13 +651,15 @@ class XsdAlternative(XsdComponent):
     """
     admitted_tags = {XSD_ALTERNATIVE}
 
+    def __repr__(self):
+        return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))
+
     def _parse(self):
         XsdComponent._parse(self)
         elem = self.elem
         try:
             self.path = elem.attrib['test']
         except KeyError as err:
-            self.parse_error(err, elem=elem)
             self.path = 'true()'
 
         try:
@@ -662,6 +676,20 @@ class XsdAlternative(XsdComponent):
             self.parse_error(err, elem=elem)
             self.token = parser.parse('true()')
             self.path = 'true()'
+
+        try:
+            type_attrib = elem.attrib['type']
+        except KeyError:
+            self.parse_error("missing 'type' attribute from %r" % elem)
+            self.type = None
+        else:
+            try:
+                self.type = self.maps.lookup_type(prefixed_to_qname(type_attrib, self.namespaces))
+            except KeyError:
+                self.parse_error("unknown type %r" % type_attrib, elem)
+            else:
+                if not self.type.is_derived(self.parent.type):
+                    self.parse_error("type %r ir not derived from %r" % (type_attrib, self.parent.type), elem)
 
     @property
     def built(self):

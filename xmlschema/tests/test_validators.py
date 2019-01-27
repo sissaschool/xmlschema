@@ -922,6 +922,12 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 
+    def test_complex_with_simple_content_restriction(self):
+        xs = self.schema_class(self.abspath('cases/features/derivations/complex-with-simple-content-restriction.xsd'))
+        self.assertTrue(xs.is_valid('<value>10</value>'))
+        self.assertFalse(xs.is_valid('<value>alpha</value>'))
+        self.assertEqual(xs.decode('<value>10</value>'), 10)
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
@@ -948,6 +954,25 @@ class TestDecoding11(TestDecoding):
         self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT26H</ns:td>'), 'P2DT26H')
         self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>', datetime_types=True),
                          datatypes.Duration.fromstring('P2DT6H30M30.001S'))
+
+    def test_type_alternatives(self):
+        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives-no-ns.xsd'))
+        self.assertTrue(xs.is_valid('<value choice="int">10</value>'))
+        self.assertFalse(xs.is_valid('<value choice="int">10.1</value>'))
+        self.assertTrue(xs.is_valid('<value choice="float">10.1</value>'))
+        self.assertFalse(xs.is_valid('<value choice="float">alpha</value>'))
+        self.assertFalse(xs.is_valid('<value choice="bool">alpha</value>'))
+        self.assertTrue(xs.is_valid('<value choice="bool">0</value>'))
+        self.assertTrue(xs.is_valid('<value choice="bool">true</value>'))
+
+        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives.xsd'))
+        self.assertTrue(xs.is_valid('<value xmlns="ns" choice="int">10</value>'))
+        self.assertFalse(xs.is_valid('<value xmlns="ns" choice="int">10.1</value>'))
+        self.assertTrue(xs.is_valid('<value xmlns="ns" choice="float">10.1</value>'))
+        self.assertFalse(xs.is_valid('<value xmlns="ns" choice="float">alpha</value>'))
+        self.assertFalse(xs.is_valid('<value xmlns="ns" choice="bool">alpha</value>'))
+        self.assertTrue(xs.is_valid('<value xmlns="ns" choice="bool">0</value>'))
+        self.assertTrue(xs.is_valid('<value xmlns="ns" choice="bool">true</value>'))
 
 
 class TestEncoding(XMLSchemaTestCase):

@@ -20,7 +20,7 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * All model extended for content groups
   * Assertions for simple types
   * Default attributes for complex types
-  * TODO: Alternative type for elements
+  * Alternative type for elements
   * TODO: Assert for complex types
   * TODO: OpenContent for complex types
 """

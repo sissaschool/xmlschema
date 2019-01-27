@@ -14,7 +14,7 @@ from __future__ import unicode_literals
 from collections import namedtuple, OrderedDict
 import string
 
-from .compat import ordered_dict_class
+from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
@@ -22,6 +22,15 @@ from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 "Namedtuple for Element data interchange between decoders and converters."
+
+
+def raw_xml_encode(value):
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    elif isinstance(value, (list, tuple)):
+        return ' '.join(unicode_type(e) for e in value)
+    else:
+        return unicode_type(value)
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -134,6 +143,9 @@ class XMLSchemaConverter(NamespaceMapper):
         :param content: A sequence or an iterator of tuples with the name of the \
         element, the decoded value and the `XsdElement` instance associated.
         """
+        if not content:
+            return
+        
         map_qname = self.map_qname
         for name, value, xsd_child in content:
             try:
