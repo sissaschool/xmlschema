@@ -61,7 +61,9 @@ class TestPackaging(unittest.TestCase):
         if not cls.package_dir.endswith('/xmlschema'):
             cls.package_dir = None
 
-        cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
+        cls.missing_debug = re.compile(
+            r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()|\bbreakpoint\s*\("
+        )
         cls.get_version = re.compile(r"(?:\brelease|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
     def test_missing_debug_statements(self):

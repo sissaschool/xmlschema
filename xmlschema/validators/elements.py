@@ -13,7 +13,8 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
-from elementpath import XPath2Parser, ElementPathSyntaxError, XPathContext, boolean_value
+from elementpath import XPath2Parser, ElementPathSyntaxError, XPathContext
+from elementpath.xpath_helpers import boolean_value
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
@@ -630,8 +631,6 @@ class Xsd11Element(XsdElement):
             else:
                 elem = etree_element(elem.tag)
 
-        print(elem, self.alternatives)
-        breakpoint()
         for alt in self.alternatives:
             if alt.type is not None and boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
                 return alt.type
@@ -666,9 +665,12 @@ class XsdAlternative(XsdComponent):
             default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
         except ValueError as err:
             self.parse_error(err, elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False)
+            default_namespace = self.schema.xpath_default_namespace
         else:
-            parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+            if default_namespace is None:
+                default_namespace = self.schema.xpath_default_namespace
+
+        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
 
         try:
             self.token = parser.parse(self.path)

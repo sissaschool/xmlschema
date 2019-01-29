@@ -32,7 +32,7 @@ from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIn
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
-from xmlschema.etree import lxml_etree
+from xmlschema.etree import lxml_etree, py_etree_element
 
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
@@ -515,9 +515,14 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
                     obj = pickle.dumps(xs)
                     deserialized_schema = pickle.loads(obj)
                 except pickle.PicklingError:
-                    import pdb
-                    pdb.set_trace()
-                    raise
+                    # Don't raise if some schema parts (eg. a schema loaded from remote)
+                    # are built with the SafeXMLParser that uses pure Python elements.
+                    for e in xs.maps.iter_components():
+                        elem = getattr(e, 'elem', getattr(e, 'root', None))
+                        if isinstance(elem, py_etree_element):
+                            break
+                    else:
+                        raise
                 else:
                     self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
                     self.assertEqual(xs.built, deserialized_schema.built)

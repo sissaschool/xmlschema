@@ -21,6 +21,8 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Assertions for simple types
   * Default attributes for complex types
   * Alternative type for elements
+  * TODO inheritable attributes
+  * TODO targetNamespace for restricted element and attributes
   * TODO: Assert for complex types
   * TODO: OpenContent for complex types
 """
@@ -277,7 +279,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 )
             except XMLSchemaValueError as error:
                 self.parse_error(str(error), root)
-                self.xpath_default_namespace = self.namespaces['']
+                self.xpath_default_namespace = ''  # self.namespaces['']
 
         # Create or set the XSD global maps instance
         if global_maps is None:
