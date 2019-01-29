@@ -225,7 +225,9 @@ class Xsd11Attribute(XsdAttribute):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    pass
+    @property
+    def inheritable(self):
+        return self.elem.get('inheritable') in ('0', 'true')
 
 
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
@@ -353,7 +355,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 self.update([(None, XsdAnyAttribute(child, self.schema, self))])
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = XsdAttribute(child, self.schema, self)
+                attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
                 self[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:

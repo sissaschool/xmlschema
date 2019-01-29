@@ -519,6 +519,17 @@ class Xsd11ComplexType(XsdComplexType):
     """
     def _parse(self):
         super(Xsd11ComplexType, self)._parse()
+
+        # Add inheritable attributes
+        if hasattr(self.base_type, 'attributes'):
+            for name, attr in self.base_type.attributes.items():
+                if name and attr.inheritable:
+                    if name not in self.attributes:
+                        self.attributes[name] = attr
+                    elif not self.attributes[name].inheritable:
+                        self.parse_error("attribute %r must be inheritable")
+
+        # Add default attributes
         if isinstance(self.schema.default_attributes, XsdAttributeGroup) and self.default_attributes_apply:
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes

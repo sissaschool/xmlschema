@@ -21,7 +21,7 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Assertions for simple types
   * Default attributes for complex types
   * Alternative type for elements
-  * TODO inheritable attributes
+  * Inheritable attributes
   * TODO targetNamespace for restricted element and attributes
   * TODO: Assert for complex types
   * TODO: OpenContent for complex types
