@@ -25,6 +25,7 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * TODO targetNamespace for restricted element and attributes
   * TODO: Assert for complex types
   * TODO: OpenContent for complex types
+  * TODO: schema overrides
 """
 import os
 from collections import namedtuple
@@ -297,13 +298,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.meta_schema = meta_schema
                 self.maps = self.meta_schema.maps
             else:
-                self.maps = self.meta_schema.maps.copy(validation)
+                self.maps = self.meta_schema.maps.copy(self, validation=validation)
 
         elif isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
-
 
         # Validate the schema document
         if self.meta_schema is None:
@@ -323,7 +323,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def __repr__(self):
         if self.url:
-            return u'%s(namespace=%r, url=%r)' % (self.__class__.__name__, self.target_namespace, self.url)
+            basename = os.path.basename(self.url)
+            return u'%s(basename=%r, namespace=%r)' % (self.__class__.__name__, basename, self.target_namespace)
         else:
             return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 

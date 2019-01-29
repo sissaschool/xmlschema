@@ -177,7 +177,6 @@ class XsdGlobals(XsdValidator):
     :param validator: the XMLSchema class to use for global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
-
     def __init__(self, validator, validation='strict'):
         super(XsdGlobals, self).__init__(validation)
         self.validator = validator
@@ -196,9 +195,12 @@ class XsdGlobals(XsdValidator):
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
 
-    def copy(self, validation=None):
+    def __repr__(self):
+        return '%s(validator=%r, validation=%r)' % (self.__class__.__name__, self.validator, self.validation)
+
+    def copy(self, validator=None, validation=None):
         """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator, validation or self.validation)
+        obj = XsdGlobals(self.validator if validator is None else validator, validation or self.validation)
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -380,6 +382,10 @@ class XsdGlobals(XsdValidator):
             self.lookup_element(qname)
         for qname in self.groups:
             self.lookup_group(qname)
+
+        if 'pname' in self.types:
+            import pdb
+            pdb.set_trace()
 
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
