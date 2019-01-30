@@ -19,7 +19,7 @@ from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueEr
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
-from ..helpers import get_qname, local_name, prefixed_to_qname, qname_to_prefixed
+from ..helpers import get_qname, local_name, prefixed_to_qname
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
@@ -147,6 +147,7 @@ def create_lookup_function(xsd_classes):
                     # Built-in type
                     global_map[qname] = obj[0]
 
+                # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
                     global_map[qname].schema = schema
                     global_map[qname].elem = elem
@@ -347,7 +348,8 @@ class XsdGlobals(XsdValidator):
 
     def build(self):
         """
-        Update the global maps adding the global not built registered schemas.
+        Build the maps of XSD global definitions/declarations. The global maps are
+        updated adding and building the globals of not built registered schemas.
         """
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
@@ -383,10 +385,6 @@ class XsdGlobals(XsdValidator):
         for qname in self.groups:
             self.lookup_group(qname)
 
-        if 'pname' in self.types:
-            import pdb
-            pdb.set_trace()
-
         # Builds element declarations inside model groups.
         element_class = meta_schema.BUILDERS.element_class
         for schema in not_built_schemas:
@@ -413,7 +411,7 @@ class XsdGlobals(XsdValidator):
                 try:
                     xsd_element = self.elements[qname]
                 except KeyError:
-                    raise XMLSchemaKeyError("missing global element %r in %r." % (qname, schema) )
+                    raise XMLSchemaKeyError("missing global element %r in %r." % (qname, schema))
                 else:
                     for e in xsd_element.iter_substitutes():
                         if e is xsd_element:
