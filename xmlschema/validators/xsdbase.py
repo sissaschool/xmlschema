@@ -148,8 +148,6 @@ class XsdValidator(object):
 
         if self.validation == 'lax':
             self.errors.append(error)
-        elif PY3:
-            raise error from None
         else:
             raise error
 

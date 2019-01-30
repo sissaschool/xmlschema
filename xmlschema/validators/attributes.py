@@ -71,7 +71,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         elem = self.elem
         self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
-        if self.default is not None and self.fixed is not None:
+        if 'default' in elem.attrib and 'fixed' in elem.attrib:
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
         self._parse_properties('form', 'use')
 
@@ -154,14 +154,14 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     @property
     def form(self):
         value = self.elem.get('form')
-        if value not in (None, 'qualified', 'unqualified'):
+        if value not in {None, 'qualified', 'unqualified'}:
             raise XMLSchemaValueError("wrong value %r for 'form' attribute." % value)
         return value
 
     @property
     def use(self):
         value = self.elem.get('use', 'optional')
-        if value not in ('optional', 'prohibited', 'required'):
+        if value not in {'optional', 'prohibited', 'required'}:
             raise XMLSchemaValueError("wrong value %r for 'use' attribute." % value)
         return value
 

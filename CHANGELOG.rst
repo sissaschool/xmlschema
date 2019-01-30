@@ -2,10 +2,11 @@
 CHANGELOG
 *********
 
-`v1.0.8`_ (TBD)
-===============
-* DateTime XSD builtin types decoding
-* Dependency *defusedxml* package replaced by a custom XMLParser
+`v1.0.8`_ (2019-01-30)
+======================
+* Dependency *defusedxml* package replaced by a custom XMLParser for ElementTree
+* Optional decoding of XSD date/time/duration builtin types
+* Fixes for issues #93, #96, #97 and #99
 
 `v1.0.7`_ (2018-11-15)
 ======================
