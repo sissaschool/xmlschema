@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -20,6 +20,7 @@ import pickle
 from decimal import Decimal
 import base64
 import warnings
+from elementpath import datatypes
 
 try:
     import xmlschema
@@ -29,8 +30,6 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xml.etree import ElementTree as _ElementTree
-
 from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
@@ -38,12 +37,11 @@ from xmlschema import (
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.resources import fetch_namespaces
 from xmlschema.tests import XMLSchemaTestCase
-from xmlschema.etree import (
-    etree_element, etree_tostring, is_etree_element, etree_fromstring, etree_parse,
-    etree_elements_assert_equal, lxml_etree_parse, lxml_etree_element
-)
+from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
+    etree_elements_assert_equal, lxml_etree, lxml_etree_element
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.helpers import local_name
+from xmlschema.validators import XMLSchema11
 
 _VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -291,7 +289,19 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XMLSchema):
+def make_validator_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=False):
+    """
+    Creates a validator test class.
+
+    :param test_file: the XML test file path.
+    :param test_args: line arguments for test case.
+    :param test_num: a positive integer number associated with the test case.
+    :param schema_class: the schema class to use.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
+    Works only for XSD 1.0 tests.
+    """
+    if schema_class is None:
+        schema_class = XMLSchema
 
     # Extract schema test arguments
     expected_errors = test_args.errors
@@ -317,6 +327,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
             source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
             cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
+            if check_with_lxml and lxml_etree is not None:
+                cls.lxml_schema = lxml_etree.parse(source)
 
             cls.errors = []
             cls.chunks = []
@@ -474,7 +486,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             self.assertEqual(skip_data, self.chunks[0], msg_template % "'skip' validation has a different result")
 
         def check_encoding_with_element_tree(self):
-            root = etree_parse(xml_file).getroot()
+            root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
@@ -494,7 +506,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_decoding_and_encoding_with_lxml(self):
-            xml_tree = lxml_etree_parse(xml_file)
+            xml_tree = lxml_etree.parse(xml_file)
             namespaces = fetch_namespaces(xml_file)
             errors = []
             chunks = []
@@ -543,6 +555,19 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             self.assertEqual(len(list(self.schema.iter_errors(xml_file))), expected_errors,
                              msg_template % "wrong number of errors (%d expected)" % expected_errors)
 
+        def check_lxml_validation(self):
+            try:
+                schema = lxml_etree.XMLSchema(self.lxml_schema.getroot())
+            except lxml_etree.XMLSchemaParseError:
+                print("\nSkip lxml.etree.XMLSchema validation test for {!r} ({})".
+                      format(rel_path, TestValidator.__name__, ))
+            else:
+                xml_tree = lxml_etree.parse(xml_file)
+                if self.errors:
+                    self.assertFalse(schema.validate(xml_tree))
+                else:
+                    self.assertTrue(schema.validate(xml_tree))
+
         def test_decoding_and_encoding(self):
             self.check_decoding_with_element_tree()
 
@@ -552,11 +577,13 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=XML
             if not self.errors:
                 self.check_encoding_with_element_tree()
 
-            if lxml_etree_parse is not None:
+            if lxml_etree is not None:
                 self.check_decoding_and_encoding_with_lxml()
 
             self.check_iter_errors()
             self.check_validate_and_is_valid_api()
+            if check_with_lxml and lxml_etree is not None:
+                self.check_lxml_validation()
 
     TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
     return TestValidator
@@ -572,11 +599,11 @@ class TestValidation(XMLSchemaTestCase):
         else:
             self.assertFalse(xsd_component.is_valid(data, use_defaults))
 
-    @unittest.skipIf(lxml_etree_parse is None, "The lxml library is not installed.")
+    @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
         xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
-        xt1 = lxml_etree_parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
-        xt2 = lxml_etree_parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
+        xt1 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
+        xt2 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
         self.assertTrue(xs.is_valid(xt1))
         self.assertFalse(xs.is_valid(xt2))
         self.assertTrue(xs.validate(xt1) is None)
@@ -601,8 +628,27 @@ class TestValidation(XMLSchemaTestCase):
         self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
 
         # Issue #80
-        vh_2_xt = _ElementTree.parse(vh_2_file)
+        vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
+
+
+class TestValidation11(TestValidation):
+    schema_class = XMLSchema11
+
+    def test_default_attributes(self):
+        """<?xml version="1.0" encoding="UTF-8"?>
+                <ns:node xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="ns ./default_attributes.xsd" colour="red">Root Node</ns:node>
+        """
+        xs = self.schema_class(self.abspath('cases/features/attributes/default_attributes.xsd'))
+        self.assertTrue(xs.is_valid("<tree xmlns='ns'>"
+                                    "   <node node-id='1'>alpha</node>"
+                                    "   <node node-id='2' colour='red'>beta</node>"
+                                    "</tree>"))
+        self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
+                                     "   <node>alpha</node>"  # Misses required attribute 
+                                     "   <node node-id='2' colour='red'>beta</node>"
+                                     "</tree>"))
 
 
 class TestDecoding(XMLSchemaTestCase):
@@ -620,15 +666,15 @@ class TestDecoding(XMLSchemaTestCase):
                 self.assertEqual(expected, obj)
                 self.assertTrue(isinstance(obj, type(expected)))
 
-    @unittest.skipIf(lxml_etree_parse is None, "Skip if lxml library is not installed.")
+    @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
-        vh_xml_tree = lxml_etree_parse(self.vh_xml_file)
+        vh_xml_tree = lxml_etree.parse(self.vh_xml_file)
         self.assertEqual(self.vh_schema.to_dict(vh_xml_tree), _VEHICLES_DICT)
         self.assertEqual(xmlschema.to_dict(vh_xml_tree, self.vh_schema.url), _VEHICLES_DICT)
 
     def test_to_dict_from_etree(self):
-        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
-        col_xml_tree = _ElementTree.parse(self.col_xml_file)
+        vh_xml_tree = ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = ElementTree.parse(self.col_xml_file)
 
         xml_dict = self.vh_schema.to_dict(vh_xml_tree)
         self.assertNotEqual(xml_dict, _VEHICLES_DICT)
@@ -668,8 +714,8 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(xml_dict, _COLLECTION_DICT)
 
     def test_json_dump_and_load(self):
-        vh_xml_tree = _ElementTree.parse(self.vh_xml_file)
-        col_xml_tree = _ElementTree.parse(self.col_xml_file)
+        vh_xml_tree = ElementTree.parse(self.vh_xml_file)
+        col_xml_tree = ElementTree.parse(self.col_xml_file)
         with open(self.vh_json_file, 'w') as f:
             xmlschema.to_json(self.vh_xml_file, f)
 
@@ -689,7 +735,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_etree_elements(col_xml_tree, root)
 
     def test_path(self):
-        xt = _ElementTree.parse(self.vh_xml_file)
+        xt = ElementTree.parse(self.vh_xml_file)
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:cars', namespaces=self.vh_namespaces)
         self.assertEqual(xd['vh:car'], _VEHICLES_DICT['vh:cars']['vh:car'])
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.vh_namespaces)
@@ -699,20 +745,37 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            _ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
+            ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
             namespaces=self.vh_namespaces
         )
 
     def test_validation_skip(self):
-        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
+        xt = ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
         xd = self.st_schema.decode(xt, validation='skip', namespaces={'ns': 'ns'})
         self.assertEqual(xd['decimal_value'], ['abc'])
 
-    def test_datatypes3(self):
-        xt = _ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
+    def test_datatypes(self):
+        xt = ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
         xd = self.st_schema.to_dict(xt, namespaces=self.default_namespaces)
         self.assertEqual(xd, _DATA_DICT)
+
+    def test_datetime_types(self):
+        xs = self.get_schema('<element name="dt" type="dateTime"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
+                         datatypes.DateTime10.fromstring('2019-01-01T13:40:00'))
+
+        xs = self.get_schema('<element name="dt" type="date"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+                         datatypes.Date10.fromstring('2001-04-15'))
+
+    def test_duration_type(self):
+        xs = self.get_schema('<element name="td" type="duration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>'), 'P5Y3MT60H30.001S')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True),
+                         datatypes.Duration.fromstring('P5Y3M2DT12H30.001S'))
 
     def test_converters(self):
         filename = self.col_xml_file
@@ -749,9 +812,9 @@ class TestDecoding(XMLSchemaTestCase):
 
     def test_any_type(self):
         any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
-        xml_data_1 = _ElementTree.Element('dummy')
+        xml_data_1 = ElementTree.Element('dummy')
         self.assertEqual(any_type.decode(xml_data_1), (None, [], []))
-        xml_data_2 = _ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
+        xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
         self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
 
     def test_choice_model_decoding(self):
@@ -846,7 +909,7 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertTrue(xsd_schema.is_valid(source=xml_string_1, use_defaults=False))
         self.assertTrue(xsd_schema.is_valid(source=xml_string_2, use_defaults=False))
         obj = xsd_schema.decode(xml_string_2, use_defaults=False)
-        self.check_etree_elements(etree_fromstring(xml_string_2), xsd_schema.encode(obj))
+        self.check_etree_elements(ElementTree.fromstring(xml_string_2), xsd_schema.encode(obj))
 
     def test_default_namespace(self):
         # Issue #77
@@ -858,6 +921,58 @@ class TestDecoding(XMLSchemaTestCase):
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), 'bar')
         self.assertEqual(xs.to_dict("""<foo>bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
+
+    def test_complex_with_simple_content_restriction(self):
+        xs = self.schema_class(self.abspath('cases/features/derivations/complex-with-simple-content-restriction.xsd'))
+        self.assertTrue(xs.is_valid('<value>10</value>'))
+        self.assertFalse(xs.is_valid('<value>alpha</value>'))
+        self.assertEqual(xs.decode('<value>10</value>'), 10)
+
+
+class TestDecoding11(TestDecoding):
+    schema_class = XMLSchema11
+
+    def test_datetime_types(self):
+        xs = self.get_schema('<element name="dt" type="dateTime"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
+                         datatypes.DateTime.fromstring('2019-01-01T13:40:00'))
+
+        xs = self.get_schema('<element name="dt" type="date"/>')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+                         datatypes.Date.fromstring('2001-04-15'))
+
+    def test_derived_duration_types(self):
+        xs = self.get_schema('<element name="td" type="yearMonthDuration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P0Y4M</ns:td>'), 'P0Y4M')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2Y10M</ns:td>', datetime_types=True),
+                         datatypes.Duration.fromstring('P2Y10M'))
+
+        xs = self.get_schema('<element name="td" type="dayTimeDuration"/>')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>'), 'P2DT6H30M30.001S')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT26H</ns:td>'), 'P2DT26H')
+        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>', datetime_types=True),
+                         datatypes.Duration.fromstring('P2DT6H30M30.001S'))
+
+    def test_type_alternatives(self):
+        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives-no-ns.xsd'))
+        self.assertTrue(xs.is_valid('<value choice="int">10</value>'))
+        self.assertFalse(xs.is_valid('<value choice="int">10.1</value>'))
+        self.assertTrue(xs.is_valid('<value choice="float">10.1</value>'))
+        self.assertFalse(xs.is_valid('<value choice="float">alpha</value>'))
+        self.assertFalse(xs.is_valid('<value choice="bool">alpha</value>'))
+        self.assertTrue(xs.is_valid('<value choice="bool">0</value>'))
+        self.assertTrue(xs.is_valid('<value choice="bool">true</value>'))
+
+        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives.xsd'))
+        self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="int">10</ns:value>'))
+        self.assertFalse(xs.is_valid('<ns:value xmlns:ns="ns" choice="int">10.1</ns:value>'))
+        self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="float">10.1</ns:value>'))
+        self.assertFalse(xs.is_valid('<ns:value xmlns:ns="ns" choice="float">alpha</ns:value>'))
+        self.assertFalse(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">alpha</ns:value>'))
+        self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">0</ns:value>'))
+        self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">true</ns:value>'))
 
 
 class TestEncoding(XMLSchemaTestCase):
@@ -881,7 +996,7 @@ class TestEncoding(XMLSchemaTestCase):
 
     def test_decode_encode(self):
         filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
-        xt = _ElementTree.parse(filename)
+        xt = ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=ordered_dict_class)
         elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.col_namespaces)
 
@@ -1024,15 +1139,15 @@ class TestEncoding(XMLSchemaTestCase):
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
-            etree_fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
+            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1},
-            etree_fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
+            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '$': 'simple '},
-            etree_fromstring('<A xmlns="ns" a1="10">simple </A>')
+            ElementTree.fromstring('<A xmlns="ns" a1="10">simple </A>')
         )
         self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
 
@@ -1066,11 +1181,14 @@ class TestEncoding(XMLSchemaTestCase):
         )
 
 
+class TestEncoding11(TestEncoding):
+    schema_class = XMLSchema11
+
+
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory, get_testfiles
+    from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    decoder_tests = tests_factory(make_validator_test_class, testfiles, 'xml')
+    decoder_tests = tests_factory(make_validator_test_class, 'xml')
     globals().update(decoder_tests)
     unittest.main()

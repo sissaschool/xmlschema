@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -16,23 +16,26 @@ are created using the XSD 1.0 meta-schema or with and additional base schema for
 """
 from __future__ import unicode_literals
 
-import datetime
+import re
 import base64
 from decimal import Decimal
 
-from ..compat import long_type, unicode_type
+from elementpath import datatypes
+
+from ..compat import PY3, long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..qnames import *
-from ..helpers import FRACTION_DIGITS_PATTERN, ISO_TIMEZONE_PATTERN, DURATION_PATTERN, \
-    DAY_TIME_DURATION_PATTERN, YEAR_MONTH_DURATION_PATTERN, HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
 from .facets import XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
+HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
+NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
+
 
 #
-# XSD builtin validator functions
+# XSD numerical built-in types validator functions
 def byte_validator(x):
     if not (-2**7 <= x < 2**7):
         yield XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
@@ -93,149 +96,6 @@ def non_negative_int_validator(x):
         yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
 
 
-def time_validator(x):
-    for e in datetime_iso8601_validator(x, '%H:%M:%S', '%H:%M:%S.%f', '24:00:00'):
-        yield e
-        return
-
-    # Additional XSD restrictions
-    try:
-        h, m, s = x[:8].split(':')
-    except ValueError:
-        yield XMLSchemaValidationError(time_validator, x, "wrong format for time (hh:mm:ss.sss required).")
-    else:
-        if len(h) < 2 or len(m) < 2 or len(s) < 2:
-            yield XMLSchemaValidationError(time_validator, x, "hours, minutes and seconds must be two digits each.")
-
-
-def date_validator(x):
-    k = 1 if x.startswith('-') else 0
-    try:
-        while x[k].isnumeric():
-            k += 1
-    except IndexError:
-        pass
-
-    for e in datetime_iso8601_validator(x[k-4:], '%Y-%m-%d', '-%Y-%m-%d'):
-        yield e
-        return
-
-    _, m, d = x[k-4:k+6].split('-')
-    if len(m) < 2 or len(d) < 2:
-        yield XMLSchemaValidationError(date_validator, x, "months and days must be two digits each.")
-
-
-def datetime_validator(x):
-    for e in datetime_iso8601_validator(x, '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f'):
-        yield e
-        return
-
-    if 'T' not in x:
-        yield XMLSchemaValidationError(datetime_validator, x, "T separator must be uppercase.")
-
-
-def g_year_validator(x):
-    k = 1 if x.startswith('-') else 0
-    try:
-        while x[k].isnumeric():
-            k += 1
-    except IndexError:
-        pass
-
-    for e in datetime_iso8601_validator(x[k-4:], '%Y'):
-        yield e
-
-
-def g_year_month_validator(x):
-    for e in datetime_iso8601_validator(x, '%Y-%m'):
-        yield e
-        return
-
-    # Additional XSD restrictions
-    if len(x.strip()[:7].split('-')[1]) < 2:
-        yield XMLSchemaValidationError(g_year_month_validator, x, "the month must be two digits.")
-
-
-def g_month_validator(x):
-    for e in datetime_iso8601_validator(x, '--%m'):
-        yield e
-        return
-
-    # Additional XSD restrictions
-    if len(x) < 4:
-        yield XMLSchemaValidationError(g_month_validator, x, "the month must be two digits.")
-
-
-def g_month_day_validator(x):
-    for e in datetime_iso8601_validator(x, '--%m-%d'):
-        yield e
-        return
-
-    # Additional XSD restrictions
-    m, d = x[2:].split('-')
-    if len(m) < 2 or len(d) < 2:
-        yield XMLSchemaValidationError(g_month_day_validator, x, "months and days must be two digits each.")
-
-
-def g_day_validator(x):
-    for e in datetime_iso8601_validator(x, '---%d'):
-        yield e
-        return
-
-    # Additional XSD restrictions
-    if len(x) < 5:
-        yield XMLSchemaValidationError(g_day_validator, x, "the day must be two digits.")
-
-
-def duration_validator(x):
-    if DURATION_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(duration_validator, x, "wrong format (PnYnMnDTnHnMnS required).")
-
-
-def day_time_duration_validator(x):
-    if DURATION_PATTERN.match(x) is None or DAY_TIME_DURATION_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(day_time_duration_validator, x, "wrong format (PnDTnHnMnS required).")
-
-
-def year_month_duration_validator(x):
-    if DURATION_PATTERN.match(x) is None or YEAR_MONTH_DURATION_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(year_month_duration_validator, x, "wrong format (PnYnM required).")
-
-
-def datetime_iso8601_validator(date_string, *date_formats):
-    """
-    Validate a string represents a valid datetime ISO 8601 like, according to the
-    specified formatting, plus optional timezone specification as suffix.
-
-    :param date_string: The string containing the datetime
-    :param date_formats: The reference formatting for datetime
-    :return: True if the string is a valid datetime, False if not.
-    """
-    try:
-        date_string, time_zone, _ = ISO_TIMEZONE_PATTERN.split(date_string)
-    except ValueError:
-        pass
-
-    if not date_formats:
-        date_formats = ('%Y-%m-%d',)
-
-    for fmt in date_formats:
-        try:
-            if '%f' in fmt:
-                date_string_part, fraction_digits, _ = FRACTION_DIGITS_PATTERN.split(date_string)
-                datetime.datetime.strptime('%s.%s' % (date_string_part, fraction_digits[:6]), fmt)
-            else:
-                datetime.datetime.strptime(date_string, fmt)
-        except ValueError:
-            continue
-        else:
-            break
-    else:
-        yield XMLSchemaValidationError(
-            non_negative_int_validator, date_string, "invalid datetime for formats {}.".format(date_formats)
-        )
-
-
 def hex_binary_validator(x):
     if len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None:
         yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
@@ -275,7 +135,7 @@ COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': '
 REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': 'replace'})
 
 
-XSD_BUILTIN_TYPES = (
+XSD_COMMON_BUILTIN_TYPES = (
     # ***********************
     # *** Primitive types ***
     # ***********************
@@ -284,90 +144,85 @@ XSD_BUILTIN_TYPES = (
     {
         'name': XSD_STRING,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, PRESERVE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, PRESERVE_WHITE_SPACE_ELEMENT),
+        'value': 'alpha',
     },  # character string
 
     # --- Numerical Types ---
     {
         'name': XSD_DECIMAL,
         'python_type': (Decimal, str, unicode_type, int, float),
-        'facets': (DECIMAL_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (DECIMAL_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': Decimal('1.0'),
     },  # decimal number
     {
         'name': XSD_DOUBLE,
         'python_type': float,
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': 1.0,
     },   # 64 bit floating point
     {
         'name': XSD_FLOAT,
         'python_type': float,
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': 1.0,
     },  # 32 bit floating point
 
-    # ---Dates and Times---
-    {
-        'name': XSD_DATE,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, date_validator)
-    },  # CCYY-MM-DD
-    {
-        'name': XSD_DATETIME,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, datetime_validator)
-    },  # CCYY-MM-DDThh:mm:ss
+    # --- Dates and Times (not year related) ---
     {
         'name': XSD_GDAY,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_day_validator)
+        'python_type': (unicode_type, str, datatypes.GregorianDay),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianDay.fromstring,
+        'value': datatypes.GregorianDay.fromstring('---31'),
     },  # DD
     {
         'name': XSD_GMONTH,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_validator)
+        'python_type': (unicode_type, str, datatypes.GregorianMonth),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianMonth.fromstring,
+        'value': datatypes.GregorianMonth.fromstring('--12'),
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_month_day_validator)
+        'python_type': (unicode_type, str, datatypes.GregorianMonthDay),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianMonthDay.fromstring,
+        'value': datatypes.GregorianMonthDay.fromstring('--12-01'),
     },  # MM-DD
     {
-        'name': XSD_GYEAR,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_validator)
-    },  # CCYY
-    {
-        'name': XSD_GYEAR_MONTH,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, g_year_month_validator)
-    },  # CCYY-MM
-    {
         'name': XSD_TIME,
-        'python_type': (unicode_type, str),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, time_validator)
+        'python_type': (unicode_type, str, datatypes.Time),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.Time.fromstring,
+        'value': datatypes.Time.fromstring('09:26:54'),
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
-        'python_type': (unicode_type, str),
-        'facets': (
-            FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, duration_validator
-        )
+        'python_type': (unicode_type, str, datatypes.Duration),
+        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.Duration.fromstring,
+        'value': datatypes.Duration.fromstring('P1MT1S'),
     },  # PnYnMnDTnHnMnS
 
     # Other primitive types
     {
         'name': XSD_QNAME,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': 'xs:element',
     },  # prf:name (the prefix needs to be qualified with an in scope namespace)
     {
         'name': XSD_NOTATION_TYPE,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': 'alpha',
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': XSD_ANY_URI,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'value': 'https://example.com',
     },  # absolute or relative uri (RFC 2396)
     {
         'name': XSD_BOOLEAN,
@@ -375,16 +230,19 @@ XSD_BUILTIN_TYPES = (
         'facets': (BOOLEAN_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
         'to_python': boolean_to_python,
         'from_python': python_to_boolean,
+        'value': True,
     },  # true/false or 1/0
     {
         'name': XSD_BASE64_BINARY,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator),
+        'value': b'YWxwaGE=',
     },  # base64 encoded binary value
     {
         'name': XSD_HEX_BINARY,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator)
+        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator),
+        'value': b'31',
     },   # hexadecimal encoded binary value
 
     # *********************
@@ -396,13 +254,13 @@ XSD_BUILTIN_TYPES = (
         'name': XSD_NORMALIZED_STRING,
         'python_type': (unicode_type, str),
         'base_type': XSD_STRING,
-        'facets': [REPLACE_WHITE_SPACE_ELEMENT]
+        'facets': [REPLACE_WHITE_SPACE_ELEMENT],
     },  # line breaks are normalized
     {
         'name': XSD_TOKEN,
         'python_type': (unicode_type, str),
         'base_type': XSD_NORMALIZED_STRING,
-        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT]
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # whitespaces are normalized
     {
         'name': XSD_LANGUAGE,
@@ -451,12 +309,12 @@ XSD_BUILTIN_TYPES = (
     # --- Numerical derived types ---
     {
         'name': XSD_INTEGER,
-        'python_type': (long_type, int),
+        'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_DECIMAL
     },  # any integer value
     {
         'name': XSD_LONG,
-        'python_type': (long_type, int),
+        'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_INTEGER,
         'facets': [long_validator]
     },  # signed 128 bit value
@@ -480,19 +338,19 @@ XSD_BUILTIN_TYPES = (
     },  # signed 8 bit value
     {
         'name': XSD_NON_NEGATIVE_INTEGER,
-        'python_type': (long_type, int),
+        'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_INTEGER,
         'facets': [non_negative_int_validator]
     },  # only zero and more value allowed [>= 0]
     {
         'name': XSD_POSITIVE_INTEGER,
-        'python_type': (long_type, int),
+        'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_NON_NEGATIVE_INTEGER,
         'facets': [positive_int_validator]
     },  # only positive value allowed [> 0]
     {
         'name': XSD_UNSIGNED_LONG,
-        'python_type': (long_type, int),
+        'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_NON_NEGATIVE_INTEGER,
         'facets': [unsigned_long_validator]
     },  # unsigned 128 bit value
@@ -526,25 +384,91 @@ XSD_BUILTIN_TYPES = (
         'base_type': XSD_NON_POSITIVE_INTEGER,
         'facets': [negative_int_validator]
     },  # only negative value allowed [< 0]
+)
 
+XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+    # --- Year related primitive types (year 0 not allowed) ---
+    {
+        'name': XSD_DATETIME,
+        'python_type': (unicode_type, str, datatypes.DateTime),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.DateTime10.fromstring,
+        'value': datatypes.DateTime10.fromstring('2000-01-01T12:00:00'),
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
+    {
+        'name': XSD_DATE,
+        'python_type': (unicode_type, str, datatypes.Date),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.Date10.fromstring,
+        'value': datatypes.Date10.fromstring('2000-01-01'),
+    },  # [-][Y*]YYYY-MM-DD
+    {
+        'name': XSD_GYEAR,
+        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianYear10.fromstring,
+        'value': datatypes.GregorianYear10.fromstring('1999'),
+    },  # [-][Y*]YYYY
+    {
+        'name': XSD_GYEAR_MONTH,
+        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianYearMonth10.fromstring,
+        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+    },  # [-][Y*]YYYY-MM
+)
+
+XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
+    # --- Year related primitive types (year 0 allowed and mapped to 1 BCE) ---
+    {
+        'name': XSD_DATETIME,
+        'python_type': (unicode_type, str, datatypes.DateTime),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.DateTime.fromstring,
+        'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
+    {
+        'name': XSD_DATE,
+        'python_type': (unicode_type, str, datatypes.Date),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.Date.fromstring,
+        'value': datatypes.Date.fromstring('2000-01-01'),
+    },  # [-][Y*]YYYY-MM-DD
+    {
+        'name': XSD_GYEAR,
+        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianYear10.fromstring,
+        'value': datatypes.GregorianYear10.fromstring('1999'),
+    },  # [-][Y*]YYYY
+    {
+        'name': XSD_GYEAR_MONTH,
+        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'to_python': datatypes.GregorianYearMonth10.fromstring,
+        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+    },  # [-][Y*]YYYY-MM
     # --- Datetime derived types (XSD 1.1) ---
     {
         'name': XSD_DATE_TIME_STAMP,
         'python_type': (unicode_type, str),
         'base_type': XSD_DATETIME,
+        'to_python': datatypes.DateTime.fromstring,
         'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, attrib={'value': 'required'})],
-    },  # CCYY-MM-DDThh:mm:ss with required timezone
+    },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
-        'facets': [day_time_duration_validator],
+        'to_python': datatypes.DayTimeDuration.fromstring,
+        'value': datatypes.DayTimeDuration.fromstring('P1DT1S'),
     },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
-        'facets': [year_month_duration_validator],
+        'to_python': datatypes.YearMonthDuration.fromstring,
+        'value': datatypes.YearMonthDuration.fromstring('P1Y1M'),
     },  # PnYnMnDTnHnMnS with day and time equals to 0
 )
 
@@ -606,12 +530,12 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
     )
 
     xsd_class = xsd_class or XsdAtomicBuiltin
-    if meta_schema.XSD_VERSION == '1.0':
-        slicing = slice(-3)
+    if meta_schema.XSD_VERSION == '1.1':
+        builtin_types = XSD_11_BUILTIN_TYPES
     else:
-        slicing = slice(len(XSD_BUILTIN_TYPES))
+        builtin_types = XSD_10_BUILTIN_TYPES
 
-    for item in XSD_BUILTIN_TYPES[slicing]:
+    for item in builtin_types:
         item = item.copy()
         name = item['name']
         try:

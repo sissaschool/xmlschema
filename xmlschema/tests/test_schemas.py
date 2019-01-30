@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,17 +12,13 @@
 """
 This module runs tests concerning the building of XSD schemas with the 'xmlschema' package.
 """
+from __future__ import print_function, unicode_literals
 import unittest
 import os
 import sys
 import pickle
+import time
 import warnings
-
-try:
-    # noinspection PyPackageRequirements
-    import lxml.etree as _lxml_etree
-except ImportError:
-    _lxml_etree = None
 
 try:
     import xmlschema
@@ -32,12 +28,12 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaValidationError, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
-from xmlschema.etree import defused_etree
+from xmlschema.etree import lxml_etree, py_etree_element
+
 from xmlschema.xpath import ElementPathContext
 from xmlschema.validators import XsdValidator, XMLSchema11
 
@@ -399,14 +395,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
         dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
         self.assertTrue(isinstance(dcterms_schema, self.schema_class))
 
-        # Check XML resource defusing
-        self.assertEqual(dc_schema.source.parse, defused_etree.parse)
-        self.assertEqual(dc_schema.source.iterparse, defused_etree.iterparse)
-        self.assertEqual(dc_schema.source.fromstring, defused_etree.fromstring)
-        self.assertEqual(dcterms_schema.source.parse, defused_etree.parse)
-        self.assertEqual(dcterms_schema.source.iterparse, defused_etree.iterparse)
-        self.assertEqual(dcterms_schema.source.fromstring, defused_etree.fromstring)
-
 
 class TestXMLSchema11(TestXMLSchema10):
 
@@ -435,48 +423,62 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(schema.types['req-tz-date'].is_valid('2002-10-10'))
 
     def test_assertion_facet(self):
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name='DimensionType'>
               <restriction base='integer'>
                 <assertion test='string-length($value) &lt; 2'/>
               </restriction>
-            </simpleType>
-            """)
-        self.assertFalse(schema.types['DimensionType'].is_valid('2'))
-        self.assertRaises(XMLSchemaValidationError, schema.types['DimensionType'].validate, '2')
+            </simpleType>""", XMLSchemaParseError)
 
         schema = self.check_schema("""
             <simpleType name='MeasureType'>
               <restriction base='integer'>
                 <assertion test='$value &gt; 0'/>
               </restriction>
-            </simpleType>
-            """)
+            </simpleType>""")
         self.assertTrue(schema.types['MeasureType'].is_valid('10'))
         self.assertFalse(schema.types['MeasureType'].is_valid('-1.5'))
 
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name='RestrictedDateTimeType'>
               <restriction base='dateTime'>
                 <assertion test="$value > '1999-12-31T23:59:59'"/>
               </restriction>
-            </simpleType>
-            """)
-        self.assertRaises(ValueError, schema.types['RestrictedDateTimeType'].is_valid, '2000-01-01T12:00:00')
+            </simpleType>""", XMLSchemaParseError)
 
-        # TODO: needs a new release of the elementpath package for full implementing the time based facets
-        # schema = self.check_schema("""
-        #    <simpleType name='RestrictedDateTimeType'>
-        #      <restriction base='dateTime'>
-        #        <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
-        #      </restriction>
-        #    </simpleType>
-        #    """)
-        # self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
+        schema = self.check_schema("""
+            <simpleType name='RestrictedDateTimeType'>
+              <restriction base='dateTime'>
+                <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
+              </restriction>
+            </simpleType>""")
+        self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
+
+        schema = self.check_schema("""<simpleType name="Percentage">
+              <restriction base="integer">
+                <assertion test="$value >= 0"/>
+                <assertion test="$value &lt;= 100"/>
+              </restriction>
+            </simpleType>""")
+        self.assertTrue(schema.types['Percentage'].is_valid('10'))
+        self.assertTrue(schema.types['Percentage'].is_valid('100'))
+        self.assertTrue(schema.types['Percentage'].is_valid('0'))
+        self.assertFalse(schema.types['Percentage'].is_valid('-1'))
+        self.assertFalse(schema.types['Percentage'].is_valid('101'))
+        self.assertFalse(schema.types['Percentage'].is_valid('90.1'))
 
 
-def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
+def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=True):
+    """
+    Creates a schema test class.
 
+    :param test_file: the schema test file path.
+    :param test_args: line arguments for test case.
+    :param test_num: a positive integer number associated with the test case.
+    :param schema_class: the schema class to use.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
+    Works only for XSD 1.0 tests.
+    """
     xsd_file = test_file
     if schema_class is None:
         schema_class = XMLSchema
@@ -490,11 +492,6 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
     debug_mode = test_args.debug
 
     def test_schema(self):
-        if debug_mode:
-            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
-            import pdb
-            pdb.set_trace()
-
         if inspect:
             SchemaObserver.clear()
 
@@ -514,9 +511,21 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
 
             # Pickling test (only for Python 3, skip inspected schema classes test)
             if not inspect and PY3:
-                deserialized_schema = pickle.loads(pickle.dumps(xs))
-                self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
-                self.assertEqual(xs.built, deserialized_schema.built)
+                try:
+                    obj = pickle.dumps(xs)
+                    deserialized_schema = pickle.loads(obj)
+                except pickle.PicklingError:
+                    # Don't raise if some schema parts (eg. a schema loaded from remote)
+                    # are built with the SafeXMLParser that uses pure Python elements.
+                    for e in xs.maps.iter_components():
+                        elem = getattr(e, 'elem', getattr(e, 'root', None))
+                        if isinstance(elem, py_etree_element):
+                            break
+                    else:
+                        raise
+                else:
+                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                    self.assertEqual(xs.built, deserialized_schema.built)
 
             # XPath API tests
             if not inspect and not errors_:
@@ -528,6 +537,12 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
 
             return errors_
 
+        if debug_mode:
+            print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+            import pdb
+            pdb.set_trace()
+
+        start_time = time.time()
         if expected_warnings > 0:
             with warnings.catch_warnings(record=True) as ctx:
                 warnings.simplefilter("always")
@@ -536,7 +551,31 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
         else:
             errors = check_schema()
 
-        # Checks errors completeness
+        # Check with lxml.etree.XMLSchema class
+        if check_with_lxml and lxml_etree is not None:
+            schema_time = time.time() - start_time
+            start_time = time.time()
+            lxs = lxml_etree.parse(xsd_file)
+            try:
+                lxml_etree.XMLSchema(lxs.getroot())
+            except lxml_etree.XMLSchemaParseError as err:
+                if not errors:
+                    print("\nSchema error with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        rel_path, class_name, unicode_type(err)
+                    ))
+            else:
+                if errors:
+                    print("\nUnrecognized errors with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        rel_path, class_name, '\n++++++\n'.join([unicode_type(e) for e in errors])
+                    ))
+                lxml_schema_time = time.time() - start_time
+                if lxml_schema_time >= schema_time:
+                    print(
+                        "\nSlower lxml.etree.XMLSchema ({:.3f}s VS {:.3f}s) with file {!r} ({})".format(
+                            lxml_schema_time, schema_time, rel_path, class_name
+                        ))
+
+        # Check errors completeness
         for e in errors:
             error_string = unicode_type(e)
             self.assertTrue(e.path, "Missing path for: %s" % error_string)
@@ -558,16 +597,15 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None):
     rel_path = os.path.relpath(test_file)
     class_name = 'Test{}_{:03}'.format(schema_class.__name__, test_num)
     return type(
-        class_name, (XMLSchemaTestCase,),
-        {'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema}
-    )
+        class_name if PY3 else str(class_name), (XMLSchemaTestCase,), {
+            'test_schema_{0:03}_{1}'.format(test_num, rel_path): test_schema
+        })
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, get_testfiles, tests_factory
+    from xmlschema.tests import print_test_header, tests_factory
 
     print_test_header()
-    testfiles = get_testfiles(os.path.dirname(os.path.abspath(__file__)))
-    schema_tests = tests_factory(make_schema_test_class, testfiles, suffix='xsd')
+    schema_tests = tests_factory(make_schema_test_class, 'xsd')
     globals().update(schema_tests)
     unittest.main()

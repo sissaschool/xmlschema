@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,7 +9,23 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains XMLSchema class creator for xmlschema package.
+This module contains XMLSchema classes creator for xmlschema package.
+
+Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.0 and
+XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
+the standard.
+
+Those are the differences between XSD 1.0 and XSD 1.1 and their current development status:
+
+  * All model extended for content groups
+  * Assertions for simple types
+  * Default attributes for complex types
+  * Alternative type for elements
+  * Inheritable attributes
+  * TODO targetNamespace for restricted element and attributes
+  * TODO: Assert for complex types
+  * TODO: OpenContent for complex types
+  * TODO: schema overrides
 """
 import os
 from collections import namedtuple
@@ -21,7 +37,8 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xpath_default_namespace
+from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute, \
+    get_xpath_default_namespace
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring
@@ -247,6 +264,24 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         self.converter = self.get_converter(converter)
 
+        # XSD 1.1 attributes "defaultAttributes" and "xpathDefaultNamespace"
+        if self.XSD_VERSION > '1.0':
+            try:
+                self.default_attributes = prefixed_to_qname(root.attrib['defaultAttributes'], self.namespaces)
+            except KeyError:
+                self.default_attributes = None
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error), root)
+                self.default_attributes = None
+
+            try:
+                self.xpath_default_namespace = get_xpath_default_namespace(
+                    root, self.namespaces[''], self.target_namespace, default=''
+                )
+            except XMLSchemaValueError as error:
+                self.parse_error(str(error), root)
+                self.xpath_default_namespace = ''  # self.namespaces['']
+
         # Create or set the XSD global maps instance
         if global_maps is None:
             if self.meta_schema is None:
@@ -263,7 +298,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.meta_schema = meta_schema
                 self.maps = self.meta_schema.maps
             else:
-                self.maps = self.meta_schema.maps.copy(validation)
+                self.maps = self.meta_schema.maps.copy(self, validation=validation)
 
         elif isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
@@ -279,16 +314,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         elif validation == 'lax':
             self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
 
-        # XSD 1.1 xpathDefaultNamespace attribute
-        if self.XSD_VERSION > '1.0':
-            try:
-                self.xpath_default_namespace = get_xpath_default_namespace(
-                    root, self.namespaces[''], self.target_namespace, default=''
-                )
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error), root)
-                self.xpath_default_namespace = self.namespaces['']
-
+        # Includes and imports schemas (errors are treated as warnings)
         self.warnings.extend(self._include_schemas())
         self.warnings.extend(self._import_namespaces())
 
@@ -297,7 +323,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def __repr__(self):
         if self.url:
-            return u'%s(namespace=%r, url=%r)' % (self.__class__.__name__, self.target_namespace, self.url)
+            basename = os.path.basename(self.url)
+            return u'%s(basename=%r, namespace=%r)' % (self.__class__.__name__, basename, self.target_namespace)
         else:
             return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
@@ -748,8 +775,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, converter=None,
-                    defuse=None, timeout=None, **kwargs):
+                    namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
+                    converter=None, defuse=None, timeout=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -767,6 +794,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param use_defaults: indicates whether to use default values for filling missing data.
         :param decimal_type: conversion type for `Decimal` objects (generated by XSD `decimal` \
         built-in and derived types), useful if you want to generate a JSON-compatible data structure.
+        :param datetime_types: if set to `True` the datetime and duration XSD types are decoded, \
+        otherwise their origin XML string is returned.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
         :param defuse: Overrides when to defuse XML data. Can be 'always', 'remote' or 'never'.
         :param timeout: Overrides the timeout setted for the schema.
@@ -802,7 +831,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             else:
                 for obj in xsd_element.iter_decode(
                         source.root, validation, converter, source=source, namespaces=namespaces,
-                        use_defaults=use_defaults, decimal_type=decimal_type, **kwargs):
+                        use_defaults=use_defaults, decimal_type=decimal_type,
+                        datetime_types=datetime_types, **kwargs):
                     yield obj
         else:
             xsd_element = self.find(path, namespaces=namespaces)
@@ -814,7 +844,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for elem in elementpath.select(source.root, path, namespaces=namespaces):
                     for obj in xsd_element.iter_decode(
                             elem, validation, converter, source=source, namespaces=namespaces,
-                            use_defaults=use_defaults, decimal_type=decimal_type, **kwargs):
+                            use_defaults=use_defaults, decimal_type=decimal_type,
+                            datetime_types=datetime_types, **kwargs):
                         yield obj
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
@@ -862,7 +893,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
 
 class XMLSchema10(XMLSchemaBase):
-    """XSD 1.0 Schema class"""
+    """
+    XSD 1.0 schema class.
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
+      attributeGroup) | element | attribute | notation), annotation*)*)
+    </schema>
+    """
     XSD_VERSION = '1.0'
     FACETS = XSD_10_FACETS
     BUILDERS = {
@@ -888,7 +935,39 @@ class XMLSchema10(XMLSchemaBase):
 
 # ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
 class XMLSchema11(XMLSchemaBase):
-    """XSD 1.1 Schema class"""
+    """
+    XSD 1.1 schema class.
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      defaultAttributes = QName
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))  : ##local
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | override | annotation)*, (defaultOpenContent, annotation*)?,
+      ((simpleType | complexType | group | attributeGroup | element | attribute | notation), annotation*)*)
+    </schema>
+
+    <schema
+      attributeFormDefault = (qualified | unqualified) : unqualified
+      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      elementFormDefault = (qualified | unqualified) : unqualified
+      finalDefault = (#all | List of (extension | restriction | list | union))  : ''
+      id = ID
+      targetNamespace = anyURI
+      version = token
+      xml:lang = language
+      {any attributes with non-schema namespace . . .}>
+      Content: ((include | import | redefine | annotation)*, (((simpleType | complexType | group |
+      attributeGroup) | element | attribute | notation), annotation*)*)
+    </schema>
+    """
     XSD_VERSION = '1.1'
     FACETS = XSD_11_FACETS
     BUILDERS = {

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -16,9 +16,9 @@ from __future__ import unicode_literals
 import json
 import os
 from sys import maxunicode
-from collections import defaultdict, Iterable, MutableSet
+from collections import defaultdict
 
-from .compat import PY3, unicode_chr, string_base_type
+from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
 CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
@@ -104,17 +104,17 @@ def code_point_repr(cp):
     """
     if isinstance(cp, int):
         if cp in CHARACTER_GROUP_ESCAPED:
-            return '\%s' % unicode_chr(cp)
+            return r'\%s' % unicode_chr(cp)
         return unicode_chr(cp)
 
     if cp[0] in CHARACTER_GROUP_ESCAPED:
-        start_char = '\%s' % unicode_chr(cp[0])
+        start_char = r'\%s' % unicode_chr(cp[0])
     else:
         start_char = unicode_chr(cp[0])
 
     end_cp = cp[1] - 1  # Character ranges include the right bound
     if end_cp in CHARACTER_GROUP_ESCAPED:
-        end_char = '\%s' % unicode_chr(end_cp)
+        end_char = r'\%s' % unicode_chr(end_cp)
     else:
         end_char = unicode_chr(end_cp)
 

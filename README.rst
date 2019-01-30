@@ -34,7 +34,7 @@ This library includes the following features:
 * Data decoding and encoding ruled by converter classes
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
-* XML-based attacks prevention using the external package *defusedxml*
+* XML-based attacks prevention using an XMLParser that forbids entities
 
 
 Installation
@@ -45,8 +45,7 @@ You can install the library with *pip* in a Python 2.7 or Python 3.4+ environmen
     pip install xmlschema
 
 The library uses the Python's ElementTree XML library and requires
-`elementpath <https://github.com/brunato/elementpath>`_ and
-`defusedxml <https://github.com/tiran/defusedxml>`_ additional packages.
+`elementpath <https://github.com/brunato/elementpath>`_ additional package.
 The base schemas of the XSD standards are included in the package for working
 offline and to speed-up the building of schema instances.
 

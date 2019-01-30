@@ -520,9 +520,9 @@ using the *validation* argument setted to 'lax'.
 XML attacks prevention
 ----------------------
 
-Starting from the release 0.9.27 the XML data loading is protected using the *defusedxml*
-package. The protection is applied both to XSD schemas and to XML data.
-The usage of this feature is regulated by the XMLSchema's argument *defuse*.
+The XML data resource loading is protected using an XMLParser that forbids the use of entities.
+The protection is applied both to XSD schemas and to XML data. The usage of this feature is
+regulated by the XMLSchema's argument *defuse*.
 For default this argument has value *'remote'* that means the protection on XML data is
 applied only to data loaded from remote. Other values for this argument can be *'always'*
 and *'never'*.

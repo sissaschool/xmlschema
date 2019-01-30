@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,9 +12,9 @@
 This module contains classes for XML Schema model groups.
 """
 from __future__ import unicode_literals
-from collections import MutableSequence, Counter
+from collections import Counter
 
-from ..compat import PY3, unicode_type
+from ..compat import PY3, unicode_type, MutableSequence
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
@@ -647,7 +647,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in model.element.iter_substitutes():
                         if tag in xsd_element.names:
                             break
                     else:
@@ -758,7 +758,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         and model.element.is_matching(tag, default_namespace):
                     xsd_element = model.element
                 else:
-                    for xsd_element in self.maps.substitution_groups.get(model.element.name, ()):
+                    for xsd_element in model.element.iter_substitutes():
                         if tag in xsd_element.names:
                             break
                     else:

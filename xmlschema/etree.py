@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,9 +12,9 @@
 This module contains ElementTree setup and helpers for xmlschema package.
 """
 from __future__ import unicode_literals
-from collections import Counter
-import importlib
+import sys
 import re
+from collections import Counter
 
 import xml.etree.ElementTree as ElementTree
 
@@ -26,78 +26,54 @@ except ImportError:
 from .compat import PY3
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
-from xmlschema.helpers import get_namespace, get_qname, qname_to_prefixed
+from .helpers import get_namespace, get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
 
-# Register missing namespaces into imported ElementTree module
+# In Python 3 the pure python implementation is hidden by the C module import,
+# so uses importlib to re-import the pure Python module, saving and restoring
+# the original modules (the optimized module and the C module).
+if PY3 and '_elementtree' in sys.modules:
+    import importlib
+
+    # Temporary remove the loaded modules
+    _pymod = sys.modules.pop('xml.etree.ElementTree')
+    _cmod = sys.modules.pop('_elementtree')
+
+    # Load the pure Python module
+    sys.modules['_elementtree'] = None
+    PyElementTree = importlib.import_module('xml.etree.ElementTree')
+
+    # Restore original modules
+    sys.modules['_elementtree'] = _cmod
+    sys.modules['xml.etree.ElementTree'] = _pymod
+else:
+    # If Python 2 or if the C module is not available
+    PyElementTree = ElementTree
+
+
+# ElementTree APIs
+etree_element = ElementTree.Element
 etree_register_namespace = ElementTree.register_namespace
+ParseError = ElementTree.ParseError
+
 etree_register_namespace('xslt', XSLT_NAMESPACE)
 etree_register_namespace('hfp', HFP_NAMESPACE)
 etree_register_namespace('vc', VC_NAMESPACE)
 
-etree_element = ElementTree.Element
-etree_parse_error = ElementTree.ParseError
-etree_parse = ElementTree.parse
-etree_iterparse = ElementTree.iterparse
-etree_fromstring = ElementTree.fromstring
 
+# Pure Python ElementTree APIs
+py_etree_element = PyElementTree.Element
+py_etree_register_namespace = ElementTree.register_namespace
+PyParseError = PyElementTree.ParseError
 
-# Safe ElementTree
-class LazyDefusedElementTree(object):
-    """
-    Lazy importer of defused ElementTree to postpone C ElementTree override.
-    """
-    def __init__(self):
-        self._defused_etree = None
-        self.element_tree = ElementTree
-        self.etree_element = etree_element
-
-    def _import(self):
-        """Import the safe module and update set PyElementTree with the pure python module."""
-        self._defused_etree = importlib.import_module('defusedxml.ElementTree')
-        import xml.etree.ElementTree as PurePythonElementTree
-        self.element_tree = PurePythonElementTree
-        self.etree_element = PurePythonElementTree.Element
-
-    @property
-    def parse(self):
-        try:
-            return self._defused_etree.parse
-        except AttributeError:
-            self._import()
-            return self._defused_etree.parse
-
-    @property
-    def iterparse(self):
-        try:
-            return self._defused_etree.iterparse
-        except AttributeError:
-            self._import()
-            return self._defused_etree.iterparse
-
-    @property
-    def fromstring(self):
-        try:
-            return self._defused_etree.fromstring
-        except AttributeError:
-            self._import()
-            return self._defused_etree.fromstring
-
-    @property
-    def parse_error(self):
-        try:
-            return self._defused_etree.ParseError
-        except AttributeError:
-            return etree_parse_error
-
-
-defused_etree = LazyDefusedElementTree()
+py_etree_register_namespace('xslt', XSLT_NAMESPACE)
+py_etree_register_namespace('hfp', HFP_NAMESPACE)
+py_etree_register_namespace('vc', VC_NAMESPACE)
 
 
 # Lxml APIs
 if lxml_etree is not None:
-    lxml_etree_parse = lxml_etree.parse
     lxml_etree_element = lxml_etree.Element
     lxml_etree_comment = lxml_etree.Comment
     lxml_etree_register_namespace = lxml_etree.register_namespace
@@ -106,10 +82,37 @@ if lxml_etree is not None:
     lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
     lxml_etree_register_namespace('vc', VC_NAMESPACE)
 else:
-    lxml_etree_parse = None
     lxml_etree_element = None
     lxml_etree_comment = None
     lxml_etree_register_namespace = None
+
+
+class SafeXMLParser(PyElementTree.XMLParser):
+    """
+    An XMLParser that forbids entities processing. Drops the *html* argument that is deprecated
+    since version 3.4.
+
+    :param target: the target object called by the `feed()` method of the parser, \
+    that defaults to `TreeBuilder`.
+    :param encoding: if provided, its value overrides the encoding specified in the XML file.
+    """
+    def __init__(self, target=None, encoding=None):
+        super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
+        parser = self.parser if PY3 else self._parser
+        parser.EntityDeclHandler = self.entity_declaration
+        parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
+        parser.ExternalEntityRefHandler = self.external_entity_reference
+
+    def entity_declaration(self, entity_name, is_parameter_entity, value, base, system_id, public_id, notation_name):
+        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+
+    def unparsed_entity_declaration(self, entity_name, base, system_id, public_id, notation_name):
+        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+
+    def external_entity_reference(self, context, base, system_id, public_id):
+        raise ParseError(
+            "External references are forbidden (system_id={!r}, public_id={!r})".format(system_id, public_id)
+        )
 
 
 def is_etree_element(elem):
@@ -144,11 +147,11 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
                 etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
 
-    elif isinstance(elem, defused_etree.etree_element):
+    elif isinstance(elem, py_etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                defused_etree.element_tree.register_namespace(prefix, uri)
-        tostring = defused_etree.element_tree.tostring
+                PyElementTree.register_namespace(prefix, uri)
+        tostring = PyElementTree.tostring
 
     elif lxml_etree is not None:
         if namespaces:

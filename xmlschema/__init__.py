@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from .compat import ordered_dict_class as _ordered_dict_class
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .resources import (
     normalize_url, fetch_resource, load_xml_resource, fetch_namespaces,
@@ -26,10 +25,10 @@ from .validators import (
     XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
-__version__ = '1.0.7'
+__version__ = '1.0.8'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
-__copyright__ = "Copyright 2016-2018, SISSA"
+__copyright__ = "Copyright 2016-2019, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
 

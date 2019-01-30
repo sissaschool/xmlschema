@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Extends an attribute-only complexType with a simple content -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="value" type="int-node"/>
+
+    <xs:complexType name="node-type" mixed="true">
+        <xs:attribute name="choice" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="int-node">
+        <xs:simpleContent>
+            <xs:restriction base="node-type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:int"/>
+                </xs:simpleType>
+            </xs:restriction>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>

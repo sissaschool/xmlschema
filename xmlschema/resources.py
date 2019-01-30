@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -19,10 +19,8 @@ from .compat import (
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .helpers import get_namespace
-from .etree import (
-    defused_etree, is_etree_element, etree_parse, etree_iterparse,
-    etree_fromstring, etree_parse_error, etree_tostring
-)
+from .etree import ElementTree, PyElementTree, ParseError, PyParseError, SafeXMLParser, \
+    is_etree_element, etree_tostring
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')
@@ -283,7 +281,7 @@ class XMLResource(object):
                         return root, None, source, None
                 else:
                     return self.fromstring(source), None, source, None
-            except (etree_parse_error, defused_etree.parse_error, UnicodeEncodeError):
+            except (ParseError, UnicodeEncodeError):
                 if '\n' in source:
                     raise
             finally:
@@ -386,29 +384,38 @@ class XMLResource(object):
         """The namespace of the XML document."""
         return get_namespace(self._root.tag) if self._root is not None else None
 
-    @property
-    def parse(self):
+    def parse(self, source):
         """The ElementTree parse method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return defused_etree.parse
+            parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+            try:
+                return PyElementTree.parse(source, parser)
+            except PyParseError as err:
+                raise ParseError(str(err))
         else:
-            return etree_parse
+            return ElementTree.parse(source)
 
-    @property
-    def iterparse(self):
+    def iterparse(self, source, events=None):
         """The ElementTree iterparse method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return defused_etree.iterparse
+            parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+            try:
+                return PyElementTree.iterparse(source, events, parser)
+            except PyParseError as err:
+                raise ParseError(str(err))
         else:
-            return etree_iterparse
+            return ElementTree.iterparse(source, events)
 
-    @property
-    def fromstring(self):
+    def fromstring(self, text):
         """The ElementTree fromstring method, depends from 'defuse' and 'url' attributes."""
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            return defused_etree.fromstring
+            parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+            try:
+                return PyElementTree.fromstring(text, parser)
+            except PyParseError as err:
+                raise ParseError(str(err))
         else:
-            return etree_fromstring
+            return ElementTree.fromstring(text)
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
@@ -544,7 +551,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(resource, events=('start-ns',)):
                     update_nsmap(*node)
-            except (etree_parse_error, defused_etree.parse_error):
+            except ParseError:
                 pass
             finally:
                 resource.close()
@@ -552,7 +559,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
                     update_nsmap(*node)
-            except (etree_parse_error, defused_etree.parse_error):
+            except ParseError:
                 pass
         else:
             # Warning: can extracts namespace information only from lxml etree structures

@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -16,8 +16,8 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.0.7',
-    install_requires=['elementpath>=1.0.12', 'defusedxml>=0.5'],
+    version='1.0.8',
+    install_requires=['elementpath>=1.1.2'],
     packages=['xmlschema'],
     include_package_data=True,
     author='Davide Brunato',

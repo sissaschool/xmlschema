@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -147,6 +147,7 @@ def create_lookup_function(xsd_classes):
                     # Built-in type
                     global_map[qname] = obj[0]
 
+                # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
                     global_map[qname].schema = schema
                     global_map[qname].elem = elem
@@ -177,7 +178,6 @@ class XsdGlobals(XsdValidator):
     :param validator: the XMLSchema class to use for global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
-
     def __init__(self, validator, validation='strict'):
         super(XsdGlobals, self).__init__(validation)
         self.validator = validator
@@ -196,9 +196,12 @@ class XsdGlobals(XsdValidator):
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
 
-    def copy(self, validation=None):
+    def __repr__(self):
+        return '%s(validator=%r, validation=%r)' % (self.__class__.__name__, self.validator, self.validation)
+
+    def copy(self, validator=None, validation=None):
         """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator, validation or self.validation)
+        obj = XsdGlobals(self.validator if validator is None else validator, validation or self.validation)
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -345,7 +348,8 @@ class XsdGlobals(XsdValidator):
 
     def build(self):
         """
-        Update the global maps adding the global not built registered schemas.
+        Build the maps of XSD global definitions/declarations. The global maps are
+        updated adding and building the globals of not built registered schemas.
         """
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
@@ -402,6 +406,19 @@ class XsdGlobals(XsdValidator):
                     except KeyError:
                         self.substitution_groups[qname] = {xsd_element}
 
+            # Checks substitution groups
+            for qname in self.substitution_groups:
+                try:
+                    xsd_element = self.elements[qname]
+                except KeyError:
+                    raise XMLSchemaKeyError("missing global element %r in %r." % (qname, schema))
+                else:
+                    for e in xsd_element.iter_substitutes():
+                        if e is xsd_element:
+                            raise XMLSchemaValueError(
+                                "circularity found for element %r in substitution groups of %r" % (e, schema)
+                            )
+
             if schema.meta_schema is not None:
                 # Set referenced key/unique constraints for keyrefs
                 for constraint in schema.iter_components(XsdKeyref):
@@ -412,6 +429,12 @@ class XsdGlobals(XsdValidator):
                 # if schema.validation != 'skip':
                 #     for xsd_type in schema.iter_components(XsdComplexType):
                 #         xsd_type.check_restriction()
+
+            if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
+                if not isinstance(schema.default_attributes, XsdAttributeGroup):
+                    schema.default_attributes = None
+                    schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
+                                       .format(schema.root.get('defaultAttributes'), schema), schema.root)
 
         if self.validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map %r not built!" % self)

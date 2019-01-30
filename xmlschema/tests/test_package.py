@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2018-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -28,12 +28,8 @@ except ImportError:
     sys.path.insert(0, pkg_base_dir)
     import xmlschema
 
-from xmlschema.etree import defused_etree, etree_tostring
-
-# Import ElementTree and defusedxml.ElementTree
-import xml.etree.ElementTree as ElementTree         # Original module with C extensions
-defused_etree.fromstring('<A/>')                    # Lazy import of defusedxml.ElementTree
-import xml.etree.ElementTree as PyElementTree       # Pure Python import
+from xmlschema.etree import PyElementTree, etree_tostring
+import xml.etree.ElementTree as ElementTree
 
 
 class TestEnvironment(unittest.TestCase):
@@ -54,10 +50,6 @@ class TestEnvironment(unittest.TestCase):
         elem = PyElementTree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element />')
 
-    def test_defused_etree(self):
-        self.assertEqual(defused_etree.element_tree, PyElementTree)
-        self.assertEqual(defused_etree.etree_element, PyElementTree.Element)
-
 
 class TestPackaging(unittest.TestCase):
 
@@ -69,7 +61,9 @@ class TestPackaging(unittest.TestCase):
         if not cls.package_dir.endswith('/xmlschema'):
             cls.package_dir = None
 
-        cls.missing_debug = re.compile(r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()")
+        cls.missing_debug = re.compile(
+            r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()|\bbreakpoint\s*\("
+        )
         cls.get_version = re.compile(r"(?:\brelease|__version__)(?:\s*=\s*)(\'[^\']*\'|\"[^\"]*\")")
 
     def test_missing_debug_statements(self):

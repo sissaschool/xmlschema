@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,9 +12,10 @@
 This module contains classes for XML Schema attributes and attribute groups.
 """
 from __future__ import unicode_literals
-from collections import MutableMapping
 from decimal import Decimal
+from elementpath.datatypes import AbstractDateTime, Duration
 
+from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
@@ -70,7 +71,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         elem = self.elem
         self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
-        if self.default is not None and self.fixed is not None:
+        if 'default' in elem.attrib and 'fixed' in elem.attrib:
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
         self._parse_properties('form', 'use')
 
@@ -153,14 +154,14 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     @property
     def form(self):
         value = self.elem.get('form')
-        if value not in (None, 'qualified', 'unqualified'):
+        if value not in {None, 'qualified', 'unqualified'}:
             raise XMLSchemaValueError("wrong value %r for 'form' attribute." % value)
         return value
 
     @property
     def use(self):
         value = self.elem.get('use', 'optional')
-        if value not in ('optional', 'prohibited', 'required'):
+        if value not in {'optional', 'prohibited', 'required'}:
             raise XMLSchemaValueError("wrong value %r for 'use' attribute." % value)
         return value
 
@@ -185,10 +186,15 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield result
             elif isinstance(result, Decimal):
                 try:
-                    yield kwargs.get('decimal_type')(result)
-                except TypeError:
+                    yield kwargs['decimal_type'](result)
+                except (KeyError, TypeError):
                     yield result
                 break
+            elif isinstance(result, (AbstractDateTime, Duration)):
+                try:
+                    yield result if kwargs['datetime_types'] is True else text
+                except KeyError:
+                    yield text
             else:
                 yield result
                 break
@@ -219,7 +225,9 @@ class Xsd11Attribute(XsdAttribute):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    pass
+    @property
+    def inheritable(self):
+        return self.elem.get('inheritable') in ('0', 'true')
 
 
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
@@ -347,7 +355,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 self.update([(None, XsdAnyAttribute(child, self.schema, self))])
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = XsdAttribute(child, self.schema, self)
+                attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
                 self[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
@@ -366,6 +374,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
+
+        if self.parent is None and getattr(self.schema, 'default_attributes', None) == self.name:
+            self.schema.default_attributes = self
 
     @property
     def built(self):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -26,7 +26,7 @@ except ImportError:
     import xmlschema
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
-from xmlschema.validators.builtins import datetime_validator
+from xmlschema.validators.builtins import HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 
 xsd_10_meta_schema = xmlschema.XMLSchema.meta_schema
 xsd_11_meta_schema = xmlschema.validators.XMLSchema11.meta_schema
@@ -37,6 +37,14 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.meta_schema = xsd_10_meta_schema
+
+    def test_hex_binary_pattern(self):
+        self.assertEqual(HEX_BINARY_PATTERN.search("aff1c").group(0), 'aff1c')
+        self.assertEqual(HEX_BINARY_PATTERN.search("aF3Bc").group(0), 'aF3Bc')
+
+    def test_not_base64_pattern(self):
+        self.assertIsNone(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U="))
+        self.assertEqual(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(0), '!')
 
     def test_boolean_decode(self):
         xsd_type = self.meta_schema.types['boolean']
@@ -114,11 +122,10 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(datetime_type.is_valid('2007-05-10t14:35:00'))
         self.assertFalse(datetime_type.is_valid('2007-05-1014:35:00'))
         self.assertFalse(datetime_type.is_valid('07-05-10T14:35:00'))
-        self.assertFalse(datetime_type.is_valid('2007-05-10'))
+        self.assertTrue(datetime_type.is_valid('2007-05-10'))
 
         # Issue #85
         self.assertTrue(datetime_type.is_valid('2018-10-10T13:57:53.0702116-04:00'))
-        self.assertListEqual(list(datetime_validator('2018-10-10T13:57:53.0702116-04:00')), [])
 
     def test_date_type(self):
         date_type = self.meta_schema.types['date']
@@ -127,7 +134,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(date_type.is_valid('12012-05-31'))
         self.assertTrue(date_type.is_valid('2012-05-31-05:00'))
         self.assertTrue(date_type.is_valid('2015-06-30Z'))
-        if self.meta_schema.version > '1.0':
+        if self.meta_schema.XSD_VERSION > '1.0':
             self.assertTrue(date_type.is_valid('0000-01-01'))
         else:
             self.assertFalse(date_type.is_valid('0000-01-01'))

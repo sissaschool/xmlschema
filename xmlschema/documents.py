@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,7 +13,7 @@ import json
 
 from .compat import ordered_dict_class
 from .resources import fetch_schema_locations
-from .validators.schema import XMLSchema
+from .validators.schema import XMLSchema, XMLSchemaBase
 
 
 def validate(xml_document, schema=None, cls=None, use_defaults=True, namespaces=None, locations=None, base_url=None):
@@ -39,7 +39,7 @@ def validate(xml_document, schema=None, cls=None, use_defaults=True, namespaces=
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchema):
+    elif not isinstance(schema, XMLSchemaBase):
         schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
     schema.validate(xml_document, use_defaults, namespaces)
 
@@ -77,7 +77,7 @@ def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=T
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchema):
+    elif not isinstance(schema, XMLSchemaBase):
         schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
     return schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces, **kwargs)
 
@@ -116,7 +116,7 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
     if schema is None:
         schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
         schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchema):
+    elif not isinstance(schema, XMLSchemaBase):
         schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
     if json_options is None:
         json_options = {}
@@ -157,7 +157,7 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
     :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the schema, \
     or also if it's invalid when ``validation='strict'`` is provided.
     """
-    if not isinstance(schema, XMLSchema):
+    if not isinstance(schema, XMLSchemaBase):
         raise TypeError("An XMLSchema instance required for 'schema' argument: %r" % schema)
     elif json_options is None:
         json_options = {}

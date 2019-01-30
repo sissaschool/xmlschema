@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -28,38 +28,14 @@ except ImportError:
 
 from xmlschema.etree import etree_element
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.helpers import ISO_TIMEZONE_PATTERN, DURATION_PATTERN, HEX_BINARY_PATTERN, \
-    NOT_BASE64_BINARY_PATTERN, get_xsd_annotation, iter_xsd_components, get_namespace, \
-    get_qname, local_name, prefixed_to_qname, qname_to_prefixed, has_xsd_components, \
-    get_xsd_component, get_xml_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
+from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_namespace, get_qname, \
+    local_name, prefixed_to_qname, qname_to_prefixed, has_xsd_components, get_xsd_component, \
+    get_xml_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 from xmlschema.tests import XMLSchemaTestCase
 
 
 class TestHelpers(XMLSchemaTestCase):
-
-    def test_iso_timezone_pattern(self):
-        self.assertEqual(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00-05:00").group(0), '-05:00')
-        self.assertEqual(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00+05:00").group(0), '+05:00')
-        self.assertEqual(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00+13:59").group(0), '+13:59')
-        self.assertEqual(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00-14:00").group(0), '-14:00')
-        self.assertEqual(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00Z").group(0), 'Z')
-        self.assertIsNone(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00-14:01"))
-        self.assertIsNone(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00-15:00"))
-        self.assertIsNone(ISO_TIMEZONE_PATTERN.search("2002-10-10T12:00:00"))
-
-    def test_duration_pattern(self):
-        self.assertEqual(DURATION_PATTERN.search("P5Y7M20DT3H5M5S").group(0), 'P5Y7M20DT3H5M5S')
-        self.assertIsNone(ISO_TIMEZONE_PATTERN.search("P1YM7D"))
-
-    def test_hex_binary_pattern(self):
-        self.assertEqual(HEX_BINARY_PATTERN.search("aff1c").group(0), 'aff1c')
-        self.assertEqual(HEX_BINARY_PATTERN.search("aF3Bc").group(0), 'aF3Bc')
-        self.assertIsNone(ISO_TIMEZONE_PATTERN.search("34FG"))
-
-    def test_not_base64_pattern(self):
-        self.assertIsNone(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U="))
-        self.assertEqual(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(0), '!')
 
     def test_get_namespace_function(self):
         self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)

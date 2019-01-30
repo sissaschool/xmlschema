@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,10 +13,9 @@ Parse and translate XML regular expressions to Python regex syntax.
 """
 from __future__ import unicode_literals
 import re
-from collections import MutableSet
 from sys import maxunicode
 
-from .compat import PY3, unicode_type, string_base_type
+from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 

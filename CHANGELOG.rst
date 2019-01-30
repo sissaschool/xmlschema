@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.0.8`_ (2019-01-30)
+======================
+* Dependency *defusedxml* package replaced by a custom XMLParser for ElementTree
+* Optional decoding of XSD date/time/duration builtin types
+* Fixes for issues #93, #96, #97 and #99
+
 `v1.0.7`_ (2018-11-15)
 ======================
 * Fixes for issues #87 and #88
@@ -207,3 +213,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.5: https://github.com/brunato/xmlschema/compare/v1.0.4...v1.0.5
 .. _v1.0.6: https://github.com/brunato/xmlschema/compare/v1.0.5...v1.0.6
 .. _v1.0.7: https://github.com/brunato/xmlschema/compare/v1.0.6...v1.0.7
+.. _v1.0.8: https://github.com/brunato/xmlschema/compare/v1.0.7...v1.0.8

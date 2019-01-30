@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,15 +13,14 @@ This module contains declarations and classes for XML Schema constraint facets.
 """
 from __future__ import unicode_literals
 import re
-from collections import MutableSequence
 from elementpath import XMLSchemaProxy, XPath2Parser, XPathContext, ElementPathSyntaxError
 
-from ..compat import unicode_type
+from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
     XSD_DECIMAL, XSD_INTEGER, XSD_BASE64_BINARY, XSD_HEX_BINARY
-from ..helpers import ISO_TIMEZONE_PATTERN, get_xpath_default_namespace
+from ..helpers import get_xpath_default_namespace
 from ..etree import etree_element
 from ..regex import get_python_regex
 
@@ -322,11 +321,11 @@ class XsdExplicitTimezoneFacet(XsdSingleFacet):
             self.parse_error("attribute 'value' must be one of ('required', 'prohibited', 'optional').")
 
     def required_timezone_validator(self, x):
-        if ISO_TIMEZONE_PATTERN.search(x) is None:
+        if x.tzinfo is None:
             yield XMLSchemaValidationError(self, x, "time zone required for value %r." % self.value)
 
     def prohibited_timezone_validator(self, x):
-        if ISO_TIMEZONE_PATTERN.search(x) is not None:
+        if x.tzinfo is not None:
             yield XMLSchemaValidationError(self, x, "time zone prohibited for value %r." % self.value)
 
 
@@ -425,7 +424,17 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
 
 
 class XsdAssertionsFacet(MutableSequence, XsdFacet):
+    """
+    Sequence of XSD simpleType assertions.
 
+    <assertion
+      id = ID
+      test = an XPath expression
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </assertion>
+    """
     admitted_tags = {XSD_ASSERTION}
 
     def __init__(self, elem, schema, parent, base_type):
@@ -446,17 +455,26 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
             default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
         except ValueError as err:
             self.parse_error(str(err), elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  build_constructors=True)
+            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema))
         else:
             parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  default_namespace=default_namespace, build_constructors=True)
+                                  default_namespace=default_namespace)
 
         try:
-            return path, parser.parse(path)
+            root_token = parser.parse(path)
         except ElementPathSyntaxError as err:
-            self.parse_error(str(err), elem=elem)
+            self.parse_error(err, elem=elem)
             return path, parser.parse('true()')
+
+        primitive_type = self.base_type.primitive_type
+        context = XPathContext(root=etree_element('root'), variables={'value': primitive_type.value})
+        try:
+            root_token.evaluate(context)
+        except (TypeError, ValueError) as err:
+            self.parse_error(err, elem=elem)
+            return path, parser.parse('true()')
+        else:
+            return path, root_token
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -484,13 +502,10 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
         return '%s(%r)' % (self.__class__.__name__, self.paths)
 
     def __call__(self, value):
-        elem = etree_element('root')
-        try:
-            if not all(token.evaluate(XPathContext(elem, variables={'value': value})) for token in self.tokens):
-                msg = "value is not true with all expressions of %r."
-                yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
-        except TypeError as err:
-            yield XMLSchemaValidationError(self, value, reason=str(err))
+        context = XPathContext(root=etree_element('root'), variables={'value': value})
+        if not all(token.evaluate(context) for token in self.tokens):
+            msg = "value is not true with all expressions of %r."
+            yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
 
 
 XSD_10_FACETS = {

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2018, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -18,13 +18,6 @@ from .qnames import XSD_ANNOTATION
 
 
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
-FRACTION_DIGITS_PATTERN = re.compile(r'\.(\d+)$')
-ISO_TIMEZONE_PATTERN = re.compile(r'(Z|[+-](?:(?:0[0-9]|1[0-3]):[0-5][0-9]|14:00))$')
-DURATION_PATTERN = re.compile(r'^(-)?P(?=(\d|T))(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$')
-DAY_TIME_DURATION_PATTERN = re.compile(r'^[^YM]*(T.*)?$')
-YEAR_MONTH_DURATION_PATTERN = re.compile(r'^[^DT]*$')
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
 
 
 def get_namespace(name):
