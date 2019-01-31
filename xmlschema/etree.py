@@ -39,10 +39,10 @@ if not PY3:
     ElementTree = PyElementTree = importlib.import_module('xml.etree.ElementTree')
 
 elif '_elementtree' in sys.modules:
-    # Python 3 and ElementTree imported before xmlschema
+    # Python 3 when cElementTree is already loaded
 
     # Temporary remove the loaded modules
-    ElementTree = sys.modules.pop('xml.etree.ElementTree')
+    ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
     _cmod = sys.modules.pop('_elementtree')
 
     # Load the pure Python module
@@ -51,10 +51,13 @@ elif '_elementtree' in sys.modules:
 
     # Restore original modules
     sys.modules['_elementtree'] = _cmod
-    sys.modules['xml.etree.ElementTree'] = ElementTree
+    if ElementTree is not None:
+        sys.modules['xml.etree.ElementTree'] = ElementTree
+    else:
+        ElementTree = PyElementTree
 
 else:
-    # Python 3 and ElementTree not loaded before xmlschema
+    # Python 3 when cElementTree is not loaded
 
     # Load and save the pure Python module
     sys.modules['_elementtree'] = None

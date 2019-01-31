@@ -13,40 +13,10 @@
 Tests concerning packaging and installation environment.
 """
 import unittest
-import importlib
 import glob
 import fileinput
 import os
 import re
-import sys
-
-from xmlschema.etree import ElementTree as CElementTree
-from xmlschema.etree import PyElementTree, etree_tostring
-
-import xml.etree.ElementTree as ElementTree
-
-
-# TODO: Add tests for base schemas files.
-
-
-class TestEnvironment(unittest.TestCase):
-
-    def test_element_tree(self):
-        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
-        elem = PyElementTree.Element('element')
-        self.assertEqual(etree_tostring(elem), '<element />')
-        self.assertEqual(importlib.import_module('xml.etree.ElementTree'), ElementTree)
-        self.assertEqual(CElementTree, ElementTree)
-
-    def test_pure_python_element_tree(self):
-        if sys.version_info >= (3,):
-            self.assertEqual(PyElementTree.Element, PyElementTree._Element_Py)  # C extensions disabled by defusedxml
-            self.assertNotEqual(ElementTree.Element, PyElementTree.Element)
-        else:
-            self.assertNotEqual(PyElementTree.Element, PyElementTree._Element_Py)
-
-        elem = PyElementTree.Element('element')
-        self.assertEqual(etree_tostring(elem), '<element />')
 
 
 class TestPackaging(unittest.TestCase):
@@ -114,6 +84,9 @@ class TestPackaging(unittest.TestCase):
                         version == match.group(1).strip('\'\"'),
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
+
+
+# TODO: Add tests for checking base schemas files and other package files.
 
 
 if __name__ == '__main__':

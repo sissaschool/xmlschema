@@ -12,6 +12,7 @@
 
 if __name__ == '__main__':
     from xmlschema.tests.test_helpers import *
+    from xmlschema.tests.test_etree import *
     from xmlschema.tests.test_meta import *
     from xmlschema.tests.test_regex import *
     from xmlschema.tests.test_xpath import *
