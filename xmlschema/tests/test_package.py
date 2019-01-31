@@ -20,16 +20,13 @@ import os
 import re
 import sys
 
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
+from xmlschema.etree import ElementTree as CElementTree
 from xmlschema.etree import PyElementTree, etree_tostring
+
 import xml.etree.ElementTree as ElementTree
+
+
+# TODO: Add tests for base schemas files.
 
 
 class TestEnvironment(unittest.TestCase):
@@ -39,6 +36,7 @@ class TestEnvironment(unittest.TestCase):
         elem = PyElementTree.Element('element')
         self.assertEqual(etree_tostring(elem), '<element />')
         self.assertEqual(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertEqual(CElementTree, ElementTree)
 
     def test_pure_python_element_tree(self):
         if sys.version_info >= (3,):
@@ -119,5 +117,7 @@ class TestPackaging(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
 
+    print_test_header()
     unittest.main()

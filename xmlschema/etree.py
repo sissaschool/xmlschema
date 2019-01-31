@@ -14,9 +14,8 @@ This module contains ElementTree setup and helpers for xmlschema package.
 from __future__ import unicode_literals
 import sys
 import re
+import importlib
 from collections import Counter
-
-import xml.etree.ElementTree as ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -29,15 +28,21 @@ from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
 from .helpers import get_namespace, get_qname, qname_to_prefixed
 from .xpath import ElementPathMixin
 
-
+###
+# Programmatic import of xml.etree.ElementTree
+#
 # In Python 3 the pure python implementation is hidden by the C module import,
-# so uses importlib to re-import the pure Python module, saving and restoring
-# the original modules (the optimized module and the C module).
-if PY3 and '_elementtree' in sys.modules:
-    import importlib
+# so importlib has to be used to re-import the pure Python module, saving and
+# restoring the original modules (the optimized module and the C module).
+if not PY3:
+    # Python 2.7: nothing have to be done because it's not overridden by C implementation
+    ElementTree = PyElementTree = importlib.import_module('xml.etree.ElementTree')
+
+elif '_elementtree' in sys.modules:
+    # Python 3 and ElementTree imported before xmlschema
 
     # Temporary remove the loaded modules
-    _pymod = sys.modules.pop('xml.etree.ElementTree')
+    ElementTree = sys.modules.pop('xml.etree.ElementTree')
     _cmod = sys.modules.pop('_elementtree')
 
     # Load the pure Python module
@@ -46,10 +51,21 @@ if PY3 and '_elementtree' in sys.modules:
 
     # Restore original modules
     sys.modules['_elementtree'] = _cmod
-    sys.modules['xml.etree.ElementTree'] = _pymod
+    sys.modules['xml.etree.ElementTree'] = ElementTree
+
 else:
-    # If Python 2 or if the C module is not available
-    PyElementTree = ElementTree
+    # Python 3 and ElementTree not loaded before xmlschema
+
+    # Load and save the pure Python module
+    sys.modules['_elementtree'] = None
+    PyElementTree = importlib.import_module('xml.etree.ElementTree')
+
+    # Remove pure Python module from imported modules
+    del sys.modules['xml.etree.ElementTree']
+    del sys.modules['_elementtree']
+
+    # Load the C optimized ElementTree module
+    ElementTree = importlib.import_module('xml.etree.ElementTree')
 
 
 # ElementTree APIs

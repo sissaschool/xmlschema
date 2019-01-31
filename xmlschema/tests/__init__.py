@@ -12,6 +12,7 @@
 Tests subpackage module: common definitions for unittest scripts of the 'xmlschema' package.
 """
 import unittest
+import platform
 import re
 import os
 
@@ -47,8 +48,9 @@ PROTECTED_PREFIX_PATTERN = re.compile(r'ns\d:')
 
 
 def print_test_header():
-    header = "Test %r" % xmlschema
-    print("*" * len(header) + '\n' + header + '\n' + "*" * len(header))
+    header1 = "Test %r" % xmlschema
+    header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
 
 
 class XMLSchemaTestCase(unittest.TestCase):

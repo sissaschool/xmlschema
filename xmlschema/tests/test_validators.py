@@ -22,25 +22,18 @@ import base64
 import warnings
 from elementpath import datatypes
 
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
+import xmlschema
 from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import unicode_type, ordered_dict_class
-from xmlschema.resources import fetch_namespaces
-from xmlschema.tests import XMLSchemaTestCase
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
-from xmlschema.qnames import XSI_TYPE
 from xmlschema.helpers import local_name
+from xmlschema.qnames import XSI_TYPE
+from xmlschema.resources import fetch_namespaces
+from xmlschema.tests import XMLSchemaTestCase, tests_factory
 from xmlschema.validators import XMLSchema11
 
 _VEHICLES_DICT = {
@@ -1185,10 +1178,12 @@ class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
 
 
+# Creates decoding/encoding tests classes from XML files
+globals().update(tests_factory(make_validator_test_class, 'xml'))
+
+
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory
+    from xmlschema.tests import print_test_header
 
     print_test_header()
-    decoder_tests = tests_factory(make_validator_test_class, 'xml')
-    globals().update(decoder_tests)
     unittest.main()

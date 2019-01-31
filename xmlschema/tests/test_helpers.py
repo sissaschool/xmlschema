@@ -15,16 +15,6 @@ This module runs tests on various internal helper functions.
 from __future__ import unicode_literals
 
 import unittest
-import os
-import sys
-
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
 
 from xmlschema.etree import etree_element
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE

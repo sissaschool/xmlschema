@@ -14,15 +14,6 @@ This module runs tests concerning resources.
 """
 import unittest
 import os
-import sys
-
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
 
 try:
     from pathlib import PureWindowsPath, PurePath

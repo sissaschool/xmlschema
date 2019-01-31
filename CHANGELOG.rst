@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.0.9`_ (TBD)
+===============
+* Programmatic import of ElementTree for avoid import mismatches
+* New tests for ElementTree and cleaning of tests
+
 `v1.0.8`_ (2019-01-30)
 ======================
 * Dependency *defusedxml* package replaced by a custom XMLParser for ElementTree
@@ -214,3 +219,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.6: https://github.com/brunato/xmlschema/compare/v1.0.5...v1.0.6
 .. _v1.0.7: https://github.com/brunato/xmlschema/compare/v1.0.6...v1.0.7
 .. _v1.0.8: https://github.com/brunato/xmlschema/compare/v1.0.7...v1.0.8
+.. _v1.0.9: https://github.com/brunato/xmlschema/compare/v1.0.8...v1.0.9

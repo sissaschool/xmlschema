@@ -14,17 +14,7 @@ This module runs tests on XPath selector and find functions.
 """
 import unittest
 import os
-import sys
-from xml.etree import ElementTree as et
-
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
+import xml.etree.ElementTree as ElementTree
 from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
 
 from xmlschema import XMLSchema
@@ -107,7 +97,7 @@ class ElementTreeXPathTest(unittest.TestCase):
         cls.test_dir = os.path.dirname(__file__)
 
     def test_rel_xpath_boolean(self):
-        root = et.XML('<A><B><C/></B></A>')
+        root = ElementTree.XML('<A><B><C/></B></A>')
         el = root[0]
         self.assertTrue(Selector('boolean(C)').iter_select(el))
         self.assertFalse(next(Selector('boolean(D)').iter_select(el)))

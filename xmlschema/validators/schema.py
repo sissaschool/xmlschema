@@ -22,9 +22,9 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Default attributes for complex types
   * Alternative type for elements
   * Inheritable attributes
-  * TODO targetNamespace for restricted element and attributes
+  * targetNamespace for restricted element and attributes
   * TODO: Assert for complex types
-  * TODO: OpenContent for complex types
+  * TODO: OpenContent and XSD 1.1 wildcards for complex types
   * TODO: schema overrides
 """
 import os
