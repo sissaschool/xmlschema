@@ -2,10 +2,10 @@
 CHANGELOG
 *********
 
-`v1.0.9`_ (TBD)
-===============
-* Programmatic import of ElementTree for avoid import mismatches
-* New tests for ElementTree and cleaning of tests
+`v1.0.9`_ (2019-02-02)
+======================
+* Programmatic import of ElementTree for avoid module mismatches
+* Cleaning and refactoring of test scripts
 
 `v1.0.8`_ (2019-01-30)
 ======================
