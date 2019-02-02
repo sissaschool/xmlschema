@@ -18,15 +18,15 @@ import xml.etree.ElementTree as ElementTree
 from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
 
 from xmlschema import XMLSchema
+from xmlschema.tests import XMLSchemaTestCase
 
 
-class XsdXPathTest(unittest.TestCase):
+class XsdXPathTest(XMLSchemaTestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.test_dir = os.path.dirname(__file__)
-        cls.xs1 = XMLSchema(os.path.join(cls.test_dir, "cases/examples/vehicles/vehicles.xsd"))
-        cls.xs2 = XMLSchema(os.path.join(cls.test_dir, "cases/examples/collection/collection.xsd"))
+        cls.xs1 = XMLSchema(cls.casepath("examples/vehicles/vehicles.xsd"))
+        cls.xs2 = XMLSchema(cls.casepath("examples/collection/collection.xsd"))
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 

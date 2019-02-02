@@ -379,7 +379,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_stop(model)
 
     #
-    # Tests on schema cases/features/models/models.xsd
+    # Tests on schema test_cases/features/models/models.xsd
     def test_model_group1(self):
         group = self.models_schema.groups['group1']
 
@@ -468,7 +468,7 @@ class TestModelValidation(XMLSchemaTestCase):
     #
     # Tests on issues
     def test_issue_086(self):
-        issue_086_xsd = self.abspath('cases/issues/issue_086/issue_086.xsd')
+        issue_086_xsd = self.casepath('issues/issue_086/issue_086.xsd')
         schema = self.schema_class(issue_086_xsd)
         group = schema.types['Foo'].content_type
 

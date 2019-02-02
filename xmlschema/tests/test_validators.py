@@ -594,9 +594,9 @@ class TestValidation(XMLSchemaTestCase):
 
     @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
-        xs = xmlschema.XMLSchema(self.abspath('cases/examples/vehicles/vehicles.xsd'))
-        xt1 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles.xml'))
-        xt2 = lxml_etree.parse(self.abspath('cases/examples/vehicles/vehicles-1_error.xml'))
+        xs = xmlschema.XMLSchema(self.casepath('examples/vehicles/vehicles.xsd'))
+        xt1 = lxml_etree.parse(self.casepath('examples/vehicles/vehicles.xml'))
+        xt2 = lxml_etree.parse(self.casepath('examples/vehicles/vehicles-1_error.xml'))
         self.assertTrue(xs.is_valid(xt1))
         self.assertFalse(xs.is_valid(xt2))
         self.assertTrue(xs.validate(xt1) is None)
@@ -609,7 +609,7 @@ class TestValidation(XMLSchemaTestCase):
         self.assertIsNone(xmlschema.validate(self.vh_xml_file))
         self.assertIsNone(xmlschema.validate(self.vh_xml_file, use_defaults=False))
 
-        vh_2_file = self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')
+        vh_2_file = self.casepath('examples/vehicles/vehicles-2_errors.xml')
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_file)
 
         try:
@@ -633,7 +633,7 @@ class TestValidation11(TestValidation):
                 <ns:node xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                 xsi:schemaLocation="ns ./default_attributes.xsd" colour="red">Root Node</ns:node>
         """
-        xs = self.schema_class(self.abspath('cases/features/attributes/default_attributes.xsd'))
+        xs = self.schema_class(self.casepath('features/attributes/default_attributes.xsd'))
         self.assertTrue(xs.is_valid("<tree xmlns='ns'>"
                                     "   <node node-id='1'>alpha</node>"
                                     "   <node node-id='2' colour='red'>beta</node>"
@@ -738,18 +738,18 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertRaises(
             xmlschema.XMLSchemaValidationError,
             self.vh_schema.to_dict,
-            ElementTree.parse(self.abspath('cases/examples/vehicles/vehicles-2_errors.xml')),
+            ElementTree.parse(self.casepath('examples/vehicles/vehicles-2_errors.xml')),
             validation='strict',
             namespaces=self.vh_namespaces
         )
 
     def test_validation_skip(self):
-        xt = ElementTree.parse(self.abspath('cases/features/decoder/data3.xml'))
+        xt = ElementTree.parse(self.casepath('features/decoder/data3.xml'))
         xd = self.st_schema.decode(xt, validation='skip', namespaces={'ns': 'ns'})
         self.assertEqual(xd['decimal_value'], ['abc'])
 
     def test_datatypes(self):
-        xt = ElementTree.parse(self.abspath('cases/features/decoder/data.xml'))
+        xt = ElementTree.parse(self.casepath('features/decoder/data.xml'))
         xd = self.st_schema.to_dict(xt, namespaces=self.default_namespaces)
         self.assertEqual(xd, _DATA_DICT)
 
@@ -794,9 +794,9 @@ class TestDecoding(XMLSchemaTestCase):
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with
         dictionaries, returns just that even when it has a single dict. """
-        xsd_string = self.abspath('cases/issues/issue_022/xsd_string.xsd')
-        xml_string_1 = self.abspath('cases/issues/issue_022/xml_string_1.xml')
-        xml_string_2 = self.abspath('cases/issues/issue_022/xml_string_2.xml')
+        xsd_string = self.casepath('issues/issue_022/xsd_string.xsd')
+        xml_string_1 = self.casepath('issues/issue_022/xml_string_1.xml')
+        xml_string_2 = self.casepath('issues/issue_022/xml_string_2.xml')
         xsd_schema = xmlschema.XMLSchema(xsd_string)
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
@@ -811,8 +811,8 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
 
     def test_choice_model_decoding(self):
-        schema = xmlschema.XMLSchema(self.abspath('cases/issues/issue_041/issue_041.xsd'))
-        data = schema.to_dict(self.abspath('cases/issues/issue_041/issue_041.xml'))
+        schema = xmlschema.XMLSchema(self.casepath('issues/issue_041/issue_041.xsd'))
+        data = schema.to_dict(self.casepath('issues/issue_041/issue_041.xml'))
         self.assertEqual(data, {
             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             '@xsi:noNamespaceSchemaLocation': 'issue_041.xsd',
@@ -821,8 +821,8 @@ class TestDecoding(XMLSchemaTestCase):
         })
 
     def test_cdata_decoding(self):
-        schema = xmlschema.XMLSchema(self.abspath('cases/issues/issue_046/issue_046.xsd'))
-        xml_file = self.abspath('cases/issues/issue_046/issue_046.xml')
+        schema = xmlschema.XMLSchema(self.casepath('issues/issue_046/issue_046.xsd'))
+        xml_file = self.casepath('issues/issue_046/issue_046.xml')
         self.assertEqual(
             schema.decode(xml_file, dict_class=ordered_dict_class, cdata_prefix='#'),
             ordered_dict_class(
@@ -916,7 +916,7 @@ class TestDecoding(XMLSchemaTestCase):
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 
     def test_complex_with_simple_content_restriction(self):
-        xs = self.schema_class(self.abspath('cases/features/derivations/complex-with-simple-content-restriction.xsd'))
+        xs = self.schema_class(self.casepath('features/derivations/complex-with-simple-content-restriction.xsd'))
         self.assertTrue(xs.is_valid('<value>10</value>'))
         self.assertFalse(xs.is_valid('<value>alpha</value>'))
         self.assertEqual(xs.decode('<value>10</value>'), 10)
@@ -949,7 +949,7 @@ class TestDecoding11(TestDecoding):
                          datatypes.Duration.fromstring('P2DT6H30M30.001S'))
 
     def test_type_alternatives(self):
-        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives-no-ns.xsd'))
+        xs = self.schema_class(self.casepath('features/elements/type_alternatives-no-ns.xsd'))
         self.assertTrue(xs.is_valid('<value choice="int">10</value>'))
         self.assertFalse(xs.is_valid('<value choice="int">10.1</value>'))
         self.assertTrue(xs.is_valid('<value choice="float">10.1</value>'))
@@ -958,7 +958,7 @@ class TestDecoding11(TestDecoding):
         self.assertTrue(xs.is_valid('<value choice="bool">0</value>'))
         self.assertTrue(xs.is_valid('<value choice="bool">true</value>'))
 
-        xs = self.schema_class(self.abspath('cases/features/elements/type_alternatives.xsd'))
+        xs = self.schema_class(self.casepath('features/elements/type_alternatives.xsd'))
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="int">10</ns:value>'))
         self.assertFalse(xs.is_valid('<ns:value xmlns:ns="ns" choice="int">10.1</ns:value>'))
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="float">10.1</ns:value>'))
@@ -988,7 +988,7 @@ class TestEncoding(XMLSchemaTestCase):
                 self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
-        filename = os.path.join(self.test_dir, 'cases/examples/collection/collection.xml')
+        filename = self.casepath('examples/collection/collection.xml')
         xt = ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=ordered_dict_class)
         elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.col_namespaces)
