@@ -982,7 +982,8 @@ class TestEncoding(XMLSchemaTestCase):
                 self.assertEqual(expected, obj[0])
                 self.assertTrue(isinstance(obj[0], type(expected)))
             elif is_etree_element(obj):
-                self.assertEqual(expected, etree_tostring(obj).strip())
+                namespaces = kwargs.pop('namespaces', self.default_namespaces)
+                self.assertEqual(expected, etree_tostring(obj, namespaces=namespaces).strip())
             else:
                 self.assertEqual(expected, obj)
                 self.assertTrue(isinstance(obj, type(expected)))
@@ -1128,7 +1129,7 @@ class TestEncoding(XMLSchemaTestCase):
         """)
         self.check_encode(
             schema.elements['A'], data={'@a1': 10, '@a2': -1, '$': 'simple '},
-            expected='<ns:A xmlns:ns="ns" a1="10" a2="-1">simple </ns:A>'
+            expected='<ns:A xmlns:ns="ns" a1="10" a2="-1">simple </ns:A>',
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
