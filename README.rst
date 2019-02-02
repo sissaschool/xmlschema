@@ -34,7 +34,7 @@ This library includes the following features:
 * Data decoding and encoding ruled by converter classes
 * An XPath based API for finding schema's elements and attributes
 * Support of XSD validation modes
-* XML-based attacks prevention using an XMLParser that forbids entities
+* Remote attacks protection by default using an XMLParser that forbids entities
 
 
 Installation
