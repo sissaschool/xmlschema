@@ -31,16 +31,15 @@ from .xpath import ElementPathMixin
 ###
 # Programmatic import of xml.etree.ElementTree
 #
-# In Python 3 the pure python implementation is hidden by the C module import,
-# so importlib has to be used to re-import the pure Python module, saving and
-# restoring the original modules (the optimized module and the C module).
+# In Python 3 the pure python implementation is overwritten by the C module API,
+# so use a programmatic re-import to obtain the pure Python module, necessary for
+# defining a safer XMLParser.
+#
 if not PY3:
     # Python 2.7: nothing have to be done because it's not overridden by C implementation
     ElementTree = PyElementTree = importlib.import_module('xml.etree.ElementTree')
 
 elif '_elementtree' in sys.modules:
-    # Python 3 when cElementTree is already loaded
-
     # Temporary remove the loaded modules
     ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
     _cmod = sys.modules.pop('_elementtree')
@@ -57,13 +56,11 @@ elif '_elementtree' in sys.modules:
         ElementTree = PyElementTree
 
 else:
-    # Python 3 when cElementTree is not loaded
-
-    # Load and save the pure Python module
+    # Load the pure Python module
     sys.modules['_elementtree'] = None
     PyElementTree = importlib.import_module('xml.etree.ElementTree')
 
-    # Remove pure Python module from imported modules
+    # Remove the pure Python module from imported modules
     del sys.modules['xml.etree.ElementTree']
     del sys.modules['_elementtree']
 
