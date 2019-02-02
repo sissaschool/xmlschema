@@ -19,7 +19,7 @@ from .xsdbase import XsdComponent
 
 class XsdNotation(XsdComponent):
     """
-    Class for XSD 'notation' definitions.
+    Class for XSD 'notation' declarations.
 
     <notation
       id = ID

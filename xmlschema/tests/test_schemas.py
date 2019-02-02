@@ -15,27 +15,18 @@ This module runs tests concerning the building of XSD schemas with the 'xmlschem
 from __future__ import print_function, unicode_literals
 import unittest
 import os
-import sys
 import pickle
 import time
 import warnings
 
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
+import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
-from xmlschema.qnames import XSD_LIST, XSD_UNION
-from xmlschema.tests import SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.etree import lxml_etree, py_etree_element
-
-from xmlschema.xpath import ElementPathContext
+from xmlschema.qnames import XSD_LIST, XSD_UNION
+from xmlschema.tests import tests_factory, SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
+from xmlschema.xpath import ElementPathContext
 
 
 class TestXMLSchema10(XMLSchemaTestCase):
@@ -602,10 +593,12 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
         })
 
 
+# Creates schema tests from XSD files
+globals().update(tests_factory(make_schema_test_class, 'xsd'))
+
+
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header, tests_factory
+    from xmlschema.tests import print_test_header
 
     print_test_header()
-    schema_tests = tests_factory(make_schema_test_class, 'xsd')
-    globals().update(schema_tests)
     unittest.main()

@@ -9,9 +9,6 @@ library. The test scripts are located under the installation base into ``tests/`
 subdirectory. There are several test scripts, each one for a different topic:
 
 **test_helpers.py**
-    Tests for ElementTree functionalities
-
-**test_helpers.py**
     Tests for helper functions and classes
 
 **test_meta.py**
@@ -21,13 +18,13 @@ subdirectory. There are several test scripts, each one for a different topic:
     Tests concerning model groups validation
 
 **test_package.py**
-    Tests regarding packaging and forgotten development code
+    Tests regarding ElementTree import and code packaging
+
+**test_regex.py**
+    Tests about XSD regular expressions
 
 **test_resources.py**
     Tests about XML/XSD resources access
-
-**test_resources.py**
-    Tests about XSD regular expressions
 
 **test_schemas.py**
     Tests about parsing of XSD Schemas
@@ -43,27 +40,27 @@ the *tox automation tool* installed, you can run all tests with all supported Py
 using the command ``tox``.
 
 
-Test files
-----------
+Test cases based on files
+-------------------------
 
 Two scripts (*test_schemas.py*, *test_validators.py*) create the most tests dinamically,
 loading a set of XSD or XML files.
 Only a small set of test files is published in the repository for copyright
-reasons. You can found the published test files into ``xmlschema/tests/examples/``
+reasons. You can found the published test files into ``xmlschema/tests/test_cases/``
 subdirectory.
 
-You can locally extend the test with your set of files. For make this create
-the base subdirectory ``xmlschema/tests/extra-schemas/`` and then copy your XSD/XML
-files into it. After the files are copied create a new file called *testfiles* into
-the ``extra-schemas/`` subdirectory:
+You can locally extend the test with your set of files. For doing this create a
+``test_cases/`` directory at repository level and then copy your XSD/XML files
+into it. Finally you have to create a file called *testfiles* in your
+``test_cases/`` directory:
 
 .. code-block:: bash
 
-    cd tests/extra-schemas/
+    cd test_cases/
     touch testfiles
 
-Fill the file *testfiles* with the list of paths of files you want to be tested,
-one per line, as in the following example:
+Fill this file with the list of paths of files you want to be tested, one per line,
+as in the following example:
 
 .. code-block:: text
 

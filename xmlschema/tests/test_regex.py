@@ -15,17 +15,8 @@ This module runs tests on XML Schema regular expressions.
 from __future__ import unicode_literals
 import unittest
 import sys
-import os
 import re
 from unicodedata import category
-
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import unicode_chr
@@ -175,7 +166,7 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('abc').group(0), 'abc')
 
         regex = get_python_regex('.+T.+(Z|[+-].+)')
-        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\+\-][^\r\n]+))$')
+        self.assertEqual(regex, '^([^\r\n]+T[^\r\n]+(Z|[\\+\\-][^\r\n]+))$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12T0A3+36').group(0), '12T0A3+36')
         self.assertEqual(pattern.search('12T0A3Z').group(0), '12T0A3Z')
@@ -183,7 +174,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('12T0A3Z2'))
 
     def test_not_spaces(self):
-        regex = get_python_regex("[\S' ']{1,10}")
+        regex = get_python_regex(r"[\S' ']{1,10}")
         if sys.version_info >= (3,):
             self.assertEqual(regex, "^([\x00-\x08\x0b\x0c\x0e-\x1f!-\U0010ffff ']{1,10})$")
 
@@ -213,8 +204,8 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('Ĭ'))
 
     def test_digit_shortcut(self):
-        regex = get_python_regex('\d{1,3}\.\d{1,2}')
-        self.assertEqual(regex, '^(\d{1,3}\.\d{1,2})$')
+        regex = get_python_regex(r'\d{1,3}\.\d{1,2}')
+        self.assertEqual(regex, r'^(\d{1,3}\.\d{1,2})$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12.40').group(0), '12.40')
         self.assertEqual(pattern.search('867.00').group(0), '867.00')
@@ -224,8 +215,8 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('1867.0'))
         self.assertIsNone(pattern.search('a1.13'))
 
-        regex = get_python_regex('[-+]?(\d+|\d+(\.\d+)?%)')
-        self.assertEqual(regex, '^([\+\-]?(\d+|\d+(\.\d+)?%))$')
+        regex = get_python_regex(r'[-+]?(\d+|\d+(\.\d+)?%)')
+        self.assertEqual(regex, r'^([\+\-]?(\d+|\d+(\.\d+)?%))$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('78.8%').group(0), '78.8%')
         self.assertIsNone(pattern.search('867.00'))
@@ -241,8 +232,8 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('  '))
         self.assertIsNone(pattern.search('AA'))
 
-        regex = get_python_regex('[0-9.,DHMPRSTWYZ/:+\-]+')
-        self.assertEqual(regex, '^([\+-\-\.-:DHMPR-TWYZ]+)$')
+        regex = get_python_regex(r'[0-9.,DHMPRSTWYZ/:+\-]+')
+        self.assertEqual(regex, r'^([\+-\-\.-:DHMPR-TWYZ]+)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('12,40').group(0), '12,40')
         self.assertEqual(pattern.search('YYYY:MM:DD').group(0), 'YYYY:MM:DD')
@@ -256,16 +247,16 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('56,41\n').group(0), '56,41')
         self.assertIsNone(pattern.search('13:20'))
 
-        regex = get_python_regex('[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?')
-        self.assertEqual(regex, '^([\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?)$')
+        regex = get_python_regex(r'[A-Za-z0-9_\-]+(:[A-Za-z0-9_\-]+)?')
+        self.assertEqual(regex, r'^([\-0-9A-Z_a-z]+(:[\-0-9A-Z_a-z]+)?)$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('fa9').group(0), 'fa9')
         self.assertEqual(pattern.search('-x_1:_tZ-\n').group(0), '-x_1:_tZ-')
         self.assertIsNone(pattern.search(''))
         self.assertIsNone(pattern.search('+78'))
 
-        regex = get_python_regex('[!%\^\*@~;#,|/]')
-        self.assertEqual(regex, '^([!#%\*,/;@\^\|~])$')
+        regex = get_python_regex(r'[!%\^\*@~;#,|/]')
+        self.assertEqual(regex, r'^([!#%\*,/;@\^\|~])$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('#').group(0), '#')
         self.assertEqual(pattern.search('!').group(0), '!')
@@ -306,8 +297,8 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('01'))
         self.assertIsNone(pattern.search('1\n '))
 
-        regex = get_python_regex('\d+[%]|\d*\.\d+[%]')
-        self.assertEqual(regex, '^(\d+[%]|\d*\.\d+[%])$')
+        regex = get_python_regex(r'\d+[%]|\d*\.\d+[%]')
+        self.assertEqual(regex, r'^(\d+[%]|\d*\.\d+[%])$')
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('99%').group(0), '99%')
         self.assertEqual(pattern.search('99.9%').group(0), '99.9%')
@@ -325,7 +316,7 @@ class TestPatterns(unittest.TestCase):
         self.assertIsNone(pattern.search('\t\n à'))
 
     def test_character_class_shortcuts(self):
-        regex = get_python_regex("[\i-[:]][\c-[:]]*")
+        regex = get_python_regex(r"[\i-[:]][\c-[:]]*")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))

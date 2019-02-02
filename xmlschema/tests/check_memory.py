@@ -28,4 +28,4 @@ def my_func(xsd_file):
 
 
 if __name__ == '__main__':
-    my_func(os.path.join(os.path.dirname(__file__), 'cases/examples/vehicles/vehicles.xsd'))
+    my_func(os.path.join(os.path.dirname(__file__), 'test_cases/examples/vehicles/vehicles.xsd'))

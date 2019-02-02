@@ -14,17 +14,7 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 import unittest
 
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    import os
-    import sys
-
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
+import xmlschema
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.validators.builtins import HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 
@@ -331,8 +321,6 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertEqual(global_counter, 220)
         self.assertEqual(total_counter, 1031)
 
-
-# TODO: Add tests for base schemas files.
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

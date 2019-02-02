@@ -12,6 +12,7 @@
 Tests subpackage module: common definitions for unittest scripts of the 'xmlschema' package.
 """
 import unittest
+import platform
 import re
 import os
 
@@ -47,8 +48,9 @@ PROTECTED_PREFIX_PATTERN = re.compile(r'ns\d:')
 
 
 def print_test_header():
-    header = "Test %r" % xmlschema
-    print("*" * len(header) + '\n' + header + '\n' + "*" * len(header))
+    header1 = "Test %r" % xmlschema
+    header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
 
 
 class XMLSchemaTestCase(unittest.TestCase):
@@ -60,6 +62,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     """
 
     test_dir = os.path.dirname(__file__)
+    test_cases_dir = os.path.join(test_dir, 'test_cases/')
     etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
     etree_register_namespace(prefix='ns', uri="ns")
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -77,29 +80,34 @@ class XMLSchemaTestCase(unittest.TestCase):
 
         cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
 
-        cls.vh_dir = cls.abspath('cases/examples/vehicles')
-        cls.vh_xsd_file = cls.abspath('cases/examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = cls.abspath('cases/examples/vehicles/vehicles.xml')
-        cls.vh_json_file = cls.abspath('cases/examples/vehicles/vehicles.json')
+        cls.vh_dir = cls.casepath('examples/vehicles')
+        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
+        cls.vh_json_file = cls.casepath('examples/vehicles/vehicles.json')
         cls.vh_schema = cls.schema_class(cls.vh_xsd_file)
         cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
 
-        cls.col_dir = cls.abspath('cases/examples/collection')
-        cls.col_xsd_file = cls.abspath('cases/examples/collection/collection.xsd')
-        cls.col_xml_file = cls.abspath('cases/examples/collection/collection.xml')
-        cls.col_json_file = cls.abspath('cases/examples/collection/collection.json')
+        cls.col_dir = cls.casepath('examples/collection')
+        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
+        cls.col_json_file = cls.casepath('examples/collection/collection.json')
         cls.col_schema = cls.schema_class(cls.col_xsd_file)
         cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
 
-        cls.st_xsd_file = cls.abspath('cases/features/decoder/simple-types.xsd')
+        cls.st_xsd_file = cls.casepath('features/decoder/simple-types.xsd')
         cls.st_schema = cls.schema_class(cls.st_xsd_file)
 
-        cls.models_xsd_file = cls.abspath('cases/features/models/models.xsd')
+        cls.models_xsd_file = cls.casepath('features/models/models.xsd')
         cls.models_schema = cls.schema_class(cls.models_xsd_file)
 
     @classmethod
-    def abspath(cls, path):
-        return os.path.join(cls.test_dir, path)
+    def casepath(cls, path):
+        """
+        Returns the absolute path for a test case file.
+
+        :param path: the relative path of the case file from base dir ``test_cases/``.
+        """
+        return os.path.join(cls.test_cases_dir, path)
 
     def retrieve_schema_source(self, source):
         """

@@ -9,46 +9,63 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-Tests concerning packaging and installation environment.
-"""
 import unittest
-import importlib
 import glob
 import fileinput
 import os
 import re
+import importlib
 import sys
-
-try:
-    import xmlschema
-except ImportError:
-    # Adds the package base dir path as first search path for imports
-    pkg_base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.insert(0, pkg_base_dir)
-    import xmlschema
-
-from xmlschema.etree import PyElementTree, etree_tostring
-import xml.etree.ElementTree as ElementTree
+import subprocess
 
 
-class TestEnvironment(unittest.TestCase):
+@unittest.skipIf(sys.version_info < (3,), "In Python 2 ElementTree is not overwritten by cElementTree")
+class TestElementTree(unittest.TestCase):
 
-    def test_element_tree(self):
-        self.assertNotEqual(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
-        elem = PyElementTree.Element('element')
-        self.assertEqual(etree_tostring(elem), '<element />')
-        self.assertEqual(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+    def test_element_string_serialization(self):
+        ElementTree = importlib.import_module('xml.etree.ElementTree')
+        xmlschema_etree = importlib.import_module('xmlschema.etree')
 
-    def test_pure_python_element_tree(self):
-        if sys.version_info >= (3,):
-            self.assertEqual(PyElementTree.Element, PyElementTree._Element_Py)  # C extensions disabled by defusedxml
-            self.assertNotEqual(ElementTree.Element, PyElementTree.Element)
-        else:
-            self.assertNotEqual(PyElementTree.Element, PyElementTree._Element_Py)
+        elem = ElementTree.Element('element')
+        self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
+        elem = xmlschema_etree.ElementTree.Element('element')
+        self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
+        elem = xmlschema_etree.PyElementTree.Element('element')
+        self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
 
-        elem = PyElementTree.Element('element')
-        self.assertEqual(etree_tostring(elem), '<element />')
+    def test_import_element_tree_before(self):
+        ElementTree = importlib.import_module('xml.etree.ElementTree')
+        xmlschema_etree = importlib.import_module('xmlschema.etree')
+
+        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
+        elem = xmlschema_etree.PyElementTree.Element('element')
+        self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
+        self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertIs(xmlschema_etree.ElementTree, ElementTree)
+
+    def test_import_element_tree_after(self):
+        xmlschema_etree = importlib.import_module('xmlschema.etree')
+        ElementTree = importlib.import_module('xml.etree.ElementTree')
+
+        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
+        elem = xmlschema_etree.PyElementTree.Element('element')
+        self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
+        self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertIs(xmlschema_etree.ElementTree, ElementTree)
+
+    @unittest.skipIf(sys.version_info[:2] == (3, 4), "Python 3.4 doesn't have subprocess.run API")
+    def test_element_tree_import_script(self):
+        test_dir = os.path.dirname(__file__) or '.'
+
+        cmd = [os.path.join(test_dir, 'check_etree_import.py')]
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = process.stdout.decode('utf-8')
+        self.assertTrue("\nTest OK:" in output, msg="Wrong import of ElementTree after xmlschema")
+
+        cmd.append('--before')
+        process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = process.stdout.decode('utf-8')
+        self.assertTrue("\nTest OK:" in output, msg="Wrong import of ElementTree before xmlschema")
 
 
 class TestPackaging(unittest.TestCase):
@@ -118,6 +135,11 @@ class TestPackaging(unittest.TestCase):
                     )
 
 
-if __name__ == '__main__':
+# TODO: Add tests for checking base schemas files and other package files.
 
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
     unittest.main()

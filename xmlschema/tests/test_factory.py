@@ -31,7 +31,7 @@ logger = logging.getLogger(__file__)
 
 
 TEST_FACTORY_OPTIONS = {
-    'extra_files': '-x' in sys.argv or '--extra' in sys.argv,     # Include extra test cases
+    'extra_cases': '-x' in sys.argv or '--extra' in sys.argv,     # Include extra test cases
     'check_with_lxml': '-l' in sys.argv or '--lxml' in sys.argv,  # Check with lxml.etree.XMLSchema (for XSD 1.0)
 }
 """Command line options for test factory."""
@@ -117,16 +117,15 @@ def tests_factory(test_class_builder, suffix='xml'):
     :param suffix: the suffix ('xml' or 'xsd') to consider for cases.
     :return: a list of test classes.
     """
-    test_dir = os.path.dirname(os.path.abspath(__file__))
     test_classes = {}
     test_num = 0
     debug_mode = False
     line_buffer = []
 
-    if TEST_FACTORY_OPTIONS['extra_files']:
-        testfiles = glob.glob(os.path.join(test_dir, '*/testfiles'))
-    else:
-        testfiles = glob.glob(os.path.join(test_dir, 'cases/testfiles'))
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    testfiles = [os.path.join(test_dir, 'test_cases/testfiles')]
+    if TEST_FACTORY_OPTIONS['extra_cases'] and test_dir != os.getcwd():
+        testfiles.extend(glob.glob(os.path.join(os.getcwd(), 'test_cases/testfiles')))
 
     for line in fileinput.input(testfiles):
         line = line.strip()
