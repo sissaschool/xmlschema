@@ -94,13 +94,13 @@ class TestResources(XMLSchemaTestCase):
         )
 
     def test_fetch_resource(self):
-        wrong_path = os.path.join(self.test_dir, 'resources/dummy_file.txt')
+        wrong_path = self.casepath('resources/dummy_file.txt')
         self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
-        right_path = os.path.join(self.test_dir, 'resources/dummy file.txt')
+        right_path = self.casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
 
     def test_fetch_namespaces(self):
-        self.assertFalse(fetch_namespaces(os.path.join(self.test_dir, 'resources/malformed.xml')))
+        self.assertFalse(fetch_namespaces(self.casepath('resources/malformed.xml')))
 
     def test_fetch_schema_locations(self):
         locations = fetch_schema_locations(self.col_xml_file)
