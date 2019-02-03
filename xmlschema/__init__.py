@@ -8,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import warnings
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError
 from .resources import (
     normalize_url, fetch_resource, load_xml_resource, fetch_namespaces,
@@ -35,8 +34,14 @@ __status__ = "Production/Stable"
 
 
 # API deprecation warnings
-def XMLSchema_v1_0():
-    warnings.warn("XMLSchema_v1_0 will be removed in 1.1 version, use XMLSchema10 instead", DeprecationWarning)
-    return XMLSchema10
+def XMLSchema_v1_0(*args, **kwargs):
+    import warnings
+    warnings.warn("XMLSchema_v1_0 class name has been replaced by XMLSchema10 " 
+                  "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
+    return XMLSchema10(*args, **kwargs)
 
-etree_get_namespaces = fetch_namespaces
+def etree_get_namespaces(*args, **kwargs):
+    import warnings
+    warnings.warn("etree_get_namespaces() function name has been replaced by fetch_namespaces() "
+                  "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
+    return fetch_namespaces(*args, **kwargs)
