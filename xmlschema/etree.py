@@ -81,7 +81,6 @@ etree_register_namespace('vc', VC_NAMESPACE)
 # Pure Python ElementTree APIs
 py_etree_element = PyElementTree.Element
 py_etree_register_namespace = ElementTree.register_namespace
-PyParseError = PyElementTree.ParseError
 
 py_etree_register_namespace('xslt', XSLT_NAMESPACE)
 py_etree_register_namespace('hfp', HFP_NAMESPACE)
@@ -120,13 +119,13 @@ class SafeXMLParser(PyElementTree.XMLParser):
         parser.ExternalEntityRefHandler = self.external_entity_reference
 
     def entity_declaration(self, entity_name, is_parameter_entity, value, base, system_id, public_id, notation_name):
-        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+        raise PyElementTree.ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
 
     def unparsed_entity_declaration(self, entity_name, base, system_id, public_id, notation_name):
-        raise ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+        raise PyElementTree.ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
 
     def external_entity_reference(self, context, base, system_id, public_id):
-        raise ParseError(
+        raise PyElementTree.ParseError(
             "External references are forbidden (system_id={!r}, public_id={!r})".format(system_id, public_id)
         )
 

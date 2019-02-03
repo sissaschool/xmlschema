@@ -67,6 +67,32 @@ class TestElementTree(unittest.TestCase):
         output = process.stdout.decode('utf-8')
         self.assertTrue("\nTest OK:" in output, msg="Wrong import of ElementTree before xmlschema")
 
+    def test_safe_xml_parser(self):
+        test_dir = os.path.dirname(__file__) or '.'
+        xmlschema_etree = importlib.import_module('xmlschema.etree')
+        parser = xmlschema_etree.SafeXMLParser(target=xmlschema_etree.PyElementTree.TreeBuilder())
+        PyElementTree = xmlschema_etree.PyElementTree
+
+        xml_file = os.path.join(test_dir, 'test_cases/resources/with_entity.xml')
+        elem = xmlschema_etree.ElementTree.parse(xml_file).getroot()
+        self.assertEqual(elem.text, 'abc')
+        self.assertRaises(
+            PyElementTree.ParseError, xmlschema_etree.ElementTree.parse, xml_file, parser=parser
+        )
+
+        xml_file = os.path.join(test_dir, 'test_cases/resources/unused_external_entity.xml')
+        elem = xmlschema_etree.ElementTree.parse(xml_file).getroot()
+        self.assertEqual(elem.text, 'abc')
+        self.assertRaises(
+            PyElementTree.ParseError, xmlschema_etree.ElementTree.parse, xml_file, parser=parser
+        )
+
+        xml_file = os.path.join(test_dir, 'test_cases/resources/external_entity.xml')
+        self.assertRaises(xmlschema_etree.ParseError, xmlschema_etree.ElementTree.parse, xml_file)
+        self.assertRaises(
+            PyElementTree.ParseError, xmlschema_etree.ElementTree.parse, xml_file, parser=parser
+        )
+
 
 class TestPackaging(unittest.TestCase):
 

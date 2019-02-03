@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.0.9`_ (2019-02-02)
+`v1.0.9`_ (2019-02-03)
 ======================
 * Programmatic import of ElementTree for avoid module mismatches
 * Cleaning and refactoring of test scripts

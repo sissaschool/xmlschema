@@ -19,8 +19,7 @@ from .compat import (
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 from .helpers import get_namespace
-from .etree import ElementTree, PyElementTree, ParseError, PyParseError, SafeXMLParser, \
-    is_etree_element, etree_tostring
+from .etree import ElementTree, PyElementTree, SafeXMLParser, is_etree_element, etree_tostring
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')
@@ -281,7 +280,7 @@ class XMLResource(object):
                         return root, None, source, None
                 else:
                     return self.fromstring(source), None, source, None
-            except (ParseError, UnicodeEncodeError):
+            except (ElementTree.ParseError, UnicodeEncodeError):
                 if '\n' in source:
                     raise
             finally:
@@ -390,8 +389,8 @@ class XMLResource(object):
             parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
                 return PyElementTree.parse(source, parser)
-            except PyParseError as err:
-                raise ParseError(str(err))
+            except PyElementTree.ParseError as err:
+                raise ElementTree.ParseError(str(err))
         else:
             return ElementTree.parse(source)
 
@@ -401,8 +400,8 @@ class XMLResource(object):
             parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
                 return PyElementTree.iterparse(source, events, parser)
-            except PyParseError as err:
-                raise ParseError(str(err))
+            except PyElementTree.ParseError as err:
+                raise ElementTree.ParseError(str(err))
         else:
             return ElementTree.iterparse(source, events)
 
@@ -412,8 +411,8 @@ class XMLResource(object):
             parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
                 return PyElementTree.fromstring(text, parser)
-            except PyParseError as err:
-                raise ParseError(str(err))
+            except PyElementTree.ParseError as err:
+                raise ElementTree.ParseError(str(err))
         else:
             return ElementTree.fromstring(text)
 
@@ -551,7 +550,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(resource, events=('start-ns',)):
                     update_nsmap(*node)
-            except ParseError:
+            except ElementTree.ParseError:
                 pass
             finally:
                 resource.close()
@@ -559,7 +558,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
                     update_nsmap(*node)
-            except ParseError:
+            except ElementTree.ParseError:
                 pass
         else:
             # Warning: can extracts namespace information only from lxml etree structures
