@@ -17,13 +17,13 @@ from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
+from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_ANY_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
 from ..helpers import get_namespace, get_qname, local_name, prefixed_to_qname
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, ValidationMixin
+from .xsdbase import XsdComponent, ValidationMixin, XsdType
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 
@@ -228,6 +228,16 @@ class Xsd11Attribute(XsdAttribute):
     @property
     def inheritable(self):
         return self.elem.get('inheritable') in ('0', 'true')
+
+    @property
+    def target_namespace(self):
+        return self.elem.get('targetNamespace', self.schema.target_namespace)
+
+    def _parse(self):
+        super(Xsd11Attribute, self)._parse()
+        if not self.elem.get('inheritable') not in {'0', '1', 'false', 'true'}:
+            self.parse_error("an XML boolean value is required for attribute 'inheritable'")
+        self._parse_target_namespace()
 
 
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):

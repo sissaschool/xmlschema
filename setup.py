@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.0.9',
+    version='1.0.10',
     install_requires=['elementpath>=1.1.2'],
     packages=['xmlschema'],
     include_package_data=True,

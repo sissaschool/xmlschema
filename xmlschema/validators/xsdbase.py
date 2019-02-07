@@ -286,6 +286,30 @@ class XsdComponent(XsdValidator):
             except (ValueError, TypeError) as err:
                 self.parse_error(str(err))
 
+    def _parse_target_namespace(self):
+        """
+        XSD 1.1 targetNamespace attribute in elements and attributes declarations.
+        """
+        self._target_namespace = self.elem.get('targetNamespace')
+        if self._target_namespace is not None:
+            if 'name' not in self.elem.attrib:
+                self.parse_error("attribute 'name' must be present when 'targetNamespace' attribute is provided")
+            if 'form' in self.elem.attrib:
+                self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
+            if self.elem.attrib['targetNamespace'].strip() != self.schema.target_namespace:
+                parent = self.parent
+                if parent is None:
+                    self.parse_error("a global attribute must has the same namespace as its parent schema")
+                elif not isinstance(parent, XsdType) or not parent.is_complex() or parent.derivation != 'restriction':
+                    self.parse_error("a complexType restriction required for parent, found %r" % self.parent)
+                elif self.parent.base_type.name == XSD_ANY_TYPE:
+                    pass
+
+        elif self.qualified:
+            self._target_namespace = self.schema.target_namespace
+        else:
+            self._target_namespace = ''
+
     @property
     def local_name(self):
         return local_name(self.name)

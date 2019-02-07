@@ -599,6 +599,7 @@ class Xsd11Element(XsdElement):
         index = self._parse_alternatives(index)
         self._parse_constraints(index)
         self._parse_substitution_group()
+        self._parse_target_namespace()
 
     def _parse_alternatives(self, index=0):
         if self._ref is not None:
