@@ -54,7 +54,8 @@ from . import (
     XsdAnyAttribute, xsd_simple_type_factory, Xsd11Attribute, Xsd11Element, Xsd11AnyElement,
     Xsd11AnyAttribute, Xsd11AtomicRestriction, Xsd11ComplexType, Xsd11Group, XsdGlobals
 )
-from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, iterchildren_xsd_redefine
+from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
+    iterchildren_xsd_redefine, iterchildren_xsd_override
 
 
 # Elements for building dummy groups
@@ -315,8 +316,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
 
         # Includes and imports schemas (errors are treated as warnings)
-        self.warnings.extend(self._include_schemas())
-        self.warnings.extend(self._import_namespaces())
+        self._include_schemas()
+        self._import_namespaces()
 
         if build:
             self.maps.build()
@@ -631,8 +632,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def _include_schemas(self):
         """Processes schema document inclusions and redefinitions."""
-        include_warnings = []
-
         for child in iterchildren_xsd_include(self.root):
             try:
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
@@ -643,8 +642,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 # It is not an error if the location fail to resolve:
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
-                include_warnings.append("Include schema failed: %s." % str(err))
-                warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                self.warnings.append("Include schema failed: %s." % str(err))
+                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
 
         for child in iterchildren_xsd_redefine(self.root):
             try:
@@ -654,12 +653,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             except (OSError, IOError) as err:
                 # If the redefine doesn't contain components (annotation excluded) the statement
                 # is equivalent to an include, so no error is generated. Otherwise fails.
-                include_warnings.append("Redefine schema failed: %s." % str(err))
-                warnings.warn(include_warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                self.warnings.append("Redefine schema failed: %s." % str(err))
+                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if has_xsd_components(child):
                     self.parse_error(str(err), child)
-
-        return include_warnings
 
     def include_schema(self, location, base_url=None):
         """
@@ -669,7 +666,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param base_url: is an optional base URL for fetching the schema resource.
         :return: the included :class:`XMLSchema` instance.
         """
-
         try:
             schema_url = fetch_resource(location, base_url)
         except XMLSchemaURLError as err:
@@ -691,7 +687,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def _import_namespaces(self):
         """Processes namespace imports. Return a list of exceptions."""
-        import_warnings = []
         namespace_imports = NamespaceResourcesMap(map(
             lambda x: (x.get('namespace', '').strip(), x.get('schemaLocation')),
             iterchildren_xsd_import(self.root)
@@ -729,12 +724,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     break
             else:
                 if import_error is None:
-                    import_warnings.append("Namespace import failed: no schema location provided.")
+                    self.warnings.append("Namespace import failed: no schema location provided.")
                 else:
-                    import_warnings.append("Namespace import failed: %s." % str(import_error))
-                warnings.warn(import_warnings[-1], XMLSchemaImportWarning, stacklevel=3)
-
-        return import_warnings
+                    self.warnings.append("Namespace import failed: %s." % str(import_error))
+                warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
 
     def import_schema(self, namespace, location, base_url=None, force=False):
         """
@@ -990,6 +983,21 @@ class XMLSchema11(XMLSchemaBase):
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
     }
+
+    def _include_schemas(self):
+        super(XMLSchema11, self)._include_schemas()
+        for child in iterchildren_xsd_override(self.root):
+            try:
+                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+            except KeyError:
+                pass  # Attribute missing error already found by validation against meta-schema
+            except (OSError, IOError) as err:
+                # If the override doesn't contain components (annotation excluded) the statement
+                # is equivalent to an include, so no error is generated. Otherwise fails.
+                self.warnings.append("Override schema failed: %s." % str(err))
+                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                if has_xsd_components(child):
+                    self.parse_error(str(err), child)
 
 
 XMLSchema = XMLSchema10

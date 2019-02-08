@@ -17,7 +17,7 @@ import re
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
+from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
 from ..helpers import get_qname, local_name, prefixed_to_qname
 from ..namespaces import NamespaceResourcesMap
@@ -49,6 +49,7 @@ def iterchildren_by_tag(tag):
 iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT)
 iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE)
 iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE)
+iterchildren_xsd_override = iterchildren_by_tag(XSD_OVERRIDE)
 
 
 #

@@ -18,7 +18,7 @@ import os
 
 import xmlschema
 from xmlschema import XMLSchema
-from xmlschema.compat import urlopen, URLError
+from xmlschema.compat import urlopen, URLError, unicode_type
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.etree import (
     is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
@@ -75,6 +75,7 @@ class XMLSchemaTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.errors = []
         cls.xsd_types = cls.schema_class.builtin_types()
         cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
 
@@ -164,3 +165,28 @@ class XMLSchemaTestCase(unittest.TestCase):
         if match:
             msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
             self.assertIsNone(match, msg)
+
+    def check_errors(self, expected):
+        """
+        Checks schema or validation errors, checking information completeness of the
+        instances and those number against expected.
+        """
+        for e in self.errors:
+            error_string = unicode_type(e)
+            self.assertTrue(e.path, "Missing path for: %s" % error_string)
+            self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
+            self.check_namespace_prefixes(error_string)
+
+        if not self.errors and expected:
+            raise ValueError("found no errors when %d expected." % expected)
+        elif len(self.errors) != expected:
+            num_errors = len(self.errors)
+            if num_errors == 1:
+                msg = "n.{} errors expected, found {}:\n\n{}"
+            elif num_errors <= 5:
+                msg = "n.{} errors expected, found {}. Errors follow:\n\n{}"
+            else:
+                msg = "n.{} errors expected, found {}. First five errors follow:\n\n{}"
+
+            error_string = '\n++++++++++\n\n'.join([unicode_type(e) for e in self.errors[:5]])
+            raise ValueError(msg.format(expected, len(self.errors), error_string))

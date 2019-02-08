@@ -314,7 +314,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
         @classmethod
         def setUpClass(cls):
             if debug_mode:
-                print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
+                print("\n##\n## Testing %s validation in debug mode.\n##" % rel_path)
                 pdb.set_trace()
 
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
@@ -431,19 +431,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                     do_decoding()
                     self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
 
-            if len(self.errors) != expected_errors:
-                raise ValueError(
-                    "file %r: n.%d errors expected, found %d: %s" % (
-                        rel_path, expected_errors, len(self.errors), '\n++++++\n'.join([str(e) for e in self.errors])
-                    )
-                )
-
-            # Checks errors correctness
-            for e in self.errors:
-                error_string = unicode_type(e)
-                self.assertTrue(e.path, "Missing path for: %s" % error_string)
-                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
-                self.check_namespace_prefixes(error_string)
+            self.check_errors(expected_errors)
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
@@ -561,7 +549,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 else:
                     self.assertTrue(schema.validate(xml_tree))
 
-        def test_decoding_and_encoding(self):
+        def test_xml_document_validation(self):
             self.check_decoding_with_element_tree()
 
             if not inspect and sys.version_info >= (3,):
