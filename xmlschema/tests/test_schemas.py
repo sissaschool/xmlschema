@@ -460,7 +460,7 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(schema.types['Percentage'].is_valid('90.1'))
 
 
-def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=True):
+def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
     """
     Creates a schema test class.
 
@@ -471,9 +471,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
     :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
     Works only for XSD 1.0 tests.
     """
-    xsd_file = test_file
-    if schema_class is None:
-        schema_class = XMLSchema
+    xsd_file = os.path.relpath(test_file)
 
     # Extract schema test arguments
     expected_errors = test_args.errors
@@ -487,12 +485,12 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
 
         @classmethod
         def setUpClass(cls):
-            cls.rel_path = os.path.relpath(test_file)
+            cls.schema_class = schema_class
             cls.errors = []
             cls.longMessage = True
 
             if debug_mode:
-                print("\n##\n## Testing %s schema in debug mode.\n##" % cls.rel_path)
+                print("\n##\n## Testing %r schema in debug mode.\n##" % xsd_file)
                 pdb.set_trace()
 
         def check_schema(self):
@@ -542,19 +540,19 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
             except lxml_etree.XMLSchemaParseError as err:
                 if not self.errors:
                     print("\nSchema error with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
-                        self.rel_path, self.__class__.__name__, unicode_type(err)
+                        xsd_file, self.__class__.__name__, unicode_type(err)
                     ))
             else:
                 if self.errors:
                     print("\nUnrecognized errors with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
-                        self.rel_path, self.__class__.__name__,
+                        xsd_file, self.__class__.__name__,
                         '\n++++++\n'.join([unicode_type(e) for e in self.errors])
                     ))
                 lxml_schema_time = time.time() - start_time
                 if lxml_schema_time >= xmlschema_time:
                     print(
                         "\nSlower lxml.etree.XMLSchema ({:.3f}s VS {:.3f}s) with file {!r} ({})".format(
-                            lxml_schema_time, xmlschema_time, self.rel_path, self.__class__.__name__
+                            lxml_schema_time, xmlschema_time, xsd_file, self.__class__.__name__
                         ))
 
         def test_xsd_schema(self):
@@ -574,7 +572,7 @@ def make_schema_test_class(test_file, test_args, test_num=0, schema_class=None, 
                 # Check with lxml.etree.XMLSchema class
             if check_with_lxml and lxml_etree is not None:
                 self.check_lxml_schema(xmlschema_time=time.time()-start_time)
-            self.check_errors(expected_errors)
+            self.check_errors(xsd_file, expected_errors)
 
     TestSchema.__name__ = TestSchema.__qualname__ = 'TestSchema{0:03}'.format(test_num)
     return TestSchema

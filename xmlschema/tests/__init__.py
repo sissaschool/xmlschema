@@ -60,9 +60,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     Setup tests common environment. The tests parts have to use empty prefix for
     XSD namespace names and 'ns' prefix for XMLSchema test namespace names.
     """
-
-    test_dir = os.path.dirname(__file__)
-    test_cases_dir = os.path.join(test_dir, 'test_cases/')
+    test_cases_dir = os.path.join(os.path.dirname(__file__), 'test_cases/')
     etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
     etree_register_namespace(prefix='ns', uri="ns")
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -104,9 +102,9 @@ class XMLSchemaTestCase(unittest.TestCase):
     @classmethod
     def casepath(cls, path):
         """
-        Returns the absolute path for a test case file.
+        Returns the absolute path of a test case file.
 
-        :param path: the relative path of the case file from base dir ``test_cases/``.
+        :param path: the relative path of the case file from base dir ``xmlschema/tests/test_cases/``.
         """
         return os.path.join(cls.test_cases_dir, path)
 
@@ -138,7 +136,7 @@ class XMLSchemaTestCase(unittest.TestCase):
         else:
             source = source.strip()
             if not source.startswith('<'):
-                return os.path.join(self.test_dir, source)
+                return self.casepath(source)
             else:
                 return self.SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
 
@@ -166,10 +164,13 @@ class XMLSchemaTestCase(unittest.TestCase):
             msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
             self.assertIsNone(match, msg)
 
-    def check_errors(self, expected):
+    def check_errors(self, path, expected):
         """
         Checks schema or validation errors, checking information completeness of the
         instances and those number against expected.
+
+        :param path: the path of the test case.
+        :param expected: the number of expected errors.
         """
         for e in self.errors:
             error_string = unicode_type(e)
@@ -182,11 +183,11 @@ class XMLSchemaTestCase(unittest.TestCase):
         elif len(self.errors) != expected:
             num_errors = len(self.errors)
             if num_errors == 1:
-                msg = "n.{} errors expected, found {}:\n\n{}"
+                msg = "{!r}: n.{} errors expected, found {}:\n\n{}"
             elif num_errors <= 5:
-                msg = "n.{} errors expected, found {}. Errors follow:\n\n{}"
+                msg = "{!r}: n.{} errors expected, found {}. Errors follow:\n\n{}"
             else:
-                msg = "n.{} errors expected, found {}. First five errors follow:\n\n{}"
+                msg = "{!r}: n.{} errors expected, found {}. First five errors follow:\n\n{}"
 
             error_string = '\n++++++++++\n\n'.join([unicode_type(e) for e in self.errors[:5]])
-            raise ValueError(msg.format(expected, len(self.errors), error_string))
+            raise ValueError(msg.format(path, expected, len(self.errors), error_string))
