@@ -558,7 +558,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
         def test_xsd_schema(self):
             if inspect:
                 SchemaObserver.clear()
-            self.errors.clear()
+            del self.errors[:]
 
             start_time = time.time()
             if expected_warnings > 0:
@@ -574,7 +574,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 self.check_lxml_schema(xmlschema_time=time.time()-start_time)
             self.check_errors(xsd_file, expected_errors)
 
-    TestSchema.__name__ = TestSchema.__qualname__ = 'TestSchema{0:03}'.format(test_num)
+    TestSchema.__name__ = TestSchema.__qualname__ = str('TestSchema{0:03}'.format(test_num))
     return TestSchema
 
 
