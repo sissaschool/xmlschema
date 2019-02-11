@@ -29,7 +29,7 @@ from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
-from .constraints import XsdUnique, XsdKey, XsdKeyref
+from .identities import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -96,7 +96,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         XsdComponent._parse(self)
         self._parse_attributes()
         index = self._parse_type()
-        self._parse_constraints(index)
+        self._parse_identity_constraints(index)
         self._parse_substitution_group()
 
     def _parse_attributes(self):
@@ -169,7 +169,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         return 0
 
-    def _parse_constraints(self, index=0):
+    def _parse_identity_constraints(self, index=0):
         self.constraints = {}
         for child in self._iterparse_components(self.elem, start=index):
             if child.tag == XSD_UNIQUE:
@@ -597,7 +597,7 @@ class Xsd11Element(XsdElement):
         self._parse_attributes()
         index = self._parse_type()
         index = self._parse_alternatives(index)
-        self._parse_constraints(index)
+        self._parse_identity_constraints(index)
         self._parse_substitution_group()
         self._parse_target_namespace()
 

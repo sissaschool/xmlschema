@@ -217,22 +217,22 @@ class XsdGlobals(XsdValidator):
     __copy__ = copy
 
     def lookup_notation(self, qname):
-        return lookup_notation(self.notations, qname, self.validator.TAG_MAP)
+        return lookup_notation(self.notations, qname, self.validator.BUILDERS_MAP)
 
     def lookup_type(self, qname):
-        return lookup_type(self.types, qname, self.validator.TAG_MAP)
+        return lookup_type(self.types, qname, self.validator.BUILDERS_MAP)
 
     def lookup_attribute(self, qname):
-        return lookup_attribute(self.attributes, qname, self.validator.TAG_MAP)
+        return lookup_attribute(self.attributes, qname, self.validator.BUILDERS_MAP)
 
     def lookup_attribute_group(self, qname):
-        return lookup_attribute_group(self.attribute_groups, qname, self.validator.TAG_MAP)
+        return lookup_attribute_group(self.attribute_groups, qname, self.validator.BUILDERS_MAP)
 
     def lookup_group(self, qname):
-        return lookup_group(self.groups, qname, self.validator.TAG_MAP)
+        return lookup_group(self.groups, qname, self.validator.BUILDERS_MAP)
 
     def lookup_element(self, qname):
-        return lookup_element(self.elements, qname, self.validator.TAG_MAP)
+        return lookup_element(self.elements, qname, self.validator.BUILDERS_MAP)
 
     @property
     def built(self):

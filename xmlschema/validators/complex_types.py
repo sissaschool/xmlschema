@@ -297,7 +297,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif not base_type.is_simple() and not base_type.has_simple_content():
                 content_type.append(base_type.content_type)
                 sequence_elem.append(base_type.content_type.elem)
-
             self.content_type = content_type
 
         self._parse_content_tail(elem, derivation='extension', base_attributes=base_type.attributes)
@@ -537,6 +536,9 @@ class Xsd11ComplexType(XsdComplexType):
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
             )
+
+    def _parse_content_tail(self, elem, **kwargs):
+        self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
 
     @property
     def default_attributes_apply(self):

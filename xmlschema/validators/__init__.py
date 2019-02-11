@@ -18,9 +18,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaV
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidationMixin
 
 from .notations import XsdNotation
-from .constraints import XsdSelector, XsdFieldSelector, XsdConstraint, XsdKeyref, XsdKey, XsdUnique
-from .facets import XSD_10_FACETS, XSD_11_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, \
-    DATETIME_FACETS, LIST_FACETS, UNION_FACETS, XsdSingleFacet, XsdPatternsFacet, XsdEnumerationFacet
+from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, XsdUnique
+from .facets import XsdPatternFacets, XsdEnumerationFacets
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .simple_types import xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \

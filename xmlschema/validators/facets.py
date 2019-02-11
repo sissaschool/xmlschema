@@ -36,50 +36,13 @@ class XsdFacet(XsdComponent):
         self.base_type = base_type
         super(XsdFacet, self).__init__(elem, schema, parent)
 
-    @property
-    def built(self):
-        return self.base_type.is_global or self.base_type.built
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.base_type.validation_attempted
+    def __repr__(self):
+        return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
 
     def __call__(self, value):
         for error in self.validator(value):
             yield error
 
-    @staticmethod
-    def validator(_):
-        return ()
-
-    @property
-    def base_facet(self):
-        """
-        An object of the same type if the instance has a base facet, `None` otherwise.
-        """
-        base_type = self.base_type
-        tag = self.elem.tag
-        while True:
-            try:
-                return base_type.facets[tag]
-            except (AttributeError, KeyError):
-                if hasattr(base_type, 'base_type'):
-                    base_type = base_type.base_type
-                else:
-                    return None
-
-
-class XsdSingleFacet(XsdFacet):
-    """
-    Class for XSD facets that are singular for each restriction,
-    the facets for whom the repetition is an error.
-    The facets of this group are: whiteSpace, length, minLength,
-    maxLength, minInclusive, minExclusive, maxInclusive, maxExclusive,
-    totalDigits, fractionDigits.
-    """
     def _parse(self):
         super(XsdFacet, self)._parse()
         elem = self.elem
@@ -100,11 +63,50 @@ class XsdSingleFacet(XsdFacet):
     def _parse_value(self, elem):
         self.value = elem.attrib['value']
 
-    def __repr__(self):
-        return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
+    @property
+    def built(self):
+        return self.base_type.is_global or self.base_type.built
+
+    @property
+    def validation_attempted(self):
+        if self.built:
+            return 'full'
+        else:
+            return self.base_type.validation_attempted
+
+    @property
+    def base_facet(self):
+        """
+        An object of the same type if the instance has a base facet, `None` otherwise.
+        """
+        base_type = self.base_type
+        tag = self.elem.tag
+        while True:
+            try:
+                return base_type.facets[tag]
+            except (AttributeError, KeyError):
+                if hasattr(base_type, 'base_type'):
+                    base_type = base_type.base_type
+                else:
+                    return None
+
+    @staticmethod
+    def validator(_):
+        return ()
 
 
-class XsdWhiteSpaceFacet(XsdSingleFacet):
+class XsdWhiteSpaceFacet(XsdFacet):
+    """
+    XSD whiteSpace facet.
+
+    <whiteSpace
+      fixed = boolean : false
+      id = ID
+      value = (collapse | preserve | replace)
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </whiteSpace>
+    """
     admitted_tags = XSD_WHITE_SPACE,
 
     def _parse_value(self, elem):
@@ -129,7 +131,18 @@ class XsdWhiteSpaceFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x)
 
 
-class XsdLengthFacet(XsdSingleFacet):
+class XsdLengthFacet(XsdFacet):
+    """
+    XSD length facet.
+
+    <length
+      fixed = boolean : false
+      id = ID
+      value = nonNegativeInteger
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </length>
+    """
     admitted_tags = XSD_LENGTH,
 
     def _parse_value(self, elem):
@@ -161,7 +174,18 @@ class XsdLengthFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "binary length has to be %r." % self.value)
 
 
-class XsdMinLengthFacet(XsdSingleFacet):
+class XsdMinLengthFacet(XsdFacet):
+    """
+    XSD minLength facet.
+
+    <minLength
+      fixed = boolean : false
+      id = ID
+      value = nonNegativeInteger
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </minLength>
+    """
     admitted_tags = XSD_MIN_LENGTH,
 
     def _parse_value(self, elem):
@@ -193,7 +217,18 @@ class XsdMinLengthFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "binary length cannot be lesser than %r." % self.value)
 
 
-class XsdMaxLengthFacet(XsdSingleFacet):
+class XsdMaxLengthFacet(XsdFacet):
+    """
+    XSD maxLength facet.
+
+    <maxLength
+      fixed = boolean : false
+      id = ID
+      value = nonNegativeInteger
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </maxLength>
+    """
     admitted_tags = XSD_MAX_LENGTH,
 
     def _parse_value(self, elem):
@@ -225,7 +260,18 @@ class XsdMaxLengthFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "binary length cannot be greater than %r." % self.value)
 
 
-class XsdMinInclusiveFacet(XsdSingleFacet):
+class XsdMinInclusiveFacet(XsdFacet):
+    """
+    XSD minInclusive facet.
+
+    <minInclusive
+      fixed = boolean : false
+      id = ID
+      value = anySimpleType
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </minInclusive>
+    """
     admitted_tags = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
@@ -237,7 +283,18 @@ class XsdMinInclusiveFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "value has to be greater or equal than %r." % self.value)
 
 
-class XsdMinExclusiveFacet(XsdSingleFacet):
+class XsdMinExclusiveFacet(XsdFacet):
+    """
+    XSD minExclusive facet.
+
+    <minExclusive
+      fixed = boolean : false
+      id = ID
+      value = anySimpleType
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </minExclusive>
+    """
     admitted_tags = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
@@ -249,7 +306,18 @@ class XsdMinExclusiveFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "value has to be greater than %r." % self.value)
 
 
-class XsdMaxInclusiveFacet(XsdSingleFacet):
+class XsdMaxInclusiveFacet(XsdFacet):
+    """
+    XSD maxInclusive facet.
+
+    <maxInclusive
+      fixed = boolean : false
+      id = ID
+      value = anySimpleType
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </maxInclusive>
+    """
     admitted_tags = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
@@ -261,7 +329,18 @@ class XsdMaxInclusiveFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "value has to be lesser or equal than %r." % self.value)
 
 
-class XsdMaxExclusiveFacet(XsdSingleFacet):
+class XsdMaxExclusiveFacet(XsdFacet):
+    """
+    XSD maxExclusive facet.
+
+    <maxExclusive
+      fixed = boolean : false
+      id = ID
+      value = anySimpleType
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </maxExclusive>
+    """
     admitted_tags = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
@@ -273,7 +352,18 @@ class XsdMaxExclusiveFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "value has to be lesser than %r." % self.value)
 
 
-class XsdTotalDigitsFacet(XsdSingleFacet):
+class XsdTotalDigitsFacet(XsdFacet):
+    """
+    XSD totalDigits facet.
+
+    <totalDigits
+      fixed = boolean : false
+      id = ID
+      value = positiveInteger
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </totalDigits>
+    """
     admitted_tags = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem):
@@ -287,7 +377,18 @@ class XsdTotalDigitsFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "the number of digits is greater than %r." % self.value)
 
 
-class XsdFractionDigitsFacet(XsdSingleFacet):
+class XsdFractionDigitsFacet(XsdFacet):
+    """
+    XSD fractionDigits facet.
+
+    <fractionDigits
+      fixed = boolean : false
+      id = ID
+      value = nonNegativeInteger
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </fractionDigits>
+    """
     admitted_tags = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem, schema, parent, base_type):
@@ -308,7 +409,18 @@ class XsdFractionDigitsFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "the number of fraction digits is greater than %r." % self.value)
 
 
-class XsdExplicitTimezoneFacet(XsdSingleFacet):
+class XsdExplicitTimezoneFacet(XsdFacet):
+    """
+    XSD 1.1 explicitTimezone facet.
+
+    <explicitTimezone
+      fixed = boolean : false
+      id = ID
+      value = NCName
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </explicitTimezone>
+    """
     admitted_tags = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem):
@@ -329,15 +441,27 @@ class XsdExplicitTimezoneFacet(XsdSingleFacet):
             yield XMLSchemaValidationError(self, x, "time zone prohibited for value %r." % self.value)
 
 
-class XsdEnumerationFacet(MutableSequence, XsdFacet):
+class XsdEnumerationFacets(MutableSequence, XsdFacet):
+    """
+    Sequence of XSD enumeration facets. Values are validates if match any of enumeration values.
 
+    <enumeration
+      id = ID
+      value = anySimpleType
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </enumeration>
+    """
     admitted_tags = {XSD_ENUMERATION}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
+
+    def _parse(self):
+        super(XsdFacet, self)._parse()
         self._elements = []
         self.enumeration = []
-        self.append(elem)
+        self.append(self.elem)
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
@@ -379,14 +503,26 @@ class XsdEnumerationFacet(MutableSequence, XsdFacet):
             )
 
 
-class XsdPatternsFacet(MutableSequence, XsdFacet):
+class XsdPatternFacets(MutableSequence, XsdFacet):
+    """
+    Sequence of XSD pattern facets. Values are validates if match any of patterns.
 
+    <pattern
+      id = ID
+      value = string
+      {any attributes with non-schema namespace . . .}>
+      Content: (annotation?)
+    </pattern>
+    """
     admitted_tags = {XSD_PATTERN}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
-        self._elements = [elem]
-        value = elem.attrib['value']
+
+    def _parse(self):
+        super(XsdFacet, self)._parse()
+        self._elements = [self.elem]
+        value = self.elem.attrib['value']
         self.regexps = [value]
         self.patterns = [re.compile(get_python_regex(value))]
 
@@ -423,9 +559,9 @@ class XsdPatternsFacet(MutableSequence, XsdFacet):
             yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
 
 
-class XsdAssertionsFacet(MutableSequence, XsdFacet):
+class XsdAssertionFacets(MutableSequence, XsdFacet):
     """
-    Sequence of XSD simpleType assertions.
+    Sequence of XSD assertion facets. Values are validates if are `True` with all XPath tests of assertions.
 
     <assertion
       id = ID
@@ -439,8 +575,11 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
-        self._elements = [elem]
-        path, root = self._parse_assertion(elem)
+
+    def _parse(self):
+        super(XsdFacet, self)._parse()
+        self._elements = [self.elem]
+        path, root = self._parse_assertion(self.elem)
         self.paths = [path]
         self.tokens = [root]
 
@@ -508,7 +647,7 @@ class XsdAssertionsFacet(MutableSequence, XsdFacet):
             yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
 
 
-XSD_10_FACETS = {
+XSD_10_FACETS_BUILDERS = {
     XSD_WHITE_SPACE: XsdWhiteSpaceFacet,
     XSD_LENGTH: XsdLengthFacet,
     XSD_MIN_LENGTH: XsdMinLengthFacet,
@@ -519,49 +658,21 @@ XSD_10_FACETS = {
     XSD_MAX_EXCLUSIVE: XsdMaxExclusiveFacet,
     XSD_TOTAL_DIGITS: XsdTotalDigitsFacet,
     XSD_FRACTION_DIGITS: XsdFractionDigitsFacet,
-    XSD_ENUMERATION: XsdEnumerationFacet,
-    XSD_PATTERN: XsdPatternsFacet,
+    XSD_ENUMERATION: XsdEnumerationFacets,
+    XSD_PATTERN: XsdPatternFacets
 }
 
-XSD_11_FACETS = XSD_10_FACETS.copy()
-XSD_11_FACETS.update({
-    XSD_ASSERTION: XsdAssertionsFacet,
+XSD_11_FACETS_BUILDERS = XSD_10_FACETS_BUILDERS.copy()
+XSD_11_FACETS_BUILDERS.update({
+    XSD_ASSERTION: XsdAssertionFacets,
     XSD_EXPLICIT_TIMEZONE: XsdExplicitTimezoneFacet
 })
 
-#
-# Admitted facets sets for Atomic Types, List Type and Union Type
-STRING_FACETS = {
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
-    XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
-}
+XSD_10_FACETS = set(XSD_10_FACETS_BUILDERS)
+XSD_11_FACETS = set(XSD_11_FACETS_BUILDERS)
 
-BOOLEAN_FACETS = {XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION}
+XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE}
+XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
 
-FLOAT_FACETS = {
-    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE,
-    XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-}
-
-DECIMAL_FACETS = {
-    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_PATTERN, XSD_ENUMERATION,
-    XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
-    XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-}
-
-DATETIME_FACETS = {
-    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE,
-    XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
-    XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
-}
-
-LIST_FACETS = {
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
-    XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
-}
-
-UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}
-
-XSD_MIN_MAX_FACETS = {
-    XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE
-}
+XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}
+XSD_11_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION, XSD_ASSERTION}

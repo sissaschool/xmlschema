@@ -49,10 +49,10 @@ from ..xpath import ElementPathMixin
 from . import (
     XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError,
     XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdValidator, ValidationMixin, XsdComponent,
-    XsdNotation, XSD_10_FACETS, XSD_11_FACETS, UNION_FACETS, LIST_FACETS, XsdComplexType,
-    XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup, XsdAtomicRestriction, XsdAnyElement,
-    XsdAnyAttribute, xsd_simple_type_factory, Xsd11Attribute, Xsd11Element, Xsd11AnyElement,
-    Xsd11AnyAttribute, Xsd11AtomicRestriction, Xsd11ComplexType, Xsd11Group, XsdGlobals
+    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup, Xsd11Group,
+    XsdAnyElement, XsdAnyAttribute, Xsd11Attribute, Xsd11Element, Xsd11AnyElement, XsdGlobals,
+    Xsd11AnyAttribute, Xsd11ComplexType, xsd_simple_type_factory,
+    XsdAtomicRestriction, Xsd11AtomicRestriction
 )
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
     iterchildren_xsd_redefine, iterchildren_xsd_override
@@ -97,16 +97,10 @@ class XMLSchemaMeta(ABCMeta):
         if xsd_version not in ('1.0', '1.1'):
             raise XMLSchemaValueError("Validator class XSD version must be '1.0' or '1.1', not %r." % xsd_version)
 
-        facets = dict_.get('FACETS') or get_attribute('FACETS', *bases)
-        if not isinstance(facets, dict):
-            raise XMLSchemaValueError("Validator class FACETS must be a dict(), not %r." % type(facets))
-        dict_['LIST_FACETS'] = set(facets).intersection(LIST_FACETS)
-        dict_['UNION_FACETS'] = set(facets).intersection(UNION_FACETS)
-
         builders = dict_.get('BUILDERS') or get_attribute('BUILDERS', *bases)
         if isinstance(builders, dict):
             dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
-            dict_['TAG_MAP'] = {
+            dict_['BUILDERS_MAP'] = {
                 XSD_NOTATION: builders['notation_class'],
                 XSD_SIMPLE_TYPE: builders['simple_type_factory'],
                 XSD_COMPLEX_TYPE: builders['complex_type_class'],
@@ -116,9 +110,9 @@ class XMLSchemaMeta(ABCMeta):
                 XSD_ELEMENT: builders['element_class'],
             }
         elif builders is None:
-            raise XMLSchemaValueError("Validator class doesn't have defined builders.")
-        elif get_attribute('TAG_MAP', *bases) is None:
-            raise XMLSchemaValueError("Validator class doesn't have a defined tag map.")
+            raise XMLSchemaValueError("Validator class doesn't have defined XSD builders.")
+        elif get_attribute('BUILDERS_MAP', *bases) is None:
+            raise XMLSchemaValueError("Validator class doesn't have a builder map for XSD globals.")
 
         dict_['meta_schema'] = None
         if isinstance(meta_schema, XMLSchemaBase):
@@ -183,8 +177,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :vartype XSD_VERSION: str
+    :cvar BUILDERS: a namedtuple with attributes related to schema components classes. \
+    Used for build local components within parsing methods.
+    :vartype BUILDERS: namedtuple
+    :cvar BUILDERS_MAP: a dictionary that maps from tag to class for XSD global components. \
+    Used for build global components within lookup functions.
+    :vartype BUILDERS_MAP: dict
+    :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
+    :vartype BASE_SCHEMAS: dict
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
+
     :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
     with the schema. In this case the schema declarations can be reused from other namespaces as \
@@ -218,16 +221,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype elements: NamespaceView
     """
     XSD_VERSION = None
-
-    FACETS = None
-    LIST_FACETS = None
-    UNION_FACETS = None
     BUILDERS = None
-    TAG_MAP = None
-
-    meta_schema = None
+    BUILDERS_MAP = None
     BASE_SCHEMAS = None
-    _parent_map = None
+    meta_schema = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
                  locations=None, base_url=None, defuse='remote', timeout=300, build=True):
@@ -465,17 +462,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if namespace == self.target_namespace:
                 return prefix
         return ''
-
-    @property
-    def parent_map(self):
-        warnings.warn(
-            "This property will be removed in future versions. "
-            "Use the 'parent' attribute of the element instead.",
-            DeprecationWarning, stacklevel=2
-        )
-        if self._parent_map is None:
-            self._parent_map = {e: p for p in self.iter() for e in p.iterchildren()}
-        return self._parent_map
 
     @classmethod
     def builtin_types(cls):
@@ -904,7 +890,6 @@ class XMLSchema10(XMLSchemaBase):
     </schema>
     """
     XSD_VERSION = '1.0'
-    FACETS = XSD_10_FACETS
     BUILDERS = {
         'notation_class': XsdNotation,
         'complex_type_class': XsdComplexType,
@@ -962,7 +947,6 @@ class XMLSchema11(XMLSchemaBase):
     </schema>
     """
     XSD_VERSION = '1.1'
-    FACETS = XSD_11_FACETS
     BUILDERS = {
         'notation_class': XsdNotation,
         'complex_type_class': Xsd11ComplexType,
