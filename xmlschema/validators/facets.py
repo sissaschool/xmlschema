@@ -20,12 +20,12 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
     XSD_DECIMAL, XSD_INTEGER, XSD_BASE64_BINARY, XSD_HEX_BINARY
-from ..helpers import get_xpath_default_namespace
 from ..etree import etree_element
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent
+from .assertions import XsdAssertion
 
 
 class XsdFacet(XsdComponent):
@@ -554,7 +554,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         return '%s(%r)' % (self.__class__.__name__, self.regexps)
 
     def __call__(self, text):
-        if all(pattern.search(text) is None for pattern in self.patterns):
+        if all(pattern.match(text) is None for pattern in self.patterns):
             msg = "value doesn't match any pattern of %r."
             yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
 
@@ -575,76 +575,38 @@ class XsdAssertionFacets(MutableSequence, XsdFacet):
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
+        self._assertions = [XsdAssertion(elem, schema, parent, base_type)]
 
     def _parse(self):
-        super(XsdFacet, self)._parse()
-        self._elements = [self.elem]
-        path, root = self._parse_assertion(self.elem)
-        self.paths = [path]
-        self.tokens = [root]
+        return
 
-    def _parse_assertion(self, elem):
-        try:
-            path = elem.attrib['test']
-        except KeyError as err:
-            self.parse_error(str(err), elem=elem)
-            path = 'true()'
-
-        try:
-            default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
-        except ValueError as err:
-            self.parse_error(str(err), elem=elem)
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema))
-        else:
-            parser = XPath2Parser(self.namespaces, strict=False, schema=XMLSchemaProxy(self.schema.meta_schema),
-                                  default_namespace=default_namespace)
-
-        try:
-            root_token = parser.parse(path)
-        except ElementPathSyntaxError as err:
-            self.parse_error(err, elem=elem)
-            return path, parser.parse('true()')
-
-        primitive_type = self.base_type.primitive_type
-        context = XPathContext(root=etree_element('root'), variables={'value': primitive_type.value})
-        try:
-            root_token.evaluate(context)
-        except (TypeError, ValueError) as err:
-            self.parse_error(err, elem=elem)
-            return path, parser.parse('true()')
-        else:
-            return path, root_token
+    @property
+    def paths(self):
+        return [assertion.path for assertion in self._assertions]
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):
-        return self._elements[i]
+        return self._assertions[i]
 
     def __setitem__(self, i, elem):
-        self._elements[i] = elem
-        self.paths[i], self.tokens[i] = self._parse_assertion(elem)
+        self._assertions[i] = XsdAssertion(elem, self.schema, self.parent, self.base_type)
 
     def __delitem__(self, i):
-        del self._elements[i]
-        del self.paths[i]
-        del self.tokens[i]
+        del self._assertions[i]
 
     def __len__(self):
-        return len(self._elements)
+        return len(self._assertions)
 
     def insert(self, i, elem):
-        self._elements.insert(i, elem)
-        path, root = self._parse_assertion(elem)
-        self.paths.insert(i, path)
-        self.tokens.insert(i, root)
+        self._assertions.insert(i, XsdAssertion(elem, self.schema, self.parent, self.base_type))
 
     def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.paths)
+        return '%s(paths=%r)' % (self.__class__.__name__, self.paths)
 
     def __call__(self, value):
-        context = XPathContext(root=etree_element('root'), variables={'value': value})
-        if not all(token.evaluate(context) for token in self.tokens):
-            msg = "value is not true with all expressions of %r."
-            yield XMLSchemaValidationError(self, value, reason=msg % self.paths)
+        for assertion in self:
+            for error in assertion(value):
+                yield error
 
 
 XSD_10_FACETS_BUILDERS = {

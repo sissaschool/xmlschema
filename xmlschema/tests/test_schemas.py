@@ -23,7 +23,7 @@ import warnings
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
-from xmlschema.etree import lxml_etree, py_etree_element
+from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.tests import tests_factory, SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
@@ -458,6 +458,21 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(schema.types['Percentage'].is_valid('-1'))
         self.assertFalse(schema.types['Percentage'].is_valid('101'))
         self.assertFalse(schema.types['Percentage'].is_valid('90.1'))
+
+    def test_complex_type_assertion(self):
+        schema = self.check_schema("""
+            <complexType name="intRange">
+              <attribute name="min" type="int"/>
+              <attribute name="max" type="int"/>
+              <assert test="@min le @max"/>
+            </complexType>""")
+
+        xsd_type = schema.types['intRange']
+        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '10', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '19', 'max': '19'})))
+        import pdb
+        pdb.set_trace()
+        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

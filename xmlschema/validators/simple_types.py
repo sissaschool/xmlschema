@@ -23,6 +23,7 @@ from ..qnames import (
     XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
 from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
+from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin

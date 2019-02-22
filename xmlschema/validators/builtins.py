@@ -486,16 +486,16 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (unicode_type, str, datatypes.GregorianYear),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'to_python': datatypes.GregorianYear10.fromstring,
-        'value': datatypes.GregorianYear10.fromstring('1999'),
+        'to_python': datatypes.GregorianYear.fromstring,
+        'value': datatypes.GregorianYear.fromstring('1999'),
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
         'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'to_python': datatypes.GregorianYearMonth10.fromstring,
-        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+        'to_python': datatypes.GregorianYearMonth.fromstring,
+        'value': datatypes.GregorianYearMonth.fromstring('1999-09'),
     },  # [-][Y*]YYYY-MM
     # --- Datetime derived types (XSD 1.1) ---
     {

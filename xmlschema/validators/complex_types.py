@@ -15,9 +15,11 @@ from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_
     XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT
 from ..helpers import get_qname, local_name, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
+from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdType, ValidationMixin
+from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
@@ -44,6 +46,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     </complexType>
     """
     admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
+    assertions = ()
 
     def __init__(self, elem, schema, parent, name=None, content_type=None, attributes=None, mixed=None):
         self.base_type = None
@@ -259,7 +262,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse_complex_content_extension(self, elem, base_type):
         # complexContent extension: base type must be a complex type with complex content.
         # A dummy sequence group is added if the base type has not empty content model.
-        if getattr(base_type.content_type, 'model', None) == 'all':
+        if getattr(base_type.content_type, 'model', None) == 'all' and self.schema.XSD_VERSION == '1.0':
             self.parse_error("XSD 1.0 does not allow extension of an 'ALL' model group.", elem)
 
         group_elem = self._parse_component(elem, required=False, strict=False)
@@ -383,6 +386,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             for obj in self.content_type.iter_components(xsd_classes):
                 yield obj
 
+        for obj in self.assertions:
+            if xsd_classes is None or isinstance(obj, xsd_classes):
+               yield obj
+
     @staticmethod
     def get_facet(*_args, **_kwargs):
         return None
@@ -433,6 +440,11 @@ class XsdComplexType(XsdType, ValidationMixin):
         :return: yields a 3-tuple (simple content, complex content, attributes) containing \
         the decoded parts, eventually preceded by a sequence of validation or decoding errors.
         """
+        # XSD 1.1 assertions
+        for assertion in self.assertions:
+            for error in assertion(elem):
+                yield self.validation_error(validation, error, **kwargs)
+
         for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
@@ -539,6 +551,10 @@ class Xsd11ComplexType(XsdComplexType):
 
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
+        self.assertions = []
+        for child in self._iterparse_components(elem):
+            if child.tag == XSD_ASSERT:
+                self.assertions.append(XsdAssert(child, self.schema, self, self))
 
     @property
     def default_attributes_apply(self):

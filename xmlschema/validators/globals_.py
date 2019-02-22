@@ -23,7 +23,7 @@ from ..helpers import get_qname, local_name, prefixed_to_qname
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
-    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
+    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -424,6 +424,9 @@ class XsdGlobals(XsdValidator):
                 # Set referenced key/unique constraints for keyrefs
                 for constraint in schema.iter_components(XsdKeyref):
                     constraint.parse_refer()
+
+                for assertion in schema.iter_components(XsdAssert):
+                    assertion.parse()
 
                 # Check for illegal restrictions
                 # TODO: Fix for XsdGroup.is_restriction() method is needed before enabling this check

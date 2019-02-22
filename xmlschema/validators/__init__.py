@@ -17,6 +17,7 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaV
 
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidationMixin
 
+from .assertions import XsdAssert
 from .notations import XsdNotation
 from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, XsdUnique
 from .facets import XsdPatternFacets, XsdEnumerationFacets
