@@ -18,9 +18,9 @@ from ..compat import string_base_type, unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
     XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE,
-    XSD_ENUMERATION, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION,
-    XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
+    XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
+    XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
 from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
 from ..xpath import ElementPathMixin
@@ -28,7 +28,7 @@ from ..xpath import ElementPathMixin
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
 from .facets import XsdFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, \
-    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS
+    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -101,8 +101,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.patterns = self.get_facet(XSD_PATTERN)
                 self.validators = [
                     v for k, v in value.items()
-                    if k not in (XSD_WHITE_SPACE, XSD_PATTERN) and callable(v)
+                    if k not in (XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION) and callable(v)
                 ]
+                if XSD_ASSERTION in value:
+                    assertions = value[XSD_ASSERTION]
+                    if isinstance(assertions, list):
+                        self.validators.extend(assertions)
+                    else:
+                        self.validators.append(assertions)
         else:
             super(XsdSimpleType, self).__setattr__(name, value)
 
@@ -1006,10 +1012,16 @@ class XsdAtomicRestriction(XsdAtomic):
 
                 if child.tag not in facets:
                     facets[child.tag] = facet_class(child, self.schema, self, base_type)
-                elif child.tag in {XSD_ENUMERATION, XSD_PATTERN, XSD_ASSERTION}:
+                elif child.tag not in MULTIPLE_FACETS:
+                    self.parse_error("multiple %r constraint facet" % local_name(child.tag))
+                elif child.tag != XSD_ASSERTION:
                     facets[child.tag].append(child)
                 else:
-                    self.parse_error("multiple %r constraint facet" % local_name(child.tag))
+                    assertion = facet_class(child, self.schema, self, base_type)
+                    try:
+                        facets[child.tag].append(assertion)
+                    except AttributeError:
+                        facets[child.tag] = [facets[child.tag], assertion]
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
