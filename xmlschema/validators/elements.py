@@ -21,8 +21,7 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE
-from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, \
-    get_xsd_derivation_attribute, get_xpath_default_namespace
+from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -661,17 +660,13 @@ class XsdAlternative(XsdComponent):
             self.path = elem.attrib['test']
         except KeyError as err:
             self.path = 'true()'
-
-        try:
-            default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
-        except ValueError as err:
             self.parse_error(err, elem=elem)
-            default_namespace = self.schema.xpath_default_namespace
-        else:
-            if default_namespace is None:
-                default_namespace = self.schema.xpath_default_namespace
 
-        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+        if 'xpathDefaultNamespace' in self.elem.attrib:
+            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+        else:
+            self.xpath_default_namespace = self.schema.xpath_default_namespace
+        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
 
         try:
             self.token = parser.parse(self.path)

@@ -468,11 +468,11 @@ class TestXMLSchema11(TestXMLSchema10):
             </complexType>""")
 
         xsd_type = schema.types['intRange']
+        xsd_type.decode(etree_element('a', attrib={'min': '10', 'max': '19'}))
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '10', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '19', 'max': '19'})))
-        import pdb
-        pdb.set_trace()
-        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
+        self.assertFalse(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
+        self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

@@ -16,7 +16,6 @@ import re
 from elementpath import XPath2Parser, ElementPathSyntaxError, ElementPathTypeError
 
 from ..compat import unicode_type, MutableSequence
-from ..helpers import get_xpath_default_namespace
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
@@ -601,15 +600,12 @@ class XsdAssertionFacet(XsdFacet):
 
         variables = {'value': self.base_type.primitive_type.value}
 
-        try:
-            default_namespace = get_xpath_default_namespace(self.elem, self.namespaces[''], self.target_namespace)
-        except ValueError as err:
-            self.parse_error(str(err), elem=self.elem)
-            self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables)
+        if 'xpathDefaultNamespace' in self.elem.attrib:
+            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
-            self.parser = XPath2Parser(
-                self.namespaces, strict=False, default_namespace=default_namespace, variables=variables
-            )
+            self.xpath_default_namespace = self.schema.xpath_default_namespace
+        self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables,
+                                   default_namespace=self.xpath_default_namespace)
 
         try:
             self.token = self.parser.parse(self.path)

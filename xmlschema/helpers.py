@@ -229,27 +229,3 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
-
-
-def get_xpath_default_namespace(elem, default_namespace, target_namespace, default=None):
-    """
-    Get the xpathDefaultNamespace attribute value for alternative, assert, assertion, selector
-    and field XSD 1.1 declarations, checking if the value is conforming to the specification.
-    """
-    value = elem.get('xpathDefaultNamespace')
-    if value is None:
-        return default
-
-    value = value.strip()
-    if value == '##local':
-        return ''
-    elif value == '##defaultNamespace':
-        return default_namespace
-    elif value == '##targetNamespace':
-        return target_namespace
-    elif len(value.split()) == 1:
-        return value
-    else:
-        admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
-        msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %s)."
-        raise XMLSchemaValueError(msg % (value, ' | '.join(admitted_values)))

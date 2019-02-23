@@ -23,7 +23,7 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Alternative type for elements
   * Inheritable attributes
   * targetNamespace for restricted element and attributes
-  * TODO: Assert for complex types
+  * Assert for complex types
   * TODO: OpenContent and XSD 1.1 wildcards for complex types
   * schema overrides
 """
@@ -37,8 +37,7 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute, \
-    get_xpath_default_namespace
+from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring
@@ -264,6 +263,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         # XSD 1.1 attributes "defaultAttributes" and "xpathDefaultNamespace"
         if self.XSD_VERSION > '1.0':
+            self.xpath_default_namespace = self._parse_xpath_default_namespace(root)
             try:
                 self.default_attributes = prefixed_to_qname(root.attrib['defaultAttributes'], self.namespaces)
             except KeyError:
@@ -271,14 +271,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             except XMLSchemaValueError as error:
                 self.parse_error(str(error), root)
                 self.default_attributes = None
-
-            try:
-                self.xpath_default_namespace = get_xpath_default_namespace(
-                    root, self.namespaces[''], self.target_namespace, default=''
-                )
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error), root)
-                self.xpath_default_namespace = ''  # self.namespaces['']
 
         # Create or set the XSD global maps instance
         if global_maps is None:

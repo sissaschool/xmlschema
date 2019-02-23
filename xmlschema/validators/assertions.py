@@ -12,7 +12,6 @@ from __future__ import unicode_literals
 from elementpath import XPath2Parser, XPathContext, XMLSchemaProxy, ElementPathSyntaxError
 
 from ..qnames import XSD_ASSERT
-from ..helpers import get_xpath_default_namespace
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
@@ -49,13 +48,11 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error(str(err), elem=self.elem)
             self.path = 'true()'
 
-        try:
-            default_namespace = get_xpath_default_namespace(self.elem, self.namespaces[''], self.target_namespace)
-        except ValueError as err:
-            self.parse_error(str(err), elem=self.elem)
-            self.parser = XPath2Parser(self.namespaces, strict=False)
+        if 'xpathDefaultNamespace' in self.elem.attrib:
+            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
-            self.parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+            self.xpath_default_namespace = self.schema.xpath_default_namespace
+        self.parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
 
     @property
     def built(self):
@@ -70,9 +67,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.token = self.parser.parse('true()')
 
     def __call__(self, elem):
-        # TODO: protect from dynamic errors ...
-        context = XPathContext(root=elem)
-        if not self.token.evaluate(context):
+        if not self.token.evaluate(XPathContext(root=elem)):
             msg = "expression is not true with test path %r."
             yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
 

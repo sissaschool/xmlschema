@@ -151,6 +151,32 @@ class XsdValidator(object):
         else:
             raise error
 
+    def _parse_xpath_default_namespace(self, elem):
+        """
+        Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
+        and selector declarations, checking if the value is conforming to the specification. In
+        case the attribute is missing or for wrong attribute values defaults to ''.
+        """
+        try:
+            value = elem.attrib['xpathDefaultNamespace']
+        except KeyError:
+            return ''
+
+        value = value.strip()
+        if value == '##local':
+            return ''
+        elif value == '##defaultNamespace':
+            return getattr(self, 'default_namespace')
+        elif value == '##targetNamespace':
+            return getattr(self, 'target_namespace')
+        elif len(value.split()) == 1:
+            return value
+        else:
+            admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
+            msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %s)."
+            self.parse_error(msg % (value, ' | '.join(admitted_values)), elem)
+            return ''
+
 
 class XsdComponent(XsdValidator):
     """
@@ -237,13 +263,6 @@ class XsdComponent(XsdValidator):
     def namespaces(self):
         """Property that references to schema's namespace mapping."""
         return self.schema.namespaces
-
-    @property
-    def xpath_default_namespace(self):
-        try:
-            return getattr(self, '_xpath_default_namespace')
-        except AttributeError:
-            getattr(self.schema, '_xpath_default_namespace', None)
 
     @property
     def maps(self):

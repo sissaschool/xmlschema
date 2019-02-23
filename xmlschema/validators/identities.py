@@ -17,7 +17,7 @@ from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed, get_xpath_default_namespace
+from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed
 from ..etree import etree_getpath
 
 from .exceptions import XMLSchemaValidationError
@@ -63,13 +63,10 @@ class XsdSelector(XsdComponent):
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
-            try:
-                self._xpath_default_namespace = get_xpath_default_namespace(
-                    self.elem, self.namespaces[''], self.target_namespace
-                )
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error))
-                self._xpath_default_namespace = self.namespaces['']
+            if 'xpathDefaultNamespace' in self.elem.attrib:
+                self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+            else:
+                self.xpath_default_namespace = self.schema.xpath_default_namespace
 
     def __repr__(self):
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
