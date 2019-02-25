@@ -17,13 +17,13 @@ from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_ANY_TYPE, \
+from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
 from ..helpers import get_namespace, get_qname, local_name, prefixed_to_qname
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, ValidationMixin, XsdType
+from .xsdbase import XsdComponent, ValidationMixin
 from .simple_types import XsdSimpleType
 from .wildcards import XsdAnyAttribute
 

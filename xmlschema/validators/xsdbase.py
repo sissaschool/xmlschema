@@ -289,14 +289,14 @@ class XsdComponent(XsdValidator):
         try:
             return get_xsd_component(elem, required, strict)
         except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
+            self.parse_error(err, elem)
 
     def _iterparse_components(self, elem, start=0):
         try:
             for obj in iter_xsd_components(elem, start):
                 yield obj
         except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
+            self.parse_error(err, elem)
 
     def _parse_properties(self, *properties):
         for name in properties:

@@ -21,11 +21,11 @@ import time
 import warnings
 
 import xmlschema
-from xmlschema import XMLSchemaBase, XMLSchema, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION
-from xmlschema.tests import tests_factory, SKIP_REMOTE_TESTS, SchemaObserver, XMLSchemaTestCase
+from xmlschema.tests import tests_factory, SchemaObserver, XMLSchemaTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
 from xmlschema.xpath import ElementPathContext
 
@@ -379,13 +379,22 @@ class TestXMLSchema10(XMLSchemaTestCase):
             """, validation='lax')
         self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
 
-    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
-    def test_remote_schemas(self):
-        # Tests with Dublin Core schemas that also use imports
-        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
-        self.assertTrue(isinstance(dc_schema, self.schema_class))
-        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
-        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
+    def test_date_time_facets(self):
+        self.check_schema("""
+            <simpleType name="restricted_date">
+                <restriction base="date">
+                    <minInclusive value="1900-01-01"/>
+                    <maxInclusive value="2030-12-31"/>
+                </restriction>
+            </simpleType>""")
+
+        schema = self.check_schema("""
+            <simpleType name="restricted_year">
+                <restriction base="gYear">
+                    <minInclusive value="1900"/>
+                    <maxInclusive value="2030"/>
+                </restriction>
+            </simpleType>""")
 
 
 class TestXMLSchema11(TestXMLSchema10):

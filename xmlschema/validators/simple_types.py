@@ -22,8 +22,7 @@ from ..qnames import (
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
     XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
-from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
-from ..xpath import ElementPathMixin
+from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
@@ -950,7 +949,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if elem.get('name') == XSD_ANY_ATOMIC_TYPE:
             return  # skip special type xs:anyAtomicType
         elif elem.tag == XSD_SIMPLE_TYPE and elem.get('name') is not None:
-            elem = get_xsd_component(elem)  # Global simpleType with internal restriction
+            elem = self._parse_component(elem)  # Global simpleType with internal restriction
 
         base_type = None
         facets = {}

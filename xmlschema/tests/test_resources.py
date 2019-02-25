@@ -24,9 +24,9 @@ from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
     load_xml_resource, XMLResource, XMLSchemaURLError
 )
-from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.tests import XMLSchemaTestCase, SKIP_REMOTE_TESTS
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
-from xmlschema.etree import ElementTree, lxml_etree, is_etree_element
+from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, is_etree_element, etree_element, py_etree_element
 
 
 def is_windows_path(path):
@@ -264,6 +264,21 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(resource.defuse, 'never')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse=None)
+        self.assertIsInstance(resource.root, etree_element)
+        resource = XMLResource(self.vh_xml_file, defuse='always')
+        self.assertIsInstance(resource.root, py_etree_element)
+
+        xml_file = self.casepath('resources/with_entity.xml')
+        self.assertIsInstance(XMLResource(xml_file), XMLResource)
+        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
+
+        xml_file = self.casepath('resources/unused_external_entity.xml')
+        self.assertIsInstance(XMLResource(xml_file), XMLResource)
+        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
+
+        xml_file = self.casepath('resources/external_entity.xml')
+        self.assertIsInstance(XMLResource(xml_file), XMLResource)
+        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
 
     def test_xml_resource_timeout(self):
         resource = XMLResource(self.vh_xml_file, timeout=30)
@@ -337,6 +352,20 @@ class TestResources(XMLSchemaTestCase):
         locations = resource.get_locations([('ns', 'other.xsd')])
         self.assertEqual(len(locations), 2)
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
+
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
+    def test_remote_schemas_loading(self):
+        # Tests with Dublin Core schemas that also use imports
+        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
+        self.assertTrue(isinstance(dc_schema, self.schema_class))
+        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
+        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
+
+    def test_schema_defuse(self):
+        vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')
+        self.assertIsInstance(vh_schema.root, etree_element)
+        for schema in vh_schema.maps.iter_schemas():
+            self.assertIsInstance(schema.root, etree_element)
 
 
 if __name__ == '__main__':
