@@ -27,11 +27,37 @@ from ..exceptions import XMLSchemaValueError
 from ..qnames import *
 from ..etree import etree_element, is_etree_element
 from .exceptions import XMLSchemaValidationError
-from .facets import XSD_10_FACETS, STRING_FACETS, BOOLEAN_FACETS, FLOAT_FACETS, DECIMAL_FACETS, DATETIME_FACETS
+from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
+
+#
+# Admitted facets sets for XSD atomic types
+STRING_FACETS = (
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
+    XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
+)
+
+BOOLEAN_FACETS = (XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION)
+
+FLOAT_FACETS = (
+    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE,
+    XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_ASSERTION
+)
+
+DECIMAL_FACETS = (
+    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_PATTERN, XSD_ENUMERATION,
+    XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
+    XSD_MIN_EXCLUSIVE, XSD_ASSERTION
+)
+
+DATETIME_FACETS = (
+    XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE,
+    XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
+    XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
+)
 
 
 #
@@ -144,105 +170,105 @@ XSD_COMMON_BUILTIN_TYPES = (
     {
         'name': XSD_STRING,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, PRESERVE_WHITE_SPACE_ELEMENT),
-        'value': 'alpha',
+        'admitted_facets': STRING_FACETS,
+        'facets': [PRESERVE_WHITE_SPACE_ELEMENT],
     },  # character string
 
     # --- Numerical Types ---
     {
         'name': XSD_DECIMAL,
         'python_type': (Decimal, str, unicode_type, int, float),
-        'facets': (DECIMAL_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': Decimal('1.0'),
+        'admitted_facets': DECIMAL_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # decimal number
     {
         'name': XSD_DOUBLE,
         'python_type': float,
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': 1.0,
+        'admitted_facets': FLOAT_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },   # 64 bit floating point
     {
         'name': XSD_FLOAT,
         'python_type': float,
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': 1.0,
+        'admitted_facets': FLOAT_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # 32 bit floating point
 
     # --- Dates and Times (not year related) ---
     {
         'name': XSD_GDAY,
         'python_type': (unicode_type, str, datatypes.GregorianDay),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianDay.fromstring,
-        'value': datatypes.GregorianDay.fromstring('---31'),
     },  # DD
     {
         'name': XSD_GMONTH,
         'python_type': (unicode_type, str, datatypes.GregorianMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonth.fromstring,
-        'value': datatypes.GregorianMonth.fromstring('--12'),
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
         'python_type': (unicode_type, str, datatypes.GregorianMonthDay),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonthDay.fromstring,
-        'value': datatypes.GregorianMonthDay.fromstring('--12-01'),
     },  # MM-DD
     {
         'name': XSD_TIME,
         'python_type': (unicode_type, str, datatypes.Time),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Time.fromstring,
-        'value': datatypes.Time.fromstring('09:26:54'),
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
         'python_type': (unicode_type, str, datatypes.Duration),
-        'facets': (FLOAT_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': FLOAT_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Duration.fromstring,
-        'value': datatypes.Duration.fromstring('P1MT1S'),
     },  # PnYnMnDTnHnMnS
 
     # Other primitive types
     {
         'name': XSD_QNAME,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': 'xs:element',
+        'admitted_facets': STRING_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # prf:name (the prefix needs to be qualified with an in scope namespace)
     {
         'name': XSD_NOTATION_TYPE,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': 'alpha',
+        'admitted_facets': STRING_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': XSD_ANY_URI,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'value': 'https://example.com',
+        'admitted_facets': STRING_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # absolute or relative uri (RFC 2396)
     {
         'name': XSD_BOOLEAN,
         'python_type': bool,
-        'facets': (BOOLEAN_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': BOOLEAN_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': boolean_to_python,
         'from_python': python_to_boolean,
-        'value': True,
     },  # true/false or 1/0
     {
         'name': XSD_BASE64_BINARY,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator),
-        'value': b'YWxwaGE=',
+        'admitted_facets': STRING_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator],
     },  # base64 encoded binary value
     {
         'name': XSD_HEX_BINARY,
         'python_type': (unicode_type, str),
-        'facets': (STRING_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator),
-        'value': b'31',
+        'admitted_facets': STRING_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator],
     },   # hexadecimal encoded binary value
 
     # *********************
@@ -391,30 +417,30 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': XSD_DATETIME,
         'python_type': (unicode_type, str, datatypes.DateTime),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime10.fromstring,
-        'value': datatypes.DateTime10.fromstring('2000-01-01T12:00:00'),
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
         'python_type': (unicode_type, str, datatypes.Date),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date10.fromstring,
-        'value': datatypes.Date10.fromstring('2000-01-01'),
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
         'python_type': (unicode_type, str, datatypes.GregorianYear),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear10.fromstring,
-        'value': datatypes.GregorianYear10.fromstring('1999'),
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
         'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth10.fromstring,
-        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
     },  # [-][Y*]YYYY-MM
 )
 
@@ -423,30 +449,30 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     {
         'name': XSD_DATETIME,
         'python_type': (unicode_type, str, datatypes.DateTime),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime.fromstring,
-        'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
         'python_type': (unicode_type, str, datatypes.Date),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date.fromstring,
-        'value': datatypes.Date.fromstring('2000-01-01'),
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
         'python_type': (unicode_type, str, datatypes.GregorianYear),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'to_python': datatypes.GregorianYear10.fromstring,
-        'value': datatypes.GregorianYear10.fromstring('1999'),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
+        'to_python': datatypes.GregorianYear.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
         'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
-        'facets': (DATETIME_FACETS, COLLAPSE_WHITE_SPACE_ELEMENT),
-        'to_python': datatypes.GregorianYearMonth10.fromstring,
-        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
+        'admitted_facets': DATETIME_FACETS,
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
+        'to_python': datatypes.GregorianYearMonth.fromstring,
     },  # [-][Y*]YYYY-MM
     # --- Datetime derived types (XSD 1.1) ---
     {
@@ -461,39 +487,28 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.DayTimeDuration.fromstring,
-        'value': datatypes.DayTimeDuration.fromstring('P1DT1S'),
     },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
-        'value': datatypes.YearMonthDuration.fromstring('P1Y1M'),
     },  # PnYnMnDTnHnMnS with day and time equals to 0
 )
 
 
-def xsd_build_facets(schema, parent, base_type, items):
-    facets = {}
-    for obj in items:
-        if isinstance(obj, (list, tuple, set)):
-            facets.update([(k, None) for k in obj if k in schema.FACETS])
-        elif is_etree_element(obj):
-            if obj.tag in schema.FACETS:
-                facets[obj.tag] = schema.FACETS[obj.tag](obj, schema, parent, base_type)
-        elif callable(obj):
-            if None in facets:
-                raise XMLSchemaValueError("Almost one callable for facet group!!")
-            facets[None] = obj
-        else:
-            raise XMLSchemaValueError("Wrong type for item %r" % obj)
-    return facets
-
-
-def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
+def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None):
     """
     Builds the dictionary for XML Schema built-in types mapping.
     """
+    atomic_builtin_class = atomic_builtin_class or XsdAtomicBuiltin
+    if meta_schema.XSD_VERSION == '1.1':
+        builtin_types = XSD_11_BUILTIN_TYPES
+        facets_map = XSD_11_FACETS_BUILDERS
+    else:
+        builtin_types = XSD_10_BUILTIN_TYPES
+        facets_map = XSD_10_FACETS_BUILDERS
+
     #
     # Special builtin types.
     #
@@ -515,8 +530,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         elem=etree_element(XSD_SIMPLE_TYPE, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
         schema=meta_schema,
         parent=None,
-        name=XSD_ANY_SIMPLE_TYPE,
-        facets={k: None for k in XSD_10_FACETS}
+        name=XSD_ANY_SIMPLE_TYPE
     )
 
     # xs:anyAtomicType
@@ -528,12 +542,6 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
         name=XSD_ANY_ATOMIC_TYPE,
         base_type=xsd_types[XSD_ANY_SIMPLE_TYPE]
     )
-
-    xsd_class = xsd_class or XsdAtomicBuiltin
-    if meta_schema.XSD_VERSION == '1.1':
-        builtin_types = XSD_11_BUILTIN_TYPES
-    else:
-        builtin_types = XSD_10_BUILTIN_TYPES
 
     for item in builtin_types:
         item = item.copy()
@@ -548,20 +556,26 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, xsd_class=None):
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
 
-        if item.get('base_type'):
+        if 'base_type' in item:
             base_type = item.get('base_type')
             item['base_type'] = xsd_types[base_type]
-        elif item.get('item_type'):
-            base_type = item.get('item_type')
-            item['item_type'] = xsd_types[base_type]
         else:
             base_type = None
 
-        if 'facets' in item:
-            facets = item.pop('facets')
-            builtin_type = xsd_class(elem, meta_schema, **item)
-            builtin_type.facets = xsd_build_facets(meta_schema, builtin_type, base_type, facets)
-        else:
-            builtin_type = xsd_class(elem, meta_schema, **item)
+        facets = item.pop('facets', None)
+        builtin_type = atomic_builtin_class(elem, meta_schema, **item)
+        if isinstance(facets, (list, tuple)):
+            built_facets = builtin_type.facets
+            for e in facets:
+                if is_etree_element(e):
+                    cls = facets_map[e.tag]
+                    built_facets[e.tag] = cls(e, meta_schema, builtin_type, base_type)
+                elif callable(e):
+                    if None in facets:
+                        raise XMLSchemaValueError("Almost one callable for facet group!!")
+                    built_facets[None] = e
+                else:
+                    raise XMLSchemaValueError("Wrong type for item %r" % e)
+            builtin_type.facets = built_facets
 
-        xsd_types[item['name']] = builtin_type
+        xsd_types[name] = builtin_type

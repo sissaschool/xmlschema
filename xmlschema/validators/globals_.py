@@ -17,13 +17,13 @@ import re
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
+from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
 from ..helpers import get_qname, local_name, prefixed_to_qname
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
-    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation
+    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -49,6 +49,7 @@ def iterchildren_by_tag(tag):
 iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT)
 iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE)
 iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE)
+iterchildren_xsd_override = iterchildren_by_tag(XSD_OVERRIDE)
 
 
 #
@@ -216,22 +217,22 @@ class XsdGlobals(XsdValidator):
     __copy__ = copy
 
     def lookup_notation(self, qname):
-        return lookup_notation(self.notations, qname, self.validator.TAG_MAP)
+        return lookup_notation(self.notations, qname, self.validator.BUILDERS_MAP)
 
     def lookup_type(self, qname):
-        return lookup_type(self.types, qname, self.validator.TAG_MAP)
+        return lookup_type(self.types, qname, self.validator.BUILDERS_MAP)
 
     def lookup_attribute(self, qname):
-        return lookup_attribute(self.attributes, qname, self.validator.TAG_MAP)
+        return lookup_attribute(self.attributes, qname, self.validator.BUILDERS_MAP)
 
     def lookup_attribute_group(self, qname):
-        return lookup_attribute_group(self.attribute_groups, qname, self.validator.TAG_MAP)
+        return lookup_attribute_group(self.attribute_groups, qname, self.validator.BUILDERS_MAP)
 
     def lookup_group(self, qname):
-        return lookup_group(self.groups, qname, self.validator.TAG_MAP)
+        return lookup_group(self.groups, qname, self.validator.BUILDERS_MAP)
 
     def lookup_element(self, qname):
-        return lookup_element(self.elements, qname, self.validator.TAG_MAP)
+        return lookup_element(self.elements, qname, self.validator.BUILDERS_MAP)
 
     @property
     def built(self):
@@ -423,6 +424,9 @@ class XsdGlobals(XsdValidator):
                 # Set referenced key/unique constraints for keyrefs
                 for constraint in schema.iter_components(XsdKeyref):
                     constraint.parse_refer()
+
+                for assertion in schema.iter_components(XsdAssert):
+                    assertion.parse()
 
                 # Check for illegal restrictions
                 # TODO: Fix for XsdGroup.is_restriction() method is needed before enabling this check

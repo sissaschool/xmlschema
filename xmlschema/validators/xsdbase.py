@@ -151,6 +151,32 @@ class XsdValidator(object):
         else:
             raise error
 
+    def _parse_xpath_default_namespace(self, elem):
+        """
+        Parse XSD 1.1 xpathDefaultNamespace attribute for schema, alternative, assert, assertion
+        and selector declarations, checking if the value is conforming to the specification. In
+        case the attribute is missing or for wrong attribute values defaults to ''.
+        """
+        try:
+            value = elem.attrib['xpathDefaultNamespace']
+        except KeyError:
+            return ''
+
+        value = value.strip()
+        if value == '##local':
+            return ''
+        elif value == '##defaultNamespace':
+            return getattr(self, 'default_namespace')
+        elif value == '##targetNamespace':
+            return getattr(self, 'target_namespace')
+        elif len(value.split()) == 1:
+            return value
+        else:
+            admitted_values = ('##defaultNamespace', '##targetNamespace', '##local')
+            msg = "wrong value %r for 'xpathDefaultNamespace' attribute, can be (anyURI | %s)."
+            self.parse_error(msg % (value, ' | '.join(admitted_values)), elem)
+            return ''
+
 
 class XsdComponent(XsdValidator):
     """
@@ -239,13 +265,6 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces
 
     @property
-    def xpath_default_namespace(self):
-        try:
-            return getattr(self, '_xpath_default_namespace')
-        except AttributeError:
-            getattr(self.schema, '_xpath_default_namespace', None)
-
-    @property
     def maps(self):
         """Property that references to schema's global maps."""
         return self.schema.maps
@@ -270,14 +289,14 @@ class XsdComponent(XsdValidator):
         try:
             return get_xsd_component(elem, required, strict)
         except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
+            self.parse_error(err, elem)
 
     def _iterparse_components(self, elem, start=0):
         try:
             for obj in iter_xsd_components(elem, start):
                 yield obj
         except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
+            self.parse_error(err, elem)
 
     def _parse_properties(self, *properties):
         for name in properties:
@@ -285,6 +304,30 @@ class XsdComponent(XsdValidator):
                 getattr(self, name)
             except (ValueError, TypeError) as err:
                 self.parse_error(str(err))
+
+    def _parse_target_namespace(self):
+        """
+        XSD 1.1 targetNamespace attribute in elements and attributes declarations.
+        """
+        self._target_namespace = self.elem.get('targetNamespace')
+        if self._target_namespace is not None:
+            if 'name' not in self.elem.attrib:
+                self.parse_error("attribute 'name' must be present when 'targetNamespace' attribute is provided")
+            if 'form' in self.elem.attrib:
+                self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
+            if self.elem.attrib['targetNamespace'].strip() != self.schema.target_namespace:
+                parent = self.parent
+                if parent is None:
+                    self.parse_error("a global attribute must has the same namespace as its parent schema")
+                elif not isinstance(parent, XsdType) or not parent.is_complex() or parent.derivation != 'restriction':
+                    self.parse_error("a complexType restriction required for parent, found %r" % self.parent)
+                elif self.parent.base_type.name == XSD_ANY_TYPE:
+                    pass
+
+        elif self.qualified:
+            self._target_namespace = self.schema.target_namespace
+        else:
+            self._target_namespace = ''
 
     @property
     def local_name(self):

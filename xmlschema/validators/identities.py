@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains classes for other XML Schema constraints.
+This module contains classes for other XML Schema identity constraints.
 """
 from __future__ import unicode_literals
 from collections import Counter
@@ -17,13 +17,13 @@ from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed, get_xpath_default_namespace
+from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed
 from ..etree import etree_getpath
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 
-XSD_CONSTRAINTS_XPATH_SYMBOLS = {
+XSD_IDENTITY_XPATH_SYMBOLS = {
     'processing-instruction', 'descendant-or-self', 'following-sibling', 'preceding-sibling',
     'ancestor-or-self', 'descendant', 'attribute', 'following', 'namespace', 'preceding',
     'ancestor', 'position', 'comment', 'parent', 'child', 'self', 'false', 'text', 'node',
@@ -33,12 +33,12 @@ XSD_CONSTRAINTS_XPATH_SYMBOLS = {
 }
 
 
-class XsdConstraintXPathParser(XPath1Parser):
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_CONSTRAINTS_XPATH_SYMBOLS}
-    SYMBOLS = XSD_CONSTRAINTS_XPATH_SYMBOLS
+class XsdIdentityXPathParser(XPath1Parser):
+    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS}
+    SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
-XsdConstraintXPathParser.build_tokenizer()
+XsdIdentityXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
@@ -56,20 +56,17 @@ class XsdSelector(XsdComponent):
             self.path = "*"
 
         try:
-            self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdConstraintXPathParser)
+            self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
         except ElementPathSyntaxError as err:
             self.parse_error(err)
-            self.xpath_selector = Selector('*', self.namespaces, parser=XsdConstraintXPathParser)
+            self.xpath_selector = Selector('*', self.namespaces, parser=XsdIdentityXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
-            try:
-                self._xpath_default_namespace = get_xpath_default_namespace(
-                    self.elem, self.namespaces[''], self.target_namespace
-                )
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error))
-                self._xpath_default_namespace = self.namespaces['']
+            if 'xpathDefaultNamespace' in self.elem.attrib:
+                self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+            else:
+                self.xpath_default_namespace = self.schema.xpath_default_namespace
 
     def __repr__(self):
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
@@ -83,12 +80,12 @@ class XsdFieldSelector(XsdSelector):
     admitted_tags = {XSD_FIELD}
 
 
-class XsdConstraint(XsdComponent):
+class XsdIdentity(XsdComponent):
     def __init__(self, elem, schema, parent):
-        super(XsdConstraint, self).__init__(elem, schema, parent)
+        super(XsdIdentity, self).__init__(elem, schema, parent)
 
     def _parse(self):
-        super(XsdConstraint, self)._parse()
+        super(XsdIdentity, self)._parse()
         elem = self.elem
         try:
             self.name = get_qname(self.target_namespace, elem.attrib['name'])
@@ -193,15 +190,15 @@ class XsdConstraint(XsdComponent):
                 yield XMLSchemaValidationError(self, elem, reason="duplicated value %r." % value)
 
 
-class XsdUnique(XsdConstraint):
+class XsdUnique(XsdIdentity):
     admitted_tags = {XSD_UNIQUE}
 
 
-class XsdKey(XsdConstraint):
+class XsdKey(XsdIdentity):
     admitted_tags = {XSD_KEY}
 
 
-class XsdKeyref(XsdConstraint):
+class XsdKeyref(XsdIdentity):
     """
     Implementation of xs:keyref.
 
@@ -229,9 +226,9 @@ class XsdKeyref(XsdConstraint):
 
     def parse_refer(self):
         if self.refer is None:
-            return  # attribute or key/unique constraint missing
-        elif isinstance(self.refer, XsdConstraint):
-            return  # referenced key/unique constraint already set
+            return  # attribute or key/unique identity constraint missing
+        elif isinstance(self.refer, XsdIdentity):
+            return  # referenced key/unique identity constraint already set
 
         try:
             self.refer = self.parent.constraints[self.refer]
@@ -239,7 +236,8 @@ class XsdKeyref(XsdConstraint):
             try:
                 self.refer = self.maps.constraints[self.refer]
             except KeyError:
-                self.parse_error("refer=%r must reference to a key/unique constraint." % self.elem.get('refer'))
+                self.parse_error("refer=%r must reference to a key/unique identity "
+                                 "constraint." % self.elem.get('refer'))
                 self.refer = None
             else:
                 refer_path = []

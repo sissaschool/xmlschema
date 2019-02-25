@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.0.10`_ (2019-02-25)
+=======================
+* Fixed Element type mismatch issue when apply *SafeXMLParser* to schema resources
+* More XSD 1.1 features implemented (open content and versioning namespace are missing)
+
 `v1.0.9`_ (2019-02-03)
 ======================
 * Programmatic import of ElementTree for avoid module mismatches
@@ -220,3 +225,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.7: https://github.com/brunato/xmlschema/compare/v1.0.6...v1.0.7
 .. _v1.0.8: https://github.com/brunato/xmlschema/compare/v1.0.7...v1.0.8
 .. _v1.0.9: https://github.com/brunato/xmlschema/compare/v1.0.8...v1.0.9
+.. _v1.0.10: https://github.com/brunato/xmlschema/compare/v1.0.9...v1.0.10

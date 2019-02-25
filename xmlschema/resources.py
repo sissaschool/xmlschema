@@ -13,7 +13,7 @@ import re
 import codecs
 
 from .compat import (
-    PY3, StringIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
+    PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
     pathname2url, URLError, uses_relative
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
@@ -220,8 +220,8 @@ class XMLResource(object):
     object or an ElementTree or an Element.
     :param base_url: is an optional base URL, used for the normalization of relative paths when \
     the URL of the resource can't be obtained from the source argument.
-    :param defuse: set the usage of defusedxml library for parsing XML data. Can be 'always', \
-    'remote' or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' or 'never'. \
+    Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param lazy: if set to `False` the source is fully loaded into and processed from memory. Default is `True`.
     """
@@ -270,7 +270,7 @@ class XMLResource(object):
     def _fromsource(self, source):
         url, lazy = None, self._lazy
         if is_etree_element(source):
-            return source, None, None, None
+            return source, None, None, None  # Source is already an Element --> nothing to load
         elif isinstance(source, string_base_type):
             _url, self._url = self._url, None
             try:
@@ -280,7 +280,7 @@ class XMLResource(object):
                         return root, None, source, None
                 else:
                     return self.fromstring(source), None, source, None
-            except (ElementTree.ParseError, UnicodeEncodeError):
+            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 if '\n' in source:
                     raise
             finally:
@@ -383,19 +383,48 @@ class XMLResource(object):
         """The namespace of the XML document."""
         return get_namespace(self._root.tag) if self._root is not None else None
 
+    @staticmethod
+    def defusing(source):
+        """
+        Defuse an XML source, raising an `ElementTree.ParseError` if the source contains entity
+        definitions or remote entity loading.
+
+        :param source: a filename or file object containing XML data.
+        """
+        parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+        try:
+            for _, _ in PyElementTree.iterparse(source, ('start',), parser):
+                break
+        except PyElementTree.ParseError as err:
+            raise ElementTree.ParseError(str(err))
+
     def parse(self, source):
-        """The ElementTree parse method, depends from 'defuse' and 'url' attributes."""
+        """
+        An equivalent of *ElementTree.parse()* that can protect from XML entities attacks. When
+        protection is applied XML data are loaded and defused before building the ElementTree instance.
+
+        :param source: a filename or file object containing XML data.
+        :returns: an ElementTree instance.
+        """
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-            try:
-                return PyElementTree.parse(source, parser)
-            except PyElementTree.ParseError as err:
-                raise ElementTree.ParseError(str(err))
+            text = source.read()
+            if isinstance(text, bytes):
+                self.defusing(BytesIO(text))
+                return ElementTree.parse(BytesIO(text))
+            else:
+                self.defusing(StringIO(text))
+                return ElementTree.parse(StringIO(text))
         else:
             return ElementTree.parse(source)
 
     def iterparse(self, source, events=None):
-        """The ElementTree iterparse method, depends from 'defuse' and 'url' attributes."""
+        """
+        An equivalent of *ElementTree.iterparse()* that can protect from XML entities attacks.
+        When protection is applied the iterator yields pure-Python Element instances.
+
+        :param source: a filename or file object containing XML data.
+        :param events: a list of events to report back. If omitted, only “end” events are reported.
+        """
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
             parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
@@ -406,15 +435,15 @@ class XMLResource(object):
             return ElementTree.iterparse(source, events)
 
     def fromstring(self, text):
-        """The ElementTree fromstring method, depends from 'defuse' and 'url' attributes."""
+        """
+        An equivalent of *ElementTree.fromstring()* that can protect from XML entities attacks.
+
+        :param text: a string containing XML data.
+        :returns: the root Element instance.
+        """
         if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-            try:
-                return PyElementTree.fromstring(text, parser)
-            except PyElementTree.ParseError as err:
-                raise ElementTree.ParseError(str(err))
-        else:
-            return ElementTree.fromstring(text)
+            self.defusing(StringIO(text))
+        return ElementTree.fromstring(text)
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
@@ -550,7 +579,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(resource, events=('start-ns',)):
                     update_nsmap(*node)
-            except ElementTree.ParseError:
+            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
             finally:
                 resource.close()
@@ -558,7 +587,7 @@ class XMLResource(object):
             try:
                 for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
                     update_nsmap(*node)
-            except ElementTree.ParseError:
+            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
         else:
             # Warning: can extracts namespace information only from lxml etree structures

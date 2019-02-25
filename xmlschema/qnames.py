@@ -55,6 +55,7 @@ XSD_DOCUMENTATION = xsd_qname('documentation')
 XSD_INCLUDE = xsd_qname('include')
 XSD_IMPORT = xsd_qname('import')
 XSD_REDEFINE = xsd_qname('redefine')
+XSD_OVERRIDE = xsd_qname('override')
 
 # Structures
 XSD_SIMPLE_TYPE = xsd_qname('simpleType')

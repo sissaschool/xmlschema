@@ -1,7 +1,7 @@
 # Requirements for setup a development environment for the xmlschema package.
 setuptools
 tox
-elementpath>=1.1.2
+elementpath~=1.1.5
 lxml
 memory_profiler
 pathlib2  # For Py27 tests on resources

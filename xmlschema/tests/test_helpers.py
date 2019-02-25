@@ -20,7 +20,7 @@ from xmlschema.etree import etree_element
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_namespace, get_qname, \
     local_name, prefixed_to_qname, qname_to_prefixed, has_xsd_components, get_xsd_component, \
-    get_xml_bool_attribute, get_xsd_derivation_attribute, get_xpath_default_namespace
+    get_xml_bool_attribute, get_xsd_derivation_attribute
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 from xmlschema.tests import XMLSchemaTestCase
 
@@ -189,21 +189,6 @@ class TestHelpers(XMLSchemaTestCase):
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values), 'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
-
-    def test_get_xpath_default_namespace(self):
-        elem = etree_element(XSD_ELEMENT, attrib={'xpathDefaultNamespace': '##local '})
-        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), '')
-        elem = etree_element(XSD_ELEMENT, attrib={'xpathDefaultNamespace': ' ##defaultNamespace'})
-        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns0')
-        elem = etree_element(XSD_ELEMENT, attrib={'xpathDefaultNamespace': ' ##targetNamespace'})
-        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns1')
-        elem = etree_element(XSD_ELEMENT)
-        self.assertIsNone(get_xpath_default_namespace(elem, 'ns0', 'ns1'))
-        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns2')
-        elem = etree_element(XSD_ELEMENT, attrib={'xpathDefaultNamespace': 'ns3'})
-        self.assertEqual(get_xpath_default_namespace(elem, 'ns0', 'ns1', 'ns2'), 'ns3')
-        elem = etree_element(XSD_ELEMENT, attrib={'xpathDefaultNamespace': 'ns3 ns4'})
-        self.assertRaises(ValueError, get_xpath_default_namespace, elem, 'ns0', 'ns1', 'ns2')
 
 
 if __name__ == '__main__':

@@ -522,14 +522,9 @@ XML entity-based attacks protection
 
 The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
 the pure Python version of XMLParser that forbids the use of entities.
-
 The protection is applied both to XSD schemas and to XML data. The usage of this feature is
 regulated by the XMLSchema's argument *defuse*.
 For default this argument has value *'remote'* that means the protection on XML data is
 applied only to data loaded from remote. Other values for this argument can be *'always'*
 and *'never'*.
-
-The `SafeXMLParser` requires the usage of the pure Python module of ElementTree and this
-involves the penalty that trees loaded by this parser can't be serialized with pickle,
-that in Python 3 works with the C implementation of ElementTree.
 

@@ -21,15 +21,14 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE
-from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, \
-    get_xsd_derivation_attribute, get_xpath_default_namespace
+from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
-from .constraints import XsdUnique, XsdKey, XsdKeyref
+from .identities import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -96,7 +95,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         XsdComponent._parse(self)
         self._parse_attributes()
         index = self._parse_type()
-        self._parse_constraints(index)
+        self._parse_identity_constraints(index)
         self._parse_substitution_group()
 
     def _parse_attributes(self):
@@ -169,7 +168,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
         return 0
 
-    def _parse_constraints(self, index=0):
+    def _parse_identity_constraints(self, index=0):
         self.constraints = {}
         for child in self._iterparse_components(self.elem, start=index):
             if child.tag == XSD_UNIQUE:
@@ -597,8 +596,9 @@ class Xsd11Element(XsdElement):
         self._parse_attributes()
         index = self._parse_type()
         index = self._parse_alternatives(index)
-        self._parse_constraints(index)
+        self._parse_identity_constraints(index)
         self._parse_substitution_group()
+        self._parse_target_namespace()
 
     def _parse_alternatives(self, index=0):
         if self._ref is not None:
@@ -660,17 +660,13 @@ class XsdAlternative(XsdComponent):
             self.path = elem.attrib['test']
         except KeyError as err:
             self.path = 'true()'
-
-        try:
-            default_namespace = get_xpath_default_namespace(elem, self.namespaces[''], self.target_namespace)
-        except ValueError as err:
             self.parse_error(err, elem=elem)
-            default_namespace = self.schema.xpath_default_namespace
-        else:
-            if default_namespace is None:
-                default_namespace = self.schema.xpath_default_namespace
 
-        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=default_namespace)
+        if 'xpathDefaultNamespace' in self.elem.attrib:
+            self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
+        else:
+            self.xpath_default_namespace = self.schema.xpath_default_namespace
+        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
 
         try:
             self.token = parser.parse(self.path)

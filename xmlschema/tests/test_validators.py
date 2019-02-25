@@ -282,7 +282,7 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def make_validator_test_class(test_file, test_args, test_num=0, schema_class=None, check_with_lxml=False):
+def make_validator_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
     """
     Creates a validator test class.
 
@@ -293,8 +293,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
     :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
     Works only for XSD 1.0 tests.
     """
-    if schema_class is None:
-        schema_class = XMLSchema
+    xml_file = os.path.relpath(test_file)
+    msg_tmpl = "\n\n{}: %s.".format(xml_file)
 
     # Extract schema test arguments
     expected_errors = test_args.errors
@@ -305,19 +305,12 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
     skip_strict = test_args.skip
     debug_mode = test_args.debug
 
-    xml_file = test_file
-    rel_path = os.path.relpath(test_file)
-    msg_template = "\n\n{}: %s.".format(rel_path)
-
     class TestValidator(XMLSchemaTestCase):
 
         @classmethod
         def setUpClass(cls):
-            if debug_mode:
-                print("\n##\n## Testing schema %s in debug mode.\n##" % rel_path)
-                pdb.set_trace()
-
             # Builds schema instance using 'lax' validation mode to accepts also schemas with not crashing errors.
+            cls.schema_class = schema_class
             source, _locations = xmlschema.fetch_schema_locations(xml_file, locations)
             cls.schema = schema_class(source, validation='lax', locations=_locations, defuse=defuse)
             if check_with_lxml and lxml_etree is not None:
@@ -326,6 +319,10 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
             cls.errors = []
             cls.chunks = []
             cls.longMessage = True
+
+            if debug_mode:
+                print("\n##\n## Testing %r validation in debug mode.\n##" % xml_file)
+                pdb.set_trace()
 
         def check_etree_encode(self, root, converter=None, **kwargs):
             data1 = self.schema.decode(root, converter=converter, **kwargs)
@@ -357,7 +354,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) and not skip_strict:
                     if debug_mode:
                         pdb.set_trace()
-                    raise AssertionError(str(err) + msg_template % "encoded tree differs from original")
+                    raise AssertionError(str(err) + msg_tmpl % "encoded tree differs from original")
                 elif converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
                     return  # can't check encode equivalence if xsi:type is provided
                 else:
@@ -369,7 +366,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                     if sys.version_info >= (3, 6):
                         # For Python < 3.6 cannot ensure attribute decoding order
                         try:
-                            self.assertEqual(data1, data2, msg_template % "re decoded data changed")
+                            self.assertEqual(data1, data2, msg_tmpl % "re decoded data changed")
                         except AssertionError:
                             if debug_mode:
                                 pdb.set_trace()
@@ -384,7 +381,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                     except AssertionError as err:
                         if debug_mode:
                             pdb.set_trace()
-                        raise AssertionError(str(err) + msg_template % "encoded tree differs after second pass")
+                        raise AssertionError(str(err) + msg_tmpl % "encoded tree differs after second pass")
 
         def check_json_serialization(self, root, converter=None, **kwargs):
             data1 = xmlschema.to_json(root, schema=self.schema, converter=converter, **kwargs)
@@ -402,7 +399,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
             if converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
                 return  # can't check encode equivalence if xsi:type is provided
             elif sys.version_info >= (3, 6):
-                self.assertEqual(data2, data1, msg_template % "serialized data changed at second pass")
+                self.assertEqual(data2, data1, msg_tmpl % "serialized data changed at second pass")
             else:
                 elem2 = xmlschema.from_json(data2, schema=self.schema, path=root.tag, converter=converter, **kwargs)
                 if isinstance(elem2, tuple):
@@ -431,19 +428,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                     do_decoding()
                     self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
 
-            if len(self.errors) != expected_errors:
-                raise ValueError(
-                    "file %r: n.%d errors expected, found %d: %s" % (
-                        rel_path, expected_errors, len(self.errors), '\n++++++\n'.join([str(e) for e in self.errors])
-                    )
-                )
-
-            # Checks errors correctness
-            for e in self.errors:
-                error_string = unicode_type(e)
-                self.assertTrue(e.path, "Missing path for: %s" % error_string)
-                self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
-                self.check_namespace_prefixes(error_string)
+            self.check_errors(xml_file, expected_errors)
 
             if not self.chunks:
                 raise ValueError("No decoded object returned!!")
@@ -466,17 +451,17 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 else:
                     chunks.append(obj)
 
-            self.assertEqual(len(errors), len(self.errors), msg_template % "wrong number errors")
-            self.assertEqual(chunks, self.chunks, msg_template % "decoded data differ")
+            self.assertEqual(len(errors), len(self.errors), msg_tmpl % "wrong number errors")
+            self.assertEqual(chunks, self.chunks, msg_tmpl % "decoded data differ")
 
         def check_decode_api(self):
             # Compare with the decode API and other validation modes
             strict_data = self.schema.decode(xml_file)
             lax_data = self.schema.decode(xml_file, validation='lax')
             skip_data = self.schema.decode(xml_file, validation='skip')
-            self.assertEqual(strict_data, self.chunks[0], msg_template % "decode() API has a different result")
-            self.assertEqual(lax_data[0], self.chunks[0], msg_template % "'lax' validation has a different result")
-            self.assertEqual(skip_data, self.chunks[0], msg_template % "'skip' validation has a different result")
+            self.assertEqual(strict_data, self.chunks[0], msg_tmpl % "decode() API has a different result")
+            self.assertEqual(lax_data[0], self.chunks[0], msg_tmpl % "'lax' validation has a different result")
+            self.assertEqual(skip_data, self.chunks[0], msg_tmpl % "'skip' validation has a different result")
 
         def check_encoding_with_element_tree(self):
             root = ElementTree.parse(xml_file).getroot()
@@ -509,8 +494,8 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 else:
                     chunks.append(obj)
 
-            self.assertEqual(chunks, self.chunks, msg_template % "decode data change with lxml")
-            self.assertEqual(len(errors), len(self.errors), msg_template % "errors number change with lxml")
+            self.assertEqual(chunks, self.chunks, msg_tmpl % "decode data change with lxml")
+            self.assertEqual(len(errors), len(self.errors), msg_tmpl % "errors number change with lxml")
 
             if not errors:
                 root = xml_tree.getroot()
@@ -537,23 +522,23 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:
-                self.assertFalse(self.schema.is_valid(xml_file), msg_template % "file with errors is valid")
+                self.assertFalse(self.schema.is_valid(xml_file), msg_tmpl % "file with errors is valid")
                 self.assertRaises(XMLSchemaValidationError, self.schema.validate, xml_file)
             else:
-                self.assertTrue(self.schema.is_valid(xml_file), msg_template % "file without errors is not valid")
+                self.assertTrue(self.schema.is_valid(xml_file), msg_tmpl % "file without errors is not valid")
                 self.assertEqual(self.schema.validate(xml_file), None,
-                                 msg_template % "file without errors not validated")
+                                 msg_tmpl % "file without errors not validated")
 
         def check_iter_errors(self):
             self.assertEqual(len(list(self.schema.iter_errors(xml_file))), expected_errors,
-                             msg_template % "wrong number of errors (%d expected)" % expected_errors)
+                             msg_tmpl % "wrong number of errors (%d expected)" % expected_errors)
 
         def check_lxml_validation(self):
             try:
                 schema = lxml_etree.XMLSchema(self.lxml_schema.getroot())
             except lxml_etree.XMLSchemaParseError:
                 print("\nSkip lxml.etree.XMLSchema validation test for {!r} ({})".
-                      format(rel_path, TestValidator.__name__, ))
+                      format(xml_file, TestValidator.__name__, ))
             else:
                 xml_tree = lxml_etree.parse(xml_file)
                 if self.errors:
@@ -561,7 +546,7 @@ def make_validator_test_class(test_file, test_args, test_num=0, schema_class=Non
                 else:
                     self.assertTrue(schema.validate(xml_tree))
 
-        def test_decoding_and_encoding(self):
+        def test_xml_document_validation(self):
             self.check_decoding_with_element_tree()
 
             if not inspect and sys.version_info >= (3,):

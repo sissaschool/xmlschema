@@ -229,6 +229,16 @@ class Xsd11Attribute(XsdAttribute):
     def inheritable(self):
         return self.elem.get('inheritable') in ('0', 'true')
 
+    @property
+    def target_namespace(self):
+        return self.elem.get('targetNamespace', self.schema.target_namespace)
+
+    def _parse(self):
+        super(Xsd11Attribute, self)._parse()
+        if not self.elem.get('inheritable') not in {'0', '1', 'false', 'true'}:
+            self.parse_error("an XML boolean value is required for attribute 'inheritable'")
+        self._parse_target_namespace()
+
 
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     """

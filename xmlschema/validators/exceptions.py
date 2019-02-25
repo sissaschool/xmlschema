@@ -152,7 +152,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,
-            message="failed validating {!r} with {!r}.\n".format(obj, validator),
+            message="failed validating {!r} with {!r}".format(obj, validator),
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,

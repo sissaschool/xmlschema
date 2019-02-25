@@ -19,7 +19,7 @@ try:
     from urllib.request import urlopen, urljoin, urlsplit, pathname2url
     from urllib.parse import uses_relative, urlparse, urlunsplit
     from urllib.error import URLError
-    from io import StringIO
+    from io import StringIO, BytesIO
     from collections.abc import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
 except ImportError:
     # Python 2.7 imports
@@ -27,6 +27,7 @@ except ImportError:
     from urllib2 import urlopen, URLError
     from urlparse import urlsplit, urljoin, uses_relative, urlparse, urlunsplit
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
+    from io import BytesIO
     from collections import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
 
 

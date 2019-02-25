@@ -18,15 +18,16 @@ from ..compat import string_base_type, unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
     XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE,
-    XSD_ENUMERATION, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION,
-    XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
+    XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
+    XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
-from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_component, get_xsd_derivation_attribute
+from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
-from .facets import XsdFacet, XSD_10_FACETS
+from .facets import XsdFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, \
+    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -51,7 +52,7 @@ def xsd_simple_type_factory(elem, schema, parent):
                 return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
     if child.tag == XSD_RESTRICTION:
-        result = XsdAtomicRestriction(child, schema, parent, name=name)
+        result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
     elif child.tag == XSD_LIST:
         result = XsdList(child, schema, parent, name=name)
     elif child.tag == XSD_UNION:
@@ -82,15 +83,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
         if not hasattr(self, 'facets'):
             self.facets = facets or {}
-        elif facets:
-            for k, v in self.facets:
-                if k not in facets:
-                    facets[k] = v
-            self.facets = facets
 
     def __setattr__(self, name, value):
         if name == 'facets':
-            assert isinstance(value, dict), "A dictionary is required for attribute 'facets'."
             super(XsdSimpleType, self).__setattr__(name, value)
             try:
                 self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
@@ -105,18 +100,24 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.patterns = self.get_facet(XSD_PATTERN)
                 self.validators = [
                     v for k, v in value.items()
-                    if k not in (XSD_WHITE_SPACE, XSD_PATTERN) and callable(v)
+                    if k not in (XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION) and callable(v)
                 ]
+                if XSD_ASSERTION in value:
+                    assertions = value[XSD_ASSERTION]
+                    if isinstance(assertions, list):
+                        self.validators.extend(assertions)
+                    else:
+                        self.validators.append(assertions)
         else:
             super(XsdSimpleType, self).__setattr__(name, value)
 
     @property
-    def built(self):
-        return True
+    def admitted_facets(self):
+        return XSD_10_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_FACETS
 
     @property
-    def admitted_facets(self):
-        return set(self.schema.FACETS)
+    def built(self):
+        return True
 
     @property
     def final(self):
@@ -154,11 +155,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
         :returns Min and max values, a `None` value means no min/max limit.
         """
         # Checks the applicability of the facets
-        admitted_facets = self.admitted_facets
-        if not admitted_facets.issuperset(set([k for k in facets if k is not None])):
-            admitted_facets = {local_name(e) for e in admitted_facets if e}
+        if any(k not in self.admitted_facets for k in facets if k is not None):
             reason = "one or more facets are not applicable, admitted set is %r:"
-            raise XMLSchemaValueError(reason % admitted_facets)
+            raise XMLSchemaValueError(reason % {local_name(e) for e in self.admitted_facets if e})
 
         # Check group base_type
         base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
@@ -360,17 +359,9 @@ class XsdAtomic(XsdSimpleType):
     @property
     def admitted_facets(self):
         primitive_type = self.primitive_type
-        if isinstance(primitive_type, (XsdList, XsdUnion)):
-            return primitive_type.admitted_facets
-        try:
-            facets = set(primitive_type.facets.keys())
-        except AttributeError:
-            return set(XSD_10_FACETS).union({None})
-        else:
-            try:
-                return set(self.schema.FACETS).intersection(facets)
-            except AttributeError:
-                return set(primitive_type.facets.keys()).union({None})
+        if primitive_type is None or primitive_type.is_complex():
+            return XSD_10_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_FACETS
+        return primitive_type.admitted_facets
 
     @property
     def primitive_type(self):
@@ -412,17 +403,17 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    def __init__(self, elem, schema, name, python_type, base_type=None, facets=None,
-                 to_python=None, from_python=None, value=None):
+    def __init__(self, elem, schema, name, python_type, base_type=None, admitted_facets=None, facets=None,
+                 to_python=None, from_python=None):
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple or list of types \
         is provided uses the first and consider the others as compatible types.
         :param base_type: the reference base type, None if it's a primitive type.
+        :param admitted_facets: admitted facets tags for type (required for primitive types).
         :param facets: optional facets validators.
         :param to_python: optional decode function.
         :param from_python: optional encode function.
-        :param value: optional decoded sample value, included in the value-space of the type.
         """
         if isinstance(python_type, (tuple, list)):
             self.instance_types, python_type = python_type, python_type[0]
@@ -431,17 +422,24 @@ class XsdAtomicBuiltin(XsdAtomic):
         if not callable(python_type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
+        if base_type is None and not admitted_facets:
+            raise XMLSchemaValueError("argument 'admitted_facets' must be a not empty set of a primitive type")
+        self._admitted_facets = admitted_facets
+
         super(XsdAtomicBuiltin, self).__init__(elem, schema, None, name, facets, base_type)
         self.python_type = python_type
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
-        self.value = value
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def _parse(self):
-        return
+        pass
+
+    @property
+    def admitted_facets(self):
+        return self._admitted_facets or self.primitive_type.admitted_facets
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (string_base_type, bytes)):
@@ -453,7 +451,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         if validation == 'skip':
             try:
                 yield self.to_python(obj)
-            except (ValueError, DecimalException) as err:
+            except (ValueError, DecimalException):
                 yield unicode_type(obj)
             return
 
@@ -573,7 +571,6 @@ class XsdList(XsdSimpleType):
     def _parse(self):
         super(XsdList, self)._parse()
         elem = self.elem
-        base_type = None
 
         child = self._parse_component(elem, required=False)
         if child is not None:
@@ -606,6 +603,10 @@ class XsdList(XsdSimpleType):
             self.base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
     @property
+    def admitted_facets(self):
+        return XSD_10_LIST_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_LIST_FACETS
+
+    @property
     def item_type(self):
         return self.base_type
 
@@ -619,10 +620,6 @@ class XsdList(XsdSimpleType):
             return 'full'
         else:
             return self.base_type.validation_attempted
-
-    @property
-    def admitted_facets(self):
-        return self.schema.LIST_FACETS
 
     @staticmethod
     def is_atomic():
@@ -774,6 +771,10 @@ class XsdUnion(XsdSimpleType):
             self.member_types = [self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)]
 
     @property
+    def admitted_facets(self):
+        return XSD_10_UNION_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_UNION_FACETS
+
+    @property
     def built(self):
         return all([mt.is_global or mt.built for mt in self.member_types])
 
@@ -785,10 +786,6 @@ class XsdUnion(XsdSimpleType):
             return 'partial'
         else:
             return 'none'
-
-    @property
-    def admitted_facets(self):
-        return self.schema.UNION_FACETS
 
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
@@ -933,6 +930,8 @@ class XsdAtomicRestriction(XsdAtomic):
       enumeration | whiteSpace | pattern)*))
     </restriction>
     """
+    FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
+
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION:
@@ -948,7 +947,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if elem.get('name') == XSD_ANY_ATOMIC_TYPE:
             return  # skip special type xs:anyAtomicType
         elif elem.tag == XSD_SIMPLE_TYPE and elem.get('name') is not None:
-            elem = get_xsd_component(elem)  # Global simpleType with internal restriction
+            elem = self._parse_component(elem)  # Global simpleType with internal restriction
 
         base_type = None
         facets = {}
@@ -1003,17 +1002,23 @@ class XsdAtomicRestriction(XsdAtomic):
                 has_simple_type_child = True
             else:
                 try:
-                    facet_class = self.schema.FACETS[child.tag]
+                    facet_class = self.FACETS_BUILDERS[child.tag]
                 except KeyError:
                     self.parse_error("unexpected tag %r in restriction:" % child.tag)
                     continue
 
                 if child.tag not in facets:
                     facets[child.tag] = facet_class(child, self.schema, self, base_type)
-                elif child.tag in {XSD_ENUMERATION, XSD_PATTERN, XSD_ASSERTION}:
+                elif child.tag not in MULTIPLE_FACETS:
+                    self.parse_error("multiple %r constraint facet" % local_name(child.tag))
+                elif child.tag != XSD_ASSERTION:
                     facets[child.tag].append(child)
                 else:
-                    self.parse_error("multiple %r constraint facet" % local_name(child.tag))
+                    assertion = facet_class(child, self.schema, self, base_type)
+                    try:
+                        facets[child.tag].append(assertion)
+                    except AttributeError:
+                        facets[child.tag] = [facets[child.tag], assertion]
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
@@ -1139,4 +1144,4 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
       {any with namespace: ##other})*))
     </restriction>
     """
-    pass
+    FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
