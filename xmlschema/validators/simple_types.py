@@ -404,7 +404,7 @@ class XsdAtomicBuiltin(XsdAtomic):
       - from_python(value): Encoding to XML
     """
     def __init__(self, elem, schema, name, python_type, base_type=None, admitted_facets=None, facets=None,
-                 to_python=None, from_python=None, value=None):
+                 to_python=None, from_python=None):
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple or list of types \
@@ -414,7 +414,6 @@ class XsdAtomicBuiltin(XsdAtomic):
         :param facets: optional facets validators.
         :param to_python: optional decode function.
         :param from_python: optional encode function.
-        :param value: optional decoded sample value, included in the value-space of the type.
         """
         if isinstance(python_type, (tuple, list)):
             self.instance_types, python_type = python_type, python_type[0]
@@ -431,7 +430,6 @@ class XsdAtomicBuiltin(XsdAtomic):
         self.python_type = python_type
         self.to_python = to_python or python_type
         self.from_python = from_python or unicode_type
-        self.value = value
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)

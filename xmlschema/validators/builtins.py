@@ -172,7 +172,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [PRESERVE_WHITE_SPACE_ELEMENT],
-        'value': 'alpha',
     },  # character string
 
     # --- Numerical Types ---
@@ -181,21 +180,18 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (Decimal, str, unicode_type, int, float),
         'admitted_facets': DECIMAL_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': Decimal('1.0'),
     },  # decimal number
     {
         'name': XSD_DOUBLE,
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': 1.0,
     },   # 64 bit floating point
     {
         'name': XSD_FLOAT,
         'python_type': float,
         'admitted_facets': FLOAT_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': 1.0,
     },  # 32 bit floating point
 
     # --- Dates and Times (not year related) ---
@@ -205,7 +201,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianDay.fromstring,
-        'value': datatypes.GregorianDay.fromstring('---31'),
     },  # DD
     {
         'name': XSD_GMONTH,
@@ -213,7 +208,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonth.fromstring,
-        'value': datatypes.GregorianMonth.fromstring('--12'),
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
@@ -221,7 +215,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonthDay.fromstring,
-        'value': datatypes.GregorianMonthDay.fromstring('--12-01'),
     },  # MM-DD
     {
         'name': XSD_TIME,
@@ -229,7 +222,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Time.fromstring,
-        'value': datatypes.Time.fromstring('09:26:54'),
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
@@ -237,7 +229,6 @@ XSD_COMMON_BUILTIN_TYPES = (
         'admitted_facets': FLOAT_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Duration.fromstring,
-        'value': datatypes.Duration.fromstring('P1MT1S'),
     },  # PnYnMnDTnHnMnS
 
     # Other primitive types
@@ -246,21 +237,18 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': 'xs:element',
     },  # prf:name (the prefix needs to be qualified with an in scope namespace)
     {
         'name': XSD_NOTATION_TYPE,
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': 'alpha',
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': XSD_ANY_URI,
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-        'value': 'https://example.com',
     },  # absolute or relative uri (RFC 2396)
     {
         'name': XSD_BOOLEAN,
@@ -269,21 +257,18 @@ XSD_COMMON_BUILTIN_TYPES = (
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': boolean_to_python,
         'from_python': python_to_boolean,
-        'value': True,
     },  # true/false or 1/0
     {
         'name': XSD_BASE64_BINARY,
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator],
-        'value': b'YWxwaGE=',
     },  # base64 encoded binary value
     {
         'name': XSD_HEX_BINARY,
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator],
-        'value': b'31',
     },   # hexadecimal encoded binary value
 
     # *********************
@@ -435,7 +420,6 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime10.fromstring,
-        'value': datatypes.DateTime10.fromstring('2000-01-01T12:00:00'),
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
@@ -443,7 +427,6 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date10.fromstring,
-        'value': datatypes.Date10.fromstring('2000-01-01'),
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
@@ -451,7 +434,6 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear10.fromstring,
-        'value': datatypes.GregorianYear10.fromstring('1999'),
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
@@ -459,7 +441,6 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth10.fromstring,
-        'value': datatypes.GregorianYearMonth10.fromstring('1999-09'),
     },  # [-][Y*]YYYY-MM
 )
 
@@ -471,7 +452,6 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime.fromstring,
-        'value': datatypes.DateTime.fromstring('2000-01-01T12:00:00'),
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
@@ -479,7 +459,6 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date.fromstring,
-        'value': datatypes.Date.fromstring('2000-01-01'),
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
@@ -487,7 +466,6 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear.fromstring,
-        'value': datatypes.GregorianYear.fromstring('1999'),
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
@@ -495,7 +473,6 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth.fromstring,
-        'value': datatypes.GregorianYearMonth.fromstring('1999-09'),
     },  # [-][Y*]YYYY-MM
     # --- Datetime derived types (XSD 1.1) ---
     {
@@ -510,14 +487,12 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.DayTimeDuration.fromstring,
-        'value': datatypes.DayTimeDuration.fromstring('P1DT1S'),
     },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
         'python_type': (unicode_type, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
-        'value': datatypes.YearMonthDuration.fromstring('P1Y1M'),
     },  # PnYnMnDTnHnMnS with day and time equals to 0
 )
 
