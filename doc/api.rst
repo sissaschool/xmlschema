@@ -144,9 +144,6 @@ Resource access API
     .. autoattribute:: url
     .. autoattribute:: base_url
     .. autoattribute:: namespace
-    .. autoattribute:: parse
-    .. autoattribute:: iterparse
-    .. autoattribute:: fromstring
 
     .. automethod:: copy
     .. automethod:: tostring
@@ -158,6 +155,11 @@ Resource access API
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations
+
+    .. automethod:: defusing
+    .. automethod:: parse
+    .. automethod:: iterparse
+    .. automethod:: fromstring
 
 
 .. autofunction:: xmlschema.fetch_resource

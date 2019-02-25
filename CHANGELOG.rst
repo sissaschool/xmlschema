@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.0.10`_ (TBD)
-================
-* (XSD 1.1 features implementation completed)
+`v1.0.10`_ (2019-02-25)
+=======================
+* Fixed Element type mismatch issue when apply *SafeXMLParser* to schema resources
+* More XSD 1.1 features implemented (open content and versioning namespace are missing)
 
 `v1.0.9`_ (2019-02-03)
 ======================
