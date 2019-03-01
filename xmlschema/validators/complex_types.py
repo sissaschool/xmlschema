@@ -388,6 +388,14 @@ class XsdComplexType(XsdType, ValidationMixin):
     def is_list(self):
         return self.has_simple_content() and self.content_type.is_list()
 
+    def is_valid(self, source, use_defaults=True):
+        if hasattr(source, 'tag'):
+            return super(XsdComplexType, self).is_valid(source, use_defaults)
+        elif isinstance(self.content_type, XsdSimpleType):
+            return self.content_type.is_valid(source)
+        else:
+            return self.base_type is not None and self.base_type.is_valid(source)
+
     @property
     def abstract(self):
         return get_xml_bool_attribute(self.elem, 'abstract', default=False)

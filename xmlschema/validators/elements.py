@@ -20,7 +20,7 @@ from elementpath.datatypes import AbstractDateTime, Duration
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
-    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE
+    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
 from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
@@ -99,39 +99,40 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_substitution_group()
 
     def _parse_attributes(self):
-        self._parse_particle(self.elem)
         self.name = None
         self._ref = None
-        self.qualified = self.elem.get('form', self.schema.element_form_default) == 'qualified'
+        self._parse_particle(self.elem)
+        attrib = self.elem.attrib
+        self.qualified = attrib.get('form', self.schema.element_form_default) == 'qualified'
 
-        if self.default is not None and self.fixed is not None:
+        if 'default' in attrib and 'fixed' in attrib:
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
         self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
 
         # Parse element attributes
         try:
-            element_name = prefixed_to_qname(self.elem.attrib['ref'], self.namespaces)
+            element_name = prefixed_to_qname(attrib['ref'], self.namespaces)
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
             try:
                 if self.is_global or self.qualified:
-                    self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
+                    self.name = get_qname(self.target_namespace, attrib['name'])
                 else:
-                    self.name = self.elem.attrib['name']
+                    self.name = attrib['name']
             except KeyError:
                 self.parse_error("missing both 'name' and 'ref' attributes.")
 
             if self.is_global:
-                if 'minOccurs' in self.elem.attrib:
+                if 'minOccurs' in attrib:
                     self.parse_error("attribute 'minOccurs' not allowed for a global element.")
-                if 'maxOccurs' in self.elem.attrib:
+                if 'maxOccurs' in attrib:
                     self.parse_error("attribute 'maxOccurs' not allowed for a global element.")
         else:
             # Reference to a global element
             if self.is_global:
                 self.parse_error("an element reference can't be global.")
             for attribute in ('name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'):
-                if attribute in self.elem.attrib:
+                if attribute in attrib:
                     self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
             try:
                 xsd_element = self.maps.lookup_element(element_name)
@@ -146,16 +147,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.qualified = xsd_element.qualified
 
     def _parse_type(self):
+        attrib = self.elem.attrib
         if self.ref:
             if self._parse_component(self.elem, required=False, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
-        elif 'type' in self.elem.attrib:
-            type_qname = prefixed_to_qname(self.elem.attrib['type'], self.namespaces)
+        elif 'type' in attrib:
+            type_qname = prefixed_to_qname(attrib['type'], self.namespaces)
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
-                self.parse_error('unknown type %r' % self.elem.attrib['type'])
+                self.parse_error('unknown type %r' % attrib['type'])
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+            finally:
+                child = self._parse_component(self.elem, required=False, strict=False)
+                if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                    msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
+                    self.parse_error(msg % child.tag.split('}')[-1])
         else:
             child = self._parse_component(self.elem, required=False, strict=False)
             if child is not None:
@@ -163,9 +170,35 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
                 elif child.tag == XSD_SIMPLE_TYPE:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+
+                # Check value constraints
+                if 'default' in attrib and not self.type.is_valid(attrib['default']):
+                    msg = "'default' value %r is not compatible with the type of the element"
+                    self.parse_error(msg % attrib['default'])
+                elif 'fixed' in attrib and not self.type.is_valid(attrib['fixed']):
+                    msg = "'fixed' value %r is not compatible with the type of the element"
+                    self.parse_error(msg % attrib['fixed'])
+
                 return 1
+
             else:
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                return 0
+
+        # Check value constraints
+        if 'default' in attrib:
+            if not self.type.is_valid(attrib['default']):
+                msg = "'default' value {!r} is not compatible with the type {!r}"
+                self.parse_error(msg.format(attrib['default'], self.type))
+            elif self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID']):
+                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
+        elif 'fixed' in attrib:
+            if not self.type.is_valid(attrib['fixed']):
+                msg = "'fixed' value {!r} is not compatible with the type {!r}"
+                self.parse_error(msg.format(attrib['fixed'], self.type))
+            elif self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID']):
+                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
+
         return 0
 
     def _parse_identity_constraints(self, index=0):
