@@ -22,6 +22,11 @@ TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
 ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 
+####
+# Tests that are incompatible with XSD meta-schema validation
+SKIPPED_TESTS = {
+    '../msData/additional/adhocAddC002.xsd',  # 'xml' namespace not implicit
+}
 
 def fetch_xsd_test_suite():
     parent = os.path.dirname
@@ -59,6 +64,9 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     if schema_elem is not None:
         schema_document = schema_elem.find('{%s}schemaDocument' % TEST_SUITE_NAMESPACE)
         schema_path = schema_document.get('{%s}href' % XLINK_NAMESPACE)
+        if schema_path in SKIPPED_TESTS:
+            return
+
         schema_path = os.path.normpath(os.path.join(os.path.dirname(testset_file), schema_path))
 
         if not os.path.isfile(schema_path):
@@ -75,12 +83,12 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     else:
         schema_path = expected = None
 
-    if expected != 'valid':
+    if expected is not None and expected != 'valid':
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 print(schema_path)
                 self.assertRaises(
-                    (xmlschema.XMLSchemaParseError, xmlschema.XMLSchemaValidationError), schema_class, schema_path
+                    (xmlschema.XMLSchemaParseError, xmlschema.XMLSchemaValidationError, ValueError), schema_class, schema_path
                 )
 
     else:

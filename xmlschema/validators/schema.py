@@ -40,7 +40,7 @@ from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROU
 from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
-from ..etree import etree_element, etree_tostring
+from ..etree import etree_element, etree_tostring, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -660,13 +660,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except XMLSchemaParseError as err:
             err.message = 'cannot include %r: %s' % (schema_url, err.message)
             raise err
+        except ParseError as err:
+            raise XMLSchemaParseError(self, 'cannot include %r: %s' % (schema_url, err))
         except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot include %r: %s' % (schema_url, err))
 
     def _import_namespaces(self):
         """Processes namespace imports. Return a list of exceptions."""
         namespace_imports = NamespaceResourcesMap(map(
-            lambda x: (x.get('namespace', '').strip(), x.get('schemaLocation')),
+            lambda x: (x.get('namespace'), x.get('schemaLocation')),
             iterchildren_xsd_import(self.root)
         ))
 
@@ -677,7 +679,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 continue
 
             locations = [url for url in locations if url]
-            if not locations:
+            if namespace is None:
+                pass
+            elif not locations:
                 locations = self.get_locations(namespace)
             elif all(is_remote_url(url) for url in locations):
                 # If all import schema locations are remote URLs and there are local hints
@@ -692,13 +696,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             import_error = None
             for url in locations:
                 try:
-                    self.import_schema(namespace, url, self.base_url)
+                    schema = self.import_schema(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
                     # It's not an error if the location access fails (ref. section 4.2.6.2):
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                     if import_error is None:
                         import_error = err
                 else:
+                    if namespace is None and schema.root.get('targetNamespace') is None:
+                        self.parse_error("the 'namespace' attribute is not present on the import statement "
+                                         "and the enclosing schema %r doesn't have a 'targetNamespace'" % url)
                     break
             else:
                 if import_error is None:
@@ -742,6 +749,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except XMLSchemaParseError as err:
             err.message = 'cannot import namespace %r: %s' % (namespace, err.message)
             raise err
+        except ParseError as err:
+            raise XMLSchemaParseError(self, 'cannot import namespace %r: %s' % (namespace, err))
         except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
 
