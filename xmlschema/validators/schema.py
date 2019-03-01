@@ -257,7 +257,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.namespaces.update(self.source.get_namespaces())
         if '' not in self.namespaces:
             # For default local names are mapped to targetNamespace
-            self.namespaces[''] = self.target_namespace
+            pass # self.namespaces[''] = self.target_namespace  # FIXME - is needed??
 
         self.converter = self.get_converter(converter)
 

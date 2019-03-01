@@ -227,7 +227,7 @@ class XsdKeyref(XsdIdentity):
     def parse_refer(self):
         if self.refer is None:
             return  # attribute or key/unique identity constraint missing
-        elif isinstance(self.refer, XsdIdentity):
+        elif isinstance(self.refer, (XsdKey, XsdUnique)):
             return  # referenced key/unique identity constraint already set
 
         try:
@@ -236,23 +236,30 @@ class XsdKeyref(XsdIdentity):
             try:
                 self.refer = self.maps.constraints[self.refer]
             except KeyError:
-                self.parse_error("refer=%r must reference to a key/unique identity "
-                                 "constraint." % self.elem.get('refer'))
+                self.parse_error("key/unique identity constraint %r is missing" % self.refer)
                 self.refer = None
+                return
+
+        if not isinstance(self.refer, (XsdKey, XsdUnique)):
+            self.parse_error("reference to a non key/unique identity constraint %r" % self.refer)
+            self.refer = None
+        elif len(self.refer.fields) != len(self.fields):
+            self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
+            self.refer = None
+        elif self.parent is not self.refer.parent:
+            refer_path = []
+            xsd_component = self.refer.parent
+            while xsd_component is not None:
+                if xsd_component is self.parent:
+                    refer_path.reverse()
+                    self.refer_path = '/'.join(refer_path)
+                    break
+                elif hasattr(xsd_component, 'tag'):
+                    refer_path.append(xsd_component.name)
+                xsd_component = xsd_component.parent
             else:
-                refer_path = []
-                xsd_component = self.refer.parent
-                while xsd_component is not None:
-                    if xsd_component is self.parent:
-                        refer_path.reverse()
-                        self.refer_path = '/'.join(refer_path)
-                        break
-                    elif hasattr(xsd_component, 'tag'):
-                        refer_path.append(xsd_component.name)
-                    xsd_component = xsd_component.parent
-                else:
-                    self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
-                    self.refer = None
+                self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
+                self.refer = None
 
     def get_refer_values(self, elem):
         values = set()

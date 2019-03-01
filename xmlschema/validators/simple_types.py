@@ -956,14 +956,22 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if 'base' in elem.attrib:
             base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
-            try:
-                base_type = self.maps.lookup_type(base_qname)
-            except LookupError:
-                self.parse_error("unknown type %r." % elem.attrib['base'])
+            if base_qname == self.name:
+                self.parse_error("wrong redefinition with self-reference", elem)
                 base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
-            except XMLSchemaParseError as err:
-                self.parse_error(err)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            else:
+                try:
+                    base_type = self.maps.lookup_type(base_qname)
+                except LookupError:
+                    self.parse_error("unknown type %r." % elem.attrib['base'])
+                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                except XMLSchemaParseError as err:
+                    self.parse_error(err)
+                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                else:
+                    if isinstance(base_type, tuple):
+                        self.parse_error("circularity definition found between %r and %r" % (self, base_qname), elem)
+                        base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
             if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
                 if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:

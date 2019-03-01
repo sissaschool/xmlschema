@@ -69,11 +69,27 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def _parse(self):
         super(XsdAttribute, self)._parse()
         elem = self.elem
-        self.qualified = elem.attrib.get('form', self.schema.attribute_form_default) == 'qualified'
 
-        if 'default' in elem.attrib and 'fixed' in elem.attrib:
-            self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
-        self._parse_properties('form', 'use')
+        self.form = elem.get('form')
+        if self.form is None:
+            self.qualified = self.schema.attribute_form_default == 'qualified'
+        elif self.form in {'qualified', 'unqualified'}:
+            self.qualified = self.form == 'qualified'
+        else:
+            self.parse_error("wrong value %r for 'form' attribute." % self.form)
+            self.form = 'unqualified'
+            self.qualified = False
+
+        self.use = elem.get('use', 'optional')
+        if self.use not in {'optional', 'prohibited', 'required'}:
+            self.parse_error("wrong value %r for 'use' attribute." % self.use)
+            self.use = 'optional'
+
+        if 'default' in elem.attrib:
+            if 'fixed' in elem.attrib:
+                self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
+            if self.use != 'optional':
+                self.parse_error("the attribute 'use' must be 'optional' if the attribute 'default' is present")
 
         try:
             if self.is_global or self.qualified:
@@ -88,15 +104,22 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 # Missing also the 'ref' attribute
                 self.parse_error("missing both 'name' and 'ref' in attribute declaration")
                 return
+            except ValueError as err:
+                self.parse_error(err)
+                return
             else:
-                try:
-                    xsd_attribute = self.maps.lookup_attribute(attribute_name)
-                except LookupError:
-                    self.parse_error("unknown attribute %r" % elem.attrib['ref'])
+                if False and attribute_name[0] != '{':
+                    self.parse_error("attribute reference %r must has a targetNamespace" % elem.attrib['ref'])
                     self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
                 else:
-                    self.type = xsd_attribute.type
-                    self.qualified = xsd_attribute.qualified
+                    try:
+                        xsd_attribute = self.maps.lookup_attribute(attribute_name)
+                    except LookupError:
+                        self.parse_error("unknown attribute %r" % elem.attrib['ref'])
+                        self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                    else:
+                        self.type = xsd_attribute.type
+                        self.qualified = xsd_attribute.qualified
 
                 self.name = attribute_name
                 for attribute in ('form', 'type'):
@@ -150,20 +173,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     @property
     def fixed(self):
         return self.elem.get('fixed')
-
-    @property
-    def form(self):
-        value = self.elem.get('form')
-        if value not in {None, 'qualified', 'unqualified'}:
-            raise XMLSchemaValueError("wrong value %r for 'form' attribute." % value)
-        return value
-
-    @property
-    def use(self):
-        value = self.elem.get('use', 'optional')
-        if value not in {'optional', 'prohibited', 'required'}:
-            raise XMLSchemaValueError("wrong value %r for 'use' attribute." % value)
-        return value
 
     def is_optional(self):
         return self.use == 'optional'
@@ -371,10 +380,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
                     name = child.attrib['ref']
-                except KeyError as err:
-                    self.parse_error(str(err), elem)
-                else:
                     qname = prefixed_to_qname(name, self.namespaces)
+                except (KeyError, ValueError) as err:
+                    self.parse_error(err, elem)
+                else:
                     try:
                         attribute_group = self.maps.lookup_attribute_group(qname)
                     except LookupError:

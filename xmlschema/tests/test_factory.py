@@ -36,6 +36,8 @@ TEST_FACTORY_OPTIONS = {
 }
 """Command line options for test factory."""
 
+RUN_W3C_TEST_SUITE = '-w' in sys.argv or '--w3c' in sys.argv
+
 sys.argv = [a for a in sys.argv if a not in {'-x', '--extra', '-l', '--lxml'}]  # Clean sys.argv for unittest
 
 

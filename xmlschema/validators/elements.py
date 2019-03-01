@@ -199,34 +199,34 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         qname = prefixed_to_qname(substitution_group, self.namespaces)
         if qname[0] != '{':
             qname = get_qname(self.target_namespace, qname)
+
         try:
             head_element = self.maps.lookup_element(qname)
         except KeyError:
             self.parse_error("unknown substitutionGroup %r" % substitution_group)
         else:
+            if isinstance(head_element, tuple):
+                self.parse_error("circularity found for substitutionGroup %r" % substitution_group)
+                return
+
             final = head_element.final
             if final is None:
                 final = self.schema.final_default
 
-            if final == '#all' or 'extension' in final and 'restriction' in final:
-                self.parse_error("head element %r cannot be substituted." % head_element)
-            elif self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
+            if self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
                 pass
-            elif 'extension' in final and not self.type.is_derived(head_element.type, 'extension'):
-                self.parse_error(
-                    "%r type is not of the same or an extension of the head element %r type."
-                    % (self, head_element)
-                )
-            elif 'restriction' in final and not self.type.is_derived(head_element.type, 'restriction'):
-                self.parse_error(
-                    "%r type is not of the same or a restriction of the head element %r type."
-                    % (self, head_element)
-                )
             elif not self.type.is_derived(head_element.type):
-                self.parse_error(
-                    "%r type is not of the same or a derivation of the head element %r type."
-                    % (self, head_element)
-                )
+                msg = "%r type is not of the same or a derivation of the head element %r type."
+                self.parse_error(msg % (self, head_element))
+            elif final == '#all' or 'extension' in final and 'restriction' in final:
+                msg = "head element %r can't be substituted by an element that has a derivation of its type"
+                self.parse_error(msg % head_element)
+            elif 'extension' in final and self.type.is_derived(head_element.type, 'extension'):
+                msg = "head element %r can't be substituted by an element that has an extension of its type"
+                self.parse_error(msg % head_element)
+            elif 'restriction' in final and not self.type.is_derived(head_element.type, 'restriction'):
+                msg = "head element %r can't be substituted by an element that has a restriction of its type"
+                self.parse_error(msg % head_element)
 
     @property
     def built(self):

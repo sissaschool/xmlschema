@@ -298,6 +298,13 @@ class XsdComponent(XsdValidator):
         except XMLSchemaValueError as err:
             self.parse_error(err, elem)
 
+    def _parse_attribute(self, elem, name, values, default=None):
+        value = elem.get(name, default)
+        if value not in values:
+            self.parse_error("wrong value {} for {} attribute.".format(value, name))
+            return default
+        return value
+
     def _parse_properties(self, *properties):
         for name in properties:
             try:
