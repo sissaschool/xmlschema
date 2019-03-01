@@ -38,6 +38,7 @@ def xsd_simple_type_factory(elem, schema, parent):
     else:
         if name == XSD_ANY_SIMPLE_TYPE:
             return
+
     annotation = None
     try:
         child = elem[0]
@@ -51,16 +52,33 @@ def xsd_simple_type_factory(elem, schema, parent):
             except IndexError:
                 return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
+    try:
+        final = get_xsd_derivation_attribute(elem, 'final', ('list', 'union', 'restriction'))
+    except ValueError as final:
+        pass
+
     if child.tag == XSD_RESTRICTION:
         result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
+        if final in {'#all', 'restriction'}:
+            result.parse_error("'final' value forbids derivation by restriction", elem)
     elif child.tag == XSD_LIST:
         result = XsdList(child, schema, parent, name=name)
+        if final in {'#all', 'list'}:
+            result.parse_error("'final' value forbids derivation by list", elem)
     elif child.tag == XSD_UNION:
         result = XsdUnion(child, schema, parent, name=name)
+        if final in {'#all', 'union'}:
+            result.parse_error("'final' value forbids derivation by union", elem)
     else:
         result = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+
     if annotation is not None:
         result.annotation = annotation
+    if isinstance(final, Exception):
+        result.parse_error(final, elem)
+    elif final is not None:
+        result.final = final
+
     return result
 
 
@@ -78,6 +96,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     </simpleType>
     """
     admitted_tags = {XSD_SIMPLE_TYPE}
+    final = None
 
     def __init__(self, elem, schema, parent, name=None, facets=None):
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
@@ -118,10 +137,6 @@ class XsdSimpleType(XsdType, ValidationMixin):
     @property
     def built(self):
         return True
-
-    @property
-    def final(self):
-        return get_xsd_derivation_attribute(self.elem, 'final', ('list', 'union', 'restriction'))
 
     @staticmethod
     def is_simple():
@@ -596,6 +611,9 @@ class XsdList(XsdSimpleType):
             self.parse_error("missing list type declaration", elem)
             base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
 
+        if base_type.final in {'#all', 'list'}:
+            self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
+
         try:
             self.base_type = base_type
         except XMLSchemaValueError as err:
@@ -763,6 +781,8 @@ class XsdUnion(XsdSimpleType):
 
         if not member_types:
             self.parse_error("missing union type declarations", elem)
+        elif any(m.final in {'#all', 'union'} for m in member_types):
+            self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
 
         try:
             self.member_types = member_types
@@ -1030,6 +1050,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
+        elif base_type.final in {'#all', 'restriction'}:
+            self.parse_error("'final' value of the baseType %r forbids derivation by restriction" % base_type)
+
         self.base_type = base_type
         self.facets = facets
 
