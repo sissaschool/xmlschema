@@ -17,7 +17,7 @@ from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
+from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_ID, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
 from ..helpers import get_namespace, get_qname, local_name, prefixed_to_qname
 from ..namespaces import XSI_NAMESPACE
@@ -85,12 +85,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             self.parse_error("wrong value %r for 'use' attribute." % self.use)
             self.use = 'optional'
 
-        if 'default' in elem.attrib:
-            if 'fixed' in elem.attrib:
-                self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
-            if self.use != 'optional':
-                self.parse_error("the attribute 'use' must be 'optional' if the attribute 'default' is present")
-
         try:
             if self.is_global or self.qualified:
                 self.name = get_qname(self.target_namespace, elem.attrib['name'])
@@ -148,7 +142,31 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error("ambiguous type declaration for XSD attribute")
             elif xsd_declaration:
                 self.parse_error("not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
+
+        if 'default' in elem.attrib:
+            if 'fixed' in elem.attrib:
+                self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
+            if self.use != 'optional':
+                self.parse_error("the attribute 'use' must be 'optional' if the attribute 'default' is present")
+        elif 'fixed' in elem.attrib:
+            pass
+
         self.type = xsd_type
+        # Check value constraints
+
+        attrib = elem.attrib
+        if 'default' in attrib:
+            if not self.type.is_valid(attrib['default']):
+                msg = "'default' value {!r} is not compatible with the type {!r}"
+                self.parse_error(msg.format(attrib['default'], self.type))
+            elif self.type.name == XSD_ID:
+                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
+        elif 'fixed' in attrib:
+            if not self.type.is_valid(attrib['fixed']):
+                msg = "'fixed' value {!r} is not compatible with the type {!r}"
+                self.parse_error(msg.format(attrib['fixed'], self.type))
+            elif self.type.name == XSD_ID:
+                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
     @property
     def built(self):

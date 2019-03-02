@@ -84,6 +84,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
+        return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 print(schema_path)
@@ -92,12 +93,13 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                 )
 
     else:
-        return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
-
-                cls.schema = schema_class(schema_path) if schema_path else None
+                try:
+                    cls.schema = schema_class(schema_path) if schema_path else None
+                except TypeError:
+                    cls.schema = None
 
             def test_valid_schema(self):
                 self.assertIsInstance(schema_class(schema_path), schema_class)

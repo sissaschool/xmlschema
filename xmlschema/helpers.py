@@ -229,3 +229,19 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
+
+
+import operator
+
+class Boundary(object):
+
+    def __init__(self, value=None, exclusive=False):
+        self.value = value
+        if exclusive:
+            self.__le__ = self.__lt__
+        self.exclusive = exclusive
+
+    def __le__(self, other):
+        return self.value <= other
+    def __lt__(self, other):
+        return self.value < other

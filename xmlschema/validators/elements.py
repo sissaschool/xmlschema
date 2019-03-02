@@ -131,7 +131,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             # Reference to a global element
             if self.is_global:
                 self.parse_error("an element reference can't be global.")
-            for attribute in ('name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'):
+            for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'}:
                 if attribute in attrib:
                     self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
             try:
