@@ -237,6 +237,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self._root_elements = None
         root = self.source.root
 
+        try:
+            self.final_default = get_xsd_derivation_attribute(root, 'final')
+        except ValueError as err:
+            self.parse_error(err, root)
+
         # Set and check target namespace
         self.target_namespace = root.get('targetNamespace', '')
         if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
@@ -257,7 +262,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.namespaces.update(self.source.get_namespaces())
         if '' not in self.namespaces:
             # For default local names are mapped to targetNamespace
-            pass # self.namespaces[''] = self.target_namespace  # FIXME - is needed??
+            self.namespaces[''] = self.target_namespace  # FIXME - is needed??
 
         self.converter = self.get_converter(converter)
 
@@ -421,13 +426,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """The schema's *blockDefault* attribute, defaults to ``None``."""
         return get_xsd_derivation_attribute(
             self.root, 'blockDefault', ('extension', 'restriction', 'substitution')
-        )
-
-    @property
-    def final_default(self):
-        """The schema's *finalDefault* attribute, defaults to ``None``."""
-        return get_xsd_derivation_attribute(
-            self.root, 'finalDefault', ('extension', 'restriction', 'list', 'union')
         )
 
     @property

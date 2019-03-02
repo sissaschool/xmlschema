@@ -46,13 +46,24 @@ class XsdComplexType(XsdType, ValidationMixin):
     """
     admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     assertions = ()
+    base_type = None
+    abstract = False
+    mixed = False
+    _block = None
+    _derivation = None
 
-    def __init__(self, elem, schema, parent, name=None, content_type=None, attributes=None, mixed=None):
-        self.base_type = None
-        self.content_type = content_type
-        self.attributes = attributes
-        self.mixed = mixed
-        self._derivation = None
+    def __init__(self, elem, schema, parent, name=None, **kwargs):
+        if kwargs:
+            if 'content_type' in kwargs:
+                self.content_type = kwargs['content_type']
+            if 'attributes' in kwargs:
+                self.attributes = kwargs['attributes']
+            if 'mixed' in kwargs:
+                self.mixed = kwargs['mixed']
+            if 'block' in kwargs:
+                self._block = kwargs['block']
+            if 'final' in kwargs:
+                self._final = kwargs['final']
         super(XsdComplexType, self).__init__(elem, schema, parent, name)
 
     def __repr__(self):
@@ -66,10 +77,10 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def __setattr__(self, name, value):
         if name == 'content_type':
-            assert value is None or isinstance(value, (XsdSimpleType, XsdGroup)), \
+            assert isinstance(value, (XsdSimpleType, XsdGroup)), \
                 "The attribute 'content_type' must be a XsdSimpleType or an XsdGroup instance."
         elif name == 'attributes':
-            assert value is None or isinstance(value, XsdAttributeGroup), \
+            assert isinstance(value, XsdAttributeGroup), \
                 "The attribute 'attributes' must be an XsdAttributeGroup."
         super(XsdComplexType, self).__setattr__(name, value)
 
@@ -79,8 +90,29 @@ class XsdComplexType(XsdType, ValidationMixin):
         if elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
-        self.mixed = get_xml_bool_attribute(elem, 'mixed', default=False)
-        self._parse_properties('abstract', 'block', 'final')
+        if 'abstract' in elem.attrib:
+            try:
+                self.abstract = get_xml_bool_attribute(elem, 'abstract')
+            except ValueError as err:
+                self.parse_error(err, elem)
+
+        if 'block' in elem.attrib:
+            try:
+                self._block = get_xsd_derivation_attribute(elem, 'block', ('extension', 'restriction'))
+            except ValueError as err:
+                self.parse_error(err, elem)
+
+        if 'final' in elem.attrib:
+            try:
+                self._final = get_xsd_derivation_attribute(elem, 'final', ('extension', 'restriction'))
+            except ValueError as err:
+                self.parse_error(err, elem)
+
+        if 'mixed' in elem.attrib:
+            try:
+                self.mixed = get_xml_bool_attribute(elem, 'mixed')
+            except ValueError as err:
+                self.parse_error(err, elem)
 
         try:
             self.name = get_qname(self.target_namespace, elem.attrib['name'])
@@ -346,6 +378,10 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return 'none'
 
+    @property
+    def block(self):
+        return self.schema.block_default if self._block is None else self._block
+
     @staticmethod
     def is_simple():
         return False
@@ -396,18 +432,6 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.base_type is not None and self.base_type.is_valid(source)
 
-    @property
-    def abstract(self):
-        return get_xml_bool_attribute(self.elem, 'abstract', default=False)
-
-    @property
-    def block(self):
-        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction'))
-
-    @property
-    def final(self):
-        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
-
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -420,7 +444,7 @@ class XsdComplexType(XsdType, ValidationMixin):
 
         for obj in self.assertions:
             if xsd_classes is None or isinstance(obj, xsd_classes):
-               yield obj
+                yield obj
 
     @staticmethod
     def get_facet(*_args, **_kwargs):

@@ -470,6 +470,11 @@ class XsdType(XsdComponent):
 
     base_type = None
     derivation = None
+    _final = None
+
+    @property
+    def final(self):
+        return self.schema.final_default if self._final is None else self._final
 
     @property
     def built(self):

@@ -52,32 +52,23 @@ def xsd_simple_type_factory(elem, schema, parent):
             except IndexError:
                 return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
-    try:
-        final = get_xsd_derivation_attribute(elem, 'final', ('list', 'union', 'restriction'))
-    except ValueError as final:
-        pass
-
     if child.tag == XSD_RESTRICTION:
         result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
-        if final in {'#all', 'restriction'}:
-            result.parse_error("'final' value forbids derivation by restriction", elem)
     elif child.tag == XSD_LIST:
         result = XsdList(child, schema, parent, name=name)
-        if final in {'#all', 'list'}:
-            result.parse_error("'final' value forbids derivation by list", elem)
     elif child.tag == XSD_UNION:
         result = XsdUnion(child, schema, parent, name=name)
-        if final in {'#all', 'union'}:
-            result.parse_error("'final' value forbids derivation by union", elem)
     else:
         result = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
     if annotation is not None:
         result.annotation = annotation
-    if isinstance(final, Exception):
-        result.parse_error(final, elem)
-    elif final is not None:
-        result.final = final
+
+    if 'final' in elem.attrib:
+        try:
+            result._final = get_xsd_derivation_attribute(elem, 'final')
+        except ValueError as err:
+            result.parse_error(err, elem)
 
     return result
 
@@ -88,7 +79,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     instances of xs:anySimpleType.
 
     <simpleType
-      final = (#all | List of (list | union | restriction))
+      final = (#all | List of (list | union | restriction | extension))
       id = ID
       name = NCName
       {any attributes with non-schema namespace . . .}>
@@ -96,11 +87,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
     </simpleType>
     """
     admitted_tags = {XSD_SIMPLE_TYPE}
-    final = None
     min_length = None
     max_length = None
-    min_value = None
-    max_value = None
+    white_space = None
+    patterns = None
+    validators = ()
 
     def __init__(self, elem, schema, parent, name=None, facets=None):
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
@@ -113,18 +104,27 @@ class XsdSimpleType(XsdType, ValidationMixin):
             if not isinstance(self, XsdAtomicBuiltin):
                 self._parse_facets(value)
 
-            self.white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
-            self.patterns = self.get_facet(XSD_PATTERN)
-            self.validators = [
-                v for k, v in value.items()
-                if k not in (XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION) and callable(v)
-            ]
-            if XSD_ASSERTION in value:
-                assertions = value[XSD_ASSERTION]
-                if isinstance(assertions, list):
-                    self.validators.extend(assertions)
-                else:
-                    self.validators.append(assertions)
+            white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
+            if white_space is not None:
+                self.white_space = white_space
+
+            patterns = self.get_facet(XSD_PATTERN)
+            if patterns is not None:
+                self.patterns = patterns
+
+            if value:
+                validators = [
+                    v for k, v in value.items()
+                    if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION} and callable(v)
+                ]
+                if XSD_ASSERTION in value:
+                    assertions = value[XSD_ASSERTION]
+                    if isinstance(assertions, list):
+                        validators.extend(assertions)
+                    else:
+                        validators.append(assertions)
+                if validators:
+                    self.validators = validators
 
     def _parse_facets(self, facets):
         # Checks the applicability of the facets
@@ -198,14 +198,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.parse_error("'minExclusive' must be lesser than 'maxInclusive'.")
             elif max_exclusive is not None and min_exclusive > max_exclusive:
                 self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'.")
-            min_value = min_exclusive + 1
+            min_value = min_exclusive  # + 1
         else:
             min_value = None
 
         if max_inclusive is not None:
             max_value = max_inclusive
         elif max_exclusive is not None:
-            max_value = max_exclusive - 1
+            max_value = max_exclusive  # - 1
         else:
             max_value = None
 
@@ -218,8 +218,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         self.min_length = min_length
         self.max_length = max_length
-        self.min_value = min_value
         self.max_value = max_value
+        self.min_value = min_value
 
     @property
     def admitted_facets(self):
@@ -1017,7 +1017,9 @@ class XsdAtomicRestriction(XsdAtomic):
                         parent=self,
                         content_type=xsd_simple_type_factory(child, self.schema, self),
                         attributes=base_type.attributes,
-                        mixed=base_type.mixed
+                        mixed=base_type.mixed,
+                        block=base_type.block,
+                        final=base_type.final,
                     )
                 has_simple_type_child = True
             else:

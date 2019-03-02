@@ -60,6 +60,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     </element>
     """
     admitted_tags = {XSD_ELEMENT}
+    abstract = False
+    _ref = None
+    _block = None
+    _final = None
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
@@ -99,17 +103,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_substitution_group()
 
     def _parse_attributes(self):
-        self.name = None
-        self._ref = None
-        self._parse_particle(self.elem)
-        attrib = self.elem.attrib
+        elem = self.elem
+        attrib = elem.attrib
+        self._parse_particle(elem)
         self.qualified = attrib.get('form', self.schema.element_form_default) == 'qualified'
 
-        if 'default' in attrib and 'fixed' in attrib:
-            self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
-        self._parse_properties('abstract', 'block', 'final', 'form', 'nillable')
-
-        # Parse element attributes
         try:
             element_name = prefixed_to_qname(attrib['ref'], self.namespaces)
         except KeyError:
@@ -122,6 +120,29 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except KeyError:
                 self.parse_error("missing both 'name' and 'ref' attributes.")
 
+            if 'default' in attrib and 'fixed' in attrib:
+                self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
+
+            if 'abstract' in elem.attrib:
+                try:
+                    self.abstract = get_xml_bool_attribute(elem, 'abstract')
+                except ValueError as err:
+                    self.parse_error(err, elem)
+
+            if 'block' in elem.attrib:
+                try:
+                    self._block = get_xsd_derivation_attribute(elem, 'block', ('extension', 'restriction'))
+                except ValueError as err:
+                    self.parse_error(err, elem)
+
+            if 'final' in elem.attrib:
+                try:
+                    self._final = get_xsd_derivation_attribute(elem, 'final', ('extension', 'restriction'))
+                except ValueError as err:
+                    self.parse_error(err, elem)
+
+            self._parse_properties('form', 'nillable')
+
             if self.is_global:
                 if 'minOccurs' in attrib:
                     self.parse_error("attribute 'minOccurs' not allowed for a global element.")
@@ -131,7 +152,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             # Reference to a global element
             if self.is_global:
                 self.parse_error("an element reference can't be global.")
-            for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block'}:
+            for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block', 'abstract', 'final'}:
                 if attribute in attrib:
                     self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
             try:
@@ -145,6 +166,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.name = xsd_element.name
                 self.type = xsd_element.type
                 self.qualified = xsd_element.qualified
+                self.abstract = xsd_element.abstract
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -289,13 +311,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     @property
     def substitution_group(self):
         return self.elem.get('substitutionGroup')
-
-    # Properties inherited by references
-    @property
-    def abstract(self):
-        if self._ref is not None:
-            return self._ref.abstract
-        return get_xml_bool_attribute(self.elem, 'abstract', default=False)
 
     @property
     def default(self):

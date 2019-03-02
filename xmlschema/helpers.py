@@ -16,7 +16,7 @@ import re
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from .qnames import XSD_ANNOTATION
 
-
+XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
@@ -212,7 +212,7 @@ def get_xml_bool_attribute(elem, attribute, default=None):
         raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
 
 
-def get_xsd_derivation_attribute(elem, attribute, values):
+def get_xsd_derivation_attribute(elem, attribute, values=None):
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.
@@ -222,26 +222,16 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     :param values: sequence of admitted values when the attribute value is not '#all'.
     :return: a string.
     """
-    value = elem.get(attribute, '')
+    value = elem.get(attribute)
+    if value is None:
+        return ''
+
+    if values is None:
+        values = XSD_FINAL_ATTRIBUTE_VALUES
+
     items = value.split()
     if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
-
-
-import operator
-
-class Boundary(object):
-
-    def __init__(self, value=None, exclusive=False):
-        self.value = value
-        if exclusive:
-            self.__le__ = self.__lt__
-        self.exclusive = exclusive
-
-    def __le__(self, other):
-        return self.value <= other
-    def __lt__(self, other):
-        return self.value < other
