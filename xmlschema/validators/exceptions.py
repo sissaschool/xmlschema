@@ -65,6 +65,10 @@ class XMLSchemaValidatorError(XMLSchemaException):
     if PY3:
         __str__ = __unicode__
 
+    @property
+    def msg(self):
+        return self.__unicode__()
+
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None and not is_etree_element(value):
             raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
