@@ -273,6 +273,15 @@ class XsdGlobals(XsdValidator):
     def resources(self):
         return [(schema.url, schema) for schemas in self.namespaces.values() for schema in schemas]
 
+    @property
+    def all_errors(self):
+        errors = []
+        for schema in self.iter_schemas():
+            for comp in schema.iter_components():
+                if comp.errors:
+                    errors.extend(comp.errors)
+        return errors
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self

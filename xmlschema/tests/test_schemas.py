@@ -522,7 +522,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
             else:
                 xs = schema_class(xsd_file, locations=locations, defuse=defuse)
-            self.errors.extend(xs.all_errors)
+            self.errors.extend(xs.maps.all_errors)
 
             if inspect:
                 components_ids = set([id(c) for c in xs.iter_components()])
