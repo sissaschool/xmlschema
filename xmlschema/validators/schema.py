@@ -237,37 +237,29 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self._root_elements = None
         root = self.source.root
 
+        # Parse namespaces and targetNamespace
+        self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
+        self.namespaces.update(self.source.get_namespaces())
+
+        self.target_namespace = root.get('targetNamespace', '')
+        if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
+            raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
+
+        if namespace is not None and self.target_namespace != namespace:
+            if self.target_namespace:
+                # Is not an error if targetNamespace = '' (chameleon schema case)
+                msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
+                self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
+            self.target_namespace = namespace
+
+        # Parses the other attributes of the schema
         try:
             self.final_default = get_xsd_derivation_attribute(root, 'final')
         except ValueError as err:
             self.parse_error(err, root)
 
-        # Set and check target namespace
-        self.target_namespace = root.get('targetNamespace', '')
-        if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
-            raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
-        if namespace is not None and self.target_namespace != namespace:
-            if self.target_namespace:
-                msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
-                self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
-            else:
-                self.target_namespace = namespace  # Chameleon schema
-
-        self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
-        if self.meta_schema is not None:
-            # Add fallback schema location hint for XHTML
-            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
-
-        self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
-        self.namespaces.update(self.source.get_namespaces())
-        if '' not in self.namespaces:
-            # For default local names are mapped to targetNamespace
-            self.namespaces[''] = self.target_namespace  # FIXME - is needed??
-
-        self.converter = self.get_converter(converter)
-
-        # XSD 1.1 attributes "defaultAttributes" and "xpathDefaultNamespace"
         if self.XSD_VERSION > '1.0':
+            # XSD 1.1: "defaultAttributes" and "xpathDefaultNamespace"
             self.xpath_default_namespace = self._parse_xpath_default_namespace(root)
             try:
                 self.default_attributes = prefixed_to_qname(root.attrib['defaultAttributes'], self.namespaces)
@@ -300,6 +292,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
+        # Set locations map and converter
+        self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
+        if self.meta_schema is not None:
+            # Add fallback schema location hint for XHTML
+            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+        self.converter = self.get_converter(converter)
+
         # Validate the schema document
         if self.meta_schema is None:
             # Base schemas use single file and don't have to be checked
@@ -312,6 +311,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         # Includes and imports schemas (errors are treated as warnings)
         self._include_schemas()
         self._import_namespaces()
+
+        if '' not in self.namespaces:
+            # For default local names are mapped to targetNamespace
+            self.namespaces[''] = self.target_namespace
 
         if build:
             self.maps.build()
@@ -701,9 +704,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     if import_error is None:
                         import_error = err
                 else:
-                    if namespace is None and schema.root.get('targetNamespace') is None:
-                        self.parse_error("the 'namespace' attribute is not present on the import statement "
-                                         "and the enclosing schema %r doesn't have a 'targetNamespace'" % url)
+                    if namespace is None and schema.target_namespace:
+                        self.parse_error("if the 'namespace' attribute is not present on the import statement "
+                                         "then the enclosing schema must not have a 'targetNamespace'")
+                    if not namespace:
+                        self.namespaces[''] = ''
                     break
             else:
                 if import_error is None:
@@ -739,7 +744,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                         return schema
 
         try:
-            namespace = namespace or self.target_namespace
+            # namespace = namespace or self.target_namespace
             return self.create_schema(
                 schema_url, namespace, self.validation, self.maps, self.converter,
                 self.locations, self.base_url, self.defuse, self.timeout, False
