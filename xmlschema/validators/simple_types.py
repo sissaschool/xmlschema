@@ -999,8 +999,11 @@ class XsdAtomicRestriction(XsdAtomic):
         if 'base' in elem.attrib:
             base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
             if base_qname == self.name:
-                self.parse_error("wrong redefinition with self-reference", elem)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                if not hasattr(self, '_elem'):
+                    self.parse_error("wrong definition with self-reference", elem)
+                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                else:
+                    base_type = self.base_type
             else:
                 try:
                     base_type = self.maps.lookup_type(base_qname)

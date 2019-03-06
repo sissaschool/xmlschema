@@ -430,7 +430,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif isinstance(self.content_type, XsdSimpleType):
             return self.content_type.is_valid(source)
         else:
-            return self.base_type is not None and self.base_type.is_valid(source)
+            return self.name == XSD_ANY_TYPE or self.base_type is not None and self.base_type.is_valid(source)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

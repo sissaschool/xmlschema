@@ -203,7 +203,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield obj
 
     def iter_decode(self, text, validation='lax', **kwargs):
-        if not text and kwargs.get('use_defaults', True):
+        if not text and kwargs.get('use_defaults', True) and self.default is not None:
             text = self.default
         if self.fixed is not None and text != self.fixed and validation != 'skip':
             yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)

@@ -176,7 +176,7 @@ class XsdGlobals(XsdValidator):
     declarations defined in the registered schemas. Register a schema to
     add it's declarations to the global maps.
 
-    :param validator: the XMLSchema class to use for global maps.
+    :param validator: the origin XMLSchema class or instance, used for creating the global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
     def __init__(self, validator, validation='strict'):

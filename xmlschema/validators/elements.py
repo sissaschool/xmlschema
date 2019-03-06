@@ -131,7 +131,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             if 'block' in elem.attrib:
                 try:
-                    self._block = get_xsd_derivation_attribute(elem, 'block', ('extension', 'restriction'))
+                    self._block = get_xsd_derivation_attribute(
+                        elem, 'block', ('extension', 'restriction', 'substitution')
+                    )
                 except ValueError as err:
                     self.parse_error(err, elem)
 
@@ -192,6 +194,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
                 elif child.tag == XSD_SIMPLE_TYPE:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+                else:
+                    self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                    return 0
 
                 # Check value constraints
                 if 'default' in attrib and not self.type.is_valid(attrib['default']):
@@ -210,6 +215,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         # Check value constraints
         if 'default' in attrib:
             if not self.type.is_valid(attrib['default']):
+                self.type.is_valid(attrib['default'])
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
             elif self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID']):
