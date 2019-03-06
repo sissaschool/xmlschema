@@ -50,16 +50,19 @@ class XMLSchemaValidatorError(XMLSchemaException):
         if self.elem is None:
             return '%s.' % self.message
         else:
-            elem, path = self.elem, self.path
             msg = ['%s:\n' % self.message]
-            if elem is not None:
+            if self.elem is not None:
                 elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
-                if hasattr(elem, 'sourceline'):
-                    msg.append("Schema (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
+                if hasattr(self.elem, 'sourceline'):
+                    msg.append("Schema (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
                 else:
                     msg.append("Schema:\n\n%s\n" % elem_as_string)
-            if path is not None:
-                msg.append("Path: %s\n" % path)
+            if self.path is not None:
+                msg.append("Path: %s\n" % self.path)
+            if self.schema_url is not None:
+                msg.append("Schema URL: %s\n" % self.schema_url)
+                if self.origin_url not in (None, self.schema_url):
+                    msg.append("Origin URL: %s\n" % self.origin_url)
             return '\n'.join(msg)
 
     if PY3:
@@ -92,7 +95,21 @@ class XMLSchemaValidatorError(XMLSchemaException):
         try:
             return self.source.root
         except AttributeError:
-            return None
+            return
+
+    @property
+    def schema_url(self):
+        try:
+            return self.validator.schema.source.url
+        except AttributeError:
+            return
+
+    @property
+    def origin_url(self):
+        try:
+            return self.validator.maps.validator.source.url
+        except AttributeError:
+            return
 
 
 class XMLSchemaNotBuiltError(XMLSchemaValidatorError, RuntimeError):
@@ -169,20 +186,19 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         return unicode(self).encode("utf-8")
 
     def __unicode__(self):
-        elem, path = self.elem, self.path
         msg = ['%s:\n' % self.message]
         if self.reason is not None:
             msg.append('Reason: %s\n' % self.reason)
         if hasattr(self.validator, 'tostring'):
             msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
-        if elem is not None:
-            elem_as_string = etree_tostring(elem, self.namespaces, '  ', 20)
-            if hasattr(elem, 'sourceline'):
-                msg.append("Instance (line %r):\n\n%s\n" % (elem.sourceline, elem_as_string))
+        if self.elem is not None:
+            elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+            if hasattr(self.elem, 'sourceline'):
+                msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
             else:
                 msg.append("Instance:\n\n%s\n" % elem_as_string)
-        if path is not None:
-            msg.append("Path: %s\n" % path)
+        if self.path is not None:
+            msg.append("Path: %s\n" % self.path)
         return '\n'.join(msg)
 
     if PY3:
