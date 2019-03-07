@@ -265,12 +265,12 @@ class TestGlobalMaps(unittest.TestCase):
 
     def test_xsd_10_globals(self):
         self.assertEqual(len(xsd_10_meta_schema.maps.notations), 2)
-        self.assertEqual(len(xsd_10_meta_schema.maps.types), 105)
+        self.assertEqual(len(xsd_10_meta_schema.maps.types), 108)
         self.assertEqual(len(xsd_10_meta_schema.maps.attributes), 18)
         self.assertEqual(len(xsd_10_meta_schema.maps.attribute_groups), 9)
         self.assertEqual(len(xsd_10_meta_schema.maps.groups), 18)
         self.assertEqual(len(xsd_10_meta_schema.maps.elements), 47)
-        self.assertEqual(len([e.is_global for e in xsd_10_meta_schema.maps.iter_globals()]), 199)
+        self.assertEqual(len([e.is_global for e in xsd_10_meta_schema.maps.iter_globals()]), 202)
         self.assertEqual(len(xsd_10_meta_schema.maps.substitution_groups), 0)
 
     def test_xsd_11_globals(self):
@@ -285,7 +285,7 @@ class TestGlobalMaps(unittest.TestCase):
 
     def test_xsd_10_build(self):
         xsd_10_meta_schema.maps.build()
-        self.assertEqual(len([e for e in xsd_10_meta_schema.maps.iter_globals()]), 199)
+        self.assertEqual(len([e for e in xsd_10_meta_schema.maps.iter_globals()]), 202)
         self.assertTrue(xsd_10_meta_schema.maps.built)
         xsd_10_meta_schema.maps.clear()
         xsd_10_meta_schema.maps.build()
@@ -307,8 +307,8 @@ class TestGlobalMaps(unittest.TestCase):
                 total_counter += 1
                 if c.is_global:
                     global_counter += 1
-        self.assertEqual(global_counter, 199)
-        self.assertEqual(total_counter, 894)
+        self.assertEqual(global_counter, 202)
+        self.assertEqual(total_counter, 914 )
 
     def test_xsd_11_components(self):
         total_counter = 0
