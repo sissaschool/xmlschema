@@ -27,6 +27,8 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 SKIPPED_TESTS = {
     '../msData/additional/adhocAddC002.xsd',  # 'xml' namespace not implicit
     '../sunData/ElemDecl/name/name00505m/name00505m1.xsd',  # resolving keyref dilemma (ancestors or descendants)
+    '../msData/additional/test72232_1.xsd',  # resolving keyref dilemma
+    '../msData/additional/test72232_2.xsd',
 }
 
 def fetch_xsd_test_suite():
@@ -61,7 +63,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     else:
         schema_class = xmlschema.XMLSchema
 
-    if name == 's3_10_1ii09':
+    if name == 'addA006':
         pass
         # import pdb
         # pdb.set_trace()
@@ -113,13 +115,14 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                     cls.schema = None
 
             def test_valid_schema(self):
-                self.assertIsInstance(schema_class(schema_path), schema_class)
+                if schema_path:
+                    self.assertIsInstance(schema_class(schema_path), schema_class)
 
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 4349:  # 4225:
+    if testgroup_num >= 4818:  #4746:  #4462: #4349:  #4225:
         return TestGroupCase
 
 if __name__ == '__main__':

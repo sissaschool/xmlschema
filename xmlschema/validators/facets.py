@@ -16,6 +16,7 @@ import re
 from elementpath import XPath2Parser, ElementPathSyntaxError, ElementPathTypeError, datatypes
 
 from ..compat import unicode_type, MutableSequence
+from ..helpers import prefixed_to_qname
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
@@ -468,8 +469,9 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         except XMLSchemaDecodeError as err:
             self.parse_error(err, elem)
         else:
-            if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-                self.parse_error("value must match a notation global declaration", elem)
+            if self.base_type.name == XSD_NOTATION_TYPE and \
+                    prefixed_to_qname(value, self.namespaces) not in self.maps.notations:
+                self.parse_error("value {} must match a notation global declaration".format(value), elem)
             return value
 
     # Implements the abstract methods of MutableSequence

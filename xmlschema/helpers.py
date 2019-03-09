@@ -72,7 +72,11 @@ def prefixed_to_qname(name, namespaces):
     :param namespaces: a map from prefixes to namespace URIs.
     :return: string with a FQN or a local name or the name argument.
     """
-    if not name or name[0] == '{':
+    if not name:
+        return name
+
+    name = name.strip()
+    if name[0] == '{':
         return name
 
     try:

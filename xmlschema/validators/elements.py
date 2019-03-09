@@ -215,16 +215,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         # Check value constraints
         if 'default' in attrib:
             if not self.type.is_valid(attrib['default']):
-                self.type.is_valid(attrib['default'])
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
-            elif self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID']):
+            elif self.schema.XSD_VERSION == '1.0' and (
+                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
                 msg = "'fixed' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
-            elif self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID']):
+            elif self.schema.XSD_VERSION == '1.0' and (
+                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
         return 0
