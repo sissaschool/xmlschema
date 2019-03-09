@@ -176,13 +176,15 @@ class XsdGlobals(XsdValidator):
     declarations defined in the registered schemas. Register a schema to
     add it's declarations to the global maps.
 
-    :param validator: the origin XMLSchema class or instance, used for creating the global maps.
+    :param validator: the origin schema class/instance used for creating the global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
     def __init__(self, validator, validation='strict'):
         super(XsdGlobals, self).__init__(validation)
-        self.validator = validator
+        if not all(hasattr(validator, a) for a in ('meta_schema', 'BUILDERS_MAP')):
+            raise XMLSchemaValueError("The argument {!r} is not an XSD schema validator".format(validator))
 
+        self.validator = validator
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
 
         self.types = {}                 # Global types (both complex and simple)
@@ -236,18 +238,10 @@ class XsdGlobals(XsdValidator):
 
     @property
     def built(self):
-        if not self.namespaces:
-            return False
-        xsd_global = None
-        for xsd_global in self.iter_globals():
-            if not isinstance(xsd_global, XsdComponent):
+        for schema in self.iter_schemas():
+            if not schema.built:
                 return False
-            if not xsd_global.built:
-                return False
-        if xsd_global is not None:
-            return True
-        else:
-            return False
+        return True
 
     @property
     def validation_attempted(self):
@@ -314,8 +308,48 @@ class XsdGlobals(XsdValidator):
         else:
             if schema in ns_schemas:
                 return
-            if not any([schema.url == obj.url for obj in ns_schemas]):
+            elif not any([schema.url == obj.url and schema.__class__ == obj.__class__ for obj in ns_schemas]):
                 ns_schemas.append(schema)
+
+            if schema.target_namespace in schema.BASE_SCHEMAS and schema.meta_schema is not None \
+                    and schema.meta_schema is schema.__class__.meta_schema:
+                self.replace_meta_schema(schema.target_namespace)
+
+    def replace_meta_schema(self, remove_namespace=None):
+        """
+        Replaces the meta-schema of the global maps. The schema instances related to the old
+        meta-schema are detached and replaced by new ones. The new meta-schema is linked to
+        the other schemas registered in the `XsdGlobals` instance.
+
+        :param remove_namespace: if provided removes the base schemas relative to a specific namespace.
+        """
+        meta_schema = self.validator.meta_schema or self.validator
+        if meta_schema is not None:
+            source = meta_schema.url
+        elif XSD_NAMESPACE in self.namespaces and self.namespaces[XSD_NAMESPACE][0].meta_schema is None:
+            source = self.namespaces[XSD_NAMESPACE][0].url
+        else:
+            raise XMLSchemaValueError("{!r} has not a meta-schema".format(self.validator))
+
+        base_schemas = [
+            (s.target_namespace, s.url) for s in self.iter_schemas()
+            if s.meta_schema is None and s is not meta_schema and s.target_namespace is not remove_namespace
+        ]
+        namespaces = NamespaceResourcesMap(
+            [(s.target_namespace, s) for s in self.iter_schemas() if s.meta_schema is not None]
+        )
+
+        is_built = self.built
+        self.clear()
+        self.namespaces = namespaces
+
+        meta_schema = self.validator.create_meta_schema(source, base_schemas, self)
+        for schema in self.iter_schemas():
+            if schema.meta_schema is not None:
+                schema.meta_schema = meta_schema
+
+        if is_built:
+            self.build()
 
     def clear(self, remove_schemas=False, only_unbuilt=False):
         """
