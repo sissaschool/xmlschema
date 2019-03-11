@@ -236,6 +236,22 @@ class XsdGlobals(XsdValidator):
     def lookup_element(self, qname):
         return lookup_element(self.elements, qname, self.validator.BUILDERS_MAP)
 
+    def lookup(self, tag, qname):
+        if tag in (XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE):
+            return self.lookup_type(qname)
+        elif tag == XSD_ELEMENT:
+            return self.lookup_element(qname)
+        elif tag == XSD_GROUP:
+            return self.lookup_group(qname)
+        elif tag == XSD_ATTRIBUTE:
+            return self.lookup_attribute(qname)
+        elif tag == XSD_ATTRIBUTE_GROUP:
+            return self.lookup_attribute_group(qname)
+        elif tag == XSD_NOTATION:
+            return self.lookup_notation(qname)
+        else:
+            raise XMLSchemaValueError("wrong tag {!r} for an XSD global definition/declaration".format(tag))
+
     @property
     def built(self):
         for schema in self.iter_schemas():
@@ -311,46 +327,6 @@ class XsdGlobals(XsdValidator):
             elif not any([schema.url == obj.url and schema.__class__ == obj.__class__ for obj in ns_schemas]):
                 ns_schemas.append(schema)
 
-            if schema.target_namespace in schema.BASE_SCHEMAS and schema.meta_schema is not None \
-                    and schema.meta_schema is schema.__class__.meta_schema:
-                self.replace_meta_schema(schema.target_namespace)
-
-    def replace_meta_schema(self, remove_namespace=None):
-        """
-        Replaces the meta-schema of the global maps. The schema instances related to the old
-        meta-schema are detached and replaced by new ones. The new meta-schema is linked to
-        the other schemas registered in the `XsdGlobals` instance.
-
-        :param remove_namespace: if provided removes the base schemas relative to a specific namespace.
-        """
-        meta_schema = self.validator.meta_schema or self.validator
-        if meta_schema is not None:
-            source = meta_schema.url
-        elif XSD_NAMESPACE in self.namespaces and self.namespaces[XSD_NAMESPACE][0].meta_schema is None:
-            source = self.namespaces[XSD_NAMESPACE][0].url
-        else:
-            raise XMLSchemaValueError("{!r} has not a meta-schema".format(self.validator))
-
-        base_schemas = [
-            (s.target_namespace, s.url) for s in self.iter_schemas()
-            if s.meta_schema is None and s is not meta_schema and s.target_namespace is not remove_namespace
-        ]
-        namespaces = NamespaceResourcesMap(
-            [(s.target_namespace, s) for s in self.iter_schemas() if s.meta_schema is not None]
-        )
-
-        is_built = self.built
-        self.clear()
-        self.namespaces = namespaces
-
-        meta_schema = self.validator.create_meta_schema(source, base_schemas, self)
-        for schema in self.iter_schemas():
-            if schema.meta_schema is not None:
-                schema.meta_schema = meta_schema
-
-        if is_built:
-            self.build()
-
     def clear(self, remove_schemas=False, only_unbuilt=False):
         """
         Clears the instance maps and schemas.
@@ -398,7 +374,30 @@ class XsdGlobals(XsdValidator):
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
-            raise XMLSchemaValueError("%r: %r namespace is not registered." % (self, XSD_NAMESPACE))
+            # Meta-schemas are not registered. If any of base namespaces is already registered
+            # create a new meta-schema, otherwise register the meta-schemas.
+            meta_schema = self.validator.meta_schema
+            if meta_schema is None:
+                raise XMLSchemaValueError("{!r} has not a meta-schema".format(self.validator))
+
+            if any(ns in self.namespaces for ns in meta_schema.BASE_SCHEMAS):
+                base_schemas = {k: v for k, v in meta_schema.BASE_SCHEMAS.items() if k not in self.namespaces}
+                meta_schema = self.validator.create_meta_schema(meta_schema.url, base_schemas, self)
+                for schema in self.iter_schemas():
+                    if schema.meta_schema is not None:
+                        schema.meta_schema = meta_schema
+            else:
+                for schema in meta_schema.maps.iter_schemas():
+                    self.register(schema)
+
+                self.types.update(meta_schema.maps.types)
+                self.attributes.update(meta_schema.maps.attributes)
+                self.attribute_groups.update(meta_schema.maps.attribute_groups)
+                self.groups.update(meta_schema.maps.groups)
+                self.notations.update(meta_schema.maps.notations)
+                self.elements.update(meta_schema.maps.elements)
+                self.substitution_groups.update(meta_schema.maps.substitution_groups)
+                self.constraints.update(meta_schema.maps.constraints)
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
         for schema in not_built_schemas:

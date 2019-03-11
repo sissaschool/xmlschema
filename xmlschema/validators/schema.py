@@ -168,8 +168,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :param build: defines whether build the schema maps. Default is `True`.
     :type build: bool
     :param meta_maps: if `True` the schema processor uses a copy of the meta-schema global maps, \
-    that have base namespaces already imported. If set to `False` a new `XsdGlobals` instance \
-    is created and the meta-schema is bounded at the end.
+    that have base namespaces already imported. If set to `False` and the argument *global_maps* \
+    is `None` a new `XsdGlobals` instance is created and the meta-schema is connected at the end.
     :type meta_maps: bool
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
@@ -267,12 +267,21 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.parse_error(str(error), root)
                 self.default_attributes = None
 
+        # Set locations hints map and converter
+        self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
+        if self.meta_schema is not None:
+            # Add fallback schema location hint for XHTML
+            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+        self.converter = self.get_converter(converter)
+
         # Create or set the XSD global maps instance
         if self.meta_schema is None:
             self.maps = global_maps or XsdGlobals(self)
+            return  # Meta-schemas don't need to be checked or built and don't process include/imports
         elif global_maps is None:
             if meta_maps is False:
                 self.maps = global_maps or XsdGlobals(self, validation)
+                self.locations.update(self.BASE_SCHEMAS)
             elif self.target_namespace not in self.BASE_SCHEMAS:
                 self.maps = self.meta_schema.maps.copy(self, validation=validation)
             else:
@@ -284,18 +293,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
-        # Set locations map and converter
-        self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
-        if self.meta_schema is not None:
-            # Add fallback schema location hint for XHTML
-            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
-        self.converter = self.get_converter(converter)
-
         # Validate the schema document
-        if self.meta_schema is None:
-            # Base schemas use single file and don't have to be checked
-            return
-        elif validation == 'strict':
+        if validation == 'strict':
             self.check_schema(root, self.namespaces)
         elif validation == 'lax':
             self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
@@ -574,14 +573,21 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 return False
             if not xsd_global.built:
                 return False
+
         if xsd_global is not None:
             return True
-        else:
-            for e in self.root:
-                if e.tag in {XSD_NOTATION, XSD_ELEMENT, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
-                             XSD_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE}:
+
+        prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
+        for e in self.root:
+            name = e.get('name')
+            if name is None or e.tag not in self.BUILDERS_MAP:
+                continue
+            try:
+                if not self.maps.lookup(e.tag, prefix + name if prefix else name).built:
                     return False
-            return True
+            except KeyError:
+                return False
+        return True
 
     @property
     def validation_attempted(self):
