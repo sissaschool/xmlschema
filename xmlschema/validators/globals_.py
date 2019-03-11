@@ -108,7 +108,10 @@ def create_lookup_function(xsd_classes):
         try:
             obj = global_map[qname]
         except KeyError:
-            raise XMLSchemaKeyError("missing a %s object for %r!" % (types_desc, qname))
+            if '{' in qname:
+                raise XMLSchemaKeyError("missing a %s component for %r!" % (types_desc, qname))
+            raise XMLSchemaKeyError("missing a %s component for %r! As the name has no namespace "
+                                    "maybe a missing default namespace declaration." % (types_desc, qname))
         else:
             if isinstance(obj, xsd_classes):
                 return obj
@@ -287,9 +290,7 @@ class XsdGlobals(XsdValidator):
     def all_errors(self):
         errors = []
         for schema in self.iter_schemas():
-            for comp in schema.iter_components():
-                if comp.errors:
-                    errors.extend(comp.errors)
+            errors.extend(schema.all_errors)
         return errors
 
     def iter_components(self, xsd_classes=None):

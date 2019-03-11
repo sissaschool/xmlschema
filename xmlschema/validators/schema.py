@@ -240,15 +240,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.namespaces.update(self.source.get_namespaces())
 
         self.target_namespace = root.get('targetNamespace', '')
-        if self.target_namespace == XSD_NAMESPACE and self.meta_schema is not None:
-            raise XMLSchemaValueError("The %r cannot be used as target namespace!" % XSD_NAMESPACE)
-
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                # Is not an error if targetNamespace = '' (chameleon schema case)
                 msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
+
+            # Chameleon schema case: set the target namespace and the default namespace
             self.target_namespace = namespace
+            if '' not in self.namespaces:
+                self.namespaces[''] = namespace
 
         # Parses the other attributes of the schema
         try:
@@ -304,8 +304,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self._import_namespaces()
 
         if '' not in self.namespaces:
-            # For default local names are mapped to targetNamespace
-            self.namespaces[''] = self.target_namespace
+            self.namespaces[''] = ''  # For default local names are mapped to no namespace
 
         if build:
             self.maps.build()
@@ -627,7 +626,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        for xsd_global in self.iter_globals():
+        for xsd_global in self.iter_globals(self):
             for obj in xsd_global.iter_components(xsd_classes):
                 yield obj
 
@@ -706,7 +705,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 if schema_url == schema.url:
                     return schema
         try:
-            return self.create_schema(
+            self.create_schema(
                 schema_url, self.target_namespace, self.validation, self.maps, self.converter,
                 self.locations, self.base_url, self.defuse, self.timeout, False
             )
