@@ -204,8 +204,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
             elif max_exclusive is not None and min_exclusive > max_exclusive:
                 self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'.")
 
-            min_value = base_type.min_value
-            if min_value is not None and min_value > min_exclusive:
+            min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
+            if min_facet is not None and min_facet.value > min_exclusive:
+                self.parse_error("minimum value of base_type is greater.")
+            min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
+            if min_facet is not None and min_facet.value > min_exclusive:
                 self.parse_error("minimum value of base_type is greater.")
 
         if max_inclusive is not None:
@@ -220,8 +223,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.parse_error("maximum value of base_type is lesser.")
 
         elif max_exclusive is not None:
-            max_value = base_type.max_value
-            if max_value is not None and max_value.value < max_exclusive:
+            max_facet = base_type.get_facet(XSD_MAX_EXCLUSIVE)
+            if max_facet is not None and max_facet.value < max_exclusive:
+                self.parse_error("maximum value of base_type is lesser.")
+            max_facet = base_type.get_facet(XSD_MAX_INCLUSIVE)
+            if max_facet is not None and max_facet.value < max_exclusive:
                 self.parse_error("maximum value of base_type is lesser.")
 
         self.min_length = min_length
