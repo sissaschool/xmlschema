@@ -123,11 +123,13 @@ def non_negative_int_validator(x):
 
 
 def hex_binary_validator(x):
-    if len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None:
+    if x and (len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None):
         yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
 
 
 def base64_binary_validator(x):
+    if not x:
+        return
     match = NOT_BASE64_BINARY_PATTERN.search(x)
     if match is not None:
         reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
