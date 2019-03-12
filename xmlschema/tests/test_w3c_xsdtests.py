@@ -29,6 +29,15 @@ SKIPPED_TESTS = {
     '../sunData/ElemDecl/name/name00505m/name00505m1.xsd',  # resolving keyref dilemma (ancestors or descendants)
     '../msData/additional/test72232_1.xsd',  # resolving keyref dilemma
     '../msData/additional/test72232_2.xsd',
+    '../msData/additional/addB194.xsd',  # keyref and invalid xml:lang='enu'
+    '../msData/errata10/errC004.xsd', # Extra attribute, must check this
+    '../msData/identityConstraint/idI009.xsd', # FIXME xpath="child::imp:iid" in elementpath
+    '../msData/identityConstraint/idI013.xsd', #
+    # 9163 : wrong pattern
+    # TestGroupCase11278_reG26: bad character range 'a'-'1' at position 2: 'a-c-1-4x-z-7-9'
+    # TestGroupCase11278_reG26: bad character range 'a'-'1' at position 2: 'a-c-1-4x-z-7-9'
+    # TestGroupCase11293_reG41: re.error: unterminated character set at position 2
+    #
 }
 
 def fetch_xsd_test_suite():
@@ -97,32 +106,35 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
-        return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
-                print(schema_path)
-                self.assertRaises(
-                    (xmlschema.XMLSchemaParseError, xmlschema.XMLSchemaValidationError, ValueError), schema_class, schema_path
-                )
+                try:
+                    self.assertRaises(
+                        (xmlschema.XMLSchemaParseError, xmlschema.XMLSchemaValidationError, ValueError),
+                        schema_class, schema_path, meta_maps=False
+                    )
+                except AssertionError:
+                    print(schema_path)
+                    raise
 
     else:
+        return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
                 try:
-                    cls.schema = schema_class(schema_path) if schema_path else None
+                    cls.schema = schema_class(schema_path, meta_maps=False) if schema_path else None
                 except TypeError:
                     cls.schema = None
 
             def test_valid_schema(self):
                 if schema_path:
-                    self.assertIsInstance(schema_class(schema_path), schema_class)
-
+                    self.assertIsInstance(schema_class(schema_path, meta_maps=False), schema_class)
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 4818:  #4746:  #4462: #4349:  #4225:
+    if testgroup_num >= 0: # 11289: # 9151: #8390: # 5607: # 4825:  # 4818:  #4746:  #4462: #4349:  #4225:
         return TestGroupCase
 
 if __name__ == '__main__':
@@ -136,7 +148,7 @@ if __name__ == '__main__':
 
     for testset_elem in suite_xml.iter("{%s}testSetRef" % TEST_SUITE_NAMESPACE):
         testset_file = os.path.join(index_dir, testset_elem.attrib.get(HREF_ATTRIBUTE, ''))
-        print("*** {} ***".format(testset_file))
+        # print("*** {} ***".format(testset_file))
 
         testset_xml = ElementTree.parse(testset_file)
 

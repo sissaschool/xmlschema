@@ -65,6 +65,12 @@ class TestXMLSchema10(XMLSchemaTestCase):
             """.format(base.strip(), content, restriction.strip())
         self.check_schema(source, expected, **kwargs)
 
+    def test_schema_copy(self):
+        schema = self.vh_schema.copy()
+        self.assertTrue(id(self.vh_schema) != id(schema))
+        self.assertEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
+        self.assertEqual(id(self.vh_schema.maps), id(schema.maps))
+
     def test_simple_types(self):
         # Issue #54: set list or union schema element.
         xs = self.check_schema("""
@@ -396,6 +402,10 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 </restriction>
             </simpleType>""")
 
+    def test_base_schemas(self):
+        from xmlschema.validators.schema import XML_SCHEMA_FILE
+        schema = self.schema_class(XML_SCHEMA_FILE)
+
 
 class TestXMLSchema11(TestXMLSchema10):
 
@@ -525,7 +535,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             self.errors.extend(xs.maps.all_errors)
 
             if inspect:
-                components_ids = set([id(c) for c in xs.iter_components()])
+                components_ids = set([id(c) for c in xs.maps.iter_components()])
                 missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
                 if any([c for c in missing]):
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))

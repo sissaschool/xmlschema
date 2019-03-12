@@ -179,7 +179,7 @@ class XMLSchemaTestCase(unittest.TestCase):
             self.check_namespace_prefixes(error_string)
 
         if not self.errors and expected:
-            raise ValueError("found no errors when %d expected." % expected)
+            raise ValueError("{!r}: found no errors when {} expected.".format(path, expected))
         elif len(self.errors) != expected:
             num_errors = len(self.errors)
             if num_errors == 1:
