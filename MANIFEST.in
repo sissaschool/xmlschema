@@ -10,4 +10,5 @@ include doc/*
 
 recursive-include xmlschema *
 
+global-exclude unicode_categories.json
 global-exclude *.py[cod]

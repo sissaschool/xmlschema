@@ -131,7 +131,7 @@ class TestUnicodeCategories(unittest.TestCase):
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
         self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
 
-    @unittest.skipIf(not ((3, 6) <= sys.version_info < (3, 7)), "Test only for Python 3.6")
+    @unittest.skipIf(not ((3, 7) <= sys.version_info < (3, 8)), "Test only for Python 3.7")
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:
