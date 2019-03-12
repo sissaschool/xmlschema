@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  An valid include from a schema with a targetNamespace, with the default namespace explicitly mapped.
+  A valid import case: imported chameleon schema import the target namespace.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  xmlns:nsx="http://example.com/xmlschema/namespaces"
   targetNamespace="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-  <xs:include schemaLocation="incl5-valid.xsd"/>
+  <xs:import schemaLocation="chameleon3.xsd"/>
 
   <xs:simpleType name="rootType">
     <xs:restriction base="xs:string"/>

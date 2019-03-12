@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  An invalid usage of the default namespace: it isn't mapped to targetNamespace.
+  An valid include from a schema with a targetNamespace, with the default namespace explicitly mapped.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:nsx="http://example.com/xmlschema/namespaces"
   targetNamespace="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-  <xs:element name="root" type="rootType"/>
+  <xs:include schemaLocation="included5-valid.xsd"/>
 
   <xs:simpleType name="rootType">
     <xs:restriction base="xs:string"/>

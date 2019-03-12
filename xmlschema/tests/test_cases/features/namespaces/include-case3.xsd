@@ -8,7 +8,7 @@
   targetNamespace="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-  <xs:include schemaLocation="incl3-valid.xsd"/>
+  <xs:include schemaLocation="included3-valid.xsd"/>
 
   <xs:simpleType name="rootType">
     <xs:restriction base="xs:string"/>

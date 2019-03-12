@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A valid include using the default namespace, importing a chameleon schema.
+  An invalid import case: the default namespace is mapped to targetNamespace but
+  the imported chameleon schema still maps default namespace to no namespace.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -8,7 +9,7 @@
   targetNamespace="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-  <xs:include schemaLocation="incl1-chameleon.xsd"/>
+  <xs:import schemaLocation="chameleon1.xsd"/>
 
   <xs:simpleType name="rootType">
     <xs:restriction base="xs:string"/>

@@ -47,7 +47,7 @@ C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset()
 W_SHORTCUT_SET._code_points = sorted(
     UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points +
-    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
+    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x if isinstance(x, int) else x[0]
 )
 
 # Single and Multi character escapes

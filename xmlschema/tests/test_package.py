@@ -12,6 +12,7 @@
 import unittest
 import glob
 import fileinput
+import json
 import os
 import re
 import importlib
@@ -113,6 +114,7 @@ class TestPackaging(unittest.TestCase):
         # Exclude explicit debug statements written in the code
         exclude = {
             'regex.py': [240, 241],
+            'codepoints.py': [528],
         }
 
         message = "\nFound a debug missing statement at line %d or file %r: %r"
@@ -159,6 +161,12 @@ class TestPackaging(unittest.TestCase):
                         version == match.group(1).strip('\'\"'),
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
+
+    def test_json_unicode_categories(self):
+        filename = os.path.join(self.source_dir, 'unicode_categories.json')
+        self.assertTrue(os.path.isfile(filename), msg="file %r is missing!" % filename)
+        with open(filename, 'r') as fp:
+            self.assertIsInstance(json.load(fp), dict, msg="file %r is not encoded in JSON format!" % filename)
 
 
 # TODO: Add tests for checking base schemas files and other package files.

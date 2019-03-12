@@ -51,15 +51,18 @@ features/models/model1.xml --errors=1
 features/models/models.xsd
 features/models/recursive-groups.xsd --errors=2 # Two circular definitions
 
-features/namespaces/base1.xsd
-features/namespaces/base1bis.xsd
-features/namespaces/base2.xsd --errors=1
-features/namespaces/base3.xsd
-features/namespaces/base4.xsd --errors=2
-features/namespaces/base5.xsd
 features/namespaces/default_ns_invalid.xsd --errors=1
 features/namespaces/default_ns_valid1.xsd
 features/namespaces/default_ns_valid2.xsd
+features/namespaces/import-case1.xsd --errors=1  # Unknown type
+features/namespaces/import-case2.xsd --errors=1  # Missing import
+features/namespaces/import-case3.xsd
+features/namespaces/include-case1.xsd
+features/namespaces/include-case1bis.xsd
+features/namespaces/include-case2.xsd --errors=1
+features/namespaces/include-case3.xsd
+features/namespaces/include-case4.xsd --errors=2
+features/namespaces/include-case5.xsd
 
 features/patterns/patterns.xsd
 features/patterns/patterns.xml --errors=5

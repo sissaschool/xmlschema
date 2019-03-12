@@ -9,10 +9,32 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import importlib
 from setuptools import setup
+from setuptools.command.develop import develop
+from setuptools.command.install import install
 
 with open("README.rst") as readme:
     long_description = readme.read()
+
+
+class DevelopCommand(develop):
+
+    def run(self):
+        develop.run(self)
+        print("Post-develop: create Unicode categories JSON file")
+        codepoints_module = importlib.import_module('xmlschema.codepoints')
+        codepoints_module.save_unicode_categories()
+
+
+class InstallCommand(install):
+
+    def run(self):
+        install.run(self)
+        print("Post-install: create Unicode categories JSON file")
+        codepoints_module = importlib.import_module('xmlschema.codepoints')
+        codepoints_module.save_unicode_categories()
+
 
 setup(
     name='xmlschema',
@@ -20,6 +42,10 @@ setup(
     install_requires=['elementpath~=1.1.5'],
     packages=['xmlschema'],
     include_package_data=True,
+    cmdclass={
+        'develop': DevelopCommand,
+        'install': InstallCommand
+    },
     author='Davide Brunato',
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',

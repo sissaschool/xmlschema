@@ -525,6 +525,7 @@ def save_unicode_categories(filename=None):
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
 
+    print("Saving Unicode categories to %r" % filename)
     with open(filename, 'w') as fp:
         json.dump(get_unicodedata_categories(), fp)
 
