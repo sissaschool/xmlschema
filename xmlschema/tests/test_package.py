@@ -16,6 +16,7 @@ import json
 import os
 import re
 import importlib
+import platform
 import sys
 import subprocess
 
@@ -168,12 +169,22 @@ class TestPackaging(unittest.TestCase):
         with open(filename, 'r') as fp:
             self.assertIsInstance(json.load(fp), dict, msg="file %r is not encoded in JSON format!" % filename)
 
-
-# TODO: Add tests for checking base schemas files and other package files.
+    def test_base_schema_files(self):
+        et = importlib.import_module('xml.etree.ElementTree')
+        schemas_dir = os.path.join(self.source_dir, 'validators/schemas')
+        base_schemas = [
+            'XSD_1.0/XMLSchema.xsd', 'XSD_1.1/XMLSchema.xsd', 'xhtml1-strict.xsd', 'xlink.xsd',
+            'xml_minimal.xsd', 'XMLSchema-hasFacetAndProperty_minimal.xsd', 'XMLSchema-instance_minimal.xsd'
+        ]
+        for rel_path in base_schemas:
+            filename = os.path.join(schemas_dir, rel_path)
+            self.assertTrue(os.path.isfile(filename), msg="schema file %r is missing!" % filename)
+            self.assertIsInstance(et.parse(filename), et.ElementTree)
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    header1 = "Test package %r installation" % os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
 
-    print_test_header()
     unittest.main()
