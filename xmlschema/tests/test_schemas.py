@@ -100,16 +100,13 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 <import namespace="http://missing.example.test/" />
                 <import/>
                 """)
-            self.assertEqual(len(context), 4, "Wrong number of include/import warnings")
+            self.assertEqual(len(context), 3, "Wrong number of include/import warnings")
             self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
             self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
             self.assertEqual(context[2].category, XMLSchemaImportWarning)
-            self.assertEqual(context[3].category, XMLSchemaImportWarning)
             self.assertTrue(str(context[0].message).startswith("Include"))
             self.assertTrue(str(context[1].message).startswith("Redefine"))
             self.assertTrue(str(context[2].message).startswith("Namespace import"))
-            self.assertTrue(str(context[3].message).startswith("Namespace import"))
-            self.assertTrue(str(context[3].message).endswith("no schema location provided."))
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference
@@ -599,7 +596,8 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 with warnings.catch_warnings(record=True) as ctx:
                     warnings.simplefilter("always")
                     self.check_schema()
-                    self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
+                    self.assertEqual(len(ctx), expected_warnings,
+                                     "%r: Wrong number of include/import warnings" % xsd_file)
             else:
                 self.check_schema()
 

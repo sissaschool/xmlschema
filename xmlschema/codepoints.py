@@ -550,6 +550,9 @@ def build_unicode_categories(filename=None):
                 categories = json.load(fp)
         except (IOError, SystemError, ValueError):
             categories = get_unicodedata_categories()
+        else:
+            if any(not v for v in categories):
+                categories = get_unicodedata_categories()
 
     return {k: UnicodeSubset.fromlist(v) for k, v in categories.items()}
 
