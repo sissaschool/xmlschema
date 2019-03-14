@@ -494,7 +494,7 @@ def get_unicodedata_categories():
     minor_category = 'Cc'
     start_cp, next_cp = 0, 1
     for cp in range(maxunicode + 1):
-        if category(chr(cp)) != minor_category:
+        if category(unicode_chr(cp)) != minor_category:
             if cp > next_cp:
                 categories[minor_category].append((start_cp, cp))
                 categories[minor_category[0]].append(categories[minor_category][-1])
@@ -502,7 +502,7 @@ def get_unicodedata_categories():
                 categories[minor_category].append(start_cp)
                 categories[minor_category[0]].append(start_cp)
 
-            minor_category = category(chr(cp))
+            minor_category = category(unicode_chr(cp))
             start_cp, next_cp = cp, cp + 1
     else:
         if next_cp == maxunicode + 1:

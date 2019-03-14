@@ -21,6 +21,7 @@ try:
     from urllib.error import URLError
     from io import StringIO, BytesIO
     from collections.abc import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
+    from functools import lru_cache
 except ImportError:
     # Python 2.7 imports
     from urllib import pathname2url
@@ -29,6 +30,18 @@ except ImportError:
     from StringIO import StringIO  # the io.StringIO accepts only unicode type
     from io import BytesIO
     from collections import Iterable, MutableSet, Sequence, MutableSequence, Mapping, MutableMapping
+    from functools import wraps
+
+    def lru_cache(maxsize=128, typed=False):
+        """
+        A fake lru_cache decorator function for Python 2.7 compatibility until support ends.
+        """
+        def lru_cache_decorator(f):
+            @wraps(f)
+            def wrapper(*args, **kwargs):
+                return f(*args, **kwargs)
+            return wrapper
+        return lru_cache_decorator
 
 
 PY3 = sys.version_info[0] == 3
