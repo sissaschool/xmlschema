@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A valid import case: imported chameleon schema import the target namespace.
+  A valid import case: imported chameleon schema imports the target namespace.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"

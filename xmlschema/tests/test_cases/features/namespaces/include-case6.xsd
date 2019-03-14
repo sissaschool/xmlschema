@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A valid include of a chameleon schema using an explicit declaration of the default namespace.
-  In this case the chameleon schema uses another prefix for the same target namespace.
+  An invalid include from a schema with a targetNamespace not mapped to any prefix.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -9,10 +8,11 @@
   targetNamespace="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-  <xs:include schemaLocation="chameleon2.xsd"/>
+  <xs:include schemaLocation="included6-invalid.xsd"/>
 
   <xs:simpleType name="rootType">
     <xs:restriction base="xs:string"/>
   </xs:simpleType>
 
 </xs:schema>
+

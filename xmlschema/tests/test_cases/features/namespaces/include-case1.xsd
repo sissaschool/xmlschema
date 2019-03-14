@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A valid include using the default namespace, including a chameleon schema.
+  A valid include of a chameleon schema using an explicit declaration of the default namespace.
   -->
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
