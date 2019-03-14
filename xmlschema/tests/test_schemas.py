@@ -24,7 +24,7 @@ import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
-from xmlschema.qnames import XSD_LIST, XSD_UNION
+from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
 from xmlschema.tests import tests_factory, SchemaObserver, XMLSchemaTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
 from xmlschema.xpath import ElementPathContext
@@ -70,6 +70,22 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.assertTrue(id(self.vh_schema) != id(schema))
         self.assertEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
         self.assertEqual(id(self.vh_schema.maps), id(schema.maps))
+
+    def test_resolve_qname(self):
+        schema = self.schema_class("""<xs:schema
+            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+            <xs:element name="root" />
+        </xs:schema>""")
+        self.assertEqual(schema.resolve_qname('xs:element'), XSD_ELEMENT)
+        self.assertEqual(schema.resolve_qname('xsi:type'), XSI_TYPE)
+
+        self.assertEqual(schema.resolve_qname(XSI_TYPE), XSI_TYPE)
+        self.assertEqual(schema.resolve_qname('element'), 'element')
+        self.assertRaises(ValueError, schema.resolve_qname, '')
+        self.assertRaises(ValueError, schema.resolve_qname, 'xsi:a type ')
+        self.assertRaises(ValueError, schema.resolve_qname, 'xml::lang')
 
     def test_simple_types(self):
         # Issue #54: set list or union schema element.

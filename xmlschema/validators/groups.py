@@ -19,7 +19,7 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
     XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
-from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
+from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
 from .exceptions import XMLSchemaValidationError
@@ -322,8 +322,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         if name == 'model' and value is not None:
             if value not in XSD_GROUP_MODELS:
                 raise XMLSchemaValueError("invalid model group %r." % value)
-            if self.model is not None and value != self.model:
-                raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
+            if self.model is not None and value != self.model and self.model != 'all':
+                raise XMLSchemaValueError("cannot change group model from %r to %r" % (self.model, value))
         elif name == '_group':
             if not all(isinstance(item, (tuple, ParticleMixin)) for item in value):
                 raise XMLSchemaValueError("XsdGroup's items must be tuples or ParticleMixin instances.")
@@ -345,7 +345,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     # Reference to a global group
                     if self.is_global:
                         self.parse_error("a group reference cannot be global", elem)
-                    self.name = prefixed_to_qname(ref, self.namespaces)
+
+                    try:
+                        self.name = self.schema.resolve_qname(ref)
+                    except ValueError as err:
+                        self.parse_error(err, elem)
+                        return
 
                     try:
                         xsd_group = self.schema.maps.lookup_group(self.name)

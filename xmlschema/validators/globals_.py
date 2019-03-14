@@ -19,7 +19,7 @@ from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueEr
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
-from ..helpers import get_qname, local_name, prefixed_to_qname
+from ..helpers import get_qname, local_name
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
@@ -442,13 +442,17 @@ class XsdGlobals(XsdValidator):
             # Build substitution groups from global element declarations
             for xsd_element in schema.elements.values():
                 if xsd_element.substitution_group:
-                    qname = prefixed_to_qname(xsd_element.substitution_group, xsd_element.schema.namespaces)
-                    if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
-                        xsd_element.type = self.elements[qname].type
                     try:
-                        self.substitution_groups[qname].add(xsd_element)
-                    except KeyError:
-                        self.substitution_groups[qname] = {xsd_element}
+                        qname = schema.resolve_qname(xsd_element.substitution_group)
+                    except ValueError as err:
+                        schema.parse_error(err, xsd_element.elem)
+                    else:
+                        if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
+                            xsd_element.type = self.elements[qname].type
+                        try:
+                            self.substitution_groups[qname].add(xsd_element)
+                        except KeyError:
+                            self.substitution_groups[qname] = {xsd_element}
 
             # Checks substitution groups
             for qname in self.substitution_groups:

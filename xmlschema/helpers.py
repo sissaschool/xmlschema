@@ -29,8 +29,8 @@ def get_namespace(name):
 
 def get_qname(uri, name):
     """
-    Returns a fully qualified name from URI and local part. If any argument has boolean value
-    `False` or if the name is already a fully qualified name, returns the *name* argument.
+    Returns an expanded QName from URI and local part. If any argument has boolean value
+    `False` or if the name is already an expanded QName, returns the *name* argument.
 
     :param uri: namespace URI
     :param name: local or qualified name
@@ -44,10 +44,10 @@ def get_qname(uri, name):
 
 def local_name(qname):
     """
-    Return the local part of a qualified name. If the name is `None` or empty
+    Return the local part of an expanded QName. If the name is `None` or empty
     returns the *name* argument.
 
-    :param qname: QName or universal name formatted string, or `None`.
+    :param qname: an expanded QName or a local name.
     """
     try:
         if qname[0] != '{':
@@ -61,44 +61,6 @@ def local_name(qname):
         if qname is None:
             return qname
         raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
-
-
-def prefixed_to_qname(name, namespaces):
-    """
-    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
-    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
-
-    :param name: a local name or a prefixed name or a fully qualified name or `None`.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a FQN or a local name or the name argument.
-    """
-    if not name:
-        return name
-
-    name = name.strip()
-    if name[0] == '{':
-        return name
-
-    try:
-        prefix, name = name.split(':')
-    except ValueError:
-        if ':' in name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces['']
-        except KeyError:
-            return name
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-    else:
-        if not prefix or not name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
 
 
 def qname_to_prefixed(qname, namespaces):

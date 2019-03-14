@@ -19,7 +19,7 @@ from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_ID, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname, local_name, prefixed_to_qname
+from ..helpers import get_namespace, get_qname, local_name
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
@@ -93,7 +93,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         except KeyError:
             # No 'name' attribute, must be a reference
             try:
-                attribute_name = prefixed_to_qname(elem.attrib['ref'], self.namespaces)
+                attribute_qname = self.schema.resolve_qname(elem.attrib['ref'])
             except KeyError:
                 # Missing also the 'ref' attribute
                 self.parse_error("missing both 'name' and 'ref' in attribute declaration")
@@ -102,12 +102,12 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error(err)
                 return
             else:
-                if False and attribute_name[0] != '{':
+                if False and attribute_qname[0] != '{':
                     self.parse_error("attribute reference %r must has a targetNamespace" % elem.attrib['ref'])
                     self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
                 else:
                     try:
-                        xsd_attribute = self.maps.lookup_attribute(attribute_name)
+                        xsd_attribute = self.maps.lookup_attribute(attribute_qname)
                     except LookupError:
                         self.parse_error("unknown attribute %r" % elem.attrib['ref'])
                         self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
@@ -115,7 +115,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                         self.type = xsd_attribute.type
                         self.qualified = xsd_attribute.qualified
 
-                self.name = attribute_name
+                self.name = attribute_qname
                 for attribute in ('form', 'type'):
                     if attribute in self.elem.attrib:
                         self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
@@ -123,7 +123,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
         xsd_declaration = self._parse_component(elem, required=False)
         try:
-            type_qname = prefixed_to_qname(elem.attrib['type'], self.namespaces)
+            type_qname = self.schema.resolve_qname(elem.attrib['type'])
+        except ValueError as err:
+            self.parse_error(err, elem)
+            xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
         except KeyError:
             if xsd_declaration is not None:
                 # No 'type' attribute in declaration, parse for child local simpleType
@@ -134,8 +137,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         else:
             try:
                 xsd_type = self.maps.lookup_type(type_qname)
-            except LookupError:
-                self.parse_error("unknown type %r." % elem.attrib['type'], elem)
+            except LookupError as err:
+                self.parse_error(err, elem)
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
             if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE:
@@ -397,22 +400,23 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
-                    name = child.attrib['ref']
-                    qname = prefixed_to_qname(name, self.namespaces)
-                except (KeyError, ValueError) as err:
+                    attribute_group_qname = self.schema.resolve_qname(child.attrib['ref'])
+                except ValueError as err:
                     self.parse_error(err, elem)
+                except KeyError:
+                    self.parse_error("the attribute 'ref' is required in a local attributeGroup", elem)
                 else:
                     try:
-                        attribute_group = self.maps.lookup_attribute_group(qname)
+                        attribute_group = self.maps.lookup_attribute_group(attribute_group_qname)
                     except LookupError:
-                        self.parse_error("unknown attribute group %r" % name, elem)
+                        self.parse_error("unknown attribute group %r" % child.attrib['ref'], elem)
                     else:
                         self.update(attribute_group.items())
 
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
 
-        if self.parent is None and getattr(self.schema, 'default_attributes', None) == self.name:
+        if self.parent is None and self.schema.default_attributes == self.name:
             self.schema.default_attributes = self
 
     @property

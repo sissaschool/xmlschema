@@ -6,4 +6,3 @@
   <xs:import namespace="http://example.com/xmlschema/namespaces"/>
   <xs:element name="root" type="ns:rootType"/>
 </xs:schema>
-

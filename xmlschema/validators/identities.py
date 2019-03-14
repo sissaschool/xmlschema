@@ -17,7 +17,7 @@ from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed
+from ..helpers import get_qname, qname_to_prefixed
 from ..etree import etree_getpath
 
 from .exceptions import XMLSchemaValidationError
@@ -206,11 +206,8 @@ class XsdKeyref(XsdIdentity):
     or in a descendant element.
     """
     admitted_tags = {XSD_KEYREF}
-
-    def __init__(self, elem, schema, parent):
-        self.refer = None
-        self.refer_path = '.'
-        super(XsdKeyref, self).__init__(elem, schema, parent)
+    refer = None
+    refer_path = '.'
 
     def __repr__(self):
         return '%s(name=%r, refer=%r)' % (
@@ -220,9 +217,11 @@ class XsdKeyref(XsdIdentity):
     def _parse(self):
         super(XsdKeyref, self)._parse()
         try:
-            self.refer = prefixed_to_qname(self.elem.attrib['refer'], self.namespaces)
+            self.refer = self.schema.resolve_qname(self.elem.attrib['refer'])
         except KeyError:
-            self.parse_error("missing required attribute 'refer'", self.elem)
+            self.parse_error("missing required attribute 'refer'")
+        except ValueError as err:
+            self.parse_error(err)
 
     def parse_refer(self):
         if self.refer is None:
@@ -237,15 +236,12 @@ class XsdKeyref(XsdIdentity):
                 self.refer = self.maps.constraints[self.refer]
             except KeyError:
                 self.parse_error("key/unique identity constraint %r is missing" % self.refer)
-                self.refer = None
                 return
 
         if not isinstance(self.refer, (XsdKey, XsdUnique)):
             self.parse_error("reference to a non key/unique identity constraint %r" % self.refer)
-            self.refer = None
         elif len(self.refer.fields) != len(self.fields):
             self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
-            self.refer = None
         elif self.parent is not self.refer.parent:
             refer_path = []
             xsd_component = self.refer.parent
@@ -259,7 +255,6 @@ class XsdKeyref(XsdIdentity):
                 xsd_component = xsd_component.parent
             else:
                 self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
-                self.refer = None
 
     def get_refer_values(self, elem):
         values = set()

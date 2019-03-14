@@ -33,11 +33,11 @@ from abc import ABCMeta
 import warnings
 import elementpath
 
-from ..compat import add_metaclass
+from ..compat import lru_cache, add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-from ..helpers import prefixed_to_qname, has_xsd_components, get_xsd_derivation_attribute
+from ..helpers import has_xsd_components, get_xsd_derivation_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring, ParseError
@@ -183,6 +183,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype BASE_SCHEMAS: dict
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
+    :cvar attribute_form_default: the schema's *attributeFormDefault* attribute, defaults to 'unqualified'.
+    :vartype attribute_form_default: str
+    :cvar element_form_default: the schema's *elementFormDefault* attribute, defaults to 'unqualified'
+    :vartype element_form_default: str
+    :cvar block_default: the schema's *blockDefault* attribute, defaults to ''.
+    :vartype block_default: str
+    :cvar final_default: the schema's *finalDefault* attribute, defaults to ''.
+    :vartype final_default: str
+    :cvar default_attributes: the XSD 1.1 schema's *defaultAttributes* attribute, defaults to ``None``.
+    :vartype default_attributes: XsdAttributeGroup
 
     :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
@@ -227,6 +237,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     BASE_SCHEMAS = None
     meta_schema = None
 
+    # Schema defaults
+    attribute_form_default = 'unqualified'
+    element_form_default = ''
+    block_default = ''
+    final_default = ''
+    default_attributes = None  # for XSD 1.1
+
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
                  locations=None, base_url=None, defuse='remote', timeout=300, use_meta=True, build=True):
         super(XMLSchemaBase, self).__init__(validation)
@@ -256,22 +273,34 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
 
-        # Parses the other attributes of the schema
-        try:
-            self.final_default = get_xsd_derivation_attribute(root, 'final')
-        except ValueError as err:
-            self.parse_error(err, root)
+        # Parses the schema defaults
+        if 'attributeFormDefault' in root.attrib:
+            self.attribute_form_default = root.attrib['attributeFormDefault']
+        if 'elementFormDefault' in root.attrib:
+            self.element_form_default = root.attrib['elementFormDefault']
+
+        if 'blockDefault' in root.attrib:
+            try:
+                self.block_default = get_xsd_derivation_attribute(
+                    root, 'blockDefault', {'extension', 'restriction', 'substitution'}
+                )
+            except ValueError as err:
+                self.parse_error(err, root)
+
+        if 'finalDefault' in root.attrib:
+            try:
+                self.final_default = get_xsd_derivation_attribute(root, 'final')
+            except ValueError as err:
+                self.parse_error(err, root)
 
         if self.XSD_VERSION > '1.0':
             # XSD 1.1: "defaultAttributes" and "xpathDefaultNamespace"
             self.xpath_default_namespace = self._parse_xpath_default_namespace(root)
-            try:
-                self.default_attributes = prefixed_to_qname(root.attrib['defaultAttributes'], self.namespaces)
-            except KeyError:
-                self.default_attributes = None
-            except XMLSchemaValueError as error:
-                self.parse_error(str(error), root)
-                self.default_attributes = None
+            if 'defaultAttributes' in root.attrib:
+                try:
+                    self.default_attributes = self.resolve_qname(root.attrib['defaultAttributes'])
+                except XMLSchemaValueError as error:
+                    self.parse_error(str(error), root)
 
         # Set locations hints map and converter
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
@@ -426,23 +455,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def version(self):
         """The schema's *version* attribute, defaults to ``None``."""
         return self.root.get('version')
-
-    @property
-    def attribute_form_default(self):
-        """The schema's *attributeFormDefault* attribute, defaults to ``'unqualified'``"""
-        return self.root.get('attributeFormDefault', 'unqualified')
-
-    @property
-    def element_form_default(self):
-        """The schema's *elementFormDefault* attribute, defaults to ``'unqualified'``."""
-        return self.root.get('elementFormDefault', 'unqualified')
-
-    @property
-    def block_default(self):
-        """The schema's *blockDefault* attribute, defaults to ``None``."""
-        return get_xsd_derivation_attribute(
-            self.root, 'blockDefault', ('extension', 'restriction', 'substitution')
-        )
 
     @property
     def schema_location(self):
@@ -835,6 +847,48 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             self.imports[namespace] = schema
             return schema
+
+    @lru_cache(maxsize=1000)
+    def resolve_qname(self, qname):
+        """
+        QName resolution for a schema instance.
+
+        :param qname: a string in xs:QName format.
+        :returns: an expanded QName in the format "{*namespace-URI*}*local-name*".
+        :raises: `XMLSchemaValueError` for an invalid xs:QName or if the namespace prefix is not \
+        declared in the schema instance or if the namespace is not the *targetNamespace* and \
+        the namespace is not imported by the schema.
+        """
+        qname = qname.strip()
+        if not qname or ' ' in qname or '\t' in qname or '\n' in qname:
+            raise XMLSchemaValueError("{!r} is not a valid value for xs:QName".format(qname))
+
+        if qname[0] == '{':
+            try:
+                namespace, local_name = qname[1:].split('}')
+            except ValueError:
+                raise XMLSchemaValueError("{!r} is not a valid value for xs:QName".format(qname))
+        elif ':' in qname:
+            try:
+                prefix, local_name = qname.split(':')
+            except ValueError:
+                raise XMLSchemaValueError("{!r} is not a valid value for xs:QName".format(qname))
+            else:
+                try:
+                    namespace = self.namespaces[prefix]
+                except KeyError:
+                    raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
+        else:
+            namespace, local_name = self.namespaces.get('', ''), qname
+
+        if not namespace:
+            return local_name
+        elif self.meta_schema is not None and namespace != self.target_namespace and namespace not in self.imports:
+            raise XMLSchemaValueError(
+                "the QName {!r} is mapped to the namespace {!r}, but this namespace has "
+                "not an xs:import statement in the schema.".format(qname, namespace)
+            )
+        return '{%s}%s' % (namespace, local_name)
 
     def iter_decode(self, source, path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,

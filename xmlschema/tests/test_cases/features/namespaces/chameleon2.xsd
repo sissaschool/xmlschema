@@ -1,28 +1,7 @@
 <xs:schema
   xmlns:xs="http://www.w3.org/2001/XMLSchema"
-  xmlns:xlink="http://www.w3.org/1999/xlink"
-  xmlns:hfp="http://www.w3.org/2001/XMLSchema-hasFacetAndProperty"
+  xmlns:ns="http://example.com/xmlschema/namespaces"
   elementFormDefault="qualified">
 
-    <xs:simpleType name="string2" id="string2">
-    <xs:annotation>
-      <xs:appinfo>
-        <hfp:hasFacet name="length"/>
-        <hfp:hasFacet name="minLength"/>
-        <hfp:hasFacet name="maxLength"/>
-        <hfp:hasFacet name="pattern"/>
-        <hfp:hasFacet name="enumeration"/>
-        <hfp:hasFacet name="whiteSpace"/>
-        <hfp:hasProperty name="ordered" value="false"/>
-        <hfp:hasProperty name="bounded" value="false"/>
-        <hfp:hasProperty name="cardinality" value="countably infinite"/>
-        <hfp:hasProperty name="numeric" value="false"/>
-      </xs:appinfo>
-    </xs:annotation>
-    <xs:restriction base="xs:string">
-      <xs:whiteSpace value="preserve" id="string.preserve"/>
-    </xs:restriction>
-  </xs:simpleType>
-
+  <xs:element name="root" type="ns:rootType"/>
 </xs:schema>
-

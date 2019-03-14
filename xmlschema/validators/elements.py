@@ -21,7 +21,7 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
-from ..helpers import get_qname, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -109,7 +109,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self.qualified = attrib.get('form', self.schema.element_form_default) == 'qualified'
 
         try:
-            element_name = prefixed_to_qname(attrib['ref'], self.namespaces)
+            try:
+                element_name = self.schema.resolve_qname(attrib['ref'])
+            except ValueError as err:
+                self.parse_error(err)
+                element_name = None
         except KeyError:
             # No 'ref' attribute ==> 'name' attribute required.
             try:
@@ -157,18 +161,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block', 'abstract', 'final'}:
                 if attribute in attrib:
                     self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
-            try:
-                xsd_element = self.maps.lookup_element(element_name)
-            except KeyError:
-                self.parse_error('unknown element %r' % element_name)
-                self.name = element_name
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+
+            if not element_name:
+                self.type = self.maps.types[XSD_ANY_TYPE]
             else:
-                self._ref = xsd_element
-                self.name = xsd_element.name
-                self.type = xsd_element.type
-                self.qualified = xsd_element.qualified
-                self.abstract = xsd_element.abstract
+                try:
+                    xsd_element = self.maps.lookup_element(element_name)
+                except KeyError:
+                    self.parse_error('unknown element %r' % element_name)
+                    self.name = element_name
+                    self.type = self.maps.types[XSD_ANY_TYPE]
+                else:
+                    self._ref = xsd_element
+                    self.name = xsd_element.name
+                    self.type = xsd_element.type
+                    self.qualified = xsd_element.qualified
+                    self.abstract = xsd_element.abstract
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -176,12 +184,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self._parse_component(self.elem, required=False, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in attrib:
-            type_qname = prefixed_to_qname(attrib['type'], self.namespaces)
             try:
-                self.type = self.maps.lookup_type(type_qname)
+                self.type = self.maps.lookup_type(self.schema.resolve_qname(attrib['type']))
             except KeyError:
                 self.parse_error('unknown type %r' % attrib['type'])
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = self.maps.types[XSD_ANY_TYPE]
+            except ValueError as err:
+                self.parse_error(err)
+                self.type = self.maps.types[XSD_ANY_TYPE]
             finally:
                 child = self._parse_component(self.elem, required=False, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
@@ -258,12 +268,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if not self.is_global:
             self.parse_error("'substitutionGroup' attribute in a local element declaration")
 
-        qname = prefixed_to_qname(substitution_group, self.namespaces)
-        if qname[0] != '{':
-            qname = get_qname(self.target_namespace, qname)
+        try:
+            substitution_group_qname = self.schema.resolve_qname(substitution_group)
+        except ValueError as err:
+            self.parse_error(err)
+            return
+        else:
+            if substitution_group_qname[0] != '{':
+                substitution_group_qname = get_qname(self.target_namespace, substitution_group_qname)
 
         try:
-            head_element = self.maps.lookup_element(qname)
+            head_element = self.maps.lookup_element(substitution_group_qname)
         except KeyError:
             self.parse_error("unknown substitutionGroup %r" % substitution_group)
         else:
@@ -286,7 +301,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif 'extension' in final and self.type.is_derived(head_element.type, 'extension'):
                 msg = "head element %r can't be substituted by an element that has an extension of its type"
                 self.parse_error(msg % head_element)
-            elif 'restriction' in final and not self.type.is_derived(head_element.type, 'restriction'):
+            elif 'restriction' in final and self.type.is_derived(head_element.type, 'restriction'):
                 msg = "head element %r can't be substituted by an element that has a restriction of its type"
                 self.parse_error(msg % head_element)
 
@@ -704,20 +719,21 @@ class XsdAlternative(XsdComponent):
     </alternative>
     """
     admitted_tags = {XSD_ALTERNATIVE}
+    type = None
 
     def __repr__(self):
         return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))
 
     def _parse(self):
         XsdComponent._parse(self)
-        elem = self.elem
+        attrib = self.elem.attrib
         try:
-            self.path = elem.attrib['test']
+            self.path = attrib['test']
         except KeyError as err:
             self.path = 'true()'
-            self.parse_error(err, elem=elem)
+            self.parse_error(err)
 
-        if 'xpathDefaultNamespace' in self.elem.attrib:
+        if 'xpathDefaultNamespace' in attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
@@ -726,23 +742,24 @@ class XsdAlternative(XsdComponent):
         try:
             self.token = parser.parse(self.path)
         except ElementPathSyntaxError as err:
-            self.parse_error(err, elem=elem)
+            self.parse_error(err)
             self.token = parser.parse('true()')
             self.path = 'true()'
 
         try:
-            type_attrib = elem.attrib['type']
+            type_qname = self.schema.resolve_qname(attrib['type'])
         except KeyError:
-            self.parse_error("missing 'type' attribute from %r" % elem)
-            self.type = None
+            self.parse_error("missing 'type' attribute")
+        except ValueError as err:
+            self.parse_error(err)
         else:
             try:
-                self.type = self.maps.lookup_type(prefixed_to_qname(type_attrib, self.namespaces))
+                self.type = self.maps.lookup_type(type_qname)
             except KeyError:
-                self.parse_error("unknown type %r" % type_attrib, elem)
+                self.parse_error("unknown type %r" % attrib['type'])
             else:
                 if not self.type.is_derived(self.parent.type):
-                    self.parse_error("type %r ir not derived from %r" % (type_attrib, self.parent.type), elem)
+                    self.parse_error("type %r ir not derived from %r" % (attrib['type'], self.parent.type))
 
     @property
     def built(self):

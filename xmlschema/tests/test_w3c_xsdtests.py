@@ -111,25 +111,25 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                 try:
                     self.assertRaises(
                         (xmlschema.XMLSchemaParseError, xmlschema.XMLSchemaValidationError, ValueError),
-                        schema_class, schema_path, meta_maps=False
+                        schema_class, schema_path, use_meta=False
                     )
                 except AssertionError:
                     print(schema_path)
                     raise
 
     else:
-        return
+        # return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
                 try:
-                    cls.schema = schema_class(schema_path, meta_maps=False) if schema_path else None
+                    cls.schema = schema_class(schema_path, use_meta=False) if schema_path else None
                 except TypeError:
                     cls.schema = None
 
             def test_valid_schema(self):
                 if schema_path:
-                    self.assertIsInstance(schema_class(schema_path, meta_maps=False), schema_class)
+                    self.assertIsInstance(schema_class(schema_path, use_meta=False), schema_class)
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))

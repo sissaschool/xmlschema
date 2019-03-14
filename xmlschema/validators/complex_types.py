@@ -13,7 +13,7 @@ from __future__ import unicode_literals
 from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
     XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE, \
     XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT
-from ..helpers import get_qname, local_name, prefixed_to_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..helpers import get_qname, local_name, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -218,27 +218,29 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def _parse_base_type(self, elem, complex_content=False):
         try:
-            content_base = elem.attrib['base']
+            base_qname = self.schema.resolve_qname(elem.attrib['base'])
         except KeyError:
             self.parse_error("'base' attribute required", elem)
-            return self.maps.lookup_type(XSD_ANY_TYPE)
+            return self.maps.types[XSD_ANY_TYPE]
+        except ValueError as err:
+            self.parse_error(err, elem)
+            return self.maps.types[XSD_ANY_TYPE]
 
-        base_qname = prefixed_to_qname(content_base, self.namespaces)
         try:
             base_type = self.maps.lookup_type(base_qname)
         except KeyError:
             self.parse_error("missing base type %r" % base_qname, elem)
             if complex_content:
-                return self.maps.lookup_type(XSD_ANY_TYPE)
+                return self.maps.types[XSD_ANY_TYPE]
             else:
-                return self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                return self.maps.types[XSD_ANY_SIMPLE_TYPE]
         else:
             if isinstance(base_type, tuple):
                 self.parse_error("circularity definition found between %r and %r" % (self, base_qname), elem)
-                return self.maps.lookup_type(XSD_ANY_TYPE)
+                return self.maps.types[XSD_ANY_TYPE]
             elif complex_content and base_type.is_simple():
                 self.parse_error("a complexType ancestor required: %r" % base_type, elem)
-                return self.maps.lookup_type(XSD_ANY_TYPE)
+                return self.maps.types[XSD_ANY_TYPE]
             else:
                 return base_type
 
@@ -287,11 +289,12 @@ class XsdComplexType(XsdType, ValidationMixin):
         group_elem = self._parse_component(elem, required=False, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
             content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
-            model = content_type.model
-            if model != 'sequence' and model != base_type.content_type.model:
-                self.parse_error(
-                    "cannot restrict a %r model to %r." % (base_type.content_type.model, model), elem
-                )
+            # FIXME is_restriction check is needed after groups build
+            # model = content_type.model
+            # if model != 'sequence' and model != base_type.content_type.model:
+            #    self.parse_error(
+            #        "cannot restrict a %r model to %r." % (base_model, model), elem
+            #    )
         else:
             # Empty content model
             content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
@@ -341,7 +344,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
                 if base_type.is_simple() or base_type.has_simple_content():
                     self.parse_error("base %r is simple or has a simple content." % base_type, elem)
-                    base_type = self.maps.lookup_type(XSD_ANY_TYPE)
+                    base_type = self.maps.types[XSD_ANY_TYPE]
 
                 group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
                 content_type.append(base_type.content_type)

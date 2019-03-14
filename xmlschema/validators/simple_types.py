@@ -22,7 +22,7 @@ from ..qnames import (
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
     XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
-from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_derivation_attribute
+from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
@@ -43,14 +43,14 @@ def xsd_simple_type_factory(elem, schema, parent):
     try:
         child = elem[0]
     except IndexError:
-        return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+        return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
     else:
         if child.tag == XSD_ANNOTATION:
             try:
                 child = elem[1]
                 annotation = XsdAnnotation(elem[0], schema, child)
             except IndexError:
-                return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if child.tag == XSD_RESTRICTION:
         result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
@@ -59,7 +59,7 @@ def xsd_simple_type_factory(elem, schema, parent):
     elif child.tag == XSD_UNION:
         result = XsdUnion(child, schema, parent, name=name)
     else:
-        result = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+        result = schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if annotation is not None:
         result.annotation = annotation
@@ -622,22 +622,27 @@ class XsdList(XsdSimpleType):
                 base_type = xsd_simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err, elem)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
             if 'itemType' in elem.attrib:
                 self.parse_error("ambiguous list type declaration", self)
 
-        elif 'itemType' in elem.attrib:
-            # List tag with itemType attribute that refers to a global type
-            item_qname = prefixed_to_qname(elem.attrib['itemType'], self.namespaces)
-            try:
-                base_type = self.maps.lookup_type(item_qname)
-            except LookupError:
-                self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         else:
-            self.parse_error("missing list type declaration", elem)
-            base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            # List tag with itemType attribute that refers to a global type
+            try:
+                item_qname = self.schema.resolve_qname(elem.attrib['itemType'])
+            except KeyError:
+                self.parse_error("missing list type declaration", elem)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+            except ValueError as err:
+                self.parse_error(err, elem)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+            else:
+                try:
+                    base_type = self.maps.lookup_type(item_qname)
+                except LookupError:
+                    self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
+                    base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
         if base_type.final in {'#all', 'list'}:
             self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
@@ -646,7 +651,7 @@ class XsdList(XsdSimpleType):
             self.base_type = base_type
         except XMLSchemaValueError as err:
             self.parse_error(str(err), elem)
-            self.base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            self.base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
     @property
     def admitted_facets(self):
@@ -792,31 +797,37 @@ class XsdUnion(XsdSimpleType):
 
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
-                type_qname = prefixed_to_qname(name, self.namespaces)
+                try:
+                    type_qname = self.schema.resolve_qname(name)
+                except ValueError as err:
+                    self.parse_error(err)
+                    continue
+
                 try:
                     mt = self.maps.lookup_type(type_qname)
                 except LookupError:
                     self.parse_error("unknown member type %r" % type_qname)
-                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
-                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
                 if not isinstance(mt, XsdSimpleType):
                     self.parse_error("a simpleType required", mt)
                 else:
                     member_types.append(mt)
 
-        if not member_types:
-            self.parse_error("missing union type declarations", elem)
-        elif any(m.final in {'#all', 'union'} for m in member_types):
+        if any(m.final in {'#all', 'union'} for m in member_types):
             self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
+        elif not member_types:
+            self.parse_error("missing union type declarations", elem)
+            #member_types.append(self.maps.types[XSD_ANY_ATOMIC_TYPE])
 
         try:
             self.member_types = member_types
         except XMLSchemaValueError as err:
             self.parse_error(str(err), elem)
-            self.member_types = [self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)]
+            self.member_types = [self.maps.types[XSD_ANY_ATOMIC_TYPE]]
 
     @property
     def admitted_facets(self):
@@ -1003,26 +1014,31 @@ class XsdAtomicRestriction(XsdAtomic):
         has_simple_type_child = False
 
         if 'base' in elem.attrib:
-            base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
-            if base_qname == self.name:
-                if not hasattr(self, '_elem'):
-                    self.parse_error("wrong definition with self-reference", elem)
-                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
-                else:
-                    base_type = self.base_type
+            try:
+                base_qname = self.schema.resolve_qname(elem.attrib['base'])
+            except ValueError as err:
+                self.parse_error(err, elem)
+                base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
             else:
-                try:
-                    base_type = self.maps.lookup_type(base_qname)
-                except LookupError:
-                    self.parse_error("unknown type %r." % elem.attrib['base'])
-                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
-                except XMLSchemaParseError as err:
-                    self.parse_error(err)
-                    base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                if base_qname == self.name:
+                    if not hasattr(self, '_elem'):
+                        self.parse_error("wrong definition with self-reference", elem)
+                        base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
+                    else:
+                        base_type = self.base_type
                 else:
-                    if isinstance(base_type, tuple):
-                        self.parse_error("circularity definition found between %r and %r" % (self, base_qname), elem)
-                        base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                    try:
+                        base_type = self.maps.lookup_type(base_qname)
+                    except LookupError:
+                        self.parse_error("unknown type %r." % elem.attrib['base'])
+                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    except XMLSchemaParseError as err:
+                        self.parse_error(err)
+                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    else:
+                        if isinstance(base_type, tuple):
+                            self.parse_error("circularity definition between %r and %r" % (self, base_qname), elem)
+                            base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
             if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
                 if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
@@ -1047,7 +1063,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = xsd_simple_type_factory(child, self.schema, self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
-                        base_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                        base_type = self.maps.types[XSD_ANY_SIMPLE_TYPE]
 
                 elif base_type.is_complex() and base_type.admit_simple_restriction():
                     base_type = self.schema.BUILDERS.complex_type_class(

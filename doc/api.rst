@@ -33,25 +33,26 @@ Schema level API
     .. autoattribute:: tag
     .. autoattribute:: id
     .. autoattribute:: version
-    .. autoattribute:: attribute_form_default
-    .. autoattribute:: element_form_default
-    .. autoattribute:: block_default
-    .. autoattribute:: final_default
 
     .. autoattribute:: schema_location
     .. autoattribute:: no_namespace_schema_location
     .. autoattribute:: target_prefix
     .. autoattribute:: default_namespace
     .. autoattribute:: base_url
-    .. autoattribute:: root_elements
     .. autoattribute:: builtin_types
+    .. autoattribute:: root_elements
+
+    .. automethod:: create_meta_schema
+    .. automethod:: create_schema
+    .. automethod:: create_any_content_group
+    .. automethod:: create_any_attribute_group
 
     .. automethod:: get_locations
     .. automethod:: include_schema
     .. automethod:: import_schema
-    .. automethod:: create_schema
-    .. automethod:: create_any_content_group
-    .. automethod:: create_any_attribute_group
+    .. automethod:: resolve_qname
+    .. automethod:: iter_globals
+    .. automethod:: iter_components
 
     .. automethod:: check_schema
     .. automethod:: build
@@ -59,8 +60,6 @@ Schema level API
     .. autoattribute:: validation_attempted
     .. autoattribute:: validity
     .. autoattribute:: all_errors
-    .. automethod:: iter_components
-    .. automethod:: iter_globals
 
     .. automethod:: get_converter
     .. automethod:: validate
