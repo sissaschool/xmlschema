@@ -365,6 +365,24 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def get_type(self, elem):
         return self.type
 
+    def get_path(self, xsd_component, reverse=False):
+        """
+        Get the XPath expression to find a descendant component. The XPAth expression is limited
+        to a path of elements. Returns `None` if the argument is not a descendant.
+
+        :param xsd_component: an XSD component of the same schema.
+        :param reverse: if set to `True` returns the reverse path, from descendant to ancestor.
+        """
+        path = []
+        while xsd_component is not None:
+            if xsd_component is self:
+                if not reverse:
+                    path.reverse()
+                return '/'.join(path) or '.'
+            elif hasattr(xsd_component, 'tag'):
+                path.append('..' if reverse else xsd_component.name)
+            xsd_component = xsd_component.parent
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self

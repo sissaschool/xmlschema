@@ -121,6 +121,10 @@ class XsdIdentity(XsdComponent):
             else:
                 self.parse_error("element %r not allowed here:" % child.tag, elem)
 
+    def iter_elements(self):
+        for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
+            yield xsd_element
+
     def get_fields(self, context, decoders=None):
         """
         Get fields for a schema or instance context element.
@@ -257,18 +261,15 @@ class XsdKeyref(XsdIdentity):
         elif len(self.refer.fields) != len(self.fields):
             self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
         elif self.parent is not self.refer.parent:
-            refer_path = []
-            xsd_component = self.refer.parent
-            while xsd_component is not None:
-                if xsd_component is self.parent:
-                    refer_path.reverse()
-                    self.refer_path = '/'.join(refer_path)
-                    break
-                elif hasattr(xsd_component, 'tag'):
-                    refer_path.append(xsd_component.name)
-                xsd_component = xsd_component.parent
+            refer_path = self.parent.get_path(self.refer.parent)
+            if refer_path is not None:
+                self.refer_path = refer_path
             else:
-                self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
+                refer_path = self.refer.parent.get_path(self.parent, reverse=True)
+                if refer_path is not None:
+                    self.refer_path = refer_path
+                else:
+                    self.parse_error("%r is not defined in a descendant or ancestor element." % self.elem.get('refer'))
 
     def get_refer_values(self, elem):
         values = set()
