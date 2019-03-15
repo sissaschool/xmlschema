@@ -1136,8 +1136,10 @@ use</xs:documentation>
                            child:: is also allowed
          </xs:documentation>
         </xs:annotation>
+        <!-- xmlschema mod: replaced by a regex check in XsdSelector
         <xs:pattern value="(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*">
         </xs:pattern>
+        -->
        </xs:restriction>
       </xs:simpleType>
      </xs:attribute>
@@ -1169,8 +1171,10 @@ use</xs:documentation>
           Path    ::=    ('.//')? ( Step '/' )* ( Step | '@' NameTest ) 
          </xs:documentation>
         </xs:annotation>
+        <!-- xmlschema mod: replaced by a regex check in XsdFieldSelector
         <xs:pattern value="(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*">
         </xs:pattern>
+        -->
        </xs:restriction>
       </xs:simpleType>
      </xs:attribute>

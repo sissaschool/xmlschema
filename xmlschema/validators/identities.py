@@ -12,6 +12,7 @@
 This module contains classes for other XML Schema identity constraints.
 """
 from __future__ import unicode_literals
+import re
 from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
 
@@ -19,6 +20,7 @@ from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 from ..helpers import get_qname, qname_to_prefixed
 from ..etree import etree_getpath
+from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -29,7 +31,7 @@ XSD_IDENTITY_XPATH_SYMBOLS = {
     'ancestor', 'position', 'comment', 'parent', 'child', 'self', 'false', 'text', 'node',
     'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
     '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
-    '(string)', '(float)', '(decimal)', '(integer)'
+    '(string)', '(float)', '(decimal)', '(integer)', '::'
 }
 
 
@@ -43,6 +45,10 @@ XsdIdentityXPathParser.build_tokenizer()
 
 class XsdSelector(XsdComponent):
     admitted_tags = {XSD_SELECTOR}
+    pattern = re.compile(get_python_regex(
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
+    ))
 
     def __init__(self, elem, schema, parent):
         super(XsdSelector, self).__init__(elem, schema, parent)
@@ -54,6 +60,9 @@ class XsdSelector(XsdComponent):
         except KeyError:
             self.parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
+        else:
+            if not self.pattern.match(self.path.replace(' ', '')):
+                self.parse_error("Wrong XPath expression for an xs:selector")
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
@@ -78,6 +87,11 @@ class XsdSelector(XsdComponent):
 
 class XsdFieldSelector(XsdSelector):
     admitted_tags = {XSD_FIELD}
+    pattern = re.compile(get_python_regex(
+        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
+        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
+    ))
 
 
 class XsdIdentity(XsdComponent):
