@@ -440,7 +440,7 @@ class XsdGlobals(XsdValidator):
 
         for schema in not_built_schemas:
             # Build substitution groups from global element declarations
-            for xsd_element in schema.elements.values():
+            for xsd_element in filter(lambda x: x.schema is schema, schema.elements.values()):
                 if xsd_element.substitution_group:
                     try:
                         qname = schema.resolve_qname(xsd_element.substitution_group)

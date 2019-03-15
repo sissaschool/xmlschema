@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.0.11`_ (TBD)
+================
+* Integration with W3C XSD tests
+* More control on imported namespaces
+* Added *use_meta* argument to schema classes
+* Added *includes* list and *imports* dict to schema classes
+
 `v1.0.10`_ (2019-02-25)
 =======================
 * Fixed Element type mismatch issue when apply *SafeXMLParser* to schema resources
@@ -226,3 +233,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.8: https://github.com/brunato/xmlschema/compare/v1.0.7...v1.0.8
 .. _v1.0.9: https://github.com/brunato/xmlschema/compare/v1.0.8...v1.0.9
 .. _v1.0.10: https://github.com/brunato/xmlschema/compare/v1.0.9...v1.0.10
+.. _v1.0.11: https://github.com/brunato/xmlschema/compare/v1.0.10...v1.0.11

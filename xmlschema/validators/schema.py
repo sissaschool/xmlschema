@@ -848,7 +848,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.imports[namespace] = schema
             return schema
 
-    @lru_cache(maxsize=1000)
     def resolve_qname(self, qname):
         """
         QName resolution for a schema instance.
@@ -883,7 +882,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         if not namespace:
             return local_name
-        elif self.meta_schema is not None and namespace != self.target_namespace and namespace not in self.imports:
+        elif self.meta_schema is not None and namespace != self.target_namespace and \
+                namespace != XSD_NAMESPACE and namespace not in self.imports:
             raise XMLSchemaValueError(
                 "the QName {!r} is mapped to the namespace {!r}, but this namespace has "
                 "not an xs:import statement in the schema.".format(qname, namespace)
