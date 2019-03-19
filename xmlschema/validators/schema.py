@@ -774,7 +774,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
             locations = [url for url in locations if url]
             if namespace is None:
-                pass
+                namespace = ''
             elif not locations:
                 locations = self.get_locations(namespace)
             elif all(is_remote_url(url) for url in locations):
@@ -790,16 +790,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             import_error = None
             for url in locations:
                 try:
-                    schema = self.import_schema(namespace, url, self.base_url, force=True)
+                    self.import_schema(namespace, url, self.base_url, force=True)
                 except (OSError, IOError) as err:
                     # It's not an error if the location access fails (ref. section 4.2.6.2):
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                     if import_error is None:
                         import_error = err
                 else:
-                    if namespace is None and schema.target_namespace:
+                    if not namespace and not self.target_namespace:
                         self.parse_error("if the 'namespace' attribute is not present on the import statement "
-                                         "then the enclosing schema must not have a 'targetNamespace'")
+                                         "then the importing schema must has a 'targetNamespace'")
                     break
             else:
                 if import_error is not None:

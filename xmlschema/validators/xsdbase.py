@@ -522,8 +522,12 @@ class XsdType(XsdComponent):
             return 'unknown'
 
     def is_derived(self, other, derivation=None):
-        if other.name in self.special_types or self is other:
-            return True if derivation is None else derivation == self.derivation
+        if self is other:
+            return True
+        elif derivation is not None and derivation != self.derivation:
+            return False
+        elif other.name in self.special_types:
+            return True
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is not None:
