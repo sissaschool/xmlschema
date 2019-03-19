@@ -468,6 +468,7 @@ class XsdAnnotation(XsdComponent):
 
 class XsdType(XsdComponent):
 
+    special_types = {XSD_ANY_TYPE}
     base_type = None
     derivation = None
     _final = None
@@ -521,18 +522,12 @@ class XsdType(XsdComponent):
             return 'unknown'
 
     def is_derived(self, other, derivation=None):
-        if other.name == XSD_ANY_TYPE or self.base_type == other:
+        if other.name in self.special_types or self is other:
             return True if derivation is None else derivation == self.derivation
+        elif hasattr(other, 'member_types'):
+            return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is not None:
             return self.base_type.is_derived(other, derivation)
-        else:
-            return False
-
-    def is_subtype(self, qname):
-        if qname == XSD_ANY_TYPE or self.name == qname:
-            return True
-        elif self.base_type is not None:
-            return self.base_type.is_subtype(qname)
         else:
             return False
 

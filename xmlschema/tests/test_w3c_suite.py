@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the building of XSD schemas with the 'xmlschema' package.
+This module runs tests concerning the W3C XML Schema 1.1 test suite.
 """
 from __future__ import print_function, unicode_literals
 import unittest
@@ -25,19 +25,17 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 ####
 # Tests that are incompatible with XSD meta-schema validation
 SKIPPED_TESTS = {
-    '../msData/additional/adhocAddC002.xsd',  # 'xml' namespace not implicit
-    '../sunData/ElemDecl/name/name00505m/name00505m1.xsd',  # resolving keyref dilemma (ancestors or descendants)
-    '../msData/additional/test72232_1.xsd',  # resolving keyref dilemma
-    '../msData/additional/test72232_2.xsd',
-    '../msData/additional/addB194.xsd',  # keyref and invalid xml:lang='enu'
-    '../msData/errata10/errC004.xsd', # Extra attribute, must check this
-    '../msData/identityConstraint/idI009.xsd', # FIXME xpath="child::imp:iid" in elementpath
-    '../msData/identityConstraint/idI013.xsd', #
-    # 9163 : wrong pattern
-    # TestGroupCase11278_reG26: bad character range 'a'-'1' at position 2: 'a-c-1-4x-z-7-9'
-    # TestGroupCase11278_reG26: bad character range 'a'-'1' at position 2: 'a-c-1-4x-z-7-9'
-    # TestGroupCase11293_reG41: re.error: unterminated character set at position 2
-    #
+    '../msData/additional/addB194.xsd',     # 4826: invalid xml:lang='enu'
+    '../msData/simpleType/stE110.xsd',      # 13892: Circular xs:union declaration
+    '../saxonData/Missing/missing001.xsd',  # 14405: missing type (this may be valid in 'lax' mode?)
+    '../saxonData/Missing/missing002.xsd',  # 14406: missing substitution group
+    '../saxonData/Missing/missing003.xsd',  # 14406: missing type and substitution group
+    '../saxonData/Missing/missing006.xsd',  # 14410: missing list item type
+    '../saxonData/VC/vc001.xsd',            # 14411: VC namespace required
+    '../saxonData/VC/vc002.xsd',            # 14412: VC namespace required
+    '../saxonData/VC/vc014.xsd',            # 14413: VC namespace required
+    '../saxonData/VC/vc024.xsd',            # 14414: VC 1.1? required
+    '../saxonData/XmlVersions/xv004.xsd',   # 14419: non-BMP chars allowed in names in XML 1.1+
 }
 
 def fetch_xsd_test_suite():
@@ -72,11 +70,6 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     else:
         schema_class = xmlschema.XMLSchema
 
-    if name == 'addA006':
-        pass
-        # import pdb
-        # pdb.set_trace()
-
     schema_elem = testgroup_elem.find('{%s}schemaTest' % TEST_SUITE_NAMESPACE)
     if schema_elem is not None:
         schema_document = schema_elem.find('{%s}schemaDocument' % TEST_SUITE_NAMESPACE)
@@ -89,7 +82,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         if not os.path.isfile(schema_path):
             raise ValueError("Schema file %r not found!" % schema_path)
 
-        expected = None
+        expected = elem = None
         for elem in schema_elem.findall('{%s}expected' % TEST_SUITE_NAMESPACE):
             if 'version' not in elem.attrib:
                 expected = elem.attrib['validity']
@@ -106,6 +99,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
+        return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 try:
@@ -134,8 +128,9 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 0: # 11289: # 9151: #8390: # 5607: # 4825:  # 4818:  #4746:  #4462: #4349:  #4225:
+    if testgroup_num >= 0:
         return TestGroupCase
+
 
 if __name__ == '__main__':
     index_path = fetch_xsd_test_suite()
@@ -148,9 +143,13 @@ if __name__ == '__main__':
 
     for testset_elem in suite_xml.iter("{%s}testSetRef" % TEST_SUITE_NAMESPACE):
         testset_file = os.path.join(index_dir, testset_elem.attrib.get(HREF_ATTRIBUTE, ''))
-        # print("*** {} ***".format(testset_file))
 
         testset_xml = ElementTree.parse(testset_file)
+        testset_version = testset_xml.getroot().get('version')
+        if testset_version is not None and '1.0' not in testset_version:
+            continue
+
+        # print("*** {} ***".format(testset_file))
 
         for testgroup_elem in testset_xml.iter("{%s}testGroup" % TEST_SUITE_NAMESPACE):
             if testgroup_elem.get('version') == '1.1':

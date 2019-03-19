@@ -391,14 +391,14 @@ class XsdFractionDigitsFacet(XsdFacet):
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
-        if not base_type.is_subtype(XSD_DECIMAL):
+        if not base_type.is_derived(self.schema.builtin_types()['decimal']):
             self.parse_error("fractionDigits facet can be applied only to types derived from xs:decimal")
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
         if self.value < 0:
             raise ValueError("'value' must be greater or equal than 0")
-        elif self.value > 0 and self.base_type.is_subtype(XSD_INTEGER):
+        elif self.value > 0 and self.base_type.is_derived(self.schema.builtin_types()['integer']):
             raise ValueError("fractionDigits facet value has to be 0 for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 

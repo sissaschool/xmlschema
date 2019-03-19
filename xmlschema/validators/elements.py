@@ -294,6 +294,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 pass
             elif not self.type.is_derived(head_element.type):
                 msg = "%r type is not of the same or a derivation of the head element %r type."
+                self.type.is_derived(head_element.type)
                 self.parse_error(msg % (self, head_element))
             elif final == '#all' or 'extension' in final and 'restriction' in final:
                 msg = "head element %r can't be substituted by an element that has a derivation of its type"
@@ -365,23 +366,26 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def get_type(self, elem):
         return self.type
 
-    def get_path(self, xsd_component, reverse=False):
+    def get_path(self, ancestor=None, reverse=False):
         """
-        Get the XPath expression to find a descendant component. The XPAth expression is limited
-        to a path of elements. Returns `None` if the argument is not a descendant.
+        Returns the XPath expression of the element. The path is relative to the schema instance
+        in which the element is contained or is relative to a specific ancestor passed as argument.
+        In the latter case returns `None` if the argument is not an ancestor.
 
-        :param xsd_component: an XSD component of the same schema.
-        :param reverse: if set to `True` returns the reverse path, from descendant to ancestor.
+        :param ancestor: optional XSD component of the same schema, that may be an ancestor of the element.
+        :param reverse: if set to `True` returns the reverse path, from the element to ancestor.
         """
         path = []
+        xsd_component = self
         while xsd_component is not None:
-            if xsd_component is self:
-                if not reverse:
-                    path.reverse()
-                return '/'.join(path) or '.'
+            if xsd_component is ancestor:
+                return '/'.join(reversed(path)) or '.'
             elif hasattr(xsd_component, 'tag'):
                 path.append('..' if reverse else xsd_component.name)
             xsd_component = xsd_component.parent
+        else:
+            if ancestor is None:
+                return '/'.join(reversed(path)) or '.'
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:

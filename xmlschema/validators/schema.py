@@ -45,16 +45,19 @@ from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLReso
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
 
-from . import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaNotBuiltError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdValidator, ValidationMixin, XsdComponent,
-    XsdNotation, XsdComplexType, XsdAttribute, XsdElement, XsdAttributeGroup, XsdGroup, Xsd11Group,
-    XsdAnyElement, XsdAnyAttribute, Xsd11Attribute, Xsd11Element, Xsd11AnyElement, XsdGlobals,
-    Xsd11AnyAttribute, Xsd11ComplexType, xsd_simple_type_factory,
-    XsdAtomicRestriction, Xsd11AtomicRestriction
-)
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
+    XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from .xsdbase import XsdValidator, ValidationMixin, XsdComponent
+from .notations import XsdNotation
+from .simple_types import xsd_simple_type_factory, XsdUnion, XsdAtomicRestriction, \
+    Xsd11AtomicRestriction, Xsd11Union
+from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
+from .complex_types import XsdComplexType, Xsd11ComplexType
+from .groups import XsdGroup, Xsd11Group
+from .elements import XsdElement, Xsd11Element
+from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, Xsd11AnyAttribute
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
-    iterchildren_xsd_redefine, iterchildren_xsd_override
+    iterchildren_xsd_redefine, iterchildren_xsd_override, XsdGlobals
 
 
 # Elements for building dummy groups
@@ -767,7 +770,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             # inside (meta-schemas are not counted).
             if self.imports.get(namespace) is not None:
                 continue
-            self.imports[namespace] = None
+            self.imports[namespace or ''] = None
 
             locations = [url for url in locations if url]
             if namespace is None:
@@ -797,8 +800,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     if namespace is None and schema.target_namespace:
                         self.parse_error("if the 'namespace' attribute is not present on the import statement "
                                          "then the enclosing schema must not have a 'targetNamespace'")
-                    if not namespace:
-                        self.namespaces[''] = ''
                     break
             else:
                 if import_error is not None:
@@ -1037,6 +1038,7 @@ class XMLSchema10(XMLSchemaBase):
         'element_class': XsdElement,
         'any_element_class': XsdAnyElement,
         'restriction_class': XsdAtomicRestriction,
+        'union_class': XsdUnion,
         'simple_type_factory': xsd_simple_type_factory
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
@@ -1094,6 +1096,7 @@ class XMLSchema11(XMLSchemaBase):
         'element_class': Xsd11Element,
         'any_element_class': Xsd11AnyElement,
         'restriction_class': Xsd11AtomicRestriction,
+        'union_class': Xsd11Union,
         'simple_type_factory': xsd_simple_type_factory
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')

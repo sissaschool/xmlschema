@@ -17,10 +17,10 @@ from decimal import DecimalException
 from ..compat import string_base_type, unicode_type
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
-    XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE,
-    XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
-    XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
+    XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
+    XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
+    XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
 )
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
@@ -57,7 +57,7 @@ def xsd_simple_type_factory(elem, schema, parent):
     elif child.tag == XSD_LIST:
         result = XsdList(child, schema, parent, name=name)
     elif child.tag == XSD_UNION:
-        result = XsdUnion(child, schema, parent, name=name)
+        result = schema.BUILDERS.union_class(child, schema, parent, name=name)
     else:
         result = schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
@@ -86,6 +86,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
+    special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     admitted_tags = {XSD_SIMPLE_TYPE}
     min_length = None
     max_length = None
@@ -359,6 +360,7 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
+    special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
@@ -749,6 +751,8 @@ class XsdUnion(XsdSimpleType):
     </union>
     """
     admitted_tags = {XSD_UNION}
+    member_types = None
+    admitted_types = XsdSimpleType
 
     def __init__(self, elem, schema, parent, name=None, facets=None, member_types=None):
         super(XsdUnion, self).__init__(elem, schema, parent, name, facets)
@@ -769,13 +773,6 @@ class XsdUnion(XsdSimpleType):
                         super(XsdUnion, self).__setattr__(name, child)
                         return
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_UNION, self))
-
-        elif name == "member_types":
-            if not value:
-                raise XMLSchemaValueError("%r attribute cannot be empty or None." % name)
-            elif not all(isinstance(mt, (XsdAtomic, XsdList, XsdUnion)) for mt in value):
-                raise XMLSchemaValueError("%r: member types must be all atomic or list types." % self)
-                # FIXME: Union only for XSD 1.1
 
         elif name == 'white_space':
             if not (value is None or value == 'collapse'):
@@ -812,21 +809,21 @@ class XsdUnion(XsdSimpleType):
                     self.parse_error(err)
                     mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
-                if not isinstance(mt, XsdSimpleType):
-                    self.parse_error("a simpleType required", mt)
-                else:
-                    member_types.append(mt)
+                if isinstance(mt, tuple):
+                    self.parse_error("circular definition found on xs:union type {!r}".format(self.name))
+                    continue
+                elif not isinstance(mt, self.admitted_types):
+                    self.parse_error("a {!r} required, not {!r}".format(self.admitted_types, mt))
+                    continue
+                elif mt.final in {'#all', 'union'}:
+                    self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
 
-        if any(m.final in {'#all', 'union'} for m in member_types):
-            self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
-        elif not member_types:
-            self.parse_error("missing union type declarations", elem)
-            #member_types.append(self.maps.types[XSD_ANY_ATOMIC_TYPE])
+                member_types.append(mt)
 
-        try:
+        if member_types:
             self.member_types = member_types
-        except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
+        else:
+            self.parse_error("missing xs:union type declarations", elem)
             self.member_types = [self.maps.types[XSD_ANY_ATOMIC_TYPE]]
 
     @property
@@ -976,6 +973,11 @@ class XsdUnion(XsdSimpleType):
             yield unicode_type(obj)
 
 
+class Xsd11Union(XsdUnion):
+
+    admitted_types = XsdAtomic, XsdList, XsdUnion
+
+
 class XsdAtomicRestriction(XsdAtomic):
     """
     Class for XSD 1.0 atomic simpleType and complexType's simpleContent restrictions.
@@ -995,9 +997,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION:
                 if not (value.tag == XSD_SIMPLE_TYPE and value.get('name') is not None):
-                    raise XMLSchemaValueError(
-                        "a %r definition required for %r." % (XSD_RESTRICTION, self)
-                    )
+                    raise XMLSchemaValueError("an xs:restriction definition required for %r." % self)
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):

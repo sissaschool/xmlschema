@@ -261,15 +261,18 @@ class XsdKeyref(XsdIdentity):
         elif len(self.refer.fields) != len(self.fields):
             self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
         elif self.parent is not self.refer.parent:
-            refer_path = self.parent.get_path(self.refer.parent)
-            if refer_path is not None:
-                self.refer_path = refer_path
-            else:
-                refer_path = self.refer.parent.get_path(self.parent, reverse=True)
-                if refer_path is not None:
-                    self.refer_path = refer_path
-                else:
-                    self.parse_error("%r is not defined in a descendant or ancestor element." % self.elem.get('refer'))
+            refer_path = self.refer.parent.get_path(ancestor=self.parent)
+            if refer_path is None:
+                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref identity-constraints may be
+                # defined on domains distinct from the embedded domain of the identity-constraint they
+                # reference, or the domains may be the same but self-embedding at some depth. In either
+                # case the node table for the referenced identity-constraint needs to propagate upwards,
+                # with conflict resolution."
+                refer_path = self.parent.get_path(ancestor=self.refer.parent, reverse=True)
+                if refer_path is None:
+                    refer_path = self.parent.get_path(reverse=True) + '/' + self.refer.parent.get_path()
+
+            self.refer_path = refer_path
 
     def get_refer_values(self, elem):
         values = set()

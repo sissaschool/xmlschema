@@ -50,11 +50,8 @@ class XsdNotation(XsdComponent):
         except KeyError:
             self.parse_error("a notation must have a 'name'.", self.elem)
 
-        for key in self.elem.attrib:
-            if key not in {'id', 'name', 'public', 'system'}:
-                self.parse_error("wrong attribute %r for notation definition." % key, self.elem)
-            if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-                self.parse_error("a notation may have 'public' or 'system' attribute.", self.elem)
+        if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
+            self.parse_error("a notation must has a 'public' or a 'system' attribute.", self.elem)
 
     @property
     def public(self):

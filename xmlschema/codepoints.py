@@ -20,7 +20,7 @@ from sys import maxunicode
 from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
-CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
+CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]\\'}
 """Code Points of escaped chars in a character group."""
 
 UCS4_MAXUNICODE = 1114111
@@ -134,6 +134,7 @@ def iterparse_character_group(s, expand_ranges=False):
     :return: yields integers or couples of integers.
     """
     escaped = False
+    on_range = False
     char = None
     length = len(s)
     string_iter = iter(range(len(s)))
@@ -153,7 +154,13 @@ def iterparse_character_group(s, expand_ranges=False):
                 char = s[k]
                 yield ord(char)
                 escaped = False
+            elif on_range:
+                char = s[k]
+                yield ord(char)
+                on_range = False
             else:
+                # Parse character range
+                on_range = True
                 try:
                     k = next(string_iter)
                     end_char = s[k]
@@ -175,17 +182,19 @@ def iterparse_character_group(s, expand_ranges=False):
         elif s[k] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
+            on_range = False
             char = s[k]
             yield ord(char)
         elif s[k] in r'[]':
             if not escaped and length > 1:
                 raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
-            escaped = False
+            escaped = on_range = False
             char = s[k]
-            yield ord(char)
+            if k >= length-1 or s[k+1] != '-':
+                yield ord(char)
         elif s[k] == '\\':
             if escaped:
-                escaped = False
+                escaped = on_range = False
                 char = '\\'
                 yield ord(char)
             else:
@@ -194,8 +203,10 @@ def iterparse_character_group(s, expand_ranges=False):
             if escaped:
                 escaped = False
                 yield ord('\\')
+            on_range = False
             char = s[k]
-            yield ord(char)
+            if k >= length-1 or s[k+1] != '-':
+                yield ord(char)
     if escaped:
         yield ord('\\')
 

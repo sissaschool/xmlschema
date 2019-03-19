@@ -88,7 +88,7 @@ class XsdRegexCharGroup(MutableSet):
     """
     A set subclass to represent XML Schema regex character groups.
     """
-    _re_char_group = re.compile(r'(\\[nrt\\|.\-^?*+{}()\[\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
+    _re_char_group = re.compile(r'(\\[nrt|.\-^?*+{}()\[\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([a-zA-Z\-0-9]+)}')
 
     def __init__(self, *args):
@@ -247,11 +247,19 @@ def get_python_regex(xml_regex):
         elif ch == '[':
             try:
                 char_group, pos = parse_character_class(xml_regex, pos)
-                regex.append(unicode_type(char_group))
             except IndexError:
                 raise XMLSchemaRegexError(
                     "unterminated character group at position %d: %r" % (pos, xml_regex)
                 )
+            else:
+                char_group_repr = unicode_type(char_group)
+                if char_group_repr == '[^]':
+                    regex.append(r'[\w\W]')
+                elif char_group_repr == '[]':
+                    regex.append(r'[^\w\W]')
+                else:
+                    regex.append(char_group_repr)
+
         elif ch == '\\':
             pos += 1
             if pos >= len(xml_regex):

@@ -319,11 +319,6 @@ class XsdComplexType(XsdType, ValidationMixin):
         if base_type.elem.get('final') in {'#all', 'extension'}:
             self.parse_error("the 'final' attribute of the base type definition contains 'restriction'")
 
-        # complexContent extension: base type must be a complex type with complex content.
-        # A dummy sequence group is added if the base type has not empty content model.
-        if getattr(base_type.content_type, 'model', None) == 'all' and self.schema.XSD_VERSION == '1.0':
-            self.parse_error("XSD 1.0 does not allow extension of an 'ALL' model group.", elem)
-
         group_elem = self._parse_component(elem, required=False, strict=False)
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
@@ -351,6 +346,12 @@ class XsdComplexType(XsdType, ValidationMixin):
                 content_type.append(group)
                 sequence_elem.append(base_type.content_type.elem)
                 sequence_elem.append(group.elem)
+
+                # complexContent extension: base type must be a complex type with complex content.
+                # A dummy sequence group is added if the base type has not empty content model.
+                if base_type.content_type.model == 'all' and base_type.content_type and group \
+                        and self.schema.XSD_VERSION == '1.0':
+                    self.parse_error("XSD 1.0 does not allow extension of a not empty 'ALL' model group.", elem)
 
                 if base_type.mixed != self.mixed and not group.is_empty():
                     self.parse_error("base has a different content type (mixed=%r) and the "
