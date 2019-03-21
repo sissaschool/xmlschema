@@ -20,7 +20,7 @@ from ..qnames import (
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
     XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID, XSD_IDREF
 )
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
@@ -492,6 +492,10 @@ class XsdAtomicBuiltin(XsdAtomic):
         elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
+
+        if 'id_map' in kwargs:
+            if self.name == XSD_ID:
+                kwargs['id_map'][obj] += 1
 
         if validation == 'skip':
             try:
@@ -1040,7 +1044,9 @@ class XsdAtomicRestriction(XsdAtomic):
                             self.parse_error("circularity definition between %r and %r" % (self, base_qname), elem)
                             base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
-            if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
+            if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
+                self.parse_error("wrong base type {!r}, an atomic type required")
+            elif base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
                 if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
                     # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                     self.parse_error(

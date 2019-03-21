@@ -108,21 +108,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_particle(elem)
         self.qualified = attrib.get('form', self.schema.element_form_default) == 'qualified'
 
-        try:
-            try:
-                element_name = self.schema.resolve_qname(attrib['ref'])
-            except ValueError as err:
-                self.parse_error(err)
-                element_name = None
-        except KeyError:
-            # No 'ref' attribute ==> 'name' attribute required.
-            try:
-                if self.is_global or self.qualified:
-                    self.name = get_qname(self.target_namespace, attrib['name'])
-                else:
-                    self.name = attrib['name']
-            except KeyError:
-                self.parse_error("missing both 'name' and 'ref' attributes.")
+        name = elem.get('name')
+        if name is not None:
+            if self.parent is None or self.qualified:
+                self.name = get_qname(self.target_namespace, attrib['name'])
+            else:
+                self.name = attrib['name']
 
             if 'default' in attrib and 'fixed' in attrib:
                 self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
@@ -149,34 +140,47 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             self._parse_properties('form', 'nillable')
 
-            if self.is_global:
-                if 'minOccurs' in attrib:
-                    self.parse_error("attribute 'minOccurs' not allowed for a global element.")
-                if 'maxOccurs' in attrib:
-                    self.parse_error("attribute 'maxOccurs' not allowed for a global element.")
+        elif self.parent is None:
+            self.parse_error("missing 'name' in a global element declaration")
         else:
-            # Reference to a global element
-            if self.is_global:
-                self.parse_error("an element reference can't be global.")
-            for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block', 'abstract', 'final'}:
-                if attribute in attrib:
-                    self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
-
-            if not element_name:
-                self.type = self.maps.types[XSD_ANY_TYPE]
+            try:
+                element_name = self.schema.resolve_qname(attrib['ref'])
+            except ValueError as err:
+                self.parse_error(err)
+                element_name = None
+            except KeyError:
+                self.parse_error("missing both 'name' and 'ref' attributes.")
             else:
-                try:
-                    xsd_element = self.maps.lookup_element(element_name)
-                except KeyError:
-                    self.parse_error('unknown element %r' % element_name)
-                    self.name = element_name
+                # Reference to a global element
+                if self.parent is None:
+                    self.parse_error("an element reference can't be global.")
+                for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block', 'abstract', 'final'}:
+                    if attribute in attrib:
+                        self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
+
+                if not element_name:
                     self.type = self.maps.types[XSD_ANY_TYPE]
                 else:
-                    self._ref = xsd_element
-                    self.name = xsd_element.name
-                    self.type = xsd_element.type
-                    self.qualified = xsd_element.qualified
-                    self.abstract = xsd_element.abstract
+                    try:
+                        xsd_element = self.maps.lookup_element(element_name)
+                    except KeyError:
+                        self.parse_error('unknown element %r' % element_name)
+                        self.name = element_name
+                        self.type = self.maps.types[XSD_ANY_TYPE]
+                    else:
+                        self._ref = xsd_element
+                        self.name = xsd_element.name
+                        self.type = xsd_element.type
+                        self.qualified = xsd_element.qualified
+                        self.abstract = xsd_element.abstract
+
+        if self.parent is None:
+            if 'form' in attrib:
+                self.parse_error("attribute 'form' not allowed for a global element.")
+            if 'minOccurs' in attrib:
+                self.parse_error("attribute 'minOccurs' not allowed for a global element.")
+            if 'maxOccurs' in attrib:
+                self.parse_error("attribute 'maxOccurs' not allowed for a global element.")
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -217,7 +221,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     self.parse_error(msg % attrib['fixed'])
 
                 return 1
-
             else:
                 self.type = self.maps.lookup_type(XSD_ANY_TYPE)
                 return 0
@@ -265,7 +268,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if substitution_group is None:
             return
 
-        if not self.is_global:
+        if self.parent is not None:
             self.parse_error("'substitutionGroup' attribute in a local element declaration")
 
         try:
@@ -399,7 +402,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if isinstance(obj, xsd_classes):
                     yield obj
 
-        if self.ref is None and not self.type.is_global:
+        if self.ref is None and self.type.parent is not None:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 

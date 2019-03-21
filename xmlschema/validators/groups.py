@@ -331,7 +331,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def _parse(self):
         super(XsdGroup, self)._parse()
-        if self and not hasattr(self, '_elem'):
+        if self: # and not hasattr(self, '_elem'):
             self.clear()
         elem = self.elem
         self._parse_particle(elem)
@@ -343,7 +343,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if name is None:
                 if ref is not None:
                     # Reference to a global group
-                    if self.is_global:
+                    if self.parent is None:
                         self.parse_error("a group reference cannot be global", elem)
 
                     try:
@@ -374,20 +374,25 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
-                if not self.is_global:
+                if self.parent is not None:
                     self.parse_error("attribute 'name' not allowed for a local group", self)
                 else:
                     if 'minOccurs' in elem.attrib:
-                        self.parse_error(
-                            "attribute 'minOccurs' not allowed for a global group", self
-                        )
+                        self.parse_error("attribute 'minOccurs' not allowed for a global group", elem)
                     if 'maxOccurs' in elem.attrib:
+                        self.parse_error("attribute 'maxOccurs' not allowed for a global group", elem)
+                    if 'minOccurs' in content_model.attrib:
                         self.parse_error(
-                            "attribute 'maxOccurs' not allowed for a global group", self
+                            "attribute 'minOccurs' not allowed for the model of a global group", content_model
                         )
-                if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
-                    self.parse_error('unexpected tag %r' % content_model.tag, content_model)
-                    return
+                    if 'maxOccurs' in content_model.attrib:
+                        self.parse_error(
+                            "attribute 'maxOccurs' not allowed for the model of a global group", content_model
+                        )
+                    if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                        self.parse_error('unexpected tag %r' % content_model.tag, content_model)
+                        return
+
             else:
                 self.parse_error("found both attributes 'name' and 'ref'", elem)
                 return
@@ -560,29 +565,31 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         for item in self:
             if not isinstance(item, XsdGroup):
                 yield item
-            elif item.is_global or not item.is_meaningless(self):
+            elif item.parent is None or not item.is_meaningless(self):
                 yield item
             else:
                 for obj in item.iter_group():
                     yield obj
 
-    def iter_subelements(self):
-        for item in self:
-            if isinstance(item, XsdGroup):
-                for e in item.iter_subelements():
-                    yield e
-            else:
-                yield item
+    def iter_subelements(self, depth=0):
+        if depth <= 15:
+            for item in self:
+                if isinstance(item, XsdGroup):
+                    for e in item.iter_subelements(depth+1):
+                        yield e
+                else:
+                    yield item
 
-    def iter_elements(self):
-        for item in self:
-            if isinstance(item, XsdGroup):
-                for e in item.iter_elements():
-                    yield e
-            else:
-                yield item
-                for e in self.maps.substitution_groups.get(item.name, ()):
-                    yield e
+    def iter_elements(self, depth=0):
+        if depth <= 15:
+            for item in self:
+                if isinstance(item, XsdGroup):
+                    for e in item.iter_elements(depth+1):
+                        yield e
+                else:
+                    yield item
+                    for e in self.maps.substitution_groups.get(item.name, ()):
+                        yield e
 
     def sort_children(self, elements, default_namespace=None):
         """
@@ -597,6 +604,42 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
         elements_order = {e: p for p, e in enumerate(self.iter_elements())}
         return sorted(elements, key=sorter)
+
+    def check_particles(self):
+        """
+        Checks group particles. Types matching of same elements and Unique Particle Attribution
+        Constraint are checked. Raises a value error at first violated constraint.
+        """
+        elements = {}
+        if self.parent and self.parent.name == 'foo':
+            import pdb
+            pdb.set_trace()
+
+        for e in self.iter_subelements():
+            if e.name is None:
+                continue  # Any elements
+            elif e.name not in elements:
+                elements[e.name] = e
+                continue
+            elif e is elements[e.name]:
+                continue
+
+            pe = elements[e.name]
+            elements[e.name] = e
+
+            if pe.type is not e.type:
+                raise XMLSchemaValueError(
+                    "Elements with the same name in the same model group must have the same type"
+                )
+            elif pe.parent is e.parent and e.parent.model in ('all', 'choice'):
+                import pdb
+                pdb.set_trace()
+                raise XMLSchemaValueError("Model is not deterministic")
+            elif pe.max_occurs is None or pe.min_occurs < pe.max_occurs:
+                model = XsdModelVisitor(pe.parent)
+                model.element = pe
+                if e.parent is pe.parent:
+                    raise XMLSchemaValueError("Model is not deterministic")
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """

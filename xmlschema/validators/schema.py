@@ -28,12 +28,12 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * schema overrides
 """
 import os
-from collections import namedtuple
+from collections import namedtuple, Counter
 from abc import ABCMeta
 import warnings
 import elementpath
 
-from ..compat import lru_cache, add_metaclass
+from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
@@ -766,15 +766,26 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         for namespace, locations in namespace_imports.items():
 
+            # Checks the namespace against the targetNamespace of the schema
+            if namespace is None:
+                namespace = ''
+                if namespace == self.target_namespace:
+                    self.parse_error("if the 'namespace' attribute is not present on the import statement "
+                                     "then the importing schema must has a 'targetNamespace'")
+                    continue
+            elif namespace == self.target_namespace:
+                self.parse_error("the attribute 'namespace' must be different from schema's 'targetNamespace'")
+                continue
+
             # Skip import of already imported namespaces that have at least a schema
             # inside (meta-schemas are not counted).
             if self.imports.get(namespace) is not None:
                 continue
-            self.imports[namespace or ''] = None
+            self.imports[namespace] = None
 
             locations = [url for url in locations if url]
-            if namespace is None:
-                namespace = ''
+            if not namespace:
+                pass
             elif not locations:
                 locations = self.get_locations(namespace)
             elif all(is_remote_url(url) for url in locations):
@@ -797,9 +808,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     if import_error is None:
                         import_error = err
                 else:
-                    if not namespace and not self.target_namespace:
-                        self.parse_error("if the 'namespace' attribute is not present on the import statement "
-                                         "then the importing schema must has a 'targetNamespace'")
                     break
             else:
                 if import_error is not None:
@@ -939,6 +947,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             namespaces = {}
 
         converter = self.get_converter(converter, namespaces, **kwargs)
+        id_map = Counter()
 
         if path is None:
             xsd_element = self.find(source.root.tag, namespaces=namespaces)
@@ -949,7 +958,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for obj in xsd_element.iter_decode(
                         source.root, validation, converter, source=source, namespaces=namespaces,
                         use_defaults=use_defaults, decimal_type=decimal_type,
-                        datetime_types=datetime_types, **kwargs):
+                        datetime_types=datetime_types, id_map=id_map, **kwargs):
                     yield obj
         else:
             xsd_element = self.find(path, namespaces=namespaces)
@@ -962,8 +971,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     for obj in xsd_element.iter_decode(
                             elem, validation, converter, source=source, namespaces=namespaces,
                             use_defaults=use_defaults, decimal_type=decimal_type,
-                            datetime_types=datetime_types, **kwargs):
+                            datetime_types=datetime_types, id_map=id_map, **kwargs):
                         yield obj
+
+        for k, v in id_map.items():
+            if v != 1:
+                self.parse_error("Duplicated xsd:ID value {!r}".format(k), self.root)
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
         """

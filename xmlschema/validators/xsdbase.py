@@ -196,16 +196,16 @@ class XsdComponent(XsdValidator):
     _REGEX_SPACES = re.compile(r'\s+')
 
     admitted_tags = ()
+    name = None
     qualified = True
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdComponent, self).__init__(schema.validation)
-        if name == '':
-            raise XMLSchemaValueError("'name' cannot be an empty string!")
-        assert name is None or name[0] == '{' or not schema.target_namespace, \
-            "name=%r argument: can be None or a qualified name of the target namespace." % name
+        if name is not None:
+            assert name and (name[0] == '{' or not schema.target_namespace), \
+                "name=%r argument: must be a qualified name of the target namespace." % name
+            self.name = name
 
-        self.name = name
         self.parent = parent
         self.schema = schema
         self.elem = elem
@@ -772,34 +772,43 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
+    min_occurs = 1
+    max_occurs = 1
+    parent = None
+    name = None
+
     def parse_error(self, *args, **kwargs):
         # Implemented by XsdValidator
         raise NotImplementedError
 
     def _parse_particle(self, elem):
-        try:
-            self.min_occurs = int(elem.attrib['minOccurs'])
-            if self.min_occurs < 0:
-                raise ValueError()
-        except KeyError:
-            self.min_occurs = 1
-        except (TypeError, ValueError):
-            self.parse_error("minOccurs value must be a non negative integer")
-            self.min_occurs = 1
+        if 'minOccurs' in elem.attrib:
+            try:
+                min_occurs = int(elem.attrib['minOccurs'])
+            except (TypeError, ValueError):
+                self.parse_error("minOccurs value is not an integer value")
+            else:
+                if min_occurs < 0:
+                    self.parse_error("minOccurs value must be a non negative integer")
+                else:
+                    self.min_occurs = min_occurs
 
-        if 'maxOccurs' not in elem.attrib:
-            self.max_occurs = 1
-        elif elem.attrib['maxOccurs'] == 'unbounded':
+        max_occurs = elem.get('maxOccurs')
+        if max_occurs is None:
+            if self.min_occurs > 1:
+                self.parse_error("minOccurs must be lesser or equal than maxOccurs")
+        elif max_occurs == 'unbounded':
             self.max_occurs = None
         else:
             try:
-                self.max_occurs = int(elem.attrib['maxOccurs'])
+                max_occurs = int(max_occurs)
             except ValueError:
                 self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
-                self.max_occurs = 1
             else:
-                if self.min_occurs > self.max_occurs:
-                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
+                if self.min_occurs > max_occurs:
+                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs")
+                else:
+                    self.max_occurs = max_occurs
 
         self.occurs = [self.min_occurs, self.max_occurs]
 

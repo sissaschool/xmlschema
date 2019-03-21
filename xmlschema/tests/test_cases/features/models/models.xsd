@@ -14,9 +14,9 @@
     <!-- Groups for model validation tests -->
     <xs:group name="group1">
         <xs:sequence>
-            <xs:element name="elem1" minOccurs="0" />
-            <xs:element name="elem2" minOccurs="0" />
-            <xs:element name="elem3" minOccurs="0" />
+            <xs:element name="elem1" type="xs:string" minOccurs="0" />
+            <xs:element name="elem2" type="xs:string" minOccurs="0" />
+            <xs:element name="elem3" type="xs:string" minOccurs="0" />
         </xs:sequence>
     </xs:group>
 

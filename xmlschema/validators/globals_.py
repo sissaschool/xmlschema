@@ -487,5 +487,13 @@ class XsdGlobals(XsdValidator):
                     schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
                                        .format(schema.root.get('defaultAttributes'), schema), schema.root)
 
+            # Checks schema groups
+            for group in schema.iter_components(XsdGroup):
+                if group.parent is None or isinstance(group.parent, XsdComplexType):
+                    try:
+                        group.check_particles()
+                    except XMLSchemaValueError as err:
+                        group.parse_error(err)
+
         if self.validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map %r not built!" % self)

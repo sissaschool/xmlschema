@@ -67,13 +67,15 @@ class XsdComplexType(XsdType, ValidationMixin):
         super(XsdComplexType, self).__init__(elem, schema, parent, name)
 
     def __repr__(self):
-        if self.name is None:
+        if self.name is not None:
+            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+        elif not hasattr(self, 'content_type'):
+            return '%s(id=%r)' % (self.__class__.__name__, id(self))
+        else:
             return '%s(content=%r, attributes=%r)' % (
                 self.__class__.__name__, self.content_type_label,
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
-        else:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
         if name == 'content_type':
