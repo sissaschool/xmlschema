@@ -297,7 +297,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 pass
             elif not self.type.is_derived(head_element.type):
                 msg = "%r type is not of the same or a derivation of the head element %r type."
-                self.type.is_derived(head_element.type)
                 self.parse_error(msg % (self, head_element))
             elif final == '#all' or 'extension' in final and 'restriction' in final:
                 msg = "head element %r can't be substituted by an element that has a derivation of its type"
@@ -629,23 +628,26 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.name != other.name:
                 if other.name not in self.maps.substitution_groups:
                     return False
-                else:
-                    return any(self.is_restriction(e) for e in self.maps.substitution_groups[other.name])
-            elif check_particle and not ParticleMixin.is_restriction(self, other):
+                elif not any(e.name == self.name for e in self.maps.substitution_groups[other.name]):
+                    return False
+
+            if check_particle and not self.has_particle_restriction(other):
                 return False
             elif self.type is not other.type and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type):
                 return False
-            elif self.fixed != other.fixed:
+            elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
+                import pdb
+                pdb.set_trace()
                 return False
             elif other.nillable is False and self.nillable:
                 return False
-            elif not all(value in other.block for value in self.block):
+            elif any(value not in self.block for value in other.block.split()):
                 return False
             elif not all(k in other.constraints for k in self.constraints):
                 return False
         elif other.model == 'choice':
-            if ParticleMixin.is_restriction(self, other):
+            if self.has_particle_restriction(other):
                 return any(self.is_restriction(e, False) for e in other.iter_group())
             else:
                 return any(self.is_restriction(e) for e in other.iter_group())

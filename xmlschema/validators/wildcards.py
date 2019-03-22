@@ -202,8 +202,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             reason = "element %r not allowed here." % name
             yield self.validation_error(validation, reason, value, **kwargs)
 
-    def is_restriction(self, other):
-        if not ParticleMixin.is_restriction(self, other):
+    def is_restriction(self, other, check_particle=True):
+        if check_particle and not self.has_particle_restriction(other):
             return False
         return True
 

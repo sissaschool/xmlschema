@@ -331,8 +331,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def _parse(self):
         super(XsdGroup, self)._parse()
-        if self: # and not hasattr(self, '_elem'):
-            self.clear()
+        self.clear()
         elem = self.elem
         self._parse_particle(elem)
 
@@ -495,7 +494,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
-    def is_meaningless(self, parent_group=None):
+    def is_meaningless(self, parent=None):
         """
         A group that may be eliminated. A group is meaningless if one of those conditions is verified:
 
@@ -510,62 +509,178 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
-        elif parent_group is None:
+        elif not isinstance(parent, XsdGroup):
             return False
-        elif self.model == 'sequence' and parent_group.model != 'sequence':
+        elif self.model == 'sequence' and parent.model != 'sequence':
             return False
-        elif self.model == 'choice' and parent_group.model != 'choice':
+        elif self.model == 'choice' and parent.model != 'choice':
             return False
         else:
             return True
 
-    def is_restriction(self, other, check_particle=True):
-        if not isinstance(other, XsdGroup):
-            return False
-        elif not self:
+    def has_particle_restriction(self, other):
+        if not self:
             return True
+        elif isinstance(other, XsdGroup):
+            return super(XsdGroup, self).has_particle_restriction(other)
+
+        # Group particle compared to element particle
+        if self.max_occurs is None or any(e.max_occurs is None for e in self):
+            if other.max_occurs is not None:
+                return False
+            elif self.model == 'choice':
+                return self.min_occurs * min(e.min_occurs for e in self) >= other.min_occurs
+            else:
+                return self.min_occurs * sum(e.min_occurs for e in self) >= other.min_occurs
+
+        elif self.model == 'choice':
+            if self.min_occurs * min(e.min_occurs for e in self) < other.min_occurs:
+                return False
+            elif other.max_occurs is None:
+                return True
+            else:
+                return self.max_occurs * max(e.max_occurs for e in self) <= other.max_occurs
+
+        else:
+            if self.min_occurs * sum(e.min_occurs for e in self) < other.min_occurs:
+                return False
+            elif other.max_occurs is None:
+                return True
+            else:
+                return self.max_occurs * sum(e.max_occurs for e in self) <= other.max_occurs
+
+    def is_restriction(self, other, check_particle=True):
+        if not self:
+            return True
+        elif self.ref:
+            return self[0].is_restriction(other, check_particle)
+        elif isinstance(other, (XsdElement, XsdAnyElement)):
+            if not self.has_particle_restriction(other):
+                return False
+            elif self.model == 'choice':
+                return any(e.is_restriction(other) for e in self)
+            else:
+                return all(e.is_restriction(other, False) or e.min_occurs == 0 for e in self)
+        elif not isinstance(other, XsdGroup):
+            return False
         elif not other:
             return False
-        elif other.model == 'sequence' and self.model != 'sequence':
-            return False
+        elif other.ref:
+            return self.is_restriction(other[0], check_particle)
         elif other.model == 'choice' and self.model == 'all':
             return False
         elif other.model == 'all' and self.model == 'choice':
             return False
-        elif check_particle and not super(XsdGroup, self).is_restriction(other):
-            return False
+        elif len(other) == 1 and len(self) > 1:
+            return self.is_restriction(other[0], check_particle)
+        elif self.model == other.model:
+            if check_particle and not self.has_particle_restriction(other):
+                return False
+            if other.max_occurs == 0:
+                check_particle = False
 
-        other_iterator = iter(other.iter_group())
-        for item in self.iter_group():
-            while True:
-                try:
-                    other_item = next(other_iterator)
-                except StopIteration:
-                    return False
+            # Same model: declarations must simply preserve order
+            other_iterator = iter(other)
+            for item in self:
+                while True:
+                    try:
+                        other_item = next(other_iterator)
+                    except StopIteration:
+                        return False
+                    if other_item is item or item.is_restriction(other_item, check_particle):
+                        break
+            return True
 
-                if other_item is item:
-                    break
-                elif item.is_restriction(other_item):
-                    break
-                elif other.model == 'choice':
-                    continue
-                elif other_item.is_emptiable():
-                    continue
-                elif isinstance(other_item, XsdGroup) and other_item.model == 'choice' and \
-                        other_item.max_occurs == 1:
-                    if any(item.is_restriction(s) for s in other_item.iter_group()):
+        elif other.model == 'sequence':
+            if check_particle and not self.has_particle_restriction(other):
+                return False
+            if other.max_occurs == 0:
+                check_particle = False
+
+            other_iterator = iter(other)
+            for item in self:
+                while True:
+                    try:
+                        other_item = next(other_iterator)
+                    except StopIteration:
+                        return False
+
+                    if other_item is item or item.is_restriction(other_item, check_particle):
+                        break
+                    elif not other_item.is_emptiable():
+                        return False
+            return True
+
+        elif other.model == 'all':
+            if check_particle and not self.has_particle_restriction(other):
+                return False
+            if other.max_occurs == 0:
+                check_particle = False
+
+            group_items = list(self)
+            for other_item in other:
+                for item in group_items:
+                    if other_item is item or item.is_restriction(other_item, check_particle):
                         break
                 else:
-                    return False
+                    if not other_item.is_emptiable():
+                        return False
+                    continue
+                group_items.remove(item)
+            return not bool(group_items)
 
-        return True
+        elif other.model == 'choice':
+            if other.max_occurs == 0:
+                check_particle = False
+
+            group_items = list(self)
+            max_occurs = 0
+            other_max_occurs = 0
+            for other_item in other:
+                for item in group_items:
+                    if other_item is item or item.is_restriction(other_item, check_particle):
+                        if max_occurs is not None:
+                            if item.max_occurs is None:
+                                max_occurs = None
+                            else:
+                                max_occurs += item.max_occurs
+
+                        if other_max_occurs is not None:
+                            if other_item.max_occurs is None:
+                                other_max_occurs = None
+                            else:
+                                other_max_occurs = max(other_max_occurs, other_item.max_occurs)
+                        break
+                else:
+                    continue
+                group_items.remove(item)
+
+            if group_items:
+                return False
+            elif other_max_occurs is None:
+                if other.max_occurs:
+                    return True
+                other_max_occurs = 0
+            elif other.max_occurs is None:
+                if other_max_occurs:
+                    return True
+                other_max_occurs = 0
+            else:
+                other_max_occurs *= other.max_occurs
+
+            if max_occurs is None:
+                return self.max_occurs == 0
+            elif self.max_occurs is None:
+                return max_occurs == 0
+            else:
+                return other_max_occurs >= max_occurs * self.max_occurs
 
     def iter_group(self):
         """Creates an iterator for sub elements and groups. Skips meaningless groups."""
         for item in self:
             if not isinstance(item, XsdGroup):
                 yield item
-            elif item.parent is None or not item.is_meaningless(self):
+            elif item.parent is None or not item.is_meaningless(parent=self):
                 yield item
             else:
                 for obj in item.iter_group():
@@ -611,7 +726,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         Constraint are checked. Raises a value error at first violated constraint.
         """
         elements = {}
-        if self.parent and self.parent.name == 'foo':
+        if False and self.parent and self.parent.name == 'foo':
             import pdb
             pdb.set_trace()
 
@@ -632,8 +747,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     "Elements with the same name in the same model group must have the same type"
                 )
             elif pe.parent is e.parent and e.parent.model in ('all', 'choice'):
-                import pdb
-                pdb.set_trace()
+                # import pdb
+                # pdb.set_trace()
                 raise XMLSchemaValueError("Model is not deterministic")
             elif pe.max_occurs is None or pe.min_occurs < pe.max_occurs:
                 model = XsdModelVisitor(pe.parent)

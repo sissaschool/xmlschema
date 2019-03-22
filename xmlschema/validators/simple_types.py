@@ -15,6 +15,7 @@ from __future__ import unicode_literals
 from decimal import DecimalException
 
 from ..compat import string_base_type, unicode_type
+from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
@@ -26,8 +27,8 @@ from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
-from .facets import XsdFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, \
-    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
+from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, \
+    XSD_11_FACETS, XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -590,11 +591,11 @@ class XsdList(XsdSimpleType):
     </list>
     """
     admitted_tags = {XSD_LIST}
+    _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
 
-    def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
+    def __init__(self, elem, schema, parent, name=None):
+        facets = {XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)}
         super(XsdList, self).__init__(elem, schema, parent, name, facets)
-        if not hasattr(self, 'base_type'):
-            self.base_type = base_type
 
     def __repr__(self):
         if self.name is None:
@@ -754,14 +755,12 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
+    admitted_types = XsdSimpleType
     admitted_tags = {XSD_UNION}
     member_types = None
-    admitted_types = XsdSimpleType
 
-    def __init__(self, elem, schema, parent, name=None, facets=None, member_types=None):
-        super(XsdUnion, self).__init__(elem, schema, parent, name, facets)
-        if not hasattr(self, 'member_types'):
-            self.member_types = member_types
+    def __init__(self, elem, schema, parent, name=None):
+        super(XsdUnion, self).__init__(elem, schema, parent, name, facets=None)
 
     def __repr__(self):
         if self.name is None:

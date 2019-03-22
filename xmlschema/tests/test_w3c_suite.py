@@ -114,7 +114,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                     schema_class(schema_path, use_meta=False)
 
     else:
-        # return
+        #return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -130,7 +130,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 9933:  # 8505: # 0:  # 4751:
+    if testgroup_num >= 0:
         return TestGroupCase
 
 

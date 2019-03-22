@@ -477,9 +477,9 @@ class XsdGlobals(XsdValidator):
 
                 # Check for illegal restrictions
                 # TODO: Fix for XsdGroup.is_restriction() method is needed before enabling this check
-                # if schema.validation != 'skip':
-                #     for xsd_type in schema.iter_components(XsdComplexType):
-                #         xsd_type.check_restriction()
+                if schema.validation != 'skip':
+                    for xsd_type in schema.iter_components(XsdComplexType):
+                        xsd_type.check_restriction()
 
             if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
                 if not isinstance(schema.default_attributes, XsdAttributeGroup):

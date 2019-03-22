@@ -528,6 +528,8 @@ class XsdType(XsdComponent):
             return False
         elif other.name in self.special_types:
             return True
+        elif self.base_type is other:
+            return True
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is not None:
@@ -820,10 +822,12 @@ class ParticleMixin(object):
     def is_single(self):
         return self.max_occurs == 1
 
-    def is_restriction(self, other):
-        if self.min_occurs < other.min_occurs:
+    def has_particle_restriction(self, other):
+        if self.min_occurs == self.max_occurs == 0:
+            return True
+        elif self.min_occurs < other.min_occurs:
             return False
-        if other.max_occurs is not None:
+        elif other.max_occurs is not None:
             if self.max_occurs is None:
                 return False
             elif self.max_occurs > other.max_occurs:
