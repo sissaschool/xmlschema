@@ -207,6 +207,16 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return False
         return True
 
+    def overlap(self, other):
+        if not isinstance(other, XsdAnyElement):
+            return other.overlap(self)
+        elif self.namespace == other.namespace:
+            return True
+        elif '##any' in self.namespace or '##any' in other.namespace:
+            return True
+        any_namespaces = self.namespace.split()
+        return any(ns in any_namespaces for ns in other.namespace.split())
+
 
 class XsdAnyAttribute(XsdWildcard):
     """

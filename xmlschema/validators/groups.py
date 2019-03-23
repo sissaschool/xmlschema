@@ -100,6 +100,7 @@ class XsdModelVisitor(MutableSequence):
         self.broken = False
         self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
 
+
     def _start(self):
         while True:
             item = next(self.iterator, None)
@@ -580,7 +581,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 check_particle = False
 
             # Same model: declarations must simply preserve order
-            other_iterator = iter(other)
+            other_iterator = iter(other.iter_extension_group())
             for item in self:
                 while True:
                     try:
@@ -597,7 +598,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if other.max_occurs == 0:
                 check_particle = False
 
-            other_iterator = iter(other)
+            other_iterator = iter(other.iter_extension_group())
             for item in self:
                 while True:
                     try:
@@ -618,7 +619,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 check_particle = False
 
             group_items = list(self)
-            for other_item in other:
+            for other_item in other.iter_extension_group():
                 for item in group_items:
                     if other_item is item or item.is_restriction(other_item, check_particle):
                         break
@@ -636,7 +637,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             group_items = list(self)
             max_occurs = 0
             other_max_occurs = 0
-            for other_item in other:
+            for other_item in other.iter_extension_group():
                 for item in group_items:
                     if other_item is item or item.is_restriction(other_item, check_particle):
                         if max_occurs is not None:
@@ -686,6 +687,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 for obj in item.iter_group():
                     yield obj
 
+    def iter_extension_group(self):
+        """Creates an iterator for sub elements and groups. Skips meaningless groups."""
+        for item in self:
+            if not isinstance(item, XsdGroup):
+                yield item
+            elif item.parent is self:
+                yield item
+            else:
+                for obj in item.iter_extension_group():
+                    yield obj
+
     def iter_subelements(self, depth=0):
         if depth <= 15:
             for item in self:
@@ -726,13 +738,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         Constraint are checked. Raises a value error at first violated constraint.
         """
         elements = {}
-        if False and self.parent and self.parent.name == 'foo':
-            import pdb
-            pdb.set_trace()
-
         for e in self.iter_subelements():
-            if e.name is None:
-                continue  # Any elements
+            if isinstance(e, XsdAnyElement):
+                for pe in elements.values():
+                    if pe.overlap(e) and not pe.is_deterministic(e):
+                        raise XMLSchemaValueError("2: Model is not deterministic")
+                elements[None] = e
+                continue
             elif e.name not in elements:
                 elements[e.name] = e
                 continue
@@ -746,15 +758,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 raise XMLSchemaValueError(
                     "Elements with the same name in the same model group must have the same type"
                 )
-            elif pe.parent is e.parent and e.parent.model in ('all', 'choice'):
-                # import pdb
-                # pdb.set_trace()
-                raise XMLSchemaValueError("Model is not deterministic")
-            elif pe.max_occurs is None or pe.min_occurs < pe.max_occurs:
-                model = XsdModelVisitor(pe.parent)
-                model.element = pe
-                if e.parent is pe.parent:
-                    raise XMLSchemaValueError("Model is not deterministic")
+            elif not pe.is_deterministic(e):
+                raise XMLSchemaValueError("4: Model is not deterministic")
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """

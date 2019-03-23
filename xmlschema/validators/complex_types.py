@@ -478,7 +478,6 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif isinstance(self.content_type, XsdGroup):
             base_type = self.base_type
             if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
-                print(base_type.name)
                 if base_type.name == '{URN:shared-types}extendedName': #    {http://xsdtesting}B' :
                     import pdb
                     pdb.set_trace()

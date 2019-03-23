@@ -663,6 +663,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return False
         return True
 
+    def overlap(self, other):
+        if isinstance(other, XsdElement):
+            return self.name == other.name
+        elif isinstance(other, XsdAnyElement):
+            if other.match(self.name, self.default_namespace):
+                return True
+            for e in self.maps.substitution_groups.get(self.name, ()):
+                if other.match(e.name, self.default_namespace):
+                    return True
+        return False
+
 
 class Xsd11Element(XsdElement):
     """
