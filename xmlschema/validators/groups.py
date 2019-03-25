@@ -100,7 +100,6 @@ class XsdModelVisitor(MutableSequence):
         self.broken = False
         self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
 
-
     def _start(self):
         while True:
             item = next(self.iterator, None)
@@ -676,6 +675,20 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             else:
                 return other_max_occurs >= max_occurs * self.max_occurs
 
+    def get_groups(self, item):
+        def examine(g):
+            groups.append(g)
+            if item in g:
+                return True
+            for p in g:
+                if isinstance(p, XsdGroup) and examine(p):
+                    return True
+            groups.pop()
+
+        groups = []
+        examine(self)
+        return groups
+
     def iter_group(self):
         """Creates an iterator for sub elements and groups. Skips meaningless groups."""
         for item in self:
@@ -741,11 +754,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         for e in self.iter_subelements():
             if isinstance(e, XsdAnyElement):
                 for pe in elements.values():
-                    if pe.overlap(e) and not pe.is_deterministic(e):
-                        raise XMLSchemaValueError("2: Model is not deterministic")
+                    if pe.overlap(e) and not pe.is_deterministic(e, self):
+                        raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
                 elements[None] = e
                 continue
-            elif e.name not in elements:
+            elif None in elements and e.overlap(elements[None]):
+                if not elements[None].is_deterministic(e, self):
+                    raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
+
+            if e.name not in elements:
                 elements[e.name] = e
                 continue
             elif e is elements[e.name]:
@@ -758,8 +775,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 raise XMLSchemaValueError(
                     "Elements with the same name in the same model group must have the same type"
                 )
-            elif not pe.is_deterministic(e):
-                raise XMLSchemaValueError("4: Model is not deterministic")
+            elif not pe.is_deterministic(e, self):
+                raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """

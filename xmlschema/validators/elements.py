@@ -667,10 +667,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if isinstance(other, XsdElement):
             return self.name == other.name
         elif isinstance(other, XsdAnyElement):
-            if other.match(self.name, self.default_namespace):
+            if other.is_matching(self.name, self.default_namespace):
                 return True
             for e in self.maps.substitution_groups.get(self.name, ()):
-                if other.match(e.name, self.default_namespace):
+                if other.is_matching(e.name, self.default_namespace):
                     return True
         return False
 

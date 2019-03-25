@@ -840,7 +840,7 @@ class ParticleMixin(object):
     def is_over(self, occurs):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def is_deterministic(self, other):
+    def is_deterministic(self, other, base_group=None):
         if self.parent is other.parent:
             group = self.parent
             if group.model != 'sequence':
@@ -853,36 +853,31 @@ class ParticleMixin(object):
                     return True
             else:
                 return False
-
         elif self.min_occurs == self.max_occurs:
             return True
 
-        items1 = [self]
-        while isinstance(items1[-1].parent, ParticleMixin):
-            items1.append(items1[-1].parent)
+        items1 = base_group.get_groups(self)
+        items2 = base_group.get_groups(other)
 
-        items2 = [other]
-        while isinstance(items2[-1].parent, ParticleMixin):
-            items2.append(items2[-1].parent)
-            if items2[-1] in items1:
-                base_group = items2[-1]
-                items1 = items1[:items1.index(base_group) + 1]
+        for k, e in enumerate(items1):
+            if e not in items2:
+                depth = k - 1
                 break
         else:
-            return True
+            depth = 0
 
-        if base_group.index(items1[-2]) > base_group.index(items2[-2]):
-            items1, items2  = items2, items1
+        items1.append(self)
+        items2.append(other)
 
-        for k in range(len(items1) - 1, 0, -1):
+        for k in range(depth, len(items1) - 1):
             if items1[k].model == 'sequence':
-                idx = items1[k].index(items1[k - 1])
+                idx = items1[k].index(items1[k + 1])
                 if any(not e.is_emptiable() for e in items1[k][:idx]):
                     return True
 
-        for k in range(len(items2) - 1, 0, -1):
+        for k in range(depth, len(items2) - 1):
             if items2[k].model == 'sequence':
-                idx = items2[k].index(items2[k - 1])
+                idx = items2[k].index(items2[k + 1])
                 if any(not e.is_emptiable() for e in items2[k][:idx]):
                     return True
 
