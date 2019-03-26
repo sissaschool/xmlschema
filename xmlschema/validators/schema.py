@@ -242,7 +242,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     # Schema defaults
     attribute_form_default = 'unqualified'
-    element_form_default = ''
+    element_form_default = 'unqualified'
     block_default = ''
     final_default = ''
     default_attributes = None  # for XSD 1.1
@@ -292,7 +292,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         if 'finalDefault' in root.attrib:
             try:
-                self.final_default = get_xsd_derivation_attribute(root, 'final')
+                self.final_default = get_xsd_derivation_attribute(root, 'finalDefault')
             except ValueError as err:
                 self.parse_error(err, root)
 
@@ -1057,7 +1057,7 @@ class XMLSchema10(XMLSchemaBase):
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
         XML_NAMESPACE: XML_SCHEMA_FILE,
-        HFP_NAMESPACE: HFP_SCHEMA_FILE,
+        # HFP_NAMESPACE: HFP_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
     }
@@ -1116,7 +1116,7 @@ class XMLSchema11(XMLSchemaBase):
     BASE_SCHEMAS = {
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/list_builtins.xsd'),
         XML_NAMESPACE: XML_SCHEMA_FILE,
-        HFP_NAMESPACE: HFP_SCHEMA_FILE,
+        # HFP_NAMESPACE: HFP_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
     }

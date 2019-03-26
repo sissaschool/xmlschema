@@ -243,8 +243,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif complex_content and base_type.is_simple():
                 self.parse_error("a complexType ancestor required: %r" % base_type, elem)
                 return self.maps.types[XSD_ANY_TYPE]
-            else:
-                return base_type
+            return base_type
 
     def _parse_simple_content_restriction(self, elem, base_type):
         # simpleContent restriction: the base type must be a complexType with a simple
@@ -281,11 +280,11 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error("base type %r has not simple content." % base_type, elem)
                 self.content_type = self.schema.create_any_content_group(self)
 
-            self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
+            self._parse_content_tail(elem, derivation='extension', base_attributes=base_type.attributes)
 
     def _parse_complex_content_restriction(self, elem, base_type):
-        if base_type.elem.get('final') in {'#all', 'restriction'}:
-            self.parse_error("the 'final' attribute of the base type definition contains 'restriction'")
+        if 'restriction' in base_type.final:
+            self.parse_error("the base type is not derivable by restriction")
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         group_elem = self._parse_component(elem, required=False, strict=False)
@@ -318,8 +317,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
 
     def _parse_complex_content_extension(self, elem, base_type):
-        if base_type.elem.get('final') in {'#all', 'extension'}:
-            self.parse_error("the 'final' attribute of the base type definition contains 'restriction'")
+        if 'extension' in base_type.final:
+            self.parse_error("the base type is not derivable by extension")
 
         group_elem = self._parse_component(elem, required=False, strict=False)
         if base_type.is_empty():
@@ -344,6 +343,9 @@ class XsdComplexType(XsdType, ValidationMixin):
                     base_type = self.maps.types[XSD_ANY_TYPE]
 
                 group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
+                if group.model == 'all':
+                    self.parse_error("Cannot extend a complex content with an all model")
+
                 content_type.append(base_type.content_type)
                 content_type.append(group)
                 sequence_elem.append(base_type.content_type.elem)
@@ -355,13 +357,16 @@ class XsdComplexType(XsdType, ValidationMixin):
                         and self.schema.XSD_VERSION == '1.0':
                     self.parse_error("XSD 1.0 does not allow extension of a not empty 'ALL' model group.", elem)
 
-                if base_type.mixed != self.mixed and not group.is_empty():
+                if base_type.mixed != self.mixed and base_type.name != XSD_ANY_TYPE:
                     self.parse_error("base has a different content type (mixed=%r) and the "
                                      "extension group is not empty." % base_type.mixed, elem)
-                    self.mixed = base_type.mixed
+
             elif not base_type.is_simple() and not base_type.has_simple_content():
                 content_type.append(base_type.content_type)
                 sequence_elem.append(base_type.content_type.elem)
+                if base_type.mixed != self.mixed and base_type.name != XSD_ANY_TYPE and self.mixed:
+                    self.parse_error("extended type has a mixed content but the base is element-only", elem)
+
             self.content_type = content_type
 
         self._parse_content_tail(elem, derivation='extension', base_attributes=base_type.attributes)
@@ -478,10 +483,6 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif isinstance(self.content_type, XsdGroup):
             base_type = self.base_type
             if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
-                if base_type.name == '{URN:shared-types}extendedName': #    {http://xsdtesting}B' :
-                    import pdb
-                    pdb.set_trace()
-
                 if not self.content_type.is_restriction(base_type.content_type):
                     self.parse_error(
                         "The derived group is an illegal restriction of the base type group.", self.elem

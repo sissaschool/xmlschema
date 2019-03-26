@@ -14,6 +14,7 @@ XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re
+from collections import Counter
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE
@@ -74,7 +75,12 @@ def create_load_function(filter_function):
                 except AttributeError:
                     xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
 
+        tags = Counter([qname for qname, _ in redefinitions])
         for qname, obj in redefinitions:
+            if tags[qname] > 1:
+                elem, schema = obj
+                if elem.tag in XSD_ATTRIBUTE_GROUP:
+                    schema.parse_error("multiple definition for {} {!r}".format(local_name(elem.tag), qname), elem)
             if qname not in xsd_globals:
                 elem, schema = obj
                 schema.parse_error("not a redefinition!", elem)

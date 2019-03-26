@@ -16,7 +16,7 @@ import re
 
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
 from ..etree import etree_tostring, is_etree_element
 
@@ -537,6 +537,9 @@ class XsdType(XsdComponent):
         else:
             return False
 
+    def is_key(self):
+        return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
+
 
 class ValidationMixin(object):
     """
@@ -869,19 +872,29 @@ class ParticleMixin(object):
         items1.append(self)
         items2.append(other)
 
-        for k in range(depth, len(items1) - 1):
-            if items1[k].model == 'sequence':
-                idx = items1[k].index(items1[k + 1])
-                if any(not e.is_emptiable() for e in items1[k][:idx]):
-                    return True
+        if items1[depth].model == 'sequence':
+            idx1 = items1[depth].index(items1[depth + 1])
+            idx2 = items2[depth].index(items2[depth + 1])
+            if any(not e.is_emptiable() for e in items1[depth][idx1+1:idx2]):
+                return True
 
-        for k in range(depth, len(items2) - 1):
+        for k in range(depth + 1, len(items2) - 1):
             if items2[k].model == 'sequence':
                 idx = items2[k].index(items2[k + 1])
                 if any(not e.is_emptiable() for e in items2[k][:idx]):
                     return True
 
-        return False
+        before_flag = False
+        after_flag = False
+        for k in range(depth + 1, len(items1) - 1):
+            if items1[k].model == 'sequence':
+                idx = items1[k].index(items1[k + 1])
+                if not before_flag and any(not e.is_emptiable() for e in items1[k][:idx]):
+                    before_flag = True
+                if not after_flag and any(not e.is_emptiable() for e in items1[k][idx+1:]):
+                    after_flag = True
+
+        return before_flag and after_flag
 
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):

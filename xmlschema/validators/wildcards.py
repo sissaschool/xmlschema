@@ -42,7 +42,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         # Parse namespace and processContents
         namespace = self.elem.get('namespace', '##any')
         items = namespace.strip().split()
-        if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
+        if len(items) == 1 and items[0] in ('##any', '##other', '##local', '##targetNamespace'):
             self.namespace = namespace.strip()
         elif not all([s not in ('##any', '##other') for s in items]):
             self.parse_error("wrong value %r for 'namespace' attribute." % namespace)
@@ -103,6 +103,21 @@ class XsdWildcard(XsdComponent, ValidationMixin):
                 return True
             else:
                 return namespace in any_namespaces
+
+    def is_restriction(self, other, check_particle=True):
+        if check_particle and isinstance(self, ParticleMixin) and not self.has_particle_restriction(other):
+            return False
+        elif self.namespace == other.namespace:
+            return True
+        elif other.namespace == '##any':
+            return True
+        elif self.namespace == '##any':
+            return False
+        elif other.namespace == '##other':
+            return all(ns != self.target_namespace for ns in self.namespace.split())
+
+        other_namespaces = other.namespace.split()
+        return any(ns in other_namespaces for ns in self.namespace.split())
 
     def iter_decode(self, source, validation='lax', *args, **kwargs):
         raise NotImplementedError
@@ -201,11 +216,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         elif validation != 'skip':
             reason = "element %r not allowed here." % name
             yield self.validation_error(validation, reason, value, **kwargs)
-
-    def is_restriction(self, other, check_particle=True):
-        if check_particle and not self.has_particle_restriction(other):
-            return False
-        return True
 
     def overlap(self, other):
         if not isinstance(other, XsdAnyElement):

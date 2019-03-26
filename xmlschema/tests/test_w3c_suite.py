@@ -43,6 +43,7 @@ SKIPPED_TESTS = {
     '../sunData/combined/xsd003b/xsd003b.e.xsd',  # 3981: Redefinition that may be valid
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
     '../msData/additional/test65026.xsd',         # 4712: Lack of the processor on XML namespace knowledge
+    '../msData/annotations/annotF001.xsd',        # 4989: Annotation contains xml:lang="" ?? (but xml.xsd allows '')
 }
 
 
@@ -107,14 +108,14 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
-        return
+        # return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
                     schema_class(schema_path, use_meta=False)
 
     else:
-        #return
+        return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -130,7 +131,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 0: #4815:
+    if testgroup_num >= 5763:
         return TestGroupCase
 
 

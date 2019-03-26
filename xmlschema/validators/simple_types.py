@@ -21,7 +21,8 @@ from ..qnames import (
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
     XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID, XSD_IDREF
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID,
+    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS
 )
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
@@ -146,38 +147,44 @@ class XsdSimpleType(XsdType, ValidationMixin):
         max_length = getattr(facets.get(XSD_MAX_LENGTH), 'value', None)
         if length is not None:
             if length < 0:
-                self.parse_error("'length' value must be non negative integer.")
+                self.parse_error("'length' value must be non negative integer")
             if min_length is not None:
                 if min_length > length:
-                    self.parse_error("'minLength' value must be less or equal to 'length'.")
+                    self.parse_error("'minLength' value must be less or equal to 'length'")
                 min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
                 length_facet = base_type.get_facet(XSD_LENGTH)
                 if min_length_facet is None or \
                         (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
-                    self.parse_error("cannot specify both 'length' and 'minLength'.")
+                    self.parse_error("cannot specify both 'length' and 'minLength'")
             if max_length is not None:
                 if max_length < length:
-                    self.parse_error("'maxLength' value must be greater or equal to 'length'.")
+                    self.parse_error("'maxLength' value must be greater or equal to 'length'")
                 max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
                 length_facet = base_type.get_facet(XSD_LENGTH)
                 if max_length_facet is None or \
                         (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
-                    self.parse_error("cannot specify both 'length' and 'maxLength'.")
+                    self.parse_error("cannot specify both 'length' and 'maxLength'")
             min_length = max_length = length
-        elif min_length is not None:
-            if min_length < 0:
-                self.parse_error("'minLength' value must be non negative integer.")
-            if max_length is not None and max_length < min_length:
-                self.parse_error("'maxLength' value is lesser than 'minLength'.")
+        elif min_length is not None or max_length is not None:
             min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
-            if min_length_facet is not None and min_length_facet.value > min_length:
-                self.parse_error("child 'minLength' has a lesser value than parent")
-        elif max_length is not None:
-            if max_length < 0:
-                self.parse_error("'maxLength' value must be non negative integer.")
             max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
-            if max_length_facet is not None and max_length > max_length_facet.value:
-                self.parse_error("child 'maxLength' has a greater value than parent.")
+            if min_length is not None:
+                if min_length < 0:
+                    self.parse_error("'minLength' value must be non negative integer")
+                if max_length is not None and max_length < min_length:
+                    self.parse_error("'maxLength' value is lesser than 'minLength'")
+                if min_length_facet is not None and min_length_facet.value > min_length:
+                    self.parse_error("'minLength' has a lesser value than parent")
+                if max_length_facet is not None and min_length > max_length_facet.value:
+                    self.parse_error("'minLength' has a greater value than parent 'maxLength'")
+
+            if max_length is not None:
+                if max_length < 0:
+                    self.parse_error("'maxLength' value must be non negative integer")
+                if min_length_facet is not None and min_length_facet.value > max_length:
+                    self.parse_error("'maxLength' has a lesser value than parent 'minLength'")
+                if max_length_facet is not None and max_length > max_length_facet.value:
+                    self.parse_error("'maxLength' has a greater value than parent")
 
         # Checks min/max values
         min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE), 'value', None)
@@ -187,50 +194,62 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         if min_inclusive is not None:
             if min_exclusive is not None:
-                self.parse_error("cannot specify both 'minInclusive' and 'minExclusive.")
+                self.parse_error("cannot specify both 'minInclusive' and 'minExclusive")
             if max_inclusive is not None and min_inclusive > max_inclusive:
-                self.parse_error("'minInclusive' must be less or equal to 'maxInclusive'.")
+                self.parse_error("'minInclusive' must be less or equal to 'maxInclusive'")
             elif max_exclusive is not None and min_inclusive >= max_exclusive:
-                self.parse_error("'minInclusive' must be lesser than 'maxExclusive'.")
+                self.parse_error("'minInclusive' must be lesser than 'maxExclusive'")
 
             min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
             if min_facet is not None and min_facet.value >= min_inclusive:
-                self.parse_error("minimum value of base_type is greater.")
+                self.parse_error("minimum value of base_type is greater")
             min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
             if min_facet is not None and min_facet.value > min_inclusive:
-                self.parse_error("minimum value of base_type is greater.")
+                self.parse_error("minimum value of base_type is greater")
 
         elif min_exclusive is not None:
             if max_inclusive is not None and min_exclusive >= max_inclusive:
-                self.parse_error("'minExclusive' must be lesser than 'maxInclusive'.")
+                self.parse_error("'minExclusive' must be lesser than 'maxInclusive'")
             elif max_exclusive is not None and min_exclusive > max_exclusive:
-                self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'.")
+                self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'")
 
             min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
             if min_facet is not None and min_facet.value > min_exclusive:
-                self.parse_error("minimum value of base_type is greater.")
+                self.parse_error("minimum value of base_type is greater")
             min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
             if min_facet is not None and min_facet.value > min_exclusive:
-                self.parse_error("minimum value of base_type is greater.")
+                self.parse_error("minimum value of base_type is greater")
 
         if max_inclusive is not None:
             if max_exclusive is not None:
-                self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive.")
+                self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive")
 
             max_facet = base_type.get_facet(XSD_MAX_EXCLUSIVE)
             if max_facet is not None and max_facet.value <= max_inclusive:
-                self.parse_error("maximum value of base_type is lesser.")
+                self.parse_error("maximum value of base_type is lesser")
             max_facet = base_type.get_facet(XSD_MAX_INCLUSIVE)
             if max_facet is not None and max_facet.value < max_inclusive:
-                self.parse_error("maximum value of base_type is lesser.")
+                self.parse_error("maximum value of base_type is lesser")
 
         elif max_exclusive is not None:
+            min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
+            if min_facet is not None and min_facet.value >= max_exclusive:
+                self.parse_error("minimum value of base_type is greater than 'maxExclusive' value")
+            min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
+            if min_facet is not None and min_facet.value >= max_exclusive:
+                self.parse_error("minimum value of base_type is greater than 'maxExclusive' value")
+
             max_facet = base_type.get_facet(XSD_MAX_EXCLUSIVE)
             if max_facet is not None and max_facet.value < max_exclusive:
-                self.parse_error("maximum value of base_type is lesser.")
+                self.parse_error("maximum value of base_type is lesser")
             max_facet = base_type.get_facet(XSD_MAX_INCLUSIVE)
             if max_facet is not None and max_facet.value < max_exclusive:
-                self.parse_error("maximum value of base_type is lesser.")
+                self.parse_error("maximum value of base_type is lesser")
+
+        # Checks fraction digits
+        if XSD_TOTAL_DIGITS in facets and XSD_FRACTION_DIGITS in facets:
+            if facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
+                self.parse_error("fractionDigits facet value cannot be lesser than the value of totalDigits")
 
         self.min_length = min_length
         self.max_length = max_length
