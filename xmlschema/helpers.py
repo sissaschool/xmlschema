@@ -201,3 +201,21 @@ def get_xsd_derivation_attribute(elem, attribute, values=None):
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
+
+
+def get_xsd_form_attribute(elem, attribute):
+    """
+    Get an XSD form attribute, checking the value. If the attribute is missing returns 'unqualified'
+
+    :param elem: the Element instance.
+    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' or 'attributeFormDefault').
+    :return: a string.
+    """
+    value = elem.get(attribute)
+    if value is None:
+        return 'unqualified'
+    elif value not in ('qualified', 'unqualified'):
+        raise XMLSchemaValueError(
+            "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
+        )
+    return value

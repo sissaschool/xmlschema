@@ -19,7 +19,7 @@ from ..compat import MutableMapping
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname
+from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
@@ -46,6 +46,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     </attribute>
     """
     admitted_tags = {XSD_ATTRIBUTE}
+    qualified = False
 
     def __init__(self, elem, schema, parent, name=None, xsd_type=None):
         if xsd_type is not None:
@@ -71,17 +72,17 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         super(XsdAttribute, self)._parse()
         elem = self.elem
 
-        self.form = elem.get('form')
-        if self.form is None:
-            self.qualified = self.schema.attribute_form_default == 'qualified'
-        elif self.parent is None:
-            self.parse_error("attribute 'form' not allowed in a global attribute.")
-        elif self.form in {'qualified', 'unqualified'}:
-            self.qualified = self.form == 'qualified'
+        try:
+            form = self.form
+        except ValueError as err:
+            self.parse_error(err)
         else:
-            self.parse_error("wrong value %r for 'form' attribute." % self.form)
-            self.form = 'unqualified'
-            self.qualified = False
+            if form is None:
+                self.qualified = self.schema.attribute_form_default == 'qualified'
+            elif self.parent is None:
+                self.parse_error("attribute 'form' not allowed in a global attribute.")
+            else:
+                self.qualified = form == 'qualified'
 
         self.use = elem.get('use')
         if self.use is None:
@@ -213,6 +214,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     @property
     def fixed(self):
         return self.elem.get('fixed')
+
+    @property
+    def form(self):
+        return get_xsd_form_attribute(self.elem, 'form')
 
     def is_optional(self):
         return self.use == 'optional'

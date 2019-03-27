@@ -17,11 +17,11 @@ from elementpath import XPath2Parser, ElementPathSyntaxError, XPathContext
 from elementpath.xpath_helpers import boolean_value
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
-from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -61,6 +61,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     """
     admitted_tags = {XSD_ELEMENT}
     abstract = False
+    qualified = False
     _ref = None
     _block = None
     _final = None
@@ -106,7 +107,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elem = self.elem
         attrib = elem.attrib
         self._parse_particle(elem)
-        self.qualified = attrib.get('form', self.schema.element_form_default) == 'qualified'
+
+        try:
+            self.qualified = (self.form or self.schema.element_form_default) == 'qualified'
+        except ValueError as err:
+            self.parse_error(err)
 
         name = elem.get('name')
         if name is not None:
@@ -147,7 +152,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 element_name = self.schema.resolve_qname(attrib['ref'])
             except ValueError as err:
                 self.parse_error(err)
-                element_name = None
             except KeyError:
                 self.parse_error("missing both 'name' and 'ref' attributes.")
             else:
@@ -347,12 +351,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def form(self):
-        if self._ref is not None:
-            return self._ref.form
-        value = self.elem.get('form')
-        if value not in (None, 'qualified', 'unqualified'):
-            raise XMLSchemaValueError("wrong value %r for 'form' attribute." % value)
-        return value
+        return get_xsd_form_attribute(self.elem, 'form') if self._ref is None else self._ref.form
 
     @property
     def nillable(self):
