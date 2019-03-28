@@ -25,7 +25,7 @@ XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
 ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 
 ####
-# Tests that are incompatible with XSD meta-schema validation
+# Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
     '../msData/additional/addB194.xsd',     # 4826: invalid xml:lang='enu'
     '../msData/simpleType/stE110.xsd',      # 13892: Circular xs:union declaration
@@ -113,14 +113,14 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
-        #return
+        return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
                     schema_class(schema_path, use_meta=False)
 
     else:
-        return
+        #return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -136,7 +136,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 8389: #7790: # 8389:  #7424:
+    if testgroup_num >= 0: # 8552:
         return TestGroupCase
 
 

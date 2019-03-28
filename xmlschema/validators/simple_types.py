@@ -978,6 +978,7 @@ class XsdAtomicRestriction(XsdAtomic):
     </restriction>
     """
     FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
+    derivation = 'restriction'
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:

@@ -444,62 +444,41 @@ class XsdGlobals(XsdValidator):
                         elem, schema = group[k]
                         group[k] = element_class(elem, schema, group)
 
-        for schema in not_built_schemas:
-            # Build substitution groups from global element declarations
-            for xsd_element in filter(lambda x: x.schema is schema, schema.elements.values()):
-                if xsd_element.substitution_group:
-                    try:
-                        qname = schema.resolve_qname(xsd_element.substitution_group)
-                    except ValueError as err:
-                        schema.parse_error(err, xsd_element.elem)
-                    else:
-                        if xsd_element.type.name == XSD_ANY_TYPE and 'type' not in xsd_element.elem.attrib:
-                            xsd_element.type = self.elements[qname].type
-                        try:
-                            self.substitution_groups[qname].add(xsd_element)
-                        except KeyError:
-                            self.substitution_groups[qname] = {xsd_element}
+        for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
+            # Build key references and assertions
+            for constraint in schema.iter_components(XsdKeyref):
+                constraint.parse_refer()
+            for assertion in schema.iter_components(XsdAssert):
+                assertion.parse()
 
-            # Checks substitution groups
-            for qname in self.substitution_groups:
-                try:
-                    xsd_element = self.elements[qname]
-                except KeyError:
-                    raise XMLSchemaKeyError("missing global element %r in %r." % (qname, schema))
-                else:
-                    for e in xsd_element.iter_substitutes():
-                        if e is xsd_element:
-                            raise XMLSchemaValueError(
-                                "circularity found for element %r in substitution groups of %r" % (e, schema)
-                            )
-
-            if schema.meta_schema is not None:
-                # Set referenced key/unique constraints for keyrefs
-                for constraint in schema.iter_components(XsdKeyref):
-                    constraint.parse_refer()
-
-                for assertion in schema.iter_components(XsdAssert):
-                    assertion.parse()
-
-                # Check for illegal restrictions
-                # TODO: Fix for XsdGroup.is_restriction() method is needed before enabling this check
-                if schema.validation != 'skip':
-                    for xsd_type in schema.iter_components(XsdComplexType):
-                        xsd_type.check_restriction()
-
-            if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
-                if not isinstance(schema.default_attributes, XsdAttributeGroup):
-                    schema.default_attributes = None
-                    schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
-                                       .format(schema.root.get('defaultAttributes'), schema), schema.root)
-
-            # Checks effectively used model groups of the schema
-            for xsd_type in schema.iter_components(XsdComplexType):
-                if isinstance(xsd_type.content_type, XsdGroup):
-                    try:
-                        xsd_type.content_type.check_particles()
-                    except XMLSchemaValueError as err:
-                        xsd_type.parse_error(err)
+            self._check_schema(schema)
 
         if self.validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map %r not built!" % self)
+
+    def _check_schema(self, schema):
+        # Checks substitution groups circularities
+        for qname in self.substitution_groups:
+            xsd_element = self.elements[qname]
+            for e in xsd_element.iter_substitutes():
+                if e is xsd_element:
+                    schema.parse_error("circularity found for substitution group with head element %r" % xsd_element)
+
+        # Check for illegal restrictions
+        if schema.validation != 'skip':
+            for xsd_type in schema.iter_components(XsdComplexType):
+                xsd_type.check_restriction()
+
+        if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
+            if not isinstance(schema.default_attributes, XsdAttributeGroup):
+                schema.default_attributes = None
+                schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
+                                   .format(schema.root.get('defaultAttributes'), schema), schema.root)
+
+        # Checks effectively used model groups of the schema
+        for xsd_type in schema.iter_components(XsdComplexType):
+            if isinstance(xsd_type.content_type, XsdGroup):
+                try:
+                    xsd_type.content_type.check_particles()
+                except XMLSchemaValueError as err:
+                    xsd_type.parse_error(err)

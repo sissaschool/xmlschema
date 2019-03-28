@@ -469,6 +469,7 @@ class XsdAnnotation(XsdComponent):
 class XsdType(XsdComponent):
 
     special_types = {XSD_ANY_TYPE}
+    abstract = False
     base_type = None
     derivation = None
     _final = None

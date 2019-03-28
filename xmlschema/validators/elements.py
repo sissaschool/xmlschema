@@ -101,7 +101,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_attributes()
         index = self._parse_type()
         self._parse_identity_constraints(index)
-        self._parse_substitution_group()
+        if self.parent is None:
+            self._parse_substitution_group()
 
     def _parse_attributes(self):
         elem = self.elem
@@ -185,6 +186,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.parse_error("attribute 'minOccurs' not allowed for a global element.")
             if 'maxOccurs' in attrib:
                 self.parse_error("attribute 'maxOccurs' not allowed for a global element.")
+        elif 'substitutionGroup' in attrib:
+            self.parse_error("'substitutionGroup' attribute in a local element declaration")
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -272,9 +275,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if substitution_group is None:
             return
 
-        if self.parent is not None:
-            self.parse_error("'substitutionGroup' attribute in a local element declaration")
-
         try:
             substitution_group_qname = self.schema.resolve_qname(substitution_group)
         except ValueError as err:
@@ -288,29 +288,37 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             head_element = self.maps.lookup_element(substitution_group_qname)
         except KeyError:
             self.parse_error("unknown substitutionGroup %r" % substitution_group)
+            return
         else:
             if isinstance(head_element, tuple):
                 self.parse_error("circularity found for substitutionGroup %r" % substitution_group)
                 return
+            elif 'substitution' in head_element.block:
+                return
 
-            final = head_element.final
-            if final is None:
-                final = self.schema.final_default
+        final = head_element.final
+        if self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
+            pass
+        elif not self.type.is_derived(head_element.type):
+            msg = "%r type is not of the same or a derivation of the head element %r type."
+            self.parse_error(msg % (self, head_element))
+        elif final == '#all' or 'extension' in final and 'restriction' in final:
+            msg = "head element %r can't be substituted by an element that has a derivation of its type"
+            self.parse_error(msg % head_element)
+        elif 'extension' in final and self.type.is_derived(head_element.type, 'extension'):
+            msg = "head element %r can't be substituted by an element that has an extension of its type"
+            self.parse_error(msg % head_element)
+        elif 'restriction' in final and self.type.is_derived(head_element.type, 'restriction'):
+            msg = "head element %r can't be substituted by an element that has a restriction of its type"
+            self.parse_error(msg % head_element)
 
-            if self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
-                pass
-            elif not self.type.is_derived(head_element.type):
-                msg = "%r type is not of the same or a derivation of the head element %r type."
-                self.parse_error(msg % (self, head_element))
-            elif final == '#all' or 'extension' in final and 'restriction' in final:
-                msg = "head element %r can't be substituted by an element that has a derivation of its type"
-                self.parse_error(msg % head_element)
-            elif 'extension' in final and self.type.is_derived(head_element.type, 'extension'):
-                msg = "head element %r can't be substituted by an element that has an extension of its type"
-                self.parse_error(msg % head_element)
-            elif 'restriction' in final and self.type.is_derived(head_element.type, 'restriction'):
-                msg = "head element %r can't be substituted by an element that has a restriction of its type"
-                self.parse_error(msg % head_element)
+        if self.type.name == XSD_ANY_TYPE and 'type' not in self.elem.attrib:
+            self.type = self.maps.elements[substitution_group_qname].type
+
+        try:
+            self.maps.substitution_groups[substitution_group_qname].add(self)
+        except KeyError:
+            self.maps.substitution_groups[substitution_group_qname] = {self}
 
     @property
     def built(self):
@@ -331,11 +339,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     # Global element's exclusive properties
     @property
     def final(self):
-        return get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+        return self._final or self.schema.final_default if self._ref is None else self._ref.final
 
     @property
     def block(self):
-        return get_xsd_derivation_attribute(self.elem, 'block', ('extension', 'restriction', 'substitution'))
+        return self._block or self.schema.block_default if self._ref is None else self._ref.block
 
     @property
     def substitution_group(self):
@@ -627,7 +635,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.name != other.name:
                 if other.name not in self.maps.substitution_groups:
                     return False
-                elif not any(e.name == self.name for e in self.maps.substitution_groups[other.name]):
+                elif any(e.name == self.name for e in self.maps.substitution_groups[other.name]):
                     return False
 
             if check_particle and not self.has_particle_restriction(other):
@@ -702,7 +710,8 @@ class Xsd11Element(XsdElement):
         index = self._parse_type()
         index = self._parse_alternatives(index)
         self._parse_identity_constraints(index)
-        self._parse_substitution_group()
+        if self.parent is None:
+            self._parse_substitution_group()
         self._parse_target_namespace()
 
     def _parse_alternatives(self, index=0):

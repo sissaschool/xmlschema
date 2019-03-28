@@ -751,6 +751,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         Constraint are checked. Raises a value error at first violated constraint.
         """
         elements = {}
+        substitution_head = False
         for e in self.iter_subelements():
             if isinstance(e, XsdAnyElement):
                 for pe in elements.values():
@@ -761,6 +762,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             elif None in elements and e.overlap(elements[None]):
                 if not elements[None].is_deterministic(e, self):
                     raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
+
+            if e.name in self.maps.substitution_groups or e.substitution_group is not None:
+                if substitution_head:
+                    raise XMLSchemaValueError("More than one substitution group head in the model")
+                substitution_head = True
 
             if e.name not in elements:
                 elements[e.name] = e

@@ -46,8 +46,6 @@ class XsdComplexType(XsdType, ValidationMixin):
     """
     admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     assertions = ()
-    base_type = None
-    abstract = False
     mixed = False
     _block = None
     _derivation = None
