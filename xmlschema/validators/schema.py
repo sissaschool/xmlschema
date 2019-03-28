@@ -37,8 +37,8 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
-from ..helpers import has_xsd_components, get_xsd_derivation_attribute
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, HFP_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
+from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xsd_form_attribute
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
@@ -278,9 +278,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
-            self.attribute_form_default = root.attrib['attributeFormDefault']
+            try:
+                self.attribute_form_default = get_xsd_form_attribute(root, 'attributeFormDefault')
+            except ValueError as err:
+                self.parse_error(err, root)
+
         if 'elementFormDefault' in root.attrib:
-            self.element_form_default = root.attrib['elementFormDefault']
+            try:
+                self.element_form_default = get_xsd_form_attribute(root, 'elementFormDefault')
+            except ValueError as err:
+                self.parse_error(err, root)
 
         if 'blockDefault' in root.attrib:
             try:
@@ -490,7 +497,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         try:
             return cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
         except KeyError:
-            raise XMLSchemaNotBuiltError(cls.meta_schema, "missing XSD namespace in meta-schema.")
+            raise XMLSchemaNotBuiltError(cls.meta_schema, "missing XSD namespace in meta-schema")
+        except AttributeError:
+            raise XMLSchemaNotBuiltError(cls.meta_schema, "meta-schema unavailable for %r" % cls)
 
     @property
     def root_elements(self):

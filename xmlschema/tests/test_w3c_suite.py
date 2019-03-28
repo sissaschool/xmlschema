@@ -44,6 +44,11 @@ SKIPPED_TESTS = {
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
     '../msData/additional/test65026.xsd',         # 4712: Lack of the processor on XML namespace knowledge
     '../msData/annotations/annotF001.xsd',        # 4989: Annotation contains xml:lang="" ?? (but xml.xsd allows '')
+    '../msData/datatypes/Facets/base64Binary/base64Binary_enumeration003.xsd',  # 7277: check base64 invalid values
+    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd', # 7292: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd', # 7294: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd', # 7310: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd', # 7312: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
 }
 
 
@@ -108,7 +113,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
-        # return
+        #return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
@@ -131,7 +136,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 5763:
+    if testgroup_num >= 8389: #7790: # 8389:  #7424:
         return TestGroupCase
 
 

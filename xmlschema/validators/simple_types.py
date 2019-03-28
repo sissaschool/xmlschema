@@ -116,10 +116,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
                 self.patterns = patterns
 
             if value:
-                validators = [
-                    v for k, v in value.items()
-                    if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION} and callable(v)
-                ]
+                if None in value:
+                    validators = [value[None]]  # Use only the validator function!
+                else:
+                    validators = [v for k, v in value.items()
+                                  if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
                 if XSD_ASSERTION in value:
                     assertions = value[XSD_ASSERTION]
                     if isinstance(assertions, list):
@@ -180,7 +181,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
             if max_length is not None:
                 if max_length < 0:
-                    self.parse_error("'maxLength' value must be non negative integer")
+                    self.parse_error("'maxLength' value mu  st be non negative integer")
                 if min_length_facet is not None and min_length_facet.value > max_length:
                     self.parse_error("'maxLength' has a lesser value than parent 'minLength'")
                 if max_length_facet is not None and max_length > max_length_facet.value:
@@ -200,51 +201,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
             elif max_exclusive is not None and min_inclusive >= max_exclusive:
                 self.parse_error("'minInclusive' must be lesser than 'maxExclusive'")
 
-            min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
-            if min_facet is not None and min_facet.value >= min_inclusive:
-                self.parse_error("minimum value of base_type is greater")
-            min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
-            if min_facet is not None and min_facet.value > min_inclusive:
-                self.parse_error("minimum value of base_type is greater")
-
         elif min_exclusive is not None:
             if max_inclusive is not None and min_exclusive >= max_inclusive:
                 self.parse_error("'minExclusive' must be lesser than 'maxInclusive'")
             elif max_exclusive is not None and min_exclusive > max_exclusive:
                 self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'")
 
-            min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
-            if min_facet is not None and min_facet.value > min_exclusive:
-                self.parse_error("minimum value of base_type is greater")
-            min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
-            if min_facet is not None and min_facet.value > min_exclusive:
-                self.parse_error("minimum value of base_type is greater")
-
-        if max_inclusive is not None:
-            if max_exclusive is not None:
-                self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive")
-
-            max_facet = base_type.get_facet(XSD_MAX_EXCLUSIVE)
-            if max_facet is not None and max_facet.value <= max_inclusive:
-                self.parse_error("maximum value of base_type is lesser")
-            max_facet = base_type.get_facet(XSD_MAX_INCLUSIVE)
-            if max_facet is not None and max_facet.value < max_inclusive:
-                self.parse_error("maximum value of base_type is lesser")
-
-        elif max_exclusive is not None:
-            min_facet = base_type.get_facet(XSD_MIN_EXCLUSIVE)
-            if min_facet is not None and min_facet.value >= max_exclusive:
-                self.parse_error("minimum value of base_type is greater than 'maxExclusive' value")
-            min_facet = base_type.get_facet(XSD_MIN_INCLUSIVE)
-            if min_facet is not None and min_facet.value >= max_exclusive:
-                self.parse_error("minimum value of base_type is greater than 'maxExclusive' value")
-
-            max_facet = base_type.get_facet(XSD_MAX_EXCLUSIVE)
-            if max_facet is not None and max_facet.value < max_exclusive:
-                self.parse_error("maximum value of base_type is lesser")
-            max_facet = base_type.get_facet(XSD_MAX_INCLUSIVE)
-            if max_facet is not None and max_facet.value < max_exclusive:
-                self.parse_error("maximum value of base_type is lesser")
+        if max_inclusive is not None and max_exclusive is not None:
+            self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive")
 
         # Checks fraction digits
         if XSD_TOTAL_DIGITS in facets and XSD_FRACTION_DIGITS in facets:

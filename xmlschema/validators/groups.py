@@ -552,7 +552,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     def is_restriction(self, other, check_particle=True):
         if not self:
             return True
-        elif self.ref:
+        elif self.ref is not None:
             return self[0].is_restriction(other, check_particle)
         elif isinstance(other, (XsdElement, XsdAnyElement)):
             if not self.has_particle_restriction(other):

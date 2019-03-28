@@ -61,7 +61,12 @@ DATETIME_FACETS = (
 
 
 #
-# XSD numerical built-in types validator functions
+# XSD built-in types validator functions
+def qname_validator(x):
+    if datatypes.QNAME_PATTERN.match(x) is None:
+        yield XMLSchemaValidationError(qname_validator, x, "value {!r} is not an xs:QName".format(x))
+
+
 def byte_validator(x):
     if not (-2**7 <= x < 2**7):
         yield XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
@@ -158,9 +163,9 @@ def python_to_boolean(obj):
 
 #
 # Element facets instances for builtin types.
-PRESERVE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': 'preserve'})
-COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse'})
-REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, attrib={'value': 'replace'})
+PRESERVE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='preserve')
+COLLAPSE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='collapse')
+REPLACE_WHITE_SPACE_ELEMENT = etree_element(XSD_WHITE_SPACE, value='replace')
 
 
 XSD_COMMON_BUILTIN_TYPES = (
@@ -238,8 +243,8 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_QNAME,
         'python_type': (unicode_type, str),
         'admitted_facets': STRING_FACETS,
-        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
-    },  # prf:name (the prefix needs to be qualified with an in scope namespace)
+        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, qname_validator],
+    },  # prf:name (the prefix needs to be qualified with an in-scope namespace)
     {
         'name': XSD_NOTATION_TYPE,
         'python_type': (unicode_type, str),
@@ -295,22 +300,20 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
         'facets': [
-            etree_element(XSD_PATTERN, attrib={
-                'value': r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*"
-            })
+            etree_element(XSD_PATTERN, value=r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*")
         ]
     },  # language codes
     {
         'name': XSD_NAME,
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
-        'facets': [etree_element(XSD_PATTERN, attrib={'value': r"\i\c*"})]
+        'facets': [etree_element(XSD_PATTERN, value=r"\i\c*")]
     },  # not starting with a digit
     {
         'name': XSD_NCNAME,
         'python_type': (unicode_type, str),
         'base_type': XSD_NAME,
-        'facets': [etree_element(XSD_PATTERN, attrib={'value': r"[\i-[:]][\c-[:]]*"})]
+        'facets': [etree_element(XSD_PATTERN, value=r"[\i-[:]][\c-[:]]*")]
     },  # cannot contain colons
     {
         'name': XSD_ID,
@@ -331,7 +334,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_NMTOKEN,
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
-        'facets': [etree_element(XSD_PATTERN, attrib={'value': r"\c+"})]
+        'facets': [etree_element(XSD_PATTERN, value=r"\c+")]
     },  # should not contain whitespace (attribute only)
 
     # --- Numerical derived types ---
@@ -344,73 +347,81 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_LONG,
         'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_INTEGER,
-        'facets': [long_validator]
+        'facets': [long_validator,
+                   etree_element(XSD_MIN_INCLUSIVE, value='-9223372036854775808'),
+                   etree_element(XSD_MAX_INCLUSIVE, value='9223372036854775807')]
     },  # signed 128 bit value
     {
         'name': XSD_INT,
         'python_type': int,
         'base_type': XSD_LONG,
-        'facets': [int_validator]
+        'facets': [int_validator,
+                   etree_element(XSD_MIN_INCLUSIVE, value='-2147483648'),
+                   etree_element(XSD_MAX_INCLUSIVE, value='2147483647')]
     },  # signed 64 bit value
     {
         'name': XSD_SHORT,
         'python_type': int,
         'base_type': XSD_INT,
-        'facets': [short_validator]
+        'facets': [short_validator,
+                   etree_element(XSD_MIN_INCLUSIVE, value='-32768'),
+                   etree_element(XSD_MAX_INCLUSIVE, value='32767')]
     },  # signed 32 bit value
     {
         'name': XSD_BYTE,
         'python_type': int,
         'base_type': XSD_SHORT,
-        'facets': [byte_validator]
+        'facets': [byte_validator,
+                   etree_element(XSD_MIN_INCLUSIVE, value='-128'),
+                   etree_element(XSD_MAX_INCLUSIVE, value='127')]
     },  # signed 8 bit value
     {
         'name': XSD_NON_NEGATIVE_INTEGER,
         'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_INTEGER,
-        'facets': [non_negative_int_validator]
+        'facets': [non_negative_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='0')]
     },  # only zero and more value allowed [>= 0]
     {
         'name': XSD_POSITIVE_INTEGER,
         'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_NON_NEGATIVE_INTEGER,
-        'facets': [positive_int_validator]
+        'facets': [positive_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='1')]
     },  # only positive value allowed [> 0]
     {
         'name': XSD_UNSIGNED_LONG,
         'python_type': int if PY3 else (long_type, int),
         'base_type': XSD_NON_NEGATIVE_INTEGER,
-        'facets': [unsigned_long_validator]
+        'facets': [unsigned_long_validator, etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
     },  # unsigned 128 bit value
     {
         'name': XSD_UNSIGNED_INT,
         'python_type': int,
         'base_type': XSD_UNSIGNED_LONG,
-        'facets': [unsigned_int_validator]
+        'facets': [unsigned_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='4294967295')]
     },  # unsigned 64 bit value
     {
         'name': XSD_UNSIGNED_SHORT,
         'python_type': int,
         'base_type': XSD_UNSIGNED_INT,
-        'facets': [unsigned_short_validator]
+        'facets': [unsigned_short_validator, etree_element(XSD_MAX_INCLUSIVE, value='65535')]
     },  # unsigned 32 bit value
     {
         'name': XSD_UNSIGNED_BYTE,
         'python_type': int,
         'base_type': XSD_UNSIGNED_SHORT,
-        'facets': [unsigned_byte_validator]
+        'facets': [unsigned_byte_validator, etree_element(XSD_MAX_INCLUSIVE, value='255')]
     },  # unsigned 8 bit value
     {
         'name': XSD_NON_POSITIVE_INTEGER,
         'python_type': (long_type, int),
         'base_type': XSD_INTEGER,
-        'facets': [non_positive_int_validator]
+        'facets': [non_positive_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='0')]
     },  # only zero and smaller value allowed [<= 0]
     {
         'name': XSD_NEGATIVE_INTEGER,
         'python_type': (long_type, int),
         'base_type': XSD_NON_POSITIVE_INTEGER,
-        'facets': [negative_int_validator]
+        'facets': [negative_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='-1')]
     },  # only negative value allowed [< 0]
 )
 
@@ -482,7 +493,7 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'python_type': (unicode_type, str),
         'base_type': XSD_DATETIME,
         'to_python': datatypes.DateTime.fromstring,
-        'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, attrib={'value': 'required'})],
+        'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, value='required')],
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
@@ -517,7 +528,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
     # xs:anyType
     # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
     any_type = meta_schema.BUILDERS.complex_type_class(
-        elem=etree_element(XSD_COMPLEX_TYPE, attrib={'name': XSD_ANY_TYPE}),
+        elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
         schema=meta_schema,
         parent=None,
         mixed=True
@@ -529,7 +540,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
     # xs:anySimpleType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_SIMPLE_TYPE] = XsdSimpleType(
-        elem=etree_element(XSD_SIMPLE_TYPE, attrib={'name': XSD_ANY_SIMPLE_TYPE}),
+        elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_SIMPLE_TYPE),
         schema=meta_schema,
         parent=None,
         name=XSD_ANY_SIMPLE_TYPE
@@ -538,7 +549,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
     # xs:anyAtomicType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds
     xsd_types[XSD_ANY_ATOMIC_TYPE] = meta_schema.BUILDERS.restriction_class(
-        elem=etree_element(XSD_SIMPLE_TYPE, attrib={'name': XSD_ANY_ATOMIC_TYPE}),
+        elem=etree_element(XSD_SIMPLE_TYPE, name=XSD_ANY_ATOMIC_TYPE),
         schema=meta_schema,
         parent=None,
         name=XSD_ANY_ATOMIC_TYPE,
@@ -553,14 +564,13 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
         except KeyError:
             # If builtin type element is missing create a dummy element. Necessary for the
             # meta-schema XMLSchema.xsd of XSD 1.1, that not includes builtins declarations.
-            elem = etree_element(XSD_SIMPLE_TYPE, attrib={'name': name, 'id': name})
+            elem = etree_element(XSD_SIMPLE_TYPE, name=name, id=name)
         else:
             if schema is not meta_schema:
                 raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
 
         if 'base_type' in item:
-            base_type = item.get('base_type')
-            item['base_type'] = xsd_types[base_type]
+            base_type = item['base_type'] = xsd_types[item['base_type']]
         else:
             base_type = None
 
