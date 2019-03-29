@@ -152,6 +152,25 @@ class XMLSchemaParseError(XMLSchemaValidatorError, SyntaxError):
         )
 
 
+class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
+    """
+    Raised when a model error is found during the checking of a model group.
+
+    :param group: the XSD model group.
+    :type group: XsdGroup
+    :param message: the error message.
+    :type message: str or unicode
+    """
+    def __init__(self, group, message):
+        super(XMLSchemaModelError, self).__init__(
+            validator=group,
+            message=message,
+            elem=group.elem,
+            source=getattr(group, 'source', None),
+            namespaces=group.namespaces
+        )
+
+
 class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     """
     Raised when the XML data is not validated with the XSD component or schema.
