@@ -14,7 +14,7 @@ This module contains classes for other XML Schema identity constraints.
 from __future__ import unicode_literals
 import re
 from collections import Counter
-from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
+from elementpath import Selector, XPath1Parser, ElementPathSyntaxError, ElementPathKeyError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
@@ -26,9 +26,9 @@ from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 
 XSD_IDENTITY_XPATH_SYMBOLS = {
-    'processing-instruction', 'descendant-or-self', 'following-sibling', 'preceding-sibling',
-    'ancestor-or-self', 'descendant', 'attribute', 'following', 'namespace', 'preceding',
-    'ancestor', 'position', 'comment', 'parent', 'child', 'self', 'false', 'text', 'node',
+    'processing-instruction', 'following-sibling', 'preceding-sibling',
+    'ancestor-or-self', 'attribute', 'following', 'namespace', 'preceding',
+    'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
     'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
     '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
     '(string)', '(float)', '(decimal)', '(integer)', '::'
@@ -66,7 +66,7 @@ class XsdSelector(XsdComponent):
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
-        except ElementPathSyntaxError as err:
+        except (ElementPathSyntaxError, ElementPathKeyError) as err:
             self.parse_error(err)
             self.xpath_selector = Selector('*', self.namespaces, parser=XsdIdentityXPathParser)
 

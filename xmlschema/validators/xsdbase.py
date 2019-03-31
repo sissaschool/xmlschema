@@ -852,8 +852,8 @@ class ParticleMixin(object):
             elif self.min_occurs == self.max_occurs:
                 return True
 
-            for k in group[group.index(self)+1:group.index(other)]:
-                if not group[k].is_emptiable():
+            for e in group[group.index(self)+1:group.index(other)]:
+                if not e.is_emptiable():
                     return True
             else:
                 return False

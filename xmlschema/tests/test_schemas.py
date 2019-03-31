@@ -349,7 +349,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_union_restrictions(self):
         # Wrong union restriction (not admitted facets, see issue #67)
-        self.check_schema("""
+        self.check_schema(r"""
             <simpleType name="Percentage">
                 <restriction base="ns:Integer">
                     <minInclusive value="0"/>

@@ -482,9 +482,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             base_type = self.base_type
             if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                 if not self.content_type.is_restriction(base_type.content_type):
-                    self.parse_error(
-                        "The derived group is an illegal restriction of the base type group.", self.elem
-                    )
+                    self.parse_error("The derived group is an illegal restriction of the base type group.")
 
     def decode(self, data, *args, **kwargs):
         if hasattr(data, 'attrib') or self.is_simple():

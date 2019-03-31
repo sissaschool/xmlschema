@@ -51,7 +51,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.namespace = namespace.strip()
 
         self.process_contents = self.elem.get('processContents', 'strict')
-        if self.process_contents not in ('lax', 'skip', 'strict'):
+        if self.process_contents not in {'lax', 'skip', 'strict'}:
             self.parse_error("wrong value %r for 'processContents' attribute." % self.process_contents)
 
     def _load_namespace(self, namespace):
@@ -106,6 +106,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
     def is_restriction(self, other, check_particle=True):
         if check_particle and isinstance(self, ParticleMixin) and not self.has_particle_restriction(other):
+            return False
+        elif other.process_contents == 'strict' and self.process_contents != 'strict':
+            return False
+        elif other.process_contents == 'lax' and self.process_contents == 'skip':
             return False
         elif self.namespace == other.namespace:
             return True

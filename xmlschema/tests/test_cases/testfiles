@@ -47,6 +47,7 @@ features/models/circular_model.xsd --errors=1
 features/models/illegal-attributes.xsd --errors=1
 features/models/illegal-declarations.xsd --errors=3
 features/models/illegal-occurs.xsd --errors=2
+features/models/invalid_model1.xsd --errors=4
 features/models/model1.xml --errors=1
 features/models/models.xsd
 features/models/recursive-groups.xsd --errors=2 # Two circular definitions

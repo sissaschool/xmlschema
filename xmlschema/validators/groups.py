@@ -22,7 +22,7 @@ from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_T
 from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
-from .exceptions import XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaModelError
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement
@@ -343,7 +343,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 if ref is not None:
                     # Reference to a global group
                     if self.parent is None:
-                        self.parse_error("a group reference cannot be global", elem)
+                        self.parse_error("a group reference cannot be global")
 
                     try:
                         self.name = self.schema.resolve_qname(ref)
@@ -354,7 +354,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     try:
                         xsd_group = self.schema.maps.lookup_group(self.name)
                     except KeyError:
-                        self.parse_error("missing group %r" % self.prefixed_name, elem)
+                        self.parse_error("missing group %r" % self.prefixed_name)
                         xsd_group = self.schema.create_any_content_group(self, self.name)
 
                     if isinstance(xsd_group, tuple):
@@ -367,19 +367,19 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.model = xsd_group.model
                         self.append(xsd_group)
                 else:
-                    self.parse_error("missing both attributes 'name' and 'ref'", elem)
+                    self.parse_error("missing both attributes 'name' and 'ref'")
                 return
             elif ref is None:
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
                 if self.parent is not None:
-                    self.parse_error("attribute 'name' not allowed for a local group", self)
+                    self.parse_error("attribute 'name' not allowed for a local group")
                 else:
                     if 'minOccurs' in elem.attrib:
-                        self.parse_error("attribute 'minOccurs' not allowed for a global group", elem)
+                        self.parse_error("attribute 'minOccurs' not allowed for a global group")
                     if 'maxOccurs' in elem.attrib:
-                        self.parse_error("attribute 'maxOccurs' not allowed for a global group", elem)
+                        self.parse_error("attribute 'maxOccurs' not allowed for a global group")
                     if 'minOccurs' in content_model.attrib:
                         self.parse_error(
                             "attribute 'minOccurs' not allowed for the model of a global group", content_model
@@ -393,10 +393,12 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         return
 
             else:
-                self.parse_error("found both attributes 'name' and 'ref'", elem)
+                self.parse_error("found both attributes 'name' and 'ref'")
                 return
         elif elem.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
             # Local group (sequence|all|choice)
+            if 'name' in elem.attrib:
+                self.parse_error("attribute 'name' not allowed for a local group")
             content_model = elem
             self.name = None
         elif elem.tag in {XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION}:
@@ -411,6 +413,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     def _parse_content_model(self, elem, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
+            if self.parent is None:
+                self.parse_error(
+                    "an 'all' model group can appears only in the content type of a complexType definition"
+                )
             if self.max_occurs != 1:
                 self.parse_error("maxOccurs must be 1 for 'all' model groups")
             if self.min_occurs not in (0, 1):
@@ -558,6 +564,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if not self.has_particle_restriction(other):
                 return False
             elif self.model == 'choice':
+                if other.name in self.maps.substitution_groups and all(
+                        isinstance(e, XsdElement) and e.substitution_group == other.name for e in self):
+                    return True
                 return any(e.is_restriction(other) for e in self)
             else:
                 return all(e.is_restriction(other, False) or e.min_occurs == 0 for e in self)
@@ -745,13 +754,37 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         elements_order = {e: p for p, e in enumerate(self.iter_elements())}
         return sorted(elements, key=sorter)
 
-    def check_particles(self):
+    def check_model(self):
         """
         Checks group particles. Types matching of same elements and Unique Particle Attribution
         Constraint are checked. Raises a value error at first violated constraint.
         """
+        #print(self)
+        #breakpoint()
         elements = {}
-        substitution_head = False
+        for e in self.iter_subelements():
+            for pe in elements.values():
+                if pe.overlap(e) and not pe.is_deterministic(e, self):
+                    # breakpoint()
+                    # pe.is_deterministic(e, self)
+                    raise XMLSchemaModelError(
+                        self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
+                    )
+                if pe.name == e.name and pe.name is not None and pe.type is not e.type:
+                    raise XMLSchemaValueError(
+                        "Elements with the same name in the same model group must have the same type"
+                    )
+            elements[e.name] = e
+
+    def check_particles2(self):
+        """
+        Checks group particles. Types matching of same elements and Unique Particle Attribution
+        Constraint are checked. Raises a value error at first violated constraint.
+        """
+        import pdb
+        pdb.set_trace()
+        elements = {}
+        substitution_head = None
         for e in self.iter_subelements():
             if isinstance(e, XsdAnyElement):
                 for pe in elements.values():
@@ -763,10 +796,13 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 if not elements[None].is_deterministic(e, self):
                     raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
 
-            if e.name in self.maps.substitution_groups or e.substitution_group is not None:
-                if substitution_head:
+            if False and e.name in self.maps.substitution_groups:
+                if substitution_head is not None and substitution_head != e.name:
+                    import pdb
+                    pdb.set_trace()
                     raise XMLSchemaValueError("More than one substitution group head in the model")
-                substitution_head = True
+                substitution_head = e.name
+                print(e.name, e.substitution_group, e.parent)
 
             if e.name not in elements:
                 elements[e.name] = e
@@ -783,6 +819,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 )
             elif not pe.is_deterministic(e, self):
                 raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
+
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """

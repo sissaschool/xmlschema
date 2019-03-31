@@ -60,11 +60,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     </element>
     """
     admitted_tags = {XSD_ELEMENT}
-    abstract = False
     qualified = False
     _ref = None
+    _abstract = False
     _block = None
     _final = None
+    _substitution_group = None
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
@@ -120,51 +121,24 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.name = get_qname(self.target_namespace, attrib['name'])
             else:
                 self.name = attrib['name']
-
-            if 'default' in attrib and 'fixed' in attrib:
-                self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
-
-            if 'abstract' in elem.attrib:
-                try:
-                    self.abstract = get_xml_bool_attribute(elem, 'abstract')
-                except ValueError as err:
-                    self.parse_error(err, elem)
-
-            if 'block' in elem.attrib:
-                try:
-                    self._block = get_xsd_derivation_attribute(
-                        elem, 'block', ('extension', 'restriction', 'substitution')
-                    )
-                except ValueError as err:
-                    self.parse_error(err, elem)
-
-            if 'final' in elem.attrib:
-                try:
-                    self._final = get_xsd_derivation_attribute(elem, 'final', ('extension', 'restriction'))
-                except ValueError as err:
-                    self.parse_error(err, elem)
-
-            self._parse_properties('form', 'nillable')
-
         elif self.parent is None:
             self.parse_error("missing 'name' in a global element declaration")
+            self.name = elem.get('ref', 'nameless_%s' % str(id(self)))
+        elif 'ref' not in attrib:
+            self.parse_error("missing both 'name' and 'ref' attributes")
+            self.name = elem.get('nameless_%s' % str(id(self)))
         else:
             try:
                 element_name = self.schema.resolve_qname(attrib['ref'])
             except ValueError as err:
                 self.parse_error(err)
-            except KeyError:
-                self.parse_error("missing both 'name' and 'ref' attributes.")
+                self.type = self.maps.types[XSD_ANY_TYPE]
+                self.name = elem.get('nameless_%s' % str(id(self)))
             else:
-                # Reference to a global element
-                if self.parent is None:
-                    self.parse_error("an element reference can't be global.")
-                for attribute in {'name', 'type', 'nillable', 'default', 'fixed', 'form', 'block', 'abstract', 'final'}:
-                    if attribute in attrib:
-                        self.parse_error("attribute %r is not allowed when element reference is used." % attribute)
-
                 if not element_name:
+                    self.parse_error("empty 'ref' attribute")
                     self.type = self.maps.types[XSD_ANY_TYPE]
+                    self.name = elem.get('nameless_%s' % str(id(self)))
                 else:
                     try:
                         xsd_element = self.maps.lookup_element(element_name)
@@ -177,17 +151,51 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         self.name = xsd_element.name
                         self.type = xsd_element.type
                         self.qualified = xsd_element.qualified
-                        self.abstract = xsd_element.abstract
+
+            for attr_name in ('name', 'type', 'nillable', 'default', 'fixed', 'form',
+                              'block', 'abstract', 'final', 'substitutionGroup'):
+                if attr_name in attrib:
+                    self.parse_error("attribute %r is not allowed when element reference is used." % attr_name)
+            return
+
+        if 'default' in attrib and 'fixed' in attrib:
+            self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
+
+        if 'abstract' in elem.attrib:
+            try:
+                self._abstract = get_xml_bool_attribute(elem, 'abstract')
+            except ValueError as err:
+                self.parse_error(err, elem)
+            else:
+                if self._abstract and self.parent is not None:
+                    self.parse_error("local elements cannot have abstract attribute set to 'true'")
+
+        if 'block' in elem.attrib:
+            try:
+                self._block = get_xsd_derivation_attribute(
+                    elem, 'block', ('extension', 'restriction', 'substitution')
+                )
+            except ValueError as err:
+                self.parse_error(err, elem)
 
         if self.parent is None:
-            if 'form' in attrib:
-                self.parse_error("attribute 'form' not allowed for a global element.")
-            if 'minOccurs' in attrib:
-                self.parse_error("attribute 'minOccurs' not allowed for a global element.")
-            if 'maxOccurs' in attrib:
-                self.parse_error("attribute 'maxOccurs' not allowed for a global element.")
-        elif 'substitutionGroup' in attrib:
-            self.parse_error("'substitutionGroup' attribute in a local element declaration")
+            self._parse_properties('nillable')
+
+            if 'final' in elem.attrib:
+                try:
+                    self._final = get_xsd_derivation_attribute(elem, 'final', ('extension', 'restriction'))
+                except ValueError as err:
+                    self.parse_error(err, elem)
+
+            for attr_name in ('ref', 'form', 'minOccurs', 'maxOccurs'):
+                if attr_name in attrib:
+                    self.parse_error("attribute %r not allowed in a global element declaration" % attr_name)
+        else:
+            self._parse_properties('form', 'nillable')
+
+            for attr_name in ('final', 'substitutionGroup'):
+                if attr_name in attrib:
+                    self.parse_error("attribute %r not allowed in a local element declaration" % attr_name)
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -271,7 +279,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.constraints[constraint.name] = constraint
 
     def _parse_substitution_group(self):
-        substitution_group = self.substitution_group
+        substitution_group = self.elem.get('substitutionGroup')
         if substitution_group is None:
             return
 
@@ -319,6 +327,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.maps.substitution_groups[substitution_group_qname].add(self)
         except KeyError:
             self.maps.substitution_groups[substitution_group_qname] = {self}
+        finally:
+            self._substitution_group = substitution_group_qname
 
     @property
     def built(self):
@@ -338,6 +348,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     # Global element's exclusive properties
     @property
+    def abstract(self):
+        return self._abstract if self._ref is None else self._ref.abstract
+
+    @property
     def final(self):
         return self._final or self.schema.final_default if self._ref is None else self._ref.final
 
@@ -347,7 +361,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def substitution_group(self):
-        return self.elem.get('substitutionGroup')
+        return self._substitution_group if self._ref is None else self._ref.substitution_group
 
     @property
     def default(self):
@@ -633,9 +647,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return True  # TODO
         elif isinstance(other, XsdElement):
             if self.name != other.name:
-                if other.name not in self.maps.substitution_groups:
+                substitution_group = self.substitution_group
+                if other.name == self.substitution_group and other.min_occurs != other.max_occurs:
+                    return False  # Base is the head element
+                elif self.substitution_group is None:
                     return False
-                elif any(e.name == self.name for e in self.maps.substitution_groups[other.name]):
+                    # elif (other.parent is None or other.ref) and 'substitution' not in other.block:
+                    #    return False
+                elif not any(e.name == self.name for e in self.maps.substitution_groups[substitution_group]):
                     return False
 
             if check_particle and not self.has_particle_restriction(other):
@@ -670,7 +689,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def overlap(self, other):
         if isinstance(other, XsdElement):
-            return self.name == other.name
+            if self.name == other.name:
+                return True
+            elif other.substitution_group == self.name or other.name == self.substitution_group:
+                return True
         elif isinstance(other, XsdAnyElement):
             if other.is_matching(self.name, self.default_namespace):
                 return True

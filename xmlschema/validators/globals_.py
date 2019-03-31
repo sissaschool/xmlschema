@@ -19,11 +19,11 @@ from collections import Counter
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSD_ANY_TYPE
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
 from ..helpers import get_qname, local_name
 from ..namespaces import NamespaceResourcesMap
 
-from . import XMLSchemaNotBuiltError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
+from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
     XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
@@ -479,6 +479,9 @@ class XsdGlobals(XsdValidator):
         for xsd_type in schema.iter_components(XsdComplexType):
             if isinstance(xsd_type.content_type, XsdGroup):
                 try:
-                    xsd_type.content_type.check_particles()
-                except XMLSchemaValueError as err:
-                    xsd_type.parse_error(err)
+                    xsd_type.content_type.check_model()
+                except XMLSchemaModelError as err:
+                    if self.validation == 'strict':
+                        raise
+                    elif self.validation == 'lax':
+                        xsd_type.errors.append(err)
