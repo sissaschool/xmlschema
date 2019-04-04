@@ -79,7 +79,7 @@ def create_load_function(filter_function):
         for qname, obj in redefinitions:
             if tags[qname] > 1:
                 elem, schema = obj
-                if elem.tag in XSD_ATTRIBUTE_GROUP:
+                if elem.tag in {XSD_ATTRIBUTE_GROUP, XSD_GROUP}:
                     schema.parse_error("multiple definition for {} {!r}".format(local_name(elem.tag), qname), elem)
             if qname not in xsd_globals:
                 elem, schema = obj
@@ -467,7 +467,8 @@ class XsdGlobals(XsdValidator):
         # Check for illegal restrictions
         if schema.validation != 'skip':
             for xsd_type in schema.iter_components(XsdComplexType):
-                xsd_type.check_restriction()
+                if xsd_type.derivation == 'restriction':
+                    xsd_type.check_restriction()
 
         if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
             if not isinstance(schema.default_attributes, XsdAttributeGroup):

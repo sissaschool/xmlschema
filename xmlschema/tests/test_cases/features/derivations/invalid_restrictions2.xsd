@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for invalid models: UPA violation restricting a substitution group head. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:complexType name="baseType1">
+        <xs:sequence>
+            <xs:element name="elem1" />
+            <xs:element minOccurs="0" name="elem2" />
+            <xs:choice>
+                <xs:element name="elem3" type="xs:string" />
+                <xs:element name="elem4" type="xs:string" />
+            </xs:choice>
+            <xs:element minOccurs="0" name="elem5" />
+            <xs:element minOccurs="0" name="elem6" type="xs:string" />
+            <xs:element minOccurs="0" name="elem7" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedType1">
+        <xs:complexContent>
+            <xs:restriction base="baseType1">
+                <xs:sequence>
+                    <xs:sequence>
+                        <xs:element name="elem1" />
+                        <xs:element minOccurs="0" name="elem2" />
+                        <xs:choice>
+                            <xs:element name="elem3" type="xs:token" />
+                            <xs:element name="elem4" type="xs:string" />
+                        </xs:choice>
+                        <xs:sequence>
+                            <xs:element minOccurs="0" name="elem6" type="xs:string" />
+                        </xs:sequence>
+                    </xs:sequence>
+                    <xs:sequence>
+                        <xs:element minOccurs="0" name="elem7" />
+                    </xs:sequence>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+</xs:schema>

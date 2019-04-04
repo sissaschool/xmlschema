@@ -36,6 +36,7 @@ features/derivations/complex-extensions.xsd --errors=1
 features/derivations/complex-with-simple-content-restriction.xsd
 features/derivations/list_types.xsd --errors=1
 features/derivations/list_types.xml --errors=2
+features/derivations/invalid_restrictions1.xsd --errors=1  # UPA violations with substitution group head element
 
 features/elements/type_alternatives.xsd --errors=3
 features/elements/type_alternatives.xsd --version=1.1
@@ -47,7 +48,8 @@ features/models/circular_model.xsd --errors=1
 features/models/illegal-attributes.xsd --errors=1
 features/models/illegal-declarations.xsd --errors=3
 features/models/illegal-occurs.xsd --errors=2
-features/models/invalid_model1.xsd --errors=4
+features/models/invalid_models1.xsd --errors=4
+features/models/invalid_models2.xsd --errors=3
 features/models/model1.xml --errors=1
 features/models/models.xsd
 features/models/recursive-groups.xsd --errors=2 # Two circular definitions
@@ -56,7 +58,7 @@ features/namespaces/default_ns_invalid.xsd --errors=1
 features/namespaces/default_ns_valid1.xsd
 features/namespaces/default_ns_valid2.xsd
 features/namespaces/import-case1.xsd --errors=1  # Unknown type
-features/namespaces/import-case2.xsd --errors=1  # Missing namespace import in impored chameleon schema
+features/namespaces/import-case2.xsd --errors=1  # Missing namespace import in imported chameleon schema
 features/namespaces/import-case3.xsd
 features/namespaces/include-case1.xsd
 features/namespaces/include-case1bis.xsd

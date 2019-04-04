@@ -39,6 +39,55 @@ ANY_ELEMENT = etree_element(
     })
 
 
+def is_deterministic(items1, items2):
+    e = items1[-1]
+    if e is not items2[-1]:
+        if e.parent is items2[-1].parent:
+            if e.parent.model != 'sequence':
+                return False
+
+    if e.min_occurs == e.max_occurs:
+        return True
+
+    for k, e in enumerate(items1):
+        if e not in items2:
+            depth = k - 1
+            break
+    else:
+        depth = 0
+
+    if items1[depth].model == 'sequence':
+        idx1 = items1[depth].index(items1[depth + 1])
+        idx2 = items2[depth].index(items2[depth + 1])
+        if any(not e.is_emptiable() for e in items1[depth][idx1 + 1:idx2]):
+            return True
+
+    before1 = False
+    after1 = False
+    for k in range(depth + 1, len(items1) - 1):
+        if items1[k].model == 'sequence':
+            idx = items1[k].index(items1[k + 1])
+            if not before1 and any(not e.is_emptiable() for e in items1[k][:idx]):
+                before1 = True
+            if not after1 and any(not e.is_emptiable() for e in items1[k][idx + 1:]):
+                after1 = True
+
+    before2 = False
+    after2 = False
+    for k in range(depth + 1, len(items2) - 1):
+        if items2[k].model == 'sequence':
+            idx = items2[k].index(items2[k + 1])
+            if not before2 and any(not e.is_emptiable() for e in items2[k][:idx]):
+                before2 = True
+            if not after2 and any(not e.is_emptiable() for e in items2[k][idx + 1:]):
+                after2 = True
+
+    if items1[depth].model == 'sequence':
+        return after1 or before2
+    else:
+        return before1 or after2 and before2 or after1
+
+
 class XsdModelVisitor(MutableSequence):
     """
     A visitor design pattern class that can be used for validating XML data related to an
@@ -331,6 +380,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
 
     def _parse(self):
         super(XsdGroup, self)._parse()
+        if hasattr(self, '_elem'):
+            original_group = list(self)
+
         self.clear()
         elem = self.elem
         self._parse_particle(elem)
@@ -413,10 +465,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     def _parse_content_model(self, elem, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
-            if self.parent is None:
-                self.parse_error(
-                    "an 'all' model group can appears only in the content type of a complexType definition"
-                )
             if self.max_occurs != 1:
                 self.parse_error("maxOccurs must be 1 for 'all' model groups")
             if self.min_occurs not in (0, 1):
@@ -435,7 +483,10 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             elif child.tag == XSD_GROUP:
                 xsd_group = XsdGroup(child, self.schema, self)
                 if xsd_group.name != self.name:
-                    self.append(xsd_group)
+                    if xsd_group.model == 'all':
+                        self.parse_error("'all' model can appears only at 1st level of a model group")
+                    else:
+                        self.append(xsd_group)
                 elif not hasattr(self, '_elem'):
                     self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
             else:
@@ -589,8 +640,14 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 check_particle = False
 
             # Same model: declarations must simply preserve order
-            other_iterator = iter(other.iter_extension_group())
-            for item in self:
+            if len(self) <= len(other):
+                self_iterator = iter(self)
+                other_iterator = iter(other)
+            else:
+                self_iterator = iter(self.iter_extension_group())
+                other_iterator = iter(other.iter_extension_group())
+
+            for item in self_iterator:
                 while True:
                     try:
                         other_item = next(other_iterator)
@@ -607,7 +664,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 check_particle = False
 
             other_iterator = iter(other.iter_extension_group())
-            for item in self:
+            for item in self.iter_extension_group():
                 while True:
                     try:
                         other_item = next(other_iterator)
@@ -714,11 +771,28 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         for item in self:
             if not isinstance(item, XsdGroup):
                 yield item
-            elif item.parent is self:
+            elif item.parent is None or not item.is_meaningless(parent=self):
                 yield item
             else:
                 for obj in item.iter_extension_group():
                     yield obj
+
+    def iter_model(self):
+
+        def _iter_model(group, depth):
+            if depth <= 15:
+                for item in group:
+                    path.append(item)
+                    if isinstance(item, XsdGroup):
+                        for p in _iter_model(item, depth+1):
+                            yield p
+                    else:
+                        yield path
+                    path.pop()
+
+        path = [self]
+        for _ in _iter_model(self, 0):
+            yield path
 
     def iter_subelements(self, depth=0):
         if depth <= 15:
@@ -759,6 +833,29 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         Checks group particles. Types matching of same elements and Unique Particle Attribution
         Constraint are checked. Raises a value error at first violated constraint.
         """
+        elements = {}
+        for path in self.iter_model():
+            e = path[-1]
+            for pp in elements.values():
+                pe = pp[-1]
+                if pe.overlap(e) and not is_deterministic(pp, path):
+                    #print(self.tostring())
+                    #breakpoint()
+                    #is_deterministic(pp, path)
+                    raise XMLSchemaModelError(
+                        self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
+                    )
+                if pe.name == e.name and pe.name is not None and pe.type is not e.type:
+                    raise XMLSchemaModelError(
+                        self, "The model has elements with the same name %r but a different type" % e.name
+                    )
+            elements[e.name] = path[:]
+
+    def check_model2(self):
+        """
+        Checks group particles. Types matching of same elements and Unique Particle Attribution
+        Constraint are checked. Raises a value error at first violated constraint.
+        """
         #print(self)
         #breakpoint()
         elements = {}
@@ -775,51 +872,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         "Elements with the same name in the same model group must have the same type"
                     )
             elements[e.name] = e
-
-    def check_particles2(self):
-        """
-        Checks group particles. Types matching of same elements and Unique Particle Attribution
-        Constraint are checked. Raises a value error at first violated constraint.
-        """
-        import pdb
-        pdb.set_trace()
-        elements = {}
-        substitution_head = None
-        for e in self.iter_subelements():
-            if isinstance(e, XsdAnyElement):
-                for pe in elements.values():
-                    if pe.overlap(e) and not pe.is_deterministic(e, self):
-                        raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
-                elements[None] = e
-                continue
-            elif None in elements and e.overlap(elements[None]):
-                if not elements[None].is_deterministic(e, self):
-                    raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
-
-            if False and e.name in self.maps.substitution_groups:
-                if substitution_head is not None and substitution_head != e.name:
-                    import pdb
-                    pdb.set_trace()
-                    raise XMLSchemaValueError("More than one substitution group head in the model")
-                substitution_head = e.name
-                print(e.name, e.substitution_group, e.parent)
-
-            if e.name not in elements:
-                elements[e.name] = e
-                continue
-            elif e is elements[e.name]:
-                continue
-
-            pe = elements[e.name]
-            elements[e.name] = e
-
-            if pe.type is not e.type:
-                raise XMLSchemaValueError(
-                    "Elements with the same name in the same model group must have the same type"
-                )
-            elif not pe.is_deterministic(e, self):
-                raise XMLSchemaValueError("Model is not deterministic on element {!r}".format(e))
-
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """

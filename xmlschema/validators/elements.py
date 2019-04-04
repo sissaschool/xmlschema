@@ -648,12 +648,15 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elif isinstance(other, XsdElement):
             if self.name != other.name:
                 substitution_group = self.substitution_group
-                if other.name == self.substitution_group and other.min_occurs != other.max_occurs:
-                    return False  # Base is the head element
+
+                if other.name == self.substitution_group and other.min_occurs != other.max_occurs \
+                        and self.max_occurs != 0 and not other.abstract:
+                    # Base is the head element, it's not abstract and has non deterministic occurs: this
+                    # is less restrictive than W3C test group (elemZ026), marked as invalid despite it's
+                    # based on an abstract declaration.
+                    return False
                 elif self.substitution_group is None:
                     return False
-                    # elif (other.parent is None or other.ref) and 'substitution' not in other.block:
-                    #    return False
                 elif not any(e.name == self.name for e in self.maps.substitution_groups[substitution_group]):
                     return False
 

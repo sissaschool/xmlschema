@@ -57,7 +57,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </complexType>        
             <complexType name="restrictedType">
                 <{1}Content>
-                    <restriction base="targetType">
+                    <restriction base="targetType"> 
                         {2}                    
                     </restriction>
                 </{1}Content>
@@ -407,7 +407,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 </restriction>
             </simpleType>""")
 
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name="restricted_year">
                 <restriction base="gYear">
                     <minInclusive value="1900"/>
@@ -418,6 +418,18 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_base_schemas(self):
         from xmlschema.validators.schema import XML_SCHEMA_FILE
         schema = self.schema_class(XML_SCHEMA_FILE)
+
+    def test_recursive_complex_type(self):
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	            <xs:element name="elemA" type="typeA"/>
+	            <xs:complexType name="typeA">
+		            <xs:sequence>
+			            <xs:element ref="elemA" minOccurs="0" maxOccurs="5"/>
+		            </xs:sequence>
+	            </xs:complexType>
+            </xs:schema>""")
+        self.assertEqual(schema.elements['elemA'].type, schema.types['typeA'])
 
 
 class TestXMLSchema11(TestXMLSchema10):

@@ -879,23 +879,30 @@ class ParticleMixin(object):
             if any(not e.is_emptiable() for e in items1[depth][idx1+1:idx2]):
                 return True
 
-        for k in range(depth + 1, len(items2) - 1):
-            if items2[k].model == 'sequence':
-                idx = items2[k].index(items2[k + 1])
-                if any(not e.is_emptiable() for e in items2[k][:idx]):
-                    return True
-
-        before_flag = False
-        after_flag = False
+        before1 = False
+        after1 = False
         for k in range(depth + 1, len(items1) - 1):
             if items1[k].model == 'sequence':
                 idx = items1[k].index(items1[k + 1])
-                if not before_flag and any(not e.is_emptiable() for e in items1[k][:idx]):
-                    before_flag = True
-                if not after_flag and any(not e.is_emptiable() for e in items1[k][idx+1:]):
-                    after_flag = True
+                if not before1 and any(not e.is_emptiable() for e in items1[k][:idx]):
+                    before1 = True
+                if not after1 and any(not e.is_emptiable() for e in items1[k][idx+1:]):
+                    after1 = True
 
-        return before_flag and after_flag
+        before2 = False
+        after2 = False
+        for k in range(depth + 1, len(items2) - 1):
+            if items2[k].model == 'sequence':
+                idx = items2[k].index(items2[k + 1])
+                if not before2 and any(not e.is_emptiable() for e in items2[k][:idx]):
+                    before2 = True
+                if not after2 and any(not e.is_emptiable() for e in items2[k][idx+1:]):
+                    after2 = True
+
+        if items1[depth].model == 'sequence':
+            return after1 or before2
+        else:
+            return before1 or after2 and before2 or after1
 
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):

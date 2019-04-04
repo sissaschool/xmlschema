@@ -410,23 +410,26 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
-                    attribute_group_qname = self.schema.resolve_qname(child.attrib['ref'])
+                    ref = child.attrib['ref']
+                    attribute_group_qname = self.schema.resolve_qname(ref)
                 except ValueError as err:
                     self.parse_error(err, elem)
                 except KeyError:
                     self.parse_error("the attribute 'ref' is required in a local attributeGroup", elem)
                 else:
                     if attribute_group_qname in attribute_group_refs:
-                        self.parse_error("duplicated attributeGroup ref {!r}".format(child.attrib['ref']))
+                        self.parse_error("duplicated attributeGroup %r" % ref)
                     elif is_redefinition:
                         if attribute_group_qname == self.name:
+                            if attribute_group_refs:
+                                self.parse_error("in a redefinition the reference to itself must be the first")
                             attribute_group_refs.append(attribute_group_qname)
                             attributes.update(self._attribute_group.items())
                             continue
                         elif not attribute_group_refs:
-                            self.parse_error(
-                                "an attributeGroup redefinition can includes references after a reference to itself"
-                            )
+                            # May be an attributeGroup restriction with a ref to another group
+                            if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref') for e in self._elem):
+                                self.parse_error("attributeGroup ref=%r is not in the redefined group" % ref)
                     elif attribute_group_qname == self.name and self.schema.XSD_VERSION == '1.0':
                         self.parse_error("Circular attribute groups not allowed in XSD 1.0")
                     attribute_group_refs.append(attribute_group_qname)

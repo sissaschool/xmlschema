@@ -10,6 +10,7 @@
 #
 from __future__ import unicode_literals
 
+from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
     XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE, \
     XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT
@@ -211,7 +212,11 @@ class XsdComplexType(XsdType, ValidationMixin):
             return
 
         derivation = local_name(derivation_elem.tag)
-        self._derivation = derivation == 'extension'
+        if self._derivation is None:
+            self._derivation = derivation == 'extension'
+        elif not hasattr(self, '_elem'):
+            raise XMLSchemaValueError("%r is expected to have a redefined/overridden element" % self)
+
         if self.base_type is not None and derivation in self.base_type.final:
             self.parse_error("%r derivation not allowed for %r." % (derivation, self))
         return derivation_elem
@@ -482,6 +487,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             base_type = self.base_type
             if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                 if not self.content_type.is_restriction(base_type.content_type):
+                    # breakpoint()
+                    # print(self.tostring())
+                    # print(base_type.tostring())
+                    # self.content_type.is_restriction(base_type.content_type)
                     self.parse_error("The derived group is an illegal restriction of the base type group.")
 
     def decode(self, data, *args, **kwargs):
