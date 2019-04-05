@@ -844,66 +844,6 @@ class ParticleMixin(object):
     def is_over(self, occurs):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def is_deterministic(self, other, base_group=None):
-        if self.parent is other.parent:
-            group = self.parent
-            if group.model != 'sequence':
-                return False
-            elif self.min_occurs == self.max_occurs:
-                return True
-
-            for e in group[group.index(self)+1:group.index(other)]:
-                if not e.is_emptiable():
-                    return True
-            else:
-                return False
-        elif self.min_occurs == self.max_occurs:
-            return True
-
-        items1 = base_group.get_groups(self)
-        items2 = base_group.get_groups(other)
-
-        for k, e in enumerate(items1):
-            if e not in items2:
-                depth = k - 1
-                break
-        else:
-            depth = 0
-
-        items1.append(self)
-        items2.append(other)
-
-        if items1[depth].model == 'sequence':
-            idx1 = items1[depth].index(items1[depth + 1])
-            idx2 = items2[depth].index(items2[depth + 1])
-            if any(not e.is_emptiable() for e in items1[depth][idx1+1:idx2]):
-                return True
-
-        before1 = False
-        after1 = False
-        for k in range(depth + 1, len(items1) - 1):
-            if items1[k].model == 'sequence':
-                idx = items1[k].index(items1[k + 1])
-                if not before1 and any(not e.is_emptiable() for e in items1[k][:idx]):
-                    before1 = True
-                if not after1 and any(not e.is_emptiable() for e in items1[k][idx+1:]):
-                    after1 = True
-
-        before2 = False
-        after2 = False
-        for k in range(depth + 1, len(items2) - 1):
-            if items2[k].model == 'sequence':
-                idx = items2[k].index(items2[k + 1])
-                if not before2 and any(not e.is_emptiable() for e in items2[k][:idx]):
-                    before2 = True
-                if not after2 and any(not e.is_emptiable() for e in items2[k][idx+1:]):
-                    after2 = True
-
-        if items1[depth].model == 'sequence':
-            return after1 or before2
-        else:
-            return before1 or after2 and before2 or after1
-
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):
         """

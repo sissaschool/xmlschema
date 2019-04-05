@@ -18,8 +18,8 @@ from collections import Counter
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
 from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
+from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
+    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
 from ..helpers import get_qname, local_name
 from ..namespaces import NamespaceResourcesMap
 
@@ -464,25 +464,29 @@ class XsdGlobals(XsdValidator):
                 if e is xsd_element:
                     schema.parse_error("circularity found for substitution group with head element %r" % xsd_element)
 
-        # Check for illegal restrictions
-        if schema.validation != 'skip':
-            for xsd_type in schema.iter_components(XsdComplexType):
-                if xsd_type.derivation == 'restriction':
-                    xsd_type.check_restriction()
-
         if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
             if not isinstance(schema.default_attributes, XsdAttributeGroup):
                 schema.default_attributes = None
                 schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
                                    .format(schema.root.get('defaultAttributes'), schema), schema.root)
 
-        # Checks effectively used model groups of the schema
+        if schema.validation == 'skip':
+            return
+
+        # Check complex content types models
         for xsd_type in schema.iter_components(XsdComplexType):
-            if isinstance(xsd_type.content_type, XsdGroup):
-                try:
-                    xsd_type.content_type.check_model()
-                except XMLSchemaModelError as err:
-                    if self.validation == 'strict':
-                        raise
-                    elif self.validation == 'lax':
-                        xsd_type.errors.append(err)
+            if not isinstance(xsd_type.content_type, XsdGroup):
+                continue
+            elif xsd_type.derivation == 'restriction':
+                base_type = xsd_type.base_type
+                if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
+                    if not xsd_type.content_type.is_restriction(base_type.content_type):
+                        xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")
+
+            try:
+                xsd_type.content_type.check_model()
+            except XMLSchemaModelError as err:
+                if self.validation == 'strict':
+                    raise
+                elif self.validation == 'lax':
+                    xsd_type.errors.append(err)

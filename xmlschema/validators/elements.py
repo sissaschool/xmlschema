@@ -644,7 +644,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def is_restriction(self, other, check_particle=True):
         if isinstance(other, XsdAnyElement):
-            return True  # TODO
+            if check_particle and not self.has_particle_restriction(other):
+                return False
+            return other.is_matching(self.name, self.default_namespace) or \
+                   other.is_namespace_allowed(self.target_namespace)
         elif isinstance(other, XsdElement):
             if self.name != other.name:
                 substitution_group = self.substitution_group
@@ -774,6 +777,14 @@ class Xsd11Element(XsdElement):
             if alt.type is not None and boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
                 return alt.type
         return self.type
+
+    def overlap(self, other):
+        if isinstance(other, XsdElement):
+            if self.name == other.name:
+                return True
+            elif other.substitution_group == self.name or other.name == self.substitution_group:
+                return True
+        return False
 
 
 class XsdAlternative(XsdComponent):

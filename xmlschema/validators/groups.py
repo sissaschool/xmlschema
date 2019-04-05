@@ -39,50 +39,47 @@ ANY_ELEMENT = etree_element(
     })
 
 
-def is_deterministic(items1, items2):
-    e = items1[-1]
-    if e is not items2[-1]:
-        if e.parent is items2[-1].parent:
-            if e.parent.model != 'sequence':
-                return False
-
-    if e.min_occurs == e.max_occurs:
-        return True
-
-    for k, e in enumerate(items1):
-        if e not in items2:
+def distinguishable_paths(path1, path2):
+    """
+    Checks if two model paths are distinguishable in a deterministic way, without looking forward
+    or backtracking. The arguments are lists containing paths from the base group of the model to
+    a couple of leaf elements. Returns `True` if there is a deterministic separation between paths,
+    `False` if the paths are ambiguous.
+    """
+    for k, e in enumerate(path1):
+        if e not in path2:
             depth = k - 1
             break
     else:
         depth = 0
 
-    if items1[depth].model == 'sequence':
-        idx1 = items1[depth].index(items1[depth + 1])
-        idx2 = items2[depth].index(items2[depth + 1])
-        if any(not e.is_emptiable() for e in items1[depth][idx1 + 1:idx2]):
+    if path1[depth].model == 'sequence':
+        idx1 = path1[depth].index(path1[depth + 1])
+        idx2 = path2[depth].index(path2[depth + 1])
+        if any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2]):
             return True
 
     before1 = False
     after1 = False
-    for k in range(depth + 1, len(items1) - 1):
-        if items1[k].model == 'sequence':
-            idx = items1[k].index(items1[k + 1])
-            if not before1 and any(not e.is_emptiable() for e in items1[k][:idx]):
+    for k in range(depth + 1, len(path1) - 1):
+        if path1[k].model == 'sequence':
+            idx = path1[k].index(path1[k + 1])
+            if not before1 and any(not e.is_emptiable() for e in path1[k][:idx]):
                 before1 = True
-            if not after1 and any(not e.is_emptiable() for e in items1[k][idx + 1:]):
+            if not after1 and any(not e.is_emptiable() for e in path1[k][idx + 1:]):
                 after1 = True
 
     before2 = False
     after2 = False
-    for k in range(depth + 1, len(items2) - 1):
-        if items2[k].model == 'sequence':
-            idx = items2[k].index(items2[k + 1])
-            if not before2 and any(not e.is_emptiable() for e in items2[k][:idx]):
+    for k in range(depth + 1, len(path2) - 1):
+        if path2[k].model == 'sequence':
+            idx = path2[k].index(path2[k + 1])
+            if not before2 and any(not e.is_emptiable() for e in path2[k][:idx]):
                 before2 = True
-            if not after2 and any(not e.is_emptiable() for e in items2[k][idx + 1:]):
+            if not after2 and any(not e.is_emptiable() for e in path2[k][idx + 1:]):
                 after2 = True
 
-    if items1[depth].model == 'sequence':
+    if path1[depth].model == 'sequence':
         return after1 or before2
     else:
         return before1 or after2 and before2 or after1
@@ -559,6 +556,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
          - minOccurs == maxOccurs == 1 and the group has one child
          - minOccurs == maxOccurs == 1 and the group and its parent have a sequence model
          - minOccurs == maxOccurs == 1 and the group and its parent have a choice model
+
+        :param parent: alternative parent, useful when expand complex content extensions.
         """
         if not self:
             return True
@@ -566,7 +565,11 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
-        elif not isinstance(parent, XsdGroup):
+
+        if parent is None:
+            parent = self.parent
+
+        if not isinstance(parent, XsdGroup):
             return False
         elif self.model == 'sequence' and parent.model != 'sequence':
             return False
@@ -618,7 +621,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 if other.name in self.maps.substitution_groups and all(
                         isinstance(e, XsdElement) and e.substitution_group == other.name for e in self):
                     return True
-                return any(e.is_restriction(other) for e in self)
+                return any(e.is_restriction(other, False) for e in self)
             else:
                 return all(e.is_restriction(other, False) or e.min_occurs == 0 for e in self)
         elif not isinstance(other, XsdGroup):
@@ -631,23 +634,22 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif other.model == 'all' and self.model == 'choice':
             return False
-        elif len(other) == 1 and len(self) > 1:
-            return self.is_restriction(other[0], check_particle)
-        elif self.model == other.model:
+        elif len(other) == other.min_occurs == other.max_occurs == 1:
+            if len(self) > 1:
+                return self.is_restriction(other[0], check_particle)
+            elif isinstance(self[0], XsdGroup) and self[0].is_meaningless(parent=self):
+                return self[0].is_restriction(other[0], check_particle)
+
+        # Aligned groups: compare group items one by one, discarding meaningless groups
+        if self.model == other.model:
             if check_particle and not self.has_particle_restriction(other):
                 return False
             if other.max_occurs == 0:
                 check_particle = False
 
             # Same model: declarations must simply preserve order
-            if len(self) <= len(other):
-                self_iterator = iter(self)
-                other_iterator = iter(other)
-            else:
-                self_iterator = iter(self.iter_extension_group())
-                other_iterator = iter(other.iter_extension_group())
-
-            for item in self_iterator:
+            other_iterator = iter(other.iter_group())
+            for item in self.iter_group():
                 while True:
                     try:
                         other_item = next(other_iterator)
@@ -663,8 +665,8 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if other.max_occurs == 0:
                 check_particle = False
 
-            other_iterator = iter(other.iter_extension_group())
-            for item in self.iter_extension_group():
+            other_iterator = iter(other.iter_group())
+            for item in self.iter_group():
                 while True:
                     try:
                         other_item = next(other_iterator)
@@ -684,7 +686,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 check_particle = False
 
             group_items = list(self)
-            for other_item in other.iter_extension_group():
+            for other_item in other.iter_group():
                 for item in group_items:
                     if other_item is item or item.is_restriction(other_item, check_particle):
                         break
@@ -702,7 +704,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             group_items = list(self)
             max_occurs = 0
             other_max_occurs = 0
-            for other_item in other.iter_extension_group():
+            for other_item in other.iter_group():
                 for item in group_items:
                     if other_item is item or item.is_restriction(other_item, check_particle):
                         if max_occurs is not None:
@@ -741,20 +743,6 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             else:
                 return other_max_occurs >= max_occurs * self.max_occurs
 
-    def get_groups(self, item):
-        def examine(g):
-            groups.append(g)
-            if item in g:
-                return True
-            for p in g:
-                if isinstance(p, XsdGroup) and examine(p):
-                    return True
-            groups.pop()
-
-        groups = []
-        examine(self)
-        return groups
-
     def iter_group(self):
         """Creates an iterator for sub elements and groups. Skips meaningless groups."""
         for item in self:
@@ -766,33 +754,25 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 for obj in item.iter_group():
                     yield obj
 
-    def iter_extension_group(self):
-        """Creates an iterator for sub elements and groups. Skips meaningless groups."""
-        for item in self:
-            if not isinstance(item, XsdGroup):
-                yield item
-            elif item.parent is None or not item.is_meaningless(parent=self):
-                yield item
-            else:
-                for obj in item.iter_extension_group():
-                    yield obj
-
     def iter_model(self):
-
+        """
+        Iterates model group through its group paths to leaf elements. Yields a list containing itself
+        as first element, followed by any intermediate groups and the current XSD element at the end.
+        """
         def _iter_model(group, depth):
             if depth <= 15:
                 for item in group:
-                    path.append(item)
                     if isinstance(item, XsdGroup):
-                        for p in _iter_model(item, depth+1):
-                            yield p
+                        path.append(item)
+                        for e in _iter_model(item, depth+1):
+                            yield e
+                        path.pop()
                     else:
-                        yield path
-                    path.pop()
+                        yield item
 
         path = [self]
-        for _ in _iter_model(self, 0):
-            yield path
+        for xsd_element in _iter_model(self, 0):
+            yield xsd_element, path
 
     def iter_subelements(self, depth=0):
         if depth <= 15:
@@ -831,47 +811,30 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
     def check_model(self):
         """
         Checks group particles. Types matching of same elements and Unique Particle Attribution
-        Constraint are checked. Raises a value error at first violated constraint.
+        Constraint are checked. Raises an `XMLSchemaModelError` at first violated constraint.
         """
         elements = {}
-        for path in self.iter_model():
-            e = path[-1]
-            for pp in elements.values():
-                pe = pp[-1]
-                if pe.overlap(e) and not is_deterministic(pp, path):
-                    #print(self.tostring())
-                    #breakpoint()
-                    #is_deterministic(pp, path)
-                    raise XMLSchemaModelError(
-                        self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
-                    )
+        for e, path in self.iter_model():
+            for pe, previous_path in elements.values():
                 if pe.name == e.name and pe.name is not None and pe.type is not e.type:
                     raise XMLSchemaModelError(
                         self, "The model has elements with the same name %r but a different type" % e.name
                     )
-            elements[e.name] = path[:]
-
-    def check_model2(self):
-        """
-        Checks group particles. Types matching of same elements and Unique Particle Attribution
-        Constraint are checked. Raises a value error at first violated constraint.
-        """
-        #print(self)
-        #breakpoint()
-        elements = {}
-        for e in self.iter_subelements():
-            for pe in elements.values():
-                if pe.overlap(e) and not pe.is_deterministic(e, self):
+                elif not pe.overlap(e):
+                    continue
+                elif pe is not e and pe.parent is e.parent and pe.parent.model in {'all', 'choice'}:
+                    msg = "{!r} and {!r} overlap and are in the same {!r} group"
+                    raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
+                elif pe.min_occurs == pe.max_occurs:
+                    continue
+                elif not distinguishable_paths(previous_path + [pe], path + [e]):
+                    # print(self.tostring())
                     # breakpoint()
-                    # pe.is_deterministic(e, self)
+                    # distinguishable_paths(previous_path + [pe], path + [e])
                     raise XMLSchemaModelError(
                         self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
                     )
-                if pe.name == e.name and pe.name is not None and pe.type is not e.type:
-                    raise XMLSchemaValueError(
-                        "Elements with the same name in the same model group must have the same type"
-                    )
-            elements[e.name] = e
+            elements[e.name] = e, path[:]
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
         """
