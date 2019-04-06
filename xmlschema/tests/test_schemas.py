@@ -57,7 +57,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </complexType>        
             <complexType name="restrictedType">
                 <{1}Content>
-                    <restriction base="targetType"> 
+                    <restriction base="ns:targetType"> 
                         {2}                    
                     </restriction>
                 </{1}Content>
@@ -67,7 +67,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_schema_copy(self):
         schema = self.vh_schema.copy()
-        self.assertTrue(id(self.vh_schema) != id(schema))
+        self.assertNotEqual(id(self.vh_schema), id(schema))
         self.assertEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
         self.assertEqual(id(self.vh_schema.maps), id(schema.maps))
 
@@ -186,7 +186,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </simpleType>
             """)
 
-    @unittest.skip("The feature is still under development")
     def test_element_restrictions(self):
         base = """
         <sequence>
@@ -240,7 +239,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </sequence>
             """, expected=XMLSchemaParseError)
 
-    @unittest.skip("The feature is still under development")
     def test_sequence_group_restriction(self):
         # Meaningless sequence group
         base = """
@@ -265,7 +263,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
         </sequence>
         """
         self.check_complex_restriction(base, '<sequence><element name="A"/></sequence>')
-        self.check_complex_restriction(base, '<sequence><element name="B"/></sequence>', XMLSchemaParseError)
+        self.check_complex_restriction(base, '<sequence><element name="B"/></sequence>')
         self.check_complex_restriction(base, '<sequence><element name="C"/></sequence>', XMLSchemaParseError)
         self.check_complex_restriction(
             base, '<sequence><element name="A"/><element name="B"/></sequence>'
@@ -282,7 +280,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             XMLSchemaParseError
         )
 
-    @unittest.skip("The feature is still under development")
     def test_all_group_restriction(self):
         base = """
         <all>
@@ -293,22 +290,22 @@ class TestXMLSchema10(XMLSchemaTestCase):
         """
         self.check_complex_restriction(base, '<all><element name="A"/><element name="C"/></all>')
         self.check_complex_restriction(
-            base, '<all><element name="C" minOccurs="0"/><element name="A"/></all>',
-            XMLSchemaParseError
+            base, '<all><element name="C" minOccurs="0"/><element name="A"/></all>', XMLSchemaParseError
         )
         self.check_complex_restriction(
             base, '<sequence><element name="A"/><element name="C"/></sequence>'
         )
         self.check_complex_restriction(
             base, '<sequence><element name="C" minOccurs="0"/><element name="A"/></sequence>',
+        )
+        self.check_complex_restriction(
+            base, '<sequence><element name="C" minOccurs="0"/><element name="A" minOccurs="0"/></sequence>',
             XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="X"/></sequence>',
-            XMLSchemaParseError
+            base, '<sequence><element name="A"/><element name="X"/></sequence>', XMLSchemaParseError
         )
 
-    @unittest.skip("The feature is still under development")
     def test_choice_group_restriction(self):
         base = """
         <choice maxOccurs="2">
@@ -327,7 +324,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             base, '<choice maxOccurs="2"><element name="A"/><element name="C"/></choice>',
         )
 
-    @unittest.skip("The feature is still under development")
     def test_occurs_restriction(self):
         base = """
         <sequence minOccurs="3" maxOccurs="10">

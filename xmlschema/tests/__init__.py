@@ -75,7 +75,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.errors = []
         cls.xsd_types = cls.schema_class.builtin_types()
-        cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
+        cls.content_pattern = re.compile(r'(<|<xs:)(sequence|choice|all)')
 
         cls.default_namespaces = {
             'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
