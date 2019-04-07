@@ -306,6 +306,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
       Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
     </attributeGroup>
     """
+    redefine = None
     admitted_tags = {
         XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
@@ -378,7 +379,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         elem = self.elem
         any_attribute = False
         attribute_group_refs = []
-        is_redefinition = hasattr(self, '_elem')
 
         if elem.tag == XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
@@ -419,7 +419,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 else:
                     if attribute_group_qname in attribute_group_refs:
                         self.parse_error("duplicated attributeGroup %r" % ref)
-                    elif is_redefinition:
+                    elif self.redefine is not None:
                         if attribute_group_qname == self.name:
                             if attribute_group_refs:
                                 self.parse_error("in a redefinition the reference to itself must be the first")
@@ -428,7 +428,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             continue
                         elif not attribute_group_refs:
                             # May be an attributeGroup restriction with a ref to another group
-                            if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref') for e in self._elem):
+                            if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
+                                       for e in self.redefine.elem):
                                 self.parse_error("attributeGroup ref=%r is not in the redefined group" % ref)
                     elif attribute_group_qname == self.name and self.schema.XSD_VERSION == '1.0':
                         self.parse_error("Circular attribute groups not allowed in XSD 1.0")
@@ -476,7 +477,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.parse_error("Attribute %r: derived attribute has a different fixed value" % name)
 
             self._attribute_group.update(self.base_attributes.items())
-        elif is_redefinition and not attribute_group_refs:
+        elif self.redefine is not None and not attribute_group_refs:
             for name, attr in self._attribute_group.items():
                 if name is None:
                     continue

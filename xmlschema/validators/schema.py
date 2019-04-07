@@ -585,8 +585,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         return attribute_group
 
     def copy(self):
+        """Makes a copy of the schema instance. The new instance has independent maps of shared XSD components."""
         schema = object.__new__(self.__class__)
         schema.__dict__.update(self.__dict__)
+        schema.source = self.source.copy()
+        schema.errors = self.errors[:]
+        schema.warnings = self.warnings[:]
+        schema.namespaces = self.namespaces.copy()
+        schema.locations = NamespaceResourcesMap(self.locations)
+        schema.imports = dict(self.imports)
+        schema.includes = self.includes[:]
+        schema.maps = self.maps.copy(validator=schema)
         return schema
 
     __copy__ = copy
@@ -634,13 +643,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @property
     def validation_attempted(self):
-        """
-        Property that returns the XSD component validation status. It can be
-        'full', 'partial' or 'none'.
-
-        | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
-        | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
-        """
         if self.built:
             return 'full'
         elif any([comp.validation_attempted == 'partial' for comp in self.iter_globals()]):
@@ -650,9 +652,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def iter_globals(self, schema=None):
         """
-        Creates an iterator for XSD global definitions/declarations.
+        Creates an iterator for XSD global definitions/declarations related to schema namespace.
 
-        :param schema: Optional schema instance.
+        :param schema: Optional argument for filtering only globals related to a schema instance.
         """
         if schema is None:
             for global_map in self.global_maps:

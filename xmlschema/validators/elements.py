@@ -669,7 +669,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     not self.type.is_derived(other.type):
                 return False
             elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
-                return False
+                    return False
             elif other.nillable is False and self.nillable:
                 return False
             elif any(value not in self.block for value in other.block.split()):

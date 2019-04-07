@@ -51,6 +51,10 @@ class XsdComplexType(XsdType, ValidationMixin):
     _block = None
     _derivation = None
 
+    @staticmethod
+    def normalize(text):
+        return text.decode('utf-8') if isinstance(text, bytes) else text
+
     def __init__(self, elem, schema, parent, name=None, **kwargs):
         if kwargs:
             if 'content_type' in kwargs:
@@ -214,8 +218,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         derivation = local_name(derivation_elem.tag)
         if self._derivation is None:
             self._derivation = derivation == 'extension'
-        elif not hasattr(self, '_elem'):
-            raise XMLSchemaValueError("%r is expected to have a redefined/overridden element" % self)
+        elif self.redefine is None:
+            raise XMLSchemaValueError("%r is expected to have a redefined/overridden component" % self)
 
         if self.base_type is not None and derivation in self.base_type.final:
             self.parse_error("%r derivation not allowed for %r." % (derivation, self))

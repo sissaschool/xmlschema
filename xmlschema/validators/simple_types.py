@@ -1008,7 +1008,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
             else:
                 if base_qname == self.name:
-                    if not hasattr(self, '_elem'):
+                    if self.redefine is None:
                         self.parse_error("wrong definition with self-reference", elem)
                         base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
                     else:

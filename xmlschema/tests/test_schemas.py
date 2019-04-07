@@ -68,8 +68,8 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_schema_copy(self):
         schema = self.vh_schema.copy()
         self.assertNotEqual(id(self.vh_schema), id(schema))
-        self.assertEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
-        self.assertEqual(id(self.vh_schema.maps), id(schema.maps))
+        self.assertNotEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
+        self.assertNotEqual(id(self.vh_schema.maps), id(schema.maps))
 
     def test_resolve_qname(self):
         schema = self.schema_class("""<xs:schema

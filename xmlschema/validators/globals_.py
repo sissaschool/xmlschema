@@ -139,28 +139,26 @@ def create_lookup_function(xsd_classes):
                 return global_map[qname]
 
             elif isinstance(obj, list):
-                if not isinstance(obj[0], xsd_classes):
-                    # Not built XSD global component with redefinitions
-                    try:
-                        elem, schema = obj[0]
-                    except ValueError:
-                        return obj[0][0]  # Circular build, simply return (elem, schema) couple
+                # Not built XSD global component with redefinitions
+                try:
+                    elem, schema = obj[0]
+                except ValueError:
+                    return obj[0][0]  # Circular build, simply return (elem, schema) couple
 
-                    try:
-                        factory_or_class = tag_map[elem.tag]
-                    except KeyError:
-                        raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
+                try:
+                    factory_or_class = tag_map[elem.tag]
+                except KeyError:
+                    raise XMLSchemaKeyError("wrong element %r for map %r." % (elem, global_map))
 
-                    global_map[qname] = obj[0],  # To catch circular builds
-                    global_map[qname] = factory_or_class(elem, schema, parent=None)
-                else:
-                    # Built-in type
-                    global_map[qname] = obj[0]
+                global_map[qname] = obj[0],  # To catch circular builds
+                global_map[qname] = component = factory_or_class(elem, schema, parent=None)
 
                 # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
-                    global_map[qname].schema = schema
-                    global_map[qname].elem = elem
+                    component.redefine = component.copy()
+                    component.schema = schema
+                    component.elem = elem
+
                 return global_map[qname]
 
             else:
@@ -436,21 +434,16 @@ class XsdGlobals(XsdValidator):
             self.lookup_group(qname)
 
         # Builds element declarations inside model groups.
-        element_class = meta_schema.BUILDERS.element_class
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
-                for k in range(len(group)):
-                    if isinstance(group[k], tuple):
-                        elem, schema = group[k]
-                        group[k] = element_class(elem, schema, group)
+                group.build()
 
         for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
-            # Build key references and assertions
+            # Build key references and assertions (XSD meta-schema doesn't have any of them)
             for constraint in schema.iter_components(XsdKeyref):
                 constraint.parse_refer()
             for assertion in schema.iter_components(XsdAssert):
                 assertion.parse()
-
             self._check_schema(schema)
 
         if self.validation == 'strict' and not self.built:
@@ -473,6 +466,11 @@ class XsdGlobals(XsdValidator):
         if schema.validation == 'skip':
             return
 
+        # Check redefined global groups
+        for group in filter(lambda x: x.schema is schema and x.redefine is not None, self.groups.values()):
+            if group.redefine not in group and not group.is_restriction(group.redefine):
+                group.parse_error("The redefined group is an illegal restriction of the original group.")
+
         # Check complex content types models
         for xsd_type in schema.iter_components(XsdComplexType):
             if not isinstance(xsd_type.content_type, XsdGroup):
@@ -488,5 +486,4 @@ class XsdGlobals(XsdValidator):
             except XMLSchemaModelError as err:
                 if self.validation == 'strict':
                     raise
-                elif self.validation == 'lax':
-                    xsd_type.errors.append(err)
+                xsd_type.errors.append(err)

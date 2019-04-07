@@ -314,22 +314,16 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
+    redefine = None
     admitted_tags = {
         XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION,
         XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
-    def __init__(self, elem, schema, parent, name=None, initlist=None):
+    def __init__(self, elem, schema, parent, name=None):
         self.mixed = False if parent is None else parent.mixed
         self.model = None
         self._group = []
-        if initlist is not None:
-            if isinstance(initlist, type(self._group)):
-                self._group[:] = initlist
-            elif isinstance(initlist, XsdGroup):
-                self._group[:] = initlist._group[:]
-            else:
-                self._group = list(initlist)
         XsdComponent.__init__(self, elem, schema, parent, name)
 
     def __repr__(self):
@@ -375,11 +369,17 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 raise XMLSchemaValueError("XsdGroup's items must be tuples or ParticleMixin instances.")
         super(XsdGroup, self).__setattr__(name, value)
 
+    def copy(self):
+        group = object.__new__(self.__class__)
+        group.__dict__.update(self.__dict__)
+        group.errors = self.errors[:]
+        group._group = self._group[:]
+        return group
+
+    __copy__ = copy
+
     def _parse(self):
         super(XsdGroup, self)._parse()
-        if hasattr(self, '_elem'):
-            original_group = list(self)
-
         self.clear()
         elem = self.elem
         self._parse_particle(elem)
@@ -478,16 +478,35 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
-                xsd_group = XsdGroup(child, self.schema, self)
-                if xsd_group.name != self.name:
+                try:
+                    ref = get_qname(self.target_namespace, child.attrib['ref'])
+                except KeyError:
+                    self.parse_error("missing attribute 'ref' in local group", child)
+                    continue
+
+                if ref != self.name:
+                    xsd_group = XsdGroup(child, self.schema, self)
                     if xsd_group.model == 'all':
                         self.parse_error("'all' model can appears only at 1st level of a model group")
                     else:
                         self.append(xsd_group)
-                elif not hasattr(self, '_elem'):
-                    self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
+                elif self.redefine is None:
+                    self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
+                else:
+                    self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
+
+    def build(self):
+        element_class = self.schema.BUILDERS.element_class
+        for k in range(len(self._group)):
+            if isinstance(self._group[k], tuple):
+                elem, schema = self._group[k]
+                self._group[k] = element_class(elem, schema, self)
+
+        if self.redefine is not None:
+            for group in self.redefine.iter_components(XsdGroup):
+                group.build()
 
     @property
     def schema_elem(self):
@@ -630,9 +649,9 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             return False
         elif other.ref:
             return self.is_restriction(other[0], check_particle)
-        elif other.model == 'choice' and self.model == 'all':
+        elif other.model == 'choice' and self.model == 'all' and len(self) > 1:
             return False
-        elif other.model == 'all' and self.model == 'choice':
+        elif other.model == 'all' and self.model == 'choice' and len(self) > 1:
             return False
         elif len(other) == other.min_occurs == other.max_occurs == 1:
             if len(self) > 1:
@@ -1118,10 +1137,17 @@ class Xsd11Group(XsdGroup):
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
-                xsd_group = XsdGroup(child, self.schema, self)
-                if xsd_group.name != self.name:
-                    self.append(xsd_group)
-                elif not hasattr(self, '_elem'):
-                    self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
+                try:
+                    ref = get_qname(self.target_namespace, child.attrib['ref'])
+                except KeyError:
+                    self.parse_error("missing attribute 'ref' in local group", child)
+                    continue
+
+                if ref != self.name:
+                    self.append(XsdGroup(child, self.schema, self))
+                elif not hasattr(self, '_component'):
+                    self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
+                else:
+                    self.append(self._component)
             else:
                 continue  # Error already caught by validation against the meta-schema

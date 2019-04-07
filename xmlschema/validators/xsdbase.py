@@ -73,7 +73,7 @@ class XsdValidator(object):
     @property
     def validation_attempted(self):
         """
-        Property that returns the XSD validator's validation status. It can be 'full', 'partial' or 'none'.
+        Property that returns the *validation status* of the XSD validator. It can be 'full', 'partial' or 'none'.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
@@ -114,6 +114,14 @@ class XsdValidator(object):
             if comp.errors:
                 errors.extend(comp.errors)
         return errors
+
+    def copy(self):
+        validator = object.__new__(self.__class__)
+        validator.__dict__.update(self.__dict__)
+        validator.errors = self.errors[:]
+        return validator
+
+    __copy__ = copy
 
     def parse_error(self, error, elem=None):
         """
@@ -221,8 +229,6 @@ class XsdComponent(XsdValidator):
                         [local_name(tag) for tag in self.admitted_tags]
                     )
                 )
-            elif hasattr(self, 'elem'):
-                self._elem = self.elem  # redefinition cases
             super(XsdComponent, self).__setattr__(name, value)
             self._parse()
             return
@@ -472,6 +478,7 @@ class XsdType(XsdComponent):
     abstract = False
     base_type = None
     derivation = None
+    redefine = None
     _final = None
 
     @property
