@@ -46,6 +46,8 @@ def distinguishable_paths(path1, path2):
     a couple of leaf elements. Returns `True` if there is a deterministic separation between paths,
     `False` if the paths are ambiguous.
     """
+    e1, e2 = path1[-1], path2[-1]
+
     for k, e in enumerate(path1):
         if e not in path2:
             depth = k - 1
@@ -53,7 +55,13 @@ def distinguishable_paths(path1, path2):
     else:
         depth = 0
 
+    if path1[depth].max_occurs == 0:
+        return True
+
     if path1[depth].model == 'sequence':
+        if e1.min_occurs == e1.max_occurs:
+            return True
+
         idx1 = path1[depth].index(path1[depth + 1])
         idx2 = path2[depth].index(path2[depth + 1])
         if any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2]):
@@ -79,10 +87,18 @@ def distinguishable_paths(path1, path2):
             if not after2 and any(not e.is_emptiable() for e in path2[k][idx + 1:]):
                 after2 = True
 
-    if path1[depth].model == 'sequence':
-        return after1 or before2
+    if path1[depth].model != 'sequence':
+        return before1 and before2 or (before1 and (e1.min_occurs == e1.max_occurs or after1)) \
+               or (before2 and (e2.min_occurs == e2.max_occurs or after2))
+    elif path1[depth].max_occurs == 1:
+        return e1.min_occurs == e1.max_occurs or after1 or before2
     else:
-        return before1 or after2 and before2 or after1
+        return (e1.min_occurs1 == e1.max_occurs or after1 or before2) and \
+               (e2.min_occurs == e2.max_occurs or after2 or before1)
+
+    #    return after1 or before2   # sequence
+    #else:
+    #    return before1 or after2 and before2 or after1   # choice/all
 
 
 class XsdModelVisitor(MutableSequence):
@@ -841,12 +857,15 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                     )
                 elif not pe.overlap(e):
                     continue
-                elif pe is not e and pe.parent is e.parent and pe.parent.model in {'all', 'choice'}:
-                    msg = "{!r} and {!r} overlap and are in the same {!r} group"
-                    raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
-                elif pe.min_occurs == pe.max_occurs:
-                    continue
-                elif not distinguishable_paths(previous_path + [pe], path + [e]):
+                elif pe is not e and pe.parent is e.parent:
+                    if pe.parent.model in {'all', 'choice'}:
+                        msg = "{!r} and {!r} overlap and are in the same {!r} group"
+                        raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
+                    elif pe.min_occurs == pe.max_occurs:
+                        continue
+                #import pdb
+                #pdb.set_trace()
+                if not distinguishable_paths(previous_path + [pe], path + [e]):
                     # print(self.tostring())
                     # breakpoint()
                     # distinguishable_paths(previous_path + [pe], path + [e])
