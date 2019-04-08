@@ -115,9 +115,9 @@ The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
      '{http://www.w3.org/1999/xlink}locator',
      '{http://www.w3.org/1999/xlink}resource',
      '{http://www.w3.org/1999/xlink}title',
-     '{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasFacet',
-     '{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasProperty',
-     '{http://www.w3.org/2001/XMLSchema}all']
+     '{http://www.w3.org/2001/XMLSchema}all',
+     '{http://www.w3.org/2001/XMLSchema}annotation',
+     '{http://www.w3.org/2001/XMLSchema}any']
 
 Schema objects include methods for finding XSD elements and attributes in the schema.
 Those are methods ot the ElementTree's API, so you can use an XPath expression for
