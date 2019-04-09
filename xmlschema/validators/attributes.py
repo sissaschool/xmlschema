@@ -469,10 +469,14 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if name is None:
                     if self.derivation == 'restriction' and not attr.is_restriction(base_attr):
                         self.parse_error("Attribute wildcard is not a restriction of the base wildcard")
-                elif base_attr.use != 'optional' and attr.use == 'optional' or \
+                    continue
+                if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \
+                        not attr.type.is_derived(base_attr.type, 'restriction'):
+                    self.parse_error("Attribute type is not a restriction of the base attribute type")
+                if base_attr.use != 'optional' and attr.use == 'optional' or \
                         base_attr.use == 'required' and attr.use != 'required':
                     self.parse_error("Attribute %r: unmatched attribute use in restriction" % name)
-                elif base_attr.fixed is not None and \
+                if base_attr.fixed is not None and \
                         attr.type.normalize(attr.fixed) != base_attr.type.normalize(base_attr.fixed):
                     self.parse_error("Attribute %r: derived attribute has a different fixed value" % name)
 

@@ -263,7 +263,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
         </sequence>
         """
         self.check_complex_restriction(base, '<sequence><element name="A"/></sequence>')
-        self.check_complex_restriction(base, '<sequence><element name="B"/></sequence>')
+        self.check_complex_restriction(base, '<sequence><element name="B"/></sequence>', XMLSchemaParseError)
         self.check_complex_restriction(base, '<sequence><element name="C"/></sequence>', XMLSchemaParseError)
         self.check_complex_restriction(
             base, '<sequence><element name="A"/><element name="B"/></sequence>'

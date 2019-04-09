@@ -26,7 +26,8 @@ from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .simple_types import xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
     XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion
 from .complex_types import XsdComplexType, Xsd11ComplexType
-from .groups import XsdModelVisitor, XsdGroup, Xsd11Group
+from .models import ModelGroup, ModelVisitor
+from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 
 from .globals_ import XsdGlobals

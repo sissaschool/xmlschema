@@ -121,7 +121,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected is not None and expected != 'valid':
-        return
+        #return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
@@ -144,7 +144,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 0: # 10001: #9940: #10001:
+    if testgroup_num >= 0: # 10977: # 10957: # 0: #10896: # 10866: # 10835: # 10783: # 10534: # 10446: # 10421: # 10412: # 10317: # 10232: # 10024: # 10001: #9940: #10001:
         return TestGroupCase
 
 

@@ -167,8 +167,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except ValueError as err:
                 self.parse_error(err, elem)
             else:
-                if self._abstract and self.parent is not None:
-                    self.parse_error("local elements cannot have abstract attribute set to 'true'")
+                if self.parent is not None:
+                    self.parse_error("local scope elements cannot have abstract attribute")
 
         if 'block' in elem.attrib:
             try:
@@ -644,10 +644,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def is_restriction(self, other, check_particle=True):
         if isinstance(other, XsdAnyElement):
+            if self.min_occurs == self.max_occurs == 0:
+                return True
             if check_particle and not self.has_particle_restriction(other):
                 return False
-            return other.is_matching(self.name, self.default_namespace) or \
-                   other.is_namespace_allowed(self.target_namespace)
+            return other.is_matching(self.name, self.default_namespace) # or other.is_namespace_allowed(self.target_namespace)
         elif isinstance(other, XsdElement):
             if self.name != other.name:
                 substitution_group = self.substitution_group
@@ -666,7 +667,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if check_particle and not self.has_particle_restriction(other):
                 return False
             elif self.type is not other.type and self.type.elem is not other.type.elem and \
-                    not self.type.is_derived(other.type):
+                    not self.type.is_derived(other.type, 'restriction'):
                 return False
             elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
                     return False
@@ -677,10 +678,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not all(k in other.constraints for k in self.constraints):
                 return False
         elif other.model == 'choice':
-            if self.has_particle_restriction(other):
-                return any(self.is_restriction(e, False) for e in other.iter_group())
-            else:
-                return any(self.is_restriction(e) for e in other.iter_group())
+            from .particles import ParticleCounter
+            min_occurs, max_occurs = other.occurs
+            if max_occurs == 0 and self.max_occurs != 0:
+                return False
+
+            counter = ParticleCounter(self)
+            for e in other.iter_group():
+                if not isinstance(e, (XsdElement, XsdAnyElement)):
+                    print(e)
+                if not self.is_restriction(e, False):
+                    continue
+                counter += e
+                counter *= other
+                if counter.is_restriction():
+                    return True
+            return False
         else:
             match_restriction = False
             for e in other.iter_group():

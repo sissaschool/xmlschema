@@ -475,8 +475,11 @@ class XsdGlobals(XsdValidator):
         for xsd_type in schema.iter_components(XsdComplexType):
             if not isinstance(xsd_type.content_type, XsdGroup):
                 continue
-            elif xsd_type.derivation == 'restriction':
-                base_type = xsd_type.base_type
+
+            base_type = xsd_type.base_type
+            if False and xsd_type.get_global() is base_type:
+                xsd_type.parse_error("%s base matches the containing global component" % xsd_type.derivation)
+            if xsd_type.derivation == 'restriction':
                 if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                     if not xsd_type.content_type.is_restriction(base_type.content_type):
                         xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")

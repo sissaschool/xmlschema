@@ -389,6 +389,16 @@ class XsdComponent(XsdValidator):
         """Returns the component if its name is matching the name provided as argument, `None` otherwise."""
         return self if self.is_matching(name, default_namespace) else None
 
+    def get_global(self):
+        """Returns the global XSD component that contains the component instance."""
+        if self.parent is None:
+            return self
+        component = self.parent
+        while component is not self:
+            if component.parent is None:
+                return component
+            component = component.parent
+
     def iter_components(self, xsd_classes=None):
         """
         Creates an iterator for XSD subcomponents.
@@ -532,7 +542,7 @@ class XsdType(XsdComponent):
     def is_derived(self, other, derivation=None):
         if self is other:
             return True
-        elif derivation is not None and derivation != self.derivation:
+        elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self.special_types:
             return True
@@ -791,8 +801,8 @@ class ParticleMixin(object):
     name = None
 
     def parse_error(self, *args, **kwargs):
-        # Implemented by XsdValidator
-        raise NotImplementedError
+        # Overridden by XsdValidator
+        raise XMLSchemaParseError(*args)
 
     def _parse_particle(self, elem):
         if 'minOccurs' in elem.attrib:

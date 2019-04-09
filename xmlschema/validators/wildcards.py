@@ -107,6 +107,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def is_restriction(self, other, check_particle=True):
         if check_particle and isinstance(self, ParticleMixin) and not self.has_particle_restriction(other):
             return False
+        elif not isinstance(other, type(self)):
+            return False
         elif other.process_contents == 'strict' and self.process_contents != 'strict':
             return False
         elif other.process_contents == 'lax' and self.process_contents == 'skip':
@@ -117,11 +119,18 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return True
         elif self.namespace == '##any':
             return False
-        elif other.namespace == '##other':
-            return all(ns != self.target_namespace for ns in self.namespace.split())
 
         other_namespaces = other.namespace.split()
-        return any(ns in other_namespaces for ns in self.namespace.split())
+        for ns in self.namespace.split():
+            if ns in other_namespaces:
+                continue
+            elif ns == self.target_namespace:
+                if '##targetNamespace' in other_namespaces:
+                    continue
+            elif not ns.startswith('##') and '##other' in other_namespaces:
+                continue
+            return False
+        return True
 
     def iter_decode(self, source, validation='lax', *args, **kwargs):
         raise NotImplementedError

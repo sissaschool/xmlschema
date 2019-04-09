@@ -260,7 +260,12 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.content_type = self.schema.create_any_content_group(self)
             self._parse_content_tail(elem)
         else:
-            if base_type.has_simple_content() or base_type.mixed and base_type.is_emptiable():
+            if base_type.has_simple_content():
+                self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
+                if not self.content_type.is_derived(base_type.content_type, 'restriction'):
+                    self.parse_error("Content type is not a restriction of base content type", elem)
+
+            elif base_type.mixed and base_type.is_emptiable():
                 self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
             else:
                 self.parse_error("with simple content cannot restrict an empty or "
