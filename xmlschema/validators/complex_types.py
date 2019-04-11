@@ -263,6 +263,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             if base_type.has_simple_content():
                 self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
                 if not self.content_type.is_derived(base_type.content_type, 'restriction'):
+                    import pdb
+                    pdb.set_trace()
+                    ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
+                    self.content_type.is_derived(base_type.content_type, 'restriction')
                     self.parse_error("Content type is not a restriction of base content type", elem)
 
             elif base_type.mixed and base_type.is_emptiable():
@@ -454,6 +458,24 @@ class XsdComplexType(XsdType, ValidationMixin):
             return self.content_type.is_valid(source)
         else:
             return self.base_type is not None and self.base_type.is_valid(source) or self.mixed
+
+    def is_derived(self, other, derivation=None):
+        if self is other:
+            return True
+        elif derivation and self.derivation and derivation != self.derivation and other.is_complex():
+            return False
+        elif other.name in self.special_types:
+            return True
+        elif self.base_type is other:
+            return True
+        elif hasattr(other, 'member_types'):
+            return any(self.is_derived(m, derivation) for m in other.member_types)
+        elif self.base_type is None:
+            return self.content_type.is_derived(other, derivation) if self.has_simple_content() else False
+        elif self.has_simple_content():
+            return self.content_type.is_derived(other, derivation) or self.base_type.is_derived(other, derivation)
+        else:
+            return self.base_type.is_derived(other, derivation)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

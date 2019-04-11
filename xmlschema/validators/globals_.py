@@ -14,17 +14,19 @@ XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re
+import warnings
 from collections import Counter
 
-from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
     XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
 from ..helpers import get_qname, local_name
 from ..namespaces import NamespaceResourcesMap
 
-from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XsdValidator, XsdKeyref, XsdComponent, XsdAttribute, \
-    XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdAssert
+from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, XsdValidator, \
+    XsdKeyref, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, XsdAttributeGroup, \
+    XsdGroup, XsdNotation, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -485,7 +487,11 @@ class XsdGlobals(XsdValidator):
                         xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")
 
             try:
-                xsd_type.content_type.check_model()
+                xsd_type.content_type.verify_model()
+            except XMLSchemaModelDepthError:
+                msg = "cannot verify the content model of %r due to maximum recursion depth exceeded" % xsd_type
+                schema.warnings.append(msg)
+                warnings.warn(msg, XMLSchemaWarning, stacklevel=4)
             except XMLSchemaModelError as err:
                 if self.validation == 'strict':
                     raise

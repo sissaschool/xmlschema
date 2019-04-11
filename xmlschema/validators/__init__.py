@@ -12,8 +12,8 @@
 XML Schema validators subpackage.
 """
 from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaModelError, \
-    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, \
-    XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+    XMLSchemaModelDepthError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \
+    XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidationMixin
 

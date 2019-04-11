@@ -16,8 +16,11 @@ from collections import Counter
 
 from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
-from .exceptions import XMLSchemaModelError
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .xsdbase import ParticleMixin
+
+MAX_MODEL_DEPTH = 15
+"""Limit depth for safe visiting of models"""
 
 XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
@@ -193,6 +196,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 for obj in item.iter_group():
                     yield obj
 
+    def iter_group2(self, depth=0):
+        if depth <= 15:
+            for item in self:
+                yield item
+                if isinstance(item, ModelGroup):
+                    for obj in item.iter_group2(depth+1):
+                        yield obj
+
     def iter_model(self):
         """
         Iterates model group through its group paths to leaf elements. Yields a list containing itself
@@ -222,14 +233,27 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 else:
                     yield item
 
-    def check_model(self):
+    def verify_model(self):
         """
         Checks group particles. Types matching of same elements and Unique Particle Attribution
         Constraint are checked. Raises an `XMLSchemaModelError` at first violated constraint.
         """
-        elements = {}
-        for e, path in self.iter_model():
-            for pe, previous_path in elements.values():
+        def safe_iter_path(group, depth):
+            if depth > MAX_MODEL_DEPTH:
+                raise XMLSchemaModelDepthError(group)
+            for item in group:
+                if isinstance(item, ModelGroup):
+                    current_path.append(item)
+                    for _item in safe_iter_path(item, depth + 1):
+                        yield _item
+                    current_path.pop()
+                else:
+                    yield item
+
+        paths = {}
+        current_path = [self]
+        for e in safe_iter_path(self, 0):
+            for pe, previous_path in paths.values():
                 if pe.name == e.name and pe.name is not None and pe.type is not e.type:
                     raise XMLSchemaModelError(
                         self, "The model has elements with the same name %r but a different type" % e.name
@@ -243,14 +267,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
                     elif pe.min_occurs == pe.max_occurs:
                         continue
 
-                if not distinguishable_paths(previous_path + [pe], path + [e]):
+                if not distinguishable_paths(previous_path + [pe], current_path + [e]):
                     # print(self.tostring())
                     # breakpoint()
-                    # distinguishable_paths(previous_path + [pe], path + [e])
+                    # distinguishable_paths(previous_path + [pe], current_path + [e])
                     raise XMLSchemaModelError(
                         self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
                     )
-            elements[e.name] = e, path[:]
+            paths[e.name] = e, current_path[:]
 
 
 def distinguishable_paths(path1, path2):
@@ -273,9 +297,8 @@ def distinguishable_paths(path1, path2):
         return True
 
     if path1[depth].model == 'sequence':
-        if e1.min_occurs == e1.max_occurs:
-            return True
-
+        # if e1.min_occurs == e1.max_occurs:
+        #    return True
         idx1 = path1[depth].index(path1[depth + 1])
         idx2 = path2[depth].index(path2[depth + 1])
         if any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2]):
@@ -283,7 +306,9 @@ def distinguishable_paths(path1, path2):
 
     before1 = False
     after1 = False
+    univocal1 = e1.is_univocal()
     for k in range(depth + 1, len(path1) - 1):
+        univocal1 &= path1[k].is_univocal()
         if path1[k].model == 'sequence':
             idx = path1[k].index(path1[k + 1])
             if not before1 and any(not e.is_emptiable() for e in path1[k][:idx]):
@@ -293,7 +318,9 @@ def distinguishable_paths(path1, path2):
 
     before2 = False
     after2 = False
+    univocal2 = e2.is_univocal()
     for k in range(depth + 1, len(path2) - 1):
+        univocal2 &= path2[k].is_univocal()
         if path2[k].model == 'sequence':
             idx = path2[k].index(path2[k + 1])
             if not before2 and any(not e.is_emptiable() for e in path2[k][:idx]):
@@ -302,17 +329,35 @@ def distinguishable_paths(path1, path2):
                 after2 = True
 
     if path1[depth].model != 'sequence':
-        return before1 and before2 or (before1 and (e1.min_occurs == e1.max_occurs or after1)) \
-               or (before2 and (e2.min_occurs == e2.max_occurs or after2))
+        return before1 and before2 or (before1 and (univocal1 or after1 or path1[depth].max_occurs == 1)) \
+               or (before2 and (univocal2 or after2 or path2[depth].max_occurs == 1))
     elif path1[depth].max_occurs == 1:
-        return e1.min_occurs == e1.max_occurs or after1 or before2
+        return before2 or univocal1 or (before1 and (after1 or e1.is_univocal()))
     else:
-        return (e1.min_occurs1 == e1.max_occurs or after1 or before2) and \
-               (e2.min_occurs == e2.max_occurs or after2 or before1)
+        return (before2 or univocal1 or (before1 and (after1 or e1.is_univocal()))) and \
+               (before1 or univocal2 or (before2 and (after2 or e2.is_univocal())))
 
-    #    return after1 or before2   # sequence
-    # else:
-    #    return before1 or after2 and before2 or after1   # choice/all
+
+class ModelVerifier(MutableSequence):
+    """
+    A visitor design pattern class that can be used for check an XSD model group.
+
+    :param root: the root ModelGroup instance of the model.
+    :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
+    :ivar element: the current XSD element, initialized to the first element of the model.
+    :ivar broken: a boolean value that records if the model is still usable.
+    :ivar group: the current XSD model group, initialized to *root* argument.
+    :ivar iterator: the current XSD group iterator.
+    :ivar items: the current XSD group unmatched items.
+    :ivar match: if the XSD group has an effective item match.
+    """
+    def __init__(self, root):
+        self.root = root
+        self.occurs = Counter()
+        self._subgroups = []
+        self.element = None
+        self.broken = False
+        self.group, self.iterator, self.items, self.match = root, iter(root), root[::-1], False
 
 
 class ModelVisitor(MutableSequence):

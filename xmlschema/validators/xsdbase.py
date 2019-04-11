@@ -550,10 +550,10 @@ class XsdType(XsdComponent):
             return True
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
-        elif self.base_type is not None:
-            return self.base_type.is_derived(other, derivation)
-        else:
+        elif self.base_type is None:
             return False
+        else:
+            return self.base_type.is_derived(other, derivation)
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
@@ -842,6 +842,12 @@ class ParticleMixin(object):
 
     def is_single(self):
         return self.max_occurs == 1
+
+    def is_ambiguous(self):
+        return self.min_occurs != self.max_occurs
+
+    def is_univocal(self):
+        return self.min_occurs == self.max_occurs
 
     def has_particle_restriction(self, other):
         if self.min_occurs == self.max_occurs == 0:

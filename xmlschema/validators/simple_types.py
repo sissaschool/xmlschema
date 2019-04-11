@@ -396,12 +396,14 @@ class XsdAtomic(XsdSimpleType):
     def primitive_type(self):
         if self.base_type is None:
             return self
-        else:
-            try:
+        try:
+            if self.base_type.is_simple():
                 return self.base_type.primitive_type
-            except AttributeError:
-                # The base_type is XsdList or XsdUnion.
-                return self.base_type
+            else:
+                return self.base_type.content_type.primitive_type
+        except AttributeError:
+            # The base_type is XsdList or XsdUnion.
+            return self.base_type
 
     def get_facet(self, tag):
         try:
@@ -1065,6 +1067,8 @@ class XsdAtomicRestriction(XsdAtomic):
                         block=base_type.block,
                         final=base_type.final,
                     )
+                    # base_type.base_type = base_type.content_type
+
                 has_simple_type_child = True
             else:
                 try:

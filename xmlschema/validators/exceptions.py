@@ -171,6 +171,13 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
         )
 
 
+class XMLSchemaModelDepthError(XMLSchemaModelError):
+    """Raised when recursion depth is exceeded while iterating a model group."""
+    def __init__(self, group):
+        msg = "maximum model recursion depth exceeded while iterating group %r" % group
+        super(XMLSchemaModelDepthError, self).__init__(group, message=msg)
+
+
 class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     """
     Raised when the XML data is not validated with the XSD component or schema.

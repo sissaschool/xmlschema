@@ -21,7 +21,8 @@ import time
 import warnings
 
 import xmlschema
-from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaModelError, \
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
@@ -427,6 +428,28 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </xs:schema>""")
         self.assertEqual(schema.elements['elemA'].type, schema.types['typeA'])
 
+    def test_upa_violations(self):
+        self.check_schema("""
+            <complexType name="typeA">
+                <sequence>
+				    <sequence minOccurs="0" maxOccurs="unbounded">
+						<element name="A"/>
+						<element name="B"/>
+					</sequence>
+				    <element name="A" minOccurs="0"/>
+				</sequence>
+			</complexType>""", XMLSchemaModelError)
+
+        self.check_schema("""
+            <complexType name="typeA">
+                <sequence>
+				    <sequence minOccurs="0" maxOccurs="unbounded">
+						<element name="B"/>
+						<element name="A"/>
+					</sequence>
+				    <element name="A" minOccurs="0"/>
+				</sequence>
+			</complexType>""")
 
 class TestXMLSchema11(TestXMLSchema10):
 
