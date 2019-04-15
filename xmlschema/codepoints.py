@@ -21,7 +21,7 @@ from collections import defaultdict
 from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
-CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]'}
+CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]\\'}
 """Code Points of escaped chars in a character group."""
 
 UCS4_MAXUNICODE = 1114111
