@@ -25,58 +25,15 @@ MAX_MODEL_DEPTH = 15
 XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
 
-class ParticleCounter(object):
-    """
-    A class for perform base arithmetical operations on particles.
-    """
-    def __init__(self, particle):
-        self.particle = particle
-        self.min_occurs = 0
-        self.max_occurs = 0
-
-    def __add__(self, other):
-        self.min_occurs += other.min_occurs
-        if self.max_occurs is not None:
-            if other.max_occurs is None:
-                self.max_occurs = None
-            else:
-                self.max_occurs += other.max_occurs
-        return self
-
-    def __mul__(self, other):
-        self.min_occurs *= other.min_occurs
-        if self.max_occurs is None:
-            if other.max_occurs == 0:
-                self.max_occurs = 0
-        elif other.max_occurs is None:
-            if self.max_occurs != 0:
-                self.max_occurs = None
-        else:
-            self.max_occurs *= other.max_occurs
-        return self
-
-    def is_restriction(self):
-        if self.min_occurs < self.particle.min_occurs:
-            return False
-        elif self.particle.max_occurs is None:
-            return True
-        elif self.max_occurs is None:
-            return False
-        else:
-            return self.max_occurs <= self.particle.max_occurs
-
-
 class ModelGroup(MutableSequence, ParticleMixin):
-
-    mixed = False
-    model = None
-
-    def __init__(self, parent=None, model=None):
+    """
+    Class for XSD model group particles. This class implements only model related methods,
+    schema element parsing and validation methods are implemented in derived classes.
+    """
+    def __init__(self, model):
+        assert model in XSD_GROUP_MODELS, "Not a valid value for 'model'"
         self._group = []
-        if parent is not None:
-            self.parent = parent
-        if model is not None:
-            self.model = model
+        self.model = model
 
     def __repr__(self):
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
@@ -113,18 +70,19 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def clear(self):
         del self._group[:]
 
-    def is_empty(self):
-        return not self.mixed and not self
-
     def is_emptiable(self):
         if self.model == 'choice':
             return self.min_occurs == 0 or not self or any([item.is_emptiable() for item in self])
         else:
             return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
 
-    def is_meaningless(self, parent=None):
+    def is_empty(self):
+        return not self._group or self.max_occurs == 0
+
+    def is_pointless(self, parent):
         """
-        A group that may be eliminated. A group is meaningless if one of those conditions is verified:
+        Returns `True` if the group may be eliminated without affecting the model, `False` otherwise.
+        A group is pointless if one of those conditions is verified:
 
          - the group is empty
          - minOccurs == maxOccurs == 1 and the group has one child
@@ -133,7 +91,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
         Ref: https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/#coss-particle
 
-        :param parent: alternative parent, useful when expand complex content extensions.
+        :param parent: effective parent of the model group.
         """
         if not self:
             return True
@@ -141,11 +99,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
-
-        if parent is None:
-            parent = self.parent
-
-        if not isinstance(parent, ModelGroup):
+        elif not isinstance(parent, ModelGroup):
             return False
         elif self.model == 'sequence' and parent.model != 'sequence':
             return False
@@ -154,11 +108,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
         else:
             return True
 
-    def has_particle_restriction(self, other):
+    def has_occurs_restriction(self, other):
         if not self:
             return True
         elif isinstance(other, ModelGroup):
-            return super(ModelGroup, self).has_particle_restriction(other)
+            return super(ModelGroup, self).has_occurs_restriction(other)
 
         # Group particle compared to element particle
         if self.max_occurs is None or any(e.max_occurs is None for e in self):
@@ -190,48 +144,42 @@ class ModelGroup(MutableSequence, ParticleMixin):
         for item in self:
             if not isinstance(item, ModelGroup):
                 yield item
-            elif not item.is_meaningless(parent=self):
+            elif not item.is_pointless(parent=self):
                 yield item
             else:
                 for obj in item.iter_group():
                     yield obj
 
-    def iter_group2(self, depth=0):
-        if depth <= 15:
-            for item in self:
-                yield item
-                if isinstance(item, ModelGroup):
-                    for obj in item.iter_group2(depth+1):
-                        yield obj
-
-    def iter_model(self):
+    def iter_model(self, depth=0):
         """
-        Iterates model group through its group paths to leaf elements. Yields a list containing itself
-        as first element, followed by any intermediate groups and the current XSD element at the end.
-        """
-        def _iter_model(group, depth):
-            if depth <= 15:
-                for item in group:
-                    if isinstance(item, ModelGroup):
-                        path.append(item)
-                        for e in _iter_model(item, depth+1):
-                            yield e
-                        path.pop()
-                    else:
-                        yield item
+        A generator function iterating elements and groups of the model. Raises `XMLSchemaModelDepthError`
+        if the argument *depth* is over `MAX_MODEL_DEPTH` value.
 
-        path = [self]
-        for xsd_element in _iter_model(self, 0):
-            yield xsd_element, path
+        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
+        """
+        if depth > MAX_MODEL_DEPTH:
+            raise XMLSchemaModelDepthError(self)
+        for item in self:
+            yield item
+            if isinstance(item, ModelGroup):
+                for obj in item.iter_model(depth + 1):
+                    yield obj
 
     def iter_elements(self, depth=0):
-        if depth <= 15:
-            for item in self:
-                if isinstance(item, ModelGroup):
-                    for e in item.iter_elements(depth+1):
-                        yield e
-                else:
-                    yield item
+        """
+        A generator function iterating model's elements. Raises `XMLSchemaModelDepthError` if the
+        argument *depth* is over `MAX_MODEL_DEPTH` value.
+
+        :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
+        """
+        if depth > MAX_MODEL_DEPTH:
+            raise XMLSchemaModelDepthError(self)
+        for item in self:
+            if isinstance(item, ModelGroup):
+                for e in item.iter_elements(depth+1):
+                    yield e
+            else:
+                yield item
 
     def verify_model(self):
         """
@@ -268,9 +216,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
                         continue
 
                 if not distinguishable_paths(previous_path + [pe], current_path + [e]):
-                    # print(self.tostring())
-                    # breakpoint()
-                    # distinguishable_paths(previous_path + [pe], current_path + [e])
                     raise XMLSchemaModelError(
                         self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
                     )
@@ -297,8 +242,6 @@ def distinguishable_paths(path1, path2):
         return True
 
     if path1[depth].model == 'sequence':
-        # if e1.min_occurs == e1.max_occurs:
-        #    return True
         idx1 = path1[depth].index(path1[depth + 1])
         idx2 = path2[depth].index(path2[depth + 1])
         if any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2]):
@@ -336,28 +279,6 @@ def distinguishable_paths(path1, path2):
     else:
         return (before2 or univocal1 or (before1 and (after1 or e1.is_univocal()))) and \
                (before1 or univocal2 or (before2 and (after2 or e2.is_univocal())))
-
-
-class ModelVerifier(MutableSequence):
-    """
-    A visitor design pattern class that can be used for check an XSD model group.
-
-    :param root: the root ModelGroup instance of the model.
-    :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
-    :ivar element: the current XSD element, initialized to the first element of the model.
-    :ivar broken: a boolean value that records if the model is still usable.
-    :ivar group: the current XSD model group, initialized to *root* argument.
-    :ivar iterator: the current XSD group iterator.
-    :ivar items: the current XSD group unmatched items.
-    :ivar match: if the XSD group has an effective item match.
-    """
-    def __init__(self, root):
-        self.root = root
-        self.occurs = Counter()
-        self._subgroups = []
-        self.element = None
-        self.broken = False
-        self.group, self.iterator, self.items, self.match = root, iter(root), root[::-1], False
 
 
 class ModelVisitor(MutableSequence):

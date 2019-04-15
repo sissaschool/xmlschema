@@ -470,7 +470,7 @@ class XsdGlobals(XsdValidator):
 
         # Check redefined global groups
         for group in filter(lambda x: x.schema is schema and x.redefine is not None, self.groups.values()):
-            if group.redefine not in group and not group.is_restriction(group.redefine):
+            if group.redefine not in group and not group.has_occurs_restriction(group.redefine):
                 group.parse_error("The redefined group is an illegal restriction of the original group.")
 
         # Check complex content types models
@@ -484,6 +484,10 @@ class XsdGlobals(XsdValidator):
             if xsd_type.derivation == 'restriction':
                 if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                     if not xsd_type.content_type.is_restriction(base_type.content_type):
+                        # breakpoint()
+                        # print(base_type.content_type.tostring())
+                        # print(xsd_type.content_type.tostring())
+                        # xsd_type.content_type.is_restriction(base_type.content_type)
                         xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")
 
             try:

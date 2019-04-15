@@ -27,7 +27,7 @@ from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, XsdType, ParticleMixin, ValidationMixin
+from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin, ParticleCounter
 from .identities import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -642,13 +642,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         yield elem
         del element_data
 
-    def is_restriction(self, other, check_particle=True):
+    def is_restriction(self, other, check_occurs=True):
         if isinstance(other, XsdAnyElement):
             if self.min_occurs == self.max_occurs == 0:
                 return True
-            if check_particle and not self.has_particle_restriction(other):
+            if check_occurs and not self.has_occurs_restriction(other):
                 return False
-            return other.is_matching(self.name, self.default_namespace) # or other.is_namespace_allowed(self.target_namespace)
+            return other.is_matching(self.name, self.default_namespace)
         elif isinstance(other, XsdElement):
             if self.name != other.name:
                 substitution_group = self.substitution_group
@@ -664,13 +664,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 elif not any(e.name == self.name for e in self.maps.substitution_groups[substitution_group]):
                     return False
 
-            if check_particle and not self.has_particle_restriction(other):
+            if check_occurs and not self.has_occurs_restriction(other):
                 return False
             elif self.type is not other.type and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction'):
                 return False
             elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
-                    return False
+                return False
             elif other.nillable is False and self.nillable:
                 return False
             elif any(value not in self.block for value in other.block.split()):
@@ -678,12 +678,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not all(k in other.constraints for k in self.constraints):
                 return False
         elif other.model == 'choice':
-            from .particles import ParticleCounter
             min_occurs, max_occurs = other.occurs
             if max_occurs == 0 and self.max_occurs != 0:
                 return False
 
-            counter = ParticleCounter(self)
+            counter = ParticleCounter()
             for e in other.iter_group():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
                     print(e)
@@ -691,7 +690,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     continue
                 counter += e
                 counter *= other
-                if counter.is_restriction():
+                if counter.has_occurs_restriction(self):
                     return True
             return False
         else:

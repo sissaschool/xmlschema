@@ -263,10 +263,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             if base_type.has_simple_content():
                 self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
                 if not self.content_type.is_derived(base_type.content_type, 'restriction'):
-                    import pdb
-                    pdb.set_trace()
-                    ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
-                    self.content_type.is_derived(base_type.content_type, 'restriction')
+                    # import pdb
+                    # pdb.set_trace()
+                    # ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
+                    # self.content_type.is_derived(base_type.content_type, 'restriction')
                     self.parse_error("Content type is not a restriction of base content type", elem)
 
             elif base_type.mixed and base_type.is_emptiable():
@@ -326,7 +326,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             )
 
         if base_type.name != XSD_ANY_TYPE and not base_type.is_empty() and False:
-            if not content_type.is_restriction(base_type.content_type):
+            if not content_type.has_occurs_restriction(base_type.content_type):
                 self.parse_error("The derived group %r is not a restriction of the base group." % elem, elem)
 
         self.content_type = content_type
@@ -471,7 +471,9 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is None:
-            return self.content_type.is_derived(other, derivation) if self.has_simple_content() else False
+            if not self.has_simple_content():
+                return False
+            return self.content_type.is_derived(other, derivation)
         elif self.has_simple_content():
             return self.content_type.is_derived(other, derivation) or self.base_type.is_derived(other, derivation)
         else:

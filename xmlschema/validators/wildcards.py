@@ -104,8 +104,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             else:
                 return namespace in any_namespaces
 
-    def is_restriction(self, other, check_particle=True):
-        if check_particle and isinstance(self, ParticleMixin) and not self.has_particle_restriction(other):
+    def is_restriction(self, other, check_occurs=True):
+        if check_occurs and isinstance(self, ParticleMixin) and not self.has_occurs_restriction(other):
             return False
         elif not isinstance(other, type(self)):
             return False

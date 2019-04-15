@@ -21,7 +21,7 @@ from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_T
 from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
-from .exceptions import XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement
@@ -75,6 +75,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
+    mixed = False
+    model = None
     redefine = None
     admitted_tags = {
         XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
@@ -82,7 +84,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
     def __init__(self, elem, schema, parent, name=None):
         self._group = []
-        self.mixed = False if parent is None else parent.mixed
+        if parent is not None and parent.mixed:
+            self.mixed = parent.mixed
         super(XsdGroup, self).__init__(elem, schema, parent, name)
 
     def __repr__(self):
@@ -232,6 +235,31 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 continue  # Error already caught by validation against the meta-schema
 
+    def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
+                                  source=None, namespaces=None, **_kwargs):
+        """
+        Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
+        Il validation mode is 'lax' returns the error, otherwise raise the error.
+
+        :param validation: the validation mode. Can be 'lax' or 'strict'.
+        :param elem: the instance Element.
+        :param index: the child index.
+        :param particle: the XSD component (subgroup or element) associated to the child.
+        :param occurs: the child tag occurs.
+        :param expected: the expected element tags/object names.
+        :param source: the XML resource related to the validation process.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param _kwargs: keyword arguments of the validation process that are not used.
+        """
+        if validation == 'skip':
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+
+        error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs, expected, source, namespaces)
+        if validation == 'strict':
+            raise error
+        else:
+            return error
+
     def build(self):
         element_class = self.schema.BUILDERS.element_class
         for k in range(len(self._group)):
@@ -287,188 +315,178 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             for obj in item.iter_components(xsd_classes):
                 yield obj
 
-    def is_restriction(self, other, check_particle=True):
+    def admitted_restriction(self, model):
+        if self.model == model:
+            return True
+        elif self.model == 'all' and model == 'choice' and len(self) > 1:
+            return False
+        elif model == 'all' and self.model == 'choice' and len(self) > 1:
+            return False
+        if model == 'sequence' and self.model != 'sequence' and len(self) > 1:
+            return False
+
+    def is_empty(self):
+        return not self.mixed and not self
+
+    def is_restriction(self, base, check_particle=True):
         if not self:
             return True
         elif self.ref is not None:
-            return self[0].is_restriction(other, check_particle)
-        elif isinstance(other, (XsdElement, XsdAnyElement)):
-            if self.schema.XSD_VERSION == '1.0' and isinstance(other, XsdElement) and \
-                    not other.ref and other.name not in self.schema.substitution_groups:
-                return False
-            elif not self.has_particle_restriction(other):
-                return False
-            elif self.model == 'choice':
-                if other.name in self.maps.substitution_groups and all(
-                        isinstance(e, XsdElement) and e.substitution_group == other.name for e in self):
-                    return True
-                return any(e.is_restriction(other, False) for e in self)
-            else:
-                min_occurs = max_occurs = 0
-                for item in self.iter_group():
-                    if isinstance(item, XsdGroup):
-                        return False
-                    elif item.min_occurs == 0 or item.is_restriction(other, False):
-                        min_occurs += item.min_occurs
-                        if max_occurs is not None:
-                            if item.max_occurs is None:
-                                max_occurs = None
-                            else:
-                                max_occurs += item.max_occurs
-                        continue
-                    return False
-
-                if min_occurs < other.min_occurs:
-                    return False
-                elif max_occurs is None:
-                    return other.max_occurs is None
-                elif other.max_occurs is None:
-                    return True
-                else:
-                    return max_occurs <= other.max_occurs
-
-        elif not isinstance(other, XsdGroup):
+            return self[0].is_restriction(base, check_particle)
+        elif not isinstance(base, ParticleMixin):
+            raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
+        elif not isinstance(base, XsdGroup):
+            return self.is_element_restriction(base)
+        elif not base:
             return False
-        elif not other:
-            return False
-        elif other.ref:
-            return self.is_restriction(other[0], check_particle)
-        elif other.model == 'choice' and self.model == 'all' and len(self) > 1:
-            return False
-        elif other.model == 'all' and self.model == 'choice' and len(self) > 1:
-            return False
-        elif len(other) == other.min_occurs == other.max_occurs == 1:
+        elif base.ref:
+            return self.is_restriction(base[0], check_particle)
+        elif len(base) == base.min_occurs == base.max_occurs == 1:
             if len(self) > 1:
-                return self.is_restriction(other[0], check_particle)
-            elif isinstance(self[0], XsdGroup) and self[0].is_meaningless(parent=self):
-                return self[0].is_restriction(other[0], check_particle)
+                return self.is_restriction(base[0], check_particle)
+            elif isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
+                return self[0].is_restriction(base[0], check_particle)
 
-        # Aligned groups: compare group items one by one, discarding meaningless groups
-        if other.model == 'sequence':
-            if self.model != 'sequence' and len(self) > 1:
-                return False
-            elif check_particle and not self.has_particle_restriction(other):
-                return False
-            elif other.max_occurs == 0:
-                check_particle = False
+        # Compare model with model
+        if self.model != base.model and self.model != 'sequence' and len(self) > 1:
+            return False
+        elif self.model == base.model or base.model == 'sequence':
+            return self.is_sequence_restriction(base)
+        elif base.model == 'all':
+            return self.is_all_restriction(base)
+        elif base.model == 'choice':
+            return self.is_choice_restriction(base)
 
-            other_iterator = iter(other.iter_group())
-            for item in self.iter_group():
-                while True:
-                    try:
-                        other_item = next(other_iterator)
-                    except StopIteration:
-                        return False
-
-                    if other_item is item or item.is_restriction(other_item, check_particle):
-                        break
-                    elif not other_item.is_emptiable():
-                        return False
-
-            while True:
-                try:
-                    other_item = next(other_iterator)
-                except StopIteration:
-                    return True
-                else:
-                    if not other_item.is_emptiable():
-                        return False
-
-        elif self.model == other.model:
-            if check_particle and not self.has_particle_restriction(other):
-                return False
-            elif other.max_occurs == 0:
-                check_particle = False
-
-            check_emptiable = other.model != 'choice' or self.schema.XSD_VERSION == '1.0'
-            # Same model: declarations must simply preserve order
-            other_iterator = iter(other.iter_group())
-            for item in self.iter_group():
-                while True:
-                    try:
-                        other_item = next(other_iterator)
-                    except StopIteration:
-                        return False
-                    if other_item is item or item.is_restriction(other_item, check_particle):
-                        break
-                    elif check_emptiable and not other_item.is_emptiable():
-                        return False
-
-            if not check_emptiable:
+    def is_element_restriction(self, base):
+        if self.schema.XSD_VERSION == '1.0' and isinstance(base, XsdElement) and \
+                not base.ref and base.name not in self.schema.substitution_groups:
+            return False
+        elif not self.has_occurs_restriction(base):
+            return False
+        elif self.model == 'choice':
+            if base.name in self.maps.substitution_groups and all(
+                    isinstance(e, XsdElement) and e.substitution_group == base.name for e in self):
                 return True
+            return any(e.is_restriction(base, False) for e in self)
+        else:
+            min_occurs = max_occurs = 0
+            for item in self.iter_group():
+                if isinstance(item, XsdGroup):
+                    return False
+                elif item.min_occurs == 0 or item.is_restriction(base, False):
+                    min_occurs += item.min_occurs
+                    if max_occurs is not None:
+                        if item.max_occurs is None:
+                            max_occurs = None
+                        else:
+                            max_occurs += item.max_occurs
+                    continue
+                return False
 
+            if min_occurs < base.min_occurs:
+                return False
+            elif max_occurs is None:
+                return base.max_occurs is None
+            elif base.max_occurs is None:
+                return True
+            else:
+                return max_occurs <= base.max_occurs
+
+    def is_sequence_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
+
+        check_particle = other.max_occurs != 0
+        check_emptiable = other.model != 'choice'  # or self.schema.XSD_VERSION == '1.0'
+
+        # Same model: declarations must simply preserve order
+        base_items = iter(other.iter_group())
+        for item in self.iter_group():
             while True:
                 try:
-                    other_item = next(other_iterator)
+                    other_item = next(base_items)
                 except StopIteration:
-                    return True
-                else:
-                    if not other_item.is_emptiable():
-                        return False
+                    return False
+                if other_item is item or item.is_restriction(other_item, check_particle):
+                    break
+                elif check_emptiable and not other_item.is_emptiable():
+                    return False
 
-        elif other.model == 'all':
-            if check_particle and not self.has_particle_restriction(other):
-                return False
-            if other.max_occurs == 0:
-                check_particle = False
+        if not check_emptiable:
+            return True
 
-            group_items = list(self)
-            for other_item in other.iter_group():
-                for item in group_items:
-                    if other_item is item or item.is_restriction(other_item, check_particle):
-                        break
-                else:
-                    if not other_item.is_emptiable():
-                        return False
-                    continue
-                group_items.remove(item)
-            return not bool(group_items)
+        while True:
+            try:
+                other_item = next(base_items)
+            except StopIteration:
+                return True
+            else:
+                if not other_item.is_emptiable():
+                    return False
 
-        elif other.model == 'choice':
-            if other.max_occurs == 0:
-                check_particle = False
+    def is_all_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
 
-            group_items = list(self)
-            max_occurs = 0
+        check_particle = other.max_occurs != 0
+        restriction_items = list(self)
+
+        for other_item in other.iter_group():
+            for item in restriction_items:
+                if other_item is item or item.is_restriction(other_item, check_particle):
+                    break
+            else:
+                if not other_item.is_emptiable():
+                    return False
+                continue
+            restriction_items.remove(item)
+
+        return not bool(restriction_items)
+
+    def is_choice_restriction(self, other):
+        check_particle = other.max_occurs != 0
+        restriction_items = list(self)
+        max_occurs = 0
+        other_max_occurs = 0
+
+        for other_item in other.iter_group():
+            for item in restriction_items:
+                if other_item is item or item.is_restriction(other_item, check_particle):
+                    if max_occurs is not None:
+                        if item.max_occurs is None:
+                            max_occurs = None
+                        else:
+                            max_occurs += item.max_occurs
+
+                    if other_max_occurs is not None:
+                        if other_item.max_occurs is None:
+                            other_max_occurs = None
+                        else:
+                            other_max_occurs = max(other_max_occurs, other_item.max_occurs)
+                    break
+            else:
+                continue
+            restriction_items.remove(item)
+
+        if restriction_items:
+            return False
+        elif other_max_occurs is None:
+            if other.max_occurs:
+                return True
             other_max_occurs = 0
-            for other_item in other.iter_group():
-                for item in group_items:
-                    if other_item is item or item.is_restriction(other_item, check_particle):
-                        if max_occurs is not None:
-                            if item.max_occurs is None:
-                                max_occurs = None
-                            else:
-                                max_occurs += item.max_occurs
+        elif other.max_occurs is None:
+            if other_max_occurs:
+                return True
+            other_max_occurs = 0
+        else:
+            other_max_occurs *= other.max_occurs
 
-                        if other_max_occurs is not None:
-                            if other_item.max_occurs is None:
-                                other_max_occurs = None
-                            else:
-                                other_max_occurs = max(other_max_occurs, other_item.max_occurs)
-                        break
-                else:
-                    continue
-                group_items.remove(item)
-
-            if group_items:
-                return False
-            elif other_max_occurs is None:
-                if other.max_occurs:
-                    return True
-                other_max_occurs = 0
-            elif other.max_occurs is None:
-                if other_max_occurs:
-                    return True
-                other_max_occurs = 0
-            else:
-                other_max_occurs *= other.max_occurs
-
-            if max_occurs is None:
-                return self.max_occurs == 0
-            elif self.max_occurs is None:
-                return max_occurs == 0
-            else:
-                return other_max_occurs >= max_occurs * self.max_occurs
+        if max_occurs is None:
+            return self.max_occurs == 0
+        elif self.max_occurs is None:
+            return max_occurs == 0
+        else:
+            return other_max_occurs >= max_occurs * self.max_occurs
 
     def iter_subelements(self, depth=0):
         if depth <= 15:

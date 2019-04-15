@@ -19,11 +19,7 @@ from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
 from ..etree import etree_tostring, is_etree_element
-
-from .exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
-    XMLSchemaEncodeError, XMLSchemaChildrenValidationError
-)
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -546,6 +542,13 @@ class XsdType(XsdComponent):
             return False
         elif other.name in self.special_types:
             return True
+        elif False and self.base_type is None:
+            if hasattr(other, 'member_types'):
+                value = any(self.is_derived(m, derivation) for m in other.member_types)
+                if value:
+                    print(self, other)
+                return value
+            return False
         elif self.base_type is other:
             return True
         elif hasattr(other, 'member_types'):
@@ -797,11 +800,48 @@ class ParticleMixin(object):
     """
     min_occurs = 1
     max_occurs = 1
-    parent = None
-    name = None
 
+    @property
+    def occurs(self):
+        return [self.min_occurs, self.max_occurs]
+
+    def is_emptiable(self):
+        return self.min_occurs == 0
+
+    def is_empty(self):
+        return self.max_occurs == 0
+
+    def is_single(self):
+        return self.max_occurs == 1
+
+    def is_ambiguous(self):
+        return self.min_occurs != self.max_occurs
+
+    def is_univocal(self):
+        return self.min_occurs == self.max_occurs
+
+    def is_missing(self, occurs):
+        return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
+
+    def is_over(self, occurs):
+        return self.max_occurs is not None and self.max_occurs <= occurs
+
+    def has_occurs_restriction(self, other):
+        if self.min_occurs == self.max_occurs == 0:
+            return True
+        elif self.min_occurs < other.min_occurs:
+            return False
+        elif other.max_occurs is None:
+            return True
+        elif self.max_occurs is None:
+            return False
+        else:
+            return self.max_occurs <= other.max_occurs
+
+    ###
+    # Methods used by XSD components
     def parse_error(self, *args, **kwargs):
-        # Overridden by XsdValidator
+        """Helper method overridden by XsdValidator.parse_error() in XSD components."""
         raise XMLSchemaParseError(*args)
 
     def _parse_particle(self, elem):
@@ -833,61 +873,32 @@ class ParticleMixin(object):
                 else:
                     self.max_occurs = max_occurs
 
-        self.occurs = [self.min_occurs, self.max_occurs]
 
-    def is_emptiable(self):
-        return self.min_occurs == 0
+class ParticleCounter(ParticleMixin):
+    """
+    A particle class for counting total min/max occurrences.
+    """
+    def __init__(self):
+        self.min_occurs = 0
+        self.max_occurs = 0
 
-    is_optional = is_emptiable
+    def __add__(self, other):
+        self.min_occurs += other.min_occurs
+        if self.max_occurs is not None:
+            if other.max_occurs is None:
+                self.max_occurs = None
+            else:
+                self.max_occurs += other.max_occurs
+        return self
 
-    def is_single(self):
-        return self.max_occurs == 1
-
-    def is_ambiguous(self):
-        return self.min_occurs != self.max_occurs
-
-    def is_univocal(self):
-        return self.min_occurs == self.max_occurs
-
-    def has_particle_restriction(self, other):
-        if self.min_occurs == self.max_occurs == 0:
-            return True
-        elif self.min_occurs < other.min_occurs:
-            return False
-        elif other.max_occurs is not None:
-            if self.max_occurs is None:
-                return False
-            elif self.max_occurs > other.max_occurs:
-                return False
-        return True
-
-    def is_missing(self, occurs):
-        return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
-
-    def is_over(self, occurs):
-        return self.max_occurs is not None and self.max_occurs <= occurs
-
-    def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
-                                  source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
-        Il validation mode is 'lax' returns the error, otherwise raise the error.
-
-        :param validation: the validation mode. Can be 'lax' or 'strict'.
-        :param elem: the instance Element.
-        :param index: the child index.
-        :param particle: the XSD component (subgroup or element) associated to the child.
-        :param occurs: the child tag occurs.
-        :param expected: the expected element tags/object names.
-        :param source: the XML resource related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
-        error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs, expected, source, namespaces)
-        if validation == 'strict':
-            raise error
+    def __mul__(self, other):
+        self.min_occurs *= other.min_occurs
+        if self.max_occurs is None:
+            if other.max_occurs == 0:
+                self.max_occurs = 0
+        elif other.max_occurs is None:
+            if self.max_occurs != 0:
+                self.max_occurs = None
         else:
-            return error
+            self.max_occurs *= other.max_occurs
+        return self

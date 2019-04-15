@@ -15,7 +15,7 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaM
     XMLSchemaModelDepthError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 
-from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ParticleMixin, ValidationMixin
+from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ValidationMixin, ParticleMixin
 
 from .assertions import XsdAssert
 from .notations import XsdNotation
