@@ -105,7 +105,7 @@ class XsdWhiteSpaceFacet(XsdFacet):
       Content: (annotation?)
     </whiteSpace>
     """
-    admitted_tags = XSD_WHITE_SPACE,
+    _admitted_tags = XSD_WHITE_SPACE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -141,7 +141,7 @@ class XsdLengthFacet(XsdFacet):
       Content: (annotation?)
     </length>
     """
-    admitted_tags = XSD_LENGTH,
+    _admitted_tags = XSD_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -184,7 +184,7 @@ class XsdMinLengthFacet(XsdFacet):
       Content: (annotation?)
     </minLength>
     """
-    admitted_tags = XSD_MIN_LENGTH,
+    _admitted_tags = XSD_MIN_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -227,7 +227,7 @@ class XsdMaxLengthFacet(XsdFacet):
       Content: (annotation?)
     </maxLength>
     """
-    admitted_tags = XSD_MAX_LENGTH,
+    _admitted_tags = XSD_MAX_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -270,7 +270,7 @@ class XsdMinInclusiveFacet(XsdFacet):
       Content: (annotation?)
     </minInclusive>
     """
-    admitted_tags = XSD_MIN_INCLUSIVE,
+    _admitted_tags = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -305,7 +305,7 @@ class XsdMinExclusiveFacet(XsdFacet):
       Content: (annotation?)
     </minExclusive>
     """
-    admitted_tags = XSD_MIN_EXCLUSIVE,
+    _admitted_tags = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -340,7 +340,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
       Content: (annotation?)
     </maxInclusive>
     """
-    admitted_tags = XSD_MAX_INCLUSIVE,
+    _admitted_tags = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -375,7 +375,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
       Content: (annotation?)
     </maxExclusive>
     """
-    admitted_tags = XSD_MAX_EXCLUSIVE,
+    _admitted_tags = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
@@ -410,7 +410,7 @@ class XsdTotalDigitsFacet(XsdFacet):
       Content: (annotation?)
     </totalDigits>
     """
-    admitted_tags = XSD_TOTAL_DIGITS,
+    _admitted_tags = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -435,7 +435,7 @@ class XsdFractionDigitsFacet(XsdFacet):
       Content: (annotation?)
     </fractionDigits>
     """
-    admitted_tags = XSD_FRACTION_DIGITS,
+    _admitted_tags = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
@@ -467,7 +467,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
       Content: (annotation?)
     </explicitTimezone>
     """
-    admitted_tags = XSD_EXPLICIT_TIMEZONE,
+    _admitted_tags = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -498,7 +498,7 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
       Content: (annotation?)
     </enumeration>
     """
-    admitted_tags = {XSD_ENUMERATION}
+    _admitted_tags = {XSD_ENUMERATION}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -572,7 +572,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
       Content: (annotation?)
     </pattern>
     """
-    admitted_tags = {XSD_PATTERN}
+    _admitted_tags = {XSD_PATTERN}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -640,7 +640,7 @@ class XsdAssertionFacet(XsdFacet):
       Content: (annotation?)
     </assertion>
     """
-    admitted_tags = {XSD_ASSERTION}
+    _admitted_tags = {XSD_ASSERTION}
 
     def __repr__(self):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)

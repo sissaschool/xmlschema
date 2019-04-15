@@ -78,7 +78,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     mixed = False
     model = None
     redefine = None
-    admitted_tags = {
+    _admitted_tags = {
         XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
@@ -370,7 +370,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return any(e.is_restriction(base, False) for e in self)
         else:
             min_occurs = max_occurs = 0
-            for item in self.iter_group():
+            for item in self.iter_model():
                 if isinstance(item, XsdGroup):
                     return False
                 elif item.min_occurs == 0 or item.is_restriction(base, False):
@@ -395,16 +395,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     def is_sequence_restriction(self, other):
         if not self.has_occurs_restriction(other):
             return False
-
         check_particle = other.max_occurs != 0
         check_emptiable = other.model != 'choice'  # or self.schema.XSD_VERSION == '1.0'
 
         # Same model: declarations must simply preserve order
-        base_items = iter(other.iter_group())
-        for item in self.iter_group():
+        other_iterator = iter(other.iter_model())
+        for item in self.iter_model():
             while True:
                 try:
-                    other_item = next(base_items)
+                    other_item = next(other_iterator)
                 except StopIteration:
                     return False
                 if other_item is item or item.is_restriction(other_item, check_particle):
@@ -417,7 +416,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         while True:
             try:
-                other_item = next(base_items)
+                other_item = next(other_iterator)
             except StopIteration:
                 return True
             else:
@@ -431,7 +430,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         check_particle = other.max_occurs != 0
         restriction_items = list(self)
 
-        for other_item in other.iter_group():
+        for other_item in other.iter_model():
             for item in restriction_items:
                 if other_item is item or item.is_restriction(other_item, check_particle):
                     break
@@ -449,7 +448,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         max_occurs = 0
         other_max_occurs = 0
 
-        for other_item in other.iter_group():
+        for other_item in other.iter_model():
             for item in restriction_items:
                 if other_item is item or item.is_restriction(other_item, check_particle):
                     if max_occurs is not None:

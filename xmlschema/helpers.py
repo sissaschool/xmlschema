@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains various helper functions for XML/XSD processing and parsing.
+This module contains various helper functions and classes.
 """
 import re
 
@@ -219,3 +219,38 @@ def get_xsd_form_attribute(elem, attribute):
             "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
         )
     return value
+
+
+class ParticleCounter(object):
+    """
+    An helper class for counting total min/max occurrences of XSD particles.
+    """
+    def __init__(self):
+        self.min_occurs = self.max_occurs = 0
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.min_occurs, self.max_occurs)
+
+    def __add__(self, other):
+        self.min_occurs += other.min_occurs
+        if self.max_occurs is not None:
+            if other.max_occurs is None:
+                self.max_occurs = None
+            else:
+                self.max_occurs += other.max_occurs
+        return self
+
+    def __mul__(self, other):
+        self.min_occurs *= other.min_occurs
+        if self.max_occurs is None:
+            if other.max_occurs == 0:
+                self.max_occurs = 0
+        elif other.max_occurs is None:
+            if self.max_occurs != 0:
+                self.max_occurs = None
+        else:
+            self.max_occurs *= other.max_occurs
+        return self
+
+    def reset(self):
+        self.min_occurs = self.max_occurs = 0

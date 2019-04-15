@@ -21,13 +21,14 @@ from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
-from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, get_xsd_form_attribute
+from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, \
+    get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
-from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin, ParticleCounter
+from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin
 from .identities import XsdUnique, XsdKey, XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -59,7 +60,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    admitted_tags = {XSD_ELEMENT}
+    _admitted_tags = {XSD_ELEMENT}
     qualified = False
     _ref = None
     _abstract = False
@@ -677,25 +678,27 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             elif not all(k in other.constraints for k in self.constraints):
                 return False
+            else:
+                return True
         elif other.model == 'choice':
-            min_occurs, max_occurs = other.occurs
-            if max_occurs == 0 and self.max_occurs != 0:
+            if other.is_empty() and self.max_occurs != 0:
                 return False
 
             counter = ParticleCounter()
-            for e in other.iter_group():
+            for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
-                    print(e)
-                if not self.is_restriction(e, False):
+                    return False
+                elif not self.is_restriction(e, False):
                     continue
                 counter += e
                 counter *= other
-                if counter.has_occurs_restriction(self):
+                if self.has_occurs_restriction(counter):
                     return True
+                counter.reset()
             return False
         else:
             match_restriction = False
-            for e in other.iter_group():
+            for e in other.iter_model():
                 if match_restriction:
                     if not e.is_emptiable():
                         return False
@@ -703,7 +706,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     match_restriction = True
                 elif not e.is_emptiable():
                     return False
-        return True
+            return True
 
     def overlap(self, other):
         if isinstance(other, XsdElement):
@@ -810,7 +813,7 @@ class XsdAlternative(XsdComponent):
       Content: (annotation?, (simpleType | complexType)?)
     </alternative>
     """
-    admitted_tags = {XSD_ALTERNATIVE}
+    _admitted_tags = {XSD_ALTERNATIVE}
     type = None
 
     def __repr__(self):

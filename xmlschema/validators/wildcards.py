@@ -153,7 +153,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
-    admitted_tags = {XSD_ANY}
+    _admitted_tags = {XSD_ANY}
 
     def __repr__(self):
         return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -186,7 +186,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iterchildren(self, tag=None):
         return iter(())
 
-    def iter_substitutes(self, tag=None):
+    @staticmethod
+    def iter_substitutes():
         return iter(())
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
@@ -253,7 +254,7 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    admitted_tags = {XSD_ANY_ATTRIBUTE}
+    _admitted_tags = {XSD_ANY_ATTRIBUTE}
 
     def match(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):
@@ -403,7 +404,7 @@ class XsdOpenContent(XsdComponent):
       Content: (annotation?), (any?)
     </openContent>
     """
-    admitted_tags = {XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT}
+    _admitted_tags = {XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT}
 
     def __init__(self, elem, schema, parent):
         super(XsdOpenContent, self).__init__(elem, schema, parent)

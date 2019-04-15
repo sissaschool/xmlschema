@@ -45,7 +45,7 @@ class XsdComplexType(XsdType, ValidationMixin):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
+    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     assertions = ()
     mixed = False
     _block = None
@@ -263,10 +263,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             if base_type.has_simple_content():
                 self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
                 if not self.content_type.is_derived(base_type.content_type, 'restriction'):
-                    # import pdb
-                    # pdb.set_trace()
-                    # ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
-                    # self.content_type.is_derived(base_type.content_type, 'restriction')
+                    import pdb
+                    pdb.set_trace()
+                    ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
+                    self.content_type.is_derived(base_type.content_type, 'restriction')
                     self.parse_error("Content type is not a restriction of base content type", elem)
 
             elif base_type.mixed and base_type.is_emptiable():
@@ -464,7 +464,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             return True
         elif derivation and self.derivation and derivation != self.derivation and other.is_complex():
             return False
-        elif other.name in self.special_types:
+        elif other.name == XSD_ANY_TYPE:
             return True
         elif self.base_type is other:
             return True

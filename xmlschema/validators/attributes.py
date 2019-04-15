@@ -45,7 +45,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    admitted_tags = {XSD_ATTRIBUTE}
+    _admitted_tags = {XSD_ATTRIBUTE}
     qualified = False
 
     def __init__(self, elem, schema, parent, name=None, xsd_type=None):
@@ -307,7 +307,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     </attributeGroup>
     """
     redefine = None
-    admitted_tags = {
+    _admitted_tags = {
         XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }

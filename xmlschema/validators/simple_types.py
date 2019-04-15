@@ -88,8 +88,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
-    special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
-    admitted_tags = {XSD_SIMPLE_TYPE}
+    _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
+    _admitted_tags = {XSD_SIMPLE_TYPE}
+
     min_length = None
     max_length = None
     white_space = None
@@ -273,6 +274,28 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def is_element_only(self):
         return False
 
+    def is_derived(self, other, derivation=None):
+        if self is other:
+            return True
+        elif derivation and self.derivation and derivation != self.derivation:
+            return False
+        elif other.name in self._special_types:
+            return True
+        elif self.base_type is other:
+            return True
+        elif self.base_type is None:
+            if hasattr(other, 'member_types'):
+                return any(self.is_derived(m, derivation) for m in other.member_types)
+            return False
+        elif self.base_type.is_complex():
+            if not self.base_type.has_simple_content():
+                return False
+            return self.base_type.content_type.is_derived(other, derivation)
+        elif hasattr(other, 'member_types'):
+            return any(self.is_derived(m, derivation) for m in other.member_types)
+        else:
+            return self.base_type.is_derived(other, derivation)
+
     def normalize(self, text):
         """
         Normalize and restrict value-space with pre-lexical and lexical facets.
@@ -344,8 +367,8 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
-    special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-    admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
+    _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+    _admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
         self.base_type = base_type
@@ -575,7 +598,7 @@ class XsdList(XsdSimpleType):
       Content: (annotation?, simpleType?)
     </list>
     """
-    admitted_tags = {XSD_LIST}
+    _admitted_tags = {XSD_LIST}
     _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
 
     def __init__(self, elem, schema, parent, name=None):
@@ -740,8 +763,9 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
-    admitted_types = XsdSimpleType
-    admitted_tags = {XSD_UNION}
+    _admitted_types = XsdSimpleType
+    _admitted_tags = {XSD_UNION}
+
     member_types = None
 
     def __init__(self, elem, schema, parent, name=None):
@@ -800,8 +824,8 @@ class XsdUnion(XsdSimpleType):
                 if isinstance(mt, tuple):
                     self.parse_error("circular definition found on xs:union type {!r}".format(self.name))
                     continue
-                elif not isinstance(mt, self.admitted_types):
-                    self.parse_error("a {!r} required, not {!r}".format(self.admitted_types, mt))
+                elif not isinstance(mt, self._admitted_types):
+                    self.parse_error("a {!r} required, not {!r}".format(self._admitted_types, mt))
                     continue
                 elif mt.final in {'#all', 'union'}:
                     self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
@@ -963,7 +987,7 @@ class XsdUnion(XsdSimpleType):
 
 class Xsd11Union(XsdUnion):
 
-    admitted_types = XsdAtomic, XsdList, XsdUnion
+    _admitted_types = XsdAtomic, XsdList, XsdUnion
 
 
 class XsdAtomicRestriction(XsdAtomic):

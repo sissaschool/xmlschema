@@ -191,26 +191,25 @@ class XsdComponent(XsdValidator):
     :param parent: the XSD parent, `None` means that is a global component that has the schema as parent.
     :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
 
-    :cvar admitted_tags: the set of admitted element tags for component type.
-    :vartype admitted_tags: tuple or set
-    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes..
+    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes.
     :vartype qualified: bool
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
+    _admitted_tags = ()
 
-    admitted_tags = ()
+    parent = None
     name = None
     qualified = True
 
-    def __init__(self, elem, schema, parent, name=None):
+    def __init__(self, elem, schema, parent=None, name=None):
         super(XsdComponent, self).__init__(schema.validation)
         if name is not None:
             assert name and (name[0] == '{' or not schema.target_namespace), \
                 "name=%r argument: must be a qualified name of the target namespace." % name
             self.name = name
-
-        self.parent = parent
+        if parent is not None:
+            self.parent = parent
         self.schema = schema
         self.elem = elem
 
@@ -218,11 +217,11 @@ class XsdComponent(XsdValidator):
         if name == "elem":
             if not is_etree_element(value):
                 raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
-            elif value.tag not in self.admitted_tags:
+            elif value.tag not in self._admitted_tags:
                 raise XMLSchemaValueError(
                     "wrong XSD element %r for %r, must be one of %r." % (
                         local_name(value.tag), self,
-                        [local_name(tag) for tag in self.admitted_tags]
+                        [local_name(tag) for tag in self._admitted_tags]
                     )
                 )
             super(XsdComponent, self).__setattr__(name, value)
@@ -455,7 +454,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-    admitted_tags = {XSD_ANNOTATION}
+    _admitted_tags = {XSD_ANNOTATION}
 
     @property
     def built(self):
@@ -479,8 +478,6 @@ class XsdAnnotation(XsdComponent):
 
 
 class XsdType(XsdComponent):
-
-    special_types = {XSD_ANY_TYPE}
     abstract = False
     base_type = None
     derivation = None
@@ -536,27 +533,7 @@ class XsdType(XsdComponent):
             return 'unknown'
 
     def is_derived(self, other, derivation=None):
-        if self is other:
-            return True
-        elif derivation and self.derivation and derivation != self.derivation:
-            return False
-        elif other.name in self.special_types:
-            return True
-        elif False and self.base_type is None:
-            if hasattr(other, 'member_types'):
-                value = any(self.is_derived(m, derivation) for m in other.member_types)
-                if value:
-                    print(self, other)
-                return value
-            return False
-        elif self.base_type is other:
-            return True
-        elif hasattr(other, 'member_types'):
-            return any(self.is_derived(m, derivation) for m in other.member_types)
-        elif self.base_type is None:
-            return False
-        else:
-            return self.base_type.is_derived(other, derivation)
+        raise NotImplementedError
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
@@ -872,33 +849,3 @@ class ParticleMixin(object):
                     self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs")
                 else:
                     self.max_occurs = max_occurs
-
-
-class ParticleCounter(ParticleMixin):
-    """
-    A particle class for counting total min/max occurrences.
-    """
-    def __init__(self):
-        self.min_occurs = 0
-        self.max_occurs = 0
-
-    def __add__(self, other):
-        self.min_occurs += other.min_occurs
-        if self.max_occurs is not None:
-            if other.max_occurs is None:
-                self.max_occurs = None
-            else:
-                self.max_occurs += other.max_occurs
-        return self
-
-    def __mul__(self, other):
-        self.min_occurs *= other.min_occurs
-        if self.max_occurs is None:
-            if other.max_occurs == 0:
-                self.max_occurs = 0
-        elif other.max_occurs is None:
-            if self.max_occurs != 0:
-                self.max_occurs = None
-        else:
-            self.max_occurs *= other.max_occurs
-        return self

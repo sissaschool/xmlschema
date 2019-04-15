@@ -491,7 +491,7 @@ class XsdGlobals(XsdValidator):
                         xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")
 
             try:
-                xsd_type.content_type.verify_model()
+                xsd_type.content_type.check_model()
             except XMLSchemaModelDepthError:
                 msg = "cannot verify the content model of %r due to maximum recursion depth exceeded" % xsd_type
                 schema.warnings.append(msg)

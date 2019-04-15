@@ -139,30 +139,23 @@ class ModelGroup(MutableSequence, ParticleMixin):
             else:
                 return self.max_occurs * sum(e.max_occurs for e in self) <= other.max_occurs
 
-    def iter_group(self):
-        """Creates an iterator for sub elements and groups. Skips meaningless groups."""
-        for item in self:
-            if not isinstance(item, ModelGroup):
-                yield item
-            elif not item.is_pointless(parent=self):
-                yield item
-            else:
-                for obj in item.iter_group():
-                    yield obj
-
     def iter_model(self, depth=0):
         """
-        A generator function iterating elements and groups of the model. Raises `XMLSchemaModelDepthError`
-        if the argument *depth* is over `MAX_MODEL_DEPTH` value.
+        A generator function iterating elements and groups of a model group. Skips pointless groups,
+        iterating deeper through them. Raises `XMLSchemaModelDepthError` if the argument *depth* is
+        over `MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
         if depth > MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
-            yield item
-            if isinstance(item, ModelGroup):
-                for obj in item.iter_model(depth + 1):
+            if not isinstance(item, ModelGroup):
+                yield item
+            elif not item.is_pointless(parent=self):
+                yield item
+            else:
+                for obj in item.iter_model(depth+1):
                     yield obj
 
     def iter_elements(self, depth=0):
@@ -181,10 +174,10 @@ class ModelGroup(MutableSequence, ParticleMixin):
             else:
                 yield item
 
-    def verify_model(self):
+    def check_model(self):
         """
-        Checks group particles. Types matching of same elements and Unique Particle Attribution
-        Constraint are checked. Raises an `XMLSchemaModelError` at first violated constraint.
+        Checks if the model group is deterministic. Types matching of same elements and Unique Particle
+        Attribution Constraint are checked. Raises an `XMLSchemaModelError` at first violated constraint.
         """
         def safe_iter_path(group, depth):
             if depth > MAX_MODEL_DEPTH:
