@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="project" type="TProject">
+        <xs:key name="widgetId">
+            <xs:selector xpath=".//widgets/widget | .//logic/widget"/>
+            <xs:field xpath="@id"/>
+        </xs:key>
+    </xs:element>
+
+     <xs:complexType name="TProject">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="protocols"/>
+        </xs:choice>
+     </xs:complexType>
+
+</xs:schema>

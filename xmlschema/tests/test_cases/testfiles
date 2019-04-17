@@ -100,3 +100,4 @@ issues/issue_073/issue_073-1.xml
 issues/issue_073/issue_073-2.xml --errors=1
 issues/issue_086/issue_086-1.xml
 issues/issue_086/issue_086-2.xml
+issues/issue_105/issue_105.xsd
