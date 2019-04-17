@@ -307,6 +307,13 @@ class TestXMLSchema10(XMLSchemaTestCase):
             base, '<sequence><element name="A"/><element name="X"/></sequence>', XMLSchemaParseError
         )
 
+        base = """
+        <all>
+            <element name="A" minOccurs="0" maxOccurs="0"/>
+        </all>
+        """
+        self.check_complex_restriction(base, '<all><element name="A"/></all>', XMLSchemaParseError)
+
     def test_choice_group_restriction(self):
         base = """
         <choice maxOccurs="2">
@@ -419,12 +426,12 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_recursive_complex_type(self):
         schema = self.schema_class("""
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-	            <xs:element name="elemA" type="typeA"/>
-	            <xs:complexType name="typeA">
-		            <xs:sequence>
-			            <xs:element ref="elemA" minOccurs="0" maxOccurs="5"/>
-		            </xs:sequence>
-	            </xs:complexType>
+                <xs:element name="elemA" type="typeA"/>
+                <xs:complexType name="typeA">
+                    <xs:sequence>
+                        <xs:element ref="elemA" minOccurs="0" maxOccurs="5"/>
+                    </xs:sequence>
+                </xs:complexType>
             </xs:schema>""")
         self.assertEqual(schema.elements['elemA'].type, schema.types['typeA'])
 
@@ -432,24 +439,25 @@ class TestXMLSchema10(XMLSchemaTestCase):
         self.check_schema("""
             <complexType name="typeA">
                 <sequence>
-				    <sequence minOccurs="0" maxOccurs="unbounded">
-						<element name="A"/>
-						<element name="B"/>
-					</sequence>
-				    <element name="A" minOccurs="0"/>
-				</sequence>
-			</complexType>""", XMLSchemaModelError)
+                    <sequence minOccurs="0" maxOccurs="unbounded">
+                        <element name="A"/>
+                        <element name="B"/>
+                    </sequence>
+                    <element name="A" minOccurs="0"/>
+                </sequence>
+            </complexType>""", XMLSchemaModelError)
 
         self.check_schema("""
             <complexType name="typeA">
                 <sequence>
-				    <sequence minOccurs="0" maxOccurs="unbounded">
-						<element name="B"/>
-						<element name="A"/>
-					</sequence>
-				    <element name="A" minOccurs="0"/>
-				</sequence>
-			</complexType>""")
+                    <sequence minOccurs="0" maxOccurs="unbounded">
+                        <element name="B"/>
+                        <element name="A"/>
+                    </sequence>
+                    <element name="A" minOccurs="0"/>
+                </sequence>
+            </complexType>""")
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

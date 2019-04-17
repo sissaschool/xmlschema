@@ -27,7 +27,8 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 ####
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
-    '../msData/additional/addB194.xsd',     # 4826: invalid xml:lang='enu'
+    '../msData/additional/addB194.xsd',       # 4826: invalid xml:lang='enu'
+    '../msData/particles/particlesZ001.xsd',  # 10957: Invalid in XSD 1.0
     '../msData/simpleType/stE110.xsd',      # 13892: Circular xs:union declaration
     '../saxonData/Missing/missing001.xsd',  # 14405: missing type (this may be valid in 'lax' mode?)
     '../saxonData/Missing/missing002.xsd',  # 14406: missing substitution group
@@ -128,7 +129,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                     schema_class(schema_path, use_meta=False)
 
     else:
-        #return
+        # return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -144,8 +145,13 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 0: # 10900: # 0: #4300: # 10977: # 10957: # 0: #10896: # 10866: # 10835: # 10783: # 10534: # 10446: # 10421: # 10412: # 10317: # 10232: # 10024: # 10001: #9940: #10001:
+    if testgroup_num >= 0: #12270: # 12253: # 11287: # 11004: # 10977:
         return TestGroupCase
+
+    # TODO: Complete invalid tests for XSD 1.0 schemas
+    # TestGroupCase10972_particlesZ018  # Not a decimal restriction
+    # TestGroupCase10977_particlesZ024  # UPA violation
+    # TestGroupCase11004_particlesZ039
 
 
 if __name__ == '__main__':

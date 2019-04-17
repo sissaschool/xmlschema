@@ -115,7 +115,7 @@ class TestPackaging(unittest.TestCase):
         # Exclude explicit debug statements written in the code
         exclude = {
             'regex.py': [240, 241],
-            'codepoints.py': [539],
+            'codepoints.py': [543],
         }
 
         message = "\nFound a debug missing statement at line %d or file %r: %r"
