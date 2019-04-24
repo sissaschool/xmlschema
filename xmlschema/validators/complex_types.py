@@ -124,7 +124,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         except KeyError:
             self.name = None
         else:
-            if not self.is_global:
+            if self.parent is not None:
                 self.parse_error("attribute 'name' not allowed for a local complexType", elem)
 
         content_elem = self._parse_component(elem, required=False, strict=False)
@@ -263,10 +263,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             if base_type.has_simple_content():
                 self.content_type = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
                 if not self.content_type.is_derived(base_type.content_type, 'restriction'):
-                    import pdb
-                    pdb.set_trace()
-                    ct = self.schema.BUILDERS.restriction_class(elem, self.schema, self)
-                    self.content_type.is_derived(base_type.content_type, 'restriction')
                     self.parse_error("Content type is not a restriction of base content type", elem)
 
             elif base_type.mixed and base_type.is_emptiable():
@@ -301,17 +297,14 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse_complex_content_restriction(self, elem, base_type):
         if 'restriction' in base_type.final:
             self.parse_error("the base type is not derivable by restriction")
+        if base_type.is_simple() or base_type.has_simple_content():
+            self.parse_error("base %r is simple or has a simple content." % base_type, elem)
+            base_type = self.maps.types[XSD_ANY_TYPE]
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         group_elem = self._parse_component(elem, required=False, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
             content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
-            # FIXME is_restriction check is needed after groups build
-            # model = content_type.model
-            # if model != 'sequence' and model != base_type.content_type.model:
-            #    self.parse_error(
-            #        "cannot restrict a %r model to %r." % (base_model, model), elem
-            #    )
         else:
             # Empty content model
             content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)

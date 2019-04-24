@@ -668,7 +668,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
             elif self.type is not other.type and self.type.elem is not other.type.elem and \
-                    not self.type.is_derived(other.type, 'restriction'):
+                    not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
             elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
                 return False
@@ -684,11 +684,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if other.is_empty() and self.max_occurs != 0:
                 return False
 
+            check_group_items_occurs = self.schema.XSD_VERSION == '1.0'
             counter = ParticleCounter()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
                     return False
-                elif not self.is_restriction(e, False):
+                elif not self.is_restriction(e, check_group_items_occurs):
                     continue
                 counter += e
                 counter *= other

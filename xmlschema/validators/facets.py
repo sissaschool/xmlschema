@@ -588,7 +588,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
             return re.compile(r'^$')
-        except XMLSchemaDecodeError as err:
+        except (re.error, XMLSchemaDecodeError) as err:
             self.parse_error(err, elem)
             return re.compile(r'^$')
 

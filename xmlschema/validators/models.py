@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains a models group classes.
+This module contains classes and functions for processing XSD content models.
 """
 from __future__ import unicode_literals
 from collections import Counter
@@ -234,44 +234,39 @@ def distinguishable_paths(path1, path2):
     if path1[depth].max_occurs == 0:
         return True
 
+    univocal1 = univocal2 = True
     if path1[depth].model == 'sequence':
         idx1 = path1[depth].index(path1[depth + 1])
         idx2 = path2[depth].index(path2[depth + 1])
-        if any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2]):
-            return True
+        before1 = any(not e.is_emptiable() for e in path1[depth][:idx1])
+        after1 = before2 = any(not e.is_emptiable() for e in path1[depth][idx1 + 1:idx2])
+        after2 = any(not e.is_emptiable() for e in path1[depth][idx2 + 1:])
+    else:
+        before1 = after1 = before2 = after2 = False
 
-    before1 = False
-    after1 = False
-    univocal1 = e1.is_univocal()
     for k in range(depth + 1, len(path1) - 1):
         univocal1 &= path1[k].is_univocal()
         if path1[k].model == 'sequence':
             idx = path1[k].index(path1[k + 1])
-            if not before1 and any(not e.is_emptiable() for e in path1[k][:idx]):
-                before1 = True
-            if not after1 and any(not e.is_emptiable() for e in path1[k][idx + 1:]):
-                after1 = True
+            before1 |= any(not e.is_emptiable() for e in path1[k][:idx])
+            after1 |= any(not e.is_emptiable() for e in path1[k][idx + 1:])
 
-    before2 = False
-    after2 = False
-    univocal2 = e2.is_univocal()
     for k in range(depth + 1, len(path2) - 1):
         univocal2 &= path2[k].is_univocal()
         if path2[k].model == 'sequence':
             idx = path2[k].index(path2[k + 1])
-            if not before2 and any(not e.is_emptiable() for e in path2[k][:idx]):
-                before2 = True
-            if not after2 and any(not e.is_emptiable() for e in path2[k][idx + 1:]):
-                after2 = True
+            before2 |= any(not e.is_emptiable() for e in path2[k][:idx])
+            after2 |= any(not e.is_emptiable() for e in path2[k][idx + 1:])
 
     if path1[depth].model != 'sequence':
-        return before1 and before2 or (before1 and (univocal1 or after1 or path1[depth].max_occurs == 1)) \
-               or (before2 and (univocal2 or after2 or path2[depth].max_occurs == 1))
+        return before1 and before2 or \
+               (before1 and (univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1)) or \
+               (before2 and (univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1))
     elif path1[depth].max_occurs == 1:
-        return before2 or univocal1 or (before1 and (after1 or e1.is_univocal()))
+        return before2 or (before1 or univocal1) and (e1.is_univocal() or after1)
     else:
-        return (before2 or univocal1 or (before1 and (after1 or e1.is_univocal()))) and \
-               (before1 or univocal2 or (before2 and (after2 or e2.is_univocal())))
+        return before2 or (before1 or univocal1) and (e1.is_univocal() or after1) and \
+               before1 or (before2 or univocal2) and (e2.is_univocal() or after2)
 
 
 class ModelVisitor(MutableSequence):
