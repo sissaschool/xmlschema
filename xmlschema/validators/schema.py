@@ -251,11 +251,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
                  locations=None, base_url=None, defuse='remote', timeout=300, build=True, use_meta=True):
         super(XMLSchemaBase, self).__init__(validation)
-        try:
-            self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
-        except (XMLSchemaTypeError, OSError, IOError) as err:
-            raise type(err)('cannot create schema: %s' % err)
-
+        self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
         self.imports = {}
         self.includes = []
         self.warnings = []
