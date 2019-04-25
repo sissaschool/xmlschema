@@ -72,6 +72,7 @@ CHARACTER_ESCAPES = {
     '\\)': ')',
     '\\[': '[',
     '\\]': ']',
+    '\\\\': '\\',
 
     # Multi-character escapes
     '\\s': S_SHORTCUT_SET,
