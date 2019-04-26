@@ -20,7 +20,9 @@ from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 
 _RE_QUANTIFIER = re.compile(r'{\d+(,(\d+)?)?}')
-_RE_FORBIDDEN_ESCAPES = re.compile(r'(?<!\\)(\\U[0-9a-fA-F]{8}|\\u[0-9a-fA-F]{4}|\\x[0-9a-fA-F]{2}|\\o{\d+})')
+_RE_FORBIDDEN_ESCAPES = re.compile(
+    r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|\d+|A|Z|z|B|b|o)'
+)
 
 _UNICODE_SUBSETS = UNICODE_CATEGORIES.copy()
 _UNICODE_SUBSETS.update(UNICODE_BLOCKS)
@@ -218,7 +220,9 @@ def parse_character_class(xml_regex, class_pos):
 
     group_pos = pos
     while True:
-        if xml_regex[pos] == '\\':
+        if xml_regex[pos] == '[':
+            raise XMLSchemaRegexError("'[' is invalid in a character class: %r" % xml_regex)
+        elif xml_regex[pos] == '\\':
             pos += 2
         elif xml_regex[pos] == ']' or xml_regex[pos:pos + 2] == '-[':
             if pos == group_pos:
@@ -249,6 +253,7 @@ def get_python_regex(xml_regex):
     regex = ['^(']
     pos = 0
     xml_regex_len = len(xml_regex)
+    nested_groups = 0
 
     match = _RE_FORBIDDEN_ESCAPES.search(xml_regex)
     if match:
@@ -286,16 +291,28 @@ def get_python_regex(xml_regex):
                 raise XMLSchemaRegexError("invalid quantifier %r at position %d: %r" % (ch, pos, xml_regex))
             regex.append(match.group())
             pos += len(match.group())
+            if pos < xml_regex_len and xml_regex[pos] in ('?', '+', '*'):
+                raise XMLSchemaRegexError(
+                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos], pos, xml_regex)
+                )
             continue
 
-        elif ch in (']',):
-            raise XMLSchemaRegexError(
-                "unexpected meta character %r at position %d: %r" % (ch, pos, xml_regex)
-            )
+        elif ch == '(':
+            if xml_regex[pos:pos + 2] == '(?':
+                raise XMLSchemaRegexError("'(?...)' extension notation is not allowed: %r" % xml_regex)
+            nested_groups += 1
+            regex.append(ch)
+        elif ch == ']':
+            raise XMLSchemaRegexError("unexpected meta character %r at position %d: %r" % (ch, pos, xml_regex))
+        elif ch == ')':
+            if nested_groups == 0:
+                raise XMLSchemaRegexError("unbalanced parenthesis ')' at position %d: %r" % (pos, xml_regex))
+            nested_groups -= 1
+            regex.append(ch)
         elif ch in ('?', '+', '*'):
             if pos == 0:
                 raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
-            elif pos < xml_regex_len - 1 and xml_regex[pos+1] in ('?', '+', '*'):
+            elif pos < xml_regex_len - 1 and xml_regex[pos+1] in ('?', '+', '*', '{'):
                 raise XMLSchemaRegexError(
                     "unexpected meta character %r at position %d: %r" % (xml_regex[pos+1], pos+1, xml_regex)
                 )
@@ -334,5 +351,7 @@ def get_python_regex(xml_regex):
             regex.append(ch)
         pos += 1
 
+    if nested_groups > 0:
+        raise XMLSchemaRegexError("unterminated subpattern in expression: %r" % xml_regex)
     regex.append(r')$')
     return ''.join(regex)
