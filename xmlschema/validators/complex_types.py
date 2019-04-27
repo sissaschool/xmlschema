@@ -204,6 +204,12 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.content_type = self.schema.create_any_content_group(self)
             self.attributes = self.schema.create_any_attribute_group(self)
 
+        if self.redefine is None:
+            if self.base_type is not None and self.base_type.name == self.name:
+                self.parse_error("wrong definition with self-reference", elem)
+        elif self.base_type is None or self.base_type.name != self.name:
+            self.parse_error("wrong redefinition without self-reference", elem)
+
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
 

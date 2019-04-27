@@ -231,6 +231,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 elif self.redefine is None:
                     self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
                 else:
+                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
+                        self.parse_error(
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                        )
                     self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
@@ -815,6 +819,10 @@ class Xsd11Group(XsdGroup):
                 elif self.redefine is None:
                     self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
                 else:
+                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
+                        self.parse_error(
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                        )
                     self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema

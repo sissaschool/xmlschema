@@ -35,8 +35,8 @@ import elementpath
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
-from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE
+from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE
 from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
@@ -242,6 +242,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     meta_schema = None
 
     # Schema defaults
+    target_namespace = ''
     attribute_form_default = 'unqualified'
     element_form_default = 'unqualified'
     block_default = ''
@@ -262,7 +263,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
         self.namespaces.update(self.source.get_namespaces())
 
-        self.target_namespace = root.get('targetNamespace', '')
+        try:
+            self.target_namespace = root.attrib['targetNamespace']
+        except KeyError:
+            pass
+        else:
+            if self.target_namespace == '':
+                self.parse_error("The attribute 'targetNamespace' cannot be the empty string.", root)
+
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
                 msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
@@ -621,6 +629,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
         for e in self.root:
+            if e.tag in (XSD_REDEFINE, XSD_OVERRIDE):
+                return False
             name = e.get('name')
             if name is None or e.tag not in self.BUILDERS_MAP:
                 continue
@@ -854,7 +864,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         try:
             schema = self.create_schema(
-                schema_url, namespace, self.validation, self.maps, self.converter,
+                schema_url, None, self.validation, self.maps, self.converter,
                 self.locations, self.base_url, self.defuse, self.timeout, False
             )
         except XMLSchemaParseError as err:
@@ -865,6 +875,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except (XMLSchemaTypeError, OSError, IOError) as err:
             raise type(err)('cannot import namespace %r: %s' % (namespace, err))
         else:
+            if schema.target_namespace != namespace:
+                raise XMLSchemaParseError(
+                    self, 'imported schema %r has an unmatched namespace %r' % (location, namespace)
+                )
             self.imports[namespace] = schema
             return schema
 

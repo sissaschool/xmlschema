@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 from decimal import Decimal
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..compat import MutableMapping
+from ..compat import MutableMapping, ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
@@ -314,7 +314,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def __init__(self, elem, schema, parent, name=None, derivation=None, base_attributes=None):
         self.derivation = derivation
-        self._attribute_group = dict()
+        self._attribute_group = ordered_dict_class()
         self.base_attributes = base_attributes
         XsdComponent.__init__(self, elem, schema, parent, name)
 
@@ -389,7 +389,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 self.parse_error("an attribute group declaration requires a 'name' attribute.")
                 return
 
-        attributes = {}
+        attributes = ordered_dict_class()
         for child in self._iterparse_components(elem):
             if any_attribute:
                 if child.tag == XSD_ANY_ATTRIBUTE:
@@ -485,10 +485,27 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             for name, attr in self._attribute_group.items():
                 if name is None:
                     continue
-                elif attr.use == 'required' and name not in attributes:
-                    self.parse_error("Missing required attribute %r in redefinition restriction" % name)
-                elif attr.use != 'optional' and name in attributes and attributes[name].use != attr.use:
+                elif name not in attributes:
+                    if attr.use == 'required':
+                        self.parse_error("Missing required attribute %r in redefinition restriction" % name)
+                    continue
+                if attr.use != 'optional' and attributes[name].use != attr.use:
                     self.parse_error("Attribute %r: unmatched attribute use in redefinition" % name)
+                if attr.fixed is not None and attributes[name].fixed is None:
+                    self.parse_error("Attribute %r: redefinition remove fixed constraint" % name)
+
+            pos = 0
+            keys = list(self._attribute_group.keys())
+            for name in attributes:
+                try:
+                    next_pos = keys.index(name)
+                except ValueError:
+                    self.parse_error("Redefinition restriction contains additional attribute %r" % name)
+                else:
+                    if next_pos < pos:
+                        self.parse_error("Wrong attribute order in redefinition restriction")
+                        break
+                    pos = next_pos
             self.clear()
 
         self._attribute_group.update(attributes)

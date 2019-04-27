@@ -58,6 +58,10 @@ SKIPPED_TESTS = {
     '../msData/identityConstraint/idI148.xsd',  # 9291: FIXME attribute::* in a selector (restrict XPath parser)
     '../msData/identityConstraint/idJ016.xsd',  # 9311: FIXME xpath="xpns: *" not allowed??
     '../msData/modelGroups/mgE006.xsd',         # 9712: Is valid (is mg007.xsd invalid for the same reason)
+
+    '../msData/schema/schG6_a.xsd',     # 13639: Schema is valid because the ns import is done once, validation fails.
+    '../msData/schema/schG11_a.xsd',    # 13544: Schema is valid because the ns import is done once, validation fails.
+
 }
 
 
@@ -121,15 +125,15 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     else:
         schema_path = expected = None
 
-    if expected is not None and expected != 'valid':
-        return
+    if expected == 'invalid':
+        #return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
                     schema_class(schema_path, use_meta=False)
 
-    else:
-        # return
+    elif expected == 'valid':
+        return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -141,11 +145,13 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
             def test_valid_schema(self):
                 if schema_path:
                     self.assertIsInstance(schema_class(schema_path, use_meta=False), schema_class)
+    else:
+        return   # expected is None or 'indeterminate'
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 0: #12270: # 12253: # 11287: # 11004: # 10977:
+    if testgroup_num >= 14007: # 13954: # 13682:
         return TestGroupCase
 
     # TODO: Complete invalid tests for XSD 1.0 schemas

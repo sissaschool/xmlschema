@@ -212,9 +212,12 @@ class XsdSimpleType(XsdType, ValidationMixin):
             self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive")
 
         # Checks fraction digits
-        if XSD_TOTAL_DIGITS in facets and XSD_FRACTION_DIGITS in facets:
-            if facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
+        if XSD_TOTAL_DIGITS in facets:
+            if XSD_FRACTION_DIGITS in facets and facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
                 self.parse_error("fractionDigits facet value cannot be lesser than the value of totalDigits")
+            total_digits = base_type.get_facet(XSD_TOTAL_DIGITS)
+            if total_digits is not None and total_digits.value < facets[XSD_TOTAL_DIGITS].value:
+                self.parse_error("totalDigits facet value cannot be greater than those on the base type")
 
         self.min_length = min_length
         self.max_length = max_length
@@ -659,7 +662,7 @@ class XsdList(XsdSimpleType):
                     self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
                     base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
-        if base_type.final in {'#all', 'list'}:
+        if base_type.final == '#all' or 'list' in base_type.final:
             self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
 
         try:
@@ -827,7 +830,7 @@ class XsdUnion(XsdSimpleType):
                 elif not isinstance(mt, self._admitted_types):
                     self.parse_error("a {!r} required, not {!r}".format(self._admitted_types, mt))
                     continue
-                elif mt.final in {'#all', 'union'}:
+                elif mt.final == '#all' or 'union' in mt.final:
                     self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
 
                 member_types.append(mt)
@@ -1021,6 +1024,9 @@ class XsdAtomicRestriction(XsdAtomic):
         elif elem.tag == XSD_SIMPLE_TYPE and elem.get('name') is not None:
             elem = self._parse_component(elem)  # Global simpleType with internal restriction
 
+        if self.name is not None and self.parent is not None:
+            self.parse_error("'name' attribute in a local simpleType definition", elem)
+
         base_type = None
         facets = {}
         has_attributes = False
@@ -1040,6 +1046,9 @@ class XsdAtomicRestriction(XsdAtomic):
                     else:
                         base_type = self.base_type
                 else:
+                    if self.redefine is not None:
+                        self.parse_error("wrong redefinition without self-reference", elem)
+
                     try:
                         base_type = self.maps.lookup_type(base_qname)
                     except LookupError:
@@ -1055,14 +1064,17 @@ class XsdAtomicRestriction(XsdAtomic):
 
             if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
                 self.parse_error("wrong base type {!r}, an atomic type required")
-            elif base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
-                if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
-                    # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
-                    self.parse_error(
-                        "when a complexType with simpleContent restricts a complexType "
-                        "with mixed and with emptiable content then a simpleType child "
-                        "declaration is required.", elem
-                    )
+            elif base_type.is_complex():
+                if base_type.mixed and base_type.is_emptiable():
+                    if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
+                        # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
+                        self.parse_error(
+                            "when a complexType with simpleContent restricts a complexType "
+                            "with mixed and with emptiable content then a simpleType child "
+                            "declaration is required.", elem
+                        )
+                else:
+                    self.parse_error("simpleType restriction or %r is not allowed" % base_type, elem)
 
         for child in self._iterparse_components(elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
@@ -1073,25 +1085,27 @@ class XsdAtomicRestriction(XsdAtomic):
                 # Case of simpleType declaration inside a restriction
                 if has_simple_type_child:
                     self.parse_error("duplicated simpleType declaration", child)
-                elif base_type is None:
+
+                if base_type is None:
                     try:
                         base_type = xsd_simple_type_factory(child, self.schema, self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
                         base_type = self.maps.types[XSD_ANY_SIMPLE_TYPE]
-
-                elif base_type.is_complex() and base_type.admit_simple_restriction():
-                    base_type = self.schema.BUILDERS.complex_type_class(
-                        elem=elem,
-                        schema=self.schema,
-                        parent=self,
-                        content_type=xsd_simple_type_factory(child, self.schema, self),
-                        attributes=base_type.attributes,
-                        mixed=base_type.mixed,
-                        block=base_type.block,
-                        final=base_type.final,
-                    )
-                    # base_type.base_type = base_type.content_type
+                elif base_type.is_complex():
+                    if base_type.admit_simple_restriction():
+                        base_type = self.schema.BUILDERS.complex_type_class(
+                            elem=elem,
+                            schema=self.schema,
+                            parent=self,
+                            content_type=xsd_simple_type_factory(child, self.schema, self),
+                            attributes=base_type.attributes,
+                            mixed=base_type.mixed,
+                            block=base_type.block,
+                            final=base_type.final,
+                        )
+                elif 'base' in elem.attrib:
+                    self.parse_error("restriction with 'base' attribute and simpleType declaration", child)
 
                 has_simple_type_child = True
             else:
@@ -1116,7 +1130,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
-        elif base_type.final in {'#all', 'restriction'}:
+        elif base_type.final == '#all' or 'restriction' in base_type.final:
             self.parse_error("'final' value of the baseType %r forbids derivation by restriction" % base_type)
 
         self.base_type = base_type
