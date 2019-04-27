@@ -44,7 +44,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         items = namespace.strip().split()
         if len(items) == 1 and items[0] in ('##any', '##other', '##local', '##targetNamespace'):
             self.namespace = namespace.strip()
-        elif not all([s not in ('##any', '##other') for s in items]):
+        elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in items):
             self.parse_error("wrong value %r for 'namespace' attribute." % namespace)
             self.namespace = '##any'
         else:
@@ -236,8 +236,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return other.overlap(self)
         elif self.namespace == other.namespace:
             return True
-        elif '##any' in self.namespace or '##any' in other.namespace:
+        elif self.namespace == '##any' or other.namespace == '##any':
             return True
+        elif self.namespace == '##other':
+            return any(not ns.startswith('##') and ns != self.target_namespace for ns in other.namespace.split())
+        elif other.namespace == '##other':
+            return any(not ns.startswith('##') and ns != other.target_namespace for ns in self.namespace.split())
+
         any_namespaces = self.namespace.split()
         return any(ns in any_namespaces for ns in other.namespace.split())
 

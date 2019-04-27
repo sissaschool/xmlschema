@@ -467,7 +467,18 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 base_attr = self.base_attributes[name]
 
                 if name is None:
-                    if self.derivation == 'restriction' and not attr.is_restriction(base_attr):
+                    if self.derivation == 'extension':
+                        if attr.namespace == '##any' or attr.namespace == base_attr.namespace:
+                            pass
+                        elif base_attr.namespace == '##any':
+                            attr.namespace = base_attr.namespaces
+                        elif base_attr.namespace == '##other':
+                            if attr.namespace != '##other':
+                                self.parse_error("wrong wildcard namespace extension")
+                        else:
+                            attr.namespace = '%s %s' % (base_attr.namespace, attr.namespace)
+
+                    elif not attr.is_restriction(base_attr):
                         self.parse_error("Attribute wildcard is not a restriction of the base wildcard")
                     continue
                 if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \

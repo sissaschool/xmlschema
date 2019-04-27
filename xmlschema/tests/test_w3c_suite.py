@@ -133,7 +133,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
                     schema_class(schema_path, use_meta=False)
 
     elif expected == 'valid':
-        return
+        #return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -151,7 +151,7 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
         'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
     )
-    if testgroup_num >= 14007: # 13954: # 13682:
+    if testgroup_num >= 3962: # 14234: # 13954: # 13682:
         return TestGroupCase
 
     # TODO: Complete invalid tests for XSD 1.0 schemas

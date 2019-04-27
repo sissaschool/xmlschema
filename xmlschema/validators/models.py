@@ -265,8 +265,8 @@ def distinguishable_paths(path1, path2):
     elif path1[depth].max_occurs == 1:
         return before2 or (before1 or univocal1) and (e1.is_univocal() or after1)
     else:
-        return before2 or (before1 or univocal1) and (e1.is_univocal() or after1) and \
-               before1 or (before2 or univocal2) and (e2.is_univocal() or after2)
+        return (before2 or (before1 or univocal1) and (e1.is_univocal() or after1)) and \
+               (before1 or (before2 or univocal2) and (e2.is_univocal() or after2))
 
 
 class ModelVisitor(MutableSequence):
