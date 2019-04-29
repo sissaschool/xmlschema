@@ -217,7 +217,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
                 try:
-                    ref = get_qname(self.target_namespace, child.attrib['ref'])
+                    ref = self.schema.resolve_qname(child.attrib['ref'])
                 except KeyError:
                     self.parse_error("missing attribute 'ref' in local group", child)
                     continue
@@ -447,6 +447,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         return not bool(restriction_items)
 
     def is_choice_restriction(self, other):
+        if self.parent is None and other.parent is not None and self.schema.XSD_VERSION == '1.0':
+            return False
+
         check_occurs = other.max_occurs != 0
         restriction_items = list(self)
         max_occurs = 0
@@ -809,7 +812,7 @@ class Xsd11Group(XsdGroup):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
                 try:
-                    ref = get_qname(self.target_namespace, child.attrib['ref'])
+                    ref = self.schema.resolve_qname(child.attrib['ref'])
                 except KeyError:
                     self.parse_error("missing attribute 'ref' in local group", child)
                     continue

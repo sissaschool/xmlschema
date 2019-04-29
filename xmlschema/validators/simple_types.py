@@ -132,6 +132,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
                     self.validators = validators
 
     def _parse_facets(self, facets):
+        if facets and self.base_type is not None:
+            if self.base_type.is_simple():
+                if self.base_type.name == XSD_ANY_SIMPLE_TYPE:
+                    self.parse_error("facets not allowed for a direct derivation of xs:anySimpleType")
+            elif self.base_type.has_simple_content():
+                if self.base_type.content_type.name == XSD_ANY_SIMPLE_TYPE:
+                    self.parse_error("facets not allowed for a direct content derivation of xs:anySimpleType")
+
         # Checks the applicability of the facets
         if any(k not in self.admitted_facets for k in facets if k is not None):
             reason = "one or more facets are not applicable, admitted set is %r:"
@@ -697,6 +705,18 @@ class XsdList(XsdSimpleType):
     @staticmethod
     def is_list():
         return True
+
+    def is_derived(self, other, derivation=None):
+        if self is other:
+            return True
+        elif derivation and self.derivation and derivation != self.derivation:
+            return False
+        elif other.name in self._special_types:
+            return True
+        elif self.base_type is other:
+            return True
+        else:
+            return False
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

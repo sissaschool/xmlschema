@@ -882,7 +882,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except ParseError as err:
             raise XMLSchemaParseError(self, 'cannot import namespace %r: %s' % (namespace, err))
         except (XMLSchemaTypeError, OSError, IOError) as err:
-            raise type(err)('cannot import namespace %r: %s' % (namespace, err))
+            err.message = 'cannot import namespace %r: %s' % (namespace, err.message)
+            raise
         else:
             if schema.target_namespace != namespace:
                 raise XMLSchemaParseError(
