@@ -470,7 +470,8 @@ class XsdGlobals(XsdValidator):
 
         # Check redefined global groups
         for group in filter(lambda x: x.schema is schema and x.redefine is not None, self.groups.values()):
-            if group.redefine not in group and not group.is_restriction(group.redefine):
+            if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
+                    and not group.is_restriction(group.redefine):
                 group.parse_error("The redefined group is an illegal restriction of the original group.")
 
         # Check complex content types models

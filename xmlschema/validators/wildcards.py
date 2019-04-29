@@ -77,6 +77,17 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
+    def iter_namespaces(self):
+        if self.namespace in ('##any', '##other'):
+            return
+        for ns in self.namespace.split():
+            if ns == '##local':
+                yield ''
+            elif ns == '##targetNamespace':
+                yield self.target_namespace
+            else:
+                yield ns
+
     def is_matching(self, name, default_namespace=None):
         if name is None:
             return False
@@ -260,6 +271,32 @@ class XsdAnyAttribute(XsdWildcard):
     </anyAttribute>
     """
     _admitted_tags = {XSD_ANY_ATTRIBUTE}
+
+    def extend_namespace(self, other):
+        if self.namespace == '##any' or self.namespace == other.namespace:
+            return
+        elif other.namespace == '##any':
+            self.namespace = other.namespace
+            return
+        elif other.namespace == '##other':
+            w1, w2 = other, self
+        elif self.namespace == '##other':
+            w1, w2 = self, other
+        elif self.target_namespace == other.target_namespace:
+            self.namespace = ' '.join(set(other.namespace.split() + self.namespace.split()))
+            return
+        else:
+            self.namespace = ' '.join(set(list(other.iter_namespaces()) + self.namespace.split()))
+            return
+
+        namespaces = set(w2.iter_namespaces())
+        if w1.target_namespace in namespaces and '' in namespaces:
+            self.namespace = '##any'
+        elif '' not in namespaces and w1.target_namespace == w2.target_namespace:
+            self.namespace = '##other'
+        else:
+            msg = "not expressible wildcard namespace union: {!r} V {!r}:"
+            raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
 
     def match(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):

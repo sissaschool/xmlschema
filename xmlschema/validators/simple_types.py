@@ -1073,8 +1073,8 @@ class XsdAtomicRestriction(XsdAtomic):
                             "with mixed and with emptiable content then a simpleType child "
                             "declaration is required.", elem
                         )
-                else:
-                    self.parse_error("simpleType restriction or %r is not allowed" % base_type, elem)
+                elif self.parent is None or self.parent.is_simple():
+                    self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
         for child in self._iterparse_components(elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:

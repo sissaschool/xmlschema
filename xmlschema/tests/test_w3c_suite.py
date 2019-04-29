@@ -40,16 +40,16 @@ SKIPPED_TESTS = {
     '../saxonData/VC/vc024.xsd',            # 14414: VC 1.1? required
     '../saxonData/XmlVersions/xv004.xsd',   # 14419: non-BMP chars allowed in names in XML 1.1+
 
-    # Invalid that are valid
+    # Invalid that may be valid
     '../sunData/combined/xsd003b/xsd003b.e.xsd',  # 3981: Redefinition that may be valid
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
     '../msData/additional/test65026.xsd',         # 4712: Lack of the processor on XML namespace knowledge
     '../msData/annotations/annotF001.xsd',        # 4989: Annotation contains xml:lang="" ?? (but xml.xsd allows '')
     '../msData/datatypes/Facets/base64Binary/base64Binary_enumeration003.xsd',  # 7277: check base64 invalid values
-    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd', # 7292: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd', # 7294: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd', # 7310: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd', # 7312: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',  # 7292: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',  # 7294: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',  # 7310: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',  # 7312: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
     '../msData/element/elemZ026.xsd',  # 8541: This is good because the head element is abstract
     '../msData/element/elemZ031.xsd',  # 8557: Valid in Python that has arbitrary large integers
     '../msData/errata10/errC005.xsd',  # 8558: Typo: abstract attribute must be set to "true" to fail
@@ -59,9 +59,9 @@ SKIPPED_TESTS = {
     '../msData/identityConstraint/idJ016.xsd',  # 9311: FIXME xpath="xpns: *" not allowed??
     '../msData/modelGroups/mgE006.xsd',         # 9712: Is valid (is mg007.xsd invalid for the same reason)
 
+    # Invalid that are valid because depend by implementation choices
     '../msData/schema/schG6_a.xsd',     # 13639: Schema is valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',    # 13544: Schema is valid because the ns import is done once, validation fails.
-
 }
 
 
@@ -77,34 +77,34 @@ def fetch_xsd_test_suite():
         raise FileNotFoundError("can't find the XSD suite index file suite.xml ...")
 
 
-def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_version='1.0'):
+def create_w3c_test_group_case(filename, group_elem, group_number, xsd_version='1.0'):
     """
     Creates a test class for a W3C test group.
 
-    :param testset_file: the file path of the testSet that owns the testGroup.
-    :param testgroup_elem: the Element instance of the test group.
-    :param testgroup_num: a positive integer to distinguish and order test groups.
+    :param filename: the filename of the testSet that owns the testGroup.
+    :param group_elem: the Element instance of the test group.
+    :param group_number: a positive integer to distinguish and order test groups.
     :param xsd_version: if '1.1' uses XSD 1.1 validator class, otherwise uses the XSD 1.0 validator.
     """
-    name = testgroup_elem.attrib['name']
+    name = group_elem.attrib['name']
 
     if xsd_version == '1.1':
         schema_class = xmlschema.validators.XMLSchema11
-        if testgroup_elem.get('version') == '1.0':
+        if group_elem.get('version') == '1.0':
             raise ValueError("testGroup %r is not suited for XSD 1.1" % name)
-    elif testgroup_elem.get('version') == '1.1':
-        pass # raise ValueError("testGroup %r is not suited for XSD 1.0" % name)
+    elif group_elem.get('version') == '1.1':
+        pass  # raise ValueError("testGroup %r is not suited for XSD 1.0" % name)
     else:
         schema_class = xmlschema.XMLSchema
 
-    schema_elem = testgroup_elem.find('{%s}schemaTest' % TEST_SUITE_NAMESPACE)
+    schema_elem = group_elem.find('{%s}schemaTest' % TEST_SUITE_NAMESPACE)
     if schema_elem is not None:
         schema_document = schema_elem.find('{%s}schemaDocument' % TEST_SUITE_NAMESPACE)
         schema_path = schema_document.get('{%s}href' % XLINK_NAMESPACE)
         if schema_path in SKIPPED_TESTS:
             return
 
-        schema_path = os.path.normpath(os.path.join(os.path.dirname(testset_file), schema_path))
+        schema_path = os.path.normpath(os.path.join(os.path.dirname(filename), schema_path))
 
         if not os.path.isfile(schema_path):
             raise ValueError("Schema file %r not found!" % schema_path)
@@ -126,14 +126,12 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         schema_path = expected = None
 
     if expected == 'invalid':
-        #return
         class TestGroupCase(unittest.TestCase):
             def test_invalid_schema(self):
                 with self.assertRaises(XMLSchemaException, msg="Schema %r may be invalid" % schema_path) as _:
                     schema_class(schema_path, use_meta=False)
 
     elif expected == 'valid':
-        #return
         class TestGroupCase(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -149,15 +147,9 @@ def create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num, xsd_
         return   # expected is None or 'indeterminate'
 
     TestGroupCase.__name__ = TestGroupCase.__qualname__ = str(
-        'TestGroupCase{0:05}_{1}'.format(testgroup_num, name.replace('-', '_'))
+        'TestGroupCase{0:05}_{1}'.format(group_number, name.replace('-', '_'))
     )
-    if testgroup_num >= 3962: # 14234: # 13954: # 13682:
-        return TestGroupCase
-
-    # TODO: Complete invalid tests for XSD 1.0 schemas
-    # TestGroupCase10972_particlesZ018  # Not a decimal restriction
-    # TestGroupCase10977_particlesZ024  # UPA violation
-    # TestGroupCase11004_particlesZ039
+    return TestGroupCase
 
 
 if __name__ == '__main__':

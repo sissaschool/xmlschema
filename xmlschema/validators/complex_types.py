@@ -178,7 +178,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
                 self.parse_error("unexpected tag %r after complexContent declaration:" % elem[k].tag, elem)
-            if base_type is not self:
+            if self.redefine or base_type is not self:
                 self.base_type = base_type
 
         elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION != '1.0':

@@ -35,8 +35,9 @@ import elementpath
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
-from ..qnames import XSD_SCHEMA, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE
+from ..qnames import XSD_SCHEMA, XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
+    XSD_GROUP, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
+    XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE
 from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
@@ -269,7 +270,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             pass
         else:
             if self.target_namespace == '':
-                self.parse_error("The attribute 'targetNamespace' cannot be the empty string.", root)
+                # Ref: https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
+                self.parse_error("The attribute 'targetNamespace' cannot be an empty string.", root)
 
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
@@ -628,17 +630,24 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             return True
 
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
-        for e in self.root:
-            if e.tag in (XSD_REDEFINE, XSD_OVERRIDE):
-                return False
-            name = e.get('name')
-            if name is None or e.tag not in self.BUILDERS_MAP:
-                continue
-            try:
-                if not self.maps.lookup(e.tag, prefix + name if prefix else name).built:
-                    return False
-            except KeyError:
-                return False
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.root):
+            if child.tag in (XSD_REDEFINE, XSD_OVERRIDE):
+                for e in filter(lambda x: x.tag in self.BUILDERS_MAP, child):
+                    name = e.get('name')
+                    if name is not None:
+                        try:
+                            if not self.maps.lookup(e.tag, prefix + name if prefix else name).built:
+                                return False
+                        except KeyError:
+                            return False
+            elif child.tag in self.BUILDERS_MAP:
+                name = child.get('name')
+                if name is not None:
+                    try:
+                        if not self.maps.lookup(child.tag, prefix + name if prefix else name).built:
+                            return False
+                    except KeyError:
+                        return False
         return True
 
     @property
