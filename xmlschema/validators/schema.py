@@ -218,8 +218,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :ivar imports: a dictionary of namespace imports of the schema, that maps namespace URI to imported schema \
     object, or `None` in case of unsuccessful import.
     :vartype imports: dict
-    :ivar includes: list of included schemas.
-    :vartype warnings: list
+    :ivar includes: a dictionary of included schemas, that maps a schema location to an included schema. \
+    It also comprehend schemas included by "xs:redefine" or "xs:override" statements.
+    :vartype warnings: dict
     :ivar warnings: warning messages about failure of import and include elements.
     :vartype warnings: list
 
@@ -255,7 +256,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         super(XMLSchemaBase, self).__init__(validation)
         self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
         self.imports = {}
-        self.includes = []
+        self.includes = {}
         self.warnings = []
         self._root_elements = None
         root = self.source.root
@@ -594,7 +595,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         schema.namespaces = self.namespaces.copy()
         schema.locations = NamespaceResourcesMap(self.locations)
         schema.imports = dict(self.imports)
-        schema.includes = self.includes[:]
+        schema.includes = dict(self.includes)
         schema.maps = self.maps.copy(validator=schema)
         return schema
 
@@ -717,7 +718,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def _include_schemas(self):
         """Processes schema document inclusions and redefinitions."""
-        self.includes = []
         for child in iterchildren_xsd_include(self.root):
             try:
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
@@ -756,23 +756,29 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             schema_url = fetch_resource(location, base_url)
         except XMLSchemaURLError as err:
             raise XMLSchemaOSError("cannot include schema from %r: %s." % (location, err))
-        else:
-            for schema in self.maps.namespaces[self.target_namespace]:
-                if schema_url == schema.url:
-                    return schema
 
-        try:
-            return self.create_schema(
-                schema_url, self.target_namespace, self.validation, self.maps, self.converter,
-                self.locations, self.base_url, self.defuse, self.timeout, False
-            )
-        except XMLSchemaParseError as err:
-            err.message = 'cannot include %r: %s' % (schema_url, err.message)
-            raise err
-        except ParseError as err:
-            raise XMLSchemaParseError(self, 'cannot include %r: %s' % (schema_url, err))
-        except (XMLSchemaTypeError, OSError, IOError) as err:
-            raise type(err)('cannot include %r: %s' % (schema_url, err))
+        for schema in self.maps.namespaces[self.target_namespace]:
+            if schema_url == schema.url:
+                break
+        else:
+            try:
+                schema = self.create_schema(
+                    schema_url, self.target_namespace, self.validation, self.maps, self.converter,
+                    self.locations, self.base_url, self.defuse, self.timeout, False
+                )
+            except XMLSchemaParseError as err:
+                err.message = 'cannot include %r: %s' % (schema_url, err.message)
+                raise err
+            except ParseError as err:
+                raise XMLSchemaParseError(self, 'cannot include %r: %s' % (schema_url, err))
+            except (XMLSchemaTypeError, OSError, IOError) as err:
+                raise type(err)('cannot include %r: %s' % (schema_url, err))
+
+        if location not in self.includes:
+            self.includes[location] = schema
+        elif self.includes[location] != schema:
+            self.includes[schema_url] = schema
+        return schema
 
     def _import_namespaces(self):
         """
@@ -846,8 +852,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param force: is set to `True` imports the schema also if the namespace is already imported.
         :return: the imported :class:`XMLSchema` instance.
         """
-        # if namespace == self.target_namespace:
-        #    XMLSchemaValueError("cannot import a namespace that matches the targetNamespace of the schema")
         if not force:
             if self.imports.get(namespace) is not None:
                 return self.imports[namespace]
