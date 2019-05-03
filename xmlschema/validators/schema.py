@@ -730,6 +730,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
                 self.warnings.append("Include schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                msg = 'cannot include schema %r: %s' % (child.attrib['schemaLocation'], err)
+                if isinstance(err, (XMLSchemaParseError, ParseError)):
+                    self.parse_error(msg)
+                elif self.validation == 'strict':
+                    raise type(err)(msg)
+                else:
+                    self.errors.append(type(err)(msg))
 
         for child in iterchildren_xsd_redefine(self.root):
             try:
@@ -743,6 +751,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if has_xsd_components(child):
                     self.parse_error(str(err), child)
+            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
+                if isinstance(err, (XMLSchemaParseError, ParseError)):
+                    self.parse_error(msg)
+                elif self.validation == 'strict':
+                    raise type(err)(msg)
+                else:
+                    self.errors.append(type(err)(msg))
 
     def include_schema(self, location, base_url=None):
         """
@@ -752,27 +768,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param base_url: is an optional base URL for fetching the schema resource.
         :return: the included :class:`XMLSchema` instance.
         """
-        try:
-            schema_url = fetch_resource(location, base_url)
-        except XMLSchemaURLError as err:
-            raise XMLSchemaOSError("cannot include schema from %r: %s." % (location, err))
-
+        schema_url = fetch_resource(location, base_url)
         for schema in self.maps.namespaces[self.target_namespace]:
             if schema_url == schema.url:
                 break
         else:
-            try:
-                schema = self.create_schema(
-                    schema_url, self.target_namespace, self.validation, self.maps, self.converter,
-                    self.locations, self.base_url, self.defuse, self.timeout, False
-                )
-            except XMLSchemaParseError as err:
-                err.message = 'cannot include %r: %s' % (schema_url, err.message)
-                raise err
-            except ParseError as err:
-                raise XMLSchemaParseError(self, 'cannot include %r: %s' % (schema_url, err))
-            except (XMLSchemaTypeError, OSError, IOError) as err:
-                raise type(err)('cannot include %r: %s' % (schema_url, err))
+            schema = self.create_schema(
+                schema_url, self.target_namespace, self.validation, self.maps, self.converter,
+                self.locations, self.base_url, self.defuse, self.timeout, False
+            )
 
         if location not in self.includes:
             self.includes[location] = schema
@@ -834,6 +838,19 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                     if import_error is None:
                         import_error = err
+                except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                    if namespace:
+                        msg = "cannot import namespace %r: %s." % (namespace, err)
+                    else:
+                        msg = "cannot import chameleon schema: %s." % err
+                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                        self.parse_error(msg)
+                    elif self.validation == 'strict':
+                        raise type(err)(msg)
+                    else:
+                        self.errors.append(type(err)(msg))
+                except XMLSchemaValueError as err:
+                    self.parse_error(err)
                 else:
                     break
             else:
@@ -859,42 +876,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.imports[namespace] = self.maps.namespaces[namespace][0]
                 return self.imports[namespace]
 
-        try:
-            schema_url = fetch_resource(location, base_url)
-        except XMLSchemaURLError as err:
-            if namespace:
-                raise XMLSchemaOSError("cannot import namespace %r from %r: %s." % (namespace, location, err))
-            else:
-                raise XMLSchemaOSError("cannot import chameleon schema from %r: %s." % (location, err))
-        else:
-            if self.imports.get(namespace) is not None and self.imports[namespace].url == schema_url:
-                return self.imports[namespace]
-            elif namespace in self.maps.namespaces:
-                for schema in self.maps.namespaces[namespace]:
-                    if schema_url == schema.url:
-                        self.imports[namespace] = schema
-                        return schema
+        schema_url = fetch_resource(location, base_url)
+        if self.imports.get(namespace) is not None and self.imports[namespace].url == schema_url:
+            return self.imports[namespace]
+        elif namespace in self.maps.namespaces:
+            for schema in self.maps.namespaces[namespace]:
+                if schema_url == schema.url:
+                    self.imports[namespace] = schema
+                    return schema
 
-        try:
-            schema = self.create_schema(
-                schema_url, None, self.validation, self.maps, self.converter,
-                self.locations, self.base_url, self.defuse, self.timeout, False
-            )
-        except XMLSchemaParseError as err:
-            err.message = 'cannot import namespace %r: %s' % (namespace, err.message)
-            raise err
-        except ParseError as err:
-            raise XMLSchemaParseError(self, 'cannot import namespace %r: %s' % (namespace, err))
-        except (XMLSchemaTypeError, OSError, IOError) as err:
-            err.message = 'cannot import namespace %r: %s' % (namespace, err.message)
-            raise
-        else:
-            if schema.target_namespace != namespace:
-                raise XMLSchemaParseError(
-                    self, 'imported schema %r has an unmatched namespace %r' % (location, namespace)
-                )
-            self.imports[namespace] = schema
-            return schema
+        schema = self.create_schema(
+            schema_url, None, self.validation, self.maps, self.converter,
+            self.locations, self.base_url, self.defuse, self.timeout, False
+        )
+        if schema.target_namespace != namespace:
+            raise XMLSchemaValueError('imported schema %r has an unmatched namespace %r' % (location, namespace))
+        self.imports[namespace] = schema
+        return schema
 
     def resolve_qname(self, qname):
         """

@@ -344,9 +344,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
 
 class XMLSchemaIncludeWarning(XMLSchemaWarning):
     """A schema include fails."""
-    pass
 
 
 class XMLSchemaImportWarning(XMLSchemaWarning):
     """A schema namespace import fails."""
-    pass
