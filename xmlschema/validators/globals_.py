@@ -64,9 +64,12 @@ def create_load_function(filter_function):
         for schema in schemas:
             target_namespace = schema.target_namespace
             for elem in iterchildren_xsd_redefine(schema.root):
+                location = elem.get('schemaLocation')
+                if location is None:
+                    continue
                 for child in filter_function(elem):
                     qname = get_qname(target_namespace, child.attrib['name'])
-                    redefinitions.append((qname, (child, schema)))
+                    redefinitions.append((qname, child, schema, schema.includes[location]))
 
             for elem in filter_function(schema.root):
                 qname = get_qname(target_namespace, elem.attrib['name'])
@@ -77,22 +80,41 @@ def create_load_function(filter_function):
                 except AttributeError:
                     xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
 
-        tags = Counter([qname for qname, _ in redefinitions])
-        for qname, obj in redefinitions:
+        tags = Counter([x[0] for x in redefinitions])
+        for qname, elem, schema, redefined_schema in redefinitions:
+
+            # Checks multiple redefinitions
             if tags[qname] > 1:
-                elem, schema = obj
-                if elem.tag in {XSD_ATTRIBUTE_GROUP, XSD_GROUP}:
-                    schema.parse_error("multiple definition for {} {!r}".format(local_name(elem.tag), qname), elem)
-            if qname not in xsd_globals:
-                elem, schema = obj
+                tags[qname] = 1
+
+                redefined_schemas = [x[3] for x in redefinitions if x[0] == qname]
+                if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
+                    schema.parse_error(
+                        "multiple redefinition for {} {!r}".format(local_name(elem.tag), qname), elem
+                    )
+                else:
+                    redefined_schemas = {x[3]: x[2] for x in redefinitions if x[0] == qname}
+                    for rs, s in redefined_schemas.items():
+                        while True:
+                            try:
+                                s = redefined_schemas[s]
+                            except KeyError:
+                                break
+
+                            if s is rs:
+                                schema.parse_error(
+                                    "circular redefinition for {} {!r}".format(local_name(elem.tag), qname), elem
+                                )
+                                break
+
+            # Append redefinition
+            try:
+                xsd_globals[qname].append((elem, schema))
+            except KeyError:
                 schema.parse_error("not a redefinition!", elem)
-            else:
-                try:
-                    xsd_globals[qname].append(obj)
-                except KeyError:
-                    xsd_globals[qname] = obj
-                except AttributeError:
-                    xsd_globals[qname] = [xsd_globals[qname], obj]
+                # xsd_globals[qname] = elem, schema
+            except AttributeError:
+                xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
 
     return load_xsd_globals
 
