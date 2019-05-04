@@ -416,28 +416,28 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Year related primitive types (year 0 not allowed) ---
     {
         'name': XSD_DATETIME,
-        'python_type': (unicode_type, str, datatypes.DateTime),
+        'python_type': (unicode_type, str, datatypes.DateTime10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime10.fromstring,
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
-        'python_type': (unicode_type, str, datatypes.Date),
+        'python_type': (unicode_type, str, datatypes.Date10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date10.fromstring,
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
-        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'python_type': (unicode_type, str, datatypes.GregorianYear10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear10.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
-        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'python_type': (unicode_type, str, datatypes.GregorianYearMonth10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth10.fromstring,
