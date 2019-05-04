@@ -1165,6 +1165,47 @@ class TestEncoding(XMLSchemaTestCase):
             expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
 
+    def test_encode_datetime(self):
+        xs = self.get_schema('<element name="dt" type="dateTime"/>')
+
+        dt = xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True)
+        self.assertEqual(
+            etree_tostring(xs.encode(dt)),
+            '<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'
+        )
+
+    def test_encode_date(self):
+        xs = self.get_schema('<element name="dt" type="date"/>')
+        date = xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True)
+        self.assertEqual(
+            etree_tostring(xs.encode(date)),
+            '<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'
+        )
+
+    def test_duration(self):
+        xs = self.get_schema('<element name="td" type="duration"/>')
+        duration = xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True)
+        self.assertEqual(
+            etree_tostring(xs.encode(duration)),
+            '<ns:td xmlns:ns="ns">P5Y3M2DT12H30.001S</ns:td>'
+        )
+
+    def test_gregorian_year(self):
+        xs = self.get_schema('<element name="td" type="gYear"/>')
+        gyear = xs.decode('<ns:td xmlns:ns="ns">2000</ns:td>', datetime_types=True)
+        self.assertEqual(
+            etree_tostring(xs.encode(gyear)),
+            '<ns:td xmlns:ns="ns">2000</ns:td>'
+        )
+
+    def test_gregorian_yearmonth(self):
+        xs = self.get_schema('<element name="td" type="gYearMonth"/>')
+        gyear_month = xs.decode('<ns:td xmlns:ns="ns">2000-12</ns:td>', datetime_types=True)
+        self.assertEqual(
+            etree_tostring(xs.encode(gyear_month)),
+            '<ns:td xmlns:ns="ns">2000-12</ns:td>'
+        )
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
