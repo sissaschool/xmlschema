@@ -906,6 +906,12 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertFalse(xs.is_valid('<value>alpha</value>'))
         self.assertEqual(xs.decode('<value>10</value>'), 10)
 
+    def test_union_types(self):
+        # For testing issue #103
+        decimal_or_nan = self.st_schema.types['myType']
+        self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
+        self.check_decode(decimal_or_nan, 'NaN', 'NaN')
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

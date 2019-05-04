@@ -19,6 +19,7 @@ from __future__ import unicode_literals
 import re
 import base64
 from decimal import Decimal
+from math import isinf, isnan
 
 from elementpath import datatypes
 
@@ -62,6 +63,14 @@ DATETIME_FACETS = (
 
 #
 # XSD built-in types validator functions
+def finite_number_validator(x):
+    try:
+        if isinf(x) or isnan(x):
+            yield XMLSchemaValidationError(finite_number_validator, x, "value {!r} is not an xs:decimal".format(x))
+    except TypeError:
+        pass
+
+
 def qname_validator(x):
     if datatypes.QNAME_PATTERN.match(x) is None:
         yield XMLSchemaValidationError(qname_validator, x, "value {!r} is not an xs:QName".format(x))
@@ -186,7 +195,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_DECIMAL,
         'python_type': (Decimal, str, unicode_type, int, float),
         'admitted_facets': DECIMAL_FACETS,
-        'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
+        'facets': [finite_number_validator, COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # decimal number
     {
         'name': XSD_DOUBLE,
