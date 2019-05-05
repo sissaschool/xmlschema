@@ -25,7 +25,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationErr
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement
-from .models import ParticleMixin, ModelGroup, ModelVisitor
+from .models import MAX_MODEL_DEPTH, ParticleMixin, ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -495,17 +495,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def iter_subelements(self, depth=0):
-        if depth <= 15:
-            for item in self:
-                if isinstance(item, XsdGroup):
-                    for e in item.iter_subelements(depth+1):
-                        yield e
-                else:
-                    yield item
-
     def iter_elements(self, depth=0):
-        if depth <= 15:
+        if depth <= MAX_MODEL_DEPTH:
             for item in self:
                 if isinstance(item, XsdGroup):
                     for e in item.iter_elements(depth+1):

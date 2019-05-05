@@ -174,6 +174,15 @@ class ModelGroup(MutableSequence, ParticleMixin):
             else:
                 yield item
 
+    def iter_subelements(self, depth=0):
+        if depth <= MAX_MODEL_DEPTH:
+            for item in self:
+                if isinstance(item, ModelGroup):
+                    for e in item.iter_subelements(depth+1):
+                        yield e
+                else:
+                    yield item
+
     def check_model(self):
         """
         Checks if the model group is deterministic. Types matching of same elements and Unique Particle

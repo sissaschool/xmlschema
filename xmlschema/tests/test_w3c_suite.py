@@ -27,6 +27,7 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 ####
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
+    # Signed as valid that have to be checked
     '../msData/additional/addB194.xsd',       # 4826: invalid xml:lang='enu'
     '../msData/particles/particlesZ001.xsd',  # 10957: Invalid in XSD 1.0
     '../msData/simpleType/stE110.xsd',      # 13892: Circular xs:union declaration

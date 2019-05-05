@@ -910,7 +910,7 @@ class TestDecoding(XMLSchemaTestCase):
         # For testing issue #103
         decimal_or_nan = self.st_schema.types['myType']
         self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
-        self.check_decode(decimal_or_nan, 'NaN', 'NaN')
+        self.check_decode(decimal_or_nan, 'NaN', u'NaN')
 
 
 class TestDecoding11(TestDecoding):
