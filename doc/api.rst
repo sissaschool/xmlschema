@@ -180,6 +180,7 @@ Errors and exceptions
 .. autoexception:: xmlschema.XMLSchemaNotBuiltError
 .. autoexception:: xmlschema.XMLSchemaParseError
 .. autoexception:: xmlschema.XMLSchemaModelError
+.. autoexception:: xmlschema.XMLSchemaModelDepthError
 .. autoexception:: xmlschema.XMLSchemaValidationError
 .. autoexception:: xmlschema.XMLSchemaDecodeError
 .. autoexception:: xmlschema.XMLSchemaEncodeError

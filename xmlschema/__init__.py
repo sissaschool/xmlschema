@@ -21,8 +21,9 @@ from .documents import validate, to_dict, to_json, from_json
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaModelError,
-    XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError,
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
+    XMLSchemaModelDepthError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError,
+    XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdGlobals,
+    XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
 __version__ = '1.0.11'

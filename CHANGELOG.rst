@@ -2,12 +2,17 @@
 CHANGELOG
 *********
 
-`v1.0.11`_ (TBD)
-================
-* Integration with W3C XSD tests
+`v1.0.11`_ (2019-05-05)
+=======================
+* Added a script for running the W3C XSD test suite.
+* Check restrictions and model groups UPA violations
+* Model groups splitted between two modules for more focusing on models basics
+* Added two new exceptions for model group errors
 * More control on imported namespaces
 * Added *use_meta* argument to schema classes
 * Added *includes* list and *imports* dict to schema classes
+* Many fixes for passing the W3C's tests for XSD 1.0 schemas
+* Added a test for issue #105 and a fix for issue #103
 
 `v1.0.10`_ (2019-02-25)
 =======================
