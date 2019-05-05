@@ -16,14 +16,10 @@ import re
 
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
 from ..etree import etree_tostring, is_etree_element
-
-from .exceptions import (
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError,
-    XMLSchemaEncodeError, XMLSchemaChildrenValidationError
-)
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -73,7 +69,7 @@ class XsdValidator(object):
     @property
     def validation_attempted(self):
         """
-        Property that returns the XSD validator's validation status. It can be 'full', 'partial' or 'none'.
+        Property that returns the *validation status* of the XSD validator. It can be 'full', 'partial' or 'none'.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
@@ -115,6 +111,14 @@ class XsdValidator(object):
                 errors.extend(comp.errors)
         return errors
 
+    def copy(self):
+        validator = object.__new__(self.__class__)
+        validator.__dict__.update(self.__dict__)
+        validator.errors = self.errors[:]
+        return validator
+
+    __copy__ = copy
+
     def parse_error(self, error, elem=None):
         """
         Helper method for registering parse errors. Does nothing if validation mode is 'skip'.
@@ -140,7 +144,7 @@ class XsdValidator(object):
             error.elem = elem
             error.source = getattr(self, 'source', None)
         elif isinstance(error, Exception):
-            error = XMLSchemaParseError(self, unicode_type(error), elem)
+            error = XMLSchemaParseError(self, unicode_type(error).strip('\'" '), elem)
         elif isinstance(error, string_base_type):
             error = XMLSchemaParseError(self, error, elem)
         else:
@@ -187,26 +191,25 @@ class XsdComponent(XsdValidator):
     :param parent: the XSD parent, `None` means that is a global component that has the schema as parent.
     :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
 
-    :cvar admitted_tags: the set of admitted element tags for component type.
-    :vartype admitted_tags: tuple or set
-    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes..
+    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes.
     :vartype qualified: bool
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
+    _admitted_tags = ()
 
-    admitted_tags = ()
+    parent = None
+    name = None
     qualified = True
 
-    def __init__(self, elem, schema, parent, name=None):
+    def __init__(self, elem, schema, parent=None, name=None):
         super(XsdComponent, self).__init__(schema.validation)
-        if name == '':
-            raise XMLSchemaValueError("'name' cannot be an empty string!")
-        assert name is None or name[0] == '{' or not schema.target_namespace, \
-            "name=%r argument: can be None or a qualified name of the target namespace." % name
-
-        self.name = name
-        self.parent = parent
+        if name is not None:
+            assert name and (name[0] == '{' or not schema.target_namespace), \
+                "name=%r argument: must be a qualified name of the target namespace." % name
+            self.name = name
+        if parent is not None:
+            self.parent = parent
         self.schema = schema
         self.elem = elem
 
@@ -214,15 +217,13 @@ class XsdComponent(XsdValidator):
         if name == "elem":
             if not is_etree_element(value):
                 raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
-            elif value.tag not in self.admitted_tags:
+            elif value.tag not in self._admitted_tags:
                 raise XMLSchemaValueError(
                     "wrong XSD element %r for %r, must be one of %r." % (
                         local_name(value.tag), self,
-                        [local_name(tag) for tag in self.admitted_tags]
+                        [local_name(tag) for tag in self._admitted_tags]
                     )
                 )
-            elif hasattr(self, 'elem'):
-                self._elem = self.elem  # redefinition cases
             super(XsdComponent, self).__setattr__(name, value)
             self._parse()
             return
@@ -297,6 +298,13 @@ class XsdComponent(XsdValidator):
                 yield obj
         except XMLSchemaValueError as err:
             self.parse_error(err, elem)
+
+    def _parse_attribute(self, elem, name, values, default=None):
+        value = elem.get(name, default)
+        if value not in values:
+            self.parse_error("wrong value {} for {} attribute.".format(value, name))
+            return default
+        return value
 
     def _parse_properties(self, *properties):
         for name in properties:
@@ -376,6 +384,16 @@ class XsdComponent(XsdValidator):
         """Returns the component if its name is matching the name provided as argument, `None` otherwise."""
         return self if self.is_matching(name, default_namespace) else None
 
+    def get_global(self):
+        """Returns the global XSD component that contains the component instance."""
+        if self.parent is None:
+            return self
+        component = self.parent
+        while component is not self:
+            if component.parent is None:
+                return component
+            component = component.parent
+
     def iter_components(self, xsd_classes=None):
         """
         Creates an iterator for XSD subcomponents.
@@ -436,7 +454,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-    admitted_tags = {XSD_ANNOTATION}
+    _admitted_tags = {XSD_ANNOTATION}
 
     @property
     def built(self):
@@ -460,9 +478,15 @@ class XsdAnnotation(XsdComponent):
 
 
 class XsdType(XsdComponent):
-
+    abstract = False
     base_type = None
     derivation = None
+    redefine = None
+    _final = None
+
+    @property
+    def final(self):
+        return self.schema.final_default if self._final is None else self._final
 
     @property
     def built(self):
@@ -509,20 +533,10 @@ class XsdType(XsdComponent):
             return 'unknown'
 
     def is_derived(self, other, derivation=None):
-        if other.name == XSD_ANY_TYPE or self.base_type == other:
-            return True if derivation is None else derivation == self.derivation
-        elif self.base_type is not None:
-            return self.base_type.is_derived(other, derivation)
-        else:
-            return False
+        raise NotImplementedError
 
-    def is_subtype(self, qname):
-        if qname == XSD_ANY_TYPE or self.name == qname:
-            return True
-        elif self.base_type is not None:
-            return self.base_type.is_subtype(qname)
-        else:
-            return False
+    def is_key(self):
+        return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
 
 
 class ValidationMixin(object):
@@ -761,54 +775,27 @@ class ParticleMixin(object):
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
     """
-    def parse_error(self, *args, **kwargs):
-        # Implemented by XsdValidator
-        raise NotImplementedError
+    min_occurs = 1
+    max_occurs = 1
 
-    def _parse_particle(self, elem):
-        try:
-            self.min_occurs = int(elem.attrib['minOccurs'])
-            if self.min_occurs < 0:
-                raise ValueError()
-        except KeyError:
-            self.min_occurs = 1
-        except (TypeError, ValueError):
-            self.parse_error("minOccurs value must be a non negative integer")
-            self.min_occurs = 1
-
-        if 'maxOccurs' not in elem.attrib:
-            self.max_occurs = 1
-        elif elem.attrib['maxOccurs'] == 'unbounded':
-            self.max_occurs = None
-        else:
-            try:
-                self.max_occurs = int(elem.attrib['maxOccurs'])
-            except ValueError:
-                self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
-                self.max_occurs = 1
-            else:
-                if self.min_occurs > self.max_occurs:
-                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs:")
-
-        self.occurs = [self.min_occurs, self.max_occurs]
+    @property
+    def occurs(self):
+        return [self.min_occurs, self.max_occurs]
 
     def is_emptiable(self):
         return self.min_occurs == 0
 
-    is_optional = is_emptiable
+    def is_empty(self):
+        return self.max_occurs == 0
 
     def is_single(self):
         return self.max_occurs == 1
 
-    def is_restriction(self, other):
-        if self.min_occurs < other.min_occurs:
-            return False
-        if other.max_occurs is not None:
-            if self.max_occurs is None:
-                return False
-            elif self.max_occurs > other.max_occurs:
-                return False
-        return True
+    def is_ambiguous(self):
+        return self.min_occurs != self.max_occurs
+
+    def is_univocal(self):
+        return self.min_occurs == self.max_occurs
 
     def is_missing(self, occurs):
         return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
@@ -816,27 +803,49 @@ class ParticleMixin(object):
     def is_over(self, occurs):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
-                                  source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
-        Il validation mode is 'lax' returns the error, otherwise raise the error.
-
-        :param validation: the validation mode. Can be 'lax' or 'strict'.
-        :param elem: the instance Element.
-        :param index: the child index.
-        :param particle: the XSD component (subgroup or element) associated to the child.
-        :param occurs: the child tag occurs.
-        :param expected: the expected element tags/object names.
-        :param source: the XML resource related to the validation process.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
-        error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs, expected, source, namespaces)
-        if validation == 'strict':
-            raise error
+    def has_occurs_restriction(self, other):
+        if self.min_occurs == self.max_occurs == 0:
+            return True
+        elif self.min_occurs < other.min_occurs:
+            return False
+        elif other.max_occurs is None:
+            return True
+        elif self.max_occurs is None:
+            return False
         else:
-            return error
+            return self.max_occurs <= other.max_occurs
+
+    ###
+    # Methods used by XSD components
+    def parse_error(self, *args, **kwargs):
+        """Helper method overridden by XsdValidator.parse_error() in XSD components."""
+        raise XMLSchemaParseError(*args)
+
+    def _parse_particle(self, elem):
+        if 'minOccurs' in elem.attrib:
+            try:
+                min_occurs = int(elem.attrib['minOccurs'])
+            except (TypeError, ValueError):
+                self.parse_error("minOccurs value is not an integer value")
+            else:
+                if min_occurs < 0:
+                    self.parse_error("minOccurs value must be a non negative integer")
+                else:
+                    self.min_occurs = min_occurs
+
+        max_occurs = elem.get('maxOccurs')
+        if max_occurs is None:
+            if self.min_occurs > 1:
+                self.parse_error("minOccurs must be lesser or equal than maxOccurs")
+        elif max_occurs == 'unbounded':
+            self.max_occurs = None
+        else:
+            try:
+                max_occurs = int(max_occurs)
+            except ValueError:
+                self.parse_error("maxOccurs value must be a non negative integer or 'unbounded'")
+            else:
+                if self.min_occurs > max_occurs:
+                    self.parse_error("maxOccurs must be 'unbounded' or greater than minOccurs")
+                else:
+                    self.max_occurs = max_occurs

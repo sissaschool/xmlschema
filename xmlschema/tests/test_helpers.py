@@ -19,7 +19,7 @@ import unittest
 from xmlschema.etree import etree_element
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_namespace, get_qname, \
-    local_name, prefixed_to_qname, qname_to_prefixed, has_xsd_components, get_xsd_component, \
+    local_name, qname_to_prefixed, has_xsd_components, get_xsd_component, \
     get_xml_bool_attribute, get_xsd_derivation_attribute
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 from xmlschema.tests import XMLSchemaTestCase
@@ -56,19 +56,6 @@ class TestHelpers(XMLSchemaTestCase):
         self.assertRaises(ValueError, local_name, '{ns name')
         self.assertRaises(TypeError, local_name, 1.0)
         self.assertRaises(TypeError, local_name, 0)
-
-    def test_prefixed_to_qname_functions(self):
-        namespaces = {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE}
-        self.assertEqual(prefixed_to_qname('xs:element', namespaces), XSD_ELEMENT)
-        self.assertEqual(prefixed_to_qname('xsi:type', namespaces), XSI_TYPE)
-
-        self.assertEqual(prefixed_to_qname(XSI_TYPE, namespaces), XSI_TYPE)
-        self.assertEqual(prefixed_to_qname('element', namespaces), 'element')
-        self.assertEqual(prefixed_to_qname('', namespaces), '')
-        self.assertEqual(prefixed_to_qname(None, namespaces), None)
-
-        self.assertRaises(ValueError, prefixed_to_qname, 'xsi:type', {})
-        self.assertRaises(ValueError, prefixed_to_qname, 'xml:lang', namespaces)
 
     def test_qname_to_prefixed_functions(self):
         namespaces = {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE}

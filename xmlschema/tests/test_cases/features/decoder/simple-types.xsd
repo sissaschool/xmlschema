@@ -124,4 +124,24 @@
             <xs:pattern value="(word|other)|(alternative)"/>
         </xs:restriction>
     </xs:simpleType>
+
+    <!-- Issue #103 -->
+    <xs:simpleType name="myType">
+        <xs:union memberTypes="typeA typeB"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="typeA">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0.0"/>
+            <xs:maxInclusive value="100.0"/>
+            <xs:fractionDigits value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="typeB">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="NaN"/>
+        </xs:restriction>
+    </xs:simpleType>
+
 </xs:schema>

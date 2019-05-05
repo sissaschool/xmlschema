@@ -19,6 +19,11 @@ from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
 
+_RE_QUANTIFIER = re.compile(r'{\d+(,(\d+)?)?}')
+_RE_FORBIDDEN_ESCAPES = re.compile(
+    r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|\d+|A|Z|z|B|b|o)'
+)
+
 _UNICODE_SUBSETS = UNICODE_CATEGORIES.copy()
 _UNICODE_SUBSETS.update(UNICODE_BLOCKS)
 
@@ -36,7 +41,7 @@ I_SHORTCUT_REPLACE = (
 )
 
 C_SHORTCUT_REPLACE = (
-    "\-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
+    "-.0-9:A-Z_a-z\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u037D\u037F-\u1FFF\u200C-"
     "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
@@ -47,7 +52,7 @@ C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset()
 W_SHORTCUT_SET._code_points = sorted(
     UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points +
-    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x[0] if isinstance(x, tuple) else x
+    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x if isinstance(x, int) else x[0]
 )
 
 # Single and Multi character escapes
@@ -89,8 +94,8 @@ class XsdRegexCharGroup(MutableSet):
     """
     A set subclass to represent XML Schema regex character groups.
     """
-    _re_char_group = re.compile(r'(\\[nrt\\|.\-^?*+{}()\[\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
-    _re_unicode_ref = re.compile(r'\\([pP]){([a-zA-Z\-0-9]+)}')
+    _re_char_group = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
+    _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
 
     def __init__(self, *args):
         self.positive = UnicodeSubset()
@@ -154,11 +159,14 @@ class XsdRegexCharGroup(MutableSet):
                     self.positive |= value
                 else:
                     self.negative |= value
-            elif self._re_unicode_ref.search(part) is not None:
-                if part.startswith('\\p'):
-                    self.positive |= get_unicode_subset(part[3:-1])
-                else:
-                    self.negative |= get_unicode_subset(part[3:-1])
+            elif part.startswith('\\p'):
+                if self._re_unicode_ref.search(part) is None:
+                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
+                self.positive |= get_unicode_subset(part[3:-1])
+            elif part.startswith('\\P'):
+                if self._re_unicode_ref.search(part) is None:
+                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
+                self.negative |= get_unicode_subset(part[3:-1])
             else:
                 self.positive.update(part)
 
@@ -172,11 +180,14 @@ class XsdRegexCharGroup(MutableSet):
                     self.positive -= value
                 else:
                     self.negative -= value
-            elif self._re_unicode_ref.search(part) is not None:
-                if part.startswith('\\p'):
-                    self.positive -= get_unicode_subset(part[3:-1])
-                else:
-                    self.negative -= get_unicode_subset(part[3:-1])
+            elif part.startswith('\\p'):
+                if self._re_unicode_ref.search(part) is None:
+                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
+                self.positive -= get_unicode_subset(part[3:-1])
+            elif part.startswith('\\P'):
+                if self._re_unicode_ref.search(part) is None:
+                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
+                self.negative -= get_unicode_subset(part[3:-1])
             else:
                 self.positive.difference_update(part)
 
@@ -209,7 +220,9 @@ def parse_character_class(xml_regex, class_pos):
 
     group_pos = pos
     while True:
-        if xml_regex[pos] == '\\':
+        if xml_regex[pos] == '[':
+            raise XMLSchemaRegexError("'[' is invalid in a character class: %r" % xml_regex)
+        elif xml_regex[pos] == '\\':
             pos += 2
         elif xml_regex[pos] == ']' or xml_regex[pos:pos + 2] == '-[':
             if pos == group_pos:
@@ -239,7 +252,16 @@ def get_python_regex(xml_regex):
     """
     regex = ['^(']
     pos = 0
-    while pos < len(xml_regex):
+    xml_regex_len = len(xml_regex)
+    nested_groups = 0
+
+    match = _RE_FORBIDDEN_ESCAPES.search(xml_regex)
+    if match:
+        raise XMLSchemaRegexError(
+            "not allowed escape sequence %r at position %d: %r" % (match.group(), match.span()[0], xml_regex)
+        )
+
+    while pos < xml_regex_len:
         ch = xml_regex[pos]
         if ch == '.':
             regex.append('[^\r\n]')
@@ -248,14 +270,56 @@ def get_python_regex(xml_regex):
         elif ch == '[':
             try:
                 char_group, pos = parse_character_class(xml_regex, pos)
-                regex.append(unicode_type(char_group))
             except IndexError:
                 raise XMLSchemaRegexError(
                     "unterminated character group at position %d: %r" % (pos, xml_regex)
                 )
+            else:
+                char_group_repr = unicode_type(char_group)
+                if char_group_repr == '[^]':
+                    regex.append(r'[\w\W]')
+                elif char_group_repr == '[]':
+                    regex.append(r'[^\w\W]')
+                else:
+                    regex.append(char_group_repr)
+
+        elif ch == '{':
+            if pos == 0:
+                raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+            match = _RE_QUANTIFIER.match(xml_regex[pos:])
+            if match is None:
+                raise XMLSchemaRegexError("invalid quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+            regex.append(match.group())
+            pos += len(match.group())
+            if pos < xml_regex_len and xml_regex[pos] in ('?', '+', '*'):
+                raise XMLSchemaRegexError(
+                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos], pos, xml_regex)
+                )
+            continue
+
+        elif ch == '(':
+            if xml_regex[pos:pos + 2] == '(?':
+                raise XMLSchemaRegexError("'(?...)' extension notation is not allowed: %r" % xml_regex)
+            nested_groups += 1
+            regex.append(ch)
+        elif ch == ']':
+            raise XMLSchemaRegexError("unexpected meta character %r at position %d: %r" % (ch, pos, xml_regex))
+        elif ch == ')':
+            if nested_groups == 0:
+                raise XMLSchemaRegexError("unbalanced parenthesis ')' at position %d: %r" % (pos, xml_regex))
+            nested_groups -= 1
+            regex.append(ch)
+        elif ch in ('?', '+', '*'):
+            if pos == 0:
+                raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+            elif pos < xml_regex_len - 1 and xml_regex[pos+1] in ('?', '+', '*', '{'):
+                raise XMLSchemaRegexError(
+                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos+1], pos+1, xml_regex)
+                )
+            regex.append(ch)
         elif ch == '\\':
             pos += 1
-            if pos >= len(xml_regex):
+            if pos >= xml_regex_len:
                 regex.append('\\')
             elif xml_regex[pos] == 'i':
                 regex.append('[%s]' % I_SHORTCUT_REPLACE)
@@ -287,5 +351,7 @@ def get_python_regex(xml_regex):
             regex.append(ch)
         pos += 1
 
+    if nested_groups > 0:
+        raise XMLSchemaRegexError("unterminated subpattern in expression: %r" % xml_regex)
     regex.append(r')$')
     return ''.join(regex)

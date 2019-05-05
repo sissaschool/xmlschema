@@ -15,19 +15,21 @@ from __future__ import unicode_literals
 from decimal import DecimalException
 
 from ..compat import string_base_type, unicode_type
+from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import (
-    XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE,
-    XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE,
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, XSD_ANY_SIMPLE_TYPE,
-    XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION
+    XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
+    XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
+    XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID,
+    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS
 )
-from ..helpers import get_qname, local_name, prefixed_to_qname, get_xsd_derivation_attribute
+from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
-from .facets import XsdFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, \
-    XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
+from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, \
+    XSD_11_FACETS, XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -38,29 +40,38 @@ def xsd_simple_type_factory(elem, schema, parent):
     else:
         if name == XSD_ANY_SIMPLE_TYPE:
             return
+
     annotation = None
     try:
         child = elem[0]
     except IndexError:
-        return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+        return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
     else:
         if child.tag == XSD_ANNOTATION:
             try:
                 child = elem[1]
                 annotation = XsdAnnotation(elem[0], schema, child)
             except IndexError:
-                return schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if child.tag == XSD_RESTRICTION:
         result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
     elif child.tag == XSD_LIST:
         result = XsdList(child, schema, parent, name=name)
     elif child.tag == XSD_UNION:
-        result = XsdUnion(child, schema, parent, name=name)
+        result = schema.BUILDERS.union_class(child, schema, parent, name=name)
     else:
-        result = schema.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+        result = schema.maps.types[XSD_ANY_SIMPLE_TYPE]
+
     if annotation is not None:
         result.annotation = annotation
+
+    if 'final' in elem.attrib:
+        try:
+            result._final = get_xsd_derivation_attribute(elem, 'final')
+        except ValueError as err:
+            result.parse_error(err, elem)
+
     return result
 
 
@@ -70,14 +81,21 @@ class XsdSimpleType(XsdType, ValidationMixin):
     instances of xs:anySimpleType.
 
     <simpleType
-      final = (#all | List of (list | union | restriction))
+      final = (#all | List of (list | union | restriction | extension))
       id = ID
       name = NCName
       {any attributes with non-schema namespace . . .}>
       Content: (annotation?, (restriction | list | union))
     </simpleType>
     """
-    admitted_tags = {XSD_SIMPLE_TYPE}
+    _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
+    _admitted_tags = {XSD_SIMPLE_TYPE}
+
+    min_length = None
+    max_length = None
+    white_space = None
+    patterns = None
+    validators = ()
 
     def __init__(self, elem, schema, parent, name=None, facets=None):
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
@@ -85,31 +103,156 @@ class XsdSimpleType(XsdType, ValidationMixin):
             self.facets = facets or {}
 
     def __setattr__(self, name, value):
+        super(XsdSimpleType, self).__setattr__(name, value)
         if name == 'facets':
-            super(XsdSimpleType, self).__setattr__(name, value)
-            try:
-                self.min_length, self.max_length, self.min_value, self.max_value = self.check_facets(value)
-            except XMLSchemaValueError as err:
-                self.parse_error(unicode_type(err))
-                self.min_length = self.max_length = self.min_value = self.max_value = None
-                self.white_space = None
-                self.patterns = None
-                self.validators = []
-            else:
-                self.white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
-                self.patterns = self.get_facet(XSD_PATTERN)
-                self.validators = [
-                    v for k, v in value.items()
-                    if k not in (XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION) and callable(v)
-                ]
+            if not isinstance(self, XsdAtomicBuiltin):
+                self._parse_facets(value)
+
+            white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
+            if white_space is not None:
+                self.white_space = white_space
+
+            patterns = self.get_facet(XSD_PATTERN)
+            if patterns is not None:
+                self.patterns = patterns
+
+            if value:
+                if None in value:
+                    validators = [value[None]]  # Use only the validator function!
+                else:
+                    validators = [v for k, v in value.items()
+                                  if k not in {XSD_WHITE_SPACE, XSD_PATTERN, XSD_ASSERTION}]
                 if XSD_ASSERTION in value:
                     assertions = value[XSD_ASSERTION]
                     if isinstance(assertions, list):
-                        self.validators.extend(assertions)
+                        validators.extend(assertions)
                     else:
-                        self.validators.append(assertions)
+                        validators.append(assertions)
+                if validators:
+                    self.validators = validators
+
+    def _parse_facets(self, facets):
+        if facets and self.base_type is not None:
+            if self.base_type.is_simple():
+                if self.base_type.name == XSD_ANY_SIMPLE_TYPE:
+                    self.parse_error("facets not allowed for a direct derivation of xs:anySimpleType")
+            elif self.base_type.has_simple_content():
+                if self.base_type.content_type.name == XSD_ANY_SIMPLE_TYPE:
+                    self.parse_error("facets not allowed for a direct content derivation of xs:anySimpleType")
+
+        # Checks the applicability of the facets
+        if any(k not in self.admitted_facets for k in facets if k is not None):
+            reason = "one or more facets are not applicable, admitted set is %r:"
+            self.parse_error(reason % {local_name(e) for e in self.admitted_facets if e})
+
+        # Check group base_type
+        base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
+        if len(base_type) > 1:
+            self.parse_error("facet group must have the same base_type: %r" % base_type)
+        base_type = base_type.pop() if base_type else None
+
+        # Checks length based facets
+        length = getattr(facets.get(XSD_LENGTH), 'value', None)
+        min_length = getattr(facets.get(XSD_MIN_LENGTH), 'value', None)
+        max_length = getattr(facets.get(XSD_MAX_LENGTH), 'value', None)
+        if length is not None:
+            if length < 0:
+                self.parse_error("'length' value must be non negative integer")
+            if min_length is not None:
+                if min_length > length:
+                    self.parse_error("'minLength' value must be less or equal to 'length'")
+                min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
+                length_facet = base_type.get_facet(XSD_LENGTH)
+                if min_length_facet is None or \
+                        (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
+                    self.parse_error("cannot specify both 'length' and 'minLength'")
+            if max_length is not None:
+                if max_length < length:
+                    self.parse_error("'maxLength' value must be greater or equal to 'length'")
+                max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
+                length_facet = base_type.get_facet(XSD_LENGTH)
+                if max_length_facet is None or \
+                        (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
+                    self.parse_error("cannot specify both 'length' and 'maxLength'")
+            min_length = max_length = length
+        elif min_length is not None or max_length is not None:
+            min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
+            max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
+            if min_length is not None:
+                if min_length < 0:
+                    self.parse_error("'minLength' value must be non negative integer")
+                if max_length is not None and max_length < min_length:
+                    self.parse_error("'maxLength' value is lesser than 'minLength'")
+                if min_length_facet is not None and min_length_facet.value > min_length:
+                    self.parse_error("'minLength' has a lesser value than parent")
+                if max_length_facet is not None and min_length > max_length_facet.value:
+                    self.parse_error("'minLength' has a greater value than parent 'maxLength'")
+
+            if max_length is not None:
+                if max_length < 0:
+                    self.parse_error("'maxLength' value mu  st be non negative integer")
+                if min_length_facet is not None and min_length_facet.value > max_length:
+                    self.parse_error("'maxLength' has a lesser value than parent 'minLength'")
+                if max_length_facet is not None and max_length > max_length_facet.value:
+                    self.parse_error("'maxLength' has a greater value than parent")
+
+        # Checks min/max values
+        min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE), 'value', None)
+        min_exclusive = getattr(facets.get(XSD_MIN_EXCLUSIVE), 'value', None)
+        max_inclusive = getattr(facets.get(XSD_MAX_INCLUSIVE), 'value', None)
+        max_exclusive = getattr(facets.get(XSD_MAX_EXCLUSIVE), 'value', None)
+
+        if min_inclusive is not None:
+            if min_exclusive is not None:
+                self.parse_error("cannot specify both 'minInclusive' and 'minExclusive")
+            if max_inclusive is not None and min_inclusive > max_inclusive:
+                self.parse_error("'minInclusive' must be less or equal to 'maxInclusive'")
+            elif max_exclusive is not None and min_inclusive >= max_exclusive:
+                self.parse_error("'minInclusive' must be lesser than 'maxExclusive'")
+
+        elif min_exclusive is not None:
+            if max_inclusive is not None and min_exclusive >= max_inclusive:
+                self.parse_error("'minExclusive' must be lesser than 'maxInclusive'")
+            elif max_exclusive is not None and min_exclusive > max_exclusive:
+                self.parse_error("'minExclusive' must be less or equal to 'maxExclusive'")
+
+        if max_inclusive is not None and max_exclusive is not None:
+            self.parse_error("cannot specify both 'maxInclusive' and 'maxExclusive")
+
+        # Checks fraction digits
+        if XSD_TOTAL_DIGITS in facets:
+            if XSD_FRACTION_DIGITS in facets and facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
+                self.parse_error("fractionDigits facet value cannot be lesser than the value of totalDigits")
+            total_digits = base_type.get_facet(XSD_TOTAL_DIGITS)
+            if total_digits is not None and total_digits.value < facets[XSD_TOTAL_DIGITS].value:
+                self.parse_error("totalDigits facet value cannot be greater than those on the base type")
+
+        self.min_length = min_length
+        self.max_length = max_length
+
+    @property
+    def min_value(self):
+        min_exclusive_facet = self.get_facet(XSD_MIN_EXCLUSIVE)
+        if min_exclusive_facet is None:
+            return getattr(self.get_facet(XSD_MIN_INCLUSIVE), 'value', None)
+
+        min_inclusive_facet = self.get_facet(XSD_MIN_INCLUSIVE)
+        if min_inclusive_facet is None or min_inclusive_facet.value <= min_exclusive_facet.value:
+            return min_exclusive_facet.value
         else:
-            super(XsdSimpleType, self).__setattr__(name, value)
+            return min_inclusive_facet.value
+
+    @property
+    def max_value(self):
+        max_exclusive_facet = self.get_facet(XSD_MAX_EXCLUSIVE)
+        if max_exclusive_facet is None:
+            return getattr(self.get_facet(XSD_MAX_INCLUSIVE), 'value', None)
+
+        max_inclusive_facet = self.get_facet(XSD_MAX_INCLUSIVE)
+        if max_inclusive_facet is None or max_inclusive_facet.value >= max_exclusive_facet.value:
+            return max_exclusive_facet.value
+        else:
+            return max_inclusive_facet.value
 
     @property
     def admitted_facets(self):
@@ -118,10 +261,6 @@ class XsdSimpleType(XsdType, ValidationMixin):
     @property
     def built(self):
         return True
-
-    @property
-    def final(self):
-        return get_xsd_derivation_attribute(self.elem, 'final', ('list', 'union', 'restriction'))
 
     @staticmethod
     def is_simple():
@@ -146,104 +285,27 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def is_element_only(self):
         return False
 
-    def check_facets(self, facets):
-        """
-        Verifies the applicability and the mutual incompatibility of a group of facets.
-        Raises a ValueError if the facets group is invalid.
-
-        :param facets: Dictionary with XSD facets.
-        :returns Min and max values, a `None` value means no min/max limit.
-        """
-        # Checks the applicability of the facets
-        if any(k not in self.admitted_facets for k in facets if k is not None):
-            reason = "one or more facets are not applicable, admitted set is %r:"
-            raise XMLSchemaValueError(reason % {local_name(e) for e in self.admitted_facets if e})
-
-        # Check group base_type
-        base_type = {t.base_type for t in facets.values() if isinstance(t, XsdFacet)}
-        if len(base_type) > 1:
-            raise XMLSchemaValueError("facet group must have the same base_type: %r" % base_type)
-        base_type = base_type.pop() if base_type else None
-
-        # Checks length based facets
-        length = getattr(facets.get(XSD_LENGTH), 'value', None)
-        min_length = getattr(facets.get(XSD_MIN_LENGTH), 'value', None)
-        max_length = getattr(facets.get(XSD_MAX_LENGTH), 'value', None)
-        if length is not None:
-            if length < 0:
-                raise XMLSchemaValueError("'length' value must be non negative integer.")
-            if min_length is not None:
-                if min_length > length:
-                    raise XMLSchemaValueError("'minLength' value must be less or equal to 'length'.")
-                min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
-                length_facet = base_type.get_facet(XSD_LENGTH)
-                if min_length_facet is None or \
-                        (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
-                    raise XMLSchemaValueError("cannot specify both 'length' and 'minLength'.")
-            if max_length is not None:
-                if max_length < length:
-                    raise XMLSchemaValueError("'maxLength' value must be greater or equal to 'length'.")
-                max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
-                length_facet = base_type.get_facet(XSD_LENGTH)
-                if max_length_facet is None or \
-                        (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
-                    raise XMLSchemaValueError("cannot specify both 'length' and 'maxLength'.")
-            min_length = max_length = length
-        elif min_length is not None:
-            if min_length < 0:
-                raise XMLSchemaValueError("'minLength' value must be non negative integer.")
-            if max_length is not None and max_length < min_length:
-                raise XMLSchemaValueError("'maxLength' value is lesser than 'minLength'.")
-            min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
-            if min_length_facet is not None and min_length_facet.value > min_length:
-                raise XMLSchemaValueError("child 'minLength' has a lesser value than parent")
-        elif max_length is not None:
-            if max_length < 0:
-                raise XMLSchemaValueError("'maxLength' value must be non negative integer.")
-            max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
-            if max_length_facet is not None and max_length > max_length_facet.value:
-                raise XMLSchemaValueError("child 'maxLength' has a greater value than parent.")
-
-        # Checks max/min
-        min_inclusive = getattr(facets.get(XSD_MIN_INCLUSIVE), 'value', None)
-        min_exclusive = getattr(facets.get(XSD_MIN_EXCLUSIVE), 'value', None)
-        max_inclusive = getattr(facets.get(XSD_MAX_INCLUSIVE), 'value', None)
-        max_exclusive = getattr(facets.get(XSD_MAX_EXCLUSIVE), 'value', None)
-        if min_inclusive is not None and min_exclusive is not None:
-            raise XMLSchemaValueError("cannot specify both 'minInclusive' and 'minExclusive.")
-        if max_inclusive is not None and max_exclusive is not None:
-            raise XMLSchemaValueError("cannot specify both 'maxInclusive' and 'maxExclusive.")
-
-        if min_inclusive is not None:
-            if max_inclusive is not None and min_inclusive > max_inclusive:
-                raise XMLSchemaValueError("'minInclusive' must be less or equal to 'maxInclusive'.")
-            elif max_exclusive is not None and min_inclusive >= max_exclusive:
-                raise XMLSchemaValueError("'minInclusive' must be lesser than 'maxExclusive'.")
-            min_value = min_inclusive
-        elif min_exclusive is not None:
-            if max_inclusive is not None and min_exclusive >= max_inclusive:
-                raise XMLSchemaValueError("'minExclusive' must be lesser than 'maxInclusive'.")
-            elif max_exclusive is not None and min_exclusive > max_exclusive:
-                raise XMLSchemaValueError("'minExclusive' must be less or equal to 'maxExclusive'.")
-            min_value = min_exclusive + 1
+    def is_derived(self, other, derivation=None):
+        if self is other:
+            return True
+        elif derivation and self.derivation and derivation != self.derivation:
+            return False
+        elif other.name in self._special_types:
+            return True
+        elif self.base_type is other:
+            return True
+        elif self.base_type is None:
+            if hasattr(other, 'member_types'):
+                return any(self.is_derived(m, derivation) for m in other.member_types)
+            return False
+        elif self.base_type.is_complex():
+            if not self.base_type.has_simple_content():
+                return False
+            return self.base_type.content_type.is_derived(other, derivation)
+        elif hasattr(other, 'member_types'):
+            return any(self.is_derived(m, derivation) for m in other.member_types)
         else:
-            min_value = None
-
-        if max_inclusive is not None:
-            max_value = max_inclusive
-        elif max_exclusive is not None:
-            max_value = max_exclusive - 1
-        else:
-            max_value = None
-
-        base_min_value = getattr(base_type, 'min_value', None)
-        base_max_value = getattr(base_type, 'max_value', None)
-        if base_min_value is not None and min_value is not None and base_min_value > min_value:
-            raise XMLSchemaValueError("minimum value of base_type is greater.")
-        if base_max_value is not None and max_value is not None and base_max_value < max_value:
-            raise XMLSchemaValueError("maximum value of base_type is lesser.")
-
-        return min_length, max_length, min_value, max_value
+            return self.base_type.is_derived(other, derivation)
 
     def normalize(self, text):
         """
@@ -316,7 +378,8 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic 
     built-in type or another derived simpleType.
     """
-    admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
+    _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
+    _admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
         self.base_type = base_type
@@ -367,12 +430,14 @@ class XsdAtomic(XsdSimpleType):
     def primitive_type(self):
         if self.base_type is None:
             return self
-        else:
-            try:
+        try:
+            if self.base_type.is_simple():
                 return self.base_type.primitive_type
-            except AttributeError:
-                # The base_type is XsdList or XsdUnion.
-                return self.base_type
+            else:
+                return self.base_type.content_type.primitive_type
+        except AttributeError:
+            # The base_type is XsdList or XsdUnion.
+            return self.base_type
 
     def get_facet(self, tag):
         try:
@@ -447,6 +512,10 @@ class XsdAtomicBuiltin(XsdAtomic):
         elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
+
+        if 'id_map' in kwargs:
+            if self.name == XSD_ID:
+                kwargs['id_map'][obj] += 1
 
         if validation == 'skip':
             try:
@@ -540,12 +609,12 @@ class XsdList(XsdSimpleType):
       Content: (annotation?, simpleType?)
     </list>
     """
-    admitted_tags = {XSD_LIST}
+    _admitted_tags = {XSD_LIST}
+    _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
 
-    def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
+    def __init__(self, elem, schema, parent, name=None):
+        facets = {XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)}
         super(XsdList, self).__init__(elem, schema, parent, name, facets)
-        if not hasattr(self, 'base_type'):
-            self.base_type = base_type
 
     def __repr__(self):
         if self.name is None:
@@ -579,28 +648,36 @@ class XsdList(XsdSimpleType):
                 base_type = xsd_simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err, elem)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
             if 'itemType' in elem.attrib:
                 self.parse_error("ambiguous list type declaration", self)
 
-        elif 'itemType' in elem.attrib:
-            # List tag with itemType attribute that refers to a global type
-            item_qname = prefixed_to_qname(elem.attrib['itemType'], self.namespaces)
-            try:
-                base_type = self.maps.lookup_type(item_qname)
-            except LookupError:
-                self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
         else:
-            self.parse_error("missing list type declaration", elem)
-            base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            # List tag with itemType attribute that refers to a global type
+            try:
+                item_qname = self.schema.resolve_qname(elem.attrib['itemType'])
+            except KeyError:
+                self.parse_error("missing list type declaration", elem)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+            except ValueError as err:
+                self.parse_error(err, elem)
+                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+            else:
+                try:
+                    base_type = self.maps.lookup_type(item_qname)
+                except LookupError:
+                    self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
+                    base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+
+        if base_type.final == '#all' or 'list' in base_type.final:
+            self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
 
         try:
             self.base_type = base_type
         except XMLSchemaValueError as err:
             self.parse_error(str(err), elem)
-            self.base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+            self.base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
     @property
     def admitted_facets(self):
@@ -628,6 +705,18 @@ class XsdList(XsdSimpleType):
     @staticmethod
     def is_list():
         return True
+
+    def is_derived(self, other, derivation=None):
+        if self is other:
+            return True
+        elif derivation and self.derivation and derivation != self.derivation:
+            return False
+        elif other.name in self._special_types:
+            return True
+        elif self.base_type is other:
+            return True
+        else:
+            return False
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -697,12 +786,13 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
-    admitted_tags = {XSD_UNION}
+    _admitted_types = XsdSimpleType
+    _admitted_tags = {XSD_UNION}
 
-    def __init__(self, elem, schema, parent, name=None, facets=None, member_types=None):
-        super(XsdUnion, self).__init__(elem, schema, parent, name, facets)
-        if not hasattr(self, 'member_types'):
-            self.member_types = member_types
+    member_types = None
+
+    def __init__(self, elem, schema, parent, name=None):
+        super(XsdUnion, self).__init__(elem, schema, parent, name, facets=None)
 
     def __repr__(self):
         if self.name is None:
@@ -718,13 +808,6 @@ class XsdUnion(XsdSimpleType):
                         super(XsdUnion, self).__setattr__(name, child)
                         return
             raise XMLSchemaValueError("a %r definition required for %r." % (XSD_UNION, self))
-
-        elif name == "member_types":
-            if not value:
-                raise XMLSchemaValueError("%r attribute cannot be empty or None." % name)
-            elif not all(isinstance(mt, (XsdAtomic, XsdList, XsdUnion)) for mt in value):
-                raise XMLSchemaValueError("%r: member types must be all atomic or list types." % self)
-                # FIXME: Union only for XSD 1.1
 
         elif name == 'white_space':
             if not (value is None or value == 'collapse'):
@@ -746,29 +829,37 @@ class XsdUnion(XsdSimpleType):
 
         if 'memberTypes' in elem.attrib:
             for name in elem.attrib['memberTypes'].split():
-                type_qname = prefixed_to_qname(name, self.namespaces)
+                try:
+                    type_qname = self.schema.resolve_qname(name)
+                except ValueError as err:
+                    self.parse_error(err)
+                    continue
+
                 try:
                     mt = self.maps.lookup_type(type_qname)
                 except LookupError:
                     self.parse_error("unknown member type %r" % type_qname)
-                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
-                    mt = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
-                if not isinstance(mt, XsdSimpleType):
-                    self.parse_error("a simpleType required", mt)
-                else:
-                    member_types.append(mt)
+                if isinstance(mt, tuple):
+                    self.parse_error("circular definition found on xs:union type {!r}".format(self.name))
+                    continue
+                elif not isinstance(mt, self._admitted_types):
+                    self.parse_error("a {!r} required, not {!r}".format(self._admitted_types, mt))
+                    continue
+                elif mt.final == '#all' or 'union' in mt.final:
+                    self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
 
-        if not member_types:
-            self.parse_error("missing union type declarations", elem)
+                member_types.append(mt)
 
-        try:
+        if member_types:
             self.member_types = member_types
-        except XMLSchemaValueError as err:
-            self.parse_error(str(err), elem)
-            self.member_types = [self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)]
+        else:
+            self.parse_error("missing xs:union type declarations", elem)
+            self.member_types = [self.maps.types[XSD_ANY_ATOMIC_TYPE]]
 
     @property
     def admitted_facets(self):
@@ -917,6 +1008,11 @@ class XsdUnion(XsdSimpleType):
             yield unicode_type(obj)
 
 
+class Xsd11Union(XsdUnion):
+
+    _admitted_types = XsdAtomic, XsdList, XsdUnion
+
+
 class XsdAtomicRestriction(XsdAtomic):
     """
     Class for XSD 1.0 atomic simpleType and complexType's simpleContent restrictions.
@@ -931,14 +1027,13 @@ class XsdAtomicRestriction(XsdAtomic):
     </restriction>
     """
     FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
+    derivation = 'restriction'
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION:
                 if not (value.tag == XSD_SIMPLE_TYPE and value.get('name') is not None):
-                    raise XMLSchemaValueError(
-                        "a %r definition required for %r." % (XSD_RESTRICTION, self)
-                    )
+                    raise XMLSchemaValueError("an xs:restriction definition required for %r." % self)
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):
@@ -949,30 +1044,57 @@ class XsdAtomicRestriction(XsdAtomic):
         elif elem.tag == XSD_SIMPLE_TYPE and elem.get('name') is not None:
             elem = self._parse_component(elem)  # Global simpleType with internal restriction
 
+        if self.name is not None and self.parent is not None:
+            self.parse_error("'name' attribute in a local simpleType definition", elem)
+
         base_type = None
         facets = {}
         has_attributes = False
         has_simple_type_child = False
 
         if 'base' in elem.attrib:
-            base_qname = prefixed_to_qname(elem.attrib['base'], self.namespaces)
             try:
-                base_type = self.maps.lookup_type(base_qname)
-            except LookupError:
-                self.parse_error("unknown type %r." % elem.attrib['base'])
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
-            except XMLSchemaParseError as err:
-                self.parse_error(err)
-                base_type = self.maps.lookup_type(XSD_ANY_ATOMIC_TYPE)
+                base_qname = self.schema.resolve_qname(elem.attrib['base'])
+            except ValueError as err:
+                self.parse_error(err, elem)
+                base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
+            else:
+                if base_qname == self.name:
+                    if self.redefine is None:
+                        self.parse_error("wrong definition with self-reference", elem)
+                        base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
+                    else:
+                        base_type = self.base_type
+                else:
+                    if self.redefine is not None:
+                        self.parse_error("wrong redefinition without self-reference", elem)
 
-            if base_type.is_complex() and base_type.mixed and base_type.is_emptiable():
-                if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
-                    # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
-                    self.parse_error(
-                        "when a complexType with simpleContent restricts a complexType "
-                        "with mixed and with emptiable content then a simpleType child "
-                        "declaration is required.", elem
-                    )
+                    try:
+                        base_type = self.maps.lookup_type(base_qname)
+                    except LookupError:
+                        self.parse_error("unknown type %r." % elem.attrib['base'])
+                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    except XMLSchemaParseError as err:
+                        self.parse_error(err)
+                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    else:
+                        if isinstance(base_type, tuple):
+                            self.parse_error("circularity definition between %r and %r" % (self, base_qname), elem)
+                            base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+
+            if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
+                self.parse_error("wrong base type {!r}, an atomic type required")
+            elif base_type.is_complex():
+                if base_type.mixed and base_type.is_emptiable():
+                    if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
+                        # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
+                        self.parse_error(
+                            "when a complexType with simpleContent restricts a complexType "
+                            "with mixed and with emptiable content then a simpleType child "
+                            "declaration is required.", elem
+                        )
+                elif self.parent is None or self.parent.is_simple():
+                    self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
         for child in self._iterparse_components(elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
@@ -983,22 +1105,28 @@ class XsdAtomicRestriction(XsdAtomic):
                 # Case of simpleType declaration inside a restriction
                 if has_simple_type_child:
                     self.parse_error("duplicated simpleType declaration", child)
-                elif base_type is None:
+
+                if base_type is None:
                     try:
                         base_type = xsd_simple_type_factory(child, self.schema, self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
-                        base_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                        base_type = self.maps.types[XSD_ANY_SIMPLE_TYPE]
+                elif base_type.is_complex():
+                    if base_type.admit_simple_restriction():
+                        base_type = self.schema.BUILDERS.complex_type_class(
+                            elem=elem,
+                            schema=self.schema,
+                            parent=self,
+                            content_type=xsd_simple_type_factory(child, self.schema, self),
+                            attributes=base_type.attributes,
+                            mixed=base_type.mixed,
+                            block=base_type.block,
+                            final=base_type.final,
+                        )
+                elif 'base' in elem.attrib:
+                    self.parse_error("restriction with 'base' attribute and simpleType declaration", child)
 
-                elif base_type.is_complex() and base_type.admit_simple_restriction():
-                    base_type = self.schema.BUILDERS.complex_type_class(
-                        elem=elem,
-                        schema=self.schema,
-                        parent=self,
-                        content_type=xsd_simple_type_factory(child, self.schema, self),
-                        attributes=base_type.attributes,
-                        mixed=base_type.mixed
-                    )
                 has_simple_type_child = True
             else:
                 try:
@@ -1022,6 +1150,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
+        elif base_type.final == '#all' or 'restriction' in base_type.final:
+            self.parse_error("'final' value of the baseType %r forbids derivation by restriction" % base_type)
+
         self.base_type = base_type
         self.facets = facets
 

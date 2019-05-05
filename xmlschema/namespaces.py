@@ -57,7 +57,7 @@ class NamespaceResourcesMap(MutableMapping):
 
     def __setitem__(self, uri, value):
         if isinstance(value, list):
-            self._store[uri] = value
+            self._store[uri] = value[:]
         else:
             try:
                 self._store[uri].append(value)

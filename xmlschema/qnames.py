@@ -99,10 +99,11 @@ XSD_TOTAL_DIGITS = xsd_qname('totalDigits')
 XSD_FRACTION_DIGITS = xsd_qname('fractionDigits')
 
 # XSD 1.1 elements
-XSD_OPEN_CONTENT = xsd_qname('openContent')            # open content model
-XSD_ALTERNATIVE = xsd_qname('alternative')             # conditional type assignment
-XSD_ASSERT = xsd_qname('assert')                       # complex type assertions
-XSD_ASSERTION = xsd_qname('assertion')                 # facets
+XSD_OPEN_CONTENT = xsd_qname('openContent')                 # open content model
+XSD_DEFAULT_OPEN_CONTENT = xsd_qname('defaultOpenContent')  # default open content model (schema level)
+XSD_ALTERNATIVE = xsd_qname('alternative')                  # conditional type assignment
+XSD_ASSERT = xsd_qname('assert')                            # complex type assertions
+XSD_ASSERTION = xsd_qname('assertion')                      # facets
 XSD_EXPLICIT_TIMEZONE = xsd_qname('explicitTimezone')
 
 # Identity constraints
@@ -195,5 +196,5 @@ __all__ = [
     'XSD_NON_NEGATIVE_INTEGER', 'XSD_POSITIVE_INTEGER', 'XSD_UNSIGNED_LONG', 'XSD_UNSIGNED_INT',
     'XSD_UNSIGNED_SHORT', 'XSD_UNSIGNED_BYTE', 'XSD_NON_POSITIVE_INTEGER', 'XSD_NEGATIVE_INTEGER',
     'XSD_IDREFS', 'XSD_ENTITIES', 'XSD_NMTOKENS', 'XSD_DATE_TIME_STAMP', 'XSD_DAY_TIME_DURATION',
-    'XSD_YEAR_MONTH_DURATION',
+    'XSD_YEAR_MONTH_DURATION', 'XSD_DEFAULT_OPEN_CONTENT', 'XSD_OVERRIDE',
 ]

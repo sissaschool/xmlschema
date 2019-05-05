@@ -115,9 +115,9 @@ The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
      '{http://www.w3.org/1999/xlink}locator',
      '{http://www.w3.org/1999/xlink}resource',
      '{http://www.w3.org/1999/xlink}title',
-     '{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasFacet',
-     '{http://www.w3.org/2001/XMLSchema-hasFacetAndProperty}hasProperty',
-     '{http://www.w3.org/2001/XMLSchema}all']
+     '{http://www.w3.org/2001/XMLSchema}all',
+     '{http://www.w3.org/2001/XMLSchema}annotation',
+     '{http://www.w3.org/2001/XMLSchema}any']
 
 Schema objects include methods for finding XSD elements and attributes in the schema.
 Those are methods ot the ElementTree's API, so you can use an XPath expression for
@@ -528,3 +528,19 @@ For default this argument has value *'remote'* that means the protection on XML 
 applied only to data loaded from remote. Other values for this argument can be *'always'*
 and *'never'*.
 
+
+Limit on model groups checking
+------------------------------
+
+From release v1.0.11 the model groups of the schemas are checked against restriction violations
+and *Unique Particle Attribution* violations.
+
+To avoids XSD model recursion attacks a limit of ``MAX_MODEL_DEPTH = 15`` is set. If this limit
+is exceeded an ``XMLSchemaModelDepthError`` is raised, the error is caught and a warning is generated.
+If you need to set an higher limit for checking all your groups you can import the library and change
+the value in the specific module that processes the model checks:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.validators.models.MAX_MODEL_DEPTH = 20

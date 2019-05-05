@@ -16,7 +16,6 @@ from __future__ import unicode_literals
 import json
 import os
 from sys import maxunicode
-from collections import defaultdict
 
 from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
@@ -135,6 +134,7 @@ def iterparse_character_group(s, expand_ranges=False):
     :return: yields integers or couples of integers.
     """
     escaped = False
+    on_range = False
     char = None
     length = len(s)
     string_iter = iter(range(len(s)))
@@ -154,19 +154,29 @@ def iterparse_character_group(s, expand_ranges=False):
                 char = s[k]
                 yield ord(char)
                 escaped = False
+            elif on_range:
+                char = s[k]
+                yield ord(char)
+                on_range = False
             else:
+                # Parse character range
+                on_range = True
                 try:
                     k = next(string_iter)
                     end_char = s[k]
-                    if end_char == '\\' and (k < length - 1) and s[k + 1] in r'-|.^?*+{}()[]':
-                        k = next(string_iter)
-                        end_char = s[k]
+                    if end_char == '\\' and (k < length - 1):
+                        if s[k+1] in r'-|.^?*+{}()[]':
+                            k = next(string_iter)
+                            end_char = s[k]
+                        elif s[k+1] in r'sSdDiIcCwWpP':
+                            msg = "bad character range '%s-\\%s' at position %d: %r" % (char, s[k+1], k-2, s)
+                            raise XMLSchemaRegexError(msg)
                 except StopIteration:
-                    msg = "bad character range %r-%r at position %d: %r" % (char, s[-1], k - 2, s)
+                    msg = "bad character range '%s-%s' at position %d: %r" % (char, s[-1], k-2, s)
                     raise XMLSchemaRegexError(msg)
 
                 if ord(char) > ord(end_char):
-                    msg = "bad character range %r-%r at position %d: %r" % (char, end_char, k - 2, s)
+                    msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k-2, s)
                     raise XMLSchemaRegexError(msg)
                 elif expand_ranges:
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
@@ -176,17 +186,19 @@ def iterparse_character_group(s, expand_ranges=False):
         elif s[k] in r'|.^?*+{}()':
             if escaped:
                 escaped = False
+            on_range = False
             char = s[k]
             yield ord(char)
         elif s[k] in r'[]':
             if not escaped and length > 1:
                 raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
-            escaped = False
+            escaped = on_range = False
             char = s[k]
-            yield ord(char)
+            if k >= length-1 or s[k+1] != '-':
+                yield ord(char)
         elif s[k] == '\\':
             if escaped:
-                escaped = False
+                escaped = on_range = False
                 char = '\\'
                 yield ord(char)
             else:
@@ -195,8 +207,10 @@ def iterparse_character_group(s, expand_ranges=False):
             if escaped:
                 escaped = False
                 yield ord('\\')
+            on_range = False
             char = s[k]
-            yield ord(char)
+            if k >= length-1 or s[k+1] != '-':
+                yield ord(char)
     if escaped:
         yield ord('\\')
 
@@ -225,6 +239,12 @@ class UnicodeSubset(MutableSet):
         else:
             self._code_points = list()
             self.update(args[0])
+
+    @classmethod
+    def fromlist(cls, code_points):
+        subset = cls()
+        subset._code_points = sorted(code_points, key=code_point_order)
+        return subset
 
     @property
     def code_points(self):
@@ -470,33 +490,42 @@ class UnicodeSubset(MutableSet):
 def get_unicodedata_categories():
     """
     Extracts Unicode categories information from unicodedata library. Each category is
-    represented with a list containing distinct code points and code points intervals.
+    represented with an ordered list containing code points and code point ranges.
 
-    :return: a `defaultdict` dictionary with category names as keys and lists as values.
+    :return: a dictionary with category names as keys and lists as values.
     """
-    import unicodedata
+    from unicodedata import category
 
-    def append_code_points():
-        diff = cp - start_cp
-        if diff == 1:
-            categories[last_category].append(start_cp)
-        elif diff == 2:
-            categories[last_category].append(start_cp)
-            categories[last_category].append(start_cp + 1)
-        else:
-            categories[last_category].append((start_cp, cp))
+    categories = {k: [] for k in (
+        'C', 'Cc', 'Cf', 'Cs', 'Co', 'Cn',
+        'L', 'Lu', 'Ll', 'Lt', 'Lm', 'Lo',
+        'M', 'Mn', 'Mc', 'Me',
+        'N', 'Nd', 'Nl', 'No',
+        'P', 'Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po',
+        'S', 'Sm', 'Sc', 'Sk', 'So',
+        'Z', 'Zs', 'Zl', 'Zp'
+    )}
 
-    categories = defaultdict(list)
-    last_category = 'Cc'
-    start_cp = cp = 0
-    for cp, category in enumerate(map(unicodedata.category, map(unicode_chr, range(maxunicode + 1)))):
-        if category != last_category:
-            append_code_points()
-            last_category = category
-            start_cp = cp
+    minor_category = 'Cc'
+    start_cp, next_cp = 0, 1
+    for cp in range(maxunicode + 1):
+        if category(unicode_chr(cp)) != minor_category:
+            if cp > next_cp:
+                categories[minor_category].append((start_cp, cp))
+                categories[minor_category[0]].append(categories[minor_category][-1])
+            else:
+                categories[minor_category].append(start_cp)
+                categories[minor_category[0]].append(start_cp)
+
+            minor_category = category(unicode_chr(cp))
+            start_cp, next_cp = cp, cp + 1
     else:
-        cp += 1
-        append_code_points()
+        if next_cp == maxunicode + 1:
+            categories[minor_category].append(start_cp)
+            categories[minor_category[0]].append(start_cp)
+        else:
+            categories[minor_category].append((start_cp, maxunicode + 1))
+            categories[minor_category[0]].append(categories[minor_category][-1])
 
     return categories
 
@@ -511,6 +540,7 @@ def save_unicode_categories(filename=None):
     if filename is None:
         filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
 
+    print("Saving Unicode categories to %r" % filename)
     with open(filename, 'w') as fp:
         json.dump(get_unicodedata_categories(), fp)
 
@@ -529,27 +559,21 @@ def build_unicode_categories(filename=None):
         categories = get_unicodedata_categories()  # for Python 2.7
     else:
         if filename is None:
-            filename = os.path.join(os.path.dirname(__file__), 'unicode_categoriesxxx.json')
+            filename = os.path.join(os.path.dirname(__file__), 'unicode_categories.json')
         try:
             with open(filename, 'r') as fp:
                 categories = json.load(fp)
         except (IOError, SystemError, ValueError):
             categories = get_unicodedata_categories()
+        else:
+            if any(not v for v in categories):
+                categories = get_unicodedata_categories()
 
-    # Add general categories code points
-    categories['C'] = categories['Cc'] + categories['Cf'] + categories['Cs'] + categories['Co'] + categories['Cn']
-    categories['L'] = categories['Lu'] + categories['Ll'] + categories['Lt'] + categories['Lm'] + categories['Lo']
-    categories['M'] = categories['Mn'] + categories['Mc'] + categories['Me']
-    categories['N'] = categories['Nd'] + categories['Nl'] + categories['No']
-    categories['P'] = categories['Pc'] + categories['Pd'] + categories['Ps'] + \
-        categories['Pe'] + categories['Pi'] + categories['Pf'] + categories['Po']
-    categories['S'] = categories['Sm'] + categories['Sc'] + categories['Sk'] + categories['So']
-    categories['Z'] = categories['Zs'] + categories['Zl'] + categories['Zp']
-
-    return {k: UnicodeSubset(v) for k, v in categories.items()}
+    return {k: UnicodeSubset.fromlist(v) for k, v in categories.items()}
 
 
 UNICODE_CATEGORIES = build_unicode_categories()
+
 
 UNICODE_BLOCKS = {
     'IsBasicLatin': UnicodeSubset('\u0000-\u007F'),

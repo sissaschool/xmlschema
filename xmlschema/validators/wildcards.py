@@ -14,7 +14,7 @@ This module contains classes for XML Schema wildcards.
 from __future__ import unicode_literals
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE
+from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_namespace
 from ..namespaces import XSI_NAMESPACE
 from ..xpath import ElementPathMixin
@@ -42,16 +42,16 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         # Parse namespace and processContents
         namespace = self.elem.get('namespace', '##any')
         items = namespace.strip().split()
-        if len(items) == 1 and items[0] in ('##any', '##all', '##other', '##local', '##targetNamespace'):
+        if len(items) == 1 and items[0] in ('##any', '##other', '##local', '##targetNamespace'):
             self.namespace = namespace.strip()
-        elif not all([s not in ('##any', '##other') for s in items]):
+        elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in items):
             self.parse_error("wrong value %r for 'namespace' attribute." % namespace)
             self.namespace = '##any'
         else:
             self.namespace = namespace.strip()
 
         self.process_contents = self.elem.get('processContents', 'strict')
-        if self.process_contents not in ('lax', 'skip', 'strict'):
+        if self.process_contents not in {'lax', 'skip', 'strict'}:
             self.parse_error("wrong value %r for 'processContents' attribute." % self.process_contents)
 
     def _load_namespace(self, namespace):
@@ -76,6 +76,17 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     @property
     def built(self):
         return True
+
+    def iter_namespaces(self):
+        if self.namespace in ('##any', '##other'):
+            return
+        for ns in self.namespace.split():
+            if ns == '##local':
+                yield ''
+            elif ns == '##targetNamespace':
+                yield self.target_namespace
+            else:
+                yield ns
 
     def is_matching(self, name, default_namespace=None):
         if name is None:
@@ -104,6 +115,34 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             else:
                 return namespace in any_namespaces
 
+    def is_restriction(self, other, check_occurs=True):
+        if check_occurs and isinstance(self, ParticleMixin) and not self.has_occurs_restriction(other):
+            return False
+        elif not isinstance(other, type(self)):
+            return False
+        elif other.process_contents == 'strict' and self.process_contents != 'strict':
+            return False
+        elif other.process_contents == 'lax' and self.process_contents == 'skip':
+            return False
+        elif self.namespace == other.namespace:
+            return True
+        elif other.namespace == '##any':
+            return True
+        elif self.namespace == '##any':
+            return False
+
+        other_namespaces = other.namespace.split()
+        for ns in self.namespace.split():
+            if ns in other_namespaces:
+                continue
+            elif ns == self.target_namespace:
+                if '##targetNamespace' in other_namespaces:
+                    continue
+            elif not ns.startswith('##') and '##other' in other_namespaces:
+                continue
+            return False
+        return True
+
     def iter_decode(self, source, validation='lax', *args, **kwargs):
         raise NotImplementedError
 
@@ -125,7 +164,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
-    admitted_tags = {XSD_ANY}
+    _admitted_tags = {XSD_ANY}
 
     def __repr__(self):
         return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -158,7 +197,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iterchildren(self, tag=None):
         return iter(())
 
-    def iter_substitutes(self, tag=None):
+    @staticmethod
+    def iter_substitutes():
         return iter(())
 
     def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
@@ -202,10 +242,20 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             reason = "element %r not allowed here." % name
             yield self.validation_error(validation, reason, value, **kwargs)
 
-    def is_restriction(self, other):
-        if not ParticleMixin.is_restriction(self, other):
-            return False
-        return True
+    def overlap(self, other):
+        if not isinstance(other, XsdAnyElement):
+            return other.overlap(self)
+        elif self.namespace == other.namespace:
+            return True
+        elif self.namespace == '##any' or other.namespace == '##any':
+            return True
+        elif self.namespace == '##other':
+            return any(not ns.startswith('##') and ns != self.target_namespace for ns in other.namespace.split())
+        elif other.namespace == '##other':
+            return any(not ns.startswith('##') and ns != other.target_namespace for ns in self.namespace.split())
+
+        any_namespaces = self.namespace.split()
+        return any(ns in any_namespaces for ns in other.namespace.split())
 
 
 class XsdAnyAttribute(XsdWildcard):
@@ -220,7 +270,33 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    admitted_tags = {XSD_ANY_ATTRIBUTE}
+    _admitted_tags = {XSD_ANY_ATTRIBUTE}
+
+    def extend_namespace(self, other):
+        if self.namespace == '##any' or self.namespace == other.namespace:
+            return
+        elif other.namespace == '##any':
+            self.namespace = other.namespace
+            return
+        elif other.namespace == '##other':
+            w1, w2 = other, self
+        elif self.namespace == '##other':
+            w1, w2 = self, other
+        elif self.target_namespace == other.target_namespace:
+            self.namespace = ' '.join(set(other.namespace.split() + self.namespace.split()))
+            return
+        else:
+            self.namespace = ' '.join(set(list(other.iter_namespaces()) + self.namespace.split()))
+            return
+
+        namespaces = set(w2.iter_namespaces())
+        if w1.target_namespace in namespaces and '' in namespaces:
+            self.namespace = '##any'
+        elif '' not in namespaces and w1.target_namespace == w2.target_namespace:
+            self.namespace = '##other'
+        else:
+            msg = "not expressible wildcard namespace union: {!r} V {!r}:"
+            raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
 
     def match(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):
@@ -370,9 +446,26 @@ class XsdOpenContent(XsdComponent):
       Content: (annotation?), (any?)
     </openContent>
     """
+    _admitted_tags = {XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT}
+
     def __init__(self, elem, schema, parent):
         super(XsdOpenContent, self).__init__(elem, schema, parent)
         self.mode = self.elem.get('mode', 'interleave')
         if self.mode not in ('none', 'interleave', 'suffix'):
             self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
+
+    def _parse(self):
+        super(XsdOpenContent, self)._parse()
+        child = self._parse_component(self.elem)
+        if child is None:
+            if self.elem.tag == XSD_DEFAULT_OPEN_CONTENT:
+                self.parse_error("a %r declaration cannot be empty:" % self.elem.tag, self.elem)
+            self.any_element = None
+        elif child.tag == XSD_ANY:
+            self.any_element = Xsd11AnyElement(child, self.schema, self)
+        else:
+            self.any_element = None
+            if self.schema.validation == 'skip':
+                # Also generated by meta-schema validation for 'lax' and 'strict' modes
+                self.parse_error("unexpected tag %r for openContent child:" % child.tag, self.elem)
 

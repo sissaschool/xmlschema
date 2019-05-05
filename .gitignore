@@ -13,4 +13,3 @@ build/
 development/
 test_cases/
 !xmlschema/tests/test_cases/
-!xmlschema/unicode_categories.json

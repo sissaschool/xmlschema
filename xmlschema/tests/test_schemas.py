@@ -21,10 +21,11 @@ import time
 import warnings
 
 import xmlschema
-from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaModelError, \
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
-from xmlschema.qnames import XSD_LIST, XSD_UNION
+from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
 from xmlschema.tests import tests_factory, SchemaObserver, XMLSchemaTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
 from xmlschema.xpath import ElementPathContext
@@ -57,13 +58,35 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </complexType>        
             <complexType name="restrictedType">
                 <{1}Content>
-                    <restriction base="targetType">
+                    <restriction base="ns:targetType"> 
                         {2}                    
                     </restriction>
                 </{1}Content>
             </complexType>
             """.format(base.strip(), content, restriction.strip())
         self.check_schema(source, expected, **kwargs)
+
+    def test_schema_copy(self):
+        schema = self.vh_schema.copy()
+        self.assertNotEqual(id(self.vh_schema), id(schema))
+        self.assertNotEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
+        self.assertNotEqual(id(self.vh_schema.maps), id(schema.maps))
+
+    def test_resolve_qname(self):
+        schema = self.schema_class("""<xs:schema
+            xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+            <xs:element name="root" />
+        </xs:schema>""")
+        self.assertEqual(schema.resolve_qname('xs:element'), XSD_ELEMENT)
+        self.assertEqual(schema.resolve_qname('xsi:type'), XSI_TYPE)
+
+        self.assertEqual(schema.resolve_qname(XSI_TYPE), XSI_TYPE)
+        self.assertEqual(schema.resolve_qname('element'), 'element')
+        self.assertRaises(ValueError, schema.resolve_qname, '')
+        self.assertRaises(ValueError, schema.resolve_qname, 'xsi:a type ')
+        self.assertRaises(ValueError, schema.resolve_qname, 'xml::lang')
 
     def test_simple_types(self):
         # Issue #54: set list or union schema element.
@@ -94,16 +117,13 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 <import namespace="http://missing.example.test/" />
                 <import/>
                 """)
-            self.assertEqual(len(context), 4, "Wrong number of include/import warnings")
+            self.assertEqual(len(context), 3, "Wrong number of include/import warnings")
             self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
             self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
             self.assertEqual(context[2].category, XMLSchemaImportWarning)
-            self.assertEqual(context[3].category, XMLSchemaImportWarning)
             self.assertTrue(str(context[0].message).startswith("Include"))
             self.assertTrue(str(context[1].message).startswith("Redefine"))
             self.assertTrue(str(context[2].message).startswith("Namespace import"))
-            self.assertTrue(str(context[3].message).startswith("Namespace import"))
-            self.assertTrue(str(context[3].message).endswith("no schema location provided."))
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference
@@ -167,7 +187,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </simpleType>
             """)
 
-    @unittest.skip("The feature is still under development")
     def test_element_restrictions(self):
         base = """
         <sequence>
@@ -221,7 +240,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             </sequence>
             """, expected=XMLSchemaParseError)
 
-    @unittest.skip("The feature is still under development")
     def test_sequence_group_restriction(self):
         # Meaningless sequence group
         base = """
@@ -263,7 +281,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             XMLSchemaParseError
         )
 
-    @unittest.skip("The feature is still under development")
     def test_all_group_restriction(self):
         base = """
         <all>
@@ -274,22 +291,29 @@ class TestXMLSchema10(XMLSchemaTestCase):
         """
         self.check_complex_restriction(base, '<all><element name="A"/><element name="C"/></all>')
         self.check_complex_restriction(
-            base, '<all><element name="C" minOccurs="0"/><element name="A"/></all>',
-            XMLSchemaParseError
+            base, '<all><element name="C" minOccurs="0"/><element name="A"/></all>', XMLSchemaParseError
         )
         self.check_complex_restriction(
             base, '<sequence><element name="A"/><element name="C"/></sequence>'
         )
         self.check_complex_restriction(
             base, '<sequence><element name="C" minOccurs="0"/><element name="A"/></sequence>',
+        )
+        self.check_complex_restriction(
+            base, '<sequence><element name="C" minOccurs="0"/><element name="A" minOccurs="0"/></sequence>',
             XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="X"/></sequence>',
-            XMLSchemaParseError
+            base, '<sequence><element name="A"/><element name="X"/></sequence>', XMLSchemaParseError
         )
 
-    @unittest.skip("The feature is still under development")
+        base = """
+        <all>
+            <element name="A" minOccurs="0" maxOccurs="0"/>
+        </all>
+        """
+        self.check_complex_restriction(base, '<all><element name="A"/></all>', XMLSchemaParseError)
+
     def test_choice_group_restriction(self):
         base = """
         <choice maxOccurs="2">
@@ -308,7 +332,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
             base, '<choice maxOccurs="2"><element name="A"/><element name="C"/></choice>',
         )
 
-    @unittest.skip("The feature is still under development")
     def test_occurs_restriction(self):
         base = """
         <sequence minOccurs="3" maxOccurs="10">
@@ -330,7 +353,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_union_restrictions(self):
         # Wrong union restriction (not admitted facets, see issue #67)
-        self.check_schema("""
+        self.check_schema(r"""
             <simpleType name="Percentage">
                 <restriction base="ns:Integer">
                     <minInclusive value="0"/>
@@ -388,13 +411,52 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 </restriction>
             </simpleType>""")
 
-        schema = self.check_schema("""
+        self.check_schema("""
             <simpleType name="restricted_year">
                 <restriction base="gYear">
                     <minInclusive value="1900"/>
                     <maxInclusive value="2030"/>
                 </restriction>
             </simpleType>""")
+
+    def test_base_schemas(self):
+        from xmlschema.validators.schema import XML_SCHEMA_FILE
+        schema = self.schema_class(XML_SCHEMA_FILE)
+
+    def test_recursive_complex_type(self):
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elemA" type="typeA"/>
+                <xs:complexType name="typeA">
+                    <xs:sequence>
+                        <xs:element ref="elemA" minOccurs="0" maxOccurs="5"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:schema>""")
+        self.assertEqual(schema.elements['elemA'].type, schema.types['typeA'])
+
+    def test_upa_violations(self):
+        self.check_schema("""
+            <complexType name="typeA">
+                <sequence>
+                    <sequence minOccurs="0" maxOccurs="unbounded">
+                        <element name="A"/>
+                        <element name="B"/>
+                    </sequence>
+                    <element name="A" minOccurs="0"/>
+                </sequence>
+            </complexType>""", XMLSchemaModelError)
+
+        self.check_schema("""
+            <complexType name="typeA">
+                <sequence>
+                    <sequence minOccurs="0" maxOccurs="unbounded">
+                        <element name="B"/>
+                        <element name="A"/>
+                    </sequence>
+                    <element name="A" minOccurs="0"/>
+                </sequence>
+            </complexType>""")
 
 
 class TestXMLSchema11(TestXMLSchema10):
@@ -522,10 +584,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
             else:
                 xs = schema_class(xsd_file, locations=locations, defuse=defuse)
-            self.errors.extend(xs.all_errors)
+            self.errors.extend(xs.maps.all_errors)
 
             if inspect:
-                components_ids = set([id(c) for c in xs.iter_components()])
+                components_ids = set([id(c) for c in xs.maps.iter_components()])
                 missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
                 if any([c for c in missing]):
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
@@ -589,7 +651,8 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 with warnings.catch_warnings(record=True) as ctx:
                     warnings.simplefilter("always")
                     self.check_schema()
-                    self.assertEqual(len(ctx), expected_warnings, "Wrong number of include/import warnings")
+                    self.assertEqual(len(ctx), expected_warnings,
+                                     "%r: Wrong number of include/import warnings" % xsd_file)
             else:
                 self.check_schema()
 

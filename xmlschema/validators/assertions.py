@@ -30,7 +30,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
       Content: (annotation?)
     </assert>
     """
-    admitted_tags = {XSD_ASSERT}
+    _admitted_tags = {XSD_ASSERT}
     token = None
 
     def __init__(self, elem, schema, parent, base_type):

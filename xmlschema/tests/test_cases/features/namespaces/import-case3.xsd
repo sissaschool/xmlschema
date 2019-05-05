@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A valid import case: imported chameleon schema imports the target namespace.
+  -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/xmlschema/namespaces"
+  elementFormDefault="qualified">
+
+  <xs:import schemaLocation="chameleon3.xsd"/>
+
+  <xs:simpleType name="rootType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

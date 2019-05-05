@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for invalid models: UPA violations with a substitution group head and element. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element type="xs:int" name="a"/>
+    <xs:element type="xs:int" name="b" substitutionGroup="a" />
+
+    <xs:complexType name="wrong_type1">
+        <xs:all>
+            <xs:element ref="a"/>
+            <xs:element ref="b"/>
+        </xs:all>
+    </xs:complexType>
+
+    <xs:complexType name="wrong_type2">
+        <xs:all>
+            <xs:element ref="b"/>
+            <xs:element ref="a"/>
+        </xs:all>
+    </xs:complexType>
+
+    <xs:complexType name="wrong_type3">
+        <xs:choice>
+            <xs:element ref="a"/>
+            <xs:element ref="b"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="good_type1">
+        <xs:sequence>
+            <xs:element ref="a"/>
+            <xs:element ref="b"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="wrong_type4">
+        <xs:sequence>
+            <xs:element ref="a" maxOccurs="unbounded"/>
+            <xs:element ref="b"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>

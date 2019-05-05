@@ -9,14 +9,14 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains various helper functions for XML/XSD processing and parsing.
+This module contains various helper functions and classes.
 """
 import re
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
 from .qnames import XSD_ANNOTATION
 
-
+XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
@@ -29,8 +29,8 @@ def get_namespace(name):
 
 def get_qname(uri, name):
     """
-    Returns a fully qualified name from URI and local part. If any argument has boolean value
-    `False` or if the name is already a fully qualified name, returns the *name* argument.
+    Returns an expanded QName from URI and local part. If any argument has boolean value
+    `False` or if the name is already an expanded QName, returns the *name* argument.
 
     :param uri: namespace URI
     :param name: local or qualified name
@@ -44,10 +44,10 @@ def get_qname(uri, name):
 
 def local_name(qname):
     """
-    Return the local part of a qualified name. If the name is `None` or empty
+    Return the local part of an expanded QName. If the name is `None` or empty
     returns the *name* argument.
 
-    :param qname: QName or universal name formatted string, or `None`.
+    :param qname: an expanded QName or a local name.
     """
     try:
         if qname[0] != '{':
@@ -61,40 +61,6 @@ def local_name(qname):
         if qname is None:
             return qname
         raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
-
-
-def prefixed_to_qname(name, namespaces):
-    """
-    Transforms a prefixed name into a fully qualified name using a namespace map. Returns
-    the *name* argument if it's not a prefixed name or if it has boolean value `False`.
-
-    :param name: a local name or a prefixed name or a fully qualified name or `None`.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a FQN or a local name or the name argument.
-    """
-    if not name or name[0] == '{':
-        return name
-
-    try:
-        prefix, name = name.split(':')
-    except ValueError:
-        if ':' in name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces['']
-        except KeyError:
-            return name
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
-    else:
-        if not prefix or not name:
-            raise XMLSchemaValueError("wrong format for reference name %r" % name)
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
-        else:
-            return '{%s}%s' % (uri, name) if uri else name
 
 
 def qname_to_prefixed(qname, namespaces):
@@ -212,7 +178,7 @@ def get_xml_bool_attribute(elem, attribute, default=None):
         raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
 
 
-def get_xsd_derivation_attribute(elem, attribute, values):
+def get_xsd_derivation_attribute(elem, attribute, values=None):
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
     checking the items with the values arguments. Returns a string.
@@ -222,10 +188,69 @@ def get_xsd_derivation_attribute(elem, attribute, values):
     :param values: sequence of admitted values when the attribute value is not '#all'.
     :return: a string.
     """
-    value = elem.get(attribute, '')
+    value = elem.get(attribute)
+    if value is None:
+        return ''
+
+    if values is None:
+        values = XSD_FINAL_ATTRIBUTE_VALUES
+
     items = value.split()
     if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
     elif not all([s in values for s in items]):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
+
+
+def get_xsd_form_attribute(elem, attribute):
+    """
+    Get an XSD form attribute, checking the value. If the attribute is missing returns `None`
+
+    :param elem: the Element instance.
+    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' or 'attributeFormDefault').
+    :return: a string.
+    """
+    value = elem.get(attribute)
+    if value is None:
+        return
+    elif value not in ('qualified', 'unqualified'):
+        raise XMLSchemaValueError(
+            "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
+        )
+    return value
+
+
+class ParticleCounter(object):
+    """
+    An helper class for counting total min/max occurrences of XSD particles.
+    """
+    def __init__(self):
+        self.min_occurs = self.max_occurs = 0
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.min_occurs, self.max_occurs)
+
+    def __add__(self, other):
+        self.min_occurs += other.min_occurs
+        if self.max_occurs is not None:
+            if other.max_occurs is None:
+                self.max_occurs = None
+            else:
+                self.max_occurs += other.max_occurs
+        return self
+
+    def __mul__(self, other):
+        self.min_occurs *= other.min_occurs
+        if self.max_occurs is None:
+            if other.max_occurs == 0:
+                self.max_occurs = 0
+        elif other.max_occurs is None:
+            if self.max_occurs != 0:
+                self.max_occurs = None
+        else:
+            self.max_occurs *= other.max_occurs
+        return self
+
+    def reset(self):
+        self.min_occurs = self.max_occurs = 0

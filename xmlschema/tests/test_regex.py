@@ -18,10 +18,11 @@ import sys
 import re
 from unicodedata import category
 
-from xmlschema.exceptions import XMLSchemaValueError
+from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from xmlschema.compat import unicode_chr
-from xmlschema.codepoints import iter_code_points, UnicodeSubset, build_unicode_categories, UNICODE_CATEGORIES
-from xmlschema.regex import get_python_regex
+from xmlschema.codepoints import code_point_repr, iterparse_character_group, iter_code_points, \
+    UnicodeSubset, build_unicode_categories, UNICODE_CATEGORIES
+from xmlschema.regex import get_python_regex, XsdRegexCharGroup
 
 
 class TestCodePoints(unittest.TestCase):
@@ -111,6 +112,15 @@ class TestUnicodeSubset(unittest.TestCase):
         cds = UnicodeSubset([0, 2, (80, 200), 10000])
         self.assertEqual(cds - {2, 120, 121, (150, 260)}, [0, (80, 120), (122, 150), 10000])
 
+    def test_code_point_repr_function(self):
+        self.assertEqual(code_point_repr((ord('2'), ord('\\') + 1)), r'2-\\')
+
+
+class TestXsdRegexCharGroup(unittest.TestCase):
+
+    def test_char_group_split(self):
+        self.assertListEqual(XsdRegexCharGroup._re_char_group.split(r'2-\\'), [r'2-\\'])
+
 
 class TestUnicodeCategories(unittest.TestCase):
     """
@@ -131,7 +141,7 @@ class TestUnicodeCategories(unittest.TestCase):
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
         self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
 
-    @unittest.skipIf(not ((3, 6) <= sys.version_info < (3, 7)), "Test only for Python 3.6")
+    @unittest.skipIf(not ((3, 7) <= sys.version_info < (3, 8)), "Test only for Python 3.7")
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:
@@ -273,6 +283,12 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(pattern.search('zk:xy-9s').group(0), 'zk:xy-9s')
         self.assertIsNone(pattern.search('xx:y'))
 
+    def test_iterparse_character_group(self):
+        self.assertListEqual(list(iterparse_character_group('a-c-1-4x-z-7-9')),
+                             [(ord('a'), ord('c') + 1), ord('-'), (ord('1'), ord('4') + 1),
+                              (ord('x'), ord('z') + 1), ord('-'), (55, 58)])
+        self.assertListEqual(list(iterparse_character_group('2-\\')), [(ord('2'), ord('\\') + 1)])
+
     def test_occurrences_qualifiers(self):
         regex = get_python_regex('#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?')
         self.assertEqual(regex, '^(#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?)$')
@@ -320,6 +336,11 @@ class TestPatterns(unittest.TestCase):
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))
+
+    def test_empty_character_group_repr(self):
+        regex = get_python_regex('[a-[a-f]]')
+        self.assertEqual(regex, r'^([^\w\W])$')
+        self.assertRaises(XMLSchemaRegexError, get_python_regex, '[]')
 
 
 if __name__ == '__main__':

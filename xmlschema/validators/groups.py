@@ -12,22 +12,20 @@
 This module contains classes for XML Schema model groups.
 """
 from __future__ import unicode_literals
-from collections import Counter
 
-from ..compat import PY3, unicode_type, MutableSequence
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from ..compat import unicode_type
+from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
     XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
-from xmlschema.helpers import get_qname, local_name, prefixed_to_qname
+from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
-from .exceptions import XMLSchemaValidationError
-from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin, XsdType
+from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
+from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement
-
-XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
+from .models import MAX_MODEL_DEPTH, ParticleMixin, ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -39,198 +37,7 @@ ANY_ELEMENT = etree_element(
     })
 
 
-class XsdModelVisitor(MutableSequence):
-    """
-    A visitor design pattern class that can be used for validating XML data related to an
-    XSD model group. The visit of the model is done using an external match information,
-    counting the occurrences and yielding tuples in case of model's item occurrence errors.
-    Ends setting the current element to `None`.
-
-    :param root: the root XsdGroup instance of the model.
-    :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
-    :ivar element: the current XSD element, initialized to the first element of the model.
-    :ivar broken: a boolean value that records if the model is still usable.
-    :ivar group: the current XSD group, initialized to *root* argument.
-    :ivar iterator: the current XSD group iterator.
-    :ivar items: the current XSD group unmatched items.
-    :ivar match: if the XSD group has an effective item match.
-    """
-    def __init__(self, root):
-        self.root = root
-        self.occurs = Counter()
-        self._subgroups = []
-        self.element = None
-        self.broken = False
-        self.group, self.iterator, self.items, self.match = root, iter(root), root[::-1], False
-        self._start()
-
-    def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
-        return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
-
-    def __repr__(self):
-        return '%s(root=%r)' % (self.__class__.__name__, self.root)
-
-    # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
-        return self._subgroups[i]
-
-    def __setitem__(self, i, item):
-        self._subgroups[i] = item
-
-    def __delitem__(self, i):
-        del self._subgroups[i]
-
-    def __len__(self):
-        return len(self._subgroups)
-
-    def insert(self, i, item):
-        self._subgroups.insert(i, item)
-
-    def clear(self):
-        del self._subgroups[:]
-        self.occurs.clear()
-        self.element = None
-        self.broken = False
-        self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
-
-    def _start(self):
-        while True:
-            item = next(self.iterator, None)
-            if item is None or not isinstance(item, XsdGroup):
-                self.element = item
-                break
-            elif item:
-                self.append((self.group, self.iterator, self.items, self.match))
-                self.group, self.iterator, self.items, self.match = item, iter(item), item[::-1], False
-
-    @property
-    def expected(self):
-        """
-        Returns the expected elements of the current and descendant groups.
-        """
-        expected = []
-        for item in reversed(self.items):
-            if isinstance(item, XsdGroup):
-                expected.extend(item.iter_elements())
-            else:
-                expected.append(item)
-                expected.extend(item.maps.substitution_groups.get(item.name, ()))
-        return expected
-
-    def restart(self):
-        self.clear()
-        self._start()
-
-    def stop(self):
-        while self.element is not None:
-            for e in self.advance():
-                yield e
-
-    def advance(self, match=False):
-        """
-        Generator function for advance to the next element. Yields tuples with
-        particles information when occurrence violation is found.
-
-        :param match: provides current element match.
-        """
-        def stop_item(item):
-            """
-            Stops element or group matching, incrementing current group counter.
-
-            :return: `True` if the item has violated the minimum occurrences for itself \
-            or for the current group, `False` otherwise.
-            """
-            if isinstance(item, XsdGroup):
-                self.group, self.iterator, self.items, self.match = self.pop()
-
-            item_occurs = occurs[item]
-            model = self.group.model
-            if item_occurs:
-                self.match = True
-                if model == 'choice':
-                    occurs[item] = 0
-                    occurs[self.group] += 1
-                    self.iterator, self.match = iter(self.group), False
-                else:
-                    if model == 'all':
-                        self.items.remove(item)
-                    else:
-                        self.items.pop()
-                    if not self.items:
-                        self.occurs[self.group] += 1
-                return item.is_missing(item_occurs)
-
-            elif model == 'sequence':
-                if self.match:
-                    self.items.pop()
-                    if not self.items:
-                        occurs[self.group] += 1
-                    return not item.is_emptiable()
-                elif item.is_emptiable():
-                    self.items.pop()
-                    return False
-                elif self.group.min_occurs <= occurs[self.group] or self:
-                    return stop_item(self.group)
-                else:
-                    self.items.pop()
-                    return True
-
-        element, occurs = self.element, self.occurs
-        if element is None:
-            raise XMLSchemaValueError("cannot advance, %r is ended!" % self)
-
-        if match:
-            occurs[element] += 1
-            self.match = True
-            if not element.is_over(occurs[element]):
-                return
-        try:
-            if stop_item(element):
-                yield element, occurs[element], [element]
-
-            while True:
-                while self.group.is_over(occurs[self.group]):
-                    stop_item(self.group)
-
-                obj = next(self.iterator, None)
-                if obj is None:
-                    if not self.match:
-                        if self.group.model == 'all' and all(e.min_occurs == 0 for e in self.items):
-                            occurs[self.group] += 1
-                        group, expected = self.group, self.items
-                        if stop_item(group) and expected:
-                            yield group, occurs[group], self.expected
-                    elif not self.items:
-                        self.iterator, self.items, self.match = iter(self.group), self.group[::-1], False
-                    elif self.group.model == 'all':
-                        self.iterator, self.match = iter(self.items), False
-                    elif all(e.min_occurs == 0 for e in self.items):
-                        self.iterator, self.items, self.match = iter(self.group), self.group[::-1], False
-                        occurs[self.group] += 1
-
-                elif not isinstance(obj, XsdGroup):  # XsdElement or XsdAnyElement
-                    self.element, occurs[obj] = obj, 0
-                    return
-
-                elif obj:
-                    self.append((self.group, self.iterator, self.items, self.match))
-                    self.group, self.iterator, self.items, self.match = obj, iter(obj), obj[::-1], False
-                    occurs[obj] = 0
-
-        except IndexError:
-            self.element = None
-            if self.group.is_missing(occurs[self.group]) and self.items:
-                yield self.group, occurs[self.group], self.expected
-
-
-class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
+class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     """
     A class for XSD 1.0 model group definitions.
 
@@ -268,23 +75,18 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
       Content: (annotation?, (element | group | choice | sequence | any)*)
     </sequence>
     """
-    admitted_tags = {
-        XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION,
-        XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
+    mixed = False
+    model = None
+    redefine = None
+    _admitted_tags = {
+        XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
-    def __init__(self, elem, schema, parent, name=None, initlist=None):
-        self.mixed = False if parent is None else parent.mixed
-        self.model = None
+    def __init__(self, elem, schema, parent, name=None):
         self._group = []
-        if initlist is not None:
-            if isinstance(initlist, type(self._group)):
-                self._group[:] = initlist
-            elif isinstance(initlist, XsdGroup):
-                self._group[:] = initlist._group[:]
-            else:
-                self._group = list(initlist)
-        XsdComponent.__init__(self, elem, schema, parent, name)
+        if parent is not None and parent.mixed:
+            self.mixed = parent.mixed
+        super(XsdGroup, self).__init__(elem, schema, parent, name)
 
     def __repr__(self):
         if self.name is None:
@@ -298,41 +100,18 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 self.__class__.__name__, self.prefixed_name, self.model, self.occurs
             )
 
-    # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
-        return self._group[i]
+    def copy(self):
+        group = object.__new__(self.__class__)
+        group.__dict__.update(self.__dict__)
+        group.errors = self.errors[:]
+        group._group = self._group[:]
+        return group
 
-    def __setitem__(self, i, item):
-        assert isinstance(item, (tuple, ParticleMixin)), \
-            "XsdGroup's items must be tuples or ParticleMixin instances."
-        self._group[i] = item
-
-    def __delitem__(self, i):
-        del self._group[i]
-
-    def __len__(self):
-        return len(self._group)
-
-    def insert(self, i, item):
-        assert isinstance(item, (tuple, ParticleMixin)), \
-            "XsdGroup's items must be tuples or ParticleMixin instances."
-        self._group.insert(i, item)
-
-    def __setattr__(self, name, value):
-        if name == 'model' and value is not None:
-            if value not in XSD_GROUP_MODELS:
-                raise XMLSchemaValueError("invalid model group %r." % value)
-            if self.model is not None and value != self.model:
-                raise XMLSchemaValueError("cannot change a valid group model: %r" % value)
-        elif name == '_group':
-            if not all(isinstance(item, (tuple, ParticleMixin)) for item in value):
-                raise XMLSchemaValueError("XsdGroup's items must be tuples or ParticleMixin instances.")
-        super(XsdGroup, self).__setattr__(name, value)
+    __copy__ = copy
 
     def _parse(self):
         super(XsdGroup, self)._parse()
-        if self and not hasattr(self, '_elem'):
-            self.clear()
+        self.clear()
         elem = self.elem
         self._parse_particle(elem)
 
@@ -343,14 +122,19 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             if name is None:
                 if ref is not None:
                     # Reference to a global group
-                    if self.is_global:
-                        self.parse_error("a group reference cannot be global", elem)
-                    self.name = prefixed_to_qname(ref, self.namespaces)
+                    if self.parent is None:
+                        self.parse_error("a group reference cannot be global")
+
+                    try:
+                        self.name = self.schema.resolve_qname(ref)
+                    except ValueError as err:
+                        self.parse_error(err, elem)
+                        return
 
                     try:
                         xsd_group = self.schema.maps.lookup_group(self.name)
                     except KeyError:
-                        self.parse_error("missing group %r" % self.prefixed_name, elem)
+                        self.parse_error("missing group %r" % self.prefixed_name)
                         xsd_group = self.schema.create_any_content_group(self, self.name)
 
                     if isinstance(xsd_group, tuple):
@@ -361,33 +145,47 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                         self.append(XsdAnyElement(ANY_ELEMENT, self.schema, self))
                     else:
                         self.model = xsd_group.model
+                        if self.model == 'all':
+                            if self.max_occurs != 1:
+                                self.parse_error("maxOccurs must be 1 for 'all' model groups")
+                            if self.min_occurs not in (0, 1):
+                                self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+                            if self.schema.XSD_VERSION == '1.0' and isinstance(self.parent, XsdGroup):
+                                self.parse_error("in XSD 1.0 the 'all' model group cannot be nested")
                         self.append(xsd_group)
                 else:
-                    self.parse_error("missing both attributes 'name' and 'ref'", elem)
+                    self.parse_error("missing both attributes 'name' and 'ref'")
                 return
             elif ref is None:
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
                 content_model = self._parse_component(elem)
-                if not self.is_global:
-                    self.parse_error("attribute 'name' not allowed for a local group", self)
+                if self.parent is not None:
+                    self.parse_error("attribute 'name' not allowed for a local group")
                 else:
                     if 'minOccurs' in elem.attrib:
-                        self.parse_error(
-                            "attribute 'minOccurs' not allowed for a global group", self
-                        )
+                        self.parse_error("attribute 'minOccurs' not allowed for a global group")
                     if 'maxOccurs' in elem.attrib:
+                        self.parse_error("attribute 'maxOccurs' not allowed for a global group")
+                    if 'minOccurs' in content_model.attrib:
                         self.parse_error(
-                            "attribute 'maxOccurs' not allowed for a global group", self
+                            "attribute 'minOccurs' not allowed for the model of a global group", content_model
                         )
-                if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
-                    self.parse_error('unexpected tag %r' % content_model.tag, content_model)
-                    return
+                    if 'maxOccurs' in content_model.attrib:
+                        self.parse_error(
+                            "attribute 'maxOccurs' not allowed for the model of a global group", content_model
+                        )
+                    if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                        self.parse_error('unexpected tag %r' % content_model.tag, content_model)
+                        return
+
             else:
-                self.parse_error("found both attributes 'name' and 'ref'", elem)
+                self.parse_error("found both attributes 'name' and 'ref'")
                 return
         elif elem.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
             # Local group (sequence|all|choice)
+            if 'name' in elem.attrib:
+                self.parse_error("attribute 'name' not allowed for a local group")
             content_model = elem
             self.name = None
         elif elem.tag in {XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION}:
@@ -418,36 +216,84 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
-                xsd_group = XsdGroup(child, self.schema, self)
-                if xsd_group.name != self.name:
-                    self.append(xsd_group)
-                elif not hasattr(self, '_elem'):
-                    self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
+                try:
+                    ref = self.schema.resolve_qname(child.attrib['ref'])
+                except KeyError:
+                    self.parse_error("missing attribute 'ref' in local group", child)
+                    continue
+
+                if ref != self.name:
+                    xsd_group = XsdGroup(child, self.schema, self)
+                    if xsd_group.model == 'all':
+                        self.parse_error("'all' model can appears only at 1st level of a model group")
+                    else:
+                        self.append(xsd_group)
+                elif self.redefine is None:
+                    self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
+                else:
+                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
+                        self.parse_error(
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                        )
+                    self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
 
-    @property
-    def schema_elem(self):
-        return self.elem if self.name else self.parent.elem
+    def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
+                                  source=None, namespaces=None, **_kwargs):
+        """
+        Helper method for generating model validation errors. Incompatible with 'skip' validation mode.
+        Il validation mode is 'lax' returns the error, otherwise raise the error.
+
+        :param validation: the validation mode. Can be 'lax' or 'strict'.
+        :param elem: the instance Element.
+        :param index: the child index.
+        :param particle: the XSD component (subgroup or element) associated to the child.
+        :param occurs: the child tag occurs.
+        :param expected: the expected element tags/object names.
+        :param source: the XML resource related to the validation process.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param _kwargs: keyword arguments of the validation process that are not used.
+        """
+        if validation == 'skip':
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+
+        error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs, expected, source, namespaces)
+        if validation == 'strict':
+            raise error
+        else:
+            return error
+
+    def build(self):
+        element_class = self.schema.BUILDERS.element_class
+        for k in range(len(self._group)):
+            if isinstance(self._group[k], tuple):
+                elem, schema = self._group[k]
+                self._group[k] = element_class(elem, schema, self)
+
+        if self.redefine is not None:
+            for group in self.redefine.iter_components(XsdGroup):
+                group.build()
 
     @property
     def built(self):
         for item in self:
-            if isinstance(item, XsdAnyElement):
+            if not isinstance(item, ParticleMixin):
+                return False
+            elif isinstance(item, XsdAnyElement):
                 if not item.built:
                     return False
-            elif isinstance(item, tuple):
-                return False
-            elif not isinstance(item, (XsdElement, XsdGroup)):
-                raise XMLSchemaTypeError("wrong type for item %r of %r." % (item, self))
             elif item.parent is None:
                 continue
             elif item.parent is not self.parent and isinstance(item.parent, XsdType) and item.parent.parent is None:
                 continue
             elif not item.ref and not item.built:
                 return False
-
         return True
+
+    @property
+    def schema_elem(self):
+        return self.elem if self.name else self.parent.elem
 
     @property
     def validation_attempted(self):
@@ -473,111 +319,192 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
             for obj in item.iter_components(xsd_classes):
                 yield obj
 
-    def clear(self):
-        del self._group[:]
+    def admitted_restriction(self, model):
+        if self.model == model:
+            return True
+        elif self.model == 'all' and model == 'choice' and len(self) > 1:
+            return False
+        elif model == 'all' and self.model == 'choice' and len(self) > 1:
+            return False
+        if model == 'sequence' and self.model != 'sequence' and len(self) > 1:
+            return False
 
     def is_empty(self):
         return not self.mixed and not self
 
-    def is_emptiable(self):
-        if self.model == 'choice':
-            return self.min_occurs == 0 or not self or any([item.is_emptiable() for item in self])
-        else:
-            return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
-
-    def is_meaningless(self, parent_group=None):
-        """
-        A group that may be eliminated. A group is meaningless if one of those conditions is verified:
-
-         - the group is empty
-         - minOccurs == maxOccurs == 1 and the group has one child
-         - minOccurs == maxOccurs == 1 and the group and its parent have a sequence model
-         - minOccurs == maxOccurs == 1 and the group and its parent have a choice model
-        """
+    def is_restriction(self, other, check_occurs=True):
         if not self:
             return True
-        elif self.min_occurs != 1 or self.max_occurs != 1:
-            return False
-        elif len(self) == 1:
-            return True
-        elif parent_group is None:
-            return False
-        elif self.model == 'sequence' and parent_group.model != 'sequence':
-            return False
-        elif self.model == 'choice' and parent_group.model != 'choice':
-            return False
-        else:
-            return True
-
-    def is_restriction(self, other, check_particle=True):
-        if not isinstance(other, XsdGroup):
-            return False
-        elif not self:
-            return True
+        elif self.ref is not None:
+            return self[0].is_restriction(other, check_occurs)
+        elif not isinstance(other, ParticleMixin):
+            raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
+        elif not isinstance(other, XsdGroup):
+            return self.is_element_restriction(other)
         elif not other:
             return False
-        elif other.model == 'sequence' and self.model != 'sequence':
-            return False
-        elif other.model == 'choice' and self.model == 'all':
-            return False
-        elif other.model == 'all' and self.model == 'choice':
-            return False
-        elif check_particle and not super(XsdGroup, self).is_restriction(other):
-            return False
+        elif other.ref:
+            return self.is_restriction(other[0], check_occurs)
+        elif len(other) == other.min_occurs == other.max_occurs == 1:
+            if len(self) > 1:
+                return self.is_restriction(other[0], check_occurs)
+            elif isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
+                return self[0].is_restriction(other[0], check_occurs)
 
-        other_iterator = iter(other.iter_group())
-        for item in self.iter_group():
+        # Compare model with model
+        if self.model != other.model and self.model != 'sequence' and len(self) > 1:
+            return False
+        elif self.model == other.model or other.model == 'sequence':
+            return self.is_sequence_restriction(other)
+        elif other.model == 'all':
+            return self.is_all_restriction(other)
+        elif other.model == 'choice':
+            return self.is_choice_restriction(other)
+
+    def is_element_restriction(self, other):
+        if self.schema.XSD_VERSION == '1.0' and isinstance(other, XsdElement) and \
+                not other.ref and other.name not in self.schema.substitution_groups:
+            return False
+        elif not self.has_occurs_restriction(other):
+            return False
+        elif self.model == 'choice':
+            if other.name in self.maps.substitution_groups and all(
+                    isinstance(e, XsdElement) and e.substitution_group == other.name for e in self):
+                return True
+            return any(e.is_restriction(other, False) for e in self)
+        else:
+            min_occurs = max_occurs = 0
+            for item in self.iter_model():
+                if isinstance(item, XsdGroup):
+                    return False
+                elif item.min_occurs == 0 or item.is_restriction(other, False):
+                    min_occurs += item.min_occurs
+                    if max_occurs is not None:
+                        if item.max_occurs is None:
+                            max_occurs = None
+                        else:
+                            max_occurs += item.max_occurs
+                    continue
+                return False
+
+            if min_occurs < other.min_occurs:
+                return False
+            elif max_occurs is None:
+                return other.max_occurs is None
+            elif other.max_occurs is None:
+                return True
+            else:
+                return max_occurs <= other.max_occurs
+
+    def is_sequence_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
+        check_occurs = other.max_occurs != 0
+        check_emptiable = other.model != 'choice'  # or self.schema.XSD_VERSION == '1.0'
+
+        # Same model: declarations must simply preserve order
+        other_iterator = iter(other.iter_model())
+        for item in self.iter_model():
             while True:
                 try:
                     other_item = next(other_iterator)
                 except StopIteration:
                     return False
-
-                if other_item is item:
+                if other_item is item or item.is_restriction(other_item, check_occurs):
                     break
-                elif item.is_restriction(other_item):
-                    break
-                elif other.model == 'choice':
-                    continue
-                elif other_item.is_emptiable():
-                    continue
-                elif isinstance(other_item, XsdGroup) and other_item.model == 'choice' and \
-                        other_item.max_occurs == 1:
-                    if any(item.is_restriction(s) for s in other_item.iter_group()):
-                        break
-                else:
+                elif check_emptiable and not other_item.is_emptiable():
                     return False
 
-        return True
+        if not check_emptiable:
+            return True
 
-    def iter_group(self):
-        """Creates an iterator for sub elements and groups. Skips meaningless groups."""
-        for item in self:
-            if not isinstance(item, XsdGroup):
-                yield item
-            elif item.is_global or not item.is_meaningless(self):
-                yield item
+        while True:
+            try:
+                other_item = next(other_iterator)
+            except StopIteration:
+                return True
             else:
-                for obj in item.iter_group():
-                    yield obj
+                if not other_item.is_emptiable():
+                    return False
 
-    def iter_subelements(self):
-        for item in self:
-            if isinstance(item, XsdGroup):
-                for e in item.iter_subelements():
-                    yield e
-            else:
-                yield item
+    def is_all_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
 
-    def iter_elements(self):
-        for item in self:
-            if isinstance(item, XsdGroup):
-                for e in item.iter_elements():
-                    yield e
+        check_occurs = other.max_occurs != 0
+        restriction_items = list(self)
+
+        for other_item in other.iter_model():
+            for item in restriction_items:
+                if other_item is item or item.is_restriction(other_item, check_occurs):
+                    break
             else:
-                yield item
-                for e in self.maps.substitution_groups.get(item.name, ()):
-                    yield e
+                if not other_item.is_emptiable():
+                    return False
+                continue
+            restriction_items.remove(item)
+
+        return not bool(restriction_items)
+
+    def is_choice_restriction(self, other):
+        if self.parent is None and other.parent is not None and self.schema.XSD_VERSION == '1.0':
+            return False
+
+        check_occurs = other.max_occurs != 0
+        restriction_items = list(self)
+        max_occurs = 0
+        other_max_occurs = 0
+
+        for other_item in other.iter_model():
+            for item in restriction_items:
+
+                if other_item is item or item.is_restriction(other_item, check_occurs):
+                    if max_occurs is not None:
+                        if item.max_occurs is None:
+                            max_occurs = None
+                        else:
+                            max_occurs += item.max_occurs
+
+                    if other_max_occurs is not None:
+                        if other_item.max_occurs is None:
+                            other_max_occurs = None
+                        else:
+                            other_max_occurs = max(other_max_occurs, other_item.max_occurs)
+                    break
+            else:
+                continue
+            restriction_items.remove(item)
+
+        if restriction_items:
+            return False
+        elif other_max_occurs is None:
+            if other.max_occurs:
+                return True
+            other_max_occurs = 0
+        elif other.max_occurs is None:
+            if other_max_occurs:
+                return True
+            other_max_occurs = 0
+        else:
+            other_max_occurs *= other.max_occurs
+
+        if max_occurs is None:
+            return self.max_occurs == 0
+        elif self.max_occurs is None:
+            return max_occurs == 0
+        else:
+            return other_max_occurs >= max_occurs * self.max_occurs
+
+    def iter_elements(self, depth=0):
+        if depth <= MAX_MODEL_DEPTH:
+            for item in self:
+                if isinstance(item, XsdGroup):
+                    for e in item.iter_elements(depth+1):
+                        yield e
+                else:
+                    yield item
+                    for e in self.maps.substitution_groups.get(item.name, ()):
+                        yield e
 
     def sort_children(self, elements, default_namespace=None):
         """
@@ -626,7 +553,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        model = XsdModelVisitor(self)
+        model = ModelVisitor(self)
         errors = []
 
         if not isinstance(converter, XMLSchemaConverter):
@@ -734,7 +661,7 @@ class XsdGroup(MutableSequence, XsdComponent, ValidationMixin, ParticleMixin):
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 
-        model = XsdModelVisitor(self)
+        model = ModelVisitor(self)
         cdata_index = 0
 
         for index, (name, value) in enumerate(element_data.content):
@@ -875,10 +802,21 @@ class Xsd11Group(XsdGroup):
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
                 self.append(XsdGroup(child, self.schema, self))
             elif child.tag == XSD_GROUP:
-                xsd_group = XsdGroup(child, self.schema, self)
-                if xsd_group.name != self.name:
-                    self.append(xsd_group)
-                elif not hasattr(self, '_elem'):
-                    self.parse_error("Circular definitions detected for group %r:" % self.ref, elem)
+                try:
+                    ref = self.schema.resolve_qname(child.attrib['ref'])
+                except KeyError:
+                    self.parse_error("missing attribute 'ref' in local group", child)
+                    continue
+
+                if ref != self.name:
+                    self.append(XsdGroup(child, self.schema, self))
+                elif self.redefine is None:
+                    self.parse_error("Circular definition detected for group %r:" % self.ref, elem)
+                else:
+                    if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
+                        self.parse_error(
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                        )
+                    self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema

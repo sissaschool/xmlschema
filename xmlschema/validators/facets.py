@@ -19,7 +19,7 @@ from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
     XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
-    XSD_DECIMAL, XSD_INTEGER, XSD_BASE64_BINARY, XSD_HEX_BINARY
+    XSD_BASE64_BINARY, XSD_HEX_BINARY
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -105,7 +105,7 @@ class XsdWhiteSpaceFacet(XsdFacet):
       Content: (annotation?)
     </whiteSpace>
     """
-    admitted_tags = XSD_WHITE_SPACE,
+    _admitted_tags = XSD_WHITE_SPACE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -141,7 +141,7 @@ class XsdLengthFacet(XsdFacet):
       Content: (annotation?)
     </length>
     """
-    admitted_tags = XSD_LENGTH,
+    _admitted_tags = XSD_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -184,7 +184,7 @@ class XsdMinLengthFacet(XsdFacet):
       Content: (annotation?)
     </minLength>
     """
-    admitted_tags = XSD_MIN_LENGTH,
+    _admitted_tags = XSD_MIN_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -227,7 +227,7 @@ class XsdMaxLengthFacet(XsdFacet):
       Content: (annotation?)
     </maxLength>
     """
-    admitted_tags = XSD_MAX_LENGTH,
+    _admitted_tags = XSD_MAX_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -270,13 +270,25 @@ class XsdMinInclusiveFacet(XsdFacet):
       Content: (annotation?)
     </minInclusive>
     """
-    admitted_tags = XSD_MIN_INCLUSIVE,
+    _admitted_tags = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
-        self.validator = self.min_inclusive_validator
 
-    def min_inclusive_validator(self, x):
+        facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
+        if facet is not None and facet.value >= self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MIN_INCLUSIVE)
+        if facet is not None and facet.value > self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MAX_EXCLUSIVE)
+        if facet is not None and facet.value <= self.value:
+            self.parse_error("maximum value of base_type is lesser")
+        facet = self.base_type.get_facet(XSD_MAX_INCLUSIVE)
+        if facet is not None and facet.value < self.value:
+            self.parse_error("maximum value of base_type is lesser")
+
+    def validator(self, x):
         if x < self.value:
             yield XMLSchemaValidationError(self, x, "value has to be greater or equal than %r." % self.value)
 
@@ -293,13 +305,25 @@ class XsdMinExclusiveFacet(XsdFacet):
       Content: (annotation?)
     </minExclusive>
     """
-    admitted_tags = XSD_MIN_EXCLUSIVE,
+    _admitted_tags = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
-        self.validator = self.min_exclusive_validator
 
-    def min_exclusive_validator(self, x):
+        facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
+        if facet is not None and facet.value > self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MIN_INCLUSIVE)
+        if facet is not None and facet.value > self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MAX_EXCLUSIVE)
+        if facet is not None and facet.value <= self.value:
+            self.parse_error("maximum value of base_type is lesser")
+        facet = self.base_type.get_facet(XSD_MAX_INCLUSIVE)
+        if facet is not None and facet.value <= self.value:
+            self.parse_error("maximum value of base_type is lesser")
+
+    def validator(self, x):
         if x <= self.value:
             yield XMLSchemaValidationError(self, x, "value has to be greater than %r." % self.value)
 
@@ -316,13 +340,25 @@ class XsdMaxInclusiveFacet(XsdFacet):
       Content: (annotation?)
     </maxInclusive>
     """
-    admitted_tags = XSD_MAX_INCLUSIVE,
+    _admitted_tags = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
-        self.validator = self.max_inclusive_validator
 
-    def max_inclusive_validator(self, x):
+        facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
+        if facet is not None and facet.value >= self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MIN_INCLUSIVE)
+        if facet is not None and facet.value > self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MAX_EXCLUSIVE)
+        if facet is not None and facet.value <= self.value:
+            self.parse_error("maximum value of base_type is lesser")
+        facet = self.base_type.get_facet(XSD_MAX_INCLUSIVE)
+        if facet is not None and facet.value < self.value:
+            self.parse_error("maximum value of base_type is lesser")
+
+    def validator(self, x):
         if x > self.value:
             yield XMLSchemaValidationError(self, x, "value has to be lesser or equal than %r." % self.value)
 
@@ -339,15 +375,27 @@ class XsdMaxExclusiveFacet(XsdFacet):
       Content: (annotation?)
     </maxExclusive>
     """
-    admitted_tags = XSD_MAX_EXCLUSIVE,
+    _admitted_tags = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
         self.value = self.base_type.decode(elem.attrib['value'])
-        self.validator = self.max_exclusive_validator
 
-    def max_exclusive_validator(self, x):
+        facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
+        if facet is not None and facet.value >= self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MIN_INCLUSIVE)
+        if facet is not None and facet.value >= self.value:
+            self.parse_error("minimum value of base_type is greater")
+        facet = self.base_type.get_facet(XSD_MAX_EXCLUSIVE)
+        if facet is not None and facet.value < self.value:
+            self.parse_error("maximum value of base_type is lesser")
+        facet = self.base_type.get_facet(XSD_MAX_INCLUSIVE)
+        if facet is not None and facet.value < self.value:
+            self.parse_error("maximum value of base_type is lesser")
+
+    def validator(self, x):
         if x >= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be lesser than %r." % self.value)
+            yield XMLSchemaValidationError(self, x, "value has to be lesser than %r" % self.value)
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -362,7 +410,7 @@ class XsdTotalDigitsFacet(XsdFacet):
       Content: (annotation?)
     </totalDigits>
     """
-    admitted_tags = XSD_TOTAL_DIGITS,
+    _admitted_tags = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -387,18 +435,18 @@ class XsdFractionDigitsFacet(XsdFacet):
       Content: (annotation?)
     </fractionDigits>
     """
-    admitted_tags = XSD_FRACTION_DIGITS,
+    _admitted_tags = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
-        if not base_type.is_subtype(XSD_DECIMAL):
+        if not base_type.is_derived(self.schema.builtin_types()['decimal']):
             self.parse_error("fractionDigits facet can be applied only to types derived from xs:decimal")
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
         if self.value < 0:
             raise ValueError("'value' must be greater or equal than 0")
-        elif self.value > 0 and self.base_type.is_subtype(XSD_INTEGER):
+        elif self.value > 0 and self.base_type.is_derived(self.schema.builtin_types()['integer']):
             raise ValueError("fractionDigits facet value has to be 0 for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 
@@ -419,7 +467,7 @@ class XsdExplicitTimezoneFacet(XsdFacet):
       Content: (annotation?)
     </explicitTimezone>
     """
-    admitted_tags = XSD_EXPLICIT_TIMEZONE,
+    _admitted_tags = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -450,7 +498,7 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
       Content: (annotation?)
     </enumeration>
     """
-    admitted_tags = {XSD_ENUMERATION}
+    _admitted_tags = {XSD_ENUMERATION}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -468,8 +516,15 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         except XMLSchemaDecodeError as err:
             self.parse_error(err, elem)
         else:
-            if self.base_type.name == XSD_NOTATION_TYPE and value not in self.schema.notations:
-                self.parse_error("value must match a notation global declaration", elem)
+            if self.base_type.name == XSD_NOTATION_TYPE:
+                try:
+                    notation_qname = self.schema.resolve_qname(value)
+                except ValueError as err:
+                    self.parse_error(err, elem)
+                else:
+                    if notation_qname not in self.maps.notations:
+                        self.parse_error("value {} must match a notation global declaration".format(value), elem)
+
             return value
 
     # Implements the abstract methods of MutableSequence
@@ -517,7 +572,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
       Content: (annotation?)
     </pattern>
     """
-    admitted_tags = {XSD_PATTERN}
+    _admitted_tags = {XSD_PATTERN}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -533,7 +588,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
             return re.compile(r'^$')
-        except XMLSchemaDecodeError as err:
+        except (re.error, XMLSchemaDecodeError) as err:
             self.parse_error(err, elem)
             return re.compile(r'^$')
 
@@ -585,7 +640,7 @@ class XsdAssertionFacet(XsdFacet):
       Content: (annotation?)
     </assertion>
     """
-    admitted_tags = {XSD_ASSERTION}
+    _admitted_tags = {XSD_ASSERTION}
 
     def __repr__(self):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)

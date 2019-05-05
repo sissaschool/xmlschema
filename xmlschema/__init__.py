@@ -20,12 +20,13 @@ from .converters import (
 from .documents import validate, to_dict, to_json, from_json
 
 from .validators import (
-    XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaValidationError,
-    XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning,
-    XMLSchemaImportWarning, XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10
+    XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaModelError,
+    XMLSchemaModelDepthError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError,
+    XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdGlobals,
+    XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
-__version__ = '1.0.10'
+__version__ = '1.0.11'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2019, SISSA"
@@ -39,6 +40,7 @@ def XMLSchema_v1_0(*args, **kwargs):
     warnings.warn("XMLSchema_v1_0 class name has been replaced by XMLSchema10 " 
                   "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
     return XMLSchema10(*args, **kwargs)
+
 
 def etree_get_namespaces(*args, **kwargs):
     import warnings

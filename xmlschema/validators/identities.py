@@ -12,24 +12,26 @@
 This module contains classes for other XML Schema identity constraints.
 """
 from __future__ import unicode_literals
+import re
 from collections import Counter
-from elementpath import Selector, XPath1Parser, ElementPathSyntaxError
+from elementpath import Selector, XPath1Parser, ElementPathSyntaxError, ElementPathKeyError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, prefixed_to_qname, qname_to_prefixed
+from ..helpers import get_qname, qname_to_prefixed
 from ..etree import etree_getpath
+from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 
 XSD_IDENTITY_XPATH_SYMBOLS = {
-    'processing-instruction', 'descendant-or-self', 'following-sibling', 'preceding-sibling',
-    'ancestor-or-self', 'descendant', 'attribute', 'following', 'namespace', 'preceding',
-    'ancestor', 'position', 'comment', 'parent', 'child', 'self', 'false', 'text', 'node',
+    'processing-instruction', 'following-sibling', 'preceding-sibling',
+    'ancestor-or-self', 'attribute', 'following', 'namespace', 'preceding',
+    'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
     'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
     '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
-    '(string)', '(float)', '(decimal)', '(integer)'
+    '(string)', '(float)', '(decimal)', '(integer)', '::'
 }
 
 
@@ -42,7 +44,11 @@ XsdIdentityXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
-    admitted_tags = {XSD_SELECTOR}
+    _admitted_tags = {XSD_SELECTOR}
+    pattern = re.compile(get_python_regex(
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
+    ))
 
     def __init__(self, elem, schema, parent):
         super(XsdSelector, self).__init__(elem, schema, parent)
@@ -54,10 +60,13 @@ class XsdSelector(XsdComponent):
         except KeyError:
             self.parse_error("'xpath' attribute required:", self.elem)
             self.path = "*"
+        else:
+            if not self.pattern.match(self.path.replace(' ', '')):
+                self.parse_error("Wrong XPath expression for an xs:selector")
 
         try:
             self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
-        except ElementPathSyntaxError as err:
+        except (ElementPathSyntaxError, ElementPathKeyError) as err:
             self.parse_error(err)
             self.xpath_selector = Selector('*', self.namespaces, parser=XsdIdentityXPathParser)
 
@@ -77,7 +86,12 @@ class XsdSelector(XsdComponent):
 
 
 class XsdFieldSelector(XsdSelector):
-    admitted_tags = {XSD_FIELD}
+    _admitted_tags = {XSD_FIELD}
+    pattern = re.compile(get_python_regex(
+        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
+        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
+    ))
 
 
 class XsdIdentity(XsdComponent):
@@ -106,6 +120,10 @@ class XsdIdentity(XsdComponent):
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
                 self.parse_error("element %r not allowed here:" % child.tag, elem)
+
+    def iter_elements(self):
+        for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
+            yield xsd_element
 
     def get_fields(self, context, decoders=None):
         """
@@ -191,11 +209,11 @@ class XsdIdentity(XsdComponent):
 
 
 class XsdUnique(XsdIdentity):
-    admitted_tags = {XSD_UNIQUE}
+    _admitted_tags = {XSD_UNIQUE}
 
 
 class XsdKey(XsdIdentity):
-    admitted_tags = {XSD_KEY}
+    _admitted_tags = {XSD_KEY}
 
 
 class XsdKeyref(XsdIdentity):
@@ -205,12 +223,9 @@ class XsdKeyref(XsdIdentity):
     :ivar refer: reference to a *xs:key* declaration that must be in the same element \
     or in a descendant element.
     """
-    admitted_tags = {XSD_KEYREF}
-
-    def __init__(self, elem, schema, parent):
-        self.refer = None
-        self.refer_path = '.'
-        super(XsdKeyref, self).__init__(elem, schema, parent)
+    _admitted_tags = {XSD_KEYREF}
+    refer = None
+    refer_path = '.'
 
     def __repr__(self):
         return '%s(name=%r, refer=%r)' % (
@@ -220,14 +235,16 @@ class XsdKeyref(XsdIdentity):
     def _parse(self):
         super(XsdKeyref, self)._parse()
         try:
-            self.refer = prefixed_to_qname(self.elem.attrib['refer'], self.namespaces)
+            self.refer = self.schema.resolve_qname(self.elem.attrib['refer'])
         except KeyError:
-            self.parse_error("missing required attribute 'refer'", self.elem)
+            self.parse_error("missing required attribute 'refer'")
+        except ValueError as err:
+            self.parse_error(err)
 
     def parse_refer(self):
         if self.refer is None:
             return  # attribute or key/unique identity constraint missing
-        elif isinstance(self.refer, XsdIdentity):
+        elif isinstance(self.refer, (XsdKey, XsdUnique)):
             return  # referenced key/unique identity constraint already set
 
         try:
@@ -236,23 +253,26 @@ class XsdKeyref(XsdIdentity):
             try:
                 self.refer = self.maps.constraints[self.refer]
             except KeyError:
-                self.parse_error("refer=%r must reference to a key/unique identity "
-                                 "constraint." % self.elem.get('refer'))
-                self.refer = None
-            else:
-                refer_path = []
-                xsd_component = self.refer.parent
-                while xsd_component is not None:
-                    if xsd_component is self.parent:
-                        refer_path.reverse()
-                        self.refer_path = '/'.join(refer_path)
-                        break
-                    elif hasattr(xsd_component, 'tag'):
-                        refer_path.append(xsd_component.name)
-                    xsd_component = xsd_component.parent
-                else:
-                    self.parse_error("%r is not defined in a descendant element." % self.elem.get('refer'))
-                    self.refer = None
+                self.parse_error("key/unique identity constraint %r is missing" % self.refer)
+                return
+
+        if not isinstance(self.refer, (XsdKey, XsdUnique)):
+            self.parse_error("reference to a non key/unique identity constraint %r" % self.refer)
+        elif len(self.refer.fields) != len(self.fields):
+            self.parse_error("field cardinality mismatch between %r and %r" % (self, self.refer))
+        elif self.parent is not self.refer.parent:
+            refer_path = self.refer.parent.get_path(ancestor=self.parent)
+            if refer_path is None:
+                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref identity-constraints may be
+                # defined on domains distinct from the embedded domain of the identity-constraint they
+                # reference, or the domains may be the same but self-embedding at some depth. In either
+                # case the node table for the referenced identity-constraint needs to propagate upwards,
+                # with conflict resolution."
+                refer_path = self.parent.get_path(ancestor=self.refer.parent, reverse=True)
+                if refer_path is None:
+                    refer_path = self.parent.get_path(reverse=True) + '/' + self.refer.parent.get_path()
+
+            self.refer_path = refer_path
 
     def get_refer_values(self, elem):
         values = set()

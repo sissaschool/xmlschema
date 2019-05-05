@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An invalid usage of the default namespace: it isn't mapped to targetNamespace.
+  -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/xmlschema/namespaces"
+  elementFormDefault="qualified">
+
+  <xs:element name="root" type="rootType"/>
+
+  <xs:simpleType name="rootType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

@@ -75,9 +75,13 @@ class XMLSchemaTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.errors = []
         cls.xsd_types = cls.schema_class.builtin_types()
-        cls.content_pattern = re.compile(r'(xs:sequence|xs:choice|xs:all)')
+        cls.content_pattern = re.compile(r'(<|<xs:)(sequence|choice|all)')
 
-        cls.default_namespaces = {'ns': 'ns', 'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
+        cls.default_namespaces = {
+            'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+            'tns': 'http://xmlschema.test/ns',
+            'ns': 'ns',
+        }
 
         cls.vh_dir = cls.casepath('examples/vehicles')
         cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
@@ -179,7 +183,7 @@ class XMLSchemaTestCase(unittest.TestCase):
             self.check_namespace_prefixes(error_string)
 
         if not self.errors and expected:
-            raise ValueError("found no errors when %d expected." % expected)
+            raise ValueError("{!r}: found no errors when {} expected.".format(path, expected))
         elif len(self.errors) != expected:
             num_errors = len(self.errors)
             if num_errors == 1:
