@@ -545,6 +545,22 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
 
+    def test_open_content(self):
+        schema = self.check_schema("""
+        <element name="Book">
+          <complexType>
+            <openContent mode="interleave">
+                <any />
+            </openContent>
+            <sequence>
+              <element name="Title" type="string"/>
+              <element name="Author" type="string" />
+              <element name="Date" type="gYear"/>
+              <element name="ISBN" type="string"/>
+              <element name="Publisher" type="string"/>
+            </sequence>
+          </complexType>
+        </element>""")
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
     """

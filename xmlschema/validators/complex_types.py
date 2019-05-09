@@ -23,6 +23,7 @@ from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
+from .wildcards import XsdOpenContent
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -45,9 +46,11 @@ class XsdComplexType(XsdType, ValidationMixin):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
-    assertions = ()
     mixed = False
+    assertions = ()
+    open_content = None
+
+    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     _block = None
     _derivation = None
 
@@ -182,12 +185,12 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.base_type = base_type
 
         elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION != '1.0':
-            self.open_content = None
+            self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is elem[-1]:
                 self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
             else:
-                for child, index in enumerate(elem):
+                for index, child in enumerate(elem):
                     if content_elem is not child:
                         continue
                     elif elem[index + 1].tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
