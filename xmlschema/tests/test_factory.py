@@ -50,20 +50,22 @@ def get_test_args(args_line):
     return re.split(r'(?<!\\) ', args_line.strip())
 
 
+def xsd_version_number(value):
+    if value not in ('1.0', '1.1'):
+        msg = "%r is not an XSD version." % value
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
+def defuse_data(value):
+    if value not in ('always', 'remote', 'never'):
+        msg = "%r is not a valid value." % value
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def create_test_line_args_parser():
     """Creates an arguments parser for uncommented on not blank "testfiles" lines."""
-
-    def xsd_version_number(value):
-        if value not in ('1.0', '1.1'):
-            msg = "%r is not an XSD version." % value
-            raise argparse.ArgumentTypeError(msg)
-        return value
-
-    def defuse_data(value):
-        if value not in ('always', 'remote', 'never'):
-            msg = "%r is not a valid value." % value
-            raise argparse.ArgumentTypeError(msg)
-        return value
 
     parser = argparse.ArgumentParser(add_help=True)
     parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."

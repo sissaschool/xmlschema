@@ -126,13 +126,18 @@ values that match to the data types declared by the schema:
                  'title': None,
                  'year': '1925'}]}
 
+Roadmap
+=======
+
+* XSD 1.1
+
+Authors
+=======
+
+Davide Brunato and others who have contributed with code or with sample cases.
+
 License
 =======
 This software is distributed under the terms of the MIT License.
 See the file 'LICENSE' in the root directory of the present
 distribution, or http://opensource.org/licenses/MIT.
-
-Roadmap
-=======
-
-* XSD 1.1
