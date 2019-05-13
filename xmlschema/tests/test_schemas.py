@@ -458,6 +458,21 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 </sequence>
             </complexType>""")
 
+    def test_root_elements(self):
+        # Test issue #107 fix
+        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root1" type="root"/>
+                <xs:element name="root2" type="root"/>
+                <xs:complexType name="root">
+                    <xs:sequence>
+                        <xs:element name="elementWithNoType"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:schema>""")
+
+        self.assertEqual(set(schema.root_elements), {schema.elements['root1'], schema.elements['root2']})
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

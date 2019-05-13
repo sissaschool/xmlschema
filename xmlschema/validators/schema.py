@@ -517,7 +517,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             names = set(e.name for e in self.elements.values())
             for xsd_element in self.elements.values():
                 for e in xsd_element.iter():
-                    if e is xsd_element:
+                    if e is xsd_element or isinstance(e, XsdAnyElement):
                         continue
                     elif e.ref or e.is_global:
                         if e.name in names:
