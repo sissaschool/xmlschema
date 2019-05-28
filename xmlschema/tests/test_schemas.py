@@ -473,6 +473,12 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
         self.assertEqual(set(schema.root_elements), {schema.elements['root1'], schema.elements['root2']})
 
+    def test_is_restriction_method(self):
+        # Test issue #111 fix
+        schema = self.schema_class(source=os.path.join(self.test_cases_dir, 'issues/issue_111/issue_111.xsd'))
+        extended_header_def = schema.types['extendedHeaderDef']
+        self.assertTrue(extended_header_def.is_derived(schema.types['blockDef']))
+
 
 class TestXMLSchema11(TestXMLSchema10):
 

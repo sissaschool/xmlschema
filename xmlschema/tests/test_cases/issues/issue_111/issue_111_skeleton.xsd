@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:complexType name="blockDef" abstract="true">
+		<xs:attribute name="isAttr1" type="xs:boolean"/>
+	</xs:complexType>
+	<xs:complexType name="extendedHeaderDef">
+		<xs:complexContent>
+			<xs:extension base="blockDef"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="optionalBlock">
+		<xs:sequence>
+			<xs:element name="extendedHeader" type="extendedHeaderDef"/>
+		</xs:sequence>
+	</xs:complexType>
+</xs:schema>

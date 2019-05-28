@@ -319,6 +319,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             for obj in item.iter_components(xsd_classes):
                 yield obj
 
+        if self.redefine is not None and self.redefine not in self:
+            for obj in self.redefine.iter_components(xsd_classes):
+                yield obj
+
     def admitted_restriction(self, model):
         if self.model == model:
             return True
