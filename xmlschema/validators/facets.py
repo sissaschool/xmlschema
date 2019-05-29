@@ -13,7 +13,7 @@ This module contains declarations and classes for XML Schema constraint facets.
 """
 from __future__ import unicode_literals
 import re
-from elementpath import XPath2Parser, ElementPathSyntaxError, ElementPathTypeError, datatypes
+from elementpath import XPath2Parser, ElementPathError,  datatypes
 
 from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
@@ -665,7 +665,7 @@ class XsdAssertionFacet(XsdFacet):
 
         try:
             self.token = self.parser.parse(self.path)
-        except (ElementPathSyntaxError, ElementPathTypeError) as err:
+        except ElementPathError as err:
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
 
