@@ -64,7 +64,7 @@ class XMLSchemaTestCase(unittest.TestCase):
     etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
     etree_register_namespace(prefix='ns', uri="ns")
     SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
-    <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema" 
+    <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema"
         targetNamespace="ns" elementFormDefault="unqualified" version="{0}">
         {1}
     </schema>"""
@@ -131,7 +131,7 @@ class XMLSchemaTestCase(unittest.TestCase):
             root = etree_element('schema', attrib={
                 'xmlns:ns': "ns",
                 'xmlns': "http://www.w3.org/2001/XMLSchema",
-                'targetNamespace':  "ns",
+                'targetNamespace': "ns",
                 'elementFormDefault': "qualified",
                 'version': self.schema_class.XSD_VERSION,
             })

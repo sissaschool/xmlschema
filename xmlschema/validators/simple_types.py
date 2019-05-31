@@ -374,8 +374,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
 # simpleType's derived classes:
 class XsdAtomic(XsdSimpleType):
     """
-    Class for atomic simpleType definitions. An atomic definition has 
-    a base_type attribute that refers to primitive or derived atomic 
+    Class for atomic simpleType definitions. An atomic definition has
+    a base_type attribute that refers to primitive or derived atomic
     built-in type or another derived simpleType.
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
@@ -599,9 +599,9 @@ class XsdAtomicBuiltin(XsdAtomic):
 
 class XsdList(XsdSimpleType):
     """
-    Class for 'list' definitions. A list definition has an item_type attribute 
+    Class for 'list' definitions. A list definition has an item_type attribute
     that refers to an atomic or union simpleType definition.
-    
+
     <list
       id = ID
       itemType = QName
@@ -776,7 +776,7 @@ class XsdList(XsdSimpleType):
 
 class XsdUnion(XsdSimpleType):
     """
-    Class for 'union' definitions. A union definition has a member_types 
+    Class for 'union' definitions. A union definition has a member_types
     attribute that refers to a 'simpleType' definition.
 
     <union
@@ -1021,8 +1021,8 @@ class XsdAtomicRestriction(XsdAtomic):
       base = QName
       id = ID
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
       enumeration | whiteSpace | pattern)*))
     </restriction>
     """
@@ -1269,9 +1269,9 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
       base = QName
       id = ID
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
-      enumeration | whiteSpace | pattern | assertion | explicitTimezone | 
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
+      enumeration | whiteSpace | pattern | assertion | explicitTimezone |
       {any with namespace: ##other})*))
     </restriction>
     """

@@ -503,7 +503,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         if depth <= MAX_MODEL_DEPTH:
             for item in self:
                 if isinstance(item, XsdGroup):
-                    for e in item.iter_elements(depth+1):
+                    for e in item.iter_elements(depth + 1):
                         yield e
                 else:
                     yield item

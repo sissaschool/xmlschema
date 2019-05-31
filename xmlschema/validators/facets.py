@@ -13,7 +13,7 @@ This module contains declarations and classes for XML Schema constraint facets.
 """
 from __future__ import unicode_literals
 import re
-from elementpath import XPath2Parser, ElementPathError,  datatypes
+from elementpath import XPath2Parser, ElementPathError, datatypes
 
 from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \

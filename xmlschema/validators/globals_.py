@@ -9,8 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions and classes for managing namespaces's  
-XSD declarations/definitions.
+This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re

@@ -145,7 +145,7 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         if not content:
             return
-        
+
         map_qname = self.map_qname
         for name, value, xsd_child in content:
             try:
@@ -274,7 +274,7 @@ class XMLSchemaConverter(NamespaceMapper):
             elif name == ns_prefix:
                 self[''] = value
             elif name.startswith('%s:' % ns_prefix):
-                self[name[len(ns_prefix)+1:]] = value
+                self[name[len(ns_prefix) + 1:]] = value
             elif attr_prefix and name.startswith(attr_prefix):
                 name = name[len(attr_prefix):]
                 attributes[unmap_attribute_qname(name)] = value
@@ -314,6 +314,7 @@ class ParkerConverter(XMLSchemaConverter):
     XML Schema based converter class for Parker convention.
 
     ref: http://wiki.open311.org/JSON_and_XML_Conversion/#the-parker-convention
+    ref: https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention
 
     :param namespaces: Map from namespace prefixes to URI.
     :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
@@ -780,8 +781,8 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
-        elif data_len == content_index + 1 and (xsd_element.type.is_simple()
-                                                or xsd_element.type.has_simple_content()):
+        elif data_len == content_index + 1 and \
+                (xsd_element.type.is_simple() or xsd_element.type.has_simple_content()):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))

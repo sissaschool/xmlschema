@@ -204,8 +204,8 @@ class XsdIdentity(XsdComponent):
                 values[v] += 1
 
         for value, count in values.items():
-            if count > 1:
-                yield XMLSchemaValidationError(self, elem, reason="duplicated value %r." % value)
+            if value and count > 1:
+                yield XMLSchemaValidationError(self, elem, reason="duplicated value {!r}.".format(value))
 
 
 class XsdUnique(XsdIdentity):
@@ -300,6 +300,6 @@ class XsdKeyref(XsdIdentity):
                     continue
 
             if v not in refer_values:
-                reason = "Key %r with value %r not found for identity constraint of element %r." \
-                         % (self.prefixed_name, v, qname_to_prefixed(elem.tag, self.namespaces))
+                reason = "Key {!r} with value {!r} not found for identity constraint of element {!r}." \
+                    .format(self.prefixed_name, v, qname_to_prefixed(elem.tag, self.namespaces))
                 yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)

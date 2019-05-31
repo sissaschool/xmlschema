@@ -25,6 +25,9 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 class XsdWildcard(XsdComponent, ValidationMixin):
     names = {}
+    namespace = '##any'
+    not_namespace = ()
+    not_qname = ()
 
     def __init__(self, elem, schema, parent):
         if parent is None:
@@ -40,15 +43,15 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self)._parse()
 
         # Parse namespace and processContents
-        namespace = self.elem.get('namespace', '##any')
-        items = namespace.strip().split()
-        if len(items) == 1 and items[0] in ('##any', '##other', '##local', '##targetNamespace'):
-            self.namespace = namespace.strip()
-        elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in items):
+        namespace = self.elem.get('namespace', '##any').strip()
+        if namespace == '##any':
+            pass
+        elif namespace in {'##other', '##local', '##targetNamespace'}:
+            self.namespace = namespace
+        elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in namespace.split()):
             self.parse_error("wrong value %r for 'namespace' attribute." % namespace)
-            self.namespace = '##any'
         else:
-            self.namespace = namespace.strip()
+            self.namespace = namespace
 
         self.process_contents = self.elem.get('processContents', 'strict')
         if self.process_contents not in {'lax', 'skip', 'strict'}:
@@ -99,7 +102,15 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace):
-        if self.namespace == '##any' or namespace == XSI_NAMESPACE:
+        if self.not_namespace:
+            if '##local' in self.not_namespace and namespace == '':
+                return False
+            elif '##targetNamespace' in self.not_namespace and namespace == self.target_namespace:
+                return False
+            else:
+                return namespace not in self.not_namespace
+
+        elif self.namespace == '##any' or namespace == XSI_NAMESPACE:
             return True
         elif self.namespace == '##other':
             if namespace:
@@ -261,7 +272,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 class XsdAnyAttribute(XsdWildcard):
     """
     Class for XSD 1.0 'anyAttribute' wildcards.
-    
+
     <anyAttribute
       id = ID
       namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
@@ -351,54 +362,6 @@ class XsdAnyAttribute(XsdWildcard):
             yield self.validation_error(validation, reason, attribute, **kwargs)
 
 
-class Xsd11Wildcard(XsdWildcard):
-
-    def _parse(self):
-        super(Xsd11Wildcard, self)._parse()
-
-        # Parse notNamespace attribute
-        try:
-            not_namespace = self.elem.attrib['notNamespace'].strip()
-        except KeyError:
-            self.not_namespace = None
-        else:
-            if 'namespace' in self.elem.attrib:
-                self.not_namespace = None
-                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
-            elif not_namespace in ('##local', '##targetNamespace'):
-                self.not_namespace = not_namespace
-            else:
-                self.not_namespace = not_namespace.split()
-
-        # Parse notQName attribute
-        try:
-            not_qname = self.elem.attrib['notQName'].strip()
-        except KeyError:
-            self.not_qname = None
-        else:
-            if not_qname in ('##defined', '##definedSibling'):
-                self.not_qname = not_qname
-            else:
-                self.not_qname = not_qname.split()
-
-    def is_namespace_allowed(self, namespace):
-        if self.namespace == '##any' or namespace == XSI_NAMESPACE:
-            return True
-        elif self.namespace == '##other':
-            if namespace:
-                return namespace != self.target_namespace
-            else:
-                return False
-        else:
-            any_namespaces = self.namespace.split()
-            if '##local' in any_namespaces and namespace == '':
-                return True
-            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
-                return True
-            else:
-                return namespace in any_namespaces
-
-
 class Xsd11AnyElement(XsdAnyElement):
     """
     Class for XSD 1.1 'any' declarations.
@@ -415,7 +378,32 @@ class Xsd11AnyElement(XsdAnyElement):
       Content: (annotation?)
     </any>
     """
-    pass
+    def _parse(self):
+        super(Xsd11AnyElement, self)._parse()
+
+        # Parse notNamespace attribute
+        try:
+            not_namespace = self.elem.attrib['notNamespace'].strip().split()
+        except KeyError:
+            pass
+        else:
+            if 'namespace' in self.elem.attrib:
+                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
+            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
+                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
+            else:
+                self.not_namespace = not_namespace
+
+        # Parse notQName attribute
+        try:
+            not_qname = self.elem.attrib['notQName'].strip().split()
+        except KeyError:
+            pass
+        else:
+            if not all(not s.startswith('##') or s in {'##defined', '##definedSibling'} for s in not_qname):
+                self.parse_error("wrong value %r for 'notQName' attribute." % self.elem.attrib['notQName'])
+            else:
+                self.not_qname = not_qname
 
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
@@ -432,7 +420,32 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
       Content: (annotation?)
     </anyAttribute>
     """
-    pass
+    def _parse(self):
+        super(Xsd11AnyAttribute, self)._parse()
+
+        # Parse notNamespace attribute
+        try:
+            not_namespace = self.elem.attrib['notNamespace'].strip().split()
+        except KeyError:
+            pass
+        else:
+            if 'namespace' in self.elem.attrib:
+                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
+            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
+                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
+            else:
+                self.not_namespace = not_namespace
+
+        # Parse notQName attribute
+        try:
+            not_qname = self.elem.attrib['notQName'].strip().split()
+        except KeyError:
+            pass
+        else:
+            if not all(not s.startswith('##') or s == '##defined' for s in not_qname):
+                self.parse_error("wrong value %r for 'notQName' attribute." % self.elem.attrib['notQName'])
+            else:
+                self.not_qname = not_qname
 
 
 class XsdOpenContent(XsdComponent):
@@ -466,6 +479,10 @@ class XsdOpenContent(XsdComponent):
         child = self._parse_component(self.elem)
         if child is not None and child.tag == XSD_ANY:
             self.any_element = Xsd11AnyElement(child, self.schema, self)
+
+    @property
+    def built(self):
+        return True
 
 
 class XsdDefaultOpenContent(XsdOpenContent):

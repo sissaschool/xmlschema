@@ -24,7 +24,7 @@ from elementpath import datatypes
 
 import xmlschema
 from xmlschema import (
-    XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
+    XMLSchemaEncodeError, XMLSchemaValidationError, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import unicode_type, ordered_dict_class
@@ -56,11 +56,11 @@ _VEHICLES_DICT_ALT = [
     {'vh:cars': [
         {'vh:car': None, '@make': 'Porsche', '@model': '911'},
         {'vh:car': None, '@make': 'Porsche', '@model': '911'}
-        ]},
+    ]},
     {'vh:bikes': [
         {'vh:bike': None, '@make': 'Harley-Davidson', '@model': 'WL'},
         {'vh:bike': None, '@make': 'Yamaha', '@model': 'XS650'}
-        ]},
+    ]},
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'}
 ]
 
@@ -95,7 +95,7 @@ _COLLECTION_DICT = {
             'position': 2,
             'title': None,
             'year': '1925'
-        }]
+    }]
 }
 
 _COLLECTION_PARKER = {
@@ -165,7 +165,7 @@ _COLLECTION_BADGERFISH = {
                 'position': {'$': 2},
                 'title': {},
                 'year': {'$': '1925'}
-            }]
+        }]
     }
 }
 
@@ -624,7 +624,7 @@ class TestValidation11(TestValidation):
                                     "   <node node-id='2' colour='red'>beta</node>"
                                     "</tree>"))
         self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
-                                     "   <node>alpha</node>"  # Misses required attribute 
+                                     "   <node>alpha</node>"  # Misses required attribute
                                      "   <node node-id='2' colour='red'>beta</node>"
                                      "</tree>"))
 
@@ -912,6 +912,47 @@ class TestDecoding(XMLSchemaTestCase):
         self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
         self.check_decode(decimal_or_nan, 'NaN', u'NaN')
 
+    def test_default_values(self):
+        # From issue #108
+        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="root" default="default_value"/>
+              <xs:complexType name="root">
+                <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                    <xs:attribute name="attr" type="xs:string"/>
+                    <xs:attribute name="attrWithDefault" type="xs:string" default="default_value"/>
+                    <xs:attribute name="attrWithFixed" type="xs:string" fixed="fixed_value"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+              <xs:element name="simple_root" type="xs:string" default="default_value"/>
+            </xs:schema>"""
+
+        schema = self.schema_class(xsd_text)
+        self.assertEqual(schema.to_dict("<root>text</root>"),
+                         {'@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value',
+                          '$': 'text'})
+        self.assertEqual(schema.to_dict("<root/>"),
+                         {'@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value',
+                          '$': 'default_value'})
+        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>"""),
+                         {'$': 'text',
+                          '@attr': 'attr_value',
+                          '@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value'})
+
+        self.assertEqual(schema.to_dict("<root>text</root>", use_defaults=False),
+                         {'@attrWithFixed': 'fixed_value', '$': 'text'})
+        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>""", use_defaults=False),
+                         {'$': 'text', '@attr': 'attr_value', '@attrWithFixed': 'fixed_value'})
+        self.assertEqual(schema.to_dict("<root/>", use_defaults=False), {'@attrWithFixed': 'fixed_value'})
+
+        self.assertEqual(schema.to_dict("<simple_root/>"), 'default_value')
+        self.assertIsNone(schema.to_dict("<simple_root/>", use_defaults=False))
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
@@ -1112,7 +1153,7 @@ class TestEncoding(XMLSchemaTestCase):
         <complexType name="A_type" mixed="true">
             <simpleContent>
                 <extension base="string">
-                    <attribute name="a1" type="short" use="required"/>                 
+                    <attribute name="a1" type="short" use="required"/>
                     <attribute name="a2" type="negativeInteger"/>
                 </extension>
             </simpleContent>
@@ -1142,7 +1183,7 @@ class TestEncoding(XMLSchemaTestCase):
             <sequence>
                 <element name="B1" type="string"/>
                 <element name="B2" type="integer"/>
-                <element name="B3" type="boolean"/>                
+                <element name="B3" type="boolean"/>
             </sequence>
         </complexType>
         """)

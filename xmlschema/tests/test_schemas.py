@@ -55,11 +55,11 @@ class TestXMLSchema10(XMLSchemaTestCase):
         source = """
             <complexType name="targetType">
                 {0}
-            </complexType>        
+            </complexType>
             <complexType name="restrictedType">
                 <{1}Content>
-                    <restriction base="ns:targetType"> 
-                        {2}                    
+                    <restriction base="ns:targetType">
+                        {2}
                     </restriction>
                 </{1}Content>
             </complexType>
@@ -95,7 +95,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
                 <annotation/>
                 <list itemType="string"/>
             </simpleType>
-    
             <simpleType name="test_union">
                 <annotation/>
                 <union memberTypes="string integer boolean"/>
@@ -156,7 +155,6 @@ class TestXMLSchema10(XMLSchemaTestCase):
                     <totalDigits value="20" />
                 </restriction>
             </simpleType>
-    
             <simpleType name="ntype">
                 <restriction base="ns:dtype">
                     <totalDigits value="3" />
@@ -360,11 +358,9 @@ class TestXMLSchema10(XMLSchemaTestCase):
                     <maxInclusive value="100"/>
                 </restriction>
             </simpleType>
-            
             <simpleType name="Integer">
                 <union memberTypes="int ns:IntegerString"/>
             </simpleType>
-                        
             <simpleType name="IntegerString">
                 <restriction base="string">
                     <pattern value="-?[0-9]+(\.[0-9]+)?%"/>
@@ -421,7 +417,7 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_base_schemas(self):
         from xmlschema.validators.schema import XML_SCHEMA_FILE
-        schema = self.schema_class(XML_SCHEMA_FILE)
+        self.schema_class(XML_SCHEMA_FILE)
 
     def test_recursive_complex_type(self):
         schema = self.schema_class("""
@@ -567,7 +563,7 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
 
     def test_open_content(self):
-        schema = self.check_schema("""
+        self.check_schema("""
         <element name="Book">
           <complexType>
             <openContent mode="interleave">
@@ -582,6 +578,7 @@ class TestXMLSchema11(TestXMLSchema10):
             </sequence>
           </complexType>
         </element>""")
+
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
     """
@@ -695,7 +692,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
                 # Check with lxml.etree.XMLSchema class
             if check_with_lxml and lxml_etree is not None:
-                self.check_lxml_schema(xmlschema_time=time.time()-start_time)
+                self.check_lxml_schema(xmlschema_time=time.time() - start_time)
             self.check_errors(xsd_file, expected_errors)
 
     TestSchema.__name__ = TestSchema.__qualname__ = str('TestSchema{0:03}'.format(test_num))

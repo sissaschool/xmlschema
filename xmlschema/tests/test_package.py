@@ -121,11 +121,8 @@ class TestPackaging(unittest.TestCase):
         message = "\nFound a debug missing statement at line %d or file %r: %r"
         filename = None
         file_excluded = []
-        files = (
-            glob.glob(os.path.join(self.source_dir, '*.py')) +
+        files = glob.glob(os.path.join(self.source_dir, '*.py')) + \
             glob.glob(os.path.join(self.source_dir, 'validators/*.py'))
-        )
-
         for line in fileinput.input(files):
             if fileinput.isfirstline():
                 filename = fileinput.filename()

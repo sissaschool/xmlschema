@@ -40,7 +40,7 @@ XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
 class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
     """
     Class for XSD 1.0 'element' declarations.
-    
+
     <element
       abstract = boolean : false
       block = (#all | List of (extension | restriction | substitution))
@@ -486,9 +486,15 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 reason = "xsi:nil attribute must has a boolean value."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
-        if xsd_type.is_simple():
+        if not xsd_type.has_simple_content():
+            for result in xsd_type.content_type.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield self.validation_error(validation, result, elem, **kwargs)
+                else:
+                    content = result
+        else:
             if len(elem) and validation != 'skip':
-                reason = "a simpleType element can't has child elements."
+                reason = "a simple content element can't has child elements."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             text = elem.text
@@ -501,6 +507,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not text and use_defaults and self.default is not None:
                 text = self.default
 
+            if not xsd_type.is_simple():
+                xsd_type = xsd_type.content_type
+
             if text is None:
                 for result in xsd_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
@@ -511,25 +520,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         yield self.validation_error(validation, result, elem, **kwargs)
                     else:
                         value = result
-
-        elif xsd_type.has_simple_content():
-            if len(elem) and validation != 'skip':
-                reason = "a simple content element can't has child elements."
-                yield self.validation_error(validation, reason, elem, **kwargs)
-
-            if elem.text is not None:
-                text = elem.text or self.default if use_defaults else elem.text
-                for result in xsd_type.content_type.iter_decode(text, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield self.validation_error(validation, result, elem, **kwargs)
-                    else:
-                        value = result
-        else:
-            for result in xsd_type.content_type.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield self.validation_error(validation, result, elem, **kwargs)
-                else:
-                    content = result
 
         if isinstance(value, Decimal):
             try:
@@ -629,7 +619,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         text = result
         else:
             for result in xsd_type.content_type.iter_encode(
-                    element_data, validation, converter, level=level+1, **kwargs):
+                    element_data, validation, converter, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     errors.append(result)
                 elif result:

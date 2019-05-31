@@ -165,18 +165,18 @@ def iterparse_character_group(s, expand_ranges=False):
                     k = next(string_iter)
                     end_char = s[k]
                     if end_char == '\\' and (k < length - 1):
-                        if s[k+1] in r'-|.^?*+{}()[]':
+                        if s[k + 1] in r'-|.^?*+{}()[]':
                             k = next(string_iter)
                             end_char = s[k]
-                        elif s[k+1] in r'sSdDiIcCwWpP':
-                            msg = "bad character range '%s-\\%s' at position %d: %r" % (char, s[k+1], k-2, s)
+                        elif s[k + 1] in r'sSdDiIcCwWpP':
+                            msg = "bad character range '%s-\\%s' at position %d: %r" % (char, s[k + 1], k - 2, s)
                             raise XMLSchemaRegexError(msg)
                 except StopIteration:
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, s[-1], k-2, s)
+                    msg = "bad character range '%s-%s' at position %d: %r" % (char, s[-1], k - 2, s)
                     raise XMLSchemaRegexError(msg)
 
                 if ord(char) > ord(end_char):
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k-2, s)
+                    msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k - 2, s)
                     raise XMLSchemaRegexError(msg)
                 elif expand_ranges:
                     for cp in range(ord(char) + 1, ord(end_char) + 1):
@@ -194,7 +194,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
             escaped = on_range = False
             char = s[k]
-            if k >= length-1 or s[k+1] != '-':
+            if k >= length - 1 or s[k + 1] != '-':
                 yield ord(char)
         elif s[k] == '\\':
             if escaped:
@@ -209,7 +209,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 yield ord('\\')
             on_range = False
             char = s[k]
-            if k >= length-1 or s[k+1] != '-':
+            if k >= length - 1 or s[k + 1] != '-':
                 yield ord(char)
     if escaped:
         yield ord('\\')

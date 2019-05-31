@@ -33,7 +33,7 @@ SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
 class XsdComplexType(XsdType, ValidationMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
-    
+
     <complexType
       abstract = boolean : false
       block = (#all | List of (extension | restriction))
@@ -42,7 +42,7 @@ class XsdComplexType(XsdType, ValidationMixin):
       mixed = boolean : false
       name = NCName
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent | 
+      Content: (annotation?, (simpleContent | complexContent |
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
@@ -627,7 +627,7 @@ class Xsd11ComplexType(XsdComplexType):
       name = NCName
       defaultAttributesApply = boolean : true
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent | (openContent?, 
+      Content: (annotation?, (simpleContent | complexContent | (openContent?,
       (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """
