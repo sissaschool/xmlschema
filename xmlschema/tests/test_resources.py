@@ -355,11 +355,12 @@ class TestResources(XMLSchemaTestCase):
 
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_remote_schemas_loading(self):
-        # Tests with Dublin Core schemas that also use imports
-        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
-        self.assertTrue(isinstance(dc_schema, self.schema_class))
-        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
-        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
+        col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd")
+        self.assertTrue(isinstance(col_schema, self.schema_class))
+        vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                      "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd")
+        self.assertTrue(isinstance(vh_schema, self.schema_class))
 
     def test_schema_defuse(self):
         vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')
