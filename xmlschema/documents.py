@@ -41,7 +41,7 @@ def validate(xml_document, schema=None, cls=None, use_defaults=True, namespaces=
         schema = cls(schema, validation='strict', locations=locations)
     elif not isinstance(schema, XMLSchemaBase):
         schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
-    schema.validate(xml_document, use_defaults, namespaces)
+    schema.validate(xml_document, use_defaults=use_defaults, namespaces=namespaces)
 
 
 def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True,

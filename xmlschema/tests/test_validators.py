@@ -571,11 +571,11 @@ class TestValidation(XMLSchemaTestCase):
 
     def check_validity(self, xsd_component, data, expected, use_defaults=True):
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults)
+            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults=use_defaults)
         elif expected:
-            self.assertTrue(xsd_component.is_valid(data, use_defaults))
+            self.assertTrue(xsd_component.is_valid(data, use_defaults=use_defaults))
         else:
-            self.assertFalse(xsd_component.is_valid(data, use_defaults))
+            self.assertFalse(xsd_component.is_valid(data, use_defaults=use_defaults))
 
     @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):

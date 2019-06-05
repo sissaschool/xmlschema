@@ -11,6 +11,7 @@
 import os.path
 import re
 import codecs
+from elementpath import iter_select, Selector
 
 from .compat import (
     PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
@@ -223,7 +224,9 @@ class XMLResource(object):
     :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' or 'never'. \
     Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :param lazy: if set to `False` the source is fully loaded into and processed from memory. Default is `True`.
+    :param lazy: if set to `False` the source is fully loaded into and processed from memory. \
+    Default is `True` that means that only the root element of the source is loaded. This is \
+    ignored if *source* is an Element or an ElementTree.
     """
     def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         if base_url is not None and not isinstance(base_url, string_base_type):
@@ -270,6 +273,7 @@ class XMLResource(object):
     def _fromsource(self, source):
         url, lazy = None, self._lazy
         if is_etree_element(source):
+            self._lazy = False
             return source, None, None, None  # Source is already an Element --> nothing to load
         elif isinstance(source, string_base_type):
             _url, self._url = self._url, None
@@ -328,6 +332,7 @@ class XMLResource(object):
                 pass
             else:
                 if is_etree_element(root):
+                    self._lazy = False
                     return root, source, None, None
 
         if url is None:
@@ -497,15 +502,15 @@ class XMLResource(object):
                     self._text = f.read().encode('iso-8859-1')
 
     def is_lazy(self):
-        """Gets `True` the XML resource is lazy."""
+        """Returns `True` if the XML resource is lazy."""
         return self._lazy
 
     def is_loaded(self):
-        """Gets `True` the XML text of the data source is loaded."""
+        """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
     def iter(self, tag=None):
-        """XML resource tree elements lazy iterator."""
+        """XML resource tree iterator."""
         if not self._lazy:
             for elem in self._root.iter(tag):
                 yield elem
@@ -516,11 +521,58 @@ class XMLResource(object):
             resource = StringIO(self._text)
 
         try:
-            for event, elem in self.iterparse(resource, events=('start', 'end')):
-                if event == 'end':
-                    elem.clear()
-                elif tag is None or elem.tag == tag:
+            for event, elem in self.iterparse(resource, events=('end',)):
+                if tag is None or elem.tag == tag:
                     yield elem
+                elem.clear()
+        finally:
+            resource.close()
+
+    def iterfind(self, path=None, namespaces=None):
+        """XML resource tree iterfind selector."""
+        if not self._lazy:
+            if path is None:
+                yield self._root
+            else:
+                for e in iter_select(self._root, path, namespaces):
+                    yield e
+            return
+        elif self._url is not None:
+            resource = urlopen(self._url, timeout=self.timeout)
+        else:
+            self.load()
+            resource = StringIO(self._text)
+
+        try:
+            if path is None:
+                level = 0
+                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                    if event == "start":
+                        if level == 0:
+                            self._root.clear()
+                            self._root = elem
+                        level += 1
+                    else:
+                        level -= 1
+                        if level == 0:
+                            yield elem
+                            elem.clear()
+            else:
+                selector = Selector(path, namespaces)
+                level = 0
+                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                    if event == "start":
+                        if level == 0:
+                            self._root.clear()
+                            self._root = elem
+                        level += 1
+                    else:
+                        level -= 1
+                        if elem in selector.select(self._root):
+                            yield elem
+                            elem.clear()
+                        elif level == 0:
+                            elem.clear()
         finally:
             resource.close()
 
@@ -577,16 +629,22 @@ class XMLResource(object):
         if self._url is not None:
             resource = self.open()
             try:
-                for event, node in self.iterparse(resource, events=('start-ns',)):
-                    update_nsmap(*node)
+                for event, node in self.iterparse(resource, events=('start-ns', 'end')):
+                    if event == 'start-ns':
+                        update_nsmap(*node)
+                    else:
+                        node.clear()
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
             finally:
                 resource.close()
         elif isinstance(self._text, string_base_type):
             try:
-                for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
-                    update_nsmap(*node)
+                for event, node in self.iterparse(StringIO(self._text), events=('start-ns', 'end')):
+                    if event == 'start-ns':
+                        update_nsmap(*node)
+                    else:
+                        node.clear()
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
         else:

@@ -3,7 +3,7 @@
               xsi:schemaLocation="ns ./patterns.xsd">
     <ISBN>b0123456789012</ISBN>
     <ISBN>b01234567890123</ISBN> <!--Error-->
-    <ISBN>b0123456789012</ISBN><!--Undetected error: TODO: check identity constraints-->
+    <ISBN>b0123456789012</ISBN> <!--Error: duplicated key -->
     <ZipCode>55555</ZipCode>
     <ZipCode>I-55555</ZipCode> <!--Error-->
     <ZipCode>55555-5555</ZipCode>
@@ -11,7 +11,7 @@
     <BasicString>façade</BasicString> <!--Error-->
     <LatinString>façade</LatinString>
     <Prefix>cc</Prefix> <!--Error-->
-    <Prefix>cc: dd:@#!%</Prefix>
+    <Prefix>cc: dd:@#!%</Prefix> <!--Error-->
     <Timestamp>2015-12-31T13:32:26-02:00</Timestamp>
     <Timestamp>2015-12-31T13:32:26+02:00</Timestamp>
     <Digits>5067746900909</Digits>
