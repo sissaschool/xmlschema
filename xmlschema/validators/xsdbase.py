@@ -701,14 +701,14 @@ class ValidationMixin(object):
         if not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
         else:
-            if error.obj is None and obj is not None:
-                error.obj = obj
             if error.namespaces is None and namespaces is not None:
                 error.namespaces = namespaces
-            if error.elem is None and is_etree_element(obj):
-                error.elem = obj
             if error.source is None and source is not None:
                 error.source = source
+            if error.obj is None and obj is not None:
+                error.obj = obj
+            if error.elem is None and is_etree_element(obj):
+                error.elem = obj
 
         if validation == 'lax':
             return error
