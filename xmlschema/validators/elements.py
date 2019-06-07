@@ -433,19 +433,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for e in xsd_element.iter_substitutes():
                 yield e
 
-    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
+        converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, **kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(converter, **kwargs)
+
         level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
         value = content = attributes = None
@@ -487,7 +488,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         if not xsd_type.has_simple_content():
-            for result in xsd_type.content_type.iter_decode(elem, validation, converter, level=level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_decode(elem, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -547,17 +548,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for error in constraint(elem):
                     yield self.validation_error(validation, error, elem, **kwargs)
 
-    def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to an Element.
 
         :param obj: the data that has to be encoded.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the encoding process.
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
+        converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
             converter = self.schema.get_converter(converter, **kwargs)
         level = kwargs.pop('level', 0)
@@ -623,7 +624,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         text = result
         else:
             for result in xsd_type.content_type.iter_encode(
-                    element_data, validation, converter, level=level + 1, **kwargs):
+                    element_data, validation, level=level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     errors.append(result)
                 elif result:

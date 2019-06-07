@@ -524,13 +524,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         elements_order = {e: p for p, e in enumerate(self.iter_elements())}
         return sorted(elements, key=sorter)
 
-    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element content.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a list of 3-tuples (key, decoded data, decoder), eventually \
         preceded by a sequence of validation or decoding errors.
@@ -560,9 +559,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         model = ModelVisitor(self)
         errors = []
 
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, **kwargs)
-        default_namespace = converter.get('')
+        try:
+            default_namespace = kwargs['converter'].get('')
+        except (KeyError, AttributeError):
+            kwargs['converter'] = self.schema.get_converter(**kwargs)
+            default_namespace = kwargs['converter'].get('')
 
         for index, child in enumerate(elem):
             if callable(child.tag):
@@ -610,7 +611,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 # TODO: use a default decoder str-->str??
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, converter, **kwargs):
+            for result in xsd_element.iter_decode(child, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -637,13 +638,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
-    def iter_encode(self, element_data, validation='lax', converter=None, **kwargs):
+    def iter_encode(self, element_data, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to a list containing Element data.
 
         :param element_data: an ElementData instance with unencoded data.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: Keyword arguments for the encoding process.
         :return: Yields a couple with the text of the Element and a list of 3-tuples \
         (key, decoded data, decoder), eventually preceded by a sequence of validation \
@@ -653,8 +653,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             yield element_data.content
             return
 
+        converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, **kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(converter, **kwargs)
 
         errors = []
         text = None
@@ -664,6 +665,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         padding = '\n' + ' ' * indent * level
         default_namespace = converter.get('')
         losslessly = converter.losslessly
+
 
         model = ModelVisitor(self)
         cdata_index = 0
@@ -699,7 +701,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
                 if isinstance(xsd_element, XsdAnyElement):
                     value = get_qname(default_namespace, name), value
-                for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                for result in xsd_element.iter_encode(value, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
@@ -717,7 +719,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                             and xsd_element.is_matching(name, default_namespace):
                         if isinstance(xsd_element, XsdAnyElement):
                             value = get_qname(default_namespace, name), value
-                        for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                        for result in xsd_element.iter_encode(value, validation, **kwargs):
                             if isinstance(result, XMLSchemaValidationError):
                                 yield result
                             else:

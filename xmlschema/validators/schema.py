@@ -1058,10 +1058,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         xsd_element = self.get_element(schema_path or path or source.root.tag, namespaces)
         id_map = Counter()
 
+        if decimal_type is not None:
+            kwargs['decimal_type'] = decimal_type
+
         for elem in source.iterfind(path, namespaces):
             for obj in xsd_element.iter_decode(
-                    elem, validation, converter, source=source, namespaces=namespaces,
-                    use_defaults=use_defaults, decimal_type=decimal_type, datetime_types=datetime_types,
+                    elem, validation, converter=converter, source=source, namespaces=namespaces,
+                    use_defaults=use_defaults, datetime_types=datetime_types,
                     filler=filler, fill_missing=fill_missing, id_map=id_map, **kwargs):
                 yield obj
 
@@ -1077,7 +1080,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
         :param kwargs: Keyword arguments containing options for converter and encoding.
-        :return: Yields an Element instance, eventually preceded by a sequence of validation \
+        :return: yields an Element instance, eventually preceded by a sequence of validation \
         or encoding errors.
         """
         if not self.built:
@@ -1105,7 +1108,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 msg = "unable to select an element for decoding data, provide a valid 'path' argument."
             yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
         else:
-            for result in xsd_element.iter_encode(obj, validation, converter, **kwargs):
+            for result in xsd_element.iter_encode(obj, validation, converter=converter, **kwargs):
                 yield result
 
 

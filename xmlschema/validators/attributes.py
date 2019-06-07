@@ -581,6 +581,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
         use_defaults = kwargs.get('use_defaults', True)
+        filler = kwargs.get('filler')
         additional_attrs = {k: v for k, v in self.iter_predefined(use_defaults) if k not in attrs}
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
@@ -612,20 +613,20 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
+                elif result is None and filler is not None:
+                    result_list.append((name, filler(xsd_attribute)))
+                    break
                 else:
                     result_list.append((name, result))
                     break
 
         if kwargs.get('fill_missing') is True:
-            filler = kwargs.get('filler')
             if filler is None:
-                for k in self._attribute_group:
-                    if k is not None and k not in attrs:
-                        result_list.append((k, None))
+                result_list.extend((k, None) for k in self._attribute_group
+                                   if k is not None and k not in attrs)
             else:
-                for k, v in self._attribute_group.items():
-                    if k is not None and k not in attrs:
-                        result_list.append((k, filler(v)))
+                result_list.extend((k, filler(v)) for k, v in self._attribute_group.items()
+                                   if k is not None and k not in attrs)
 
         yield result_list
 

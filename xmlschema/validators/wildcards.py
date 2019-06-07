@@ -212,7 +212,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iter_substitutes():
         return iter(())
 
-    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -226,13 +226,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
-                for result in xsd_element.iter_decode(elem, validation, converter, **kwargs):
+                for result in xsd_element.iter_decode(elem, validation, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % elem.tag
             yield self.validation_error(validation, reason, elem, **kwargs)
 
-    def iter_encode(self, obj, validation='lax', converter=None, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -247,7 +247,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     reason = "element %r not found." % name
                     yield self.validation_error(validation, reason, **kwargs)
             else:
-                for result in xsd_element.iter_encode(value, validation, converter, **kwargs):
+                for result in xsd_element.iter_encode(value, validation, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % name
