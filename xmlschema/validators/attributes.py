@@ -616,6 +616,17 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     result_list.append((name, result))
                     break
 
+        if kwargs.get('fill_missing') is True:
+            filler = kwargs.get('filler')
+            if filler is None:
+                for k in self._attribute_group:
+                    if k is not None and k not in attrs:
+                        result_list.append((k, None))
+            else:
+                for k, v in self._attribute_group.items():
+                    if k is not None and k not in attrs:
+                        result_list.append((k, filler(v)))
+
         yield result_list
 
     def iter_encode(self, attrs, validation='lax', **kwargs):

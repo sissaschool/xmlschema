@@ -953,6 +953,30 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(schema.to_dict("<simple_root/>"), 'default_value')
         self.assertIsNone(schema.to_dict("<simple_root/>", use_defaults=False))
 
+    def test_decoding_errors(self):
+        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="rootType" />
+              <xs:complexType name="rootType">
+                <xs:simpleContent>
+                  <xs:extension base="xs:int">
+                    <xs:attribute name="int_attr" type="xs:int"/>
+                    <xs:attribute name="bool_attr" type="xs:boolean"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+              <xs:element name="simple_root" type="xs:float"/>
+            </xs:schema>"""
+
+        schema = self.schema_class(xsd_text)
+
+        self.assertIsNone(schema.to_dict("<simple_root>alpha</simple_root>", validation='lax')[0])
+        self.assertEqual(schema.to_dict("<root int_attr='10'>20</root>"), {'@int_attr': 10, '$': 20})
+        self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='lax')[0],
+                         {'@int_attr': None, '$': 20})
+        self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='skip'),
+                         {'@int_attr': 'wrong', '$': 20})
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

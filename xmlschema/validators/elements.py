@@ -514,10 +514,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for result in xsd_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
+                        if kwargs.get('filler') is not None:
+                            value = kwargs.get('filler')(self)
             else:
                 for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
+                    elif result is None and kwargs.get('filler') is not None:
+                        value = kwargs.get('filler')(self)
                     else:
                         value = result
 

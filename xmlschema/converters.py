@@ -21,7 +21,11 @@ from .namespaces import XSI_NAMESPACE
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
-"Namedtuple for Element data interchange between decoders and converters."
+"""
+Namedtuple for Element data interchange between decoders and converters. 
+The field *tag* is a string containing the Element tag, *text* can be `None` or 
+a string representing the Element's text. The field *content*..
+"""
 
 
 def raw_xml_encode(value):
@@ -48,6 +52,7 @@ class XMLSchemaConverter(NamespaceMapper):
     :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
+    :param preserve_root: if set to `True` the root element will be preserved.
     :param etree_element_class: the class that has to be used to create new XML elements, \
     if not provided uses the ElementTree's Element class.
     :param indent: number of spaces for XML indentation (default is 4).
@@ -61,7 +66,7 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar indent: indentation to use for rebuilding XML trees
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, text_key='$', attr_prefix='@',
-                 cdata_prefix=None, etree_element_class=None, indent=4, **kwargs):
+                 cdata_prefix=None, preserve_root=False, etree_element_class=None, indent=4, **kwargs):
         if etree_element_class is not None and etree_element_class not in (etree_element, lxml_etree_element):
             raise XMLSchemaValueError("%r: unsupported element.")
         self.dict = dict_class or dict
@@ -69,6 +74,7 @@ class XMLSchemaConverter(NamespaceMapper):
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
+        self.preserve_root = preserve_root
         self.etree_element_class = etree_element_class or etree_element
         self.indent = indent
         if etree_element_class is etree_element:
@@ -105,6 +111,7 @@ class XMLSchemaConverter(NamespaceMapper):
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
+            preserve_root=kwargs.get('preserve_root', self.preserve_root),
             etree_element_class=kwargs.get('etree_element_class'),
             indent=kwargs.get('indent', self.indent),
         )
@@ -326,9 +333,8 @@ class ParkerConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, preserve_root=preserve_root, **kwargs
         )
-        self.preserve_root = preserve_root
 
     def __setattr__(self, name, value):
         if name == 'text_key' and value != '' or name in ('attr_prefix', 'cdata_prefix') and value is not None:
@@ -338,16 +344,6 @@ class ParkerConverter(XMLSchemaConverter):
     @property
     def lossless(self):
         return False
-
-    def copy(self, **kwargs):
-        return type(self)(
-            namespaces=kwargs.get('namespaces', self._namespaces),
-            dict_class=kwargs.get('dict_class', self.dict),
-            list_class=kwargs.get('list_class', self.list),
-            preserve_root=kwargs.get('preserve_root', self.preserve_root),
-            etree_element_class=kwargs.get('etree_element_class'),
-            indent=kwargs.get('indent', self.indent),
-        )
 
     def element_decode(self, data, xsd_element, level=0):
         map_qname = self.map_qname
