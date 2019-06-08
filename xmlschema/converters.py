@@ -52,7 +52,8 @@ class XMLSchemaConverter(NamespaceMapper):
     :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
-    :param preserve_root: if set to `True` the root element will be preserved.
+    :param preserve_root: if set to `True` the root element is preserved, wrapped \
+    into a single-item dictionary.
     :param etree_element_class: the class that has to be used to create new XML elements, \
     if not provided uses the ElementTree's Element class.
     :param indent: number of spaces for XML indentation (default is 4).
@@ -242,6 +243,8 @@ class XMLSchemaConverter(NamespaceMapper):
                     else:
                         result_dict[name] = self.list([result, value])
 
+            if level == 0 and self.preserve_root:
+                return self.dict([(self.map_qname(data.tag), result_dict if result_dict else None)])
             return result_dict if result_dict else None
 
     def element_encode(self, obj, xsd_element, level=0):
@@ -253,7 +256,16 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
+        if level != 0:
+            tag = xsd_element.name
+        elif not self.preserve_root:
+            tag = xsd_element.qualified_name
+        else:
+            tag = xsd_element.qualified_name
+            try:
+                obj = obj.get(tag, xsd_element.local_name)
+            except (KeyError, AttributeError, TypeError):
+                pass
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
