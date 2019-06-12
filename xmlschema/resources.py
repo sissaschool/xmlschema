@@ -56,6 +56,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
 
     if base_url is not None:
         base_url = base_url.replace('\\', '/')
+        while base_url.startswith('//'):
+            base_url = base_url.replace('//', '/', 1)
+
         base_url_parts = urlsplit(base_url)
         base_url = add_trailing_slash(base_url_parts)
         if base_url_parts.scheme not in uses_relative:
@@ -66,14 +69,14 @@ def normalize_url(url, base_url=None, keep_relative=False):
         if base_url_parts.scheme not in ('', 'file'):
             url = urljoin(base_url, url)
         else:
-            # For file schemes uses the os.path.join instead of urljoin
             url_parts = urlsplit(url)
             if url_parts.scheme not in ('', 'file'):
                 url = urljoin(base_url, url)
             elif not url_parts.netloc or base_url_parts.netloc == url_parts.netloc:
-                # Join paths only if host parts (netloc) are equal
+                # Join paths only if host parts (netloc) are equal, using the os.path.join
+                # instead of urljoin for path normalization.
                 url = urlunsplit((
-                    '',
+                    base_url_parts.scheme,
                     base_url_parts.netloc,
                     os.path.normpath(os.path.join(base_url_parts.path, url_parts.path)),
                     url_parts.query,
@@ -81,6 +84,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 ))
 
     url = url.replace('\\', '/')
+    while url.startswith('//'):
+        url = url.replace('//', '/', 1)
+
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
         return 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....

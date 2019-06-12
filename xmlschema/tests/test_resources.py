@@ -93,6 +93,19 @@ class TestResources(XMLSchemaTestCase):
             normalize_url('xsd1.0/schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd'
         )
 
+        # Issue #116
+        self.assertEqual(
+            normalize_url('//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'),
+            'file:///anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
+        )
+        self.assertEqual(normalize_url('/root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'), 'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
+
     def test_fetch_resource(self):
         wrong_path = self.casepath('resources/dummy_file.txt')
         self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
