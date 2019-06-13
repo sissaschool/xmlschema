@@ -666,7 +666,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         default_namespace = converter.get('')
         losslessly = converter.losslessly
 
-
         model = ModelVisitor(self)
         cdata_index = 0
 

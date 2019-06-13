@@ -979,7 +979,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         path to a file or an URI of a resource or an opened file-like object or an Element \
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
-        data that have to be decoded.
+        data that have to be decoded. If not provided the XML root element is used.
         :param schema_path: an XPath expression to select the XSD element to use for decoding. \
         If not provided the *path* argument or the *source* root tag are used.
         :param use_defaults: Use schema's default values for filling missing data.
@@ -1019,9 +1019,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         path to a file or an URI of a resource or an opened file-like object or an Element \
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
-        data that have to be decoded.
+        data that have to be decoded. If not provided the XML root element is used.
         :param schema_path: an XPath expression to select the XSD element to use for decoding. \
-        If not provided the *path* argument or the *source* root tag are used.
+        If not provided the *path* argument or the *source* root tag are used to select the \
+        XSD element.
         :param validation: defines the XSD validation mode to use for decode, can be 'strict', \
         'lax' or 'skip'.
         :param process_namespaces: indicates whether to use namespace information in the decoding \
@@ -1046,7 +1047,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if not self.built:
             raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
         elif not isinstance(source, XMLResource):
-            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=True)
+            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
 
         if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
