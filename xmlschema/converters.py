@@ -22,8 +22,8 @@ from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 """
-Namedtuple for Element data interchange between decoders and converters. 
-The field *tag* is a string containing the Element tag, *text* can be `None` or 
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element tag, *text* can be `None` or
 a string representing the Element's text. The field *content*..
 """
 

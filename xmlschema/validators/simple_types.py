@@ -334,14 +334,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
         yield obj
 
@@ -354,14 +350,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield obj
@@ -532,8 +524,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         if self.patterns is not None:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         try:
@@ -545,8 +535,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         for validator in self.validators:
             for error in validator(result):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         yield result
@@ -585,8 +573,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         for validator in self.validators:
             for error in validator(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         try:
@@ -597,8 +583,6 @@ class XsdAtomicBuiltin(XsdAtomic):
         else:
             if self.patterns is not None:
                 for error in self.patterns(text):
-                    if validation == 'strict':
-                        raise error
                     yield error
             yield text
 
@@ -737,8 +721,6 @@ class XsdList(XsdSimpleType):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         items = []
@@ -752,8 +734,6 @@ class XsdList(XsdSimpleType):
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(items):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield items
@@ -765,8 +745,6 @@ class XsdList(XsdSimpleType):
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         encoded_items = []
@@ -904,8 +882,6 @@ class XsdUnion(XsdSimpleType):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         # Try the text as a whole
@@ -915,8 +891,6 @@ class XsdUnion(XsdSimpleType):
                     if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(result):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
 
                     yield result
@@ -951,8 +925,6 @@ class XsdUnion(XsdSimpleType):
 
             for validator in self.validators:
                 for error in validator(items):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield items if len(items) > 1 else items[0] if items else None
@@ -964,13 +936,9 @@ class XsdUnion(XsdSimpleType):
                     if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(obj):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
                         if self.patterns is not None:
                             for error in self.patterns(result):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
 
                     yield result
@@ -988,13 +956,9 @@ class XsdUnion(XsdSimpleType):
                             if validation != 'skip':
                                 for validator in self.validators:
                                     for error in validator(result):
-                                        if validation == 'strict':
-                                            raise error
                                         yield error
                                 if self.patterns is not None:
                                     for error in self.patterns(result):
-                                        if validation == 'strict':
-                                            raise error
                                         yield error
 
                             results.append(result)
@@ -1175,8 +1139,6 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         if self.base_type.is_simple():
@@ -1199,8 +1161,6 @@ class XsdAtomicRestriction(XsdAtomic):
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(result):
-                            if validation == 'strict':
-                                raise error
                             yield error
 
                 yield result
@@ -1214,14 +1174,10 @@ class XsdAtomicRestriction(XsdAtomic):
             if validation != 'skip':
                 for validator in self.validators:
                     for error in validator(obj):
-                        if validation == 'strict':
-                            raise error
                         yield error
 
             for result in self.base_type.iter_encode(obj, validation):
                 if isinstance(result, XMLSchemaValidationError):
-                    if validation == 'strict':
-                        raise result
                     yield result
                     if isinstance(result, XMLSchemaEncodeError):
                         yield unicode_type(obj) if validation == 'skip' else None
@@ -1246,8 +1202,6 @@ class XsdAtomicRestriction(XsdAtomic):
 
         for result in base_type.iter_encode(obj, validation):
             if isinstance(result, XMLSchemaValidationError):
-                if validation == 'strict':
-                    raise result
                 yield result
                 if isinstance(result, XMLSchemaEncodeError):
                     yield unicode_type(obj) if validation == 'skip' else None
@@ -1256,8 +1210,6 @@ class XsdAtomicRestriction(XsdAtomic):
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(obj):
-                            if validation == 'strict':
-                                raise error
                             yield error
 
                 yield result
