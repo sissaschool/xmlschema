@@ -409,7 +409,7 @@ You can also change the data decoding process providing the keyword argument *co
     {'vh:bikes': {'vh:bike': [None, None]}, 'vh:cars': {'vh:car': [None, None]}}
 
 
-See the :ref:`xml-schema-converters` section for more information about converters.
+See the :ref:`customize-output-data` section for more information about converters.
 
 
 Decoding to JSON

@@ -98,7 +98,7 @@ XSD globals maps API
     :members: copy, register, iter_schemas, iter_globals, clear, build
 
 
-.. _xml-schema-converters:
+.. _xml-schema-converters-api:
 
 XML Schema converters
 ---------------------

@@ -12,6 +12,7 @@ xmlschema Documentation
     intro
     usage
     api
+    converters
     testing
     notes
 
