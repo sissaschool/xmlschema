@@ -45,25 +45,17 @@ C_SHORTCUT_REPLACE = (
     "\u200D\u203F\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD"
 )
 
-s_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-S_SHORTCUT_SET = UnicodeSubset(s_SHORTCUT_SET.complement())
-
-d_SHORTCUT_SET = UnicodeSubset()
-d_SHORTCUT_SET._code_points = UNICODE_CATEGORIES['Nd'].code_points
-D_SHORTCUT_SET = UnicodeSubset(d_SHORTCUT_SET.complement())
-
-i_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
-I_SHORTCUT_SET = UnicodeSubset(i_SHORTCUT_SET.complement())
-
-c_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-C_SHORTCUT_SET = UnicodeSubset(c_SHORTCUT_SET.complement())
-
+S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
+D_SHORTCUT_SET = UnicodeSubset()
+D_SHORTCUT_SET._code_points = UNICODE_CATEGORIES['Nd'].code_points
+I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
+C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset()
 W_SHORTCUT_SET._code_points = sorted(
     UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points +
     UNICODE_CATEGORIES['C'].code_points, key=lambda x: x if isinstance(x, int) else x[0]
 )
-w_SHORTCUT_SET = UnicodeSubset(W_SHORTCUT_SET.complement())
+W_SHORTCUT_SET = UnicodeSubset(W_SHORTCUT_SET.complement())
 
 # Single and Multi character escapes
 CHARACTER_ESCAPES = {
@@ -87,15 +79,15 @@ CHARACTER_ESCAPES = {
     '\\\\': '\\',
 
     # Multi-character escapes
-    '\\s': s_SHORTCUT_SET,
+    '\\s': S_SHORTCUT_SET,
     '\\S': S_SHORTCUT_SET,
-    '\\d': d_SHORTCUT_SET,
+    '\\d': D_SHORTCUT_SET,
     '\\D': D_SHORTCUT_SET,
-    '\\i': i_SHORTCUT_SET,
+    '\\i': I_SHORTCUT_SET,
     '\\I': I_SHORTCUT_SET,
-    '\\c': c_SHORTCUT_SET,
+    '\\c': C_SHORTCUT_SET,
     '\\C': C_SHORTCUT_SET,
-    '\\w': w_SHORTCUT_SET,
+    '\\w': W_SHORTCUT_SET,
     '\\W': W_SHORTCUT_SET,
 }
 
