@@ -157,7 +157,10 @@ def fetch_schema_locations(source, locations=None, **resource_options):
     """
     base_url = resource_options.pop('base_url', None)
     timeout = resource_options.pop('timeout', 30)
-    resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+    if not isinstance(source, XMLResource):
+        resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+    else:
+        resource = source
 
     base_url = resource.base_url
     namespace = resource.namespace
@@ -540,7 +543,7 @@ class XMLResource(object):
             if path is None:
                 yield self._root
             else:
-                for e in iter_select(self._root, path, namespaces):
+                for e in iter_select(self._root, path, namespaces, strict=False):
                     yield e
             return
         elif self._url is not None:
@@ -564,7 +567,7 @@ class XMLResource(object):
                             yield elem
                             elem.clear()
             else:
-                selector = Selector(path, namespaces)
+                selector = Selector(path, namespaces, strict=False)
                 level = 0
                 for event, elem in self.iterparse(resource, events=('start', 'end')):
                     if event == "start":

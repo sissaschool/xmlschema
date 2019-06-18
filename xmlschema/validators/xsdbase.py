@@ -592,17 +592,15 @@ class ValidationMixin(object):
             else:
                 del result
 
-    def decode(self, source, *args, **kwargs):
+    def decode(self, source, validation='strict', **kwargs):
         """
-        Decodes XML data using the XSD schema/component.
+        Decodes XML data.
 
-        :param source: the source of XML data. For a schema can be a path to a file or an \
-        URI of a resource or an opened file-like object or an Element Tree \
-        instance or a string containing XML data. For other XSD components can be a string \
-        for an attribute or a simple type validators, or an ElementTree's Element otherwise.
-        :param args: arguments that maybe passed to :func:`XMLSchema.iter_decode`.
-        :param kwargs: keyword arguments from the ones included in the optional \
-        arguments of the :func:`XMLSchema.iter_decode`.
+        :param source: the XML data. Can be a string for an attribute or for a simple \
+        type components or a dictionary for an attribute group or an ElementTree's \
+        Element for other components.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: optional keyword arguments for the method :func:`iter_decode`.
         :return: a dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
          a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
@@ -611,75 +609,62 @@ class ValidationMixin(object):
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        validation = kwargs.pop('validation', 'strict')
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+
         errors = []
-
-        for result in self.iter_decode(source, validation=validation, *args, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                if validation == 'strict':
-                    raise result
-                elif validation == 'lax':
-                    errors.append(result)
+        for result in self.iter_decode(source, validation, **kwargs):
+            if not isinstance(result, XMLSchemaValidationError):
+                return (result, errors) if validation == 'lax' else result
+            elif validation == 'strict':
+                raise result
             elif validation == 'lax':
-                return result, errors
-            else:
-                return result
-    to_dict = decode
+                errors.append(result)
 
-    def encode(self, obj, *args, **kwargs):
+    def encode(self, obj, validation='strict', **kwargs):
         """
-        Encodes data to XML using the XSD schema/component.
+        Encodes data to XML.
 
         :param obj: the data to be encoded to XML.
-        :param args: arguments that maybe passed to :func:`XMLSchema.iter_encode`.
-        :param kwargs: keyword arguments from the ones included in the optional \
-        arguments of the :func:`XMLSchema.iter_encode`.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param kwargs: optional keyword arguments for the method :func:`iter_encode`.
         :return: An element tree's Element if the original data is a structured data or \
         a string if it's simple type datum. If *validation* argument is 'lax' a 2-items \
         tuple is returned, where the first item is the encoded object and the second item \
         is a list containing the errors.
-        :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by \
-        the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
+        :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the XSD \
+        component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        validation = kwargs.pop('validation', 'strict')
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+
         errors = []
-
-        for result in self.iter_encode(obj, validation=validation, *args, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                if validation == 'strict':
-                    raise result
-                elif validation == 'lax':
-                    errors.append(result)
+        for result in self.iter_encode(obj, validation=validation, **kwargs):
+            if not isinstance(result, XMLSchemaValidationError):
+                return (result, errors) if validation == 'lax' else result
+            elif validation == 'strict':
+                raise result
             elif validation == 'lax':
-                return result, errors
-            else:
-                return result
-    to_etree = encode
+                errors.append(result)
 
-    def iter_decode(self, source, validation='lax', *args, **kwargs):
+    def iter_decode(self, source, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an XML source to a Python object.
 
-        :param source: the XML data source. The argument type depends by implementation.
+        :param source: the XML data source.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
-        :param args: additional arguments for the decoder API.
         :param kwargs: keyword arguments for the decoder API.
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
         raise NotImplementedError
 
-    def iter_encode(self, obj, validation='lax', *args, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         """
         Creates an iterator for Encode data to an Element.
 
         :param obj: The data that has to be encoded.
         :param validation: The validation mode. Can be 'lax', 'strict' or 'skip'.
-        :param args: additional arguments for the encoder API.
         :param kwargs: keyword arguments for the encoder API.
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.

@@ -48,7 +48,7 @@ from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from .xsdbase import XsdValidator, ValidationMixin, XsdComponent
+from .xsdbase import XSD_VALIDATION_MODES, XsdValidator, ValidationMixin, XsdComponent
 from .notations import XsdNotation
 from .simple_types import xsd_simple_type_factory, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
@@ -979,29 +979,35 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         path to a file or an URI of a resource or an opened file-like object or an Element \
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
-        data that have to be decoded. If not provided the XML root element is used.
-        :param schema_path: an XPath expression to select the XSD element to use for decoding. \
-        If not provided the *path* argument or the *source* root tag are used.
+        data that have to be decoded. If not provided the XML root element is selected.
+        :param schema_path: an alternative XPath expression to select the XSD element to use for \
+        decoding. Useful if the root of the XML data doesn't match an XSD global element of the schema.
         :param use_defaults: Use schema's default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
         if not self.built:
             raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
-
-        if not isinstance(source, XMLResource):
+        elif not isinstance(source, XMLResource):
             source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+
+        if not schema_path and path:
+            schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         namespaces = {} if namespaces is None else namespaces.copy()
         namespaces.update(source.get_namespaces())
 
-        try:
-            xsd_element = self.get_element(schema_path or path or source.root.tag, namespaces)
-        except ValueError as err:
-            yield self.validation_error('lax', err, source.root)
-            return
-
         id_map = Counter()
         for elem in source.iterfind(path, namespaces):
+            if not schema_path:
+                xsd_element = self.find(elem.tag)
+            elif schema_path[-1] == '*':
+                xsd_element = self.find(schema_path[:-1] + elem.tag, namespaces)
+            else:
+                xsd_element = self.find(schema_path, namespaces)
+
+            if xsd_element is None:
+                yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
+
             for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
                                                   use_defaults=use_defaults, id_map=id_map):
                 if isinstance(result, XMLSchemaValidationError):
@@ -1019,10 +1025,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         path to a file or an URI of a resource or an opened file-like object or an Element \
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
-        data that have to be decoded. If not provided the XML root element is used.
-        :param schema_path: an XPath expression to select the XSD element to use for decoding. \
-        If not provided the *path* argument or the *source* root tag are used to select the \
-        XSD element.
+        data that have to be decoded. If not provided the XML root element is selected.
+        :param schema_path: an alternative XPath expression to select the XSD element to use for \
+        decoding. Useful if the root of the XML data doesn't match an XSD global element of the schema.
         :param validation: defines the XSD validation mode to use for decode, can be 'strict', \
         'lax' or 'skip'.
         :param process_namespaces: indicates whether to use namespace information in the decoding \
@@ -1046,8 +1051,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         if not self.built:
             raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+        elif validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         elif not isinstance(source, XMLResource):
             source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+
+        if not schema_path and path:
+            schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         if process_namespaces:
             namespaces = {} if namespaces is None else namespaces.copy()
@@ -1056,18 +1066,49 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             namespaces = {}
 
         converter = self.get_converter(converter, namespaces, **kwargs)
-        xsd_element = self.get_element(schema_path or path or source.root.tag, namespaces)
         id_map = Counter()
-
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
 
         for elem in source.iterfind(path, namespaces):
+            if not schema_path:
+                xsd_element = self.find(elem.tag)
+            elif schema_path[-1] == '*':
+                xsd_element = self.find(schema_path[:-1] + elem.tag, namespaces)
+            else:
+                xsd_element = self.find(schema_path, namespaces)
+
+            if xsd_element is None:
+                yield self.validation_error(validation, "%r is not an element of the schema" % elem, elem)
+
             for obj in xsd_element.iter_decode(
                     elem, validation, converter=converter, source=source, namespaces=namespaces,
                     use_defaults=use_defaults, datetime_types=datetime_types,
                     filler=filler, fill_missing=fill_missing, id_map=id_map, **kwargs):
                 yield obj
+
+    def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):
+        """
+        Decodes XML data. Takes the same arguments of the method :func:`XMLSchema.iter_decode`.
+
+        """
+        data, errors = [], []
+        for result in self.iter_decode(source, path, schema_path, validation, *args, **kwargs):
+            if not isinstance(result, XMLSchemaValidationError):
+                data.append(result)
+            elif validation == 'lax':
+                errors.append(result)
+            else:
+                raise result
+
+        if not data:
+            return (None, errors) if validation == 'lax' else None
+        elif len(data) == 1:
+            return (data[0], errors) if validation == 'lax' else data[0]
+        else:
+            return (data, errors) if validation == 'lax' else data
+
+    to_dict = decode
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
         """
@@ -1081,11 +1122,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
         :param kwargs: Keyword arguments containing options for converter and encoding.
-        :return: yields an Element instance, eventually preceded by a sequence of validation \
-        or encoding errors.
+        :return: yields an Element instance/s or validation/encoding errors.
         """
         if not self.built:
             raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+        elif validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         elif not self.elements:
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
@@ -1111,6 +1153,33 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             for result in xsd_element.iter_encode(obj, validation, converter=converter, **kwargs):
                 yield result
+
+    def encode(self, obj, path=None, validation='strict', *args, **kwargs):
+        """
+        Encodes to XML data. Takes the same arguments of the method :func:`XMLSchema.iter_encode`.
+
+        :return: An ElementTree's Element or a list containing a sequence of ElementTree's \
+        elements if the argument *path* matches multiple XML data chunks. If *validation* \
+        argument is 'lax' a 2-items tuple is returned, where the first item is the encoded \
+        object and the second item is a list containing the errors.
+        """
+        data, errors = [], []
+        for result in self.iter_encode(obj, path, validation, *args, **kwargs):
+            if not isinstance(result, XMLSchemaValidationError):
+                data.append(result)
+            elif validation == 'lax':
+                errors.append(result)
+            else:
+                raise result
+
+        if not data:
+            return (None, errors) if validation == 'lax' else None
+        elif len(data) == 1:
+            return (data[0], errors) if validation == 'lax' else data[0]
+        else:
+            return (data, errors) if validation == 'lax' else data
+
+    to_etree = encode
 
 
 class XMLSchema10(XMLSchemaBase):
