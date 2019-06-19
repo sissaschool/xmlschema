@@ -14,6 +14,7 @@ This module runs tests concerning resources.
 """
 import unittest
 import os
+import platform
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -46,10 +47,10 @@ class TestResources(XMLSchemaTestCase):
             expected = add_leading_slash(expected)
         expected_parts = urlsplit(expected, scheme='file')
 
-        self.assertEqual(url_parts.scheme, expected_parts.scheme, "Schemes differ.")
-        self.assertEqual(url_parts.netloc, expected_parts.netloc, "Netloc parts differ.")
-        self.assertEqual(url_parts.query, expected_parts.query, "Query parts differ.")
-        self.assertEqual(url_parts.fragment, expected_parts.fragment, "Fragment parts differ.")
+        self.assertEqual(url_parts.scheme, expected_parts.scheme, "%r: Schemes differ." % url)
+        self.assertEqual(url_parts.netloc, expected_parts.netloc, "%r: Netloc parts differ." % url)
+        self.assertEqual(url_parts.query, expected_parts.query, "%r: Query parts differ." % url)
+        self.assertEqual(url_parts.fragment, expected_parts.fragment, "%r: Fragment parts differ." % url)
 
         if is_windows_path(url_parts.path) or is_windows_path(expected_parts.path):
             path = PureWindowsPath(url_parts.path)
@@ -57,7 +58,7 @@ class TestResources(XMLSchemaTestCase):
         else:
             path = PurePath(url_parts.path)
             expected_path = PurePath(expected_parts.path)
-        self.assertEqual(path, expected_path, "Paths differ.")
+        self.assertEqual(path, expected_path, "%r: Paths differ." % url)
 
     def test_normalize_url(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
@@ -366,7 +367,8 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(len(locations), 2)
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
 
-    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
+    @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
+                     "Remote networks are not accessible or avoid SSL verification error on Windows.")
     def test_remote_schemas_loading(self):
         col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
                                        "xmlschema/tests/test_cases/examples/collection/collection.xsd")

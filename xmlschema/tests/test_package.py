@@ -187,6 +187,7 @@ class TestMemoryUsage(unittest.TestCase):
         self.assertLessEqual(lazy_validate_mem, validate_mem / 2)
 
 
+@unittest.skipIf(platform.system() == 'Windows', "Skip packaging test on Windows platform.")
 class TestPackaging(unittest.TestCase):
 
     @classmethod

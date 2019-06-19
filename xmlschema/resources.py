@@ -76,12 +76,16 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 # Join paths only if host parts (netloc) are equal, using the os.path.join
                 # instead of urljoin for path normalization.
                 url = urlunsplit((
-                    base_url_parts.scheme,
+                    '',
                     base_url_parts.netloc,
                     os.path.normpath(os.path.join(base_url_parts.path, url_parts.path)),
                     url_parts.query,
                     url_parts.fragment,
                 ))
+
+                # Add 'file' scheme if '//' prefix is added
+                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) and url.startswith('//'):
+                    url = 'file:' + url
 
     url = url.replace('\\', '/')
     while url.startswith('//'):
