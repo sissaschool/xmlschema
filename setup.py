@@ -38,7 +38,7 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.0.11',
+    version='1.0.12',
     install_requires=['elementpath~=1.1.7'],
     packages=['xmlschema'],
     include_package_data=True,
@@ -61,7 +61,6 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

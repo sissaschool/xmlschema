@@ -270,7 +270,7 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[2])
         self.check_advance_false(model)                 # <attribute> don't match
         self.assertEqual(model.element, group[3])
-        self.check_advance_false(model, [(group, 0, group[0][0][:]+group[1:])])  # <notation> don't match
+        self.check_advance_false(model, [(group, 0, group[0][0][:] + group[1:])])  # <notation> don't match
 
         model.restart()
         self.assertEqual(model.element, group[0][0][0])

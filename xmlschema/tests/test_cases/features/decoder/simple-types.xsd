@@ -117,6 +117,13 @@
         </xs:restriction>
     </xs:simpleType>
 
+    <xs:simpleType name="NameType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="255"/>
+        </xs:restriction>
+    </xs:simpleType>
+
     <!-- For testing issue #83 -->
     <xs:simpleType name="config">
         <xs:restriction base="xs:string">

@@ -24,7 +24,7 @@ from elementpath import datatypes
 
 import xmlschema
 from xmlschema import (
-    XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchema, ParkerConverter,
+    XMLSchemaEncodeError, XMLSchemaValidationError, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import unicode_type, ordered_dict_class
@@ -56,11 +56,11 @@ _VEHICLES_DICT_ALT = [
     {'vh:cars': [
         {'vh:car': None, '@make': 'Porsche', '@model': '911'},
         {'vh:car': None, '@make': 'Porsche', '@model': '911'}
-        ]},
+    ]},
     {'vh:bikes': [
         {'vh:bike': None, '@make': 'Harley-Davidson', '@model': 'WL'},
         {'vh:bike': None, '@make': 'Yamaha', '@model': 'XS650'}
-        ]},
+    ]},
     {'@xsi:schemaLocation': 'http://example.com/vehicles vehicles.xsd'}
 ]
 
@@ -95,7 +95,7 @@ _COLLECTION_DICT = {
             'position': 2,
             'title': None,
             'year': '1925'
-        }]
+    }]
 }
 
 _COLLECTION_PARKER = {
@@ -165,7 +165,7 @@ _COLLECTION_BADGERFISH = {
                 'position': {'$': 2},
                 'title': {},
                 'year': {'$': '1925'}
-            }]
+        }]
     }
 }
 
@@ -571,11 +571,11 @@ class TestValidation(XMLSchemaTestCase):
 
     def check_validity(self, xsd_component, data, expected, use_defaults=True):
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults)
+            self.assertRaises(expected, xsd_component.is_valid, data, use_defaults=use_defaults)
         elif expected:
-            self.assertTrue(xsd_component.is_valid(data, use_defaults))
+            self.assertTrue(xsd_component.is_valid(data, use_defaults=use_defaults))
         else:
-            self.assertFalse(xsd_component.is_valid(data, use_defaults))
+            self.assertFalse(xsd_component.is_valid(data, use_defaults=use_defaults))
 
     @unittest.skipIf(lxml_etree is None, "The lxml library is not available.")
     def test_lxml(self):
@@ -609,6 +609,18 @@ class TestValidation(XMLSchemaTestCase):
         vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
+    def _test_document_validate_api_lazy(self):
+        source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
+        source.root[0].clear()
+        source.root[1].clear()
+        xsd_element = self.col_schema.elements['collection']
+
+        for result in xsd_element.iter_decode(source.root, 'strict', namespaces=source.get_namespaces(),
+                                              source=source, _no_deep=None):
+            del result
+
+        self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
@@ -624,7 +636,7 @@ class TestValidation11(TestValidation):
                                     "   <node node-id='2' colour='red'>beta</node>"
                                     "</tree>"))
         self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
-                                     "   <node>alpha</node>"  # Misses required attribute 
+                                     "   <node>alpha</node>"  # Misses required attribute
                                      "   <node node-id='2' colour='red'>beta</node>"
                                      "</tree>"))
 
@@ -755,26 +767,36 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True),
                          datatypes.Duration.fromstring('P5Y3M2DT12H30.001S'))
 
-    def test_converters(self):
-        filename = self.col_xml_file
+    def test_default_converter(self):
+        self.assertEqual(self.col_schema.to_dict(self.col_xml_file), _COLLECTION_DICT)
 
+        default_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.XMLSchemaConverter)
+        self.assertEqual(default_dict, _COLLECTION_DICT)
+
+        default_dict_root = self.col_schema.to_dict(self.col_xml_file, preserve_root=True)
+        self.assertEqual(default_dict_root, {'col:collection': _COLLECTION_DICT})
+
+    def test_parker_converter(self):
         parker_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.ParkerConverter)
-        self.assertTrue(parker_dict == _COLLECTION_PARKER)
+        self.assertEqual(parker_dict, _COLLECTION_PARKER)
 
         parker_dict_root = self.col_schema.to_dict(
-            filename, converter=xmlschema.ParkerConverter(preserve_root=True), decimal_type=float)
-        self.assertTrue(parker_dict_root == _COLLECTION_PARKER_ROOT)
+            self.col_xml_file, converter=xmlschema.ParkerConverter(preserve_root=True), decimal_type=float)
+        self.assertEqual(parker_dict_root, _COLLECTION_PARKER_ROOT)
 
+    def test_badgerfish_converter(self):
         badgerfish_dict = self.col_schema.to_dict(
-            filename, converter=xmlschema.BadgerFishConverter, decimal_type=float)
-        self.assertTrue(badgerfish_dict == _COLLECTION_BADGERFISH)
+            self.col_xml_file, converter=xmlschema.BadgerFishConverter, decimal_type=float)
+        self.assertEqual(badgerfish_dict, _COLLECTION_BADGERFISH)
 
+    def test_abdera_converter(self):
         abdera_dict = self.col_schema.to_dict(
-            filename, converter=xmlschema.AbderaConverter, decimal_type=float, dict_class=dict)
-        self.assertTrue(abdera_dict == _COLLECTION_ABDERA)
+            self.col_xml_file, converter=xmlschema.AbderaConverter, decimal_type=float, dict_class=dict)
+        self.assertEqual(abdera_dict, _COLLECTION_ABDERA)
 
-        json_ml_dict = self.col_schema.to_dict(filename, converter=xmlschema.JsonMLConverter)
-        self.assertTrue(json_ml_dict == _COLLECTION_JSON_ML)
+    def test_json_ml_converter(self):
+        json_ml_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.JsonMLConverter)
+        self.assertEqual(json_ml_dict, _COLLECTION_JSON_ML)
 
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with
@@ -821,6 +843,8 @@ class TestDecoding(XMLSchemaTestCase):
     def test_string_facets(self):
         none_empty_string_type = self.st_schema.types['none_empty_string']
         self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+        name_type = self.st_schema.types['NameType']
+        self.check_decode(name_type, '', XMLSchemaValidationError)
 
     def test_binary_data_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
@@ -911,6 +935,87 @@ class TestDecoding(XMLSchemaTestCase):
         decimal_or_nan = self.st_schema.types['myType']
         self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
         self.check_decode(decimal_or_nan, 'NaN', u'NaN')
+
+    def test_default_values(self):
+        # From issue #108
+        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="root" default="default_value"/>
+              <xs:complexType name="root">
+                <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                    <xs:attribute name="attr" type="xs:string"/>
+                    <xs:attribute name="attrWithDefault" type="xs:string" default="default_value"/>
+                    <xs:attribute name="attrWithFixed" type="xs:string" fixed="fixed_value"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+              <xs:element name="simple_root" type="xs:string" default="default_value"/>
+            </xs:schema>"""
+
+        schema = self.schema_class(xsd_text)
+        self.assertEqual(schema.to_dict("<root>text</root>"),
+                         {'@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value',
+                          '$': 'text'})
+        self.assertEqual(schema.to_dict("<root/>"),
+                         {'@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value',
+                          '$': 'default_value'})
+        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>"""),
+                         {'$': 'text',
+                          '@attr': 'attr_value',
+                          '@attrWithDefault': 'default_value',
+                          '@attrWithFixed': 'fixed_value'})
+
+        self.assertEqual(schema.to_dict("<root>text</root>", use_defaults=False),
+                         {'@attrWithFixed': 'fixed_value', '$': 'text'})
+        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>""", use_defaults=False),
+                         {'$': 'text', '@attr': 'attr_value', '@attrWithFixed': 'fixed_value'})
+        self.assertEqual(schema.to_dict("<root/>", use_defaults=False), {'@attrWithFixed': 'fixed_value'})
+
+        self.assertEqual(schema.to_dict("<simple_root/>"), 'default_value')
+        self.assertIsNone(schema.to_dict("<simple_root/>", use_defaults=False))
+
+    def test_validation_errors(self):
+        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="rootType" />
+              <xs:complexType name="rootType">
+                <xs:simpleContent>
+                  <xs:extension base="xs:int">
+                    <xs:attribute name="int_attr" type="xs:int"/>
+                    <xs:attribute name="bool_attr" type="xs:boolean"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+              <xs:element name="simple_root" type="xs:float"/>
+            </xs:schema>"""
+
+        schema = self.schema_class(xsd_text)
+
+        self.assertIsNone(schema.to_dict("<simple_root>alpha</simple_root>", validation='lax')[0])
+        self.assertEqual(schema.to_dict("<root int_attr='10'>20</root>"), {'@int_attr': 10, '$': 20})
+        self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='lax')[0],
+                         {'@int_attr': None, '$': 20})
+        self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='skip'),
+                         {'@int_attr': 'wrong', '$': 20})
+
+    def test_error_message(self):
+        schema = self.schema_class(os.path.join(self.test_cases_dir, 'issues/issue_115/Rotation.xsd'))
+        rotation_data = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
+                        'pitch="0.0" roll="0.0" yaw="-1.0" />'
+
+        message_lines = []
+        try:
+            schema.decode(rotation_data)
+        except Exception as err:
+            message_lines = unicode_type(err).split('\n')
+
+        self.assertTrue(message_lines, msg="Empty error message!")
+        self.assertEqual(message_lines[-6], 'Instance:')
+        self.assertEqual(message_lines[-4].strip(), rotation_data)
+        self.assertEqual(message_lines[-2], 'Path: /tns:rotation')
 
 
 class TestDecoding11(TestDecoding):
@@ -1112,7 +1217,7 @@ class TestEncoding(XMLSchemaTestCase):
         <complexType name="A_type" mixed="true">
             <simpleContent>
                 <extension base="string">
-                    <attribute name="a1" type="short" use="required"/>                 
+                    <attribute name="a1" type="short" use="required"/>
                     <attribute name="a2" type="negativeInteger"/>
                 </extension>
             </simpleContent>
@@ -1142,7 +1247,7 @@ class TestEncoding(XMLSchemaTestCase):
             <sequence>
                 <element name="B1" type="string"/>
                 <element name="B2" type="integer"/>
-                <element name="B3" type="boolean"/>                
+                <element name="B3" type="boolean"/>
             </sequence>
         </complexType>
         """)
@@ -1205,6 +1310,28 @@ class TestEncoding(XMLSchemaTestCase):
             etree_tostring(xs.encode(gyear_month)),
             '<ns:td xmlns:ns="ns">2000-12</ns:td>'
         )
+
+    def test_error_message(self):
+        schema = self.schema_class(os.path.join(self.test_cases_dir, 'issues/issue_115/Rotation.xsd'))
+        rotation_data = {
+            "@roll": 0.0,
+            "@pitch": 0.0,
+            "@yaw": -1.0  # <----- invalid value, must be between 0 and 360
+        }
+
+        message_lines = []
+        try:
+            schema.encode(rotation_data)
+        except Exception as err:
+            message_lines = unicode_type(err).split('\n')
+
+        self.assertTrue(message_lines, msg="Empty error message!")
+        self.assertEqual(message_lines[-4], 'Instance:')
+        if sys.version_info < (3, 8):
+            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" pitch="0.0" roll="0.0" yaw="-1.0" />'
+        else:
+            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" roll="0.0" pitch="0.0" yaw="-1.0" />'
+        self.assertEqual(message_lines[-2].strip(), text)
 
 
 class TestEncoding11(TestEncoding):

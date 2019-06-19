@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:redefine schemaLocation="issue_111_skeleton.xsd">
+		<xs:complexType name="extendedHeaderDef">
+			<xs:complexContent>
+				<xs:extension base="extendedHeaderDef">
+					<xs:attribute name="isAttr2" type="xs:boolean"/>
+				</xs:extension>
+			</xs:complexContent>
+		</xs:complexType>
+	</xs:redefine>
+	<xs:element name="rootElement">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="block1" type="blockDef"/>
+				<xs:element name="optional" type="optionalBlock"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

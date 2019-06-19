@@ -155,7 +155,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             elif not item.is_pointless(parent=self):
                 yield item
             else:
-                for obj in item.iter_model(depth+1):
+                for obj in item.iter_model(depth + 1):
                     yield obj
 
     def iter_elements(self, depth=0):
@@ -169,7 +169,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if isinstance(item, ModelGroup):
-                for e in item.iter_elements(depth+1):
+                for e in item.iter_elements(depth + 1):
                     yield e
             else:
                 yield item
@@ -178,7 +178,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         if depth <= MAX_MODEL_DEPTH:
             for item in self:
                 if isinstance(item, ModelGroup):
-                    for e in item.iter_subelements(depth+1):
+                    for e in item.iter_subelements(depth + 1):
                         yield e
                 else:
                     yield item
@@ -269,8 +269,8 @@ def distinguishable_paths(path1, path2):
 
     if path1[depth].model != 'sequence':
         return before1 and before2 or \
-               (before1 and (univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1)) or \
-               (before2 and (univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1))
+            (before1 and (univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1)) or \
+            (before2 and (univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1))
     elif path1[depth].max_occurs == 1:
         return before2 or (before1 or univocal1) and (e1.is_univocal() or after1)
     else:

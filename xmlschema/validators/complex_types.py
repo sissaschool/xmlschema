@@ -23,6 +23,7 @@ from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
+from .wildcards import XsdOpenContent
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
@@ -32,7 +33,7 @@ SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
 class XsdComplexType(XsdType, ValidationMixin):
     """
     Class for XSD 1.0 'complexType' definitions.
-    
+
     <complexType
       abstract = boolean : false
       block = (#all | List of (extension | restriction))
@@ -41,13 +42,15 @@ class XsdComplexType(XsdType, ValidationMixin):
       mixed = boolean : false
       name = NCName
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent | 
+      Content: (annotation?, (simpleContent | complexContent |
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
-    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
-    assertions = ()
     mixed = False
+    assertions = ()
+    open_content = None
+
+    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     _block = None
     _derivation = None
 
@@ -178,16 +181,19 @@ class XsdComplexType(XsdType, ValidationMixin):
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
                 self.parse_error("unexpected tag %r after complexContent declaration:" % elem[k].tag, elem)
-            if self.redefine or base_type is not self:
+
+            if base_type is not self:
                 self.base_type = base_type
+            elif self.redefine:
+                self.base_type = self.redefine
 
         elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION != '1.0':
-            self.open_content = None
+            self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is elem[-1]:
                 self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
             else:
-                for child, index in enumerate(elem):
+                for index, child in enumerate(elem):
                     if content_elem is not child:
                         continue
                     elif elem[index + 1].tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
@@ -487,6 +493,9 @@ class XsdComplexType(XsdType, ValidationMixin):
         if self.content_type.parent is not None:
             for obj in self.content_type.iter_components(xsd_classes):
                 yield obj
+        if getattr(self.base_type, 'parent', None) is not None:
+            for obj in self.base_type.iter_components(xsd_classes):
+                yield obj
 
         for obj in self.assertions:
             if xsd_classes is None or isinstance(obj, xsd_classes):
@@ -520,13 +529,12 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             raise XMLSchemaDecodeError(self, data, "cannot decode %r data with %r" % (data, self))
 
-    def iter_decode(self, elem, validation='lax', converter=None, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Decode an Element instance.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a 3-tuple (simple content, complex content, attributes) containing \
         the decoded parts, eventually preceded by a sequence of validation or decoding errors.
@@ -560,19 +568,18 @@ class XsdComplexType(XsdType, ValidationMixin):
             else:
                 yield None, None, attributes
         else:
-            for result in self.content_type.iter_decode(elem, validation, converter, **kwargs):
+            for result in self.content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
                     yield None, result, attributes
 
-    def iter_encode(self, element_data, validation='lax', converter=None, **kwargs):
+    def iter_encode(self, element_data, validation='lax', **kwargs):
         """
         Encode an element data instance.
 
         :param element_data: an ElementData instance with unencoded data.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance.
         :param kwargs: keyword arguments for the encoding process.
         :return: yields a 3-tuple (text, content, attributes) containing the encoded parts, \
         eventually preceded by a sequence of validation or decoding errors.
@@ -596,7 +603,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                     else:
                         yield result, element_data.content, attributes
         else:
-            for result in self.content_type.iter_encode(element_data, validation, converter, **kwargs):
+            for result in self.content_type.iter_encode(element_data, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 elif result:
@@ -618,7 +625,7 @@ class Xsd11ComplexType(XsdComplexType):
       name = NCName
       defaultAttributesApply = boolean : true
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent | (openContent?, 
+      Content: (annotation?, (simpleContent | complexContent | (openContent?,
       (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """

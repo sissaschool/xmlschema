@@ -26,7 +26,7 @@ from .validators import (
     XMLSchemaBase, XMLSchema, XMLSchema10
 )
 
-__version__ = '1.0.11'
+__version__ = '1.0.12'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2019, SISSA"
@@ -37,7 +37,7 @@ __status__ = "Production/Stable"
 # API deprecation warnings
 def XMLSchema_v1_0(*args, **kwargs):
     import warnings
-    warnings.warn("XMLSchema_v1_0 class name has been replaced by XMLSchema10 " 
+    warnings.warn("XMLSchema_v1_0 class name has been replaced by XMLSchema10 "
                   "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
     return XMLSchema10(*args, **kwargs)
 

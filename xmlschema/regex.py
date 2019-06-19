@@ -49,10 +49,8 @@ S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
 D_SHORTCUT_SET = UnicodeSubset('0-9')
 I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
 C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-W_SHORTCUT_SET = UnicodeSubset()
-W_SHORTCUT_SET._code_points = sorted(
-    UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points +
-    UNICODE_CATEGORIES['C'].code_points, key=lambda x: x if isinstance(x, int) else x[0]
+W_SHORTCUT_SET = UnicodeSubset.fromlist(
+    UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points + UNICODE_CATEGORIES['C'].code_points
 )
 
 # Single and Multi character escapes
@@ -312,9 +310,9 @@ def get_python_regex(xml_regex):
         elif ch in ('?', '+', '*'):
             if pos == 0:
                 raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
-            elif pos < xml_regex_len - 1 and xml_regex[pos+1] in ('?', '+', '*', '{'):
+            elif pos < xml_regex_len - 1 and xml_regex[pos + 1] in ('?', '+', '*', '{'):
                 raise XMLSchemaRegexError(
-                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos+1], pos+1, xml_regex)
+                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos + 1], pos + 1, xml_regex)
                 )
             regex.append(ch)
         elif ch == '\\':

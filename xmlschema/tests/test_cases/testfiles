@@ -70,7 +70,7 @@ features/namespaces/include-case5.xsd
 features/namespaces/include-case6.xsd --errors=1
 
 features/patterns/patterns.xsd
-features/patterns/patterns.xml --errors=5
+features/patterns/patterns.xml --errors=6
 
 # Cases from resolved issues
 issues/issue_008/issue_008.xsd

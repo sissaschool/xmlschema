@@ -1,6 +1,7 @@
 # Requirements for setup a development environment for the xmlschema package.
 setuptools
 tox
+coverage
 elementpath~=1.1.7
 lxml
 memory_profiler

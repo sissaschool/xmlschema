@@ -93,6 +93,19 @@ class TestResources(XMLSchemaTestCase):
             normalize_url('xsd1.0/schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd'
         )
 
+        # Issue #116
+        self.assertEqual(
+            normalize_url('//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'),
+            'file:///anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
+        )
+        self.assertEqual(normalize_url('/root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+        self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
+
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'), 'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
+
     def test_fetch_resource(self):
         wrong_path = self.casepath('resources/dummy_file.txt')
         self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
@@ -355,11 +368,12 @@ class TestResources(XMLSchemaTestCase):
 
     @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_remote_schemas_loading(self):
-        # Tests with Dublin Core schemas that also use imports
-        dc_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dc.xsd")
-        self.assertTrue(isinstance(dc_schema, self.schema_class))
-        dcterms_schema = self.schema_class("http://dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd")
-        self.assertTrue(isinstance(dcterms_schema, self.schema_class))
+        col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd")
+        self.assertTrue(isinstance(col_schema, self.schema_class))
+        vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                      "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd")
+        self.assertTrue(isinstance(vh_schema, self.schema_class))
 
     def test_schema_defuse(self):
         vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')

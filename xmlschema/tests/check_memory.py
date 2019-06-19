@@ -10,22 +10,131 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Check xmlschema memory usage.
+Check xmlschema package import memory usage.
 
 Refs:
     https://pypi.org/project/memory_profiler/
     https://github.com/brunato/xmlschema/issues/32
 """
-import os.path
+import argparse
 from memory_profiler import profile
 
 
+def test_choice_type(value):
+    if value not in (str(v) for v in range(1, 9)):
+        msg = "%r must be an integer between [1 ... 8]." % value
+        raise argparse.ArgumentTypeError(msg)
+    return int(value)
+
+
+parser = argparse.ArgumentParser(add_help=True)
+parser.usage = """%(prog)s TEST_NUM [XML_FILE]
+
+Run memory tests:
+  1) Package import or schema build
+  2) Iterate XML file with parse
+  3) Iterate XML file with full iterparse
+  4) Iterate XML file with emptied iterparse
+  5) Decode XML file with xmlschema
+  6) Decode XML file with xmlschema in lazy mode
+  7) Validate XML file with xmlschema
+  8) Validate XML file with xmlschema in lazy mode
+
+"""
+
+parser.add_argument('test_num', metavar="TEST_NUM", type=test_choice_type, help="Test number to run")
+parser.add_argument('xml_file', metavar='XML_FILE', nargs='?', help='Input XML file')
+args = parser.parse_args()
+
+
 @profile
-def my_func(xsd_file):
+def import_package():
     import xmlschema
-    xs = xmlschema.XMLSchema(xsd_file)
+    return xmlschema
+
+
+@profile
+def build_schema(source):
+    xs = xmlschema.XMLSchema(source)
     return xs
 
 
+@profile
+def etree_parse(source):
+    xt = ElementTree.parse(source)
+    for _ in xt.iter():
+        pass
+
+
+@profile
+def etree_full_iterparse(source):
+    context = ElementTree.iterparse(source, events=('start', 'end'))
+    for event, elem in context:
+        if event == 'start':
+            pass
+
+
+@profile
+def etree_emptied_iterparse(source):
+    context = ElementTree.iterparse(source, events=('start', 'end'))
+    for event, elem in context:
+        if event == 'end':
+            elem.clear()
+
+
+@profile
+def decode(source):
+    decoder = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
+    return decoder.to_dict(source)
+
+
+@profile
+def lazy_decode(source):
+    decoder = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
+    for result in decoder.to_dict(xmlschema.XMLResource(source, lazy=True), path='*'):
+        del result
+
+
+@profile
+def validate(source):
+    validator = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
+    return validator.validate(source)
+
+
+@profile
+def lazy_validate(source):
+    if source.endswith('.xsd'):
+        validator, path = xmlschema.XMLSchema.meta_schema, '*'
+    else:
+        validator, path = xmlschema, None
+    return validator.validate(xmlschema.XMLResource(source, lazy=True), path=path)
+
+
 if __name__ == '__main__':
-    my_func(os.path.join(os.path.dirname(__file__), 'test_cases/examples/vehicles/vehicles.xsd'))
+    if args.test_num == 1:
+        if args.xml_file is None:
+            import_package()
+        else:
+            import xmlschema
+            build_schema(args.xml_file)
+    elif args.test_num == 2:
+        import xml.etree.ElementTree as ElementTree
+        etree_parse(args.xml_file)
+    elif args.test_num == 3:
+        import xml.etree.ElementTree as ElementTree
+        etree_full_iterparse(args.xml_file)
+    elif args.test_num == 4:
+        import xml.etree.ElementTree as ElementTree
+        etree_emptied_iterparse(args.xml_file)
+    elif args.test_num == 5:
+        import xmlschema
+        decode(args.xml_file)
+    elif args.test_num == 6:
+        import xmlschema
+        lazy_decode(args.xml_file)
+    elif args.test_num == 7:
+        import xmlschema
+        validate(args.xml_file)
+    elif args.test_num == 8:
+        import xmlschema
+        lazy_validate(args.xml_file)

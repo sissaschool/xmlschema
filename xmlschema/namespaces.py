@@ -182,12 +182,12 @@ class NamespaceView(Mapping):
         self.target_dict = qname_dict
         self.namespace = namespace_uri
         if namespace_uri:
-            self.key_fmt = '{' + namespace_uri + '}%s'
+            self._key_fmt = '{' + namespace_uri + '}%s'
         else:
-            self.key_fmt = '%s'
+            self._key_fmt = '%s'
 
     def __getitem__(self, key):
-        return self.target_dict[self.key_fmt % key]
+        return self.target_dict[self._key_fmt % key]
 
     def __len__(self):
         return len(self.as_dict())
@@ -199,7 +199,7 @@ class NamespaceView(Mapping):
         return '%s(%s)' % (self.__class__.__name__, str(self.as_dict()))
 
     def __contains__(self, key):
-        return self.key_fmt % key in self.target_dict
+        return self._key_fmt % key in self.target_dict
 
     def __eq__(self, other):
         return self.as_dict() == dict(other.items())

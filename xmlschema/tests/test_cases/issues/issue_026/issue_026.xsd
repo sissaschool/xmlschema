@@ -15,6 +15,6 @@
         <xs:sequence minOccurs="1" maxOccurs="1">
             <xs:element name="subject_name" type="xs:string" />
         </xs:sequence>
-        <xs:attribute name="name" fixed="BAR" use="required"/>
+        <xs:attribute name="name" fixed="BAR" use="required" />
     </xs:complexType>
 </xs:schema>

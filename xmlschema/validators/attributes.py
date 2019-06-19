@@ -230,7 +230,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 yield obj
 
     def iter_decode(self, text, validation='lax', **kwargs):
-        if not text and kwargs.get('use_defaults', True) and self.default is not None:
+        if not text and self.default is not None:
             text = self.default
         if self.fixed is not None and text != self.fixed and validation != 'skip':
             yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
@@ -297,7 +297,7 @@ class Xsd11Attribute(XsdAttribute):
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     """
     Class for XSD 'attributeGroup' definitions.
-    
+
     <attributeGroup
       id = ID
       name = NCName
@@ -548,6 +548,20 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             if k is not None and v.use == 'required':
                 yield k
 
+    def iter_predefined(self, use_defaults=True):
+        if use_defaults:
+            for k, v in self._attribute_group.items():
+                if k is None:
+                    continue
+                elif v.fixed is not None:
+                    yield k, v.fixed
+                elif v.default is not None:
+                    yield k, v.default
+        else:
+            for k, v in self._attribute_group.items():
+                if k is not None and v.fixed is not None:
+                    yield k, v.fixed
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -561,8 +575,19 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if not attrs and not self:
             return
 
+        if validation != 'skip' and any(k not in attrs for k in self.iter_required()):
+            missing_attrs = {k for k in self.iter_required() if k not in attrs}
+            reason = "missing required attributes: %r" % missing_attrs
+            yield self.validation_error(validation, reason, attrs, **kwargs)
+
+        use_defaults = kwargs.get('use_defaults', True)
+        filler = kwargs.get('filler')
+        additional_attrs = {k: v for k, v in self.iter_predefined(use_defaults) if k not in attrs}
+        if additional_attrs:
+            attrs = {k: v for k, v in attrs.items()}
+            attrs.update(additional_attrs)
+
         result_list = []
-        required_attributes = {a for a in self.iter_required()}
         for name, value in attrs.items():
             try:
                 xsd_attribute = self[name]
@@ -584,31 +609,41 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             reason = "%r attribute not allowed for element." % name
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
-            else:
-                required_attributes.discard(name)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
+                elif result is None and filler is not None:
+                    result_list.append((name, filler(xsd_attribute)))
+                    break
                 else:
                     result_list.append((name, result))
                     break
 
-        if required_attributes and validation != 'skip':
-            reason = "missing required attributes: %r" % required_attributes
-            yield self.validation_error(validation, reason, attrs, **kwargs)
+        if kwargs.get('fill_missing') is True:
+            if filler is None:
+                result_list.extend((k, None) for k in self._attribute_group
+                                   if k is not None and k not in attrs)
+            else:
+                result_list.extend((k, filler(v)) for k, v in self._attribute_group.items()
+                                   if k is not None and k not in attrs)
 
         yield result_list
 
     def iter_encode(self, attrs, validation='lax', **kwargs):
-        result_list = []
-        required_attributes = {a for a in self.iter_required()}
-        try:
-            attrs = attrs.items()
-        except AttributeError:
-            pass
+        if validation != 'skip' and any(k not in attrs for k in self.iter_required()):
+            missing_attrs = {k for k in self.iter_required() if k not in attrs}
+            reason = "missing required attributes: %r" % missing_attrs
+            yield self.validation_error(validation, reason, attrs, **kwargs)
 
-        for name, value in attrs:
+        use_defaults = kwargs.get('use_defaults', True)
+        additional_attrs = {k: v for k, v in self.iter_predefined(use_defaults) if k not in attrs}
+        if additional_attrs:
+            attrs = {k: v for k, v in attrs.items()}
+            attrs.update(additional_attrs)
+
+        result_list = []
+        for name, value in attrs.items():
             try:
                 xsd_attribute = self[name]
             except KeyError:
@@ -630,17 +665,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             reason = "%r attribute not allowed for element." % name
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
-            else:
-                required_attributes.discard(name)
 
             for result in xsd_attribute.iter_encode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
-                    result_list.append((name, result))
+                    if result is not None:
+                        result_list.append((name, result))
                     break
 
-        if required_attributes and validation != 'skip':
-            reason = "missing required attributes %r" % required_attributes
-            yield self.validation_error(validation, reason, attrs, **kwargs)
         yield result_list

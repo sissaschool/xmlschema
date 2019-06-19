@@ -12,97 +12,126 @@ from __future__ import unicode_literals
 import json
 
 from .compat import ordered_dict_class
-from .resources import fetch_schema_locations
+from .resources import fetch_schema_locations, XMLResource
 from .validators.schema import XMLSchema, XMLSchemaBase
 
 
-def validate(xml_document, schema=None, cls=None, use_defaults=True, namespaces=None, locations=None, base_url=None):
+def get_context(source, schema=None, cls=None, locations=None, base_url=None,
+                defuse='remote', timeout=300, lazy=False):
+    """
+    Helper method for obtaining XML document validation/decode context. Returns
+    a couple with XMLResource an schema instances.
+    """
+    if cls is None:
+        cls = XMLSchema
+
+    if schema is None:
+        schema, locations = fetch_schema_locations(source, locations, base_url=base_url)
+        schema = cls(schema, validation='strict', locations=locations, defuse=defuse, timeout=timeout)
+    elif not isinstance(schema, XMLSchemaBase):
+        schema = cls(schema, validation='strict', locations=locations, base_url=base_url,
+                     defuse=defuse, timeout=timeout)
+
+    if not isinstance(source, XMLResource):
+        source = XMLResource(source, defuse=defuse, timeout=timeout, lazy=lazy)
+
+    return source, schema
+
+
+def validate(xml_document, schema=None, cls=None, path=None, schema_path=None, use_defaults=True,
+             namespaces=None, locations=None, base_url=None, defuse='remote', timeout=300, lazy=False):
     """
     Validates an XML document against a schema instance. This function builds an
     :class:`XMLSchema` object for validating the XML document. Raises an
     :exc:`XMLSchemaValidationError` if the XML document is not validated against
     the schema.
 
-    :param xml_document: can be a file-like object or a string containing the XML data \
-    or a file path or a URL of a resource or an ElementTree/Element instance.
+    :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
+    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
+    instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
-    :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
-    :param use_defaults: defines when to use elements and attribute defaults for filling \
+    :param cls: class to use for building the schema instance (for default :class:`XMLSchema` is used).
+    :param path: is an optional XPath expression that matches the elements of the XML \
+    data that have to be decoded. If not provided the XML root element is used.
+    :param schema_path: an XPath expression to select the XSD element to use for decoding. \
+    If not provided the *path* argument or the *source* root tag are used.
+    :param use_defaults: defines when to use element and attribute defaults for filling \
     missing required values.
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :param locations: additional schema location hints, in case a schema instance has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
     default uses the directory where the XSD or alternatively the XML document is located.
+    :param defuse: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param timeout: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param lazy: optional argument for construct the :class:`XMLResource` instance.
     """
-    cls = XMLSchema if cls is None else XMLSchema
-    if schema is None:
-        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
-        schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchemaBase):
-        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
-    schema.validate(xml_document, use_defaults, namespaces)
+    source, schema = get_context(xml_document, schema, cls, locations, base_url, defuse, timeout, lazy)
+    schema.validate(source, path, schema_path, use_defaults, namespaces)
 
 
 def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=True,
-            locations=None, base_url=None, **kwargs):
+            locations=None, base_url=None, defuse='remote', timeout=300, lazy=False, **kwargs):
     """
     Decodes an XML document to a Python's nested dictionary. The decoding is based
     on an XML Schema class instance. For default the document is validated during
     the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
     is not validated against the schema.
 
-    :param xml_document: can be a file-like object or a string containing the XML data \
-    or a file path or a URL of a resource or an ElementTree/Element instance.
+    :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
+    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
+    instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
-    :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
-    :param path: is an optional XPath expression that matches the subelement of the document \
-    that have to be decoded. The XPath expression considers the schema as the root element \
-    with global elements as its children.
+    :param cls: class to use for building the schema instance (for default uses :class:`XMLSchema`).
+    :param path: is an optional XPath expression that matches the elements of the XML \
+    data that have to be decoded. If not provided the XML root element is used.
     :param process_namespaces: indicates whether to use namespace information in the decoding process.
     :param locations: additional schema location hints, in case a schema instance has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
     default uses the directory where the XSD or alternatively the XML document is located.
-    :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
-    to variate the decoding process.
+    :param defuse: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param timeout: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param lazy: optional argument for construct the :class:`XMLResource` instance.
+    :param kwargs: other optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments.
     :return: an object containing the decoded data. If ``validation='lax'`` keyword argument \
     is provided the validation errors are collected and returned coupled in a tuple with the \
     decoded data.
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
-
     """
-    cls = XMLSchema if cls is None else XMLSchema
-    if schema is None:
-        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
-        schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchemaBase):
-        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
-    return schema.to_dict(xml_document, path=path, process_namespaces=process_namespaces, **kwargs)
+    source, schema = get_context(xml_document, schema, cls, locations, base_url, defuse, timeout, lazy)
+    return schema.to_dict(source, path=path, process_namespaces=process_namespaces, **kwargs)
 
 
 def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=None,
-            process_namespaces=True, locations=None, base_url=None, json_options=None, **kwargs):
+            process_namespaces=True, locations=None, base_url=None, defuse='remote',
+            timeout=300, lazy=False, json_options=None, **kwargs):
     """
     Serialize an XML document to JSON. For default the XML data is validated during
     the decoding phase. Raises an :exc:`XMLSchemaValidationError` if the XML document
     is not validated against the schema.
 
-    :param xml_document: can be a file-like object or a string containing the XML data \
-    or a file path or an URI of a resource or an ElementTree/Element instance.
+    :param xml_document: can be an :class:`XMLResource` instance, a file-like object a path \
+    to a file or an URI of a resource or an Element instance or an ElementTree instance or \
+    a string containing the XML data. If the passed argument is not an :class:`XMLResource` \
+    instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param fp: can be a :meth:`write()` supporting file-like object.
     :param schema: can be a schema instance or a file-like object or a file path or an URL \
     of a resource or a string containing the schema.
     :param cls: schema class to use for building the instance (for default uses :class:`XMLSchema`).
-    :param path: is an optional XPath expression that matches the subelement of the document \
-    that have to be decoded. The XPath expression considers the schema as the root element \
-    with global elements as its children.
+    :param path: is an optional XPath expression that matches the elements of the XML \
+    data that have to be decoded. If not provided the XML root element is used.
     :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
     :param process_namespaces: indicates whether to use namespace information in the decoding process.
     :param locations: additional schema location hints, in case a schema instance has to be built.
     :param base_url: is an optional custom base URL for remapping relative locations, for \
     default uses the directory where the XSD or alternatively the XML document is located.
+    :param defuse: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param timeout: optional argument to pass for construct schema and :class:`XMLResource` instances.
+    :param lazy: optional argument for construct the :class:`XMLResource` instance.
     :param json_options: a dictionary with options for the JSON serializer.
     :param kwargs: optional arguments of :meth:`XMLSchema.iter_decode` as keyword arguments \
     to variate the decoding process.
@@ -112,18 +141,12 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
     :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
     the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
     """
-    cls = XMLSchema if cls is None else XMLSchema
-    if schema is None:
-        schema, locations = fetch_schema_locations(xml_document, locations, base_url=base_url)
-        schema = cls(schema, validation='strict', locations=locations)
-    elif not isinstance(schema, XMLSchemaBase):
-        schema = cls(schema, validation='strict', locations=locations, base_url=base_url)
+    source, schema = get_context(xml_document, schema, cls, locations, base_url, defuse, timeout, lazy)
     if json_options is None:
         json_options = {}
-
     decimal_type = kwargs.pop('decimal_type', float)
     dict_class = kwargs.pop('dict_class', ordered_dict_class)
-    obj = schema.to_dict(xml_document, path=path, decimal_type=decimal_type, dict_class=dict_class,
+    obj = schema.to_dict(source, path=path, decimal_type=decimal_type, dict_class=dict_class,
                          process_namespaces=process_namespaces, converter=converter, **kwargs)
 
     if isinstance(obj, tuple):

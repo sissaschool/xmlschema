@@ -21,7 +21,13 @@ from .namespaces import XSI_NAMESPACE
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
-"Namedtuple for Element data interchange between decoders and converters."
+"""
+Namedtuple for Element data interchange between decoders and converters.
+The field *tag* is a string containing the Element's tag, *text* can be `None`
+or a string representing the Element's text, *content* can be `None` or a list
+containing the Element's children, *attributes* can be `None` or a dictionary
+containing the Element's attributes.
+"""
 
 
 def raw_xml_encode(value):
@@ -42,39 +48,61 @@ class XMLSchemaConverter(NamespaceMapper):
     :param namespaces: map from namespace prefixes to URI.
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
     :param list_class: list class to use for decoded data. Default is `list`.
+    :param etree_element_class: the class that has to be used to create new XML elements, \
+    if not provided uses the ElementTree's Element class.
     :param text_key: is the key to apply to element's decoded text data.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
     with a prefix. If `None` the converter ignores attributes.
     :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
-    :param etree_element_class: the class that has to be used to create new XML elements, \
-    if not provided uses the ElementTree's Element class.
     :param indent: number of spaces for XML indentation (default is 4).
+    :param strip_namespaces: remove namespace information from names during decoding \
+    or encoding, defaults to `False`.
+    :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
+    single-item dictionary. Applicable only to default converter and to :class:`ParkerConverter`.
+    :param force_dict: if set to `True` complex elements with simple content are decoded \
+    with a dictionary also if there are no decoded attributes. Applicable to default converter \
+    only. Defaults to `False`.
+    :param force_list: if set to `True` child elements are decoded within a list in any case. \
+    Applicable to default converter only. Defaults to `False`.
 
     :ivar dict: dictionary class to use for decoded data.
     :ivar list: list class to use for decoded data.
+    :ivar etree_element_class: Element class to use
     :ivar text_key: key for decoded Element text
     :ivar attr_prefix: prefix for attribute names
     :ivar cdata_prefix: prefix for character data parts
-    :ivar etree_element_class: Element class to use
     :ivar indent: indentation to use for rebuilding XML trees
+    :ivar strip_namespaces: remove namespace information
+    :ivar preserve_root: preserve the root element on decoding
+    :ivar force_dict: force dictionary for complex elements with simple content
+    :ivar force_list: force list for child elements
     """
-    def __init__(self, namespaces=None, dict_class=None, list_class=None, text_key='$', attr_prefix='@',
-                 cdata_prefix=None, etree_element_class=None, indent=4, **kwargs):
+    def __init__(self, namespaces=None, dict_class=None, list_class=None, etree_element_class=None,
+                 text_key='$', attr_prefix='@', cdata_prefix=None, indent=4, strip_namespaces=False,
+                 preserve_root=False, force_dict=False, force_list=False, **kwargs):
         if etree_element_class is not None and etree_element_class not in (etree_element, lxml_etree_element):
             raise XMLSchemaValueError("%r: unsupported element.")
+
         self.dict = dict_class or dict
         self.list = list_class or list
+        self.etree_element_class = etree_element_class or etree_element
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
-        self.etree_element_class = etree_element_class or etree_element
         self.indent = indent
-        if etree_element_class is etree_element:
+        self.strip_namespaces = strip_namespaces
+        self.preserve_root = preserve_root
+        self.force_dict = force_dict
+        self.force_list = force_list
+
+        if self.etree_element_class is etree_element:
             super(XMLSchemaConverter, self).__init__(namespaces, etree_register_namespace)
         else:
             super(XMLSchemaConverter, self).__init__(namespaces, lxml_etree_register_namespace)
+        if strip_namespaces:
+            self.map_qname = self.unmap_qname = self._unmap_attribute_qname = self._local_name
 
     def __setattr__(self, name, value):
         if name in ('attr_prefix', 'text_key', 'cdata_prefix'):
@@ -102,11 +130,15 @@ class XMLSchemaConverter(NamespaceMapper):
             namespaces=kwargs.get('namespaces', self._namespaces),
             dict_class=kwargs.get('dict_class', self.dict),
             list_class=kwargs.get('list_class', self.list),
+            etree_element_class=kwargs.get('etree_element_class'),
             text_key=kwargs.get('text_key', self.text_key),
             attr_prefix=kwargs.get('attr_prefix', self.attr_prefix),
             cdata_prefix=kwargs.get('cdata_prefix', self.cdata_prefix),
-            etree_element_class=kwargs.get('etree_element_class'),
             indent=kwargs.get('indent', self.indent),
+            strip_namespaces=kwargs.get('strip_namespaces', self.strip_namespaces),
+            preserve_root=kwargs.get('preserve_root', self.preserve_root),
+            force_dict=kwargs.get('force_dict', self.force_dict),
+            force_list=kwargs.get('force_list', self.force_list),
         )
 
     def map_attributes(self, attributes):
@@ -134,6 +166,20 @@ class XMLSchemaConverter(NamespaceMapper):
         else:
             return self.unmap_qname(name)
 
+    @staticmethod
+    def _local_name(qname):
+        try:
+            if qname[0] == '{':
+                _, local_name = qname.split('}')
+            elif ':' in qname:
+                _, local_name = qname.split(':')
+            else:
+                return qname
+        except ValueError:
+            return qname
+        else:
+            return local_name
+
     def map_content(self, content):
         """
         A generator function for converting decoded content to a data structure.
@@ -145,7 +191,7 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         if not content:
             return
-        
+
         map_qname = self.map_qname
         for name, value, xsd_child in content:
             try:
@@ -206,7 +252,7 @@ class XMLSchemaConverter(NamespaceMapper):
             )
 
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-            if data.attributes:
+            if data.attributes or self.force_dict and not xsd_element.type.is_simple():
                 result_dict.update(t for t in self.map_attributes(data.attributes))
                 if data.text is not None and data.text != '':
                     result_dict[self.text_key] = data.text
@@ -224,7 +270,7 @@ class XMLSchemaConverter(NamespaceMapper):
                     result = result_dict[name]
                 except KeyError:
                     if xsd_child is None or has_single_group and xsd_child.is_single():
-                        result_dict[name] = value
+                        result_dict[name] = self.list([value]) if self.force_list else value
                     else:
                         result_dict[name] = self.list([value])
                 else:
@@ -235,6 +281,8 @@ class XMLSchemaConverter(NamespaceMapper):
                     else:
                         result_dict[name] = self.list([result, value])
 
+            if level == 0 and self.preserve_root:
+                return self.dict([(self.map_qname(data.tag), result_dict if result_dict else None)])
             return result_dict if result_dict else None
 
     def element_encode(self, obj, xsd_element, level=0):
@@ -246,7 +294,16 @@ class XMLSchemaConverter(NamespaceMapper):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        tag = xsd_element.qualified_name if level == 0 else xsd_element.name
+        if level != 0:
+            tag = xsd_element.name
+        elif not self.preserve_root:
+            tag = xsd_element.qualified_name
+        else:
+            tag = xsd_element.qualified_name
+            try:
+                obj = obj.get(tag, xsd_element.local_name)
+            except (KeyError, AttributeError, TypeError):
+                pass
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -274,7 +331,7 @@ class XMLSchemaConverter(NamespaceMapper):
             elif name == ns_prefix:
                 self[''] = value
             elif name.startswith('%s:' % ns_prefix):
-                self[name[len(ns_prefix)+1:]] = value
+                self[name[len(ns_prefix) + 1:]] = value
             elif attr_prefix and name.startswith(attr_prefix):
                 name = name[len(attr_prefix):]
                 attributes[unmap_attribute_qname(name)] = value
@@ -314,6 +371,7 @@ class ParkerConverter(XMLSchemaConverter):
     XML Schema based converter class for Parker convention.
 
     ref: http://wiki.open311.org/JSON_and_XML_Conversion/#the-parker-convention
+    ref: https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention
 
     :param namespaces: Map from namespace prefixes to URI.
     :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
@@ -325,9 +383,8 @@ class ParkerConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, preserve_root=False, **kwargs):
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
+            namespaces, dict_class or ordered_dict_class, list_class, preserve_root=preserve_root, **kwargs
         )
-        self.preserve_root = preserve_root
 
     def __setattr__(self, name, value):
         if name == 'text_key' and value != '' or name in ('attr_prefix', 'cdata_prefix') and value is not None:
@@ -337,16 +394,6 @@ class ParkerConverter(XMLSchemaConverter):
     @property
     def lossless(self):
         return False
-
-    def copy(self, **kwargs):
-        return type(self)(
-            namespaces=kwargs.get('namespaces', self._namespaces),
-            dict_class=kwargs.get('dict_class', self.dict),
-            list_class=kwargs.get('list_class', self.list),
-            preserve_root=kwargs.get('preserve_root', self.preserve_root),
-            etree_element_class=kwargs.get('etree_element_class'),
-            indent=kwargs.get('indent', self.indent),
-        )
 
     def element_decode(self, data, xsd_element, level=0):
         map_qname = self.map_qname
@@ -780,8 +827,8 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
-        elif data_len == content_index + 1 and (xsd_element.type.is_simple()
-                                                or xsd_element.type.has_simple_content()):
+        elif data_len == content_index + 1 and \
+                (xsd_element.type.is_simple() or xsd_element.type.has_simple_content()):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))

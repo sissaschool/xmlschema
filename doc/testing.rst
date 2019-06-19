@@ -35,7 +35,7 @@ subdirectory. There are several test scripts, each one for a different topic:
 **test_xpath.py**
     Tests for XPath parsing and selectors
 
-You can run all tests with the script *test_all.py*. From the project source base, if you have
+You can run all above tests with the script *test_all.py*. From the project source base, if you have
 the *tox automation tool* installed, you can run all tests with all supported Python's versions
 using the command ``tox``.
 
@@ -142,7 +142,7 @@ Testing with the W3C XML Schema 1.1 test suite
 ----------------------------------------------
 
 From release v1.0.11, using the script *test_w3c_suite.py*, you can run also tests based on the
-`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests, actually
+`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests, currently
 limited to XSD 1.0 schema tests, clone the W3C repo on the project's parent directory and than
 run the script:
 
@@ -150,3 +150,25 @@ run the script:
 
    git clone https://github.com/w3c/xsdtests.git
    python xmlschema/xmlschema/tests/test_w3c_suite.py
+
+
+Testing other schemas and instances
+-----------------------------------
+
+From release v1.0.12, using the script *test_files.py*, you can test schemas or XML instances
+passing them as arguments:
+
+.. code-block:: text
+
+   $ cd xmlschema/tests/
+   $ python test_files.py test_cases/examples/vehicles/*.xsd
+   Add test 'TestSchema001' for file 'test_cases/examples/vehicles/bikes.xsd' ...
+   Add test 'TestSchema002' for file 'test_cases/examples/vehicles/cars.xsd' ...
+   Add test 'TestSchema003' for file 'test_cases/examples/vehicles/types.xsd' ...
+   Add test 'TestSchema004' for file 'test_cases/examples/vehicles/vehicles-max.xsd' ...
+   Add test 'TestSchema005' for file 'test_cases/examples/vehicles/vehicles.xsd' ...
+   .....
+   ----------------------------------------------------------------------
+   Ran 5 tests in 0.147s
+
+   OK

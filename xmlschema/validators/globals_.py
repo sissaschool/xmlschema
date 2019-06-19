@@ -9,8 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains functions and classes for managing namespaces's  
-XSD declarations/definitions.
+This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 from __future__ import unicode_literals
 import re
@@ -180,6 +179,7 @@ def create_lookup_function(xsd_classes):
                 # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
                     component.redefine = component.copy()
+                    component.redefine.parent = component
                     component.schema = schema
                     component.elem = elem
 

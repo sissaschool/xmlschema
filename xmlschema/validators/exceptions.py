@@ -37,11 +37,12 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :ivar path: the XPath of the element, calculated when the element is set or the XML resource is set.
     """
     def __init__(self, validator, message, elem=None, source=None, namespaces=None):
+        self.path = None
         self.validator = validator
         self.message = message[:-1] if message[-1] in ('.', ':') else message
         self.namespaces = namespaces
-        self.elem = elem
         self.source = source
+        self.elem = elem
 
     def __str__(self):
         return unicode(self).encode("utf-8")
@@ -73,18 +74,18 @@ class XMLSchemaValidatorError(XMLSchemaException):
         return self.__unicode__()
 
     def __setattr__(self, name, value):
-        if name == 'elem' and value is not None and not is_etree_element(value):
-            raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
+        if name == 'elem' and value is not None:
+            if not is_etree_element(value):
+                raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
+            if self.source is not None:
+                self.path = etree_getpath(value, self.root, self.namespaces, relative=False, add_position=True)
+                if self.source.is_lazy():
+                    value = None  # Don't save the element of a lazy resource
+        if name == 'source' and value is not None and getattr(self, 'elem', None) is not None:
+            self.path = etree_getpath(self.elem, value.root, self.namespaces, relative=False, add_position=True)
+            if value.is_lazy():
+                self.elem = None
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
-
-        # Calculate and set the element's path: have to be calculated asap because is the
-        # XML resource is lazy the intermediate nodes could be deleted.
-        if name in ('elem', 'source'):
-            elem, root = self.elem, self.root
-            if not is_etree_element(elem) or not is_etree_element(root):
-                self.path = None
-            else:
-                self.path = etree_getpath(elem, root, self.namespaces, relative=False, add_position=True)
 
     @property
     def sourceline(self):

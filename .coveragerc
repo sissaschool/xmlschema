@@ -1,0 +1,4 @@
+[run]
+branch = True
+source = xmlschema/
+omit = xmlschema/tests/*

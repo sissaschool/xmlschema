@@ -11,6 +11,7 @@
 import os.path
 import re
 import codecs
+from elementpath import iter_select, Selector
 
 from .compat import (
     PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
@@ -55,6 +56,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
 
     if base_url is not None:
         base_url = base_url.replace('\\', '/')
+        while base_url.startswith('//'):
+            base_url = base_url.replace('//', '/', 1)
+
         base_url_parts = urlsplit(base_url)
         base_url = add_trailing_slash(base_url_parts)
         if base_url_parts.scheme not in uses_relative:
@@ -65,14 +69,14 @@ def normalize_url(url, base_url=None, keep_relative=False):
         if base_url_parts.scheme not in ('', 'file'):
             url = urljoin(base_url, url)
         else:
-            # For file schemes uses the os.path.join instead of urljoin
             url_parts = urlsplit(url)
             if url_parts.scheme not in ('', 'file'):
                 url = urljoin(base_url, url)
             elif not url_parts.netloc or base_url_parts.netloc == url_parts.netloc:
-                # Join paths only if host parts (netloc) are equal
+                # Join paths only if host parts (netloc) are equal, using the os.path.join
+                # instead of urljoin for path normalization.
                 url = urlunsplit((
-                    '',
+                    base_url_parts.scheme,
                     base_url_parts.netloc,
                     os.path.normpath(os.path.join(base_url_parts.path, url_parts.path)),
                     url_parts.query,
@@ -80,6 +84,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 ))
 
     url = url.replace('\\', '/')
+    while url.startswith('//'):
+        url = url.replace('//', '/', 1)
+
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
         return 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
@@ -150,7 +157,10 @@ def fetch_schema_locations(source, locations=None, **resource_options):
     """
     base_url = resource_options.pop('base_url', None)
     timeout = resource_options.pop('timeout', 30)
-    resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+    if not isinstance(source, XMLResource):
+        resource = XMLResource(source, base_url, timeout=timeout, **resource_options)
+    else:
+        resource = source
 
     base_url = resource.base_url
     namespace = resource.namespace
@@ -223,7 +233,9 @@ class XMLResource(object):
     :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' or 'never'. \
     Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :param lazy: if set to `False` the source is fully loaded into and processed from memory. Default is `True`.
+    :param lazy: if set to `False` the source is fully loaded into and processed from memory. \
+    Default is `True` that means that only the root element of the source is loaded. This is \
+    ignored if *source* is an Element or an ElementTree.
     """
     def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         if base_url is not None and not isinstance(base_url, string_base_type):
@@ -270,6 +282,7 @@ class XMLResource(object):
     def _fromsource(self, source):
         url, lazy = None, self._lazy
         if is_etree_element(source):
+            self._lazy = False
             return source, None, None, None  # Source is already an Element --> nothing to load
         elif isinstance(source, string_base_type):
             _url, self._url = self._url, None
@@ -328,6 +341,7 @@ class XMLResource(object):
                 pass
             else:
                 if is_etree_element(root):
+                    self._lazy = False
                     return root, source, None, None
 
         if url is None:
@@ -497,15 +511,15 @@ class XMLResource(object):
                     self._text = f.read().encode('iso-8859-1')
 
     def is_lazy(self):
-        """Gets `True` the XML resource is lazy."""
+        """Returns `True` if the XML resource is lazy."""
         return self._lazy
 
     def is_loaded(self):
-        """Gets `True` the XML text of the data source is loaded."""
+        """Returns `True` if the XML text of the data source is loaded."""
         return self._text is not None
 
     def iter(self, tag=None):
-        """XML resource tree elements lazy iterator."""
+        """XML resource tree iterator."""
         if not self._lazy:
             for elem in self._root.iter(tag):
                 yield elem
@@ -516,11 +530,58 @@ class XMLResource(object):
             resource = StringIO(self._text)
 
         try:
-            for event, elem in self.iterparse(resource, events=('start', 'end')):
-                if event == 'end':
-                    elem.clear()
-                elif tag is None or elem.tag == tag:
+            for event, elem in self.iterparse(resource, events=('end',)):
+                if tag is None or elem.tag == tag:
                     yield elem
+                elem.clear()
+        finally:
+            resource.close()
+
+    def iterfind(self, path=None, namespaces=None):
+        """XML resource tree iterfind selector."""
+        if not self._lazy:
+            if path is None:
+                yield self._root
+            else:
+                for e in iter_select(self._root, path, namespaces, strict=False):
+                    yield e
+            return
+        elif self._url is not None:
+            resource = urlopen(self._url, timeout=self.timeout)
+        else:
+            self.load()
+            resource = StringIO(self._text)
+
+        try:
+            if path is None:
+                level = 0
+                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                    if event == "start":
+                        if level == 0:
+                            self._root.clear()
+                            self._root = elem
+                        level += 1
+                    else:
+                        level -= 1
+                        if level == 0:
+                            yield elem
+                            elem.clear()
+            else:
+                selector = Selector(path, namespaces, strict=False)
+                level = 0
+                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                    if event == "start":
+                        if level == 0:
+                            self._root.clear()
+                            self._root = elem
+                        level += 1
+                    else:
+                        level -= 1
+                        if elem in selector.select(self._root):
+                            yield elem
+                            elem.clear()
+                        elif level == 0:
+                            elem.clear()
         finally:
             resource.close()
 
@@ -577,16 +638,22 @@ class XMLResource(object):
         if self._url is not None:
             resource = self.open()
             try:
-                for event, node in self.iterparse(resource, events=('start-ns',)):
-                    update_nsmap(*node)
+                for event, node in self.iterparse(resource, events=('start-ns', 'end')):
+                    if event == 'start-ns':
+                        update_nsmap(*node)
+                    else:
+                        node.clear()
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
             finally:
                 resource.close()
         elif isinstance(self._text, string_base_type):
             try:
-                for event, node in self.iterparse(StringIO(self._text), events=('start-ns',)):
-                    update_nsmap(*node)
+                for event, node in self.iterparse(StringIO(self._text), events=('start-ns', 'end')):
+                    if event == 'start-ns':
+                        update_nsmap(*node)
+                    else:
+                        node.clear()
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
         else:

@@ -334,14 +334,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
         yield obj
 
@@ -354,14 +350,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if validation != 'skip':
             if self.patterns is not None:
                 for error in self.patterns(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield obj
@@ -374,8 +366,8 @@ class XsdSimpleType(XsdType, ValidationMixin):
 # simpleType's derived classes:
 class XsdAtomic(XsdSimpleType):
     """
-    Class for atomic simpleType definitions. An atomic definition has 
-    a base_type attribute that refers to primitive or derived atomic 
+    Class for atomic simpleType definitions. An atomic definition has
+    a base_type attribute that refers to primitive or derived atomic
     built-in type or another derived simpleType.
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
@@ -513,9 +505,15 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
 
-        if 'id_map' in kwargs:
-            if self.name == XSD_ID:
-                kwargs['id_map'][obj] += 1
+        if self.name == XSD_ID:
+            try:
+                id_map = kwargs['id_map']
+            except KeyError:
+                pass
+            else:
+                id_map[obj] += 1
+                if id_map[obj] > 1:
+                    yield self.validation_error(validation, "Duplicated xsd:ID value {!r}".format(obj))
 
         if validation == 'skip':
             try:
@@ -526,8 +524,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         if self.patterns is not None:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         try:
@@ -539,8 +535,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         for validator in self.validators:
             for error in validator(result):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         yield result
@@ -579,8 +573,6 @@ class XsdAtomicBuiltin(XsdAtomic):
 
         for validator in self.validators:
             for error in validator(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         try:
@@ -591,17 +583,15 @@ class XsdAtomicBuiltin(XsdAtomic):
         else:
             if self.patterns is not None:
                 for error in self.patterns(text):
-                    if validation == 'strict':
-                        raise error
                     yield error
             yield text
 
 
 class XsdList(XsdSimpleType):
     """
-    Class for 'list' definitions. A list definition has an item_type attribute 
+    Class for 'list' definitions. A list definition has an item_type attribute
     that refers to an atomic or union simpleType definition.
-    
+
     <list
       id = ID
       itemType = QName
@@ -731,8 +721,6 @@ class XsdList(XsdSimpleType):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         items = []
@@ -746,8 +734,6 @@ class XsdList(XsdSimpleType):
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(items):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield items
@@ -759,8 +745,6 @@ class XsdList(XsdSimpleType):
         if validation != 'skip':
             for validator in self.validators:
                 for error in validator(obj):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         encoded_items = []
@@ -776,7 +760,7 @@ class XsdList(XsdSimpleType):
 
 class XsdUnion(XsdSimpleType):
     """
-    Class for 'union' definitions. A union definition has a member_types 
+    Class for 'union' definitions. A union definition has a member_types
     attribute that refers to a 'simpleType' definition.
 
     <union
@@ -898,8 +882,6 @@ class XsdUnion(XsdSimpleType):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         # Try the text as a whole
@@ -909,8 +891,6 @@ class XsdUnion(XsdSimpleType):
                     if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(result):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
 
                     yield result
@@ -945,8 +925,6 @@ class XsdUnion(XsdSimpleType):
 
             for validator in self.validators:
                 for error in validator(items):
-                    if validation == 'strict':
-                        raise error
                     yield error
 
         yield items if len(items) > 1 else items[0] if items else None
@@ -958,13 +936,9 @@ class XsdUnion(XsdSimpleType):
                     if validation != 'skip':
                         for validator in self.validators:
                             for error in validator(obj):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
                         if self.patterns is not None:
                             for error in self.patterns(result):
-                                if validation == 'strict':
-                                    raise error
                                 yield error
 
                     yield result
@@ -982,13 +956,9 @@ class XsdUnion(XsdSimpleType):
                             if validation != 'skip':
                                 for validator in self.validators:
                                     for error in validator(result):
-                                        if validation == 'strict':
-                                            raise error
                                         yield error
                                 if self.patterns is not None:
                                     for error in self.patterns(result):
-                                        if validation == 'strict':
-                                            raise error
                                         yield error
 
                             results.append(result)
@@ -1021,8 +991,8 @@ class XsdAtomicRestriction(XsdAtomic):
       base = QName
       id = ID
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
       enumeration | whiteSpace | pattern)*))
     </restriction>
     """
@@ -1169,8 +1139,6 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if validation != 'skip' and self.patterns:
             for error in self.patterns(obj):
-                if validation == 'strict':
-                    raise error
                 yield error
 
         if self.base_type.is_simple():
@@ -1193,8 +1161,6 @@ class XsdAtomicRestriction(XsdAtomic):
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(result):
-                            if validation == 'strict':
-                                raise error
                             yield error
 
                 yield result
@@ -1208,14 +1174,10 @@ class XsdAtomicRestriction(XsdAtomic):
             if validation != 'skip':
                 for validator in self.validators:
                     for error in validator(obj):
-                        if validation == 'strict':
-                            raise error
                         yield error
 
             for result in self.base_type.iter_encode(obj, validation):
                 if isinstance(result, XMLSchemaValidationError):
-                    if validation == 'strict':
-                        raise result
                     yield result
                     if isinstance(result, XMLSchemaEncodeError):
                         yield unicode_type(obj) if validation == 'skip' else None
@@ -1240,8 +1202,6 @@ class XsdAtomicRestriction(XsdAtomic):
 
         for result in base_type.iter_encode(obj, validation):
             if isinstance(result, XMLSchemaValidationError):
-                if validation == 'strict':
-                    raise result
                 yield result
                 if isinstance(result, XMLSchemaEncodeError):
                     yield unicode_type(obj) if validation == 'skip' else None
@@ -1250,8 +1210,6 @@ class XsdAtomicRestriction(XsdAtomic):
                 if validation != 'skip':
                     for validator in self.validators:
                         for error in validator(obj):
-                            if validation == 'strict':
-                                raise error
                             yield error
 
                 yield result
@@ -1269,9 +1227,9 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
       base = QName
       id = ID
       {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive | 
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength | 
-      enumeration | whiteSpace | pattern | assertion | explicitTimezone | 
+      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
+      enumeration | whiteSpace | pattern | assertion | explicitTimezone |
       {any with namespace: ##other})*))
     </restriction>
     """
