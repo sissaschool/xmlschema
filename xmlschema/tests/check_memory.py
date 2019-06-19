@@ -39,7 +39,7 @@ Run memory tests:
   6) Decode XML file with xmlschema in lazy mode
   7) Validate XML file with xmlschema
   8) Validate XML file with xmlschema in lazy mode
-  
+
 """
 
 parser.add_argument('test_num', metavar="TEST_NUM", type=test_choice_type, help="Test number to run")

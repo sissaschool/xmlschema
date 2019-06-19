@@ -21,6 +21,11 @@ import sys
 import decimal
 import subprocess
 
+try:
+    import memory_profiler
+except ImportError:
+    memory_profiler = None
+
 
 @unittest.skipIf(sys.version_info < (3,), "In Python 2 ElementTree is not overwritten by cElementTree")
 class TestElementTree(unittest.TestCase):
@@ -96,6 +101,7 @@ class TestElementTree(unittest.TestCase):
         )
 
 
+@unittest.skipIf(memory_profiler is None or sys.version_info[:2] != (3, 7), "Test only with Python 3.7")
 class TestMemoryUsage(unittest.TestCase):
 
     @staticmethod

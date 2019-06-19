@@ -843,6 +843,8 @@ class TestDecoding(XMLSchemaTestCase):
     def test_string_facets(self):
         none_empty_string_type = self.st_schema.types['none_empty_string']
         self.check_decode(none_empty_string_type, '', XMLSchemaValidationError)
+        name_type = self.st_schema.types['NameType']
+        self.check_decode(name_type, '', XMLSchemaValidationError)
 
     def test_binary_data_facets(self):
         hex_code_type = self.st_schema.types['hexCode']
