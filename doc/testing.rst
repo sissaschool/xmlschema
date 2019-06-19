@@ -142,7 +142,7 @@ Testing with the W3C XML Schema 1.1 test suite
 ----------------------------------------------
 
 From release v1.0.11, using the script *test_w3c_suite.py*, you can run also tests based on the
-`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests, actually
+`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests, currently
 limited to XSD 1.0 schema tests, clone the W3C repo on the project's parent directory and than
 run the script:
 

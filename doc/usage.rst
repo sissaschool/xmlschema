@@ -544,3 +544,12 @@ the value in the specific module that processes the model checks:
 
     >>> import xmlschema
     >>> xmlschema.validators.models.MAX_MODEL_DEPTH = 20
+
+
+Lazy validation
+---------------
+
+From release v1.0.12 the document validation and decoding API has an optional argument `lazy=False`,
+that can be changed to True for operating with a lazy :class:`XMLResource`. The lazy mode can be
+useful for validating and decoding big XML data files. This is still an experimental feature that
+will be refined and integrated in future versions.
