@@ -103,8 +103,11 @@ def validate(source):
 
 @profile
 def lazy_validate(source):
-    validator = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
-    return validator.validate(xmlschema.XMLResource(source, lazy=True), path='*')
+    if source.endswith('.xsd'):
+        validator, path = xmlschema.XMLSchema.meta_schema, '*'
+    else:
+        validator, path = xmlschema, None
+    return validator.validate(xmlschema.XMLResource(source, lazy=True), path=path)
 
 
 if __name__ == '__main__':

@@ -107,7 +107,8 @@ class TestMemoryUsage(unittest.TestCase):
             parts = line.split()
             if 'def' in parts:
                 func_num += 1
-            if not parts or not parts[0].isdigit() or not parts[1].replace('.', '').isdigit():
+            if not parts or not parts[0].isdigit() or len(parts) == 1 \
+                    or not parts[1].replace('.', '').isdigit():
                 continue
             mem_usage.append(decimal.Decimal(parts[1]))
 

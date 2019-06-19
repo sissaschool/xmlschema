@@ -31,7 +31,6 @@ import os
 from collections import namedtuple, Counter
 from abc import ABCMeta
 import warnings
-import elementpath
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
@@ -716,22 +715,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             msg = "'converter' argument must be a %r subclass or instance: %r"
             raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
 
-    def get_element(self, path, namespaces=None):
-        """
-        Gets an XSD element by XPath expression.
-
-        :param path: an XPath expression that has to match an element of the schema.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        """
-        if not self.elements:
-            raise XMLSchemaValueError("schema %r has not any global element declaration!")
-        xsd_element = self.find(path, namespaces=namespaces)
-        if not isinstance(xsd_element, XsdElement):
-            if elementpath.datatypes.QNAME_PATTERN.match(path) is not None:
-                raise XMLSchemaValueError("%r is not a global element of the schema!" % path)
-            else:
-                raise XMLSchemaValueError("the path %r doesn't match any element of the schema!" % path)
-        return xsd_element
+    def get_element(self, tag, path=None, namespaces=None):
+        if not path:
+            return self.find(tag)
+        elif path[-1] == '*':
+            return self.find(path[:-1] + tag, namespaces)
+        else:
+            return self.find(path, namespaces)
 
     def _include_schemas(self):
         """Processes schema document inclusions and redefinitions."""
@@ -997,14 +987,28 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         namespaces.update(source.get_namespaces())
 
         id_map = Counter()
-        for elem in source.iterfind(path, namespaces):
-            if not schema_path:
-                xsd_element = self.find(elem.tag)
-            elif schema_path[-1] == '*':
-                xsd_element = self.find(schema_path[:-1] + elem.tag, namespaces)
-            else:
-                xsd_element = self.find(schema_path, namespaces)
 
+        if source.is_lazy() and path is None:
+            # TODO: Document validation in lazy mode.
+            # Validation is done pushing a _no_deep argument for root node and with
+            # a path='*' for validating children. This is a feature under test.
+            xsd_element = self.get_element(source.root.tag, schema_path)
+            if xsd_element is None:
+                yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
+
+            for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
+                                                  use_defaults=use_defaults, id_map=id_map, _no_deep=None):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    del result
+
+            path = '*'
+            if not schema_path:
+                schema_path = '/%s/*' % source.root.tag
+
+        for elem in source.iterfind(path, namespaces):
+            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
 
@@ -1071,13 +1075,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             kwargs['decimal_type'] = decimal_type
 
         for elem in source.iterfind(path, namespaces):
-            if not schema_path:
-                xsd_element = self.find(elem.tag)
-            elif schema_path[-1] == '*':
-                xsd_element = self.find(schema_path[:-1] + elem.tag, namespaces)
-            else:
-                xsd_element = self.find(schema_path, namespaces)
-
+            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 yield self.validation_error(validation, "%r is not an element of the schema" % elem, elem)
 

@@ -545,6 +545,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         if validation != 'skip':
             for constraint in self.constraints.values():
+                if isinstance(constraint, XsdKeyref) and '_no_deep' in kwargs:  # TODO: Complete lazy validation
+                    continue
                 for error in constraint(elem):
                     yield self.validation_error(validation, error, elem, **kwargs)
 

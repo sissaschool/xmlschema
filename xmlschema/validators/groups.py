@@ -611,21 +611,22 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 # TODO: use a default decoder str-->str??
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    result_list.append((child.tag, result, xsd_element))
-
-            if cdata_index and child.tail is not None:
-                tail = unicode_type(child.tail.strip())
-                if tail:
-                    if result_list and isinstance(result_list[-1][0], int):
-                        tail = result_list[-1][1] + ' ' + tail
-                        result_list[-1] = result_list[-1][0], tail, None
+            if '_no_deep' not in kwargs:  # TODO: Complete lazy validation
+                for result in xsd_element.iter_decode(child, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
                     else:
-                        result_list.append((cdata_index, tail, None))
-                        cdata_index += 1
+                        result_list.append((child.tag, result, xsd_element))
+
+                if cdata_index and child.tail is not None:
+                    tail = unicode_type(child.tail.strip())
+                    if tail:
+                        if result_list and isinstance(result_list[-1][0], int):
+                            tail = result_list[-1][1] + ' ' + tail
+                            result_list[-1] = result_list[-1][0], tail, None
+                        else:
+                            result_list.append((cdata_index, tail, None))
+                            cdata_index += 1
 
         if model.element is not None:
             index = len(elem)

@@ -609,6 +609,18 @@ class TestValidation(XMLSchemaTestCase):
         vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
+    def _test_document_validate_api_lazy(self):
+        source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
+        source.root[0].clear()
+        source.root[1].clear()
+        xsd_element = self.col_schema.elements['collection']
+
+        for result in xsd_element.iter_decode(source.root, 'strict', namespaces=source.get_namespaces(),
+                                              source=source, _no_deep=None):
+            del result
+
+        self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11
