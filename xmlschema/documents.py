@@ -19,8 +19,8 @@ from .validators.schema import XMLSchema, XMLSchemaBase
 def get_context(source, schema=None, cls=None, locations=None, base_url=None,
                 defuse='remote', timeout=300, lazy=False):
     """
-    Helper method for obtaining XML document validation/decode context. Returns
-    a couple with XMLResource an schema instances.
+    Helper method for obtaining XML document validation/decode context.
+    Return an XMLResource instance and a schema instance.
     """
     if cls is None:
         cls = XMLSchema
