@@ -2,8 +2,9 @@
 CHANGELOG
 *********
 
-`v1.0.12`_ (2019-06-19)
+`v1.0.13`_ (2019-06-19)
 =======================
+* Fix path normalization and tests for Windows platform
 * Added XML resource validation in lazy mode (experimental feature)
 * Added arguments *filler* and *fill_missing* to XSD decode/encode methods
 * Added arguments *preserve_root*, *strip_namespaces*, *force_dict* and *force_list* to XMLSchemaConverter
@@ -247,4 +248,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.9: https://github.com/brunato/xmlschema/compare/v1.0.8...v1.0.9
 .. _v1.0.10: https://github.com/brunato/xmlschema/compare/v1.0.9...v1.0.10
 .. _v1.0.11: https://github.com/brunato/xmlschema/compare/v1.0.10...v1.0.11
-.. _v1.0.12: https://github.com/brunato/xmlschema/compare/v1.0.11...v1.0.12
+.. _v1.0.13: https://github.com/brunato/xmlschema/compare/v1.0.11...v1.0.13
