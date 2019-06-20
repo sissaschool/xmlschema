@@ -33,7 +33,7 @@ from xmlschema.etree import etree_element, etree_tostring, is_etree_element, Ele
 from xmlschema.helpers import local_name
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.resources import fetch_namespaces
-from xmlschema.tests import XMLSchemaTestCase, tests_factory
+from xmlschema.tests import XsdValidatorTestCase, tests_factory
 from xmlschema.validators import XMLSchema11
 
 _VEHICLES_DICT = {
@@ -305,7 +305,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
     skip_strict = test_args.skip
     debug_mode = test_args.debug
 
-    class TestValidator(XMLSchemaTestCase):
+    class TestValidator(XsdValidatorTestCase):
 
         @classmethod
         def setUpClass(cls):
@@ -567,7 +567,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
     return TestValidator
 
 
-class TestValidation(XMLSchemaTestCase):
+class TestValidation(XsdValidatorTestCase):
 
     def check_validity(self, xsd_component, data, expected, use_defaults=True):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -641,7 +641,7 @@ class TestValidation11(TestValidation):
                                      "</tree>"))
 
 
-class TestDecoding(XMLSchemaTestCase):
+class TestDecoding(XsdValidatorTestCase):
 
     def check_decode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -751,20 +751,20 @@ class TestDecoding(XMLSchemaTestCase):
         self.assertEqual(xd, _DATA_DICT)
 
     def test_datetime_types(self):
-        xs = self.get_schema('<element name="dt" type="dateTime"/>')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
+        self.assertEqual(xs.decode('<dt>2019-01-01T13:40:00</dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<dt>2019-01-01T13:40:00</dt>', datetime_types=True),
                          datatypes.DateTime10.fromstring('2019-01-01T13:40:00'))
 
-        xs = self.get_schema('<element name="dt" type="date"/>')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
+        self.assertEqual(xs.decode('<dt>2001-04-15</dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<dt>2001-04-15</dt>', datetime_types=True),
                          datatypes.Date10.fromstring('2001-04-15'))
 
     def test_duration_type(self):
-        xs = self.get_schema('<element name="td" type="duration"/>')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>'), 'P5Y3MT60H30.001S')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="td" type="xs:duration"/>')
+        self.assertEqual(xs.decode('<td>P5Y3MT60H30.001S</td>'), 'P5Y3MT60H30.001S')
+        self.assertEqual(xs.decode('<td>P5Y3MT60H30.001S</td>', datetime_types=True),
                          datatypes.Duration.fromstring('P5Y3M2DT12H30.001S'))
 
     def test_default_converter(self):
@@ -874,20 +874,20 @@ class TestDecoding(XMLSchemaTestCase):
 
     def test_decimal_type(self):
         schema = self.get_schema("""
-        <element name="A" type="ns:A_type" />
-        <simpleType name="A_type">
-            <restriction base="decimal">
-                <minInclusive value="100.50"/>
-            </restriction>
-        </simpleType>
+        <xs:element name="A" type="A_type" />
+        <xs:simpleType name="A_type">
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="100.50"/>
+          </xs:restriction>
+        </xs:simpleType>
         """)
 
-        self.check_decode(schema, '<A xmlns="ns">120.48</A>', Decimal('120.48'))
-        self.check_decode(schema, '<A xmlns="ns">100.50</A>', Decimal('100.50'), process_namespaces=False)
-        self.check_decode(schema, '<A xmlns="ns">100.49</A>', XMLSchemaValidationError)
-        self.check_decode(schema, '<A xmlns="ns">120.48</A>', 120.48, decimal_type=float)
+        self.check_decode(schema, '<A>120.48</A>', Decimal('120.48'))
+        self.check_decode(schema, '<A>100.50</A>', Decimal('100.50'), process_namespaces=False)
+        self.check_decode(schema, '<A>100.49</A>', XMLSchemaValidationError)
+        self.check_decode(schema, '<A>120.48</A>', 120.48, decimal_type=float)
         # Issue #66
-        self.check_decode(schema, '<A xmlns="ns">120.48</A>', '120.48', decimal_type=str)
+        self.check_decode(schema, '<A>120.48</A>', '120.48', decimal_type=str)
 
     def test_nillable(self):
         # Issue #76
@@ -1002,7 +1002,7 @@ class TestDecoding(XMLSchemaTestCase):
                          {'@int_attr': 'wrong', '$': 20})
 
     def test_error_message(self):
-        schema = self.schema_class(os.path.join(self.test_cases_dir, 'issues/issue_115/Rotation.xsd'))
+        schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
         rotation_data = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
                         'pitch="0.0" roll="0.0" yaw="-1.0" />'
 
@@ -1022,26 +1022,26 @@ class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
 
     def test_datetime_types(self):
-        xs = self.get_schema('<element name="dt" type="dateTime"/>')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'), '2019-01-01T13:40:00')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
+        self.assertEqual(xs.decode('<dt>2019-01-01T13:40:00</dt>'), '2019-01-01T13:40:00')
+        self.assertEqual(xs.decode('<dt>2019-01-01T13:40:00</dt>', datetime_types=True),
                          datatypes.DateTime.fromstring('2019-01-01T13:40:00'))
 
-        xs = self.get_schema('<element name="dt" type="date"/>')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'), '2001-04-15')
-        self.assertEqual(xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
+        self.assertEqual(xs.decode('<dt>2001-04-15</dt>'), '2001-04-15')
+        self.assertEqual(xs.decode('<dt>2001-04-15</dt>', datetime_types=True),
                          datatypes.Date.fromstring('2001-04-15'))
 
     def test_derived_duration_types(self):
-        xs = self.get_schema('<element name="td" type="yearMonthDuration"/>')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P0Y4M</ns:td>'), 'P0Y4M')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2Y10M</ns:td>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="td" type="xs:yearMonthDuration"/>')
+        self.assertEqual(xs.decode('<td>P0Y4M</td>'), 'P0Y4M')
+        self.assertEqual(xs.decode('<td>P2Y10M</td>', datetime_types=True),
                          datatypes.Duration.fromstring('P2Y10M'))
 
-        xs = self.get_schema('<element name="td" type="dayTimeDuration"/>')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>'), 'P2DT6H30M30.001S')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT26H</ns:td>'), 'P2DT26H')
-        self.assertEqual(xs.decode('<ns:td xmlns:ns="ns">P2DT6H30M30.001S</ns:td>', datetime_types=True),
+        xs = self.get_schema('<xs:element name="td" type="xs:dayTimeDuration"/>')
+        self.assertEqual(xs.decode('<td>P2DT6H30M30.001S</td>'), 'P2DT6H30M30.001S')
+        self.assertEqual(xs.decode('<td>P2DT26H</td>'), 'P2DT26H')
+        self.assertEqual(xs.decode('<td>P2DT6H30M30.001S</td>', datetime_types=True),
                          datatypes.Duration.fromstring('P2DT6H30M30.001S'))
 
     def test_type_alternatives(self):
@@ -1064,7 +1064,7 @@ class TestDecoding11(TestDecoding):
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">true</ns:value>'))
 
 
-class TestEncoding(XMLSchemaTestCase):
+class TestEncoding(XsdValidatorTestCase):
 
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -1191,77 +1191,77 @@ class TestEncoding(XMLSchemaTestCase):
         self.check_encode(boolean_or_integer_or_string, "Venice ", u'Venice ')
 
     def test_simple_elements(self):
-        elem = etree_element('{ns}A')
+        elem = etree_element('A')
         elem.text = '89'
-        self.check_encode(self.get_element('A', type='string'), '89', elem)
-        self.check_encode(self.get_element('A', type='integer'), 89, elem)
+        self.check_encode(self.get_element('A', type='xs:string'), '89', elem)
+        self.check_encode(self.get_element('A', type='xs:integer'), 89, elem)
         elem.text = '-10.4'
-        self.check_encode(self.get_element('A', type='float'), -10.4, elem)
+        self.check_encode(self.get_element('A', type='xs:float'), -10.4, elem)
         elem.text = 'false'
-        self.check_encode(self.get_element('A', type='boolean'), False, elem)
+        self.check_encode(self.get_element('A', type='xs:boolean'), False, elem)
         elem.text = 'true'
-        self.check_encode(self.get_element('A', type='boolean'), True, elem)
+        self.check_encode(self.get_element('A', type='xs:boolean'), True, elem)
 
-        self.check_encode(self.get_element('A', type='short'), 128000, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:short'), 128000, XMLSchemaValidationError)
         elem.text = '0'
-        self.check_encode(self.get_element('A', type='nonNegativeInteger'), 0, elem)
-        self.check_encode(self.get_element('A', type='nonNegativeInteger'), '0', XMLSchemaValidationError)
-        self.check_encode(self.get_element('A', type='positiveInteger'), 0, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), 0, elem)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:positiveInteger'), 0, XMLSchemaValidationError)
         elem.text = '-1'
-        self.check_encode(self.get_element('A', type='negativeInteger'), -1, elem)
-        self.check_encode(self.get_element('A', type='nonNegativeInteger'), -1, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:negativeInteger'), -1, elem)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), -1, XMLSchemaValidationError)
 
     def test_complex_elements(self):
         schema = self.get_schema("""
-        <element name="A" type="ns:A_type" />
-        <complexType name="A_type" mixed="true">
-            <simpleContent>
-                <extension base="string">
-                    <attribute name="a1" type="short" use="required"/>
-                    <attribute name="a2" type="negativeInteger"/>
-                </extension>
-            </simpleContent>
-        </complexType>
+        <xs:element name="A" type="A_type" />
+        <xs:complexType name="A_type" mixed="true">
+            <xs:simpleContent>
+                <xs:extension base="xs:string">
+                    <xs:attribute name="a1" type="xs:short" use="required"/>
+                    <xs:attribute name="a2" type="xs:negativeInteger"/>
+                </xs:extension>
+            </xs:simpleContent>
+        </xs:complexType>
         """)
         self.check_encode(
             schema.elements['A'], data={'@a1': 10, '@a2': -1, '$': 'simple '},
-            expected='<ns:A xmlns:ns="ns" a1="10" a2="-1">simple </ns:A>',
+            expected='<A a1="10" a2="-1">simple </A>',
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1, '$': 'simple '},
-            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1">simple </A>'),
+            ElementTree.fromstring('<A a1="10" a2="-1">simple </A>'),
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '@a2': -1},
-            ElementTree.fromstring('<A xmlns="ns" a1="10" a2="-1"/>')
+            ElementTree.fromstring('<A a1="10" a2="-1"/>')
         )
         self.check_encode(
             schema.elements['A'], {'@a1': 10, '$': 'simple '},
-            ElementTree.fromstring('<A xmlns="ns" a1="10">simple </A>')
+            ElementTree.fromstring('<A a1="10">simple </A>')
         )
         self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
 
         schema = self.get_schema("""
-        <element name="A" type="ns:A_type" />
-        <complexType name="A_type">
-            <sequence>
-                <element name="B1" type="string"/>
-                <element name="B2" type="integer"/>
-                <element name="B3" type="boolean"/>
-            </sequence>
-        </complexType>
+        <xs:element name="A" type="A_type" />
+        <xs:complexType name="A_type">
+            <xs:sequence>
+                <xs:element name="B1" type="xs:string"/>
+                <xs:element name="B2" type="xs:integer"/>
+                <xs:element name="B3" type="xs:boolean"/>
+            </xs:sequence>
+        </xs:complexType>
         """)
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('B3', False)]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</ns:A>',
+            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</A>',
             indent=0,
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
         self.check_encode(
             xsd_component=schema.elements['A'],
             data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
+            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
@@ -1271,48 +1271,32 @@ class TestEncoding(XMLSchemaTestCase):
         )
 
     def test_encode_datetime(self):
-        xs = self.get_schema('<element name="dt" type="dateTime"/>')
-
-        dt = xs.decode('<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>', datetime_types=True)
-        self.assertEqual(
-            etree_tostring(xs.encode(dt)),
-            '<ns:dt xmlns:ns="ns">2019-01-01T13:40:00</ns:dt>'
-        )
+        xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
+        dt = xs.decode('<dt>2019-01-01T13:40:00</dt>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(dt)), '<dt>2019-01-01T13:40:00</dt>')
 
     def test_encode_date(self):
-        xs = self.get_schema('<element name="dt" type="date"/>')
-        date = xs.decode('<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>', datetime_types=True)
-        self.assertEqual(
-            etree_tostring(xs.encode(date)),
-            '<ns:dt xmlns:ns="ns">2001-04-15</ns:dt>'
-        )
+        xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
+        date = xs.decode('<dt>2001-04-15</dt>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(date)), '<dt>2001-04-15</dt>')
 
     def test_duration(self):
-        xs = self.get_schema('<element name="td" type="duration"/>')
-        duration = xs.decode('<ns:td xmlns:ns="ns">P5Y3MT60H30.001S</ns:td>', datetime_types=True)
-        self.assertEqual(
-            etree_tostring(xs.encode(duration)),
-            '<ns:td xmlns:ns="ns">P5Y3M2DT12H30.001S</ns:td>'
-        )
+        xs = self.get_schema('<xs:element name="td" type="xs:duration"/>')
+        duration = xs.decode('<td>P5Y3MT60H30.001S</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(duration)), '<td>P5Y3M2DT12H30.001S</td>')
 
     def test_gregorian_year(self):
-        xs = self.get_schema('<element name="td" type="gYear"/>')
-        gyear = xs.decode('<ns:td xmlns:ns="ns">2000</ns:td>', datetime_types=True)
-        self.assertEqual(
-            etree_tostring(xs.encode(gyear)),
-            '<ns:td xmlns:ns="ns">2000</ns:td>'
-        )
+        xs = self.get_schema('<xs:element name="td" type="xs:gYear"/>')
+        gyear = xs.decode('<td>2000</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(gyear)), '<td>2000</td>')
 
     def test_gregorian_yearmonth(self):
-        xs = self.get_schema('<element name="td" type="gYearMonth"/>')
-        gyear_month = xs.decode('<ns:td xmlns:ns="ns">2000-12</ns:td>', datetime_types=True)
-        self.assertEqual(
-            etree_tostring(xs.encode(gyear_month)),
-            '<ns:td xmlns:ns="ns">2000-12</ns:td>'
-        )
+        xs = self.get_schema('<xs:element name="td" type="xs:gYearMonth"/>')
+        gyear_month = xs.decode('<td>2000-12</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(gyear_month)), '<td>2000-12</td>')
 
     def test_error_message(self):
-        schema = self.schema_class(os.path.join(self.test_cases_dir, 'issues/issue_115/Rotation.xsd'))
+        schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
         rotation_data = {
             "@roll": 0.0,
             "@pitch": 0.0,

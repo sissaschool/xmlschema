@@ -22,10 +22,9 @@ from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_names
     local_name, qname_to_prefixed, has_xsd_components, get_xsd_component, \
     get_xml_bool_attribute, get_xsd_derivation_attribute
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
-from xmlschema.tests import XMLSchemaTestCase
 
 
-class TestHelpers(XMLSchemaTestCase):
+class TestHelpers(unittest.TestCase):
 
     def test_get_namespace_function(self):
         self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)

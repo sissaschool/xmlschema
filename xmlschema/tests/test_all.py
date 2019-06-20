@@ -10,6 +10,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+    from xmlschema.tests.test_etree import *
     from xmlschema.tests.test_helpers import *
     from xmlschema.tests.test_meta import *
     from xmlschema.tests.test_regex import *
@@ -18,8 +20,6 @@ if __name__ == '__main__':
     from xmlschema.tests.test_models import *
     from xmlschema.tests.test_schemas import *
     from xmlschema.tests.test_validators import *
-    from xmlschema.tests.test_package import *
-    from xmlschema.tests import print_test_header
 
     print_test_header()
     unittest.main()

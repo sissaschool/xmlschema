@@ -15,10 +15,10 @@ This module runs tests concerning model groups validation.
 import unittest
 
 from xmlschema.validators import ModelVisitor
-from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.tests import casepath, XsdValidatorTestCase
 
 
-class TestModelValidation(XMLSchemaTestCase):
+class TestModelValidation(XsdValidatorTestCase):
 
     # --- Test helper functions ---
 
@@ -468,7 +468,7 @@ class TestModelValidation(XMLSchemaTestCase):
     #
     # Tests on issues
     def test_issue_086(self):
-        issue_086_xsd = self.casepath('issues/issue_086/issue_086.xsd')
+        issue_086_xsd = casepath('issues/issue_086/issue_086.xsd')
         schema = self.schema_class(issue_086_xsd)
         group = schema.types['Foo'].content_type
 

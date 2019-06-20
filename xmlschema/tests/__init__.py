@@ -45,29 +45,37 @@ def has_network_access(*locations):
 
 SKIP_REMOTE_TESTS = not has_network_access('http://www.sissa.it', 'http://www.w3.org/', 'http://dublincore.org/')
 PROTECTED_PREFIX_PATTERN = re.compile(r'ns\d:')
+TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
+SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="{0}">
+    {1}
+</xs:schema>"""
+
+
+def casepath(relative_path):
+    """
+    Returns the absolute path from a relative path specified from the `xmlschema/tests/test_cases/` dir.
+    """
+    return os.path.join(TEST_CASES_DIR, relative_path)
 
 
 def print_test_header():
+    """Print an header thar displays Python version and platform used for test session."""
     header1 = "Test %r" % xmlschema
     header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
 
 
-class XMLSchemaTestCase(unittest.TestCase):
+class XsdValidatorTestCase(unittest.TestCase):
     """
-    XMLSchema TestCase class.
+    TestCase class for XSD validators.
+    """
+    @classmethod
+    def casepath(cls, relative_path):
+        return casepath(relative_path)
 
-    Setup tests common environment. The tests parts have to use empty prefix for
-    XSD namespace names and 'ns' prefix for XMLSchema test namespace names.
-    """
-    test_cases_dir = os.path.join(os.path.dirname(__file__), 'test_cases/')
-    etree_register_namespace(prefix='', uri=XSD_NAMESPACE)
+    etree_register_namespace(prefix='xs', uri=XSD_NAMESPACE)
     etree_register_namespace(prefix='ns', uri="ns")
-    SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
-    <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema"
-        targetNamespace="ns" elementFormDefault="unqualified" version="{0}">
-        {1}
-    </schema>"""
 
     schema_class = XMLSchema
 
@@ -83,36 +91,27 @@ class XMLSchemaTestCase(unittest.TestCase):
             'ns': 'ns',
         }
 
-        cls.vh_dir = cls.casepath('examples/vehicles')
-        cls.vh_xsd_file = cls.casepath('examples/vehicles/vehicles.xsd')
-        cls.vh_xml_file = cls.casepath('examples/vehicles/vehicles.xml')
-        cls.vh_json_file = cls.casepath('examples/vehicles/vehicles.json')
+        cls.vh_dir = casepath('examples/vehicles')
+        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+        cls.vh_json_file = casepath('examples/vehicles/vehicles.json')
         cls.vh_schema = cls.schema_class(cls.vh_xsd_file)
         cls.vh_namespaces = fetch_namespaces(cls.vh_xml_file)
 
-        cls.col_dir = cls.casepath('examples/collection')
-        cls.col_xsd_file = cls.casepath('examples/collection/collection.xsd')
-        cls.col_xml_file = cls.casepath('examples/collection/collection.xml')
-        cls.col_json_file = cls.casepath('examples/collection/collection.json')
+        cls.col_dir = casepath('examples/collection')
+        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = casepath('examples/collection/collection.xml')
+        cls.col_json_file = casepath('examples/collection/collection.json')
         cls.col_schema = cls.schema_class(cls.col_xsd_file)
         cls.col_namespaces = fetch_namespaces(cls.col_xml_file)
 
-        cls.st_xsd_file = cls.casepath('features/decoder/simple-types.xsd')
+        cls.st_xsd_file = casepath('features/decoder/simple-types.xsd')
         cls.st_schema = cls.schema_class(cls.st_xsd_file)
 
-        cls.models_xsd_file = cls.casepath('features/models/models.xsd')
+        cls.models_xsd_file = casepath('features/models/models.xsd')
         cls.models_schema = cls.schema_class(cls.models_xsd_file)
 
-    @classmethod
-    def casepath(cls, path):
-        """
-        Returns the absolute path of a test case file.
-
-        :param path: the relative path of the case file from base dir ``xmlschema/tests/test_cases/``.
-        """
-        return os.path.join(cls.test_cases_dir, path)
-
-    def retrieve_schema_source(self, source):
+    def get_schema_source(self, source):
         """
         Returns a schema source that can be used to create an XMLSchema instance.
 
@@ -129,9 +128,7 @@ class XMLSchemaTestCase(unittest.TestCase):
                 raise XMLSchemaValueError("% is not an XSD global definition/declaration." % source)
 
             root = etree_element('schema', attrib={
-                'xmlns:ns': "ns",
-                'xmlns': "http://www.w3.org/2001/XMLSchema",
-                'targetNamespace': "ns",
+                'xmlns:xs': "http://www.w3.org/2001/XMLSchema",
                 'elementFormDefault': "qualified",
                 'version': self.schema_class.XSD_VERSION,
             })
@@ -140,19 +137,11 @@ class XMLSchemaTestCase(unittest.TestCase):
         else:
             source = source.strip()
             if not source.startswith('<'):
-                return self.casepath(source)
+                return casepath(source)
+            elif source.startswith('<?xml ') or source.startswith('<xs:schema '):
+                return source
             else:
-                return self.SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
-
-    def get_schema(self, source):
-        return self.schema_class(self.retrieve_schema_source(source))
-
-    def get_element(self, name, **attrib):
-        source = '<element name="{}" {}/>'.format(
-            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
-        )
-        schema = self.schema_class(self.retrieve_schema_source(source))
-        return schema.elements[name]
+                return SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
 
     def check_etree_elements(self, elem, other):
         """Checks if two ElementTree elements are equal."""
@@ -167,6 +156,16 @@ class XMLSchemaTestCase(unittest.TestCase):
         if match:
             msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
             self.assertIsNone(match, msg)
+
+    def get_schema(self, source):
+        return self.schema_class(self.get_schema_source(source))
+
+    def get_element(self, name, **attrib):
+        source = '<xs:element name="{}" {}/>'.format(
+            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
+        )
+        schema = self.schema_class(self.get_schema_source(source))
+        return schema.elements[name]
 
     def check_errors(self, path, expected):
         """

@@ -17,6 +17,7 @@ import unittest
 import pdb
 import os
 import pickle
+import platform
 import time
 import warnings
 
@@ -26,12 +27,12 @@ from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaModelError, \
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
-from xmlschema.tests import tests_factory, SchemaObserver, XMLSchemaTestCase
+from xmlschema.tests import SKIP_REMOTE_TESTS, tests_factory, SchemaObserver, XsdValidatorTestCase
 from xmlschema.validators import XsdValidator, XMLSchema11
 from xmlschema.xpath import ElementPathContext
 
 
-class TestXMLSchema10(XMLSchemaTestCase):
+class TestXMLSchema10(XsdValidatorTestCase):
 
     def check_schema(self, source, expected=None, **kwargs):
         """
@@ -43,9 +44,9 @@ class TestXMLSchema10(XMLSchemaTestCase):
         a substring test if it's not `None` (maybe a string). Then returns the schema instance.
         """
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.schema_class, self.retrieve_schema_source(source), **kwargs)
+            self.assertRaises(expected, self.schema_class, self.get_schema_source(source), **kwargs)
         else:
-            schema = self.schema_class(self.retrieve_schema_source(source), **kwargs)
+            schema = self.schema_class(self.get_schema_source(source), **kwargs)
             if callable(expected):
                 self.assertTrue(expected(schema))
             return schema
@@ -53,16 +54,16 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def check_complex_restriction(self, base, restriction, expected=None, **kwargs):
         content = 'complex' if self.content_pattern.search(base) else 'simple'
         source = """
-            <complexType name="targetType">
+            <xs:complexType name="targetType">
                 {0}
-            </complexType>
-            <complexType name="restrictedType">
-                <{1}Content>
-                    <restriction base="ns:targetType">
+            </xs:complexType>
+            <xs:complexType name="restrictedType">
+                <xs:{1}Content>
+                    <xs:restriction base="targetType">
                         {2}
-                    </restriction>
-                </{1}Content>
-            </complexType>
+                    </xs:restriction>
+                </xs:{1}Content>
+            </xs:complexType>
             """.format(base.strip(), content, restriction.strip())
         self.check_schema(source, expected, **kwargs)
 
@@ -91,14 +92,14 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_simple_types(self):
         # Issue #54: set list or union schema element.
         xs = self.check_schema("""
-            <simpleType name="test_list">
-                <annotation/>
-                <list itemType="string"/>
-            </simpleType>
-            <simpleType name="test_union">
-                <annotation/>
-                <union memberTypes="string integer boolean"/>
-            </simpleType>
+        <xs:simpleType name="test_list">
+            <xs:annotation/>
+            <xs:list itemType="xs:string"/>
+        </xs:simpleType>
+        <xs:simpleType name="test_union">
+            <xs:annotation/>
+            <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
+        </xs:simpleType>
         """)
         xs.types['test_list'].elem = xs.root[0]  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_list'].elem.tag, XSD_LIST)
@@ -110,12 +111,14 @@ class TestXMLSchema10(XMLSchemaTestCase):
         with warnings.catch_warnings(record=True) as context:
             warnings.simplefilter("always")
             self.check_schema("""
-                <include schemaLocation="example.xsd" />
-                <import schemaLocation="example.xsd" />
-                <redefine schemaLocation="example.xsd"/>
-                <import namespace="http://missing.example.test/" />
-                <import/>
-                """)
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns">
+                <xs:include schemaLocation="example.xsd" />
+                <xs:import schemaLocation="example.xsd" />
+                <xs:redefine schemaLocation="example.xsd"/>
+                <xs:import namespace="http://missing.example.test/" />
+                <xs:import/>
+            </xs:schema>
+            """)
             self.assertEqual(len(context), 3, "Wrong number of include/import warnings")
             self.assertEqual(context[0].category, XMLSchemaIncludeWarning)
             self.assertEqual(context[1].category, XMLSchemaIncludeWarning)
@@ -127,293 +130,333 @@ class TestXMLSchema10(XMLSchemaTestCase):
     def test_wrong_references(self):
         # Wrong namespace for element type's reference
         self.check_schema("""
-            <element name="dimension" type="dimensionType"/>
-            <simpleType name="dimensionType">
-                <restriction base="short"/>
-            </simpleType>
-            """, XMLSchemaParseError)
+        <xs:element name="dimension" type="xs:dimensionType"/>
+        <xs:simpleType name="dimensionType">
+          <xs:restriction base="xs:short"/>
+        </xs:simpleType>
+        """, XMLSchemaParseError)
 
     def test_restriction_has_annotation(self):
         # Wrong namespace for element type's reference
         schema = self.check_schema("""
-            <simpleType name='Magic'>
-                <annotation>
-                    <documentation> stuff </documentation>
-                </annotation>
-                <restriction base='string'>
-                    <enumeration value='A'/>
-                </restriction>
-            </simpleType>""")
+        <xs:simpleType name='Magic'>
+            <xs:annotation>
+                <xs:documentation> stuff </xs:documentation>
+            </xs:annotation>
+            <xs:restriction base='xs:string'>
+                <xs:enumeration value='A'/>
+            </xs:restriction>
+        </xs:simpleType>""")
         self.assertIsNotNone(schema.types["Magic"].annotation)
 
     def test_facets(self):
         # Issue #55 and a near error (derivation from xs:integer)
         self.check_schema("""
-            <simpleType name="dtype">
-                <restriction base="decimal">
-                    <fractionDigits value="3" />
-                    <totalDigits value="20" />
-                </restriction>
-            </simpleType>
-            <simpleType name="ntype">
-                <restriction base="ns:dtype">
-                    <totalDigits value="3" />
-                    <fractionDigits value="1" />
-                </restriction>
-            </simpleType>
-            """)
+        <xs:simpleType name="dtype">
+            <xs:restriction base="xs:decimal">
+                <xs:fractionDigits value="3" />
+                <xs:totalDigits value="20" />
+            </xs:restriction>
+        </xs:simpleType>
+        <xs:simpleType name="ntype">
+            <xs:restriction base="dtype">
+                <xs:totalDigits value="3" />
+                <xs:fractionDigits value="1" />
+            </xs:restriction>
+        </xs:simpleType>
+        """)
         self.check_schema("""
-            <simpleType name="dtype">
-                <restriction base="integer">
-                    <fractionDigits value="3" /> <!-- <<< value must be 0 -->
-                    <totalDigits value="20" />
-                </restriction>
-            </simpleType>
-            """, xmlschema.XMLSchemaParseError)
+        <xs:simpleType name="dtype">
+            <xs:restriction base="xs:integer">
+                <xs:fractionDigits value="3" /> <!-- <<< value must be 0 -->
+                <xs:totalDigits value="20" />
+            </xs:restriction>
+        </xs:simpleType>
+        """, xmlschema.XMLSchemaParseError)
 
         # Issue #56
         self.check_schema("""
-            <simpleType name="mlengthparent">
-                <restriction base="string">
-                    <maxLength value="200"/>
-                </restriction>
-            </simpleType>
-            <simpleType name="mlengthchild">
-                <restriction base="ns:mlengthparent">
-                    <maxLength value="20"/>
-                </restriction>
-            </simpleType>
-            """)
+        <xs:simpleType name="mlengthparent">
+            <xs:restriction base="xs:string">
+                <xs:maxLength value="200"/>
+            </xs:restriction>
+        </xs:simpleType>
+        <xs:simpleType name="mlengthchild">
+            <xs:restriction base="mlengthparent">
+                <xs:maxLength value="20"/>
+            </xs:restriction>
+        </xs:simpleType>
+        """)
 
     def test_element_restrictions(self):
         base = """
-        <sequence>
-            <element name="A" maxOccurs="7"/>
-            <element name="B" type="string"/>
-            <element name="C" fixed="5"/>
-        </sequence>
+        <xs:sequence>
+            <xs:element name="A" maxOccurs="7"/>
+            <xs:element name="B" type="xs:string"/>
+            <xs:element name="C" fixed="5"/>
+        </xs:sequence>
         """
         self.check_complex_restriction(
             base, restriction="""
-            <sequence>
-                <element name="A" maxOccurs="6"/>
-                <element name="B" type="NCName"/>
-                <element name="C" fixed="5"/>
-            </sequence>
-            """)
-
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """
+        )
         self.check_complex_restriction(
             base, restriction="""
-            <sequence>
-                <element name="A" maxOccurs="8"/> <!-- <<< More occurrences -->
-                <element name="B" type="NCName"/>
-                <element name="C" fixed="5"/>
-            </sequence>
-            """, expected=XMLSchemaParseError)
-
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="8"/> <!-- <<< More occurrences -->
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
+        )
         self.check_complex_restriction(
             base, restriction="""
-            <sequence>
-                <element name="A" maxOccurs="6"/>
-                <element name="B" type="float"/> <!-- <<< Not a derived type -->
-                <element name="C" fixed="5"/>
-            </sequence>
-            """, expected=XMLSchemaParseError)
-
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="float"/> <!-- <<< Not a derived type -->
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
+        )
         self.check_complex_restriction(
             base, restriction="""
-            <sequence>
-                <element name="A" maxOccurs="6"/>
-                <element name="B" type="NCName"/>
-                <element name="C" fixed="3"/> <!-- <<< Different fixed value -->
-            </sequence>
-            """, expected=XMLSchemaParseError)
-
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6"/>
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="3"/> <!-- <<< Different fixed value -->
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
+        )
         self.check_complex_restriction(
             base, restriction="""
-            <sequence>
-                <element name="A" maxOccurs="6" nillable="true"/> <!-- <<< nillable is True -->
-                <element name="B" type="NCName"/>
-                <element name="C" fixed="5"/>
-            </sequence>
-            """, expected=XMLSchemaParseError)
+            <xs:sequence>
+                <xs:element name="A" maxOccurs="6" nillable="true"/> <!-- <<< nillable is True -->
+                <xs:element name="B" type="xs:NCName"/>
+                <xs:element name="C" fixed="5"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
+        )
 
     def test_sequence_group_restriction(self):
         # Meaningless sequence group
         base = """
-        <sequence>
-            <sequence>
-                <element name="A"/>
-                <element name="B"/>
-            </sequence>
-        </sequence>
+        <xs:sequence>
+            <xs:sequence>
+                <xs:element name="A"/>
+                <xs:element name="B"/>
+            </xs:sequence>
+        </xs:sequence>
         """
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="B"/></sequence>'
+            base, restriction="""
+            <xs:sequence>
+              <xs:element name="A"/>
+              <xs:element name="B"/>
+            </xs:sequence>
+            """
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="C"/></sequence>', XMLSchemaParseError
+            base, restriction="""
+            <xs:sequence>
+              <xs:element name="A"/>
+              <xs:element name="C"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
         )
 
         base = """
-        <sequence>
-            <element name="A"/>
-            <element name="B" minOccurs="0"/>
-        </sequence>
+        <xs:sequence>
+            <xs:element name="A"/>
+            <xs:element name="B" minOccurs="0"/>
+        </xs:sequence>
         """
-        self.check_complex_restriction(base, '<sequence><element name="A"/></sequence>')
-        self.check_complex_restriction(base, '<sequence><element name="B"/></sequence>', XMLSchemaParseError)
-        self.check_complex_restriction(base, '<sequence><element name="C"/></sequence>', XMLSchemaParseError)
+        self.check_complex_restriction(base, '<xs:sequence><xs:element name="A"/></xs:sequence>')
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="B"/></sequence>'
+            base, '<xs:sequence><xs:element name="B"/></xs:sequence>', XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="C"/></sequence>', XMLSchemaParseError
+            base, '<xs:sequence><xs:element name="C"/></xs:sequence>', XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A" minOccurs="0"/><element name="B"/></sequence>',
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="B"/></xs:sequence>'
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>', XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="A" minOccurs="0"/><xs:element name="B"/></xs:sequence>',
             XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="B" minOccurs="0"/><element name="A"/></sequence>',
+            base, '<xs:sequence><xs:element name="B" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
             XMLSchemaParseError
         )
 
     def test_all_group_restriction(self):
         base = """
-        <all>
-            <element name="A"/>
-            <element name="B" minOccurs="0"/>
-            <element name="C" minOccurs="0"/>
-        </all>
+        <xs:all>
+            <xs:element name="A"/>
+            <xs:element name="B" minOccurs="0"/>
+            <xs:element name="C" minOccurs="0"/>
+        </xs:all>
         """
-        self.check_complex_restriction(base, '<all><element name="A"/><element name="C"/></all>')
         self.check_complex_restriction(
-            base, '<all><element name="C" minOccurs="0"/><element name="A"/></all>', XMLSchemaParseError
+            base, restriction="""
+            <xs:all>
+              <xs:element name="A"/>
+              <xs:element name="C"/>
+            </xs:all>
+        """)
+        self.check_complex_restriction(
+            base, restriction="""
+            <xs:all>
+              <xs:element name="C" minOccurs="0"/>
+              <xs:element name="A"/>
+            </xs:all>
+            """, expected=XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="C"/></sequence>'
+            base, restriction="""
+            <xs:sequence>
+              <xs:element name="A"/>
+              <xs:element name="C"/>
+            </xs:sequence>
+            """)
+        self.check_complex_restriction(
+            base, '<xs:sequence><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="C" minOccurs="0"/><element name="A"/></sequence>',
+            base, restriction="""
+            <xs:sequence>
+              <xs:element name="C" minOccurs="0"/>
+              <xs:element name="A" minOccurs="0"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence><element name="C" minOccurs="0"/><element name="A" minOccurs="0"/></sequence>',
-            XMLSchemaParseError
-        )
-        self.check_complex_restriction(
-            base, '<sequence><element name="A"/><element name="X"/></sequence>', XMLSchemaParseError
+            base, restriction="""
+            <xs:sequence>
+              <xs:element name="A"/>
+              <xs:element name="X"/>
+            </xs:sequence>
+            """, expected=XMLSchemaParseError
         )
 
         base = """
-        <all>
-            <element name="A" minOccurs="0" maxOccurs="0"/>
-        </all>
+        <xs:all>
+            <xs:element name="A" minOccurs="0" maxOccurs="0"/>
+        </xs:all>
         """
-        self.check_complex_restriction(base, '<all><element name="A"/></all>', XMLSchemaParseError)
+        self.check_complex_restriction(base, '<xs:all><xs:element name="A"/></xs:all>', XMLSchemaParseError)
 
     def test_choice_group_restriction(self):
         base = """
-        <choice maxOccurs="2">
-            <element name="A"/>
-            <element name="B"/>
-            <element name="C"/>
-        </choice>
+        <xs:choice maxOccurs="2">
+            <xs:element name="A"/>
+            <xs:element name="B"/>
+            <xs:element name="C"/>
+        </xs:choice>
         """
-        self.check_complex_restriction(base, '<choice><element name="A"/><element name="C"/></choice>')
+        self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
         self.check_complex_restriction(
-            base, '<choice maxOccurs="2"><element name="C"/><element name="A"/></choice>',
+            base, '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
             XMLSchemaParseError
         )
 
         self.check_complex_restriction(
-            base, '<choice maxOccurs="2"><element name="A"/><element name="C"/></choice>',
+            base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
         )
 
     def test_occurs_restriction(self):
         base = """
-        <sequence minOccurs="3" maxOccurs="10">
-            <element name="A"/>
-        </sequence>
+        <xs:sequence minOccurs="3" maxOccurs="10">
+            <xs:element name="A"/>
+        </xs:sequence>
         """
         self.check_complex_restriction(
-            base, '<sequence minOccurs="3" maxOccurs="7"><element name="A"/></sequence>')
+            base, '<xs:sequence minOccurs="3" maxOccurs="7"><xs:element name="A"/></xs:sequence>')
         self.check_complex_restriction(
-            base, '<sequence minOccurs="4" maxOccurs="10"><element name="A"/></sequence>')
+            base, '<xs:sequence minOccurs="4" maxOccurs="10"><xs:element name="A"/></xs:sequence>')
         self.check_complex_restriction(
-            base, '<sequence minOccurs="3" maxOccurs="11"><element name="A"/></sequence>',
+            base, '<xs:sequence minOccurs="3" maxOccurs="11"><xs:element name="A"/></xs:sequence>',
             XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<sequence minOccurs="2" maxOccurs="10"><element name="A"/></sequence>',
+            base, '<xs:sequence minOccurs="2" maxOccurs="10"><xs:element name="A"/></xs:sequence>',
             XMLSchemaParseError
         )
 
     def test_union_restrictions(self):
         # Wrong union restriction (not admitted facets, see issue #67)
         self.check_schema(r"""
-            <simpleType name="Percentage">
-                <restriction base="ns:Integer">
-                    <minInclusive value="0"/>
-                    <maxInclusive value="100"/>
-                </restriction>
-            </simpleType>
-            <simpleType name="Integer">
-                <union memberTypes="int ns:IntegerString"/>
-            </simpleType>
-            <simpleType name="IntegerString">
-                <restriction base="string">
-                    <pattern value="-?[0-9]+(\.[0-9]+)?%"/>
-                </restriction>
-            </simpleType>
-            """, XMLSchemaParseError)
+        <xs:simpleType name="Percentage">
+            <xs:restriction base="Integer">
+                <xs:minInclusive value="0"/>
+                <xs:maxInclusive value="100"/>
+            </xs:restriction>
+        </xs:simpleType>
+        <xs:simpleType name="Integer">
+            <xs:union memberTypes="xs:int IntegerString"/>
+        </xs:simpleType>
+        <xs:simpleType name="IntegerString">
+            <xs:restriction base="xs:string">
+                <xs:pattern value="-?[0-9]+(\.[0-9]+)?%"/>
+            </xs:restriction>
+        </xs:simpleType>
+        """, XMLSchemaParseError)
 
     def test_final_attribute(self):
         self.check_schema("""
-            <simpleType name="aType" final="list restriction">
-                <restriction base="string"/>
-            </simpleType>
-            """)
+        <xs:simpleType name="aType" final="list restriction">
+            <xs:restriction base="xs:string"/>
+        </xs:simpleType>
+        """)
 
     def test_wrong_attribute(self):
         self.check_schema("""
-            <attributeGroup name="alpha">
-                <attribute name="name" type="string"/>
-                <attribute ref="phone"/>  <!-- Missing "phone" attribute -->
-            </attributeGroup>
-            """, XMLSchemaParseError)
+        <xs:attributeGroup name="alpha">
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attribute ref="phone"/>  <!-- Missing "phone" attribute -->
+        </xs:attributeGroup>
+        """, XMLSchemaParseError)
 
     def test_wrong_attribute_group(self):
         self.check_schema("""
-            <attributeGroup name="alpha">
-                <attribute name="name" type="string"/>
-                <attributeGroup ref="beta"/>  <!-- Missing "beta" attribute group -->
-            </attributeGroup>
-            """, XMLSchemaParseError)
+        <xs:attributeGroup name="alpha">
+            <xs:attribute name="name" type="xs:string"/>
+            <xs:attributeGroup ref="beta"/>  <!-- Missing "beta" attribute group -->
+        </xs:attributeGroup>
+        """, XMLSchemaParseError)
+
         schema = self.check_schema("""
-            <attributeGroup name="alpha">
-                <attribute name="name" type="string"/>
-                <attributeGroup name="beta"/>  <!-- attribute "name" instead of "ref" -->
-            </attributeGroup>
+            <xs:attributeGroup name="alpha">
+                <xs:attribute name="name" type="xs:string"/>
+                <xs:attributeGroup name="beta"/>  <!-- attribute "name" instead of "ref" -->
+            </xs:attributeGroup>
             """, validation='lax')
         self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
 
     def test_date_time_facets(self):
         self.check_schema("""
-            <simpleType name="restricted_date">
-                <restriction base="date">
-                    <minInclusive value="1900-01-01"/>
-                    <maxInclusive value="2030-12-31"/>
-                </restriction>
-            </simpleType>""")
+            <xs:simpleType name="restricted_date">
+                <xs:restriction base="xs:date">
+                    <xs:minInclusive value="1900-01-01"/>
+                    <xs:maxInclusive value="2030-12-31"/>
+                </xs:restriction>
+            </xs:simpleType>""")
 
         self.check_schema("""
-            <simpleType name="restricted_year">
-                <restriction base="gYear">
-                    <minInclusive value="1900"/>
-                    <maxInclusive value="2030"/>
-                </restriction>
-            </simpleType>""")
+            <xs:simpleType name="restricted_year">
+                <xs:restriction base="xs:gYear">
+                    <xs:minInclusive value="1900"/>
+                    <xs:maxInclusive value="2030"/>
+                </xs:restriction>
+            </xs:simpleType>""")
 
     def test_base_schemas(self):
         from xmlschema.validators.schema import XML_SCHEMA_FILE
@@ -433,26 +476,26 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_upa_violations(self):
         self.check_schema("""
-            <complexType name="typeA">
-                <sequence>
-                    <sequence minOccurs="0" maxOccurs="unbounded">
-                        <element name="A"/>
-                        <element name="B"/>
-                    </sequence>
-                    <element name="A" minOccurs="0"/>
-                </sequence>
-            </complexType>""", XMLSchemaModelError)
+            <xs:complexType name="typeA">
+                <xs:sequence>
+                    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                        <xs:element name="A"/>
+                        <xs:element name="B"/>
+                    </xs:sequence>
+                    <xs:element name="A" minOccurs="0"/>
+                </xs:sequence>
+            </xs:complexType>""", XMLSchemaModelError)
 
         self.check_schema("""
-            <complexType name="typeA">
-                <sequence>
-                    <sequence minOccurs="0" maxOccurs="unbounded">
-                        <element name="B"/>
-                        <element name="A"/>
-                    </sequence>
-                    <element name="A" minOccurs="0"/>
-                </sequence>
-            </complexType>""")
+            <xs:complexType name="typeA">
+                <xs:sequence>
+                    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                        <xs:element name="B"/>
+                        <xs:element name="A"/>
+                    </xs:sequence>
+                    <xs:element name="A" minOccurs="0"/>
+                </xs:sequence>
+            </xs:complexType>""")
 
     def test_root_elements(self):
         # Test issue #107 fix
@@ -471,9 +514,25 @@ class TestXMLSchema10(XMLSchemaTestCase):
 
     def test_is_restriction_method(self):
         # Test issue #111 fix
-        schema = self.schema_class(source=os.path.join(self.test_cases_dir, 'issues/issue_111/issue_111.xsd'))
+        schema = self.schema_class(source=self.casepath('issues/issue_111/issue_111.xsd'))
         extended_header_def = schema.types['extendedHeaderDef']
         self.assertTrue(extended_header_def.is_derived(schema.types['blockDef']))
+
+    @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
+                     "Remote networks are not accessible or avoid SSL verification error on Windows.")
+    def test_remote_schemas_loading(self):
+        col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd")
+        self.assertTrue(isinstance(col_schema, self.schema_class))
+        vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                      "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd")
+        self.assertTrue(isinstance(vh_schema, self.schema_class))
+
+    def test_schema_defuse(self):
+        vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')
+        self.assertIsInstance(vh_schema.root, etree_element)
+        for schema in vh_schema.maps.iter_schemas():
+            self.assertIsInstance(schema.root, etree_element)
 
 
 class TestXMLSchema11(TestXMLSchema10):
@@ -482,21 +541,21 @@ class TestXMLSchema11(TestXMLSchema10):
 
     def test_explicit_timezone_facet(self):
         schema = self.check_schema("""
-            <simpleType name='opt-tz-date'>
-              <restriction base='date'>
-                <explicitTimezone value='optional'/>
-              </restriction>
-            </simpleType>
-            <simpleType name='req-tz-date'>
-              <restriction base='date'>
-                <explicitTimezone value='required'/>
-              </restriction>
-            </simpleType>
-            <simpleType name='no-tz-date'>
-              <restriction base='date'>
-                <explicitTimezone value='prohibited'/>
-              </restriction>
-            </simpleType>
+            <xs:simpleType name='opt-tz-date'>
+              <xs:restriction base='xs:date'>
+                <xs:explicitTimezone value='optional'/>
+              </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType name='req-tz-date'>
+              <xs:restriction base='xs:date'>
+                <xs:explicitTimezone value='required'/>
+              </xs:restriction>
+            </xs:simpleType>
+            <xs:simpleType name='no-tz-date'>
+              <xs:restriction base='xs:date'>
+                <xs:explicitTimezone value='prohibited'/>
+              </xs:restriction>
+            </xs:simpleType>
             """)
         self.assertTrue(schema.types['req-tz-date'].is_valid('2002-10-10-05:00'))
         self.assertTrue(schema.types['req-tz-date'].is_valid('2002-10-10Z'))
@@ -504,42 +563,43 @@ class TestXMLSchema11(TestXMLSchema10):
 
     def test_assertion_facet(self):
         self.check_schema("""
-            <simpleType name='DimensionType'>
-              <restriction base='integer'>
-                <assertion test='string-length($value) &lt; 2'/>
-              </restriction>
-            </simpleType>""", XMLSchemaParseError)
+            <xs:simpleType name='DimensionType'>
+              <xs:restriction base='xs:integer'>
+                <xs:assertion test='string-length($value) &lt; 2'/>
+              </xs:restriction>
+            </xs:simpleType>""", XMLSchemaParseError)
 
         schema = self.check_schema("""
-            <simpleType name='MeasureType'>
-              <restriction base='integer'>
-                <assertion test='$value &gt; 0'/>
-              </restriction>
-            </simpleType>""")
+            <xs:simpleType name='MeasureType'>
+              <xs:restriction base='xs:integer'>
+                <xs:assertion test='$value &gt; 0'/>
+              </xs:restriction>
+            </xs:simpleType>""")
         self.assertTrue(schema.types['MeasureType'].is_valid('10'))
         self.assertFalse(schema.types['MeasureType'].is_valid('-1.5'))
 
         self.check_schema("""
-            <simpleType name='RestrictedDateTimeType'>
-              <restriction base='dateTime'>
-                <assertion test="$value > '1999-12-31T23:59:59'"/>
-              </restriction>
-            </simpleType>""", XMLSchemaParseError)
+            <xs:simpleType name='RestrictedDateTimeType'>
+              <xs:restriction base='xs:dateTime'>
+                <xs:assertion test="$value > '1999-12-31T23:59:59'"/>
+              </xs:restriction>
+            </xs:simpleType>""", XMLSchemaParseError)
 
         schema = self.check_schema("""
-            <simpleType name='RestrictedDateTimeType'>
-              <restriction base='dateTime'>
-                <assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
-              </restriction>
-            </simpleType>""")
+        <xs:simpleType name='RestrictedDateTimeType'>
+          <xs:restriction base='xs:dateTime'>
+            <xs:assertion test="$value > xs:dateTime('1999-12-31T23:59:59')"/>
+          </xs:restriction>
+        </xs:simpleType>""")
         self.assertTrue(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
 
-        schema = self.check_schema("""<simpleType name="Percentage">
-              <restriction base="integer">
-                <assertion test="$value >= 0"/>
-                <assertion test="$value &lt;= 100"/>
-              </restriction>
-            </simpleType>""")
+        schema = self.check_schema("""
+        <xs:simpleType name="Percentage">
+          <xs:restriction base="xs:integer">
+            <xs:assertion test="$value >= 0"/>
+            <xs:assertion test="$value &lt;= 100"/>
+          </xs:restriction>
+        </xs:simpleType>""")
         self.assertTrue(schema.types['Percentage'].is_valid('10'))
         self.assertTrue(schema.types['Percentage'].is_valid('100'))
         self.assertTrue(schema.types['Percentage'].is_valid('0'))
@@ -549,11 +609,11 @@ class TestXMLSchema11(TestXMLSchema10):
 
     def test_complex_type_assertion(self):
         schema = self.check_schema("""
-            <complexType name="intRange">
-              <attribute name="min" type="int"/>
-              <attribute name="max" type="int"/>
-              <assert test="@min le @max"/>
-            </complexType>""")
+            <xs:complexType name="intRange">
+              <xs:attribute name="min" type="xs:int"/>
+              <xs:attribute name="max" type="xs:int"/>
+              <xs:assert test="@min le @max"/>
+            </xs:complexType>""")
 
         xsd_type = schema.types['intRange']
         xsd_type.decode(etree_element('a', attrib={'min': '10', 'max': '19'}))
@@ -564,20 +624,20 @@ class TestXMLSchema11(TestXMLSchema10):
 
     def test_open_content(self):
         self.check_schema("""
-        <element name="Book">
-          <complexType>
-            <openContent mode="interleave">
-                <any />
-            </openContent>
-            <sequence>
-              <element name="Title" type="string"/>
-              <element name="Author" type="string" />
-              <element name="Date" type="gYear"/>
-              <element name="ISBN" type="string"/>
-              <element name="Publisher" type="string"/>
-            </sequence>
-          </complexType>
-        </element>""")
+        <xs:element name="Book">
+          <xs:complexType>
+            <xs:openContent mode="interleave">
+                <xs:any />
+            </xs:openContent>
+            <xs:sequence>
+              <xs:element name="Title" type="xs:string"/>
+              <xs:element name="Author" type="xs:string" />
+              <xs:element name="Date" type="xs:gYear"/>
+              <xs:element name="ISBN" type="xs:string"/>
+              <xs:element name="Publisher" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>""")
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
@@ -601,7 +661,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     defuse = test_args.defuse
     debug_mode = test_args.debug
 
-    class TestSchema(XMLSchemaTestCase):
+    class TestSchema(XsdValidatorTestCase):
 
         @classmethod
         def setUpClass(cls):
