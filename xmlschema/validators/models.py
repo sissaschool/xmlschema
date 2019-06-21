@@ -443,9 +443,9 @@ class ModelVisitor(MutableSequence):
                     if not self.match:
                         if self.group.model == 'all' and all(e.min_occurs == 0 for e in self.items):
                             occurs[self.group] += 1
-                        group, expected = self.group, self.items
+                        group, expected = self.group, self.expected
                         if stop_item(group) and expected:
-                            yield group, occurs[group], self.expected
+                            yield group, occurs[group], expected
                     elif not self.items:
                         self.iterator, self.items, self.match = iter(self.group), self.group[::-1], False
                     elif self.group.model == 'all':
