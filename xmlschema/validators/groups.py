@@ -159,7 +159,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             elif ref is None:
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
-                content_model = self._parse_component(elem)
+                content_model = self._parse_component(elem, required=False, strict=True)
                 if self.parent is not None:
                     self.parse_error("attribute 'name' not allowed for a local group")
                 else:
@@ -178,7 +178,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
                         self.parse_error('unexpected tag %r' % content_model.tag, content_model)
                         return
-
             else:
                 self.parse_error("found both attributes 'name' and 'ref'")
                 return
@@ -565,6 +564,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             kwargs['converter'] = self.schema.get_converter(**kwargs)
             default_namespace = kwargs['converter'].get('')
 
+        xsd_element = None
+        model_broken = False
         for index, child in enumerate(elem):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
@@ -586,9 +587,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         for particle, occurs, expected in model.advance(False):
                             errors.append((index, particle, occurs, expected))
                             model.clear()
-                            model.broken = True  # the model is broken, continues with raw decoding.
+                            model_broken = True  # the model is broken, continues with raw decoding.
                             break
-                        continue
+                        else:
+                            continue
+                        break
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -597,15 +600,14 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 for xsd_element in self.iter_elements():
                     if tag in xsd_element.names or xsd_element.name is None \
                             and xsd_element.is_matching(child.tag, default_namespace):
-                        if not model.broken:
-                            model.broken = True
+                        if not model_broken:
                             errors.append((index, xsd_element, 0, []))
+                            model_broken = True
                         break
                 else:
                     errors.append((index, self, 0, None))
                     xsd_element = None
-                    if not model.broken:
-                        model.broken = True
+                    model_broken = True
 
             if xsd_element is None:
                 # TODO: use a default decoder str-->str??

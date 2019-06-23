@@ -288,7 +288,6 @@ class ModelVisitor(MutableSequence):
     :param root: the root ModelGroup instance of the model.
     :ivar occurs: the Counter instance for keeping track of occurrences of XSD elements and groups.
     :ivar element: the current XSD element, initialized to the first element of the model.
-    :ivar broken: a boolean value that records if the model is still usable.
     :ivar group: the current XSD model group, initialized to *root* argument.
     :ivar iterator: the current XSD group iterator.
     :ivar items: the current XSD group unmatched items.
@@ -299,7 +298,6 @@ class ModelVisitor(MutableSequence):
         self.occurs = Counter()
         self._subgroups = []
         self.element = None
-        self.broken = False
         self.group, self.iterator, self.items, self.match = root, iter(root), root[::-1], False
         self._start()
 
@@ -336,7 +334,6 @@ class ModelVisitor(MutableSequence):
         del self._subgroups[:]
         self.occurs.clear()
         self.element = None
-        self.broken = False
         self.group, self.iterator, self.items, self.match = self.root, iter(self.root), self.root[::-1], False
 
     def _start(self):
