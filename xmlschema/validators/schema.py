@@ -127,7 +127,6 @@ class XMLSchemaMeta(ABCMeta):
         # Build the new meta-schema instance
         schema_location = meta_schema.url if isinstance(meta_schema, XMLSchemaBase) else meta_schema
         meta_schema = meta_schema_class.create_meta_schema(schema_location)
-        meta_schema.maps.build()
         dict_['meta_schema'] = meta_schema
 
         return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
@@ -335,6 +334,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.maps = XsdGlobals(self, validation)
                 self.locations.update(self.BASE_SCHEMAS)
             elif self.target_namespace not in self.BASE_SCHEMAS:
+                if not self.meta_schema.maps.types:
+                    self.meta_schema.maps.build()
                 self.maps = self.meta_schema.maps.copy(self, validation=validation)
             else:
                 base_schemas = {k: v for k, v in self.BASE_SCHEMAS.items() if k != self.target_namespace}
