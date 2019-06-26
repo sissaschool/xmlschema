@@ -23,7 +23,7 @@ import warnings
 
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaModelError, \
-    XMLSchemaIncludeWarning, XMLSchemaImportWarning
+    XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
@@ -106,6 +106,16 @@ class TestXMLSchema10(XsdValidatorTestCase):
         xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
+    def test_global_group_definitions(self):
+        schema = self.check_schema("""
+            <xs:group name="wrong_child">
+              <xs:element name="foo"/>
+            </xs:group>""", validation='lax')
+        self.assertEqual(len(schema.errors), 1)
+
+        self.check_schema('<xs:group name="empty" />', XMLSchemaChildrenValidationError)
+        self.check_schema('<xs:group name="empty"><xs:annotation/></xs:group>', XMLSchemaChildrenValidationError)
+
     def test_wrong_includes_and_imports(self):
 
         with warnings.catch_warnings(record=True) as context:
@@ -136,8 +146,13 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>
         """, XMLSchemaParseError)
 
-    def test_restriction_has_annotation(self):
-        # Wrong namespace for element type's reference
+    def test_annotations(self):
+        schema = self.check_schema("""
+            <xs:element name='foo'>
+                <xs:annotation />
+            </xs:element>""")
+        self.assertIsNotNone(schema.elements['foo'].annotation)
+
         schema = self.check_schema("""
         <xs:simpleType name='Magic'>
             <xs:annotation>
@@ -148,6 +163,15 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:restriction>
         </xs:simpleType>""")
         self.assertIsNotNone(schema.types["Magic"].annotation)
+
+        schema = self.check_schema("""
+        <xs:simpleType name='Magic'>
+            <xs:annotation />
+            <xs:annotation />
+            <xs:restriction base='xs:string'>
+                <xs:enumeration value='A'/>
+            </xs:restriction>
+        </xs:simpleType>""", XMLSchemaChildrenValidationError)
 
     def test_facets(self):
         # Issue #55 and a near error (derivation from xs:integer)
@@ -638,6 +662,28 @@ class TestXMLSchema11(TestXMLSchema10):
             </xs:sequence>
           </xs:complexType>
         </xs:element>""")
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""")
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent />
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""")
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

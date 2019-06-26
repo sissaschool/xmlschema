@@ -16,11 +16,11 @@ from __future__ import unicode_literals
 
 import unittest
 
+from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import etree_element
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_namespace, get_qname, \
-    local_name, qname_to_prefixed, has_xsd_components, get_xsd_component, \
-    get_xml_bool_attribute, get_xsd_derivation_attribute
+from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
+    qname_to_prefixed, get_xml_bool_attribute, get_xsd_derivation_attribute
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 
 
@@ -89,61 +89,6 @@ class TestHelpers(unittest.TestCase):
         elem.append(etree_element(XSD_ANNOTATION))
         self.assertIsNone(get_xsd_annotation(elem))
 
-    def test_iter_xsd_components(self):
-        elem = etree_element(XSD_SCHEMA)
-        self.assertFalse(list(iter_xsd_components(elem)))
-        self.assertFalse(list(iter_xsd_components(elem, start=1)))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertFalse(list(iter_xsd_components(elem)))
-        self.assertFalse(list(iter_xsd_components(elem, start=1)))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(list(iter_xsd_components(elem)), [elem[1]])
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(list(iter_xsd_components(elem)), elem[1:])
-        self.assertEqual(list(iter_xsd_components(elem, start=1)), [elem[2]])
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, list, iter_xsd_components(elem))
-
-    def test_has_xsd_components(self):
-        elem = etree_element(XSD_SCHEMA)
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertTrue(has_xsd_components(elem))
-
-        elem.clear()
-        self.assertFalse(has_xsd_components(elem))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertFalse(has_xsd_components(elem))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertTrue(has_xsd_components(elem))
-        self.assertFalse(has_xsd_components(elem, start=1))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, list, iter_xsd_components(elem))
-
-    def test_get_xsd_component(self):
-        elem = etree_element(XSD_SCHEMA)
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertIsNone(get_xsd_component(elem, required=False))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(get_xsd_component(elem), elem[0])
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertEqual(get_xsd_component(elem, strict=False), elem[0])
-
-        elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertIsNone(get_xsd_component(elem, required=False))
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(get_xsd_component(elem), elem[1])
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertEqual(get_xsd_component(elem, strict=False), elem[1])
-
-        elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, get_xsd_component, elem, True, False)
-
     def test_get_xml_bool_attribute(self):
         elem = etree_element(XSD_ELEMENT, attrib={'a1': 'true', 'a2': '1', 'a3': 'false', 'a4': '0', 'a5': 'x'})
         self.assertEqual(get_xml_bool_attribute(elem, 'a1'), True)
@@ -175,6 +120,33 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values), 'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
+
+    def test_parse_component(self):
+        component = XMLSchema.meta_schema.types['anyType']
+
+        elem = etree_element(XSD_SCHEMA)
+        self.assertIsNone(component._parse_component(elem))
+        elem.append(etree_element(XSD_ELEMENT))
+        self.assertEqual(component._parse_component(elem), elem[0])
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertRaises(XMLSchemaParseError, component._parse_component, elem)
+        self.assertEqual(component._parse_component(elem, strict=False), elem[0])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION))
+        self.assertIsNone(component._parse_component(elem))
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertEqual(component._parse_component(elem), elem[1])
+        elem.append(etree_element(XSD_ELEMENT))
+        self.assertRaises(XMLSchemaParseError, component._parse_component, elem)
+        self.assertEqual(component._parse_component(elem, strict=False), elem[1])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION))
+        elem.append(etree_element(XSD_ANNOTATION))
+        self.assertIsNone(component._parse_component(elem, strict=False))
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertEqual(component._parse_component(elem), elem[2])
 
 
 if __name__ == '__main__':

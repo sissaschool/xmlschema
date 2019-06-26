@@ -17,8 +17,9 @@ from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import MutableMapping, ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
-    XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
+from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
 from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
@@ -137,13 +138,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 for attribute in ('form', 'type'):
                     if attribute in self.elem.attrib:
                         self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
-                xsd_declaration = self._parse_component(elem, required=False)
+                xsd_declaration = self._parse_component(elem)
 
                 if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE:
                     self.parse_error("not allowed type declaration for XSD attribute reference")
                 return
 
-        xsd_declaration = self._parse_component(elem, required=False)
+        xsd_declaration = self._parse_component(elem)
         try:
             type_qname = self.schema.resolve_qname(elem.attrib['type'])
         except ValueError as err:
@@ -390,7 +391,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 return
 
         attributes = ordered_dict_class()
-        for child in self._iterparse_components(elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if any_attribute:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")

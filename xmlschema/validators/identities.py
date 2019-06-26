@@ -17,7 +17,7 @@ from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..qnames import XSD_ANNOTATION, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
 from ..helpers import get_qname, qname_to_prefixed
 from ..etree import etree_getpath
 from ..regex import get_python_regex
@@ -95,6 +95,8 @@ class XsdFieldSelector(XsdSelector):
 
 
 class XsdIdentity(XsdComponent):
+    selector = None
+
     def __init__(self, elem, schema, parent):
         super(XsdIdentity, self).__init__(elem, schema, parent)
 
@@ -107,15 +109,19 @@ class XsdIdentity(XsdComponent):
             self.parse_error("missing required attribute 'name'", elem)
             self.name = None
 
-        child = self._parse_component(elem, required=False, strict=False)
-        if child is None or child.tag != XSD_SELECTOR:
-            self.parse_error("missing 'selector' declaration.", elem)
-            self.selector = None
+        for index, child in enumerate(elem):
+            if child.tag == XSD_SELECTOR:
+                self.selector = XsdSelector(child, self.schema, self)
+                break
+            elif child.tag != XSD_ANNOTATION:
+                self.parse_error("'selector' declaration expected.", elem)
+                break
         else:
-            self.selector = XsdSelector(child, self.schema, self)
+            self.parse_error("missing 'selector' declaration.", elem)
+            index = -1
 
         self.fields = []
-        for child in self._iterparse_components(elem, start=int(self.selector is not None)):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem[index + 1:]):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:

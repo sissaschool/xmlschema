@@ -18,9 +18,9 @@ from elementpath.xpath_helpers import boolean_value
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
-    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
-    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, \
+    XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
 from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
@@ -201,7 +201,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def _parse_type(self):
         attrib = self.elem.attrib
         if self.ref:
-            if self._parse_component(self.elem, required=False, strict=False) is not None:
+            if self._parse_component(self.elem, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in attrib:
             try:
@@ -213,12 +213,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.parse_error(err)
                 self.type = self.maps.types[XSD_ANY_TYPE]
             finally:
-                child = self._parse_component(self.elem, required=False, strict=False)
+                child = self._parse_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
                     msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
                     self.parse_error(msg % child.tag.split('}')[-1])
         else:
-            child = self._parse_component(self.elem, required=False, strict=False)
+            child = self._parse_component(self.elem, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE:
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
@@ -261,7 +261,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def _parse_identity_constraints(self, index=0):
         self.constraints = {}
-        for child in self._iterparse_components(self.elem, start=index):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
                 constraint = XsdUnique(child, self.schema, self)
             elif child.tag == XSD_KEY:
@@ -760,7 +760,7 @@ class Xsd11Element(XsdElement):
             self.alternatives = self._ref.alternatives
         else:
             self.alternatives = []
-            for child in self._iterparse_components(self.elem, start=index):
+            for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
                 if child.tag == XSD_ALTERNATIVE:
                     self.alternatives.append(XsdAlternative(child, self.schema, self))
                     index += 1

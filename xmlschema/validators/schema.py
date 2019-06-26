@@ -37,7 +37,7 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueEr
 from ..qnames import XSD_SCHEMA, XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
     XSD_GROUP, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
     XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE
-from ..helpers import has_xsd_components, get_xsd_derivation_attribute, get_xsd_form_attribute
+from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring, ParseError
@@ -756,7 +756,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 # is equivalent to an include, so no error is generated. Otherwise fails.
                 self.warnings.append("Redefine schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if has_xsd_components(child):
+                if any(e.tag != XSD_ANNOTATION for e in child):
                     self.parse_error(str(err), child)
             except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
@@ -1291,7 +1291,7 @@ class XMLSchema11(XMLSchemaBase):
                 # is equivalent to an include, so no error is generated. Otherwise fails.
                 self.warnings.append("Override schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if has_xsd_components(child):
+                if any(e.tag != XSD_ANNOTATION for e in child):
                     self.parse_error(str(err), child)
 
 

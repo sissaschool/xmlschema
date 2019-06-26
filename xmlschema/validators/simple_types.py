@@ -631,7 +631,7 @@ class XsdList(XsdSimpleType):
         super(XsdList, self)._parse()
         elem = self.elem
 
-        child = self._parse_component(elem, required=False)
+        child = self._parse_component(elem)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
@@ -804,7 +804,7 @@ class XsdUnion(XsdSimpleType):
         elem = self.elem
         member_types = []
 
-        for child in self._iterparse_components(elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             mt = xsd_simple_type_factory(child, self.schema, self)
             if isinstance(mt, XMLSchemaParseError):
                 self.parse_error(mt)
@@ -1056,7 +1056,10 @@ class XsdAtomicRestriction(XsdAtomic):
                 self.parse_error("wrong base type {!r}, an atomic type required")
             elif base_type.is_complex():
                 if base_type.mixed and base_type.is_emptiable():
-                    if self._parse_component(elem, strict=False).tag != XSD_SIMPLE_TYPE:
+                    child = self._parse_component(elem, strict=False)
+                    if child is None:
+                        self.parse_error("an xs:simpleType definition expected")
+                    elif child.tag != XSD_SIMPLE_TYPE:
                         # See: "http://www.w3.org/TR/xmlschema-2/#element-restriction"
                         self.parse_error(
                             "when a complexType with simpleContent restricts a complexType "
@@ -1066,7 +1069,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 elif self.parent is None or self.parent.is_simple():
                     self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
-        for child in self._iterparse_components(elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:

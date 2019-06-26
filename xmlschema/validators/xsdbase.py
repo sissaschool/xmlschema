@@ -17,7 +17,7 @@ import re
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
-from ..helpers import get_qname, local_name, qname_to_prefixed, iter_xsd_components, get_xsd_component
+from ..helpers import get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring, is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 
@@ -286,25 +286,15 @@ class XsdComponent(XsdValidator):
         except (TypeError, IndexError):
             self.annotation = None
 
-    def _parse_component(self, elem, required=True, strict=True):
-        try:
-            return get_xsd_component(elem, required, strict)
-        except XMLSchemaValueError as err:
-            self.parse_error(err, elem)
-
-    def _iterparse_components(self, elem, start=0):
-        try:
-            for obj in iter_xsd_components(elem, start):
-                yield obj
-        except XMLSchemaValueError as err:
-            self.parse_error(err, elem)
-
-    def _parse_attribute(self, elem, name, values, default=None):
-        value = elem.get(name, default)
-        if value not in values:
-            self.parse_error("wrong value {} for {} attribute.".format(value, name))
-            return default
-        return value
+    def _parse_component(self, elem, strict=True):
+        component = None
+        for index, component in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
+            if not strict:
+                return component
+            elif index:
+                msg = "too many XSD components, unexpected {!r} found at position {}"
+                self.parse_error(msg.format(component, index), elem)
+        return component
 
     def _parse_properties(self, *properties):
         for name in properties:

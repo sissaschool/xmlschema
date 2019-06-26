@@ -101,63 +101,6 @@ def get_xsd_annotation(elem):
         return
 
 
-def iter_xsd_components(elem, start=0):
-    """
-    Returns an iterator for XSD child components, excluding the annotation.
-
-    :param elem: the parent Element.
-    :param start: the start child component to yield, the optional annotation is not counted. \
-    With the default value 0 starts from the first component.
-    """
-    counter = 0
-    for child in elem:
-        if child.tag == XSD_ANNOTATION:
-            if counter > 0:
-                raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
-        else:
-            if start > 0:
-                start -= 1
-            else:
-                yield child
-            counter += 1
-
-
-def has_xsd_components(elem, start=0):
-    try:
-        next(iter_xsd_components(elem, start))
-    except StopIteration:
-        return False
-    else:
-        return True
-
-
-def get_xsd_component(elem, required=True, strict=True):
-    """
-    Returns the first XSD component child, excluding the annotation.
-
-    :param elem: the parent Element.
-    :param required: if `True`, that is the default, raises a *ValueError* if there \
-    is not any component; with `False` in those cases `None` is returned.
-    :param strict: raises a *ValueError* if there is more than one component.
-    """
-    components_iterator = iter_xsd_components(elem)
-    try:
-        xsd_component = next(components_iterator)
-    except StopIteration:
-        if required:
-            raise XMLSchemaValueError("missing XSD component")
-        return None
-    else:
-        if not strict:
-            return xsd_component
-        try:
-            next(components_iterator)
-        except StopIteration:
-            return xsd_component
-        else:
-            raise XMLSchemaValueError("too many XSD components")
-
-
 def get_xml_bool_attribute(elem, attribute, default=None):
     """
     Get an XML boolean attribute.

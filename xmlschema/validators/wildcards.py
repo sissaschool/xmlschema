@@ -473,12 +473,13 @@ class XsdOpenContent(XsdComponent):
         except KeyError:
             pass
         else:
-            if self.mode not in ('none', 'interleave', 'suffix'):
+            if self.mode not in {'none', 'interleave', 'suffix'}:
                 self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
 
-        child = self._parse_component(self.elem)
-        if child is not None and child.tag == XSD_ANY:
-            self.any_element = Xsd11AnyElement(child, self.schema, self)
+        if self.mode != 'none':
+            child = self._parse_component(self.elem)
+            if child is not None and child.tag == XSD_ANY:
+                self.any_element = Xsd11AnyElement(child, self.schema, self)
 
     @property
     def built(self):

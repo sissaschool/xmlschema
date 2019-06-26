@@ -11,9 +11,10 @@
 from __future__ import unicode_literals
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
-    XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, XSD_COMPLEX_TYPE, \
-    XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, \
+    XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, \
+    XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, \
+    XSD_OPEN_CONTENT, XSD_ASSERT
 from ..helpers import get_qname, local_name, get_xml_bool_attribute, get_xsd_derivation_attribute
 from ..etree import etree_element
 
@@ -130,7 +131,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             if self.parent is not None:
                 self.parse_error("attribute 'name' not allowed for a local complexType", elem)
 
-        content_elem = self._parse_component(elem, required=False, strict=False)
+        content_elem = self._parse_component(elem, strict=False)
         if content_elem is None or content_elem.tag in \
                 {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
             #
@@ -220,7 +221,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
 
     def _parse_derivation_elem(self, elem):
-        derivation_elem = self._parse_component(elem, required=False)
+        derivation_elem = self._parse_component(elem)
         if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION, XSD_EXTENSION):
             self.parse_error("restriction or extension tag expected", derivation_elem)
             self.content_type = self.schema.create_any_content_group(self)
@@ -289,7 +290,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse_simple_content_extension(self, elem, base_type):
         # simpleContent extension: the base type must be a simpleType or a complexType
         # with simple content.
-        child = self._parse_component(elem, required=False, strict=False)
+        child = self._parse_component(elem, strict=False)
         if child is not None and child.tag not in \
                 {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE}:
             self.parse_error("unexpected tag %r." % child.tag, child)
@@ -314,7 +315,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             base_type = self.maps.types[XSD_ANY_TYPE]
 
         # complexContent restriction: the base type must be a complexType with a complex content.
-        group_elem = self._parse_component(elem, required=False, strict=False)
+        group_elem = self._parse_component(elem, strict=False)
         if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
             content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
         else:
@@ -341,7 +342,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         if 'extension' in base_type.final:
             self.parse_error("the base type is not derivable by extension")
 
-        group_elem = self._parse_component(elem, required=False, strict=False)
+        group_elem = self._parse_component(elem, strict=False)
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
@@ -650,7 +651,7 @@ class Xsd11ComplexType(XsdComplexType):
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
         self.assertions = []
-        for child in self._iterparse_components(elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if child.tag == XSD_ASSERT:
                 self.assertions.append(XsdAssert(child, self.schema, self, self))
 

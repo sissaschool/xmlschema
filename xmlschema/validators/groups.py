@@ -16,8 +16,8 @@ from __future__ import unicode_literals
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, \
-    XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
 from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
@@ -159,7 +159,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             elif ref is None:
                 # Global group
                 self.name = get_qname(self.target_namespace, name)
-                content_model = self._parse_component(elem, required=False, strict=True)
+                content_model = self._parse_component(elem, strict=True)
                 if self.parent is not None:
                     self.parse_error("attribute 'name' not allowed for a local group")
                 else:
@@ -204,7 +204,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in self._iterparse_components(content_model):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, content_model):
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
@@ -801,7 +801,7 @@ class Xsd11Group(XsdGroup):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in self._iterparse_components(content_model):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, content_model):
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
