@@ -494,13 +494,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @classmethod
     def builtin_types(cls):
-        """An accessor for XSD built-in types."""
+        """Accessor for XSD built-in types."""
         try:
-            return cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
+            builtin_types = cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
         except KeyError:
             raise XMLSchemaNotBuiltError(cls.meta_schema, "missing XSD namespace in meta-schema")
         except AttributeError:
             raise XMLSchemaNotBuiltError(cls.meta_schema, "meta-schema unavailable for %r" % cls)
+        else:
+            if not builtin_types:
+                cls.meta_schema.build()
+            return builtin_types
 
     @property
     def root_elements(self):
@@ -615,8 +619,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             raise error
 
     def build(self):
-        """Builds the schema XSD global maps."""
+        """Builds the schema's XSD global maps."""
         self.maps.build()
+
+    def clear(self):
+        """Clears the schema's XSD global maps."""
+        self.maps.clear()
 
     @property
     def built(self):
@@ -629,6 +637,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         if xsd_global is not None:
             return True
+        elif self.meta_schema is None:
+            return False
 
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.root):
@@ -977,10 +987,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
         if not self.built:
-            raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
-        elif not isinstance(source, XMLResource):
-            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            if self.meta_schema is not None:
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+            self.build()
 
+        if not isinstance(source, XMLResource):
+            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
         if not schema_path and path:
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
@@ -1055,8 +1067,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         or decoding errors.
         """
         if not self.built:
-            raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
-        elif validation not in XSD_VALIDATION_MODES:
+            if self.meta_schema is not None:
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+            self.build()
+
+        if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         elif not isinstance(source, XMLResource):
             source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
@@ -1124,8 +1139,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :return: yields an Element instance/s or validation/encoding errors.
         """
         if not self.built:
-            raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
-        elif validation not in XSD_VALIDATION_MODES:
+            if self.meta_schema is not None:
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+            self.build()
+
+        if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         elif not self.elements:
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")

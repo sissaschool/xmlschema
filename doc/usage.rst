@@ -20,8 +20,8 @@ Import the library in your code with::
 
     import xmlschema
 
-The module initialization builds the XSD meta-schemas and of the dictionary
-containing the code points of the Unicode categories.
+The module initialization builds the dictionary containing the code points of
+the Unicode categories.
 
 
 Create a schema instance

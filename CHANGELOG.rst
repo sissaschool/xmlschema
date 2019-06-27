@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.0.14`_ (TDB)
+================
+* Added XSD 1.1 validator with class XMLSchema11 to API
+* Memory usage optimization with lazy build of the XSD 1.0 and 1.1 meta-schemas
+
 `v1.0.13`_ (2019-06-19)
 =======================
 * Fix path normalization and tests for Windows platform

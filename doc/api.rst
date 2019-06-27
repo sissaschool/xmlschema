@@ -56,6 +56,7 @@ Schema level API
 
     .. automethod:: check_schema
     .. automethod:: build
+    .. automethod:: clear
     .. autoattribute:: built
     .. autoattribute:: validation_attempted
     .. autoattribute:: validity

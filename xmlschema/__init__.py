@@ -23,7 +23,7 @@ from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError, XMLSchemaModelError,
     XMLSchemaModelDepthError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError,
     XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning, XsdGlobals,
-    XMLSchemaBase, XMLSchema, XMLSchema10
+    XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 )
 
 __version__ = '1.0.14'

@@ -26,6 +26,14 @@ from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE,
 
 class TestHelpers(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        XMLSchema.meta_schema.build()
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema.meta_schema.clear()
+
     def test_get_namespace_function(self):
         self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)
         self.assertEqual(get_namespace(''), '')

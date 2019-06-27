@@ -14,19 +14,23 @@ This module runs tests on XSD meta schema and builtins of the 'xmlschema' packag
 """
 import unittest
 
-import xmlschema
-from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError
+from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError, \
+    XMLSchema10, XMLSchema11
 from xmlschema.validators.builtins import HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 
-xsd_10_meta_schema = xmlschema.XMLSchema.meta_schema
-xsd_11_meta_schema = xmlschema.validators.XMLSchema11.meta_schema
+xsd_10_meta_schema = XMLSchema10.meta_schema
+xsd_11_meta_schema = XMLSchema11.meta_schema
 
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.meta_schema = xsd_10_meta_schema
+        cls.types = XMLSchema10.builtin_types()
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema10.meta_schema.clear()
 
     def test_hex_binary_pattern(self):
         self.assertEqual(HEX_BINARY_PATTERN.search("aff1c").group(0), 'aff1c')
@@ -37,52 +41,51 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertEqual(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(0), '!')
 
     def test_boolean_decode(self):
-        xsd_type = self.meta_schema.types['boolean']
-        self.assertTrue(xsd_type.decode(' true  \n') is True)
-        self.assertTrue(xsd_type.decode(' 0  \n') is False)
-        self.assertTrue(xsd_type.decode(' 1  \n') is True)
-        self.assertTrue(xsd_type.decode(' false  \n') is False)
-        self.assertRaises(XMLSchemaDecodeError, xsd_type.decode, ' 1.0  ')
-        self.assertRaises(XMLSchemaDecodeError, xsd_type.decode, ' alpha  \n')
+        boolean_type = self.types['boolean']
+        self.assertTrue(boolean_type.decode(' true  \n') is True)
+        self.assertTrue(boolean_type.decode(' 0  \n') is False)
+        self.assertTrue(boolean_type.decode(' 1  \n') is True)
+        self.assertTrue(boolean_type.decode(' false  \n') is False)
+        self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, ' 1.0  ')
+        self.assertRaises(XMLSchemaDecodeError, boolean_type.decode, ' alpha  \n')
 
     def test_boolean_encode(self):
-        xsd_type = self.meta_schema.types['boolean']
-        self.assertTrue(xsd_type.encode(True) == 'true')
-        self.assertTrue(xsd_type.encode(False) == 'false')
-        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 1)
-        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 0)
-        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 10)
-        self.assertRaises(XMLSchemaEncodeError, xsd_type.encode, 'alpha')
+        boolean_type = self.types['boolean']
+        self.assertTrue(boolean_type.encode(True) == 'true')
+        self.assertTrue(boolean_type.encode(False) == 'false')
+        self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 1)
+        self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 0)
+        self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 10)
+        self.assertRaises(XMLSchemaEncodeError, boolean_type.encode, 'alpha')
 
     def test_integer_decode(self):
-        xsd_types = self.meta_schema.types
-        self.assertTrue(xsd_types['integer'].decode(' 1000  \n') == 1000)
-        self.assertTrue(xsd_types['integer'].decode(' -19  \n') == -19)
-        self.assertTrue(xsd_types['integer'].decode(' 0\n') == 0)
-        self.assertRaises(XMLSchemaDecodeError, xsd_types['integer'].decode, ' 1000.0  \n')
-        self.assertRaises(XMLSchemaDecodeError, xsd_types['integer'].decode, ' alpha  \n')
-        self.assertRaises(XMLSchemaValidationError, xsd_types['byte'].decode, ' 257  \n')
-        self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
+        integer_type = self.types['integer']
+        self.assertTrue(integer_type.decode(' 1000  \n') == 1000)
+        self.assertTrue(integer_type.decode(' -19  \n') == -19)
+        self.assertTrue(integer_type.decode(' 0\n') == 0)
+        self.assertRaises(XMLSchemaDecodeError, integer_type.decode, ' 1000.0  \n')
+        self.assertRaises(XMLSchemaDecodeError, integer_type.decode, ' alpha  \n')
+        self.assertRaises(XMLSchemaValidationError, self.types['byte'].decode, ' 257  \n')
+        self.assertRaises(XMLSchemaValidationError, self.types['unsignedInt'].decode, ' -1')
 
     def test_integer_encode(self):
-        xsd_types = self.meta_schema.types
-        self.assertTrue(xsd_types['integer'].encode(1000) == '1000')
-        self.assertTrue(xsd_types['integer'].encode(-19) == '-19')
-        self.assertTrue(xsd_types['integer'].encode(0) == '0')
-        self.assertRaises(XMLSchemaEncodeError, xsd_types['integer'].encode, 10.1)
-        self.assertRaises(XMLSchemaEncodeError, xsd_types['integer'].encode, 'alpha')
-        self.assertRaises(XMLSchemaValidationError, xsd_types['unsignedInt'].decode, ' -1')
+        integer_type = self.types['integer']
+        self.assertTrue(integer_type.encode(1000) == '1000')
+        self.assertTrue(integer_type.encode(-19) == '-19')
+        self.assertTrue(integer_type.encode(0) == '0')
+        self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 10.1)
+        self.assertRaises(XMLSchemaEncodeError, integer_type.encode, 'alpha')
+        self.assertRaises(XMLSchemaValidationError, self.types['unsignedInt'].decode, ' -1')
 
     def test_float_decode(self):
-        xsd_types = self.meta_schema.types
-        self.assertTrue(xsd_types['float'].decode(' 1000.1  \n') == 1000.10)
-        self.assertTrue(xsd_types['float'].decode(' -19  \n') == -19.0)
-        self.assertTrue(xsd_types['double'].decode(' 0.0001\n') == 0.0001)
-        self.assertRaises(XMLSchemaDecodeError, xsd_types['float'].decode, ' true ')
-        self.assertRaises(XMLSchemaDecodeError, xsd_types['double'].decode, ' alpha  \n')
+        self.assertTrue(self.types['float'].decode(' 1000.1  \n') == 1000.10)
+        self.assertTrue(self.types['float'].decode(' -19  \n') == -19.0)
+        self.assertTrue(self.types['double'].decode(' 0.0001\n') == 0.0001)
+        self.assertRaises(XMLSchemaDecodeError, self.types['float'].decode, ' true ')
+        self.assertRaises(XMLSchemaDecodeError, self.types['double'].decode, ' alpha  \n')
 
     def test_float_encode(self):
-        float_type = self.meta_schema.types['float']
+        float_type = self.types['float']
         self.assertTrue(float_type.encode(1000.0) == '1000.0')
         self.assertTrue(float_type.encode(-19.0) == '-19.0')
         self.assertTrue(float_type.encode(0.0) == '0.0')
@@ -90,7 +93,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertRaises(XMLSchemaEncodeError, float_type.encode, 'alpha')
 
     def test_time_type(self):
-        time_type = self.meta_schema.types['time']
+        time_type = self.types['time']
         self.assertTrue(time_type.is_valid('14:35:00'))
         self.assertTrue(time_type.is_valid('14:35:20.5345'))
         self.assertTrue(time_type.is_valid('14:35:00-01:00'))
@@ -103,7 +106,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(time_type.is_valid('14:35.5:00'))
 
     def test_datetime_type(self):
-        datetime_type = self.meta_schema.types['dateTime']
+        datetime_type = self.types['dateTime']
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00'))
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:20.6'))
         self.assertTrue(datetime_type.is_valid('2007-05-10T14:35:00-03:00'))
@@ -118,16 +121,12 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(datetime_type.is_valid('2018-10-10T13:57:53.0702116-04:00'))
 
     def test_date_type(self):
-        date_type = self.meta_schema.types['date']
+        date_type = self.types['date']
         self.assertTrue(date_type.is_valid('2012-05-31'))
         self.assertTrue(date_type.is_valid('-0065-10-15'))
         self.assertTrue(date_type.is_valid('12012-05-31'))
         self.assertTrue(date_type.is_valid('2012-05-31-05:00'))
         self.assertTrue(date_type.is_valid('2015-06-30Z'))
-        if self.meta_schema.XSD_VERSION > '1.0':
-            self.assertTrue(date_type.is_valid('0000-01-01'))
-        else:
-            self.assertFalse(date_type.is_valid('0000-01-01'))
         self.assertFalse(date_type.is_valid('12-05-31'))
         self.assertFalse(date_type.is_valid('2012-5-31'))
         self.assertFalse(date_type.is_valid('31-05-2012'))
@@ -135,8 +134,11 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(date_type.is_valid('+2012-05-31'))
         self.assertFalse(date_type.is_valid(''))
 
+    def test_year_zero(self):
+        self.assertFalse(self.types['date'].is_valid('0000-01-01'))
+
     def test_g_year_type(self):
-        g_year_type = self.meta_schema.types['gYear']
+        g_year_type = self.types['gYear']
         self.assertTrue(g_year_type.is_valid('2007'))
         self.assertTrue(g_year_type.is_valid('2013-01:00'))
         self.assertTrue(g_year_type.is_valid('102013-01:00'))
@@ -149,7 +151,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_year_type.is_valid(''))
 
     def test_g_year_month_type(self):
-        g_year_month_type = self.meta_schema.types['gYearMonth']
+        g_year_month_type = self.types['gYearMonth']
         self.assertTrue(g_year_month_type.is_valid('2010-07'))
         self.assertTrue(g_year_month_type.is_valid('2020-01-05:00'))
         self.assertFalse(g_year_month_type.is_valid('99-02'))
@@ -159,7 +161,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_year_month_type.is_valid(''))
 
     def test_g_month_type(self):
-        g_month_type = self.meta_schema.types['gMonth']
+        g_month_type = self.types['gMonth']
         self.assertTrue(g_month_type.is_valid('--08'))
         self.assertTrue(g_month_type.is_valid('--05-03:00'))
         self.assertFalse(g_month_type.is_valid('03'))
@@ -169,7 +171,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_month_type.is_valid(''))
 
     def test_g_month_day_type(self):
-        g_month_day_type = self.meta_schema.types['gMonthDay']
+        g_month_day_type = self.types['gMonthDay']
         self.assertTrue(g_month_day_type.is_valid('--12-24'))
         self.assertTrue(g_month_day_type.is_valid('--04-25Z'))
         self.assertFalse(g_month_day_type.is_valid('12-24'))
@@ -179,7 +181,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_month_day_type.is_valid(''))
 
     def test_g_day_type(self):
-        g_day_type = self.meta_schema.types['gDay']
+        g_day_type = self.types['gDay']
         self.assertTrue(g_day_type.is_valid('---19'))
         self.assertTrue(g_day_type.is_valid('---07'))
         self.assertFalse(g_day_type.is_valid('---32'))
@@ -189,7 +191,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(g_day_type.is_valid(''))
 
     def test_duration_type(self):
-        duration_type = self.meta_schema.types['duration']
+        duration_type = self.types['duration']
         self.assertTrue(duration_type.is_valid('-P809YT3H5M5S'))
         self.assertTrue(duration_type.is_valid('P5Y7M20DT3H5M5S'))
         self.assertTrue(duration_type.is_valid('P1DT6H'))
@@ -216,10 +218,17 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
     @classmethod
     def setUpClass(cls):
-        cls.meta_schema = xsd_11_meta_schema
+        cls.types = XMLSchema11.builtin_types()
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema11.meta_schema.clear()
+
+    def test_year_zero(self):
+        self.assertTrue(self.types['date'].is_valid('0000-01-01'))
 
     def test_date_time_stamp(self):
-        date_time_stamp_type = self.meta_schema.types['dateTimeStamp']
+        date_time_stamp_type = self.types['dateTimeStamp']
         self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08-03:00'))
         self.assertTrue(date_time_stamp_type.is_valid('2003-10-20T16:50:08Z'))
         self.assertFalse(date_time_stamp_type.is_valid('2003-10-20T16:50:08'))
@@ -227,7 +236,7 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
         self.assertFalse(date_time_stamp_type.is_valid(''))
 
     def test_day_time_duration_type(self):
-        day_time_duration_type = self.meta_schema.types['dayTimeDuration']
+        day_time_duration_type = self.types['dayTimeDuration']
         self.assertTrue(day_time_duration_type.is_valid('P7DT15H40M0S'))
         self.assertTrue(day_time_duration_type.is_valid('-P10D'))
         self.assertTrue(day_time_duration_type.is_valid('P0D'))
@@ -245,7 +254,7 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
         self.assertFalse(day_time_duration_type.is_valid(''))
 
     def test_year_month_duration_type(self):
-        year_month_duration_type = self.meta_schema.types['yearMonthDuration']
+        year_month_duration_type = self.types['yearMonthDuration']
         self.assertTrue(year_month_duration_type.is_valid('P3Y4M'))
         self.assertTrue(year_month_duration_type.is_valid('P15M'))
         self.assertTrue(year_month_duration_type.is_valid('P0Y'))
@@ -262,6 +271,16 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
 
 class TestGlobalMaps(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        XMLSchema10.meta_schema.build()
+        XMLSchema11.meta_schema.build()
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema10.meta_schema.clear()
+        XMLSchema11.meta_schema.clear()
 
     def test_xsd_10_globals(self):
         self.assertEqual(len(xsd_10_meta_schema.maps.notations), 2)
@@ -284,7 +303,6 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertEqual(len(xsd_11_meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_10_build(self):
-        xsd_10_meta_schema.maps.build()
         self.assertEqual(len([e for e in xsd_10_meta_schema.maps.iter_globals()]), 200)
         self.assertTrue(xsd_10_meta_schema.maps.built)
         xsd_10_meta_schema.maps.clear()
@@ -292,7 +310,6 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertTrue(xsd_10_meta_schema.maps.built)
 
     def test_xsd_11_build(self):
-        xsd_11_meta_schema.maps.build()
         self.assertEqual(len([e for e in xsd_11_meta_schema.maps.iter_globals()]), 218)
         self.assertTrue(xsd_11_meta_schema.maps.built)
         xsd_11_meta_schema.maps.clear()

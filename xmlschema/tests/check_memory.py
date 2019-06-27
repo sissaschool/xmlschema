@@ -136,13 +136,17 @@ if __name__ == '__main__':
         etree_emptied_iterparse(args.xml_file)
     elif args.test_num == 5:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         decode(args.xml_file)
     elif args.test_num == 6:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         lazy_decode(args.xml_file)
     elif args.test_num == 7:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         validate(args.xml_file)
     elif args.test_num == 8:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         lazy_validate(args.xml_file)
