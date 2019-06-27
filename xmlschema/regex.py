@@ -13,6 +13,7 @@ Parse and translate XML regular expressions to Python regex syntax.
 """
 from __future__ import unicode_literals
 import re
+from itertools import chain
 from sys import maxunicode
 
 from .compat import PY3, unicode_type, string_base_type, MutableSet
@@ -49,9 +50,12 @@ S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
 D_SHORTCUT_SET = UnicodeSubset('0-9')
 I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
 C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
-W_SHORTCUT_SET = UnicodeSubset.fromlist(
-    UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points + UNICODE_CATEGORIES['C'].code_points
-)
+W_SHORTCUT_SET = UnicodeSubset(chain(
+    UNICODE_CATEGORIES['L'].code_points,
+    UNICODE_CATEGORIES['M'].code_points,
+    UNICODE_CATEGORIES['N'].code_points,
+    UNICODE_CATEGORIES['S'].code_points
+))
 
 # Single and Multi character escapes
 CHARACTER_ESCAPES = {

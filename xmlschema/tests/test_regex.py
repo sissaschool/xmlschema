@@ -16,6 +16,7 @@ from __future__ import unicode_literals
 import unittest
 import sys
 import re
+from itertools import chain
 from unicodedata import category
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaRegexError
@@ -93,6 +94,19 @@ class TestUnicodeSubset(unittest.TestCase):
         self.assertEqual(list(cds.complement()), [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode + 1)])
         cds.add((0, 10))
         self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
+
+        cds1 = UnicodeSubset(chain(
+            UNICODE_CATEGORIES['L'].code_points,
+            UNICODE_CATEGORIES['M'].code_points,
+            UNICODE_CATEGORIES['N'].code_points,
+            UNICODE_CATEGORIES['S'].code_points
+        ))
+        cds2 = UnicodeSubset(chain(
+            UNICODE_CATEGORIES['C'].code_points,
+            UNICODE_CATEGORIES['P'].code_points,
+            UNICODE_CATEGORIES['Z'].code_points
+        ))
+        self.assertListEqual(cds1.code_points, UnicodeSubset(cds2.complement()).code_points)
 
     def test_union_and_intersection(self):
         cds1 = UnicodeSubset([50, (90, 200), 10])
@@ -336,6 +350,17 @@ class TestPatterns(unittest.TestCase):
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))
+
+        # Pull Request 114
+        regex = get_python_regex(r"[\w]{0,5}")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('abc').group(0), 'abc')
+        self.assertIsNone(pattern.search('.'))
+
+        regex = get_python_regex(r"[\W]{0,5}")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('.').group(0), '.')
+        self.assertIsNone(pattern.search('abc'))
 
     def test_empty_character_group_repr(self):
         regex = get_python_regex('[a-[a-f]]')
