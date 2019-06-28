@@ -121,6 +121,8 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
     .. automethod:: element_decode
     .. automethod:: element_encode
 
+.. autoclass:: xmlschema.VisitorConverter
+
 .. autoclass:: xmlschema.ParkerConverter
 
 .. autoclass:: xmlschema.BadgerFishConverter

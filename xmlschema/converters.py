@@ -18,6 +18,7 @@ from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
+from .qnames import XSI_TYPE
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -362,6 +363,184 @@ class XMLSchemaConverter(NamespaceMapper):
                             content.append((ns_name, value))
                     else:
                         content.append((ns_name, value))
+
+        return ElementData(tag, text, content, attributes)
+
+
+class VisitorConverter(XMLSchemaConverter):
+    """
+    Same as :class:`XMLSchemaConverter` but :meth:`element_encode` is
+    modified so the order of the elements in the encoded output is based on
+    the model visitor pattern rather than the order in which the elements
+    were added to the input dictionary. As the order of the input
+    dictionary is not preserved, text between sibling elements will raise
+    an exception.
+
+    eg.
+
+    .. code-block:: python
+
+        xsd = \"\"\"<?xml version="1.0" encoding="UTF-8"?>
+          <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="ns" elementFormDefault="unqualified" version="1.0">
+            <element name="foo">
+              <complexType>
+                <sequence minOccurs="1" maxOccurs="2">
+                  <element name="A" type="integer" />
+                  <element name="B" type="integer" />
+                </sequence>
+              </complexType>
+            </element>
+          </schema>\"\"\"
+
+        schema = xmlschema.XMLSchema(xsd, converter=xmlschema.VisitorConverter)
+        tree = schema.to_etree(
+            {"A": [1, 2], "B": [3, 4]},
+        )
+        # Returns equivalent of:
+        # <ns:foo xmlns:ns="ns">
+        #     <A>1</A>
+        #     <B>3</B>
+        #     <A>2</A>
+        #     <B>4</B>
+        # </ns:foo>
+
+    Schemas which contain repeated sequences (``maxOccurs > 1``) of
+    optional elements may be ambiguous using this approach when some of the
+    optional elements are not present. In those cases, decoding and then
+    encoding may not reproduce the original ordering.
+    """
+
+    def element_encode(self, obj, xsd_element, level=0):
+        """
+        Extracts XML decoded data from a data structure for encoding into an ElementTree.
+
+        :param obj: the decoded object.
+        :param xsd_element: the `XsdElement` associated to the decoded data structure.
+        :param level: the level related to the encoding process (0 means the root).
+        :return: an ElementData instance.
+        """
+        from xmlschema.validators.models import ModelVisitor
+
+        if level != 0:
+            tag = xsd_element.name
+        elif not self.preserve_root:
+            tag = xsd_element.qualified_name
+        else:
+            tag = xsd_element.qualified_name
+            try:
+                obj = obj.get(tag, xsd_element.local_name)
+            except (KeyError, AttributeError, TypeError):
+                pass
+
+        if not isinstance(obj, (self.dict, dict)):
+            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+                return ElementData(tag, obj, None, self.dict())
+            else:
+                return ElementData(tag, None, obj, self.dict())
+
+        unmap_qname = self.unmap_qname
+        unmap_attribute_qname = self._unmap_attribute_qname
+        text_key = self.text_key
+        attr_prefix = self.attr_prefix
+        ns_prefix = self.ns_prefix
+        cdata_prefix = self.cdata_prefix
+
+        text = None
+        content_lu = {}
+        attributes = self.dict()
+        for name, value in obj.items():
+            if text_key and name == text_key:
+                text = obj[text_key]
+            elif (cdata_prefix and name.startswith(cdata_prefix)) or \
+                    name[0].isdigit() and cdata_prefix == '':
+                raise XMLSchemaValueError(
+                    "cdata segments are not compatible with the '{}' converter".format(
+                        self.__class__.__name__
+                    )
+                )
+            elif name == ns_prefix:
+                self[''] = value
+            elif name.startswith('%s:' % ns_prefix):
+                self[name[len(ns_prefix) + 1:]] = value
+            elif attr_prefix and name.startswith(attr_prefix):
+                name = name[len(attr_prefix):]
+                attributes[unmap_attribute_qname(name)] = value
+            elif not isinstance(value, (self.list, list)) or not value:
+                content_lu[unmap_qname(name)] = iter([value])
+            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                content_lu[unmap_qname(name)] = iter(value)
+            else:
+                # `value` is a list but not a list of lists or list of
+                # dicts.
+                ns_name = unmap_qname(name)
+                for xsd_child in xsd_element.type.content_type.iter_elements():
+                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    if matched_element is not None:
+                        if matched_element.type.is_list():
+                            content_lu[unmap_qname(name)] = iter([value])
+                        else:
+                            content_lu[unmap_qname(name)] = iter(value)
+                        break
+                else:
+                    if attr_prefix == '' and ns_name not in attributes:
+                        for xsd_attribute in xsd_element.attributes.values():
+                            if xsd_attribute.is_matching(ns_name):
+                                attributes[ns_name] = value
+                                break
+                        else:
+                            content_lu[unmap_qname(name)] = iter([value])
+                    else:
+                        content_lu[unmap_qname(name)] = iter([value])
+
+        content = []
+        if content_lu:
+            # Get the instance type: xsi:type or the schema's declaration
+            if XSI_TYPE not in attributes:
+                xsd_type = xsd_element.get_type(
+                    ElementData(tag, None, None, attributes)
+                )
+            else:
+                xsi_type = attributes[XSI_TYPE]
+                try:
+                    xsd_type = xsd_element.maps.lookup_type(unmap_qname(xsi_type))
+                except KeyError:
+                    raise Exception("unknown type %r" % xsi_type)
+            model = ModelVisitor(xsd_type.content_type)
+            while model.element is not None:
+                elem_name = None
+                if model.element.name in content_lu:
+                    elem_name = model.element.name
+                else:
+                    for elem in model.element.iter_substitutes():
+                        if elem.name in content_lu:
+                            elem_name = elem.name
+                            break
+
+                match = False
+                if elem_name is not None:
+                    match = True
+                    try:
+                        content.append(
+                            (elem_name, next(content_lu[elem_name]))
+                        )
+                    except StopIteration:
+                        match = False
+                        del content_lu[elem_name]
+
+                if not content_lu:
+                    break
+                # consume the return of advance otherwise we get stuck in an
+                # infinite loop. Checking validity is the responsibility of
+                # `iter_encode`.
+                list(model.advance(match))
+
+            # Append any remaining content onto the end of the data. It's up to
+            # the `iter_encode` functions to decide whether their presence is
+            # an error (validation="lax", etc.).
+            for elem_name, values in content_lu.items():
+                for value in values:
+                    content.append((elem_name, value))
 
         return ElementData(tag, text, content, attributes)
 

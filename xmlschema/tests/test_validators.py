@@ -24,12 +24,13 @@ from elementpath import datatypes
 
 import xmlschema
 from xmlschema import (
-    XMLSchemaEncodeError, XMLSchemaValidationError, ParkerConverter,
-    BadgerFishConverter, AbderaConverter, JsonMLConverter
+    XMLSchemaEncodeError, XMLSchemaValidationError, VisitorConverter,
+    ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.helpers import local_name
 from xmlschema.qnames import XSI_TYPE
@@ -777,6 +778,14 @@ class TestDecoding(XMLSchemaTestCase):
         default_dict_root = self.col_schema.to_dict(self.col_xml_file, preserve_root=True)
         self.assertEqual(default_dict_root, {'col:collection': _COLLECTION_DICT})
 
+    def test_visitor_converter(self):
+        visitor_dict = self.col_schema.to_dict(self.col_xml_file, converter=VisitorConverter)
+        self.assertEqual(visitor_dict, _COLLECTION_DICT)
+
+        visitor_dict_root = self.col_schema.to_dict(
+            self.col_xml_file, converter=VisitorConverter(preserve_root=True))
+        self.assertEqual(visitor_dict_root, {'col:collection': _COLLECTION_DICT})
+
     def test_parker_converter(self):
         parker_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.ParkerConverter)
         self.assertEqual(parker_dict, _COLLECTION_PARKER)
@@ -1259,17 +1268,29 @@ class TestEncoding(XMLSchemaTestCase):
             indent=0,
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
-        self.check_encode(
-            xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
-            indent=0, cdata_prefix='#'
-        )
-        self.check_encode(
-            xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
-            expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
-        )
+
+        converter_cls = getattr(self.schema_class, "converter", None)
+        if converter_cls and issubclass(converter_cls, VisitorConverter):
+            # VisitorConverter doesn't use ordered content which makes
+            # it incompatible with cdata.
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+                expected=XMLSchemaValueError,
+                indent=0, cdata_prefix='#'
+            )
+        else:
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+                expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
+                indent=0, cdata_prefix='#'
+            )
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+                expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
+            )
 
     def test_encode_datetime(self):
         xs = self.get_schema('<element name="dt" type="dateTime"/>')
@@ -1354,6 +1375,41 @@ class TestEncoding(XMLSchemaTestCase):
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
+
+
+class XMLSchemaVisitorConverter(xmlschema.XMLSchema):
+    converter = VisitorConverter
+
+
+class TestEncodingVisitorConverter10(TestEncoding):
+    schema_class = XMLSchemaVisitorConverter
+
+    def test_visitor_converter_sequence_in_sequence(self):
+        schema = self.get_schema("""
+            <element name="foo">
+                <complexType>
+                    <sequence minOccurs="1" maxOccurs="2">
+                        <element name="A" minOccurs="0" type="integer" nillable="true" />
+                        <element name="B" minOccurs="0" type="integer" nillable="true" />
+                    </sequence>
+                </complexType>
+            </element>
+        """)
+        tree = schema.to_etree(
+            {"A": [1, 2], "B": [3, 4]},
+        )
+        vals = []
+        for elem in tree:
+            vals.append(elem.text)
+        self.assertEqual(vals, ['1', '3', '2', '4'])
+
+
+class XMLSchema11VisitorConverter(XMLSchema11):
+    converter = VisitorConverter
+
+
+class TestEncodingVisitorConverter11(TestEncoding):
+    schema_class = XMLSchema11VisitorConverter
 
 
 # Creates decoding/encoding tests classes from XML files
