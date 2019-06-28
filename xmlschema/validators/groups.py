@@ -711,7 +711,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     errors.append((index - cdata_index, particle, occurs, expected))
                 break
             else:
-                if losslessly:
+                if validation == "strict" or losslessly:
                     errors.append((index - cdata_index, self, 0, []))
 
                 for xsd_element in self.iter_elements():

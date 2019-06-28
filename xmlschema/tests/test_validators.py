@@ -30,6 +30,7 @@ from xmlschema import (
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
+from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.helpers import local_name
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.resources import fetch_namespaces
@@ -1332,6 +1333,23 @@ class TestEncoding(XMLSchemaTestCase):
         else:
             text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" roll="0.0" pitch="0.0" yaw="-1.0" />'
         self.assertEqual(message_lines[-2].strip(), text)
+
+    def test_strict_trailing_content(self):
+        """Too many elements for a group raises an exception."""
+        schema = self.get_schema("""
+            <element name="foo">
+                <complexType>
+                    <sequence minOccurs="2" maxOccurs="2">
+                        <element name="A" minOccurs="0" type="integer" nillable="true" />
+                    </sequence>
+                </complexType>
+            </element>
+        """)
+        self.check_encode(
+            schema.elements['foo'],
+            data={"A": [1, 2, 3]},
+            expected=XMLSchemaChildrenValidationError,
+        )
 
 
 class TestEncoding11(TestEncoding):
