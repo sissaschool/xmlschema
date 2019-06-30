@@ -46,12 +46,14 @@ C_SHORTCUT_REPLACE = (
 )
 
 S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-D_SHORTCUT_SET = UnicodeSubset('0-9')
+D_SHORTCUT_SET = UnicodeSubset()
+D_SHORTCUT_SET._code_points = UNICODE_CATEGORIES['Nd'].code_points
 I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
 C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset.fromlist(
     UNICODE_CATEGORIES['P'].code_points + UNICODE_CATEGORIES['Z'].code_points + UNICODE_CATEGORIES['C'].code_points
 )
+W_SHORTCUT_SET = UnicodeSubset(W_SHORTCUT_SET.complement())
 
 # Single and Multi character escapes
 CHARACTER_ESCAPES = {
