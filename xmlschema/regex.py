@@ -47,7 +47,8 @@ C_SHORTCUT_REPLACE = (
 )
 
 S_SHORTCUT_SET = UnicodeSubset(' \n\t\r')
-D_SHORTCUT_SET = UnicodeSubset('0-9')
+D_SHORTCUT_SET = UnicodeSubset()
+D_SHORTCUT_SET._code_points = UNICODE_CATEGORIES['Nd'].code_points
 I_SHORTCUT_SET = UnicodeSubset(I_SHORTCUT_REPLACE)
 C_SHORTCUT_SET = UnicodeSubset(C_SHORTCUT_REPLACE)
 W_SHORTCUT_SET = UnicodeSubset(chain(

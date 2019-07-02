@@ -350,6 +350,29 @@ class TestPatterns(unittest.TestCase):
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))
+        
+        regex = get_python_regex(r"\w*")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('aA_x7').group(0), 'aA_x7')
+        self.assertIsNone(pattern.search('.'))
+        self.assertIsNone(pattern.search('-'))
+        
+        regex = get_python_regex(r"\W*")
+        pattern = re.compile(regex)
+        self.assertIsNone(pattern.search('aA_x7'))
+        self.assertEqual(pattern.search('.-').group(0), '.-')
+        
+        regex = get_python_regex(r"\d*")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('6410').group(0), '6410')
+        self.assertIsNone(pattern.search('a'))
+        self.assertIsNone(pattern.search('-'))
+        
+        regex = get_python_regex(r"\D*")
+        pattern = re.compile(regex)
+        self.assertIsNone(pattern.search('6410'))
+        self.assertEqual(pattern.search('a').group(0), 'a')
+        self.assertEqual(pattern.search('-').group(0), '-')
 
         # Pull Request 114
         regex = get_python_regex(r"[\w]{0,5}")
