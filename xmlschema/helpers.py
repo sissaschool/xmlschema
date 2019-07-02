@@ -44,23 +44,26 @@ def get_qname(uri, name):
 
 def local_name(qname):
     """
-    Return the local part of an expanded QName. If the name is `None` or empty
-    returns the *name* argument.
+    Return the local part of an expanded QName or a prefixed name. If the name
+    is `None` or empty returns the *name* argument.
 
-    :param qname: an expanded QName or a local name.
+    :param qname: an expanded QName or a prefixed name or a local name.
     """
     try:
-        if qname[0] != '{':
-            return qname
-        return qname[qname.rindex('}') + 1:]
+        if qname[0] == '{':
+            _, qname = qname.split('}')
+        elif ':' in qname:
+            _, qname = qname.split(':')
     except IndexError:
         return ''
     except ValueError:
-        raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
+        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
     except TypeError:
         if qname is None:
             return qname
-        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
+        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object or None")
+    else:
+        return qname
 
 
 def qname_to_prefixed(qname, namespaces):

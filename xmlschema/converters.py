@@ -12,12 +12,15 @@ This module contains converter classes and definitions.
 """
 from __future__ import unicode_literals
 from collections import namedtuple, OrderedDict
+from types import MethodType
 import string
+import warnings
 
 from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
+from .helpers import local_name
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -57,8 +60,8 @@ class XMLSchemaConverter(NamespaceMapper):
     mixed content, that are labeled with an integer instead of a string. \
     CDATA parts are ignored if this argument is `None`.
     :param indent: number of spaces for XML indentation (default is 4).
-    :param strip_namespaces: remove namespace information from names during decoding \
-    or encoding, defaults to `False`.
+    :param strip_namespaces: if set to `True` removes namespace declarations from data and \
+    namespace information from names, during decoding or encoding. Defaults to `False`.
     :param preserve_root: if set to `True` the root element is preserved, wrapped into a \
     single-item dictionary. Applicable only to default converter and to :class:`ParkerConverter`.
     :param force_dict: if set to `True` complex elements with simple content are decoded \
@@ -79,6 +82,19 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
+    # Deprecations from release v1.0.14
+    def _unmap_attribute_qname(self, name):
+        warnings.warn("_unmap_attribute_qname method has been replaced by unmap_prefixed()"
+                      "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
+        return self.unmap_prefixed(qname=name)
+
+    @property
+    def lossless(self):
+        """The negation of *lossy* property, preserved for backward compatibility."""
+        warnings.warn("the lossless property will be removed in 1.1 version, "
+                      "use 'not self.lossy' instead", DeprecationWarning, stacklevel=2)
+        return not self.lossy
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None, etree_element_class=None,
                  text_key='$', attr_prefix='@', cdata_prefix=None, indent=4, strip_namespaces=False,
                  preserve_root=False, force_dict=False, force_list=False, **kwargs):
@@ -101,8 +117,6 @@ class XMLSchemaConverter(NamespaceMapper):
             super(XMLSchemaConverter, self).__init__(namespaces, etree_register_namespace)
         else:
             super(XMLSchemaConverter, self).__init__(namespaces, lxml_etree_register_namespace)
-        if strip_namespaces:
-            self.map_qname = self.unmap_qname = self._unmap_attribute_qname = self._local_name
 
     def __setattr__(self, name, value):
         if name in ('attr_prefix', 'text_key', 'cdata_prefix'):
@@ -110,18 +124,27 @@ class XMLSchemaConverter(NamespaceMapper):
                 raise XMLSchemaValueError('%r cannot includes letters or underscores: %r' % (name, value))
             elif name == 'attr_prefix':
                 self.ns_prefix = (value or '') + 'xmlns'
+        elif name == 'strip_namespaces':
+            if value:
+                self.map_qname = self.unmap_qname = self.unmap_prefixed_qname = MethodType(local_name, self)
+            elif getattr(self, 'strip_namespaces', False):
+                # Rebuild instance methods only if necessary
+                self.map_qname = MethodType(XMLSchemaConverter.map_qname, self)
+                self.unmap_qname = MethodType(XMLSchemaConverter.unmap_qname, self)
+                self.unmap_prefixed_qname = MethodType(XMLSchemaConverter.unmap_prefixed, self)
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossless(self):
-        """The converter can ignore some kind of XML data during decoding."""
-        return self.cdata_prefix and self.text_key and self.attr_prefix
+    def lossy(self):
+        """The converter ignores some kind of XML data during decoding/encoding."""
+        return not self.cdata_prefix or not self.text_key or not self.attr_prefix
 
     @property
     def losslessly(self):
         """
-        The format of decoded data is without loss of quality. Only losslessly formats can be
-        always used to encode to an XML data that is strictly conformant to the schema.
+        The XML data is decoded without loss of quality, neither on data nor on data model
+        shape. Only losslessly converters can be always used to encode to an XML data that
+        is strictly conformant to the schema.
         """
         return False
 
@@ -159,26 +182,6 @@ class XMLSchemaConverter(NamespaceMapper):
         else:
             for name, value in attributes:
                 yield self.map_qname(name), value
-
-    def _unmap_attribute_qname(self, name):
-        if name[0] == '{' or ':' not in name:
-            return name
-        else:
-            return self.unmap_qname(name)
-
-    @staticmethod
-    def _local_name(qname):
-        try:
-            if qname[0] == '{':
-                _, local_name = qname.split('}')
-            elif ':' in qname:
-                _, local_name = qname.split(':')
-            else:
-                return qname
-        except ValueError:
-            return qname
-        else:
-            return local_name
 
     def map_content(self, content):
         """
@@ -244,7 +247,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: a data structure containing the decoded data.
         """
         result_dict = self.dict()
-        if level == 0 and xsd_element.is_global and self:
+        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
                 ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
@@ -311,8 +314,6 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 return ElementData(tag, None, obj, self.dict())
 
-        unmap_qname = self.unmap_qname
-        unmap_attribute_qname = self._unmap_attribute_qname
         text_key = self.text_key
         attr_prefix = self.attr_prefix
         ns_prefix = self.ns_prefix
@@ -322,7 +323,7 @@ class XMLSchemaConverter(NamespaceMapper):
         content = []
         attributes = self.dict()
         for name, value in obj.items():
-            if text_key and name == text_key:
+            if text_key and name == self.text_key:
                 text = obj[text_key]
             elif (cdata_prefix and name.startswith(cdata_prefix)) or \
                     name[0].isdigit() and cdata_prefix == '':
@@ -331,26 +332,25 @@ class XMLSchemaConverter(NamespaceMapper):
             elif name == ns_prefix:
                 self[''] = value
             elif name.startswith('%s:' % ns_prefix):
-                self[name[len(ns_prefix) + 1:]] = value
+                if not self.strip_namespaces:
+                    self[name[len(ns_prefix) + 1:]] = value
             elif attr_prefix and name.startswith(attr_prefix):
                 name = name[len(attr_prefix):]
-                attributes[unmap_attribute_qname(name)] = value
+                attributes[self.unmap_prefixed_qname(name)] = value
             elif not isinstance(value, (self.list, list)) or not value:
-                content.append((unmap_qname(name), value))
+                content.append((self.unmap_qname(name), value))
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
-                ns_name = unmap_qname(name)
-                for item in value:
-                    content.append((ns_name, item))
+                ns_name = self.unmap_qname(name)
+                content.extend((ns_name, item) for item in value)
             else:
-                ns_name = unmap_qname(name)
+                ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
                     matched_element = xsd_child.match(ns_name, self.get(''))
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
-                            for item in value:
-                                content.append((ns_name, item))
+                            content.extend((ns_name, item) for item in value)
                         break
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
@@ -392,8 +392,8 @@ class ParkerConverter(XMLSchemaConverter):
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossless(self):
-        return False
+    def lossy(self):
+        return True
 
     def element_decode(self, data, xsd_element, level=0):
         map_qname = self.map_qname
@@ -508,14 +508,14 @@ class BadgerFishConverter(XMLSchemaConverter):
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossless(self):
-        return True
+    def lossy(self):
+        return False
 
     def element_decode(self, data, xsd_element, level=0):
         dict_class = self.dict
 
         tag = self.map_qname(data.tag)
-        has_local_root = not len(self)
+        has_local_root = not self and not self.strip_namespaces
         result_dict = dict_class([t for t in self.map_attributes(data.attributes)])
         if has_local_root:
             result_dict['@xmlns'] = dict_class()
@@ -571,13 +571,13 @@ class BadgerFishConverter(XMLSchemaConverter):
     def element_encode(self, obj, xsd_element, level=0):
         map_qname = self.map_qname
         unmap_qname = self.unmap_qname
-        unmap_attribute_qname = self._unmap_attribute_qname
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
-        try:
-            self.update(obj['@xmlns'])
-        except KeyError:
-            pass
+        if not self.strip_namespaces:
+            try:
+                self.update(obj['@xmlns'])
+            except KeyError:
+                pass
 
         try:
             element_data = obj[map_qname(xsd_element.name)]
@@ -601,7 +601,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                 content.append((index, value))
             elif attr_prefix and name.startswith(attr_prefix):
                 name = name[len(attr_prefix):]
-                attributes[unmap_attribute_qname(name)] = value
+                attributes[self.unmap_prefixed_qname(name)] = value
             elif not isinstance(value, (self.list, list)) or not value:
                 content.append((unmap_qname(name), value))
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
@@ -657,8 +657,8 @@ class AbderaConverter(XMLSchemaConverter):
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossless(self):
-        return False
+    def lossy(self):
+        return True
 
     def element_decode(self, data, xsd_element, level=0):
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -703,10 +703,9 @@ class AbderaConverter(XMLSchemaConverter):
             return ElementData(tag, obj, None, self.dict())
         else:
             unmap_qname = self.unmap_qname
-            unmap_attribute_qname = self._unmap_attribute_qname
             attributes = self.dict()
             try:
-                attributes.update([(unmap_attribute_qname(k), v) for k, v in obj['attributes'].items()])
+                attributes.update([(self.unmap_prefixed_qname(k), v) for k, v in obj['attributes'].items()])
             except KeyError:
                 children = obj
             else:
@@ -770,8 +769,8 @@ class JsonMLConverter(XMLSchemaConverter):
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
-    def lossless(self):
-        return True
+    def lossy(self):
+        return False
 
     @property
     def losslessly(self):
@@ -790,7 +789,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if level == 0 and xsd_element.is_global and self:
+        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
             attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
         if attributes:
             result_list.insert(1, attributes)
@@ -808,7 +807,6 @@ class JsonMLConverter(XMLSchemaConverter):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
-        unmap_attribute_qname = self._unmap_attribute_qname
         try:
             for k, v in obj[1].items():
                 if k == 'xmlns':
@@ -816,7 +814,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 elif k.startswith('xmlns:'):
                     self[k.split('xmlns:')[1]] = v
                 else:
-                    attributes[unmap_attribute_qname(k)] = v
+                    attributes[self.unmap_prefixed_qname(k)] = v
         except AttributeError:
             content_index = 1
         else:

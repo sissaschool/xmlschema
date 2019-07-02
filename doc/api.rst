@@ -112,6 +112,7 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
 .. autoclass:: xmlschema.XMLSchemaConverter
 
+    .. autoattribute:: lossy
     .. autoattribute:: lossless
     .. autoattribute:: losslessly
 
