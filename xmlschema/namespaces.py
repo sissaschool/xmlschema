@@ -140,6 +140,10 @@ class NamespaceMapper(MutableMapping):
             return qname
 
     def unmap_qname(self, qname):
+        """
+        Converts a QName in prefixed format or a local name to the extended QName format.
+        Local names are converted only if a default namespace is included in the instance.
+        """
         try:
             if qname[0] == '{' or not self:
                 return qname
@@ -153,6 +157,29 @@ class NamespaceMapper(MutableMapping):
                 return u'{%s}%s' % (self.get(''), qname)
             else:
                 return qname
+        else:
+            try:
+                uri = self._namespaces[prefix]
+            except KeyError:
+                return qname
+            else:
+                return u'{%s}%s' % (uri, name) if uri else name
+
+    def unmap_prefixed(self, qname):
+        """
+        Converts a name in prefixed format to the extended QName format. Local names
+        are not converted, also if a default namespace is included in the instance.
+        """
+        try:
+            if qname[0] == '{':
+                return qname
+        except IndexError:
+            return qname
+
+        try:
+            prefix, name = qname.split(':', 1)
+        except ValueError:
+            return qname
         else:
             try:
                 uri = self._namespaces[prefix]
