@@ -1292,6 +1292,30 @@ class TestEncoding(XMLSchemaTestCase):
                 expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
             )
 
+    def test_encode_unordered_content(self):
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type">
+            <sequence>
+                <element name="B1" type="string"/>
+                <element name="B2" type="integer"/>
+                <element name="B3" type="boolean"/>
+            </sequence>
+        </complexType>
+        """)
+        converter_cls = getattr(self.schema_class, "converter", None)
+        if converter_cls and issubclass(converter_cls, VisitorConverter):
+            expected = u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</ns:A>'
+        else:
+            expected = XMLSchemaChildrenValidationError
+
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            expected=expected,
+            indent=0, cdata_prefix='#'
+        )
+
     def test_encode_datetime(self):
         xs = self.get_schema('<element name="dt" type="dateTime"/>')
 
