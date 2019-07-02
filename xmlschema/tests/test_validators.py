@@ -24,8 +24,8 @@ from elementpath import datatypes
 
 import xmlschema
 from xmlschema import (
-    XMLSchemaEncodeError, XMLSchemaValidationError, ParkerConverter,
-    BadgerFishConverter, AbderaConverter, JsonMLConverter
+    XMLSchemaEncodeError, XMLSchemaValidationError, XMLSchemaChildrenValidationError,
+    ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
@@ -609,13 +609,17 @@ class TestValidation(XsdValidatorTestCase):
         vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
-    def _test_document_validate_api_lazy(self):
+    def test_document_validate_api_lazy(self):
         source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
-        source.root[0].clear()
+        namespaces = source.get_namespaces()
+        source.root[0].clear()  # Drop internal elements
         source.root[1].clear()
         xsd_element = self.col_schema.elements['collection']
 
-        for result in xsd_element.iter_decode(source.root, 'strict', namespaces=source.get_namespaces(),
+        self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root, namespaces=namespaces)
+
+        # Testing adding internal kwarg _no_deep.
+        for result in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
                                               source=source, _no_deep=None):
             del result
 
@@ -1316,6 +1320,45 @@ class TestEncoding(XsdValidatorTestCase):
         else:
             text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" roll="0.0" pitch="0.0" yaw="-1.0" />'
         self.assertEqual(message_lines[-2].strip(), text)
+
+    def test_max_occurs_sequence(self):
+        # Issue #119
+        schema = self.get_schema("""
+            <xs:element name="foo">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="A" type="xs:integer" maxOccurs="2" />
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>""")
+
+        # Check validity
+        self.assertIsNone(schema.validate("<foo><A>1</A></foo>"))
+        self.assertIsNone(schema.validate("<foo><A>1</A><A>2</A></foo>"))
+        with self.assertRaises(XMLSchemaChildrenValidationError):
+            schema.validate("<foo><A>1</A><A>2</A><A>3</A></foo>")
+
+        #self.assertTrue(is_etree_element(schema.to_etree({'A': 1}, path='foo')))
+        #self.assertTrue(is_etree_element(schema.to_etree({'A': [1]}, path='foo')))
+        #elf.assertTrue(is_etree_element(schema.to_etree({'A': [1, 2]}, path='foo')))
+        #with self.assertRaises(XMLSchemaChildrenValidationError):
+        #    schema.to_etree({'A': [1, 2, 3]}, path='foo')
+
+        schema = self.get_schema("""
+            <xs:element name="foo">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="A" type="xs:integer" maxOccurs="2" />
+                  <xs:element name="B" type="xs:integer" minOccurs="0" />
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>""")
+
+        #self.assertTrue(is_etree_element(schema.to_etree({'A': [1, 2]}, path='foo')))
+        self.assertTrue(is_etree_element(schema.to_etree({'A': [1, 2, 3]}, path='foo')))
+
+
+
 
 
 class TestEncoding11(TestEncoding):

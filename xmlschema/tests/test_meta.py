@@ -18,9 +18,6 @@ from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValid
     XMLSchema10, XMLSchema11
 from xmlschema.validators.builtins import HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
 
-xsd_10_meta_schema = XMLSchema10.meta_schema
-xsd_11_meta_schema = XMLSchema11.meta_schema
-
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
 
@@ -283,43 +280,43 @@ class TestGlobalMaps(unittest.TestCase):
         XMLSchema11.meta_schema.clear()
 
     def test_xsd_10_globals(self):
-        self.assertEqual(len(xsd_10_meta_schema.maps.notations), 2)
-        self.assertEqual(len(xsd_10_meta_schema.maps.types), 108)
-        self.assertEqual(len(xsd_10_meta_schema.maps.attributes), 18)
-        self.assertEqual(len(xsd_10_meta_schema.maps.attribute_groups), 9)
-        self.assertEqual(len(xsd_10_meta_schema.maps.groups), 18)
-        self.assertEqual(len(xsd_10_meta_schema.maps.elements), 45)
-        self.assertEqual(len([e.is_global for e in xsd_10_meta_schema.maps.iter_globals()]), 200)
-        self.assertEqual(len(xsd_10_meta_schema.maps.substitution_groups), 0)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.notations), 2)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.types), 108)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.attributes), 18)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.attribute_groups), 9)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.groups), 18)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.elements), 45)
+        self.assertEqual(len([e.is_global for e in XMLSchema10.meta_schema.maps.iter_globals()]), 200)
+        self.assertEqual(len(XMLSchema10.meta_schema.maps.substitution_groups), 0)
 
     def test_xsd_11_globals(self):
-        self.assertEqual(len(xsd_11_meta_schema.maps.notations), 2)
-        self.assertEqual(len(xsd_11_meta_schema.maps.types), 118)
-        self.assertEqual(len(xsd_11_meta_schema.maps.attributes), 18)
-        self.assertEqual(len(xsd_11_meta_schema.maps.attribute_groups), 10)
-        self.assertEqual(len(xsd_11_meta_schema.maps.groups), 19)
-        self.assertEqual(len(xsd_11_meta_schema.maps.elements), 51)
-        self.assertEqual(len([e.is_global for e in xsd_11_meta_schema.maps.iter_globals()]), 218)
-        self.assertEqual(len(xsd_11_meta_schema.maps.substitution_groups), 1)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.notations), 2)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.types), 118)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.attributes), 18)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.attribute_groups), 10)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.groups), 19)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.elements), 51)
+        self.assertEqual(len([e.is_global for e in XMLSchema11.meta_schema.maps.iter_globals()]), 218)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_10_build(self):
-        self.assertEqual(len([e for e in xsd_10_meta_schema.maps.iter_globals()]), 200)
-        self.assertTrue(xsd_10_meta_schema.maps.built)
-        xsd_10_meta_schema.maps.clear()
-        xsd_10_meta_schema.maps.build()
-        self.assertTrue(xsd_10_meta_schema.maps.built)
+        self.assertEqual(len([e for e in XMLSchema10.meta_schema.maps.iter_globals()]), 200)
+        self.assertTrue(XMLSchema10.meta_schema.maps.built)
+        XMLSchema10.meta_schema.maps.clear()
+        XMLSchema10.meta_schema.maps.build()
+        self.assertTrue(XMLSchema10.meta_schema.maps.built)
 
     def test_xsd_11_build(self):
-        self.assertEqual(len([e for e in xsd_11_meta_schema.maps.iter_globals()]), 218)
-        self.assertTrue(xsd_11_meta_schema.maps.built)
-        xsd_11_meta_schema.maps.clear()
-        xsd_11_meta_schema.maps.build()
-        self.assertTrue(xsd_11_meta_schema.maps.built)
+        self.assertEqual(len([e for e in XMLSchema11.meta_schema.maps.iter_globals()]), 218)
+        self.assertTrue(XMLSchema11.meta_schema.maps.built)
+        XMLSchema11.meta_schema.maps.clear()
+        XMLSchema11.meta_schema.maps.build()
+        self.assertTrue(XMLSchema11.meta_schema.maps.built)
 
     def test_xsd_10_components(self):
         total_counter = 0
         global_counter = 0
-        for g in xsd_10_meta_schema.maps.iter_globals():
+        for g in XMLSchema10.meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
                 if c.is_global:
@@ -330,7 +327,7 @@ class TestGlobalMaps(unittest.TestCase):
     def test_xsd_11_components(self):
         total_counter = 0
         global_counter = 0
-        for g in xsd_11_meta_schema.maps.iter_globals():
+        for g in XMLSchema11.meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
                 if c.is_global:

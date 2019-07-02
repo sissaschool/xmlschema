@@ -164,7 +164,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""")
         self.assertIsNotNone(schema.types["Magic"].annotation)
 
-        schema = self.check_schema("""
+        self.check_schema("""
         <xs:simpleType name='Magic'>
             <xs:annotation />
             <xs:annotation />
