@@ -27,9 +27,11 @@ from xmlschema import (
     XMLSchemaEncodeError, XMLSchemaValidationError, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
+from xmlschema.converters import UnorderedConverter
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
+from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.helpers import local_name
 from xmlschema.qnames import XSI_TYPE
@@ -777,6 +779,14 @@ class TestDecoding(XMLSchemaTestCase):
         default_dict_root = self.col_schema.to_dict(self.col_xml_file, preserve_root=True)
         self.assertEqual(default_dict_root, {'col:collection': _COLLECTION_DICT})
 
+    def test_visitor_converter(self):
+        visitor_dict = self.col_schema.to_dict(self.col_xml_file, converter=UnorderedConverter)
+        self.assertEqual(visitor_dict, _COLLECTION_DICT)
+
+        visitor_dict_root = self.col_schema.to_dict(
+            self.col_xml_file, converter=UnorderedConverter(preserve_root=True))
+        self.assertEqual(visitor_dict_root, {'col:collection': _COLLECTION_DICT})
+
     def test_parker_converter(self):
         parker_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.ParkerConverter)
         self.assertEqual(parker_dict, _COLLECTION_PARKER)
@@ -1259,16 +1269,52 @@ class TestEncoding(XMLSchemaTestCase):
             indent=0,
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
+
+        converter_cls = getattr(self.schema_class, "converter", None)
+        if converter_cls and issubclass(converter_cls, UnorderedConverter):
+            # UnorderedConverter doesn't use ordered content which makes
+            # it incompatible with cdata.
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+                expected=XMLSchemaValueError,
+                indent=0, cdata_prefix='#'
+            )
+        else:
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+                expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
+                indent=0, cdata_prefix='#'
+            )
+            self.check_encode(
+                xsd_component=schema.elements['A'],
+                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+                expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
+            )
+
+    def test_encode_unordered_content(self):
+        schema = self.get_schema("""
+        <element name="A" type="ns:A_type" />
+        <complexType name="A_type">
+            <sequence>
+                <element name="B1" type="string"/>
+                <element name="B2" type="integer"/>
+                <element name="B3" type="boolean"/>
+            </sequence>
+        </complexType>
+        """)
+        converter_cls = getattr(self.schema_class, "converter", None)
+        if converter_cls and issubclass(converter_cls, UnorderedConverter):
+            expected = u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</ns:A>'
+        else:
+            expected = XMLSchemaChildrenValidationError
+
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-            expected=u'<ns:A xmlns:ns="ns">\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</ns:A>',
+            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            expected=expected,
             indent=0, cdata_prefix='#'
-        )
-        self.check_encode(
-            xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
-            expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
 
     def test_encode_datetime(self):
@@ -1354,6 +1400,41 @@ class TestEncoding(XMLSchemaTestCase):
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
+
+
+class XMLSchemaUnorderedConverter(xmlschema.XMLSchema):
+    converter = UnorderedConverter
+
+
+class TestEncodingUnorderedConverter10(TestEncoding):
+    schema_class = XMLSchemaUnorderedConverter
+
+    def test_visitor_converter_repeated_sequence_of_elements(self):
+        schema = self.get_schema("""
+            <element name="foo">
+                <complexType>
+                    <sequence minOccurs="1" maxOccurs="2">
+                        <element name="A" minOccurs="0" type="integer" nillable="true" />
+                        <element name="B" minOccurs="0" type="integer" nillable="true" />
+                    </sequence>
+                </complexType>
+            </element>
+        """)
+        tree = schema.to_etree(
+            {"A": [1, 2], "B": [3, 4]},
+        )
+        vals = []
+        for elem in tree:
+            vals.append(elem.text)
+        self.assertEqual(vals, ['1', '3', '2', '4'])
+
+
+class XMLSchema11UnorderedConverter(XMLSchema11):
+    converter = UnorderedConverter
+
+
+class TestEncodingUnorderedConverter11(TestEncoding):
+    schema_class = XMLSchema11UnorderedConverter
 
 
 # Creates decoding/encoding tests classes from XML files
