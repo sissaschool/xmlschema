@@ -639,7 +639,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
-    def order_unordered_content(self, content):
+    def sort_content(self, content):
         """
         Takes a dictionary and returns a list of element name and content tuples.
 
@@ -726,7 +726,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         cdata_index = 0
 
         if isinstance(element_data.content, dict):
-            content = self.order_unordered_content(element_data.content)
+            content = self.sort_content(element_data.content)
         else:
             content = element_data.content
 

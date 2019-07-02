@@ -368,7 +368,7 @@ class XMLSchemaConverter(NamespaceMapper):
         return ElementData(tag, text, content, attributes)
 
 
-class VisitorConverter(XMLSchemaConverter):
+class UnorderedConverter(XMLSchemaConverter):
     """
     Same as :class:`XMLSchemaConverter` but :meth:`element_encode` is
     modified so the order of the elements in the encoded output is based on
@@ -380,6 +380,9 @@ class VisitorConverter(XMLSchemaConverter):
     eg.
 
     .. code-block:: python
+
+        import xmlschema
+        from xmlschema.converters import UnorderedConverter
 
         xsd = \"\"\"<?xml version="1.0" encoding="UTF-8"?>
           <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema"
@@ -394,7 +397,7 @@ class VisitorConverter(XMLSchemaConverter):
             </element>
           </schema>\"\"\"
 
-        schema = xmlschema.XMLSchema(xsd, converter=xmlschema.VisitorConverter)
+        schema = xmlschema.XMLSchema(xsd, converter=UnorderedConverter)
         tree = schema.to_etree(
             {"A": [1, 2], "B": [3, 4]},
         )
