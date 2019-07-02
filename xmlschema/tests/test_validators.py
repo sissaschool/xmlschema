@@ -1384,7 +1384,7 @@ class XMLSchemaVisitorConverter(xmlschema.XMLSchema):
 class TestEncodingVisitorConverter10(TestEncoding):
     schema_class = XMLSchemaVisitorConverter
 
-    def test_visitor_converter_sequence_in_sequence(self):
+    def test_visitor_converter_repeated_sequence_of_elements(self):
         schema = self.get_schema("""
             <element name="foo">
                 <complexType>

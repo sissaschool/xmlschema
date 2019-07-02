@@ -18,16 +18,17 @@ from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
-from .qnames import XSI_TYPE
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 """
 Namedtuple for Element data interchange between decoders and converters.
 The field *tag* is a string containing the Element's tag, *text* can be `None`
-or a string representing the Element's text, *content* can be `None` or a list
-containing the Element's children, *attributes* can be `None` or a dictionary
-containing the Element's attributes.
+or a string representing the Element's text, *content* can be `None`, a list
+containing the Element's children or a dictionary containing element name to
+list of element contents for the Element's children (used for unordered input
+data), *attributes* can be `None` or a dictionary containing the Element's
+attributes.
 """
 
 
@@ -420,8 +421,6 @@ class VisitorConverter(XMLSchemaConverter):
         :param level: the level related to the encoding process (0 means the root).
         :return: an ElementData instance.
         """
-        from xmlschema.validators.models import ModelVisitor
-
         if level != 0:
             tag = xsd_element.name
         elif not self.preserve_root:
@@ -447,6 +446,11 @@ class VisitorConverter(XMLSchemaConverter):
         cdata_prefix = self.cdata_prefix
 
         text = None
+        # `iter_encode` assumes that the values of this dict will all be lists
+        # where each item is the content of a single element. When building
+        # content_lu, content which is not a list or lists to be placed into a
+        # single element (element has a list content type) must be wrapped in a
+        # list to retain that structure.
         content_lu = {}
         attributes = self.dict()
         for name, value in obj.items():
@@ -467,9 +471,9 @@ class VisitorConverter(XMLSchemaConverter):
                 name = name[len(attr_prefix):]
                 attributes[unmap_attribute_qname(name)] = value
             elif not isinstance(value, (self.list, list)) or not value:
-                content_lu[unmap_qname(name)] = iter([value])
+                content_lu[unmap_qname(name)] = [value]
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
-                content_lu[unmap_qname(name)] = iter(value)
+                content_lu[unmap_qname(name)] = value
             else:
                 # `value` is a list but not a list of lists or list of
                 # dicts.
@@ -478,9 +482,9 @@ class VisitorConverter(XMLSchemaConverter):
                     matched_element = xsd_child.match(ns_name, self.get(''))
                     if matched_element is not None:
                         if matched_element.type.is_list():
-                            content_lu[unmap_qname(name)] = iter([value])
+                            content_lu[unmap_qname(name)] = [value]
                         else:
-                            content_lu[unmap_qname(name)] = iter(value)
+                            content_lu[unmap_qname(name)] = value
                         break
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
@@ -489,60 +493,11 @@ class VisitorConverter(XMLSchemaConverter):
                                 attributes[ns_name] = value
                                 break
                         else:
-                            content_lu[unmap_qname(name)] = iter([value])
+                            content_lu[unmap_qname(name)] = [value]
                     else:
-                        content_lu[unmap_qname(name)] = iter([value])
+                        content_lu[unmap_qname(name)] = [value]
 
-        content = []
-        if content_lu:
-            # Get the instance type: xsi:type or the schema's declaration
-            if XSI_TYPE not in attributes:
-                xsd_type = xsd_element.get_type(
-                    ElementData(tag, None, None, attributes)
-                )
-            else:
-                xsi_type = attributes[XSI_TYPE]
-                try:
-                    xsd_type = xsd_element.maps.lookup_type(unmap_qname(xsi_type))
-                except KeyError:
-                    raise Exception("unknown type %r" % xsi_type)
-            model = ModelVisitor(xsd_type.content_type)
-            while model.element is not None:
-                elem_name = None
-                if model.element.name in content_lu:
-                    elem_name = model.element.name
-                else:
-                    for elem in model.element.iter_substitutes():
-                        if elem.name in content_lu:
-                            elem_name = elem.name
-                            break
-
-                match = False
-                if elem_name is not None:
-                    match = True
-                    try:
-                        content.append(
-                            (elem_name, next(content_lu[elem_name]))
-                        )
-                    except StopIteration:
-                        match = False
-                        del content_lu[elem_name]
-
-                if not content_lu:
-                    break
-                # consume the return of advance otherwise we get stuck in an
-                # infinite loop. Checking validity is the responsibility of
-                # `iter_encode`.
-                list(model.advance(match))
-
-            # Append any remaining content onto the end of the data. It's up to
-            # the `iter_encode` functions to decide whether their presence is
-            # an error (validation="lax", etc.).
-            for elem_name, values in content_lu.items():
-                for value in values:
-                    content.append((elem_name, value))
-
-        return ElementData(tag, text, content, attributes)
+        return ElementData(tag, text, content_lu, attributes)
 
 
 class ParkerConverter(XMLSchemaConverter):

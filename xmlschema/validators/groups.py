@@ -639,6 +639,61 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
+    def order_unordered_content(self, content):
+        """
+        Takes a dictionary and returns a list of element name and content tuples.
+
+        Ordering is inferred from ModelVisitor with any elements that don't
+        fit the schema placed at the end of the returned list. The calling
+        function is responsible for raising or collecting errors from those
+        unplaced elements.
+
+        :param content: a dictionary of element name to list of element contents.
+            The values of this dictionary must be lists where each item of the
+            list is the content of a single element.
+        :return: yields of a list of the Element being encoded's children.
+        """
+        consumable_content = {key: iter(val) for key, val in content.items()}
+
+        ordered_content = []
+        model = ModelVisitor(self)
+        while model.element is not None:
+            elem_name = None
+            if model.element.name in consumable_content:
+                elem_name = model.element.name
+            else:
+                for elem in model.element.iter_substitutes():
+                    if elem.name in consumable_content:
+                        elem_name = elem.name
+                        break
+
+            match = False
+            if elem_name is not None:
+                match = True
+                try:
+                    ordered_content.append(
+                        (elem_name, next(consumable_content[elem_name]))
+                    )
+                except StopIteration:
+                    match = False
+                    del consumable_content[elem_name]
+
+            if not consumable_content:
+                break
+            # Consume the return of advance otherwise we get stuck in an
+            # infinite loop. Checking validity is the responsibility of
+            # `iter_encode`.
+            list(model.advance(match))
+
+        # Add the remaining content onto the end of the data. It's up to
+        # the `iter_encode` function to decide whether their presence is an
+        # error (validation="lax", etc.).
+        for elem_name, values in consumable_content.items():
+            for value in values:
+                ordered_content.append((elem_name, value))
+
+        return ordered_content
+
     def iter_encode(self, element_data, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to a list containing Element data.
@@ -670,7 +725,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         model = ModelVisitor(self)
         cdata_index = 0
 
-        for index, (name, value) in enumerate(element_data.content):
+        if isinstance(element_data.content, dict):
+            content = self.order_unordered_content(element_data.content)
+        else:
+            content = element_data.content
+
+        for index, (name, value) in enumerate(content):
             if isinstance(name, int):
                 if not children:
                     text = padding + value if text is None else text + value + padding
