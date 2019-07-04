@@ -15,6 +15,7 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
+import zipfile
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -26,7 +27,7 @@ from xmlschema import (
     load_xml_resource, XMLResource, XMLSchemaURLError
 )
 from xmlschema.tests import XMLSchemaTestCase, SKIP_REMOTE_TESTS
-from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
+from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO, BytesIO
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, is_etree_element, etree_element, py_etree_element
 
 
@@ -382,6 +383,27 @@ class TestResources(XMLSchemaTestCase):
         self.assertIsInstance(vh_schema.root, etree_element)
         for schema in vh_schema.maps.iter_schemas():
             self.assertIsInstance(schema.root, etree_element)
+
+    def test_fid_with_name_attr(self):
+        """XMLResource gets correct data when passed a file like object
+        with a name attribute that isn't on disk.
+
+        These file descriptors appear when working with the contents from a
+        zip using the zipfile module and with Django files in some
+        instances.
+        """
+        zipname = "not__on____disk.xml"
+        bytes_fid = BytesIO()
+        with zipfile.ZipFile(bytes_fid, 'w') as zf:
+            with open(self.vh_xml_file) as fid:
+                zf.writestr(zipname, fid.read())
+
+        bytes_fid.seek(0)
+        with zipfile.ZipFile(bytes_fid) as zf:
+            with zf.open(zipname) as fid:
+                resource = XMLResource(fid)
+                # This should not cause an error.
+                resource.load()
 
 
 if __name__ == '__main__':
