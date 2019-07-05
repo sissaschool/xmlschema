@@ -15,7 +15,6 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
-import zipfile
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -27,7 +26,7 @@ from xmlschema import (
     load_xml_resource, XMLResource, XMLSchemaURLError
 )
 from xmlschema.tests import XMLSchemaTestCase, SKIP_REMOTE_TESTS
-from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO, BytesIO
+from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, is_etree_element, etree_element, py_etree_element
 
 
@@ -196,17 +195,22 @@ class TestResources(XMLSchemaTestCase):
         resource.load()
         self.assertIsNone(resource.text)
 
+    @unittest.skipIf(
+        platform.python_version_tuple()[0] < '3',
+        "Skip: urlopen on Python 2 can't seek 'file://' paths."
+    )
     def test_xml_resource_from_resource(self):
         xml_file = urlopen('file://{}'.format(add_leading_slash(self.vh_xml_file)))
         try:
             resource = XMLResource(xml_file)
             self.assertEqual(resource.source, xml_file)
             self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
-            self.check_url(resource.url, self.vh_xml_file)
+            self.assertIsNone(resource.url)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<?xml'))
+            self.assertFalse(xml_file.closed)
         finally:
             xml_file.close()
 
@@ -215,21 +219,35 @@ class TestResources(XMLSchemaTestCase):
             resource = XMLResource(schema_file)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_xsd_file)
+            self.assertIsNone(resource.url)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iter():
+                pass
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iterfind():
+                pass
+            self.assertFalse(schema_file.closed)
 
         with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file, lazy=False)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_xsd_file)
+            self.assertIsNone(resource.url)
             self.assertIsInstance(resource.document, ElementTree.ElementTree)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iter():
+                pass
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iterfind():
+                pass
+            self.assertFalse(schema_file.closed)
 
     def test_xml_resource_from_string(self):
         with open(self.vh_xsd_file) as schema_file:
@@ -345,13 +363,15 @@ class TestResources(XMLSchemaTestCase):
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
             resource = XMLResource(schema_file)
-            self.assertEqual(resource.url, normalize_url(self.vh_xml_file))
+            self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
+            self.assertFalse(schema_file.closed)
 
         with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file)
-            self.assertEqual(resource.url, normalize_url(self.vh_xsd_file))
+            self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'xs', 'vh'})
+            self.assertFalse(schema_file.closed)
 
         resource = XMLResource(self.col_xml_file)
         self.assertEqual(resource.url, normalize_url(self.col_xml_file))
@@ -392,18 +412,23 @@ class TestResources(XMLSchemaTestCase):
         zip using the zipfile module and with Django files in some
         instances.
         """
-        zipname = "not__on____disk.xml"
-        bytes_fid = BytesIO()
-        with zipfile.ZipFile(bytes_fid, 'w') as zf:
-            with open(self.vh_xml_file) as fid:
-                zf.writestr(zipname, fid.read())
+        class FileProxy(object):
+            def __init__(self, fid, fake_name):
+                self._fid = fid
+                self.name = fake_name
 
-        bytes_fid.seek(0)
-        with zipfile.ZipFile(bytes_fid) as zf:
-            with zf.open(zipname) as fid:
-                resource = XMLResource(fid)
-                # This should not cause an error.
-                resource.load()
+            def __getattr__(self, attr):
+                try:
+                    return self.__dict__[attr]
+                except (KeyError, AttributeError):
+                    return getattr(self.__dict__["_fid"], attr)
+
+        fake_name = "not__on____disk.xml"
+        with open(self.vh_xml_file) as schema_file:
+            resource = XMLResource(FileProxy(schema_file, fake_name))
+            self.assertIsNone(resource.url)
+            self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
+            self.assertFalse(schema_file.closed)
 
 
 if __name__ == '__main__':
