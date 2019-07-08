@@ -48,7 +48,11 @@ class XMLSchemaConverter(NamespaceMapper):
     """
     Generic XML Schema based converter class. A converter is used to compose
     decoded XML data for an Element into a data structure and to build an Element
-    from encoded data structure.
+    from encoded data structure. There are two methods for interfacing the
+    converter with the decoding/encoding process. The method *element_decode*
+    accepts ElementData instance, containing the element parts, and returns
+    a data structure. The method *element_encode* accepts a data structure
+    and returns an ElementData that can be
 
     :param namespaces: map from namespace prefixes to URI.
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
@@ -58,9 +62,9 @@ class XMLSchemaConverter(NamespaceMapper):
     :param text_key: is the key to apply to element's decoded text data.
     :param attr_prefix: controls the mapping of XML attributes, to the same name or \
     with a prefix. If `None` the converter ignores attributes.
-    :param cdata_prefix: is used for including and prefixing the CDATA parts of a \
-    mixed content, that are labeled with an integer instead of a string. \
-    CDATA parts are ignored if this argument is `None`.
+    :param cdata_prefix: is used for including and prefixing the character data parts \
+    of a mixed content, that are labeled with an integer instead of a string. \
+    Character data parts are ignored if this argument is `None`.
     :param indent: number of spaces for XML indentation (default is 4).
     :param strip_namespaces: if set to `True` removes namespace declarations from data and \
     namespace information from names, during decoding or encoding. Defaults to `False`.
@@ -347,7 +351,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    matched_element = xsd_child.matched_element(ns_name)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
@@ -480,7 +484,7 @@ class UnorderedConverter(XMLSchemaConverter):
                 # dicts.
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    matched_element = xsd_child.matched_element(ns_name)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content_lu[self.unmap_qname(name)] = [value]
@@ -600,17 +604,15 @@ class ParkerConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.match(ns_name, self.get(''))
+                            matched_element = xsd_child.matched_element(ns_name)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))
                                 else:
-                                    for item in value:
-                                        content.append((ns_name, item))
+                                    content.extend((ns_name, item) for item in value)
                                 break
                         else:
-                            for item in value:
-                                content.append((ns_name, item))
+                            content.extend((ns_name, item) for item in value)
 
             except AttributeError:
                 return ElementData(xsd_element.name, items, None, self.dict())
@@ -631,14 +633,14 @@ class BadgerFishConverter(XMLSchemaConverter):
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
-        kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='#')
+        kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
         super(BadgerFishConverter, self).__init__(
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
     def __setattr__(self, name, value):
         if name == 'text_key' and value != '$' or name == 'attr_prefix' and value != '@' or \
-                name == 'cdata_prefix' and value != '#':
+                name == 'cdata_prefix' and value != '$':
             raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
@@ -746,13 +748,12 @@ class BadgerFishConverter(XMLSchemaConverter):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.match(ns_name, self.get(''))
+                    matched_element = xsd_child.matched_element(ns_name)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
                         else:
-                            for item in value:
-                                content.append((ns_name, item))
+                            content.extend((ns_name, item) for item in value)
                         break
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
@@ -866,13 +867,12 @@ class AbderaConverter(XMLSchemaConverter):
                     else:
                         ns_name = unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.match(ns_name, self.get(''))
+                            matched_element = xsd_child.matched_element(ns_name)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))
                                 else:
-                                    for item in value:
-                                        content.append((ns_name, item))
+                                    content.extend((ns_name, item) for item in value)
                                 break
                         else:
                             content.append((ns_name, value))

@@ -74,7 +74,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     # For implementing ElementPathMixin
     def __iter__(self):
         if not self.parent.has_simple_content():
-            for e in self.parent.content_type.iter_subelements():
+            for e in self.parent.content_type.iter_elements():
                 yield e
 
     @property

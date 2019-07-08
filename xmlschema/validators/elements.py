@@ -95,7 +95,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __iter__(self):
         if not self.type.has_simple_content():
-            for e in self.type.content_type.iter_subelements():
+            for e in self.type.content_type.iter_elements():
                 yield e
 
     def _parse(self):
@@ -639,6 +639,31 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, e, elem, **kwargs)
         yield elem
         del element_data
+
+    def is_matching(self, name, default_namespace=None):
+        if default_namespace and name[0] != '{':
+            name = '{%s}%s' % (default_namespace, name)
+
+        if name in self.names:
+            return True
+
+        for xsd_element in self.iter_substitutes():
+            if name in xsd_element.names:
+                return True
+        return False
+
+    def match(self, name, default_namespace=None):
+        if default_namespace and name[0] != '{':
+            name = '{%s}%s' % (default_namespace, name)
+
+        if name in self.names:
+            return self
+
+        for xsd_element in self.iter_substitutes():
+            if name in xsd_element.names:
+                return xsd_element
+
+    matched_element = match
 
     def is_restriction(self, other, check_occurs=True):
         if isinstance(other, XsdAnyElement):

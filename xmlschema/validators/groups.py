@@ -25,7 +25,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationErr
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement
-from .models import MAX_MODEL_DEPTH, ParticleMixin, ModelGroup, ModelVisitor
+from .models import ParticleMixin, ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -498,17 +498,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def iter_elements(self, depth=0):
-        if depth <= MAX_MODEL_DEPTH:
-            for item in self:
-                if isinstance(item, XsdGroup):
-                    for e in item.iter_elements(depth + 1):
-                        yield e
-                else:
-                    yield item
-                    for e in self.maps.substitution_groups.get(item.name, ()):
-                        yield e
-
     def sort_children(self, elements, default_namespace=None):
         """
         Sort elements by group order, that maybe partial in case of 'all' or 'choice' ordering.
@@ -564,42 +553,29 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             kwargs['converter'] = self.schema.get_converter(**kwargs)
             default_namespace = kwargs['converter'].get('')
 
-        xsd_element = None
         model_broken = False
         for index, child in enumerate(elem):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
-            if not default_namespace or child.tag[0] == '{':
-                tag = child.tag
-            else:
-                tag = '{%s}%s' % (default_namespace, child.tag)
-
             while model.element is not None:
-                if tag in model.element.names or model.element.name is None \
-                        and model.element.is_matching(tag, default_namespace):
-                    xsd_element = model.element
-                else:
-                    for xsd_element in model.element.iter_substitutes():
-                        if tag in xsd_element.names:
-                            break
-                    else:
-                        for particle, occurs, expected in model.advance(False):
-                            errors.append((index, particle, occurs, expected))
-                            model.clear()
-                            model_broken = True  # the model is broken, continues with raw decoding.
-                            break
-                        else:
-                            continue
+                xsd_element = model.element.match(child.tag, default_namespace)
+                if xsd_element is None:
+                    for particle, occurs, expected in model.advance(False):
+                        errors.append((index, particle, occurs, expected))
+                        model.clear()
+                        model_broken = True  # the model is broken, continues with raw decoding.
                         break
+                    else:
+                        continue
+                    break
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
                 break
             else:
                 for xsd_element in self.iter_elements():
-                    if tag in xsd_element.names or xsd_element.name is None \
-                            and xsd_element.is_matching(child.tag, default_namespace):
+                    if xsd_element.is_matching(child.tag, default_namespace):
                         if not model_broken:
                             errors.append((index, xsd_element, 0, []))
                             model_broken = True
@@ -743,26 +719,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 cdata_index += 1
                 continue
 
-            if not default_namespace or name[0] == '{':
-                tag = name
-            else:
-                tag = '{%s}%s' % (default_namespace, name)
-
             while model.element is not None:
-                if tag in model.element.names or model.element.name is None \
-                        and model.element.is_matching(tag, default_namespace):
-                    xsd_element = model.element
-                else:
-                    for xsd_element in model.element.iter_substitutes():
-                        if tag in xsd_element.names:
-                            break
-                    else:
-                        for particle, occurs, expected in model.advance():
-                            errors.append((index - cdata_index, particle, occurs, expected))
-                        continue
-
-                if isinstance(xsd_element, XsdAnyElement):
+                xsd_element = model.element.match(name, default_namespace)
+                if xsd_element is None:
+                    for particle, occurs, expected in model.advance():
+                        errors.append((index - cdata_index, particle, occurs, expected))
+                    continue
+                elif isinstance(xsd_element, XsdAnyElement):
                     value = get_qname(default_namespace, name), value
+
                 for result in xsd_element.iter_encode(value, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
@@ -776,17 +741,17 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 if validation == "strict" or losslessly:
                     errors.append((index - cdata_index, self, 0, []))
 
-                for xsd_element in self.iter_elements():
-                    if tag in xsd_element.names or xsd_element.name is None \
-                            and xsd_element.is_matching(name, default_namespace):
-                        if isinstance(xsd_element, XsdAnyElement):
-                            value = get_qname(default_namespace, name), value
-                        for result in xsd_element.iter_encode(value, validation, **kwargs):
-                            if isinstance(result, XMLSchemaValidationError):
-                                yield result
-                            else:
-                                children.append(result)
-                        break
+                for xsd_element in map(lambda x: x.match(name, default_namespace), self.iter_elements()):
+                    if xsd_element is None:
+                        continue
+                    elif isinstance(xsd_element, XsdAnyElement):
+                        value = get_qname(default_namespace, name), value
+                    for result in xsd_element.iter_encode(value, validation, **kwargs):
+                        if isinstance(result, XMLSchemaValidationError):
+                            yield result
+                        else:
+                            children.append(result)
+                    break
                 else:
                     if validation != 'skip':
                         reason = '%r does not match any declared element of the model group.' % name

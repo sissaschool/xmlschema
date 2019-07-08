@@ -354,7 +354,8 @@ class XsdComponent(XsdValidator):
 
     def is_matching(self, name, default_namespace=None):
         """
-        Returns `True` if the component name is matching the name provided as argument, `False` otherwise.
+        Returns `True` if the component name is matching the name provided as argument,
+        `False` otherwise. For XSD elements the matching is extended to substitutes.
 
         :param name: a local or fully-qualified name.
         :param default_namespace: used if it's not None and not empty for completing the name \

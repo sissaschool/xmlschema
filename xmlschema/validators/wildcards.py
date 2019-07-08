@@ -189,7 +189,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
 
-    def match(self, name, default_namespace=None):
+    def matched_element(self, name, default_namespace=None):
         if self.is_matching(name, default_namespace):
             try:
                 if name[0] != '{' and default_namespace:
@@ -308,16 +308,6 @@ class XsdAnyAttribute(XsdWildcard):
         else:
             msg = "not expressible wildcard namespace union: {!r} V {!r}:"
             raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
-
-    def match(self, name, default_namespace=None):
-        if self.is_matching(name, default_namespace):
-            try:
-                if name[0] != '{' and default_namespace:
-                    return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
-                else:
-                    return self.maps.lookup_attribute(name)
-            except LookupError:
-                pass
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
