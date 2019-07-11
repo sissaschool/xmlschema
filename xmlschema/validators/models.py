@@ -12,7 +12,7 @@
 This module contains classes and functions for processing XSD content models.
 """
 from __future__ import unicode_literals
-from collections import Counter
+from collections import defaultdict, deque, Counter
 
 from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
@@ -455,3 +455,104 @@ class ModelVisitor(MutableSequence):
             self.element = None
             if self.group.is_missing(occurs[self.group]) and self.items:
                 yield self.group, occurs[self.group], self.expected
+
+    def iter_unordered_content(self, content):
+        """
+        Takes an unordered content stored in a dictionary of lists and yields the
+        content elements sorted with the ordering defined by the model. Character
+        data parts are yielded at start and between child elements.
+
+        Ordering is inferred from ModelVisitor instance with any elements that
+        don't fit the schema placed at the end of the returned sequence. Checking
+        the yielded content validity is the responsibility of method *iter_encode*
+        of class :class:`XsdGroup`.
+
+        :param content: a dictionary of element names to list of element contents \
+        or an iterable composed of couples of name and value. In case of a \
+        dictionary the values ​​must be lists where each item is the content \
+        of a single element.
+        :return: yields of a sequence of the Element being encoded's children.
+        """
+        if isinstance(content, dict):
+            cdata_content = sorted(((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True)
+            consumable_content = {k: iter(v) for k, v in content.items() if not isinstance(k, int)}
+        else:
+            cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)
+            consumable_content = defaultdict(list)
+            for k, v in filter(lambda x: not isinstance(x[0], int), content):
+                consumable_content[k].append(v)
+            consumable_content = {k: iter(v) for k, v in consumable_content.items()}
+
+        if cdata_content:
+            yield cdata_content.pop()
+
+        while self.element is not None and consumable_content:
+            for name in consumable_content:
+                if self.element.is_matching(name):
+                    try:
+                        yield name, next(consumable_content[name])
+                    except StopIteration:
+                        del consumable_content[name]
+                        for _ in self.advance(False):
+                            pass
+                    else:
+                        if cdata_content:
+                            yield cdata_content.pop()
+                    break
+            else:
+                # Consume the return of advance otherwise we get stuck in an infinite loop.
+                for _ in self.advance(False):
+                    pass
+
+        # Add the remaining consumable content onto the end of the data.
+        for name, values in consumable_content.items():
+            for v in values:
+                yield name, v
+                if cdata_content:
+                    yield cdata_content.pop()
+
+        while cdata_content:
+            yield cdata_content.pop()
+
+    def iter_collapsed_content(self, content):
+        """
+        Iterates a content stored in a sequence of couples *(name, value)*, yielding
+        items in the same order of the sequence, except for repetitions of the same
+        tag that don't match with the current element of the :class:`ModelVisitor`
+        instance. These items are included in an unsorted buffer and yielded asap
+        when there is a match with the model's element or at the end of the iteration.
+
+        This iteration mode, in cooperation with the method *iter_encode* of the class
+        XsdGroup, facilitates the encoding of content formatted with a convention that
+        collapses the children with the same tag into a list (eg. BadgerFish).
+
+        :param content: an iterable containing couples of names and values.
+        :return: yields of a sequence of the Element being encoded's children.
+        """
+        prev_name = None
+        unordered_content = defaultdict(deque)
+        for name, value in content:
+            if isinstance(name, int) or self.element is None:
+                yield name, value
+            elif prev_name != name:
+                yield name, value
+                prev_name = name
+            elif self.element.is_matching(name):
+                yield name, value
+            else:
+                unordered_content[name].append(value)
+                while self.element is not None and unordered_content:
+                    for key in unordered_content:
+                        if self.element.is_matching(key):
+                            try:
+                                yield name, unordered_content[key].popleft()
+                            except IndexError:
+                                del unordered_content[key]
+                            break
+                    else:
+                        break
+
+        # Add the remaining consumable content onto the end of the data.
+        for name, values in unordered_content.items():
+            for v in values:
+                yield name, v

@@ -316,9 +316,9 @@ class XMLSchemaConverter(NamespaceMapper):
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-                return ElementData(tag, obj, None, self.dict())
+                return ElementData(tag, obj, None, {})
             else:
-                return ElementData(tag, None, obj, self.dict())
+                return ElementData(tag, None, obj, {})
 
         text_key = self.text_key
         attr_prefix = self.attr_prefix
@@ -327,7 +327,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
         text = None
         content = []
-        attributes = self.dict()
+        attributes = {}
         for name, value in obj.items():
             if text_key and name == self.text_key:
                 text = obj[text_key]
@@ -374,51 +374,14 @@ class XMLSchemaConverter(NamespaceMapper):
 
 class UnorderedConverter(XMLSchemaConverter):
     """
-    Same as :class:`XMLSchemaConverter` but :meth:`element_encode` is
-    modified so the order of the elements in the encoded output is based on
-    the model visitor pattern rather than the order in which the elements
-    were added to the input dictionary. As the order of the input
-    dictionary is not preserved, text between sibling elements will raise
-    an exception.
-
-    eg.
-
-    .. code-block:: python
-
-        import xmlschema
-        from xmlschema.converters import UnorderedConverter
-
-        xsd = \"\"\"<?xml version="1.0" encoding="UTF-8"?>
-          <schema xmlns:ns="ns" xmlns="http://www.w3.org/2001/XMLSchema"
-            targetNamespace="ns" elementFormDefault="unqualified" version="1.0">
-            <element name="foo">
-              <complexType>
-                <sequence minOccurs="1" maxOccurs="2">
-                  <element name="A" type="integer" />
-                  <element name="B" type="integer" />
-                </sequence>
-              </complexType>
-            </element>
-          </schema>\"\"\"
-
-        schema = xmlschema.XMLSchema(xsd, converter=UnorderedConverter)
-        tree = schema.to_etree(
-            {"A": [1, 2], "B": [3, 4]},
-        )
-        # Returns equivalent of:
-        # <ns:foo xmlns:ns="ns">
-        #     <A>1</A>
-        #     <B>3</B>
-        #     <A>2</A>
-        #     <B>4</B>
-        # </ns:foo>
-
-    Schemas which contain repeated sequences (``maxOccurs > 1``) of
-    optional elements may be ambiguous using this approach when some of the
-    optional elements are not present. In those cases, decoding and then
-    encoding may not reproduce the original ordering.
+    Same as :class:`XMLSchemaConverter` but :meth:`element_encode` returns
+    a dictionary for the content of the element, that can be used directly
+    for unordered encoding mode. In this mode the order of the elements in
+    the encoded output is based on the model visitor pattern rather than
+    the order in which the elements were added to the input dictionary.
+    As the order of the input dictionary is not preserved, character data
+    between sibling elements are interleaved between tags.
     """
-
     def element_encode(self, obj, xsd_element, level=0):
         """
         Extracts XML decoded data from a data structure for encoding into an ElementTree.
@@ -441,9 +404,9 @@ class UnorderedConverter(XMLSchemaConverter):
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-                return ElementData(tag, obj, None, self.dict())
+                return ElementData(tag, obj, None, {})
             else:
-                return ElementData(tag, None, obj, self.dict())
+                return ElementData(tag, None, obj, {})
 
         text_key = self.text_key
         attr_prefix = self.attr_prefix
@@ -451,23 +414,24 @@ class UnorderedConverter(XMLSchemaConverter):
         cdata_prefix = self.cdata_prefix
 
         text = None
-        # `iter_encode` assumes that the values of this dict will all be lists
-        # where each item is the content of a single element. When building
-        # content_lu, content which is not a list or lists to be placed into a
-        # single element (element has a list content type) must be wrapped in a
-        # list to retain that structure.
+        attributes = {}
+
+        # The unordered encoding mode assumes that the values of this dict will
+        # all be lists where each item is the content of a single element. When
+        # building content_lu, content which is not a list or lists to be placed
+        # into a single element (element has a list content type) must be wrapped
+        # in a list to retain that structure. Character data are not wrapped into
+        # lists because they because they are divided from the rest of the content
+        # into the unordered mode generator function of the ModelVisitor class.
         content_lu = {}
-        attributes = self.dict()
+
         for name, value in obj.items():
             if text_key and name == text_key:
                 text = obj[text_key]
             elif (cdata_prefix and name.startswith(cdata_prefix)) or \
                     name[0].isdigit() and cdata_prefix == '':
-                raise XMLSchemaValueError(
-                    "cdata segments are not compatible with the '{}' converter".format(
-                        self.__class__.__name__
-                    )
-                )
+                index = int(name[len(cdata_prefix):])
+                content_lu[index] = value
             elif name == ns_prefix:
                 self[''] = value
             elif name.startswith('%s:' % ns_prefix):
@@ -480,8 +444,7 @@ class UnorderedConverter(XMLSchemaConverter):
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
                 content_lu[self.unmap_qname(name)] = value
             else:
-                # `value` is a list but not a list of lists or list of
-                # dicts.
+                # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
                     matched_element = xsd_child.matched_element(ns_name)
@@ -578,18 +541,18 @@ class ParkerConverter(XMLSchemaConverter):
             if obj == '':
                 obj = None
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-                return ElementData(xsd_element.name, obj, None, self.dict())
+                return ElementData(xsd_element.name, obj, None, {})
             else:
-                return ElementData(xsd_element.name, None, obj, self.dict())
+                return ElementData(xsd_element.name, None, obj, {})
         else:
             unmap_qname = self.unmap_qname
             if not obj:
-                return ElementData(xsd_element.name, None, None, self.dict())
+                return ElementData(xsd_element.name, None, None, {})
             elif self.preserve_root:
                 try:
                     items = obj[self.map_qname(xsd_element.name)]
                 except KeyError:
-                    return ElementData(xsd_element.name, None, None, self.dict())
+                    return ElementData(xsd_element.name, None, None, {})
             else:
                 items = obj
 
@@ -615,9 +578,9 @@ class ParkerConverter(XMLSchemaConverter):
                             content.extend((ns_name, item) for item in value)
 
             except AttributeError:
-                return ElementData(xsd_element.name, items, None, self.dict())
+                return ElementData(xsd_element.name, items, None, {})
             else:
-                return ElementData(xsd_element.name, None, content, self.dict())
+                return ElementData(xsd_element.name, None, content, {})
 
 
 class BadgerFishConverter(XMLSchemaConverter):
@@ -726,7 +689,7 @@ class BadgerFishConverter(XMLSchemaConverter):
         cdata_prefix = self.cdata_prefix
         text = None
         content = []
-        attributes = self.dict()
+        attributes = {}
         for name, value in element_data.items():
             if name == '@xmlns':
                 continue
@@ -836,10 +799,10 @@ class AbderaConverter(XMLSchemaConverter):
         if not isinstance(obj, (self.dict, dict)):
             if obj == []:
                 obj = None
-            return ElementData(tag, obj, None, self.dict())
+            return ElementData(tag, obj, None, {})
         else:
             unmap_qname = self.unmap_qname
-            attributes = self.dict()
+            attributes = {}
             try:
                 attributes.update([(self.unmap_prefixed(k), v) for k, v in obj['attributes'].items()])
             except KeyError:
@@ -932,7 +895,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
     def element_encode(self, obj, xsd_element, level=0):
         unmap_qname = self.unmap_qname
-        attributes = self.dict()
+        attributes = {}
         if not isinstance(obj, (self.list, list)) or not obj:
             raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
 

@@ -498,20 +498,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def sort_children(self, elements, default_namespace=None):
-        """
-        Sort elements by group order, that maybe partial in case of 'all' or 'choice' ordering.
-        The not matching elements are appended at the end.
-        """
-        def sorter(elem):
-            for e in elements_order:
-                if e.is_matching(elem.tag, default_namespace):
-                    return elements_order[e]
-            return len(elements_order)
-
-        elements_order = {e: p for p, e in enumerate(self.iter_elements())}
-        return sorted(elements, key=sorter)
-
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element content.
@@ -617,61 +603,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
-    def sort_content(self, content):
-        """
-        Takes a dictionary and returns a list of element name and content tuples.
-
-        Ordering is inferred from ModelVisitor with any elements that don't
-        fit the schema placed at the end of the returned list. The calling
-        function is responsible for raising or collecting errors from those
-        unplaced elements.
-
-        :param content: a dictionary of element name to list of element contents.
-            The values of this dictionary must be lists where each item of the
-            list is the content of a single element.
-        :return: yields of a list of the Element being encoded's children.
-        """
-        consumable_content = {key: iter(val) for key, val in content.items()}
-
-        ordered_content = []
-        model = ModelVisitor(self)
-        while model.element is not None:
-            elem_name = None
-            if model.element.name in consumable_content:
-                elem_name = model.element.name
-            else:
-                for elem in model.element.iter_substitutes():
-                    if elem.name in consumable_content:
-                        elem_name = elem.name
-                        break
-
-            match = False
-            if elem_name is not None:
-                match = True
-                try:
-                    ordered_content.append(
-                        (elem_name, next(consumable_content[elem_name]))
-                    )
-                except StopIteration:
-                    match = False
-                    del consumable_content[elem_name]
-
-            if not consumable_content:
-                break
-            # Consume the return of advance otherwise we get stuck in an
-            # infinite loop. Checking validity is the responsibility of
-            # `iter_encode`.
-            list(model.advance(match))
-
-        # Add the remaining content onto the end of the data. It's up to
-        # the `iter_encode` function to decide whether their presence is an
-        # error (validation="lax", etc.).
-        for elem_name, values in consumable_content.items():
-            for value in values:
-                ordered_content.append((elem_name, value))
-
-        return ordered_content
-
     def iter_encode(self, element_data, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to a list containing Element data.
@@ -694,19 +625,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         errors = []
         text = None
         children = []
-        level = kwargs.get('level', 0)
         indent = kwargs.get('indent', 4)
-        padding = '\n' + ' ' * indent * level
+        padding = '\n' + ' ' * indent * kwargs.get('level', 0)
         default_namespace = converter.get('')
-        losslessly = converter.losslessly
 
         model = ModelVisitor(self)
         cdata_index = 0
-
-        if isinstance(element_data.content, dict):
-            content = self.sort_content(element_data.content)
-        else:
+        if isinstance(element_data.content, dict) or kwargs.get('unordered'):
+            content = model.iter_unordered_content(element_data.content)
+        elif converter.losslessly:
             content = element_data.content
+        else:
+            content = model.iter_collapsed_content(element_data.content)
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
@@ -738,9 +668,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     errors.append((index - cdata_index, particle, occurs, expected))
                 break
             else:
-                if validation == "strict" or losslessly:
-                    errors.append((index - cdata_index, self, 0, []))
-
+                errors.append((index - cdata_index, self, 0, []))
                 for xsd_element in map(lambda x: x.match(name, default_namespace), self.iter_elements()):
                     if xsd_element is None:
                         continue
@@ -762,10 +690,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             for particle, occurs, expected in model.stop():
                 errors.append((index, particle, occurs, expected))
 
-        # If the validation is not strict tries to solve model errors with a reorder of the children
-        if errors and validation != 'strict':
-            children = self.sort_children(children, default_namespace)
-
         if children:
             if children[-1].tail is None:
                 children[-1].tail = padding[:-indent] or '\n'
@@ -784,25 +708,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 yield self.children_validation_error(validation, elem, index, particle, occurs, expected, **kwargs)
 
         yield text, children
-
-    def update_occurs(self, counter):
-        """
-        Update group occurrences.
-
-        :param counter: a Counter object that trace occurrences for elements and groups.
-        """
-        if self.model in ('sequence', 'all'):
-            if all(counter[item] for item in self if not item.is_emptiable()):
-                counter[self] += 1
-                for item in self:
-                    counter[item] = 0
-        elif self.model == 'choice':
-            if any(counter[item] for item in self):
-                counter[self] += 1
-                for item in self:
-                    counter[item] = 0
-        else:
-            raise XMLSchemaValueError("the group %r has no model!" % self)
 
 
 class Xsd11Group(XsdGroup):

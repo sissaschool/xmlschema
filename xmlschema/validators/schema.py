@@ -1124,7 +1124,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     to_dict = decode
 
-    def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None, **kwargs):
+    def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None,
+                    unordered=False, **kwargs):
         """
         Creates an iterator for encoding a data structure to an ElementTree's Element.
 
@@ -1135,6 +1136,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
+        :param unordered: a flag for explicitly activating unordered encoding mode for content model \
+        data. This mode uses content models for a reordered-by-model iteration of the child elements.
         :param kwargs: Keyword arguments containing options for converter and encoding.
         :return: yields an Element instance/s or validation/encoding errors.
         """
@@ -1168,7 +1171,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 msg = "unable to select an element for decoding data, provide a valid 'path' argument."
             yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
         else:
-            for result in xsd_element.iter_encode(obj, validation, converter=converter, **kwargs):
+            for result in xsd_element.iter_encode(obj, validation, converter=converter,
+                                                  unordered=unordered, **kwargs):
                 yield result
 
     def encode(self, obj, path=None, validation='strict', *args, **kwargs):
