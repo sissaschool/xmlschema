@@ -445,7 +445,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
-            converter = kwargs['converter'] = self.schema.get_converter(converter, **kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
@@ -562,7 +562,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, **kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
         level = kwargs.pop('level', 0)
         element_data = converter.element_encode(obj, self, level)
 

@@ -30,7 +30,6 @@ from xmlschema.converters import UnorderedConverter
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
-from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.helpers import local_name
 from xmlschema.qnames import XSI_TYPE
@@ -1099,6 +1098,7 @@ class TestEncoding(XsdValidatorTestCase):
                 self.assertTrue(isinstance(obj, type(expected)))
 
     def test_decode_encode(self):
+        """Test encode after a decode, checking the re-encoded tree."""
         filename = self.casepath('examples/collection/collection.xml')
         xt = ElementTree.parse(filename)
         xd = self.col_schema.to_dict(filename, dict_class=ordered_dict_class)
@@ -1113,7 +1113,7 @@ class TestEncoding(XsdValidatorTestCase):
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
         ]))
 
-    def test_builtin_string_based_types(self):
+    def test_string_based_builtin_types(self):
         self.check_encode(self.xsd_types['string'], 'sample string ', u'sample string ')
         self.check_encode(self.xsd_types['normalizedString'], ' sample string ', u' sample string ')
         self.check_encode(self.xsd_types['normalizedString'], '\n\r sample\tstring\n', u'   sample string ')
@@ -1132,7 +1132,7 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(self.xsd_types['ID'], 'first:name', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['IDREF'], 'first:name', XMLSchemaValidationError)
 
-    def test_builtin_decimal_based_types(self):
+    def test_decimal_based_builtin_types(self):
         self.check_encode(self.xsd_types['decimal'], -99.09, u'-99.09')
         self.check_encode(self.xsd_types['decimal'], '-99.09', u'-99.09')
         self.check_encode(self.xsd_types['integer'], 1000, u'1000')
@@ -1153,13 +1153,38 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(self.xsd_types['unsignedLong'], -101, XMLSchemaValidationError)
         self.check_encode(self.xsd_types['nonPositiveInteger'], 7, XMLSchemaValidationError)
 
-    def test_builtin_list_types(self):
+    def test_list_builtin_types(self):
         self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
         self.check_encode(self.xsd_types['IDREFS'], 'first_name', u'first_name')  # Transform data to list
         self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
         self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
         self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
         self.check_encode(self.xsd_types['ENTITIES'], ('mouse', 'cat', 'dog'), u'mouse cat dog')
+
+    def test_datetime_builtin_type(self):
+        xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
+        dt = xs.decode('<dt>2019-01-01T13:40:00</dt>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(dt)), '<dt>2019-01-01T13:40:00</dt>')
+
+    def test_date_builtin_type(self):
+        xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
+        date = xs.decode('<dt>2001-04-15</dt>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(date)), '<dt>2001-04-15</dt>')
+
+    def test_duration_builtin_type(self):
+        xs = self.get_schema('<xs:element name="td" type="xs:duration"/>')
+        duration = xs.decode('<td>P5Y3MT60H30.001S</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(duration)), '<td>P5Y3M2DT12H30.001S</td>')
+
+    def test_gregorian_year_builtin_type(self):
+        xs = self.get_schema('<xs:element name="td" type="xs:gYear"/>')
+        gyear = xs.decode('<td>2000</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(gyear)), '<td>2000</td>')
+
+    def test_gregorian_yearmonth_builtin_type(self):
+        xs = self.get_schema('<xs:element name="td" type="xs:gYearMonth"/>')
+        gyear_month = xs.decode('<td>2000-12</td>', datetime_types=True)
+        self.assertEqual(etree_tostring(xs.encode(gyear_month)), '<td>2000-12</td>')
 
     def test_list_types(self):
         list_of_strings = self.st_schema.types['list_of_strings']
@@ -1273,78 +1298,6 @@ class TestEncoding(XsdValidatorTestCase):
         )
         self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
 
-        converter_cls = getattr(self.schema_class, "converter", None)
-        if converter_cls and issubclass(converter_cls, UnorderedConverter):
-            # UnorderedConverter doesn't use ordered content which makes
-            # it incompatible with cdata.
-            self.check_encode(
-                xsd_component=schema.elements['A'],
-                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-                expected=XMLSchemaValueError,
-                indent=0, cdata_prefix='#'
-            )
-        else:
-            self.check_encode(
-                xsd_component=schema.elements['A'],
-                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
-                expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
-                indent=0, cdata_prefix='#'
-            )
-            self.check_encode(
-                xsd_component=schema.elements['A'],
-                data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
-                expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
-            )
-
-    def test_encode_unordered_content(self):
-        schema = self.get_schema("""
-        <xs:element name="A" type="A_type" />
-        <xs:complexType name="A_type">
-            <xs:sequence>
-                <xs:element name="B1" type="xs:string"/>
-                <xs:element name="B2" type="xs:integer"/>
-                <xs:element name="B3" type="xs:boolean"/>
-            </xs:sequence>
-        </xs:complexType>
-        """)
-        converter_cls = getattr(self.schema_class, "converter", None)
-        if converter_cls and issubclass(converter_cls, UnorderedConverter):
-            expected = u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>'
-        else:
-            expected = XMLSchemaChildrenValidationError
-
-        self.check_encode(
-            xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
-            expected=expected,
-            indent=0, cdata_prefix='#'
-        )
-
-    def test_encode_datetime(self):
-        xs = self.get_schema('<xs:element name="dt" type="xs:dateTime"/>')
-        dt = xs.decode('<dt>2019-01-01T13:40:00</dt>', datetime_types=True)
-        self.assertEqual(etree_tostring(xs.encode(dt)), '<dt>2019-01-01T13:40:00</dt>')
-
-    def test_encode_date(self):
-        xs = self.get_schema('<xs:element name="dt" type="xs:date"/>')
-        date = xs.decode('<dt>2001-04-15</dt>', datetime_types=True)
-        self.assertEqual(etree_tostring(xs.encode(date)), '<dt>2001-04-15</dt>')
-
-    def test_duration(self):
-        xs = self.get_schema('<xs:element name="td" type="xs:duration"/>')
-        duration = xs.decode('<td>P5Y3MT60H30.001S</td>', datetime_types=True)
-        self.assertEqual(etree_tostring(xs.encode(duration)), '<td>P5Y3M2DT12H30.001S</td>')
-
-    def test_gregorian_year(self):
-        xs = self.get_schema('<xs:element name="td" type="xs:gYear"/>')
-        gyear = xs.decode('<td>2000</td>', datetime_types=True)
-        self.assertEqual(etree_tostring(xs.encode(gyear)), '<td>2000</td>')
-
-    def test_gregorian_yearmonth(self):
-        xs = self.get_schema('<xs:element name="td" type="xs:gYearMonth"/>')
-        gyear_month = xs.decode('<td>2000-12</td>', datetime_types=True)
-        self.assertEqual(etree_tostring(xs.encode(gyear_month)), '<td>2000-12</td>')
-
     def test_error_message(self):
         schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
         rotation_data = {
@@ -1404,6 +1357,48 @@ class TestEncoding(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaChildrenValidationError):
             schema.to_etree({'A': [1, 2, 3]}, path='foo')
 
+    def test_encode_unordered_content(self):
+        schema = self.get_schema("""
+        <xs:element name="A" type="A_type" />
+        <xs:complexType name="A_type">
+            <xs:sequence>
+                <xs:element name="B1" type="xs:string"/>
+                <xs:element name="B2" type="xs:integer"/>
+                <xs:element name="B3" type="xs:boolean"/>
+            </xs:sequence>
+        </xs:complexType>
+        """)
+
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            expected=XMLSchemaChildrenValidationError
+        )
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
+            indent=0, cdata_prefix='#', converter=UnorderedConverter
+        )
+
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            expected='<A>\nhello<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
+            indent=0, cdata_prefix='#', converter=UnorderedConverter
+        )
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
+            indent=0, cdata_prefix='#'
+        )
+        self.check_encode(
+            xsd_component=schema.elements['A'],
+            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
+        )
+
     def test_strict_trailing_content(self):
         """Too many elements for a group raises an exception."""
         schema = self.get_schema("""
@@ -1421,19 +1416,7 @@ class TestEncoding(XsdValidatorTestCase):
             expected=XMLSchemaChildrenValidationError,
         )
 
-
-class TestEncoding11(TestEncoding):
-    schema_class = XMLSchema11
-
-
-class XMLSchemaUnorderedConverter(xmlschema.XMLSchema):
-    converter = UnorderedConverter
-
-
-class TestEncodingUnorderedConverter10(TestEncoding):
-    schema_class = XMLSchemaUnorderedConverter
-
-    def test_visitor_converter_repeated_sequence_of_elements(self):
+    def test_unordered_converter_repeated_sequence_of_elements(self):
         schema = self.get_schema("""
             <xs:element name="foo">
                 <xs:complexType>
@@ -1444,21 +1427,19 @@ class TestEncodingUnorderedConverter10(TestEncoding):
                 </xs:complexType>
             </xs:element>
             """)
-        tree = schema.to_etree(
-            {"A": [1, 2], "B": [3, 4]},
-        )
-        vals = []
-        for elem in tree:
-            vals.append(elem.text)
-        self.assertEqual(vals, ['1', '3', '2', '4'])
+
+        with self.assertRaises(XMLSchemaChildrenValidationError):
+            schema.to_etree({"A": [1, 2], "B": [3, 4]})
+            
+        root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, converter=UnorderedConverter)
+        self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
+
+        root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, unordered=True)
+        self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
 
-class XMLSchema11UnorderedConverter(XMLSchema11):
-    converter = UnorderedConverter
-
-
-class TestEncodingUnorderedConverter11(TestEncoding):
-    schema_class = XMLSchema11UnorderedConverter
+class TestEncoding11(TestEncoding):
+    schema_class = XMLSchema11
 
 
 # Creates decoding/encoding tests classes from XML files

@@ -620,7 +620,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
-            converter = kwargs['converter'] = self.schema.get_converter(converter, **kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         errors = []
         text = None
