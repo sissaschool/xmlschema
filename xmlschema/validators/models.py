@@ -456,6 +456,11 @@ class ModelVisitor(MutableSequence):
             if self.group.is_missing(occurs[self.group]) and self.items:
                 yield self.group, occurs[self.group], self.expected
 
+    def sort_content(self, content, restart=True):
+        if restart:
+            self.restart()
+        return [(name, value) for name, value in self.iter_unordered_content(content)]
+
     def iter_unordered_content(self, content):
         """
         Takes an unordered content stored in a dictionary of lists and yields the
