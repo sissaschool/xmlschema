@@ -348,11 +348,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
-        # Validate the schema document
+        # Validate the schema document (transforming validation errors to parse errors)
         if validation == 'strict':
-            self.check_schema(root, self.namespaces)
+            try:
+                self.check_schema(root, self.namespaces)
+            except XMLSchemaValidationError as e:
+                self.parse_error(e.reason, elem=e.elem)
         elif validation == 'lax':
-            self.errors.extend([e for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces)])
+            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
+                self.parse_error(e.reason, elem=e.elem)
 
         # Includes and imports schemas (errors are treated as warnings)
         self._include_schemas()
