@@ -6,6 +6,7 @@ CHANGELOG
 ================
 * Added XSD 1.1 validator with class XMLSchema11 to API
 * Memory usage optimization with lazy build of the XSD 1.0 and 1.1 meta-schemas
+* Added facilities for the encoding of unordered and collapsed content
 
 `v1.0.13`_ (2019-06-19)
 =======================

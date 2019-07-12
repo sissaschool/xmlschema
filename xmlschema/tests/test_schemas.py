@@ -21,14 +21,13 @@ import platform
 import time
 import warnings
 
-import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchemaParseError, XMLSchemaModelError, \
-    XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+    XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, etree_element, py_etree_element
 from xmlschema.qnames import XSD_LIST, XSD_UNION, XSD_ELEMENT, XSI_TYPE
 from xmlschema.tests import SKIP_REMOTE_TESTS, tests_factory, SchemaObserver, XsdValidatorTestCase
-from xmlschema.validators import XsdValidator, XMLSchema11
+from xmlschema.validators import XsdValidator, XMLSchema11, XsdDefaultOpenContent
 from xmlschema.xpath import ElementPathContext
 
 
@@ -113,8 +112,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:group>""", validation='lax')
         self.assertEqual(len(schema.errors), 1)
 
-        self.check_schema('<xs:group name="empty" />', XMLSchemaChildrenValidationError)
-        self.check_schema('<xs:group name="empty"><xs:annotation/></xs:group>', XMLSchemaChildrenValidationError)
+        self.check_schema('<xs:group name="empty" />', XMLSchemaParseError)
+        self.check_schema('<xs:group name="empty"><xs:annotation/></xs:group>', XMLSchemaParseError)
 
     def test_wrong_includes_and_imports(self):
 
@@ -171,7 +170,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             <xs:restriction base='xs:string'>
                 <xs:enumeration value='A'/>
             </xs:restriction>
-        </xs:simpleType>""", XMLSchemaChildrenValidationError)
+        </xs:simpleType>""", XMLSchemaParseError)
 
     def test_facets(self):
         # Issue #55 and a near error (derivation from xs:integer)
@@ -196,7 +195,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 <xs:totalDigits value="20" />
             </xs:restriction>
         </xs:simpleType>
-        """, xmlschema.XMLSchemaParseError)
+        """, XMLSchemaParseError)
 
         # Issue #56
         self.check_schema("""
@@ -646,8 +645,8 @@ class TestXMLSchema11(TestXMLSchema10):
         self.assertFalse(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
 
-    def test_open_content(self):
-        self.check_schema("""
+    def test_open_content_mode_interleave(self):
+        schema = self.check_schema("""
         <xs:element name="Book">
           <xs:complexType>
             <xs:openContent mode="interleave">
@@ -662,8 +661,11 @@ class TestXMLSchema11(TestXMLSchema10):
             </xs:sequence>
           </xs:complexType>
         </xs:element>""")
+        self.assertEqual(schema.elements['Book'].type.open_content.mode, 'interleave')
+        self.assertEqual(schema.elements['Book'].type.open_content.any_element.min_occurs, 0)
+        self.assertIsNone(schema.elements['Book'].type.open_content.any_element.max_occurs)
 
-        self.check_schema("""
+        schema = self.check_schema("""
         <xs:complexType name="name">
           <xs:openContent>
             <xs:any namespace="##other" processContents="skip"/>
@@ -674,6 +676,7 @@ class TestXMLSchema11(TestXMLSchema10):
             <xs:element name="family" type="xs:string"/>
           </xs:sequence>
         </xs:complexType>""")
+        self.assertEqual(schema.types['name'].open_content.mode, 'interleave')
 
         self.check_schema("""
         <xs:complexType name="name">
@@ -683,7 +686,193 @@ class TestXMLSchema11(TestXMLSchema10):
             <xs:element name="middle" type="xs:string" minOccurs="0"/>
             <xs:element name="family" type="xs:string"/>
           </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+    def test_open_content_mode_suffix(self):
+        schema = self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="suffix">
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
         </xs:complexType>""")
+        self.assertEqual(schema.types['name'].open_content.mode, 'suffix')
+        self.assertEqual(schema.types['name'].open_content.any_element.min_occurs, 0)
+        self.assertIsNone(schema.types['name'].open_content.any_element.max_occurs)
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="suffix"/>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+    def test_open_content_mode_none(self):
+        schema = self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="none"/>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['name'].open_content.mode, 'none')
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="none">
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+    def test_open_content_allowed(self):
+        self.check_schema("""
+        <xs:complexType name="choiceType">
+          <xs:openContent>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:choice>
+            <xs:element name="a" type="xs:float"/>
+            <xs:element name="b" type="xs:string"/>
+            <xs:element name="c" type="xs:int"/>
+          </xs:choice>
+        </xs:complexType>""")
+
+    def test_open_content_not_allowed(self):
+        self.check_schema("""
+        <xs:complexType name="wrongType">
+          <xs:openContent>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:simpleContent>
+                <xs:restriction base="xs:string" />
+          </xs:simpleContent>
+        </xs:complexType>""", XMLSchemaParseError)
+
+        self.check_schema("""
+        <xs:complexType name="wrongType">
+          <xs:openContent>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:complexContent>
+                <xs:restriction base="xs:anyType" />
+          </xs:complexContent>
+        </xs:complexType>""", XMLSchemaParseError)
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:openContent>
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:openContent>
+                <xs:element name="root" />
+            </xs:schema>""")
+
+    def test_open_content_wrong_attributes(self):
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="wrong"/>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="suffix">
+            <xs:any minOccurs="1" namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+        self.check_schema("""
+        <xs:complexType name="name">
+          <xs:openContent mode="suffix">
+            <xs:any maxOccurs="1000" namespace="##other" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="given" type="xs:string"/>
+            <xs:element name="middle" type="xs:string" minOccurs="0"/>
+            <xs:element name="family" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+    def test_default_open_content(self):
+        schema = self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:defaultOpenContent>
+                <xs:any namespace="##other" processContents="skip"/>
+            </xs:defaultOpenContent>
+            <xs:element name="root" />
+        </xs:schema>""")
+        self.assertIsInstance(schema.default_open_content, XsdDefaultOpenContent)
+        self.assertFalse(schema.default_open_content.applies_to_empty)
+
+        schema = self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:defaultOpenContent appliesToEmpty="true">
+                <xs:any namespace="##other" processContents="skip"/>
+            </xs:defaultOpenContent>
+            <xs:element name="root" />
+        </xs:schema>""")
+        self.assertTrue(schema.default_open_content.applies_to_empty)
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:defaultOpenContent appliesToEmpty="wrong">
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:defaultOpenContent>
+                <xs:element name="root" />
+            </xs:schema>""")
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" />
+                <xs:defaultOpenContent>
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:defaultOpenContent>
+            </xs:schema>""")
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:defaultOpenContent>
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:defaultOpenContent>
+                <xs:defaultOpenContent>
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:defaultOpenContent>
+                <xs:element name="root" />
+            </xs:schema>""")
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" />
+                <xs:defaultOpenContent mode="wrong">
+                    <xs:any namespace="##other" processContents="skip"/>
+                </xs:defaultOpenContent>
+            </xs:schema>""")
+
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root" />
+                <xs:defaultOpenContent mode="none" />
+            </xs:schema>""")
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

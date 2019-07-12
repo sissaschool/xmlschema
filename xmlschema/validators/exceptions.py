@@ -334,7 +334,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                     expected_tags.append('from %r namespace/s' % xsd_element.namespace)
 
             if not expected_tags:
-                reason += " No child element is expected at this point."
+                pass  # reason += " No child element is expected at this point." <-- this can be misleading
             elif len(expected_tags) == 1:
                 reason += " Tag %s expected." % expected_tags[0]
             else:

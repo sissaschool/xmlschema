@@ -36,7 +36,7 @@ from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
 from ..qnames import XSD_SCHEMA, XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
     XSD_GROUP, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
-    XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE
+    XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
@@ -55,7 +55,8 @@ from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
 from .complex_types import XsdComplexType, Xsd11ComplexType
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
-from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, Xsd11AnyAttribute
+from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
+    Xsd11AnyAttribute, XsdDefaultOpenContent
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
     iterchildren_xsd_redefine, iterchildren_xsd_override, XsdGlobals
 
@@ -247,7 +248,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     element_form_default = 'unqualified'
     block_default = ''
     final_default = ''
-    default_attributes = None  # for XSD 1.1
+
+    # Additional defaults for XSD 1.1
+    default_attributes = None
+    default_open_content = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
                  locations=None, base_url=None, defuse='remote', timeout=300, build=True, use_meta=True):
@@ -317,6 +321,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     self.default_attributes = self.resolve_qname(root.attrib['defaultAttributes'])
                 except XMLSchemaValueError as error:
                     self.parse_error(str(error), root)
+
+            for child in root:
+                if child.tag == XSD_DEFAULT_OPEN_CONTENT:
+                    self.default_open_content = XsdDefaultOpenContent(child, self)
+                    break
 
         # Set locations hints map and converter
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))

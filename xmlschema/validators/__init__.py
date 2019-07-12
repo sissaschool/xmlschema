@@ -21,7 +21,8 @@ from .assertions import XsdAssert
 from .notations import XsdNotation
 from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, XsdUnique
 from .facets import XsdPatternFacets, XsdEnumerationFacets
-from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute
+from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute, \
+    XsdOpenContent, XsdDefaultOpenContent
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .simple_types import xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
     XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion

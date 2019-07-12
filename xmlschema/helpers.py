@@ -121,7 +121,7 @@ def get_xml_bool_attribute(elem, attribute, default=None):
     elif value in ('false', '0') or value is False:
         return False
     else:
-        raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
+        raise XMLSchemaTypeError("an XML boolean value is required for attribute %r." % attribute)
 
 
 def get_xsd_derivation_attribute(elem, attribute, values=None):

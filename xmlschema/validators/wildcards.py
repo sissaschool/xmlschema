@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
-from ..helpers import get_namespace
+from ..helpers import get_namespace, get_xml_bool_attribute
 from ..namespaces import XSI_NAMESPACE
 from ..xpath import ElementPathMixin
 
@@ -466,10 +466,17 @@ class XsdOpenContent(XsdComponent):
             if self.mode not in {'none', 'interleave', 'suffix'}:
                 self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
 
-        if self.mode != 'none':
-            child = self._parse_component(self.elem)
+        child = self._parse_component(self.elem)
+        if self.mode == 'none':
             if child is not None and child.tag == XSD_ANY:
-                self.any_element = Xsd11AnyElement(child, self.schema, self)
+                self.parse_error("an openContent with mode='none' must not has an <xs:any> child declaration")
+        elif child is None or child.tag != XSD_ANY:
+            self.parse_error("an <xs:any> child declaration is required")
+        else:
+            any_element = Xsd11AnyElement(child, self.schema, self)
+            any_element.min_occurs = 0
+            any_element.max_occurs = None
+            self.any_element = any_element
 
     @property
     def built(self):
@@ -489,6 +496,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
     </defaultOpenContent>
     """
     _admitted_tags = {XSD_DEFAULT_OPEN_CONTENT}
+    applies_to_empty = False
 
     def _parse(self):
         super(XsdDefaultOpenContent, self)._parse()
@@ -498,3 +506,9 @@ class XsdDefaultOpenContent(XsdOpenContent):
             self.parse_error("the attribute 'mode' of a defaultOpenContent cannot be 'none'")
         if self._parse_component(self.elem) is None:
             self.parse_error("a defaultOpenContent declaration cannot be empty")
+
+        if 'appliesToEmpty' in self.elem.attrib:
+            try:
+                self.applies_to_empty = get_xml_bool_attribute(self.elem, 'appliesToEmpty')
+            except TypeError as err:
+                self.parse_error(err)
