@@ -481,6 +481,59 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 </xs:restriction>
             </xs:simpleType>""")
 
+    def test_any_wildcard(self):
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##other')
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##targetNamespace" processContents="skip"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##targetNamespace')
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="ns ##targetNamespace" processContents="skip"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, 'ns ##targetNamespace')
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="tns2 tns1 tns3" processContents="skip"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, 'tns2 tns1 tns3')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].min_occurs, 1)
+        self.assertEqual(schema.types['taggedType'].content_type[-1].max_occurs, 1)
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any minOccurs="10" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##any')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].min_occurs, 10)
+        self.assertIsNone(schema.types['taggedType'].content_type[-1].max_occurs)
+
+    def test_any_attribute_wildcard(self):
+        pass
+
     def test_base_schemas(self):
         from xmlschema.validators.schema import XML_SCHEMA_FILE
         self.schema_class(XML_SCHEMA_FILE)
@@ -873,6 +926,34 @@ class TestXMLSchema11(TestXMLSchema10):
                 <xs:element name="root" />
                 <xs:defaultOpenContent mode="none" />
             </xs:schema>""")
+
+    def test_any_wildcard(self):
+        super(TestXMLSchema11, self).test_any_wildcard()
+        self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##other" notNamespace="##targetNamespace" />
+          </xs:sequence>
+        </xs:complexType>""", XMLSchemaParseError)
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any notNamespace="##targetNamespace" />
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_namespace, ['##targetNamespace'])
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##targetNamespace" notQName="tns1:foo tns1:bar"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['tns1:foo', 'tns1:bar'])
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

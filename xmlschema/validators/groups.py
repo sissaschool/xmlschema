@@ -24,7 +24,7 @@ from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
-from .wildcards import XsdAnyElement
+from .wildcards import XsdAnyElement, Xsd11AnyElement
 from .models import ParticleMixin, ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
@@ -142,7 +142,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         self.parse_error("Circular definitions detected for group %r:" % self.ref, xsd_group[0])
                         self.model = 'sequence'
                         self.mixed = True
-                        self.append(XsdAnyElement(ANY_ELEMENT, self.schema, self))
+                        self.append(self.schema.BUILDERS.any_element_class(ANY_ELEMENT, self.schema, self))
                     else:
                         self.model = xsd_group.model
                         if self.model == 'all':
@@ -736,9 +736,9 @@ class Xsd11Group(XsdGroup):
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif child.tag == XSD_ANY:
-                self.append(XsdAnyElement(child, self.schema, self))
+                self.append(Xsd11AnyElement(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE, XSD_ALL):
-                self.append(XsdGroup(child, self.schema, self))
+                self.append(Xsd11Group(child, self.schema, self))
             elif child.tag == XSD_GROUP:
                 try:
                     ref = self.schema.resolve_qname(child.attrib['ref'])
