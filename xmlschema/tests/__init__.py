@@ -143,6 +143,16 @@ class XsdValidatorTestCase(unittest.TestCase):
             else:
                 return SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
 
+    def get_schema(self, source):
+        return self.schema_class(self.get_schema_source(source))
+
+    def get_element(self, name, **attrib):
+        source = '<xs:element name="{}" {}/>'.format(
+            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
+        )
+        schema = self.schema_class(self.get_schema_source(source))
+        return schema.elements[name]
+
     def check_etree_elements(self, elem, other):
         """Checks if two ElementTree elements are equal."""
         try:
@@ -157,15 +167,22 @@ class XsdValidatorTestCase(unittest.TestCase):
             msg = "Protected prefix {!r} found:\n {}".format(match.group(0), s)
             self.assertIsNone(match, msg)
 
-    def get_schema(self, source):
-        return self.schema_class(self.get_schema_source(source))
+    def check_schema(self, source, expected=None, **kwargs):
+        """
+        Create a schema for a test case.
 
-    def get_element(self, name, **attrib):
-        source = '<xs:element name="{}" {}/>'.format(
-            name, ' '.join('%s="%s"' % (k, v) for k, v in attrib.items())
-        )
-        schema = self.schema_class(self.get_schema_source(source))
-        return schema.elements[name]
+        :param source: A relative path or a root Element or a portion of schema for a template.
+        :param expected: If it's an Exception class test the schema for raise an error. \
+        Otherwise build the schema and test a condition if expected is a callable, or make \
+        a substring test if it's not `None` (maybe a string). Then returns the schema instance.
+        """
+        if isinstance(expected, type) and issubclass(expected, Exception):
+            self.assertRaises(expected, self.schema_class, self.get_schema_source(source), **kwargs)
+        else:
+            schema = self.schema_class(self.get_schema_source(source), **kwargs)
+            if callable(expected):
+                self.assertTrue(expected(schema))
+            return schema
 
     def check_errors(self, path, expected):
         """
