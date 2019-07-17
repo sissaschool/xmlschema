@@ -188,7 +188,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif self.redefine:
                 self.base_type = self.redefine
 
-        elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION != '1.0':
+        elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is elem[-1]:
@@ -457,13 +457,14 @@ class XsdComplexType(XsdType, ValidationMixin):
     def is_list(self):
         return self.has_simple_content() and self.content_type.is_list()
 
-    def is_valid(self, source, use_defaults=True):
+    def is_valid(self, source, use_defaults=True, namespaces=None):
         if hasattr(source, 'tag'):
-            return super(XsdComplexType, self).is_valid(source, use_defaults)
+            return super(XsdComplexType, self).is_valid(source, use_defaults, namespaces)
         elif isinstance(self.content_type, XsdSimpleType):
-            return self.content_type.is_valid(source)
+            return self.content_type.is_valid(source, use_defaults, namespaces)
         else:
-            return self.base_type is not None and self.base_type.is_valid(source) or self.mixed
+            return self.mixed or self.base_type is not None and \
+                   self.base_type.is_valid(source, use_defaults, namespaces)
 
     def is_derived(self, other, derivation=None):
         if self is other:
