@@ -501,8 +501,8 @@ class XsdGlobals(XsdValidator):
             if not isinstance(xsd_type.content_type, XsdGroup):
                 continue
 
-            base_type = xsd_type.base_type
             if xsd_type.derivation == 'restriction':
+                base_type = xsd_type.base_type
                 if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                     if not xsd_type.content_type.is_restriction(base_type.content_type):
                         xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")

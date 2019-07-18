@@ -304,6 +304,53 @@ class TestXsd11Wildcards(TestXsdWildcards):
                 <xs:defaultOpenContent mode="none" />
             </xs:schema>""")
 
+    def test_open_content_restriction(self):
+        self.check_schema("""
+        <xs:complexType name="baseType">
+          <xs:openContent>
+            <xs:any namespace="tns1 tns2" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="foo" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+        
+        <xs:complexType name="derivedType">
+          <xs:complexContent>
+            <xs:restriction base="baseType">
+              <xs:openContent>
+                <xs:any namespace="tns1" processContents="skip"/>
+              </xs:openContent>
+              <xs:sequence>
+                <xs:element name="foo" type="xs:string"/>
+              </xs:sequence>
+            </xs:restriction>
+          </xs:complexContent>
+        </xs:complexType>""")
+
+        self.check_schema("""
+        <xs:complexType name="baseType">
+          <xs:openContent>
+            <xs:any namespace="tns1 tns2" processContents="skip"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="foo" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+
+        <xs:complexType name="derivedType">
+          <xs:complexContent>
+            <xs:restriction base="baseType">
+              <xs:openContent>
+                <xs:any namespace="##any" processContents="skip"/>
+              </xs:openContent>
+              <xs:sequence>
+                <xs:element name="foo" type="xs:string"/>
+              </xs:sequence>
+            </xs:restriction>
+          </xs:complexContent>
+        </xs:complexType>""", XMLSchemaParseError)
+
     def test_any_wildcard(self):
         super(TestXsd11Wildcards, self).test_any_wildcard()
         self.check_schema("""

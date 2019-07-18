@@ -482,6 +482,16 @@ class XsdOpenContent(XsdComponent):
     def built(self):
         return True
 
+    def is_restriction(self, other):
+        if self.mode == 'none':
+            return True
+        elif other is None or other.mode == 'none':
+            return False
+        elif self.mode == 'interleave' and other.mode == 'suffix':
+            return False
+        else:
+            return self.any_element.is_restriction(other.any_element)
+
 
 class XsdDefaultOpenContent(XsdOpenContent):
     """
