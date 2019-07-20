@@ -305,7 +305,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:schema>""")
 
     def test_open_content_restriction(self):
-        self.check_schema("""
+        schema = self.check_schema("""
         <xs:complexType name="baseType">
           <xs:openContent>
             <xs:any namespace="tns1 tns2" processContents="skip"/>
@@ -327,6 +327,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:restriction>
           </xs:complexContent>
         </xs:complexType>""")
+        self.assertEqual(schema.types['derivedType'].content_type[0].name, 'foo')
 
         self.check_schema("""
         <xs:complexType name="baseType">
@@ -348,6 +349,55 @@ class TestXsd11Wildcards(TestXsdWildcards):
                 <xs:element name="foo" type="xs:string"/>
               </xs:sequence>
             </xs:restriction>
+          </xs:complexContent>
+        </xs:complexType>""", XMLSchemaParseError)
+
+    def test_open_content_extension(self):
+        schema = self.check_schema("""
+        <xs:complexType name="baseType">
+          <xs:openContent mode="suffix">
+            <xs:any namespace="tns1" processContents="lax"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="foo" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+
+        <xs:complexType name="derivedType">
+          <xs:complexContent>
+            <xs:extension base="baseType">
+              <xs:openContent>
+                <xs:any namespace="tns1 tns2" processContents="lax"/>
+              </xs:openContent>
+              <xs:sequence>
+                <xs:element name="bar" type="xs:string"/>
+              </xs:sequence>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['derivedType'].content_type[0][0].name, 'foo')
+        self.assertEqual(schema.types['derivedType'].content_type[1][0].name, 'bar')
+
+        self.check_schema("""
+        <xs:complexType name="baseType">
+          <xs:openContent mode="suffix">
+            <xs:any namespace="tns1" processContents="lax"/>
+          </xs:openContent>
+          <xs:sequence>
+            <xs:element name="foo" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+
+        <xs:complexType name="derivedType">
+          <xs:complexContent>
+            <xs:extension base="baseType">
+              <xs:openContent>
+                <xs:any namespace="tns1 tns2" processContents="strict"/>
+              </xs:openContent>
+              <xs:sequence>
+                <xs:element name="bar" type="xs:string"/>
+              </xs:sequence>
+            </xs:extension>
           </xs:complexContent>
         </xs:complexType>""", XMLSchemaParseError)
 

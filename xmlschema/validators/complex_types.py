@@ -315,9 +315,15 @@ class XsdComplexType(XsdType, ValidationMixin):
             base_type = self.maps.types[XSD_ANY_TYPE]
 
         # complexContent restriction: the base type must be a complexType with a complex content.
-        group_elem = self._parse_component(elem, strict=False)
-        if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-            content_type = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+            if child.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION > '1.0':
+                self.open_content = XsdOpenContent(child, self.schema, self)
+                continue
+            elif child.tag in XSD_MODEL_GROUP_TAGS:
+                content_type = self.schema.BUILDERS.group_class(child, self.schema, self)
+            else:
+                content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
+            break
         else:
             # Empty content model
             content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
@@ -331,6 +337,10 @@ class XsdComplexType(XsdType, ValidationMixin):
                 "derived an empty content from base type that has not empty content.", elem
             )
 
+        if self.open_content is not None and base_type.name != XSD_ANY_TYPE:
+            if not self.open_content.is_restriction(base_type.open_content):
+                self.parse_error("The openContent is not a restriction of the base type openContent.")
+
         self.content_type = content_type
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
 
@@ -338,7 +348,22 @@ class XsdComplexType(XsdType, ValidationMixin):
         if 'extension' in base_type.final:
             self.parse_error("the base type is not derivable by extension")
 
-        group_elem = self._parse_component(elem, strict=False)
+        # complexContent restriction: the base type must be a complexType with a complex content.
+        for group_elem in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+            if group_elem.tag != XSD_OPEN_CONTENT:
+                break
+            self.open_content = XsdOpenContent(group_elem, self.schema, self)
+            try:
+                if not base_type.open_content.is_restriction(self.open_content):
+                    self.parse_error("The openContent is not an extension of the base type openContent.")
+            except AttributeError:
+                pass
+        else:
+            group_elem = None
+
+        if self.open_content is None and getattr(base_type, 'open_content', None) is not None:
+            self.open_content = base_type.open_content
+
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
@@ -347,7 +372,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 # Empty content model
                 self.content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
         else:
-            # Set the content type using a dummy sequence element
+            # Create a dummy sequence content type if the base type has not empty content model
             sequence_elem = etree_element(XSD_SEQUENCE)
             sequence_elem.text = '\n    '
             content_type = self.schema.BUILDERS.group_class(sequence_elem, self.schema, self)
@@ -369,8 +394,6 @@ class XsdComplexType(XsdType, ValidationMixin):
                 sequence_elem.append(base_type.content_type.elem)
                 sequence_elem.append(group.elem)
 
-                # complexContent extension: base type must be a complex type with complex content.
-                # A dummy sequence group is added if the base type has not empty content model.
                 if base_type.content_type.model == 'all' and base_type.content_type and group \
                         and self.schema.XSD_VERSION == '1.0':
                     self.parse_error("XSD 1.0 does not allow extension of a not empty 'ALL' model group.", elem)
@@ -644,43 +667,6 @@ class Xsd11ComplexType(XsdComplexType):
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
             )
-
-    def _parse_complex_content_restriction(self, elem, base_type):
-        if 'restriction' in base_type.final:
-            self.parse_error("the base type is not derivable by restriction")
-        if base_type.is_simple() or base_type.has_simple_content():
-            self.parse_error("base %r is simple or has a simple content." % base_type, elem)
-            base_type = self.maps.types[XSD_ANY_TYPE]
-
-        # complexContent restriction: the base type must be a complexType with a complex content.
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if child.tag == XSD_OPEN_CONTENT:
-                self.open_content = XsdOpenContent(child, self.schema, self)
-                continue
-            elif child.tag in XSD_MODEL_GROUP_TAGS:
-                content_type = self.schema.BUILDERS.group_class(child, self.schema, self)
-            else:
-                content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
-            break
-        else:
-            # Empty content model
-            content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
-
-        if base_type.is_element_only() and content_type.mixed:
-            self.parse_error(
-                "derived a mixed content from a base type that has element-only content.", elem
-            )
-        elif base_type.is_empty() and not content_type.is_empty():
-            self.parse_error(
-                "derived an empty content from base type that has not empty content.", elem
-            )
-
-        if base_type.name != XSD_ANY_TYPE and self.open_content is not None:
-            if not self.open_content.is_restriction(base_type.open_content):
-                self.parse_error("The openContent is not a restriction of the base type openContent.")
-
-        self.content_type = content_type
-        self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
 
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
