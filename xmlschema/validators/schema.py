@@ -24,8 +24,8 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Inheritable attributes
   * targetNamespace for restricted element and attributes
   * Assert for complex types
-  * openContent wildcard for complex types (TODO: extension, restriction, validation)
-  * XSD 1.1 wildcards for complex types (TODO: test building, validation)
+  * openContent wildcard for complex types (TODO: validation)
+  * XSD 1.1 wildcards for complex types
   * schema overrides
   * TODO: VC namespace usage in instance validation
 """
@@ -601,7 +601,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def create_any_attribute_group(self, parent, name=None):
         """Creates an attribute group related to schema instance that accepts any attribute."""
         attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent, name)
-        attribute_group[None] = XsdAnyAttribute(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
+        attribute_group[None] = self.BUILDERS.any_attribute_class(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
         return attribute_group
 
     def copy(self):

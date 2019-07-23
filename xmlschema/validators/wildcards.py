@@ -91,7 +91,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             else:
                 yield ns
 
-    def is_matching(self, name, default_namespace=None):
+    def is_matching(self, name, default_namespace=None, group=None):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -189,8 +189,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
 
-    def matched_element(self, name, default_namespace=None):
-        if self.is_matching(name, default_namespace):
+    def matched_element(self, name, default_namespace=None, group=None):
+        if self.is_matching(name, default_namespace, group):
             try:
                 if name[0] != '{' and default_namespace:
                     return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
@@ -395,6 +395,25 @@ class Xsd11AnyElement(XsdAnyElement):
             else:
                 self.not_qname = not_qname
 
+    def is_matching(self, name, default_namespace=None, group=None):
+        if name is None:
+            return False
+        elif not name or name[0] == '{':
+            namespace = get_namespace(name)
+        elif default_namespace is None:
+            namespace = ''
+        else:
+            name = '{%s}%s' % (default_namespace, name)
+            namespace = default_namespace
+
+        if '##defined' in self.not_qname and name in self.maps.elements:
+            if self.maps.elements[name].schema is self.schema:
+                return False
+        if group and '##definedSibling' in self.not_qname:
+            if any(e is not self and e.match(name, default_namespace) for e in group.iter_elements()):
+                return False
+        return name not in self.not_qname and self.is_namespace_allowed(namespace)
+
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
     """
@@ -436,6 +455,22 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
                 self.parse_error("wrong value %r for 'notQName' attribute." % self.elem.attrib['notQName'])
             else:
                 self.not_qname = not_qname
+
+    def is_matching(self, name, default_namespace=None, group=None):
+        if name is None:
+            return False
+        elif not name or name[0] == '{':
+            namespace = get_namespace(name)
+        elif default_namespace is None:
+            namespace = ''
+        else:
+            name = '{%s}%s' % (default_namespace, name)
+            namespace = default_namespace
+
+        if '##defined' in self.not_qname and name in self.maps.attributes:
+            if self.maps.attributes[name].schema is self.schema:
+                return False
+        return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
 
 class XsdOpenContent(XsdComponent):

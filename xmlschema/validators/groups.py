@@ -545,7 +545,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
             while model.element is not None:
-                xsd_element = model.element.match(child.tag, default_namespace)
+                xsd_element = model.element.match(child.tag, default_namespace, self)
                 if xsd_element is None:
                     for particle, occurs, expected in model.advance(False):
                         errors.append((index, particle, occurs, expected))
@@ -561,7 +561,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 break
             else:
                 for xsd_element in self.iter_elements():
-                    if xsd_element.is_matching(child.tag, default_namespace):
+                    if xsd_element.is_matching(child.tag, default_namespace, self):
                         if not model_broken:
                             errors.append((index, xsd_element, 0, []))
                             model_broken = True
@@ -650,15 +650,14 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 continue
 
             while model.element is not None:
-                xsd_element = model.element.match(name, default_namespace)
-                if xsd_element is None:
+                if not model.element.is_matching(name, default_namespace, self):
                     for particle, occurs, expected in model.advance():
                         errors.append((index - cdata_index, particle, occurs, expected))
                     continue
-                elif isinstance(xsd_element, XsdAnyElement):
+                elif isinstance(model.element, XsdAnyElement):
                     value = get_qname(default_namespace, name), value
 
-                for result in xsd_element.iter_encode(value, validation, **kwargs):
+                for result in model.element.iter_encode(value, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield result
                     else:
@@ -669,11 +668,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 break
             else:
                 errors.append((index - cdata_index, self, 0, []))
-                for xsd_element in map(lambda x: x.match(name, default_namespace), self.iter_elements()):
-                    if xsd_element is None:
+                for xsd_element in self.iter_elements():
+                    if not xsd_element.is_matching(name, default_namespace, self):
                         continue
                     elif isinstance(xsd_element, XsdAnyElement):
                         value = get_qname(default_namespace, name), value
+
                     for result in xsd_element.iter_encode(value, validation, **kwargs):
                         if isinstance(result, XMLSchemaValidationError):
                             yield result

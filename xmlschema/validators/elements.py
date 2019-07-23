@@ -640,7 +640,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         yield elem
         del element_data
 
-    def is_matching(self, name, default_namespace=None):
+    def is_matching(self, name, default_namespace=None, group=None):
         if default_namespace and name[0] != '{':
             name = '{%s}%s' % (default_namespace, name)
 
@@ -652,7 +652,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return True
         return False
 
-    def match(self, name, default_namespace=None):
+    def match(self, name, default_namespace=None, group=None):
         if default_namespace and name[0] != '{':
             name = '{%s}%s' % (default_namespace, name)
 

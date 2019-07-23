@@ -400,7 +400,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
                 any_attribute = True
-                attributes.update([(None, XsdAnyAttribute(child, self.schema, self))])
+                attributes[None] = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
 
             elif child.tag == XSD_ATTRIBUTE:
                 attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)

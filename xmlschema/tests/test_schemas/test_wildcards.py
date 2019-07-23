@@ -68,7 +68,25 @@ class TestXsdWildcards(XsdValidatorTestCase):
         self.assertIsNone(schema.types['taggedType'].content_type[-1].max_occurs)
 
     def test_any_attribute_wildcard(self):
-        pass
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:sequence>
+          <xs:anyAttribute namespace="tns1:foo"/>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, 'tns1:foo')
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:sequence>
+          <xs:anyAttribute namespace="##targetNamespace"/>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, '##targetNamespace')
 
 
 class TestXsd11Wildcards(TestXsdWildcards):
@@ -428,3 +446,26 @@ class TestXsd11Wildcards(TestXsdWildcards):
           </xs:sequence>
         </xs:complexType>""")
         self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['tns1:foo', 'tns1:bar'])
+
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##targetNamespace" notQName="##defined tns1:foo ##definedSibling"/>
+          </xs:sequence>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname,
+                         ['##defined', 'tns1:foo', '##definedSibling'])
+
+    def test_any_attribute_wildcard(self):
+        super(TestXsd11Wildcards, self).test_any_attribute_wildcard()
+        schema = self.check_schema("""
+        <xs:complexType name="taggedType">
+          <xs:sequence>
+            <xs:element name="tag" type="xs:string"/>
+            <xs:any namespace="##other" processContents="skip"/>
+          </xs:sequence>
+          <xs:anyAttribute notQName="tns1:foo"/>
+        </xs:complexType>""")
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, '##any')
+        self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['tns1:foo'])

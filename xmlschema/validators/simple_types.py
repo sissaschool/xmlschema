@@ -898,7 +898,7 @@ class XsdUnion(XsdSimpleType):
                 break
 
         if validation != 'skip' and ' ' not in obj.strip():
-            reason = "no type suitable for decoding %r." % obj
+            reason = "invalid value %r." % obj
             yield self.decode_error(validation, obj, self.member_types, reason)
 
         items = []
