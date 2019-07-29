@@ -17,6 +17,7 @@ from .test_schema_class import TestXMLSchema10, TestXMLSchema11
 from .test_simple_types import TestXsdSimpleTypes, TestXsd11SimpleTypes
 from .test_attributes import TestXsdAttributes, TestXsd11Attributes
 from .test_complex_types import TestXsdComplexType, TestXsd11ComplexType
+from .test_identities import TestXsdIdentities, TestXsd11Identities
 from .test_wildcards import TestXsdWildcards, TestXsd11Wildcards
 from .test_schema_builder import make_schema_test_class
 

@@ -133,28 +133,28 @@ class TestHelpers(unittest.TestCase):
         component = XMLSchema.meta_schema.types['anyType']
 
         elem = etree_element(XSD_SCHEMA)
-        self.assertIsNone(component._parse_component(elem))
+        self.assertIsNone(component._parse_child_component(elem))
         elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(component._parse_component(elem), elem[0])
+        self.assertEqual(component._parse_child_component(elem), elem[0])
         elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertRaises(XMLSchemaParseError, component._parse_component, elem)
-        self.assertEqual(component._parse_component(elem, strict=False), elem[0])
+        self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
+        self.assertEqual(component._parse_child_component(elem, strict=False), elem[0])
 
         elem.clear()
         elem.append(etree_element(XSD_ANNOTATION))
-        self.assertIsNone(component._parse_component(elem))
+        self.assertIsNone(component._parse_child_component(elem))
         elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(component._parse_component(elem), elem[1])
+        self.assertEqual(component._parse_child_component(elem), elem[1])
         elem.append(etree_element(XSD_ELEMENT))
-        self.assertRaises(XMLSchemaParseError, component._parse_component, elem)
-        self.assertEqual(component._parse_component(elem, strict=False), elem[1])
+        self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
+        self.assertEqual(component._parse_child_component(elem, strict=False), elem[1])
 
         elem.clear()
         elem.append(etree_element(XSD_ANNOTATION))
         elem.append(etree_element(XSD_ANNOTATION))
-        self.assertIsNone(component._parse_component(elem, strict=False))
+        self.assertIsNone(component._parse_child_component(elem, strict=False))
         elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(component._parse_component(elem), elem[2])
+        self.assertEqual(component._parse_child_component(elem), elem[2])
 
 
 if __name__ == '__main__':
