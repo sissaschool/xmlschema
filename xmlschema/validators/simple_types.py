@@ -33,14 +33,11 @@ from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, XSD_11
 
 
 def xsd_simple_type_factory(elem, schema, parent):
-    try:
-        name = get_qname(schema.target_namespace, elem.attrib['name'])
-    except KeyError:
-        name = None
-    else:
-        if name == XSD_ANY_SIMPLE_TYPE:
-            return
-
+    """
+    Factory function for XSD simple types. Parses the xs:simpleType element and its
+    child component, that can be a restriction, a list or an union. Annotations are
+    linked to simple type instance, omitting the inner annotation if both are given.
+    """
     annotation = None
     try:
         child = elem[0]
@@ -48,31 +45,44 @@ def xsd_simple_type_factory(elem, schema, parent):
         return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
     else:
         if child.tag == XSD_ANNOTATION:
+            annotation = XsdAnnotation(elem[0], schema, child)
             try:
                 child = elem[1]
-                annotation = XsdAnnotation(elem[0], schema, child)
             except IndexError:
+                schema.parse_error("(restriction | list | union) expected", elem)
                 return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if child.tag == XSD_RESTRICTION:
-        result = schema.BUILDERS.restriction_class(child, schema, parent, name=name)
+        xsd_type = schema.BUILDERS.restriction_class(child, schema, parent)
     elif child.tag == XSD_LIST:
-        result = XsdList(child, schema, parent, name=name)
+        xsd_type = XsdList(child, schema, parent)
     elif child.tag == XSD_UNION:
-        result = schema.BUILDERS.union_class(child, schema, parent, name=name)
+        xsd_type = schema.BUILDERS.union_class(child, schema, parent)
     else:
-        result = schema.maps.types[XSD_ANY_SIMPLE_TYPE]
+        schema.parse_error("(restriction | list | union) expected", elem)
+        return schema.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     if annotation is not None:
-        result.annotation = annotation
+        xsd_type.annotation = annotation
+
+    try:
+        xsd_type.name = get_qname(schema.target_namespace, elem.attrib['name'])
+    except KeyError:
+        if parent is None:
+            schema.parse_error("missing attribute 'name' in a global simpleType", elem)
+            xsd_type.name = 'nameless_%s' % str(id(xsd_type))
+    else:
+        if parent is not None:
+            schema.parse_error("attribute 'name' not allowed for a local simpleType", elem)
+            xsd_type.name = None
 
     if 'final' in elem.attrib:
         try:
-            result._final = get_xsd_derivation_attribute(elem, 'final')
+            xsd_type._final = get_xsd_derivation_attribute(elem, 'final')
         except ValueError as err:
-            result.parse_error(err, elem)
+            xsd_type.parse_error(err, elem)
 
-    return result
+    return xsd_type
 
 
 class XsdSimpleType(XsdType, ValidationMixin):
@@ -631,7 +641,7 @@ class XsdList(XsdSimpleType):
         super(XsdList, self)._parse()
         elem = self.elem
 
-        child = self._parse_component(elem)
+        child = self._parse_child_component(elem)
         if child is not None:
             # Case of a local simpleType declaration inside the list tag
             try:
@@ -1012,7 +1022,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if elem.get('name') == XSD_ANY_ATOMIC_TYPE:
             return  # skip special type xs:anyAtomicType
         elif elem.tag == XSD_SIMPLE_TYPE and elem.get('name') is not None:
-            elem = self._parse_component(elem)  # Global simpleType with internal restriction
+            elem = self._parse_child_component(elem)  # Global simpleType with internal restriction
 
         if self.name is not None and self.parent is not None:
             self.parse_error("'name' attribute in a local simpleType definition", elem)
@@ -1056,7 +1066,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 self.parse_error("wrong base type {!r}, an atomic type required")
             elif base_type.is_complex():
                 if base_type.mixed and base_type.is_emptiable():
-                    child = self._parse_component(elem, strict=False)
+                    child = self._parse_child_component(elem, strict=False)
                     if child is None:
                         self.parse_error("an xs:simpleType definition expected")
                     elif child.tag != XSD_SIMPLE_TYPE:

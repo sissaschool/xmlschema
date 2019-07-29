@@ -43,20 +43,19 @@ class XsdFacet(XsdComponent):
 
     def _parse(self):
         super(XsdFacet, self)._parse()
-        elem = self.elem
-        self.fixed = elem.get('fixed', False)
+        self.fixed = self.elem.get('fixed', False)
         base_facet = self.base_facet
         self.base_value = None if base_facet is None else base_facet.value
 
         try:
-            self._parse_value(elem)
+            self._parse_value(self.elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
             self.value = None
             self.parse_error(unicode_type(err))
         else:
             if base_facet is not None and base_facet.fixed and \
                     base_facet.value is not None and self.value != base_facet.value:
-                self.parse_error("%r facet value is fixed to %r" % (elem.tag, base_facet.value))
+                self.parse_error("%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
 
     def _parse_value(self, elem):
         self.value = elem.attrib['value']

@@ -29,7 +29,7 @@ from ..xpath import ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin
-from .identities import XsdUnique, XsdKey, XsdKeyref
+from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -62,7 +62,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     """
     _admitted_tags = {XSD_ELEMENT}
     qualified = False
-    _ref = None
     _abstract = False
     _block = None
     _final = None
@@ -107,86 +106,68 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self._parse_substitution_group()
 
     def _parse_attributes(self):
-        elem = self.elem
-        attrib = elem.attrib
-        self._parse_particle(elem)
+        self._parse_particle(self.elem)
 
-        try:
-            self.qualified = (self.form or self.schema.element_form_default) == 'qualified'
-        except ValueError as err:
-            self.parse_error(err)
-
-        name = elem.get('name')
-        if name is not None:
-            if self.parent is None or self.qualified:
-                self.name = get_qname(self.target_namespace, attrib['name'])
-            else:
-                self.name = attrib['name']
-        elif self.parent is None:
-            self.parse_error("missing 'name' in a global element declaration")
-            self.name = elem.get('ref', 'nameless_%s' % str(id(self)))
-        elif 'ref' not in attrib:
-            self.parse_error("missing both 'name' and 'ref' attributes")
-            self.name = elem.get('nameless_%s' % str(id(self)))
-        else:
+        attrib = self.elem.attrib
+        if self._parse_reference():
             try:
-                element_name = self.schema.resolve_qname(attrib['ref'])
-            except ValueError as err:
-                self.parse_error(err)
+                xsd_element = self.maps.lookup_element(self.name)
+            except KeyError:
+                self.parse_error('unknown element %r' % self.name)
                 self.type = self.maps.types[XSD_ANY_TYPE]
-                self.name = elem.get('nameless_%s' % str(id(self)))
             else:
-                if not element_name:
-                    self.parse_error("empty 'ref' attribute")
-                    self.type = self.maps.types[XSD_ANY_TYPE]
-                    self.name = elem.get('nameless_%s' % str(id(self)))
-                else:
-                    try:
-                        xsd_element = self.maps.lookup_element(element_name)
-                    except KeyError:
-                        self.parse_error('unknown element %r' % element_name)
-                        self.name = element_name
-                        self.type = self.maps.types[XSD_ANY_TYPE]
-                    else:
-                        self._ref = xsd_element
-                        self.name = xsd_element.name
-                        self.type = xsd_element.type
-                        self.qualified = xsd_element.qualified
+                self.ref = xsd_element
+                self.type = xsd_element.type
+                self.qualified = xsd_element.qualified
 
-            for attr_name in ('name', 'type', 'nillable', 'default', 'fixed', 'form',
+            for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
                 if attr_name in attrib:
                     self.parse_error("attribute %r is not allowed when element reference is used." % attr_name)
             return
 
+        try:
+            if (self.form or self.schema.element_form_default) == 'qualified':
+                self.qualified = True
+        except ValueError as err:
+            self.parse_error(err)
+
+        try:
+            if self.parent is None or self.qualified:
+                self.name = get_qname(self.target_namespace, attrib['name'])
+            else:
+                self.name = attrib['name']
+        except KeyError:
+            pass
+
         if 'default' in attrib and 'fixed' in attrib:
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
 
-        if 'abstract' in elem.attrib:
+        if 'abstract' in attrib:
             try:
-                self._abstract = get_xml_bool_attribute(elem, 'abstract')
+                self._abstract = get_xml_bool_attribute(self.elem, 'abstract')
             except ValueError as err:
-                self.parse_error(err, elem)
+                self.parse_error(err)
             else:
                 if self.parent is not None:
                     self.parse_error("local scope elements cannot have abstract attribute")
 
-        if 'block' in elem.attrib:
+        if 'block' in attrib:
             try:
                 self._block = get_xsd_derivation_attribute(
-                    elem, 'block', ('extension', 'restriction', 'substitution')
+                    self.elem, 'block', ('extension', 'restriction', 'substitution')
                 )
             except ValueError as err:
-                self.parse_error(err, elem)
+                self.parse_error(err)
 
         if self.parent is None:
             self._parse_properties('nillable')
 
-            if 'final' in elem.attrib:
+            if 'final' in attrib:
                 try:
-                    self._final = get_xsd_derivation_attribute(elem, 'final', ('extension', 'restriction'))
+                    self._final = get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
                 except ValueError as err:
-                    self.parse_error(err, elem)
+                    self.parse_error(err)
 
             for attr_name in ('ref', 'form', 'minOccurs', 'maxOccurs'):
                 if attr_name in attrib:
@@ -200,8 +181,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def _parse_type(self):
         attrib = self.elem.attrib
-        if self.ref:
-            if self._parse_component(self.elem, strict=False) is not None:
+        if self.ref is not None:
+            if self._parse_child_component(self.elem, strict=False) is not None:
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in attrib:
             try:
@@ -213,12 +194,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.parse_error(err)
                 self.type = self.maps.types[XSD_ANY_TYPE]
             finally:
-                child = self._parse_component(self.elem, strict=False)
+                child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
                     msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
                     self.parse_error(msg % child.tag.split('}')[-1])
         else:
-            child = self._parse_component(self.elem, strict=False)
+            child = self._parse_child_component(self.elem, strict=False)
             if child is not None:
                 if child.tag == XSD_COMPLEX_TYPE:
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
@@ -263,11 +244,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self.constraints = {}
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
-                constraint = XsdUnique(child, self.schema, self)
+                constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
             elif child.tag == XSD_KEY:
-                constraint = XsdKey(child, self.schema, self)
+                constraint = self.schema.BUILDERS.key_class(child, self.schema, self)
             elif child.tag == XSD_KEYREF:
-                constraint = XsdKeyref(child, self.schema, self)
+                constraint = self.schema.BUILDERS.keyref_class(child, self.schema, self)
             else:
                 continue  # Error already caught by validation against the meta-schema
 
@@ -342,44 +323,39 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             return self.type.validation_attempted
 
-    # XSD declaration attributes
-    @property
-    def ref(self):
-        return self.elem.get('ref')
-
     # Global element's exclusive properties
     @property
     def abstract(self):
-        return self._abstract if self._ref is None else self._ref.abstract
+        return self._abstract if self.ref is None else self.ref.abstract
 
     @property
     def final(self):
-        return self._final or self.schema.final_default if self._ref is None else self._ref.final
+        return self._final or self.schema.final_default if self.ref is None else self.ref.final
 
     @property
     def block(self):
-        return self._block or self.schema.block_default if self._ref is None else self._ref.block
+        return self._block or self.schema.block_default if self.ref is None else self.ref.block
 
     @property
     def substitution_group(self):
-        return self._substitution_group if self._ref is None else self._ref.substitution_group
+        return self._substitution_group if self.ref is None else self.ref.substitution_group
 
     @property
     def default(self):
-        return self.elem.get('default') if self._ref is None else self._ref.default
+        return self.elem.get('default') if self.ref is None else self.ref.default
 
     @property
     def fixed(self):
-        return self.elem.get('fixed') if self._ref is None else self._ref.fixed
+        return self.elem.get('fixed') if self.ref is None else self.ref.fixed
 
     @property
     def form(self):
-        return get_xsd_form_attribute(self.elem, 'form') if self._ref is None else self._ref.form
+        return get_xsd_form_attribute(self.elem, 'form') if self.ref is None else self.ref.form
 
     @property
     def nillable(self):
-        if self._ref is not None:
-            return self._ref.nillable
+        if self.ref is not None:
+            return self.ref.nillable
         return get_xml_bool_attribute(self.elem, 'nillable', default=False)
 
     def get_attribute(self, name):
@@ -781,8 +757,8 @@ class Xsd11Element(XsdElement):
         self._parse_target_namespace()
 
     def _parse_alternatives(self, index=0):
-        if self._ref is not None:
-            self.alternatives = self._ref.alternatives
+        if self.ref is not None:
+            self.alternatives = self.ref.alternatives
         else:
             self.alternatives = []
             for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
@@ -792,6 +768,29 @@ class Xsd11Element(XsdElement):
                 else:
                     break
         return index
+
+    def _parse_identity_constraints(self, index=0):
+        self.constraints = {}
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
+            if child.tag == XSD_UNIQUE:
+                constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
+            elif child.tag == XSD_KEY:
+                constraint = self.schema.BUILDERS.key_class(child, self.schema, self)
+            elif child.tag == XSD_KEYREF:
+                constraint = self.schema.BUILDERS.keyref_class(child, self.schema, self)
+            else:
+                continue  # Error already caught by validation against the meta-schema
+
+            if constraint.ref is not None:
+                return
+
+            try:
+                if child != self.maps.constraints[constraint.name]:
+                    self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
+            except KeyError:
+                self.maps.constraints[constraint.name] = constraint
+            finally:
+                self.constraints[constraint.name] = constraint
 
     @property
     def target_namespace(self):

@@ -124,14 +124,18 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error(err, elem)
 
         try:
-            self.name = get_qname(self.target_namespace, elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
             self.name = None
+            if self.parent is None:
+                self.parse_error("missing attribute 'name' in a global complexType")
+                self.name = 'nameless_%s' % str(id(self))
         else:
             if self.parent is not None:
-                self.parse_error("attribute 'name' not allowed for a local complexType", elem)
+                self.parse_error("attribute 'name' not allowed for a local complexType")
+                self.name = None
 
-        content_elem = self._parse_component(elem, strict=False)
+        content_elem = self._parse_child_component(elem, strict=False)
         if content_elem is None or content_elem.tag in \
                 {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
             #
@@ -221,7 +225,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
 
     def _parse_derivation_elem(self, elem):
-        derivation_elem = self._parse_component(elem)
+        derivation_elem = self._parse_child_component(elem)
         if getattr(derivation_elem, 'tag', None) not in (XSD_RESTRICTION, XSD_EXTENSION):
             self.parse_error("restriction or extension tag expected", derivation_elem)
             self.content_type = self.schema.create_any_content_group(self)
@@ -290,7 +294,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse_simple_content_extension(self, elem, base_type):
         # simpleContent extension: the base type must be a simpleType or a complexType
         # with simple content.
-        child = self._parse_component(elem, strict=False)
+        child = self._parse_child_component(elem, strict=False)
         if child is not None and child.tag not in \
                 {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE}:
             self.parse_error("unexpected tag %r." % child.tag, child)
@@ -652,6 +656,16 @@ class Xsd11ComplexType(XsdComplexType):
     """
     def _parse(self):
         super(Xsd11ComplexType, self)._parse()
+
+        # Add open content to complex content type
+        if isinstance(self.content_type, XsdGroup):
+            open_content = self.open_content or self.schema.default_open_content
+            if open_content is None:
+                pass
+            elif open_content.mode == 'interleave':
+                self.content_type.interleave = self.content_type.suffix = open_content.any_element
+            elif open_content.mode == 'suffix':
+                self.content_type.suffix = open_content.any_element
 
         # Add inheritable attributes
         if hasattr(self.base_type, 'attributes'):

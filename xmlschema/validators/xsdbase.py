@@ -200,6 +200,7 @@ class XsdComponent(XsdValidator):
 
     parent = None
     name = None
+    ref = None
     qualified = True
 
     def __init__(self, elem, schema, parent=None, name=None):
@@ -286,7 +287,37 @@ class XsdComponent(XsdValidator):
         except (TypeError, IndexError):
             self.annotation = None
 
-    def _parse_component(self, elem, strict=True):
+    def _parse_reference(self):
+        """
+        Helper method for referable components. Returns `True` if a valid reference QName
+        is found without any error, otherwise returns `None`. Sets an id-related name for
+        the component ('nameless_<id of the instance>') if both the attributes 'ref' and
+        'name' are missing.
+        """
+        ref = self.elem.get('ref')
+        if ref is None:
+            if 'name' in self.elem.attrib:
+                return
+            elif self.parent is None:
+                self.parse_error("missing attribute 'name' in a global %r" % type(self))
+            else:
+                self.parse_error("missing both attributes 'name' and 'ref' in local %r" % type(self))
+            self.name = 'nameless_%s' % str(id(self))
+        elif self.parent is None:
+            self.parse_error("attribute 'ref' not allowed in a global %r" % type(self))
+        elif 'name' in self.elem.attrib:
+            self.parse_error("attributes 'name' and 'ref' are mutually exclusive")
+        else:
+            try:
+                self.name = self.schema.resolve_qname(ref)
+            except ValueError as err:
+                self.parse_error(err)
+            else:
+                if self._parse_child_component(self.elem) is not None:
+                    self.parse_error("a reference component cannot has child definitions/declarations")
+                return True
+
+    def _parse_child_component(self, elem, strict=True):
         component = None
         for index, component in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
             if not strict:

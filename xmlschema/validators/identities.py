@@ -96,9 +96,7 @@ class XsdFieldSelector(XsdSelector):
 
 class XsdIdentity(XsdComponent):
     selector = None
-
-    def __init__(self, elem, schema, parent):
-        super(XsdIdentity, self).__init__(elem, schema, parent)
+    fields = ()
 
     def _parse(self):
         super(XsdIdentity, self)._parse()
@@ -127,6 +125,14 @@ class XsdIdentity(XsdComponent):
             else:
                 self.parse_error("element %r not allowed here:" % child.tag, elem)
 
+    def _parse_identity_reference(self):
+        super(XsdIdentity, self)._parse()
+        self.name = get_qname(self.target_namespace, self.elem.attrib['ref'])
+        if 'name' in self.elem.attrib:
+            self.parse_error("attributes 'name' and 'ref' are mutually exclusive")
+        elif self._parse_child_component(self.elem) is not None:
+            self.parse_error("a reference cannot has child definitions")
+
     def iter_elements(self):
         for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
             yield xsd_element
@@ -143,10 +149,11 @@ class XsdIdentity(XsdComponent):
         for k, field in enumerate(self.fields):
             result = field.xpath_selector.select(context)
             if not result:
-                if isinstance(self, XsdKey):
-                    raise XMLSchemaValueError("%r key field must have a value!" % field)
-                else:
+                if not isinstance(self, XsdKey) or 'ref' in context.attrib and \
+                        self.schema.meta_schema is None and self.schema.XSD_VERSION != '1.0':
                     fields.append(None)
+                else:
+                    raise XMLSchemaValueError("%r key field must have a value!" % field)
             elif len(result) == 1:
                 if decoders is None or decoders[k] is None:
                     fields.append(result[0])
@@ -309,3 +316,30 @@ class XsdKeyref(XsdIdentity):
                 reason = "Key {!r} with value {!r} not found for identity constraint of element {!r}." \
                     .format(self.prefixed_name, v, qname_to_prefixed(elem.tag, self.namespaces))
                 yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)
+
+
+class Xsd11Unique(XsdUnique):
+
+    def _parse(self):
+        if self._parse_reference():
+            super(XsdIdentity, self)._parse()
+        else:
+            super(Xsd11Unique, self)._parse()
+
+
+class Xsd11Key(XsdKey):
+
+    def _parse(self):
+        if self._parse_reference():
+            super(XsdIdentity, self)._parse()
+        else:
+            super(Xsd11Key, self)._parse()
+
+
+class Xsd11Keyref(XsdKeyref):
+
+    def _parse(self):
+        if self._parse_reference():
+            super(XsdIdentity, self)._parse()
+        else:
+            super(Xsd11Keyref, self)._parse()

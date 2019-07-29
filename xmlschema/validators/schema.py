@@ -24,9 +24,10 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * Inheritable attributes
   * targetNamespace for restricted element and attributes
   * Assert for complex types
-  * openContent wildcard for complex types (TODO: validation)
+  * openContent wildcard for complex types
   * XSD 1.1 wildcards for complex types
   * schema overrides
+  * TODO: XSD 1.1 identity constraint references
   * TODO: VC namespace usage in instance validation
 """
 import os
@@ -51,6 +52,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchema
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from .xsdbase import XSD_VALIDATION_MODES, XsdValidator, ValidationMixin, XsdComponent
 from .notations import XsdNotation
+from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
 from .simple_types import xsd_simple_type_factory, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
 from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
@@ -1248,6 +1250,9 @@ class XMLSchema10(XMLSchemaBase):
         'any_element_class': XsdAnyElement,
         'restriction_class': XsdAtomicRestriction,
         'union_class': XsdUnion,
+        'key_class': XsdKey,
+        'keyref_class': XsdKeyref,
+        'unique_class': XsdUnique,
         'simple_type_factory': xsd_simple_type_factory
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
@@ -1306,7 +1311,10 @@ class XMLSchema11(XMLSchemaBase):
         'any_element_class': Xsd11AnyElement,
         'restriction_class': Xsd11AtomicRestriction,
         'union_class': Xsd11Union,
-        'simple_type_factory': xsd_simple_type_factory
+        'key_class': Xsd11Key,
+        'keyref_class': Xsd11Keyref,
+        'unique_class': Xsd11Unique,
+        'simple_type_factory': xsd_simple_type_factory,
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {

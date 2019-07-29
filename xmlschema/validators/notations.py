@@ -44,14 +44,14 @@ class XsdNotation(XsdComponent):
     def _parse(self):
         super(XsdNotation, self)._parse()
         if not self.is_global:
-            self.parse_error("a notation declaration must be global.", self.elem)
+            self.parse_error("a notation declaration must be global", self.elem)
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("a notation must have a 'name'.", self.elem)
+            self.parse_error("a notation must have a 'name' attribute", self.elem)
 
         if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-            self.parse_error("a notation must has a 'public' or a 'system' attribute.", self.elem)
+            self.parse_error("a notation must has a 'public' or a 'system' attribute", self.elem)
 
     @property
     def public(self):

@@ -501,7 +501,7 @@ class XsdOpenContent(XsdComponent):
             if self.mode not in {'none', 'interleave', 'suffix'}:
                 self.parse_error("wrong value %r for 'mode' attribute." % self.mode)
 
-        child = self._parse_component(self.elem)
+        child = self._parse_child_component(self.elem)
         if self.mode == 'none':
             if child is not None and child.tag == XSD_ANY:
                 self.parse_error("an openContent with mode='none' must not has an <xs:any> child declaration")
@@ -549,7 +549,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
             self.parse_error("defaultOpenContent must be a child of the schema")
         if self.mode == 'none':
             self.parse_error("the attribute 'mode' of a defaultOpenContent cannot be 'none'")
-        if self._parse_component(self.elem) is None:
+        if self._parse_child_component(self.elem) is None:
             self.parse_error("a defaultOpenContent declaration cannot be empty")
 
         if 'appliesToEmpty' in self.elem.attrib:
