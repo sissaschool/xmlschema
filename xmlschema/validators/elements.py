@@ -18,9 +18,10 @@ from elementpath.xpath_helpers import boolean_value
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
-    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, \
-    XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, \
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
+    XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
+    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
 from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
@@ -60,9 +61,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
       Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
     </element>
     """
-    _admitted_tags = {XSD_ELEMENT}
     type = None
     qualified = False
+
+    _ADMITTED_TAGS = {XSD_ELEMENT}
     _abstract = False
     _block = None
     _final = None
@@ -228,14 +230,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if not self.type.is_valid(attrib['default']):
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
-            elif self.schema.XSD_VERSION == '1.0' and (
+            elif self.xsd_version == '1.0' and (
                     self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
                 msg = "'fixed' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
-            elif self.schema.XSD_VERSION == '1.0' and (
+            elif self.xsd_version == '1.0' and (
                     self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
@@ -421,21 +423,24 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for e in xsd_element.iter_substitutes():
                 yield e
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', level=0, **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
+        if not self.version_check(elem):
+            return
+
         converter = kwargs.get('converter')
         if not isinstance(converter, XMLSchemaConverter):
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
-        level = kwargs.pop('level', 0)
         use_defaults = kwargs.get('use_defaults', False)
         value = content = attributes = None
 
@@ -476,7 +481,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         if not xsd_type.has_simple_content():
-            for result in xsd_type.content_type.iter_decode(elem, validation, level=level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_decode(elem, validation, level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -694,7 +699,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if other.is_empty() and self.max_occurs != 0:
                 return False
 
-            check_group_items_occurs = self.schema.XSD_VERSION == '1.0'
+            check_group_items_occurs = self.xsd_version == '1.0'
             counter = ParticleCounter()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
@@ -835,8 +840,8 @@ class XsdAlternative(XsdComponent):
       Content: (annotation?, (simpleType | complexType)?)
     </alternative>
     """
-    _admitted_tags = {XSD_ALTERNATIVE}
     type = None
+    _ADMITTED_TAGS = {XSD_ALTERNATIVE}
 
     def __repr__(self):
         return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))

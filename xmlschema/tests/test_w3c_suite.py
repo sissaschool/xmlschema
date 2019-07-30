@@ -90,12 +90,17 @@ def create_w3c_test_group_case(filename, group_elem, group_number, xsd_version='
     name = group_elem.attrib['name']
 
     if xsd_version == '1.1':
-        schema_class = xmlschema.validators.XMLSchema11
+        return
+        schema_class = xmlschema.XMLSchema11
         if group_elem.get('version') == '1.0':
             raise ValueError("testGroup %r is not suited for XSD 1.1" % name)
     elif group_elem.get('version') == '1.1':
-        pass  # raise ValueError("testGroup %r is not suited for XSD 1.0" % name)
+        print(group_elem.attrib)
+        if group_elem.get('name') == '002':
+            breakpoint()
+        schema_class = xmlschema.XMLSchema11
     else:
+        return
         schema_class = xmlschema.XMLSchema
 
     schema_elem = group_elem.find('{%s}schemaTest' % TEST_SUITE_NAMESPACE)
@@ -173,7 +178,7 @@ if __name__ == '__main__':
         # print("*** {} ***".format(testset_file))
 
         for testgroup_elem in testset_xml.iter("{%s}testGroup" % TEST_SUITE_NAMESPACE):
-            if testgroup_elem.get('version') == '1.1':
+            if testgroup_elem.get('version') == '1.0':
                 continue
 
             cls = create_w3c_test_group_case(testset_file, testgroup_elem, testgroup_num)

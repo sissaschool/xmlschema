@@ -154,10 +154,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return False
         return True
 
-    def iter_decode(self, source, validation='lax', *args, **kwargs):
+    def iter_decode(self, source, validation='lax', **kwargs):
         raise NotImplementedError
 
-    def iter_encode(self, obj, validation='lax', *args, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         raise NotImplementedError
 
 
@@ -175,7 +175,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
       Content: (annotation?)
     </any>
     """
-    _admitted_tags = {XSD_ANY}
+    _ADMITTED_TAGS = {XSD_ANY}
 
     def __repr__(self):
         return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -212,7 +212,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iter_substitutes():
         return iter(())
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', level=0, **kwargs):
         if self.process_contents == 'skip':
             return
 
@@ -226,7 +226,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
-                for result in xsd_element.iter_decode(elem, validation, **kwargs):
+                for result in xsd_element.iter_decode(elem, validation, level, **kwargs):
                     yield result
         elif validation != 'skip':
             reason = "element %r not allowed here." % elem.tag
@@ -281,7 +281,7 @@ class XsdAnyAttribute(XsdWildcard):
       Content: (annotation?)
     </anyAttribute>
     """
-    _admitted_tags = {XSD_ANY_ATTRIBUTE}
+    _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
     def extend_namespace(self, other):
         if self.namespace == '##any' or self.namespace == other.namespace:
@@ -484,7 +484,7 @@ class XsdOpenContent(XsdComponent):
       Content: (annotation?), (any?)
     </openContent>
     """
-    _admitted_tags = {XSD_OPEN_CONTENT}
+    _ADMITTED_TAGS = {XSD_OPEN_CONTENT}
     mode = 'interleave'
     any_element = None
 
@@ -540,7 +540,7 @@ class XsdDefaultOpenContent(XsdOpenContent):
       Content: (annotation?, any)
     </defaultOpenContent>
     """
-    _admitted_tags = {XSD_DEFAULT_OPEN_CONTENT}
+    _ADMITTED_TAGS = {XSD_DEFAULT_OPEN_CONTENT}
     applies_to_empty = False
 
     def _parse(self):

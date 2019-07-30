@@ -51,7 +51,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     assertions = ()
     open_content = None
 
-    _admitted_tags = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
+    _ADMITTED_TAGS = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     _block = None
     _derivation = None
 
@@ -171,7 +171,13 @@ class XsdComplexType(XsdType, ValidationMixin):
             #
             # complexType with complexContent restriction/extension
             if 'mixed' in content_elem.attrib:
-                self.mixed = content_elem.attrib['mixed'] in ('true', '1')
+                mixed = content_elem.attrib['mixed'] in ('true', '1')
+                if mixed is not self.mixed:
+                    self.mixed = mixed
+                    if 'mixed' in elem.attrib and self.xsd_version == '1.1':
+                        self.parse_error(
+                            "value of 'mixed' attribute in complexType and complexContent must be same"
+                        )
 
             derivation_elem = self._parse_derivation_elem(content_elem)
             if derivation_elem is None:
@@ -192,7 +198,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif self.redefine:
                 self.base_type = self.redefine
 
-        elif content_elem.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION > '1.0':
+        elif content_elem.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
             if content_elem is elem[-1]:
@@ -320,7 +326,7 @@ class XsdComplexType(XsdType, ValidationMixin):
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if child.tag == XSD_OPEN_CONTENT and self.schema.XSD_VERSION > '1.0':
+            if child.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
                 self.open_content = XsdOpenContent(child, self.schema, self)
                 continue
             elif child.tag in XSD_MODEL_GROUP_TAGS:
@@ -399,7 +405,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 sequence_elem.append(group.elem)
 
                 if base_type.content_type.model == 'all' and base_type.content_type and group \
-                        and self.schema.XSD_VERSION == '1.0':
+                        and self.xsd_version == '1.0':
                     self.parse_error("XSD 1.0 does not allow extension of a not empty 'ALL' model group.", elem)
 
                 if base_type.mixed != self.mixed and base_type.name != XSD_ANY_TYPE:

@@ -16,8 +16,9 @@ from __future__ import unicode_literals
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
-    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
+from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, XSD_ANNOTATION, XSD_GROUP, \
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, \
+    XSD_RESTRICTION, XSD_EXTENSION
 from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
@@ -81,7 +82,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
     suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'
 
-    _admitted_tags = {
+    _ADMITTED_TAGS = {
         XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
@@ -140,7 +141,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                             self.parse_error("maxOccurs must be 1 for 'all' model groups")
                         if self.min_occurs not in (0, 1):
                             self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
-                        if self.schema.XSD_VERSION == '1.0' and isinstance(self.parent, XsdGroup):
+                        if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
                             self.parse_error("in XSD 1.0 the 'all' model group cannot be nested")
                     self.append(xsd_group)
                     self.ref = xsd_group
@@ -351,7 +352,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return self.is_choice_restriction(other)
 
     def is_element_restriction(self, other):
-        if self.schema.XSD_VERSION == '1.0' and isinstance(other, XsdElement) and \
+        if self.xsd_version == '1.0' and isinstance(other, XsdElement) and \
                 not other.ref and other.name not in self.schema.substitution_groups:
             return False
         elif not self.has_occurs_restriction(other):
@@ -389,7 +390,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         if not self.has_occurs_restriction(other):
             return False
         check_occurs = other.max_occurs != 0
-        check_emptiable = other.model != 'choice'  # or self.schema.XSD_VERSION == '1.0'
+        check_emptiable = other.model != 'choice'
 
         # Same model: declarations must simply preserve order
         other_iterator = iter(other.iter_model())
@@ -436,7 +437,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         return not bool(restriction_items)
 
     def is_choice_restriction(self, other):
-        if self.parent is None and other.parent is not None and self.schema.XSD_VERSION == '1.0':
+        if self.parent is None and other.parent is not None and self.xsd_version == '1.0':
             return False
 
         check_occurs = other.max_occurs != 0
@@ -484,12 +485,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def iter_decode(self, elem, validation='lax', **kwargs):
+    def iter_decode(self, elem, validation='lax', level=0, **kwargs):
         """
         Creates an iterator for decoding an Element content.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a list of 3-tuples (key, decoded data, decoder), eventually \
         preceded by a sequence of validation or decoding errors.
@@ -530,6 +532,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
+            if not self.version_check(child):
+                continue
+
             if self.interleave and self.interleave.is_matching(child.tag, default_namespace, self):
                 xsd_element = self.interleave
             else:
@@ -563,26 +568,25 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                             xsd_element = None
                             model_broken = True
 
-            if xsd_element is None:
+            if xsd_element is None or kwargs.get('no_depth'):
                 # TODO: use a default decoder str-->str??
                 continue
 
-            if '_no_deep' not in kwargs:  # TODO: Complete lazy validation
-                for result in xsd_element.iter_decode(child, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
-                    else:
-                        result_list.append((child.tag, result, xsd_element))
+            for result in xsd_element.iter_decode(child, validation, level, **kwargs):
+                if isinstance(result, XMLSchemaValidationError):
+                    yield result
+                else:
+                    result_list.append((child.tag, result, xsd_element))
 
-                if cdata_index and child.tail is not None:
-                    tail = unicode_type(child.tail.strip())
-                    if tail:
-                        if result_list and isinstance(result_list[-1][0], int):
-                            tail = result_list[-1][1] + ' ' + tail
-                            result_list[-1] = result_list[-1][0], tail, None
-                        else:
-                            result_list.append((cdata_index, tail, None))
-                            cdata_index += 1
+            if cdata_index and child.tail is not None:
+                tail = unicode_type(child.tail.strip())
+                if tail:
+                    if result_list and isinstance(result_list[-1][0], int):
+                        tail = result_list[-1][1] + ' ' + tail
+                        result_list[-1] = result_list[-1][0], tail, None
+                    else:
+                        result_list.append((cdata_index, tail, None))
+                        cdata_index += 1
 
         if model.element is not None:
             index = len(elem)

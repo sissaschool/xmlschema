@@ -26,7 +26,7 @@ XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 "URI of the XML namespace (xml)"
 
 XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
-XHTML_DATATYPES_NAMESPACE = "http://www.w3.org/1999/xhtml/datatypes/"
+XHTML_DATATYPES_NAMESPACE = 'http://www.w3.org/1999/xhtml/datatypes/'
 "URIs of the Extensible Hypertext Markup Language namespace (html)"
 
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
@@ -38,7 +38,7 @@ XSLT_NAMESPACE = "http://www.w3.org/1999/XSL/Transform"
 HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 "URI of the XML Schema has Facet and Property namespace (hfp)"
 
-VC_NAMESPACE = "http://www.w3.org/2007/XMLSchema-versioning"
+VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
 

@@ -308,8 +308,8 @@ class XsdGlobals(XsdValidator):
             return 'notKnown'
 
     @property
-    def resources(self):
-        return [(schema.url, schema) for schemas in self.namespaces.values() for schema in schemas]
+    def xsd_version(self):
+        return self.validator.XSD_VERSION
 
     @property
     def all_errors(self):

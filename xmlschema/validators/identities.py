@@ -44,7 +44,7 @@ XsdIdentityXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
-    _admitted_tags = {XSD_SELECTOR}
+    _ADMITTED_TAGS = {XSD_SELECTOR}
     pattern = re.compile(get_python_regex(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
@@ -86,7 +86,7 @@ class XsdSelector(XsdComponent):
 
 
 class XsdFieldSelector(XsdSelector):
-    _admitted_tags = {XSD_FIELD}
+    _ADMITTED_TAGS = {XSD_FIELD}
     pattern = re.compile(get_python_regex(
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
         r"((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
@@ -213,11 +213,11 @@ class XsdIdentity(XsdComponent):
 
 
 class XsdUnique(XsdIdentity):
-    _admitted_tags = {XSD_UNIQUE}
+    _ADMITTED_TAGS = {XSD_UNIQUE}
 
 
 class XsdKey(XsdIdentity):
-    _admitted_tags = {XSD_KEY}
+    _ADMITTED_TAGS = {XSD_KEY}
 
 
 class XsdKeyref(XsdIdentity):
@@ -227,7 +227,7 @@ class XsdKeyref(XsdIdentity):
     :ivar refer: reference to a *xs:key* declaration that must be in the same element \
     or in a descendant element.
     """
-    _admitted_tags = {XSD_KEYREF}
+    _ADMITTED_TAGS = {XSD_KEYREF}
     refer = None
     refer_path = '.'
 

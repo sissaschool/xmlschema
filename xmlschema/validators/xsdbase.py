@@ -16,7 +16,8 @@ import re
 
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
+from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, XSD_ANNOTATION, XSD_APPINFO, \
+    XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring, is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -43,6 +44,8 @@ class XsdValidator(object):
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
+    xsd_version = None
+
     def __init__(self, validation='strict'):
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
@@ -92,6 +95,26 @@ class XsdValidator(object):
             return 'valid'
         else:
             return 'notKnown'
+
+    def version_check(self, elem):
+        """
+        Checks if the element is compatible with the version of the validator. This is
+        always true for XSD 1.0 validators, instead for XSD 1.1 validators checks are
+        done against vc: minVersion and vc: maxVersion attributes. When present these
+        attributes must be minVersion <= 1.1 < maxVersion to let the element compatible.
+
+        :param elem: an Element of the schema.
+        :return: `True` if the schema element is compatible with the version of the \
+        validator, `False` otherwise.
+        """
+        if self.xsd_version == '1.0':
+            return True
+        elif VC_MIN_VERSION in elem.attrib and elem.attrib[VC_MIN_VERSION] > '1.1':
+            return False
+        elif VC_MAX_VERSION in elem.attrib and elem.attrib[VC_MAX_VERSION] <= '1.1':
+            return False
+        else:
+            return True
 
     def iter_components(self, xsd_classes=None):
         """
@@ -201,7 +224,7 @@ class XsdComponent(XsdValidator):
     """
     _REGEX_SPACE = re.compile(r'\s')
     _REGEX_SPACES = re.compile(r'\s+')
-    _admitted_tags = ()
+    _ADMITTED_TAGS = ()
 
     parent = None
     name = None
@@ -223,11 +246,11 @@ class XsdComponent(XsdValidator):
         if name == "elem":
             if not is_etree_element(value):
                 raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
-            elif value.tag not in self._admitted_tags:
+            elif value.tag not in self._ADMITTED_TAGS:
                 raise XMLSchemaValueError(
                     "wrong XSD element %r for %r, must be one of %r." % (
                         local_name(value.tag), self,
-                        [local_name(tag) for tag in self._admitted_tags]
+                        [local_name(tag) for tag in self._ADMITTED_TAGS]
                     )
                 )
             super(XsdComponent, self).__setattr__(name, value)
@@ -240,6 +263,10 @@ class XsdComponent(XsdValidator):
                     "target namespace than %r." % (self, self.schema, value)
                 )
         super(XsdComponent, self).__setattr__(name, value)
+
+    @property
+    def xsd_version(self):
+        return self.schema.XSD_VERSION
 
     @property
     def is_global(self):
@@ -325,14 +352,14 @@ class XsdComponent(XsdValidator):
                 return True
 
     def _parse_child_component(self, elem, strict=True):
-        component = None
-        for index, component in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
+        child = None
+        for index, child in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
             if not strict:
-                return component
+                return child
             elif index:
                 msg = "too many XSD components, unexpected {!r} found at position {}"
-                self.parse_error(msg.format(component, index), elem)
-        return component
+                self.parse_error(msg.format(child, index), elem)
+        return child
 
     def _parse_properties(self, *properties):
         for name in properties:
@@ -485,7 +512,7 @@ class XsdAnnotation(XsdComponent):
       Content: ({any})*
     </documentation>
     """
-    _admitted_tags = {XSD_ANNOTATION}
+    _ADMITTED_TAGS = {XSD_ANNOTATION}
 
     @property
     def built(self):

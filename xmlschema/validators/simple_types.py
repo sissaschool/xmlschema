@@ -99,7 +99,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     </simpleType>
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
-    _admitted_tags = {XSD_SIMPLE_TYPE}
+    _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
 
     min_length = None
     max_length = None
@@ -266,7 +266,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
     @property
     def admitted_facets(self):
-        return XSD_10_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_FACETS
+        return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
     @property
     def built(self):
@@ -381,7 +381,7 @@ class XsdAtomic(XsdSimpleType):
     built-in type or another derived simpleType.
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
-    _admitted_tags = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
+    _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
         self.base_type = base_type
@@ -411,7 +411,7 @@ class XsdAtomic(XsdSimpleType):
     def admitted_facets(self):
         primitive_type = self.primitive_type
         if primitive_type is None or primitive_type.is_complex():
-            return XSD_10_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_FACETS
+            return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
         return primitive_type.admitted_facets
 
     @property
@@ -595,7 +595,7 @@ class XsdList(XsdSimpleType):
       Content: (annotation?, simpleType?)
     </list>
     """
-    _admitted_tags = {XSD_LIST}
+    _ADMITTED_TAGS = {XSD_LIST}
     _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
 
     def __init__(self, elem, schema, parent, name=None):
@@ -667,7 +667,7 @@ class XsdList(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return XSD_10_LIST_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_LIST_FACETS
+        return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
     @property
     def item_type(self):
@@ -755,8 +755,8 @@ class XsdUnion(XsdSimpleType):
       Content: (annotation?, simpleType*)
     </union>
     """
-    _admitted_types = XsdSimpleType
-    _admitted_tags = {XSD_UNION}
+    _ADMITTED_TYPES = XsdSimpleType
+    _ADMITTED_TAGS = {XSD_UNION}
 
     member_types = None
 
@@ -816,8 +816,8 @@ class XsdUnion(XsdSimpleType):
                 if isinstance(mt, tuple):
                     self.parse_error("circular definition found on xs:union type {!r}".format(self.name))
                     continue
-                elif not isinstance(mt, self._admitted_types):
-                    self.parse_error("a {!r} required, not {!r}".format(self._admitted_types, mt))
+                elif not isinstance(mt, self._ADMITTED_TYPES):
+                    self.parse_error("a {!r} required, not {!r}".format(self._ADMITTED_TYPES, mt))
                     continue
                 elif mt.final == '#all' or 'union' in mt.final:
                     self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
@@ -832,7 +832,7 @@ class XsdUnion(XsdSimpleType):
 
     @property
     def admitted_facets(self):
-        return XSD_10_UNION_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_UNION_FACETS
+        return XSD_10_UNION_FACETS if self.xsd_version == '1.0' else XSD_11_UNION_FACETS
 
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
@@ -950,8 +950,7 @@ class XsdUnion(XsdSimpleType):
 
 
 class Xsd11Union(XsdUnion):
-
-    _admitted_types = XsdAtomic, XsdList, XsdUnion
+    _ADMITTED_TYPES = XsdAtomic, XsdList, XsdUnion
 
 
 class XsdAtomicRestriction(XsdAtomic):

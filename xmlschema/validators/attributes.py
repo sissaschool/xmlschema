@@ -46,7 +46,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    _admitted_tags = {XSD_ATTRIBUTE}
+    _ADMITTED_TAGS = {XSD_ATTRIBUTE}
+
     type = None
     qualified = False
 
@@ -289,7 +290,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     </attributeGroup>
     """
     redefine = None
-    _admitted_tags = {
+    _ADMITTED_TAGS = {
         XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
@@ -413,7 +414,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
                                        for e in self.redefine.elem):
                                 self.parse_error("attributeGroup ref=%r is not in the redefined group" % ref)
-                    elif attribute_group_qname == self.name and self.schema.XSD_VERSION == '1.0':
+                    elif attribute_group_qname == self.name and self.xsd_version == '1.0':
                         self.parse_error("Circular attribute groups not allowed in XSD 1.0")
                     attribute_group_refs.append(attribute_group_qname)
 
@@ -497,7 +498,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         self._attribute_group.update(attributes)
 
-        if self.schema.XSD_VERSION == '1.0':
+        if self.xsd_version == '1.0':
             has_key = False
             for attr in self._attribute_group.values():
                 if attr.name is not None and attr.type.is_key():

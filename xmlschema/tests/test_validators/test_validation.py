@@ -70,9 +70,9 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root, namespaces=namespaces)
 
-        # Testing adding internal kwarg _no_deep.
+        # Testing adding 'no_depth' argument
         for result in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
-                                              source=source, _no_deep=None):
+                                              source=source, no_depth=True):
             del result
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))

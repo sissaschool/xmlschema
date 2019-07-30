@@ -14,21 +14,6 @@ This module contains XMLSchema classes creator for xmlschema package.
 Two schema classes are created at the end of this module, XMLSchema10 for XSD 1.0 and
 XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescribed by
 the standard.
-
-Those are the differences between XSD 1.0 and XSD 1.1 and their current development status:
-
-  * All model extended for content groups
-  * Assertions for simple types
-  * Default attributes for complex types
-  * Alternative type for elements
-  * Inheritable attributes
-  * targetNamespace for restricted element and attributes
-  * Assert for complex types
-  * openContent wildcard for complex types
-  * XSD 1.1 wildcards for complex types
-  * schema overrides
-  * XSD 1.1 identity constraint references
-  * TODO: VC namespace usage in instance validation
 """
 import os
 from collections import namedtuple, Counter
@@ -421,6 +406,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def __len__(self):
         return len(self.elements)
+
+    @property
+    def xsd_version(self):
+        """Property that returns the class attribute XSD_VERSION."""
+        return self.XSD_VERSION
 
     # XML resource attributes access
     @property
@@ -1023,7 +1013,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
 
             for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map, _no_deep=None):
+                                                  use_defaults=use_defaults, id_map=id_map, no_depth=True):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

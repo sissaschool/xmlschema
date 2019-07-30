@@ -30,7 +30,7 @@ class XsdNotation(XsdComponent):
       Content: (annotation?)
     </notation>
     """
-    _admitted_tags = {XSD_NOTATION}
+    _ADMITTED_TAGS = {XSD_NOTATION}
 
     def __init__(self, elem, schema, parent):
         if parent is not None:
