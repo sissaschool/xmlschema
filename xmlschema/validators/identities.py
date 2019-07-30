@@ -193,16 +193,7 @@ class XsdIdentity(XsdComponent):
 
     @property
     def built(self):
-        return self.selector.built and all([f.built for f in self.fields])
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        elif self.selector.built or any([f.built for f in self.fields]):
-            return 'partial'
-        else:
-            return 'none'
+        return self.fields and self.selector is not None
 
     def __call__(self, *args, **kwargs):
         for error in self.validator(*args, **kwargs):
@@ -287,6 +278,10 @@ class XsdKeyref(XsdIdentity):
 
             self.refer_path = refer_path
 
+    @property
+    def built(self):
+        return self.fields and self.selector is not None and self.refer is not None
+
     def get_refer_values(self, elem):
         values = set()
         for e in elem.iterfind(self.refer_path):
@@ -323,6 +318,7 @@ class Xsd11Unique(XsdUnique):
     def _parse(self):
         if self._parse_reference():
             super(XsdIdentity, self)._parse()
+            self.ref = True
         else:
             super(Xsd11Unique, self)._parse()
 
@@ -332,6 +328,7 @@ class Xsd11Key(XsdKey):
     def _parse(self):
         if self._parse_reference():
             super(XsdIdentity, self)._parse()
+            self.ref = True
         else:
             super(Xsd11Key, self)._parse()
 
@@ -341,5 +338,6 @@ class Xsd11Keyref(XsdKeyref):
     def _parse(self):
         if self._parse_reference():
             super(XsdIdentity, self)._parse()
+            self.ref = True
         else:
             super(Xsd11Keyref, self)._parse()

@@ -408,20 +408,6 @@ class XsdAtomic(XsdSimpleType):
                         self.white_space = white_space
 
     @property
-    def built(self):
-        if self.base_type is None:
-            return True
-        else:
-            return self.base_type.is_global or self.base_type.built
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.base_type.validation_attempted
-
-    @property
     def admitted_facets(self):
         primitive_type = self.primitive_type
         if primitive_type is None or primitive_type.is_complex():
@@ -687,17 +673,6 @@ class XsdList(XsdSimpleType):
     def item_type(self):
         return self.base_type
 
-    @property
-    def built(self):
-        return self.base_type.is_global or self.base_type.built
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.base_type.validation_attempted
-
     @staticmethod
     def is_atomic():
         return False
@@ -859,19 +834,6 @@ class XsdUnion(XsdSimpleType):
     def admitted_facets(self):
         return XSD_10_UNION_FACETS if self.schema.XSD_VERSION == '1.0' else XSD_11_UNION_FACETS
 
-    @property
-    def built(self):
-        return all([mt.is_global or mt.built for mt in self.member_types])
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        elif any([mt.validation_attempted == 'partial' for mt in self.member_types]):
-            return 'partial'
-        else:
-            return 'none'
-
     def is_atomic(self):
         return all(mt.is_atomic() for mt in self.member_types)
 
@@ -881,10 +843,9 @@ class XsdUnion(XsdSimpleType):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        for mt in self.member_types:
-            if not mt.is_global:
-                for obj in mt.iter_components(xsd_classes):
-                    yield obj
+        for mt in filter(lambda x: x.parent is not None, self.member_types):
+            for obj in mt.iter_components(xsd_classes):
+                yield obj
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (string_base_type, bytes)):

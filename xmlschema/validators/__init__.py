@@ -19,7 +19,8 @@ from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, Validat
 
 from .assertions import XsdAssert
 from .notations import XsdNotation
-from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, XsdUnique
+from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, \
+    XsdUnique, Xsd11Keyref, Xsd11Key, Xsd11Unique
 from .facets import XsdPatternFacets, XsdEnumerationFacets
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute, \
     XsdOpenContent, XsdDefaultOpenContent

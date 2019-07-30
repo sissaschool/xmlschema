@@ -72,9 +72,9 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def is_emptiable(self):
         if self.model == 'choice':
-            return self.min_occurs == 0 or not self or any([item.is_emptiable() for item in self])
+            return self.min_occurs == 0 or not self or any(item.is_emptiable() for item in self)
         else:
-            return self.min_occurs == 0 or not self or all([item.is_emptiable() for item in self])
+            return self.min_occurs == 0 or not self or all(item.is_emptiable() for item in self)
 
     def is_empty(self):
         return not self._group or self.max_occurs == 0

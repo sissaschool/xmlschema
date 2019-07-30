@@ -146,14 +146,14 @@ class TestUnicodeCategories(unittest.TestCase):
         self.assertEqual(min([min(s) for s in categories.values()]), 0)
         self.assertEqual(max([max(s) for s in categories.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in categories.items() if len(k) > 1]
-        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
+        self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     def test_unicode_categories(self):
         self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1), sys.maxunicode + 1)
         self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
         self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
-        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
+        self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     @unittest.skipIf(not ((3, 7) <= sys.version_info < (3, 8)), "Test only for Python 3.7")
     def test_unicodedata_category(self):

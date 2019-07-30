@@ -270,28 +270,28 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if not isinstance(item, ParticleMixin):
                 return False
             elif isinstance(item, XsdAnyElement):
-                if not item.built:
-                    return False
+                continue
             elif item.parent is None:
                 continue
-            elif item.parent is not self.parent and isinstance(item.parent, XsdType) and item.parent.parent is None:
+            elif item.parent is not self.parent and \
+                    isinstance(item.parent, XsdType) and item.parent.parent is None:
                 continue
             elif not item.ref and not item.built:
                 return False
         return True
 
     @property
-    def schema_elem(self):
-        return self.elem if self.name else self.parent.elem
-
-    @property
     def validation_attempted(self):
         if self.built:
             return 'full'
-        elif any([item.validation_attempted == 'partial' for item in self]):
+        elif any(item.validation_attempted == 'partial' for item in self):
             return 'partial'
         else:
             return 'none'
+
+    @property
+    def schema_elem(self):
+        return self.elem if self.name else self.parent.elem
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
@@ -502,7 +502,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         if validation != 'skip' and not self.mixed:
             # Check element CDATA
-            if not_whitespace(elem.text) or any([not_whitespace(child.tail) for child in elem]):
+            if not_whitespace(elem.text) or any(not_whitespace(child.tail) for child in elem):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
                 else:

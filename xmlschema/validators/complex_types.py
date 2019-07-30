@@ -418,21 +418,11 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     @property
     def built(self):
-        try:
-            return self.content_type.built and self.attributes.built and self.mixed in (False, True)
-        except AttributeError:
-            return False
+        return self.content_type.parent is not None or self.content_type.built
 
     @property
     def validation_attempted(self):
-        if self.built:
-            return 'full'
-        elif self.attributes.validation_attempted == 'partial':
-            return 'partial'
-        elif self.content_type.validation_attempted == 'partial':
-            return 'partial'
-        else:
-            return 'none'
+        return 'full' if self.built else self.content_type.validation_attempted
 
     @property
     def block(self):

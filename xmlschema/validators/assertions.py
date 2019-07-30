@@ -58,7 +58,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def built(self):
         return self.token is not None and (self.base_type.is_global or self.base_type.built)
 
-    def parse(self):
+    def parse_xpath_test(self):
         self.parser.schema = XMLSchemaProxy(self.schema, self)
         try:
             self.token = self.parser.parse(self.path)

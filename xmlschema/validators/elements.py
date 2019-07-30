@@ -61,6 +61,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     </element>
     """
     _admitted_tags = {XSD_ELEMENT}
+    type = None
     qualified = False
     _abstract = False
     _block = None
@@ -70,9 +71,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def __init__(self, elem, schema, parent, name=None):
         super(XsdElement, self).__init__(elem, schema, parent, name)
         self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
-        if not hasattr(self, 'type'):
+        if self.type is None:
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
-        if not hasattr(self, 'qualified'):
+        if self.qualified is None:
             raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
     def __repr__(self):
@@ -252,6 +253,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 continue  # Error already caught by validation against the meta-schema
 
+            if constraint.ref:
+                if constraint.name in self.constraints:
+                    self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
+                self.constraints[constraint.name] = constraint
+                continue
+
             try:
                 if child != self.maps.constraints[constraint.name]:
                     self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
@@ -314,14 +321,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def built(self):
-        return self.type.parent is None or self.type.built
+        return (self.type.parent is None or self.type.built) and \
+                all(c.built for c in self.constraints.values())
 
     @property
     def validation_attempted(self):
         if self.built:
             return 'full'
+        elif self.type.validation_attempted == 'partial':
+            return 'partial'
+        elif any(c.validation_attempted == 'partial' for c in self.constraints.values()):
+            return 'partial'
         else:
-            return self.type.validation_attempted
+            return 'none'
 
     # Global element's exclusive properties
     @property
@@ -746,6 +758,8 @@ class Xsd11Element(XsdElement):
       Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
     </element>
     """
+    alternatives = ()
+
     def _parse(self):
         XsdComponent._parse(self)
         self._parse_attributes()
@@ -760,37 +774,23 @@ class Xsd11Element(XsdElement):
         if self.ref is not None:
             self.alternatives = self.ref.alternatives
         else:
-            self.alternatives = []
+            alternatives = []
             for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
                 if child.tag == XSD_ALTERNATIVE:
-                    self.alternatives.append(XsdAlternative(child, self.schema, self))
+                    alternatives.append(XsdAlternative(child, self.schema, self))
                     index += 1
                 else:
                     break
+            if alternatives:
+                self.alternatives = alternatives
+
         return index
 
-    def _parse_identity_constraints(self, index=0):
-        self.constraints = {}
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
-            if child.tag == XSD_UNIQUE:
-                constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
-            elif child.tag == XSD_KEY:
-                constraint = self.schema.BUILDERS.key_class(child, self.schema, self)
-            elif child.tag == XSD_KEYREF:
-                constraint = self.schema.BUILDERS.keyref_class(child, self.schema, self)
-            else:
-                continue  # Error already caught by validation against the meta-schema
-
-            if constraint.ref is not None:
-                return
-
-            try:
-                if child != self.maps.constraints[constraint.name]:
-                    self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
-            except KeyError:
-                self.maps.constraints[constraint.name] = constraint
-            finally:
-                self.constraints[constraint.name] = constraint
+    @property
+    def built(self):
+        return (self.type.parent is None or self.type.built) and \
+               all(c.built for c in self.constraints.values()) and \
+               all(a.built for a in self.alternatives)
 
     @property
     def target_namespace(self):
@@ -880,4 +880,8 @@ class XsdAlternative(XsdComponent):
 
     @property
     def built(self):
-        raise NotImplementedError
+        return self.type.parent is None or self.type.built
+
+    @property
+    def validation_attempted(self):
+        return 'full' if self.built else self.type.validation_attempted

@@ -62,14 +62,7 @@ class XsdFacet(XsdComponent):
 
     @property
     def built(self):
-        return self.base_type.is_global or self.base_type.built
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.base_type.validation_attempted
+        return True
 
     @property
     def base_facet(self):

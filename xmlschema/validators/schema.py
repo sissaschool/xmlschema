@@ -27,7 +27,7 @@ Those are the differences between XSD 1.0 and XSD 1.1 and their current developm
   * openContent wildcard for complex types
   * XSD 1.1 wildcards for complex types
   * schema overrides
-  * TODO: XSD 1.1 identity constraint references
+  * XSD 1.1 identity constraint references
   * TODO: VC namespace usage in instance validation
 """
 import os
@@ -645,21 +645,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     @property
     def built(self):
-        xsd_global = None
-        for xsd_global in self.iter_globals(self):
-            if not isinstance(xsd_global, XsdComponent):
-                return False
-            if not xsd_global.built:
-                return False
-
-        if xsd_global is not None:
+        if any(not isinstance(g, XsdComponent) or not g.built for g in self.iter_globals()):
+            return False
+        for _ in self.iter_globals():
             return True
-        elif self.meta_schema is None:
+        if self.meta_schema is None:
             return False
 
+        # No XSD globals: check with a lookup of schema child elements.
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.root):
-            if child.tag in (XSD_REDEFINE, XSD_OVERRIDE):
+            if child.tag in {XSD_REDEFINE, XSD_OVERRIDE}:
                 for e in filter(lambda x: x.tag in self.BUILDERS_MAP, child):
                     name = e.get('name')
                     if name is not None:
@@ -682,7 +678,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def validation_attempted(self):
         if self.built:
             return 'full'
-        elif any([comp.validation_attempted == 'partial' for comp in self.iter_globals()]):
+        elif any(comp.validation_attempted == 'partial' for comp in self.iter_globals()):
             return 'partial'
         else:
             return 'none'

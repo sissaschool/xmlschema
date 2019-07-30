@@ -47,6 +47,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     </attribute>
     """
     _admitted_tags = {XSD_ATTRIBUTE}
+    type = None
     qualified = False
 
     def __init__(self, elem, schema, parent, name=None, xsd_type=None):
@@ -181,14 +182,11 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
     @property
     def built(self):
-        return self.type.parent is None or self.type.built
+        return True
 
     @property
     def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.type.validation_attempted
+        return 'full'
 
     # XSD declaration attributes
     @property
@@ -512,16 +510,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     @property
     def built(self):
-        return all([attr.built for attr in self.values()])
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        elif any([attr.validation_attempted == 'partial' for attr in self.values()]):
-            return 'partial'
-        else:
-            return 'none'
+        return True
 
     def iter_required(self):
         for k, v in self._attribute_group.items():

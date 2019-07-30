@@ -144,7 +144,7 @@ def get_xsd_derivation_attribute(elem, attribute, values=None):
     items = value.split()
     if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
-    elif not all([s in values for s in items]):
+    elif not all(s in values for s in items):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
 

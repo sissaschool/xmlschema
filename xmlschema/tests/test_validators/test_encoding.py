@@ -52,10 +52,10 @@ class TestEncoding(XsdValidatorTestCase):
             len([e for e in elem.iter()]), 20,
             msg="The encoded tree must have 20 elements as the origin."
         )
-        self.assertTrue(all([
+        self.assertTrue(all(
             local_name(e1.tag) == local_name(e2.tag)
             for e1, e2 in zip(elem.iter(), xt.getroot().iter())
-        ]))
+        ))
 
     def test_string_based_builtin_types(self):
         self.check_encode(self.xsd_types['string'], 'sample string ', u'sample string ')

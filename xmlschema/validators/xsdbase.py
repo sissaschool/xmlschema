@@ -62,7 +62,9 @@ class XsdValidator(object):
     @property
     def built(self):
         """
-        Property that is ``True`` if schema validator has been fully parsed and built, ``False`` otherwise.
+        Property that is ``True`` if XSD validator has been fully parsed and built,
+        ``False`` otherwise. For schemas the property is checked on all global
+        components. For XSD components check only the building of local subcomponents.
         """
         raise NotImplementedError
 
@@ -84,7 +86,7 @@ class XsdValidator(object):
         | https://www.w3.org/TR/xmlschema-1/#e-validity
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
         """
-        if self.errors or any([comp.errors for comp in self.iter_components()]):
+        if self.errors or any(comp.errors for comp in self.iter_components()):
             return 'invalid'
         elif self.built:
             return 'valid'
@@ -119,7 +121,7 @@ class XsdValidator(object):
 
     __copy__ = copy
 
-    def parse_error(self, error, elem=None):
+    def parse_error(self, error, elem=None, validation=None):
         """
         Helper method for registering parse errors. Does nothing if validation mode is 'skip'.
         Il validation mode is 'lax' collects the error, otherwise raise the error.
@@ -127,8 +129,11 @@ class XsdValidator(object):
         :param error: can be a parse error or an error message.
         :param elem: the Element instance related to the error, for default uses the 'elem' \
         attribute of the validator, if it's present.
+        :param validation: overrides the default validation mode of the validator.
         """
-        if self.validation == 'skip':
+        if validation not in XSD_VALIDATION_MODES:
+            validation = self.validation
+        if validation == 'skip':
             return
 
         if is_etree_element(elem):
@@ -150,7 +155,7 @@ class XsdValidator(object):
         else:
             raise XMLSchemaValueError("'error' argument must be an exception or a string, not %r." % error)
 
-        if self.validation == 'lax':
+        if validation == 'lax':
             self.errors.append(error)
         else:
             raise error
@@ -274,6 +279,8 @@ class XsdComponent(XsdValidator):
     def __repr__(self):
         if self.name is None:
             return '<%s at %#x>' % (self.__class__.__name__, id(self))
+        elif self.ref is not None:
+            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
