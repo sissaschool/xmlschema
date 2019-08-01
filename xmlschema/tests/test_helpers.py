@@ -15,9 +15,10 @@ This module runs tests on various internal helper functions.
 from __future__ import unicode_literals
 
 import unittest
+import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.etree import etree_element
+from xmlschema.etree import etree_element, etree_pruning
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
     qname_to_prefixed, get_xml_bool_attribute, get_xsd_derivation_attribute
@@ -155,6 +156,20 @@ class TestHelpers(unittest.TestCase):
         self.assertIsNone(component._parse_child_component(elem, strict=False))
         elem.append(etree_element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[2])
+
+
+class TestElementTreeHelpers(unittest.TestCase):
+
+    def test_etree_pruning_function(self):
+        root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
+        self.assertFalse(etree_pruning(root, lambda x: x.tag == 'C'))
+        self.assertListEqual([e.tag for e in root.iter()], ['A', 'B', 'D'])
+        self.assertEqual(root.attrib, {'id': '0'})
+
+        root = ElementTree.XML('<A id="1"><B/><C/><D/></A>')
+        self.assertTrue(etree_pruning(root, lambda x: x.tag != 'C'))
+        self.assertListEqual([e.tag for e in root.iter()], ['A'])
+        self.assertEqual(root.attrib, {'id': '1'})
 
 
 if __name__ == '__main__':

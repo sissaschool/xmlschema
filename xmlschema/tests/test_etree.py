@@ -9,6 +9,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""Tests for ElementTree import and for a pure-python version with a safe parser."""
 import unittest
 import os
 import importlib

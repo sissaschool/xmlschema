@@ -370,3 +370,27 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
         pass
     else:
         assert False, "First tree ends before the second: %r." % e2
+
+
+def etree_pruning(root, selector):
+    """
+    Removes from an tree structure the elements that verify the selector
+    function. The checking and eventual removals are performed using a
+    breadth-first visit method.
+
+    :param root: the root element of the tree.
+    :param selector: the single argument function to apply on each visited node.
+    :return: `True` if the root node verify the selector function, `None` otherwise.
+    """
+    def _prune_subtree(elem):
+        for child in elem[:]:
+            if selector(child):
+                elem.remove(child)
+
+        for child in elem:
+            _prune_subtree(child)
+
+    if selector(root):
+        del root[:]
+        return True
+    _prune_subtree(root)

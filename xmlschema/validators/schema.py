@@ -351,6 +351,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
 
+        if self.XSD_VERSION > '1.0' and any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
+            # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
+            # 4.2.2 of XSD 1.1 (Part 1: Structures) definition for details.
+            # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
+            etree_filter(root)
+
         # Validate the schema document (transforming validation errors to parse errors)
         if validation == 'strict':
             try:
