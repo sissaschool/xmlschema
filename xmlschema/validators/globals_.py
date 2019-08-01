@@ -70,7 +70,7 @@ def create_load_function(filter_function):
                     qname = get_qname(target_namespace, child.attrib['name'])
                     redefinitions.append((qname, child, schema, schema.includes[location]))
 
-            for elem in filter_function(schema.root):
+            for elem in filter(lambda x: schema.version_check(x), filter_function(schema.root)):
                 qname = get_qname(target_namespace, elem.attrib['name'])
                 try:
                     xsd_globals[qname].append((elem, schema))
@@ -430,11 +430,11 @@ class XsdGlobals(XsdValidator):
             schema._root_elements = None
 
         # Load and build global declarations
-        load_xsd_notations(self.notations, not_built_schemas)
         load_xsd_simple_types(self.types, not_built_schemas)
+        load_xsd_complex_types(self.types, not_built_schemas)
+        load_xsd_notations(self.notations, not_built_schemas)
         load_xsd_attributes(self.attributes, not_built_schemas)
         load_xsd_attribute_groups(self.attribute_groups, not_built_schemas)
-        load_xsd_complex_types(self.types, not_built_schemas)
         load_xsd_elements(self.elements, not_built_schemas)
         load_xsd_groups(self.groups, not_built_schemas)
 

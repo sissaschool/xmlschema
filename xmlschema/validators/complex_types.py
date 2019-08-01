@@ -251,11 +251,11 @@ class XsdComplexType(XsdType, ValidationMixin):
     def _parse_base_type(self, elem, complex_content=False):
         try:
             base_qname = self.schema.resolve_qname(elem.attrib['base'])
-        except KeyError:
-            self.parse_error("'base' attribute required", elem)
-            return self.maps.types[XSD_ANY_TYPE]
-        except ValueError as err:
-            self.parse_error(err, elem)
+        except (KeyError, ValueError, RuntimeError) as err:
+            if 'base' not in elem.attrib:
+                self.parse_error("'base' attribute required", elem)
+            else:
+                self.parse_error(err, elem)
             return self.maps.types[XSD_ANY_TYPE]
 
         try:

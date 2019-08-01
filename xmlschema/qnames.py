@@ -23,6 +23,10 @@ XSI_TEMPLATE = '{http://www.w3.org/2001/XMLSchema-instance}%s'
 # Version Control attributes (XSD 1.1)
 VC_MIN_VERSION = VC_TEMPLATE % 'minVersion'
 VC_MAX_VERSION = VC_TEMPLATE % 'maxVersion'
+VC_TYPE_AVAILABLE = VC_TEMPLATE % 'typeAvailable'
+VC_TYPE_UNAVAILABLE = VC_TEMPLATE % 'typeUnavailable'
+VC_FACET_AVAILABLE = VC_TEMPLATE % 'facetAvailable'
+VC_FACET_UNAVAILABLE = VC_TEMPLATE % 'facetUnavailable'
 
 
 #

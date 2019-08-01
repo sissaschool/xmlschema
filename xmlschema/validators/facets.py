@@ -511,12 +511,12 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
             if self.base_type.name == XSD_NOTATION_TYPE:
                 try:
                     notation_qname = self.schema.resolve_qname(value)
-                except ValueError as err:
+                except (KeyError, ValueError, RuntimeError) as err:
                     self.parse_error(err, elem)
                 else:
                     if notation_qname not in self.maps.notations:
-                        self.parse_error("value {} must match a notation global declaration".format(value), elem)
-
+                        msg = "value {!r} must match a notation declaration"
+                        self.parse_error(msg.format(value), elem)
             return value
 
     # Implements the abstract methods of MutableSequence

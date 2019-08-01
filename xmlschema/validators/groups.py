@@ -16,9 +16,8 @@ from __future__ import unicode_literals
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, XSD_ANNOTATION, XSD_GROUP, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, \
-    XSD_RESTRICTION, XSD_EXTENSION
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
 from xmlschema.helpers import get_qname, local_name
 from ..converters import XMLSchemaConverter
 
@@ -208,8 +207,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             elif child.tag == XSD_GROUP:
                 try:
                     ref = self.schema.resolve_qname(child.attrib['ref'])
-                except KeyError:
-                    self.parse_error("missing attribute 'ref' in local group", child)
+                except (KeyError, ValueError, RuntimeError) as err:
+                    if 'ref' not in child.attrib:
+                        self.parse_error("missing attribute 'ref' in local group", child)
+                    else:
+                        self.parse_error(err, child)
                     continue
 
                 if ref != self.name:
@@ -532,7 +534,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
-            if not self.version_check(child):
+            if not self.schema.version_check(child):
                 continue
 
             if self.interleave and self.interleave.is_matching(child.tag, default_namespace, self):
@@ -742,8 +744,11 @@ class Xsd11Group(XsdGroup):
             elif child.tag == XSD_GROUP:
                 try:
                     ref = self.schema.resolve_qname(child.attrib['ref'])
-                except KeyError:
-                    self.parse_error("missing attribute 'ref' in local group", child)
+                except (KeyError, ValueError, RuntimeError) as err:
+                    if 'ref' not in child.attrib:
+                        self.parse_error("missing attribute 'ref' in local group", child)
+                    else:
+                        self.parse_error(err, child)
                     continue
 
                 if ref != self.name:

@@ -172,7 +172,8 @@ class XsdIdentity(XsdComponent):
         """
         current_path = ''
         xsd_fields = None
-        for e in self.selector.xpath_selector.iter_select(elem):
+        for e in filter(lambda x: self.schema.version_check(x),
+                        self.selector.xpath_selector.iter_select(elem)):
             path = etree_getpath(e, elem)
             if current_path != path:
                 # Change the XSD context only if the path is changed
@@ -240,10 +241,11 @@ class XsdKeyref(XsdIdentity):
         super(XsdKeyref, self)._parse()
         try:
             self.refer = self.schema.resolve_qname(self.elem.attrib['refer'])
-        except KeyError:
-            self.parse_error("missing required attribute 'refer'")
-        except ValueError as err:
-            self.parse_error(err)
+        except (KeyError, ValueError, RuntimeError) as err:
+            if 'refer' not in self.elem.attrib:
+                self.parse_error("missing required attribute 'refer'")
+            else:
+                self.parse_error(err)
 
     def parse_refer(self):
         if self.refer is None:

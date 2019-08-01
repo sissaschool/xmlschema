@@ -16,11 +16,11 @@ import re
 
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, XSD_ANNOTATION, XSD_APPINFO, \
-    XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring, is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
+
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -95,26 +95,6 @@ class XsdValidator(object):
             return 'valid'
         else:
             return 'notKnown'
-
-    def version_check(self, elem):
-        """
-        Checks if the element is compatible with the version of the validator. This is
-        always true for XSD 1.0 validators, instead for XSD 1.1 validators checks are
-        done against vc: minVersion and vc: maxVersion attributes. When present these
-        attributes must be minVersion <= 1.1 < maxVersion to let the element compatible.
-
-        :param elem: an Element of the schema.
-        :return: `True` if the schema element is compatible with the version of the \
-        validator, `False` otherwise.
-        """
-        if self.xsd_version == '1.0':
-            return True
-        elif VC_MIN_VERSION in elem.attrib and elem.attrib[VC_MIN_VERSION] > '1.1':
-            return False
-        elif VC_MAX_VERSION in elem.attrib and elem.attrib[VC_MAX_VERSION] <= '1.1':
-            return False
-        else:
-            return True
 
     def iter_components(self, xsd_classes=None):
         """
@@ -344,7 +324,7 @@ class XsdComponent(XsdValidator):
         else:
             try:
                 self.name = self.schema.resolve_qname(ref)
-            except ValueError as err:
+            except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
             else:
                 if self._parse_child_component(self.elem) is not None:

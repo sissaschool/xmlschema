@@ -19,15 +19,19 @@ import os
 from collections import namedtuple, Counter
 from abc import ABCMeta
 import warnings
+import re
 
 from ..compat import add_metaclass
-from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaValueError, XMLSchemaOSError
-from ..qnames import XSD_SCHEMA, XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
-    XSD_GROUP, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
+from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
+    XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
+from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
+    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_SCHEMA, \
+    XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, \
+    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
     XSD_ANY_ATTRIBUTE, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
-    XLINK_NAMESPACE, NamespaceResourcesMap, NamespaceView
+    XLINK_NAMESPACE, VC_NAMESPACE, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -49,6 +53,7 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
     iterchildren_xsd_redefine, iterchildren_xsd_override, XsdGlobals
 
+XSD_VERSION_PATTERN = re.compile(r'\d+\.\d+')
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
@@ -67,9 +72,9 @@ ANY_ELEMENT = etree_element(
 
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 XML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd')
-HFP_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd')
 XSI_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd')
 XLINK_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xlink.xsd')
+VC_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd')
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -308,8 +313,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if 'defaultAttributes' in root.attrib:
                 try:
                     self.default_attributes = self.resolve_qname(root.attrib['defaultAttributes'])
-                except XMLSchemaValueError as error:
-                    self.parse_error(str(error), root)
+                except (ValueError, KeyError, RuntimeError) as err:
+                    self.parse_error(str(err), root)
 
             for child in root:
                 if child.tag == XSD_DEFAULT_OPEN_CONTENT:
@@ -915,6 +920,75 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.imports[namespace] = schema
         return schema
 
+    def version_check(self, elem):
+        """
+        Checks if the element is compatible with the version of the validator and XSD
+        types/facets availability. This is always true for XSD 1.0 validators, instead
+        for XSD 1.1 validators checks are done against XML Schema versioning namespace.
+
+        :param elem: an Element of the schema.
+        :return: `True` if the schema element is compatible with the validator, \
+        `False` otherwise.
+        """
+        if self.XSD_VERSION == '1.0':
+            return True
+
+        if VC_MIN_VERSION in elem.attrib:
+            vc_min_version = elem.attrib[VC_MIN_VERSION]
+            if not XSD_VERSION_PATTERN.match(vc_min_version):
+                self.parse_error("invalid attribute vc:minVersion value", elem)
+            elif vc_min_version > '1.1':
+                return False
+
+        if VC_MAX_VERSION in elem.attrib:
+            vc_max_version = elem.attrib[VC_MAX_VERSION]
+            if not XSD_VERSION_PATTERN.match(vc_max_version):
+                self.parse_error("invalid attribute vc:maxVersion value", elem)
+            elif vc_max_version <= '1.1':
+                return False
+
+        if VC_TYPE_AVAILABLE in elem.attrib:
+            for qname in elem.attrib[VC_TYPE_AVAILABLE].split():
+                try:
+                    if self.resolve_qname(qname) not in self.maps.types:
+                        return False
+                except (KeyError, RuntimeError):
+                    return False
+                except ValueError as err:
+                    self.parse_error(str(err), elem)
+
+        if VC_TYPE_UNAVAILABLE in elem.attrib:
+            for qname in elem.attrib[VC_TYPE_AVAILABLE].split():
+                try:
+                    if self.resolve_qname(qname) in self.maps.types:
+                        return False
+                except (KeyError, RuntimeError):
+                    pass
+                except ValueError as err:
+                    self.parse_error(str(err), elem)
+
+        if VC_FACET_AVAILABLE in elem.attrib:
+            for qname in elem.attrib[VC_FACET_AVAILABLE].split():
+                try:
+                    if self.resolve_qname(qname) in self.maps.types:
+                        pass
+                except (KeyError, RuntimeError):
+                    pass
+                except ValueError as err:
+                    self.parse_error(str(err), elem)
+
+        if VC_FACET_UNAVAILABLE in elem.attrib:
+            for qname in elem.attrib[VC_FACET_UNAVAILABLE].split():
+                try:
+                    if self.resolve_qname(qname) in self.maps.types:
+                        pass
+                except (KeyError, RuntimeError):
+                    pass
+                except ValueError as err:
+                    self.parse_error(str(err), elem)
+
+        return True
+
     def resolve_qname(self, qname):
         """
         QName resolution for a schema instance.
@@ -943,7 +1017,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 try:
                     namespace = self.namespaces[prefix]
                 except KeyError:
-                    raise XMLSchemaValueError("prefix %r not found in namespace map" % prefix)
+                    raise XMLSchemaKeyError("prefix %r not found in namespace map" % prefix)
         else:
             namespace, local_name = self.namespaces.get('', ''), qname
 
@@ -951,7 +1025,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             return local_name
         elif self.meta_schema is not None and namespace != self.target_namespace and \
                 namespace not in {XSD_NAMESPACE, XSI_NAMESPACE} and namespace not in self.imports:
-            raise XMLSchemaValueError(
+            raise XMLSchemaNamespaceError(
                 "the QName {!r} is mapped to the namespace {!r}, but this namespace has "
                 "not an xs:import statement in the schema.".format(qname, namespace)
             )
@@ -1244,7 +1318,6 @@ class XMLSchema10(XMLSchemaBase):
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
         XML_NAMESPACE: XML_SCHEMA_FILE,
-        # HFP_NAMESPACE: HFP_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
     }
@@ -1306,9 +1379,9 @@ class XMLSchema11(XMLSchemaBase):
     BASE_SCHEMAS = {
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/list_builtins.xsd'),
         XML_NAMESPACE: XML_SCHEMA_FILE,
-        # HFP_NAMESPACE: HFP_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
+        VC_NAMESPACE: VC_SCHEMA_FILE,
     }
 
     def _include_schemas(self):

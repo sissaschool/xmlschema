@@ -101,10 +101,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
                     self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
-            xsd_declaration = self._parse_child_component(self.elem)
 
-            if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE:
-                self.parse_error("not allowed type declaration for XSD attribute reference")
+            child = self._parse_child_component(self.elem)
+            if child is not None and child.tag == XSD_SIMPLE_TYPE:
+                self.parse_error("not allowed type definition for XSD attribute reference")
             return
 
         try:
@@ -133,30 +133,30 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             else:
                 self.name = name
 
-        xsd_declaration = self._parse_child_component(self.elem)
-        try:
-            type_qname = self.schema.resolve_qname(attrib['type'])
-        except ValueError as err:
-            self.parse_error(err)
-            xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
-        except KeyError:
-            if xsd_declaration is not None:
-                # No 'type' attribute in declaration, parse for child local simpleType
-                xsd_type = self.schema.BUILDERS.simple_type_factory(xsd_declaration, self.schema, self)
-            else:
-                # Empty declaration means xsdAnySimpleType
-                xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
-        else:
+        child = self._parse_child_component(self.elem)
+        if 'type' in attrib:
             try:
-                xsd_type = self.maps.lookup_type(type_qname)
-            except LookupError as err:
+                type_qname = self.schema.resolve_qname(attrib['type'])
+            except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
                 xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+            else:
+                try:
+                    xsd_type = self.maps.lookup_type(type_qname)
+                except LookupError as err:
+                    self.parse_error(err)
+                    xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
-            if xsd_declaration is not None and xsd_declaration.tag == XSD_SIMPLE_TYPE:
-                self.parse_error("ambiguous type declaration for XSD attribute")
-            elif xsd_declaration:
-                self.parse_error("not allowed element in XSD attribute declaration: %r" % xsd_declaration[0])
+                if child and child.tag == XSD_SIMPLE_TYPE:
+                    self.parse_error("ambiguous type definition for XSD attribute")
+                elif child:
+                    self.parse_error("not allowed element in XSD attribute declaration: %r" % child[0])
+        elif child:
+            # No 'type' attribute in declaration, parse for child local simpleType
+            xsd_type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+        else:
+            # Empty declaration means xsdAnySimpleType
+            xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
         try:
             self.type = xsd_type
@@ -394,11 +394,14 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:
                     ref = child.attrib['ref']
-                    attribute_group_qname = self.schema.resolve_qname(ref)
-                except ValueError as err:
-                    self.parse_error(err, elem)
                 except KeyError:
                     self.parse_error("the attribute 'ref' is required in a local attributeGroup", elem)
+                    continue
+
+                try:
+                    attribute_group_qname = self.schema.resolve_qname(ref)
+                except (KeyError, ValueError, RuntimeError) as err:
+                    self.parse_error(err, elem)
                 else:
                     if attribute_group_qname in attribute_group_refs:
                         self.parse_error("duplicated attributeGroup %r" % ref)

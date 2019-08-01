@@ -643,16 +643,16 @@ class XsdList(XsdSimpleType):
             # List tag with itemType attribute that refers to a global type
             try:
                 item_qname = self.schema.resolve_qname(elem.attrib['itemType'])
-            except KeyError:
-                self.parse_error("missing list type declaration", elem)
-                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
-            except ValueError as err:
-                self.parse_error(err, elem)
+            except (KeyError, ValueError, RuntimeError) as err:
+                if 'itemType' not in elem.attrib:
+                    self.parse_error("missing list type declaration")
+                else:
+                    self.parse_error(err)
                 base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
             else:
                 try:
                     base_type = self.maps.lookup_type(item_qname)
-                except LookupError:
+                except KeyError:
                     self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
                     base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
@@ -800,13 +800,13 @@ class XsdUnion(XsdSimpleType):
             for name in elem.attrib['memberTypes'].split():
                 try:
                     type_qname = self.schema.resolve_qname(name)
-                except ValueError as err:
+                except (KeyError, ValueError, RuntimeError) as err:
                     self.parse_error(err)
                     continue
 
                 try:
                     mt = self.maps.lookup_type(type_qname)
-                except LookupError:
+                except KeyError:
                     self.parse_error("unknown member type %r" % type_qname)
                     mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                 except XMLSchemaParseError as err:
@@ -995,7 +995,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if 'base' in elem.attrib:
             try:
                 base_qname = self.schema.resolve_qname(elem.attrib['base'])
-            except ValueError as err:
+            except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err, elem)
                 base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
             else:
@@ -1011,7 +1011,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
                     try:
                         base_type = self.maps.lookup_type(base_qname)
-                    except LookupError:
+                    except KeyError:
                         self.parse_error("unknown type %r." % elem.attrib['base'])
                         base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                     except XMLSchemaParseError as err:
@@ -1039,7 +1039,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 elif self.parent is None or self.parent.is_simple():
                     self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION and self.schema.version_check(x), elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:

@@ -189,13 +189,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.parse_error("element reference declaration can't has children.")
         elif 'type' in attrib:
             try:
-                self.type = self.maps.lookup_type(self.schema.resolve_qname(attrib['type']))
-            except KeyError:
-                self.parse_error('unknown type %r' % attrib['type'])
-                self.type = self.maps.types[XSD_ANY_TYPE]
-            except ValueError as err:
+                type_qname = self.schema.resolve_qname(attrib['type'])
+            except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
                 self.type = self.maps.types[XSD_ANY_TYPE]
+            else:
+                try:
+                    self.type = self.maps.lookup_type(type_qname)
+                except KeyError:
+                    self.parse_error('unknown type %r' % attrib['type'])
+                    self.type = self.maps.types[XSD_ANY_TYPE]
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
@@ -270,13 +273,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.constraints[constraint.name] = constraint
 
     def _parse_substitution_group(self):
-        substitution_group = self.elem.get('substitutionGroup')
-        if substitution_group is None:
+        if 'substitutionGroup' not in self.elem.attrib:
             return
+        substitution_group = self.elem.attrib['substitutionGroup']
 
         try:
             substitution_group_qname = self.schema.resolve_qname(substitution_group)
-        except ValueError as err:
+        except (KeyError, ValueError, RuntimeError) as err:
             self.parse_error(err)
             return
         else:
@@ -434,7 +437,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        if not self.version_check(elem):
+        if not self.schema.version_check(elem):
             return
 
         converter = kwargs.get('converter')
@@ -870,10 +873,8 @@ class XsdAlternative(XsdComponent):
 
         try:
             type_qname = self.schema.resolve_qname(attrib['type'])
-        except KeyError:
-            self.parse_error("missing 'type' attribute")
-        except ValueError as err:
-            self.parse_error(err)
+        except (KeyError, ValueError, RuntimeError) as err:
+            self.parse_error(err if 'type' in attrib else "missing 'type' attribute")
         else:
             try:
                 self.type = self.maps.lookup_type(type_qname)
@@ -881,7 +882,8 @@ class XsdAlternative(XsdComponent):
                 self.parse_error("unknown type %r" % attrib['type'])
             else:
                 if not self.type.is_derived(self.parent.type):
-                    self.parse_error("type %r ir not derived from %r" % (attrib['type'], self.parent.type))
+                    msg = "type {!r} is not derived from {!r}"
+                    self.parse_error(msg.format(attrib['type'], self.parent.type))
 
     @property
     def built(self):
