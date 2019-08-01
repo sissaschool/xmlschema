@@ -20,7 +20,7 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaV
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
+from ..helpers import get_namespace, get_qname, get_xsd_form_attribute, get_xml_bool_attribute
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
@@ -172,13 +172,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             if not self.type.is_valid(attrib['default']):
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
-            elif self.type.is_key():
+            elif self.type.is_key() and self.xsd_version == '1.0':
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
                 msg = "'fixed' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
-            elif self.type.is_key():
+            elif self.type.is_key() and self.xsd_version == '1.0':
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
     @property
@@ -262,9 +262,7 @@ class Xsd11Attribute(XsdAttribute):
       Content: (annotation?, simpleType?)
     </attribute>
     """
-    @property
-    def inheritable(self):
-        return self.elem.get('inheritable') in ('0', 'true')
+    inheritable = False
 
     @property
     def target_namespace(self):
@@ -272,8 +270,13 @@ class Xsd11Attribute(XsdAttribute):
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
-        if not self.elem.get('inheritable') not in {'0', '1', 'false', 'true'}:
-            self.parse_error("an XML boolean value is required for attribute 'inheritable'")
+
+        if 'inheritable' in self.elem.attrib:
+            try:
+                self.inheritable = get_xml_bool_attribute(self.elem, 'inheritable')
+            except ValueError as err:
+                self.parse_error(err)
+
         self._parse_target_namespace()
 
 

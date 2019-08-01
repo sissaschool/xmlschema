@@ -459,10 +459,6 @@ class XsdGlobals(XsdValidator):
             for group in schema.iter_components(XsdGroup):
                 group.build()
 
-        # Builds xs:keyref's key references
-        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.constraints.values()):
-            constraint.parse_refer()
-
         # Build XSD 1.1 identity references and assertions
         if self.validator.XSD_VERSION != '1.0':
             for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
@@ -476,6 +472,10 @@ class XsdGlobals(XsdValidator):
 
                 for assertion in schema.iter_components(XsdAssert):
                     assertion.parse_xpath_test()
+
+        # Builds xs:keyref's key references
+        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.constraints.values()):
+            constraint.parse_refer()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 
@@ -498,7 +498,12 @@ class XsdGlobals(XsdValidator):
 
         if self.validator.XSD_VERSION != '1.0':
             for s in filter(lambda x: x.default_attributes is not None, schemas):
-                if not isinstance(s.default_attributes, XsdAttributeGroup):
+                if isinstance(s.default_attributes, XsdAttributeGroup):
+                    continue
+
+                try:
+                    s.default_attributes = s.maps.attribute_groups[s.default_attributes]
+                except KeyError:
                     s.default_attributes = None
                     msg = "defaultAttributes={!r} doesn't match an attribute group of {!r}"
                     s.parse_error(msg.format(s.root.get('defaultAttributes'), s), s.root, validation)
@@ -536,48 +541,3 @@ class XsdGlobals(XsdValidator):
                     if validation == 'strict':
                         raise
                     xsd_type.errors.append(err)
-
-    def _check_schema(self, schema):
-        # Checks substitution groups circularities
-        for qname in self.substitution_groups:
-            xsd_element = self.elements[qname]
-            for e in xsd_element.iter_substitutes():
-                if e is xsd_element:
-                    schema.parse_error("circularity found for substitution group with head element %r" % xsd_element)
-
-        if schema.XSD_VERSION > '1.0' and schema.default_attributes is not None:
-            if not isinstance(schema.default_attributes, XsdAttributeGroup):
-                schema.default_attributes = None
-                schema.parse_error("defaultAttributes={!r} doesn't match an attribute group of {!r}"
-                                   .format(schema.root.get('defaultAttributes'), schema), schema.root)
-
-        if schema.validation == 'skip':
-            return
-
-        # Check redefined global groups
-        for group in filter(lambda x: x.schema is schema and x.redefine is not None, self.groups.values()):
-            if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
-                    and not group.is_restriction(group.redefine):
-                group.parse_error("The redefined group is an illegal restriction of the original group.")
-
-        # Check complex content types models
-        for xsd_type in schema.iter_components(XsdComplexType):
-            if not isinstance(xsd_type.content_type, XsdGroup):
-                continue
-
-            if xsd_type.derivation == 'restriction':
-                base_type = xsd_type.base_type
-                if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
-                    if not xsd_type.content_type.is_restriction(base_type.content_type):
-                        xsd_type.parse_error("The derived group is an illegal restriction of the base type group.")
-
-            try:
-                xsd_type.content_type.check_model()
-            except XMLSchemaModelDepthError:
-                msg = "cannot verify the content model of %r due to maximum recursion depth exceeded" % xsd_type
-                schema.warnings.append(msg)
-                warnings.warn(msg, XMLSchemaWarning, stacklevel=4)
-            except XMLSchemaModelError as err:
-                if self.validation == 'strict':
-                    raise
-                xsd_type.errors.append(err)

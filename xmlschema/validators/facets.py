@@ -30,6 +30,8 @@ class XsdFacet(XsdComponent):
     """
     XML Schema constraining facets base class.
     """
+    fixed = False
+
     def __init__(self, elem, schema, parent, base_type):
         self.base_type = base_type
         super(XsdFacet, self).__init__(elem, schema, parent)
@@ -43,7 +45,8 @@ class XsdFacet(XsdComponent):
 
     def _parse(self):
         super(XsdFacet, self)._parse()
-        self.fixed = self.elem.get('fixed', False)
+        if 'fixed' in self.elem.attrib and self.elem.attrib['fixed'] in ('true', '1'):
+            self.fixed = True
         base_facet = self.base_facet
         self.base_value = None if base_facet is None else base_facet.value
 

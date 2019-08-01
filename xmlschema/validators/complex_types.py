@@ -347,9 +347,15 @@ class XsdComplexType(XsdType, ValidationMixin):
                 "derived an empty content from base type that has not empty content.", elem
             )
 
-        if self.open_content is not None and base_type.name != XSD_ANY_TYPE:
-            if not self.open_content.is_restriction(base_type.open_content):
-                self.parse_error("The openContent is not a restriction of the base type openContent.")
+        if not self.open_content:
+            if self.schema.default_open_content:
+                self.open_content = self.schema.default_open_content
+            elif getattr(base_type, 'open_content', None):
+                self.open_content = base_type.open_content
+
+        if self.open_content and base_type.name != XSD_ANY_TYPE and \
+                not self.open_content.is_restriction(base_type.open_content):
+            self.parse_error("%r is not a restriction of the base type openContent" % self.open_content)
 
         self.content_type = content_type
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
@@ -358,21 +364,25 @@ class XsdComplexType(XsdType, ValidationMixin):
         if 'extension' in base_type.final:
             self.parse_error("the base type is not derivable by extension")
 
-        # complexContent restriction: the base type must be a complexType with a complex content.
+        # Parse openContent
         for group_elem in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if group_elem.tag != XSD_OPEN_CONTENT:
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)
-            try:
-                if not base_type.open_content.is_restriction(self.open_content):
-                    self.parse_error("The openContent is not an extension of the base type openContent.")
-            except AttributeError:
-                pass
         else:
             group_elem = None
 
-        if self.open_content is None and getattr(base_type, 'open_content', None) is not None:
-            self.open_content = base_type.open_content
+        if not self.open_content:
+            if self.schema.default_open_content:
+                self.open_content = self.schema.default_open_content
+            elif getattr(base_type, 'open_content', None):
+                self.open_content = base_type.open_content
+
+        try:
+            if self.open_content and not base_type.open_content.is_restriction(self.open_content):
+                self.parse_error("%r is not an extension of the base type openContent" % self.open_content)
+        except AttributeError:
+            pass
 
         if base_type.is_empty():
             # Empty model extension: don't create a nested group.
@@ -396,7 +406,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                     base_type = self.maps.types[XSD_ANY_TYPE]
 
                 group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
-                if group.model == 'all':
+                if group.model == 'all' and self.xsd_version == '1.0':
                     self.parse_error("Cannot extend a complex content with an all model")
 
                 content_type.append(base_type.content_type)
@@ -650,6 +660,8 @@ class Xsd11ComplexType(XsdComplexType):
       (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
     </complexType>
     """
+    default_attributes_apply = True
+
     def _parse(self):
         super(Xsd11ComplexType, self)._parse()
 
@@ -672,8 +684,13 @@ class Xsd11ComplexType(XsdComplexType):
                     elif not self.attributes[name].inheritable:
                         self.parse_error("attribute %r must be inheritable")
 
+        if self.elem.get('defaultAttributesApply') in {'false', '0'}:
+            self.default_attributes_apply = False
+
         # Add default attributes
-        if isinstance(self.schema.default_attributes, XsdAttributeGroup) and self.default_attributes_apply:
+        if self.default_attributes_apply and isinstance(self.schema.default_attributes, XsdAttributeGroup):
+            if any(k in self.attributes for k in self.schema.default_attributes):
+                self.parse_error("at least a default attribute is already declared in the complex type")
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
             )
@@ -684,7 +701,3 @@ class Xsd11ComplexType(XsdComplexType):
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if child.tag == XSD_ASSERT:
                 self.assertions.append(XsdAssert(child, self.schema, self, self))
-
-    @property
-    def default_attributes_apply(self):
-        return get_xml_bool_attribute(self.elem, 'defaultAttributesApply', default=True)

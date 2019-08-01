@@ -16,7 +16,8 @@ import re
 
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, XSD_ANY_TYPE, XSD_ID
+from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID
 from ..helpers import get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring, is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
@@ -283,6 +284,21 @@ class XsdComponent(XsdValidator):
         """Property that references to schema's global maps."""
         return self.schema.maps
 
+    @property
+    def any_type(self):
+        """Property that references to the xs:anyType instance of the global maps."""
+        return self.schema.maps.types[XSD_ANY_TYPE]
+
+    @property
+    def any_simple_type(self):
+        """Property that references to the xs:anySimpleType instance of the global maps."""
+        return self.schema.maps.types[XSD_ANY_SIMPLE_TYPE]
+
+    @property
+    def any_atomic_type(self):
+        """Property that references to the xs:anyAtomicType instance of the global maps."""
+        return self.schema.maps.types[XSD_ANY_ATOMIC_TYPE]
+
     def __repr__(self):
         if self.name is None:
             return '<%s at %#x>' % (self.__class__.__name__, id(self))
@@ -359,13 +375,14 @@ class XsdComponent(XsdValidator):
             if 'form' in self.elem.attrib:
                 self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
             if self.elem.attrib['targetNamespace'].strip() != self.schema.target_namespace:
-                parent = self.parent
-                if parent is None:
+                if self.parent is None:
                     self.parse_error("a global attribute must has the same namespace as its parent schema")
-                elif not isinstance(parent, XsdType) or not parent.is_complex() or parent.derivation != 'restriction':
-                    self.parse_error("a complexType restriction required for parent, found %r" % self.parent)
-                elif self.parent.base_type.name == XSD_ANY_TYPE:
-                    pass
+
+                xsd_type = self.get_parent_type()
+                if xsd_type and xsd_type.parent is None and \
+                        (xsd_type.derivation != 'restriction' or xsd_type.base_type is self.any_type):
+                    self.parse_error("a declaration contained in a global complexType "
+                                     "must has the same namespace as its parent schema")
 
         elif self.qualified:
             self._target_namespace = self.schema.target_namespace
@@ -429,6 +446,17 @@ class XsdComponent(XsdValidator):
         component = self.parent
         while component is not self:
             if component.parent is None:
+                return component
+            component = component.parent
+
+    def get_parent_type(self):
+        """
+        Returns the nearest XSD type that contains the component instance,
+        or `None` if the component doesn't have an XSD type parent.
+        """
+        component = self.parent
+        while component is not self and component is not None:
+            if isinstance(component, XsdType):
                 return component
             component = component.parent
 

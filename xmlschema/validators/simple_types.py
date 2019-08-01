@@ -22,7 +22,7 @@ from ..qnames import (
     XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID,
-    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS
+    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, XSD_ERROR
 )
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
@@ -231,11 +231,22 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         # Checks fraction digits
         if XSD_TOTAL_DIGITS in facets:
-            if XSD_FRACTION_DIGITS in facets and facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
-                self.parse_error("fractionDigits facet value cannot be lesser than the value of totalDigits")
+            if XSD_FRACTION_DIGITS in facets and \
+                    facets[XSD_TOTAL_DIGITS].value < facets[XSD_FRACTION_DIGITS].value:
+                self.parse_error("fractionDigits facet value cannot be lesser than the "
+                                 "value of totalDigits facet")
             total_digits = base_type.get_facet(XSD_TOTAL_DIGITS)
             if total_digits is not None and total_digits.value < facets[XSD_TOTAL_DIGITS].value:
-                self.parse_error("totalDigits facet value cannot be greater than those on the base type")
+                self.parse_error("totalDigits facet value cannot be greater than "
+                                 "the value of the same facet in the base type")
+
+        # Checks XSD 1.1 facets
+        if XSD_EXPLICIT_TIMEZONE in facets:
+            explicit_tz_facet = base_type.get_facet(XSD_EXPLICIT_TIMEZONE)
+            if explicit_tz_facet and explicit_tz_facet.value in ('prohibited', 'required') \
+                    and facets[XSD_EXPLICIT_TIMEZONE].value != explicit_tz_facet.value:
+                self.parse_error("the explicitTimezone facet value cannot be changed if the base "
+                                 "type has the same facet with value %r" % explicit_tz_facet.value)
 
         self.min_length = min_length
         self.max_length = max_length
@@ -475,7 +486,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         if not callable(python_type):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
-        if base_type is None and not admitted_facets:
+        if base_type is None and not admitted_facets and name != XSD_ERROR:
             raise XMLSchemaValueError("argument 'admitted_facets' must be a not empty set of a primitive type")
         self._admitted_facets = admitted_facets
 

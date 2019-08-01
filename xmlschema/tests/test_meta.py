@@ -291,12 +291,12 @@ class TestGlobalMaps(unittest.TestCase):
 
     def test_xsd_11_globals(self):
         self.assertEqual(len(XMLSchema11.meta_schema.maps.notations), 2)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.types), 118)
+        self.assertEqual(len(XMLSchema11.meta_schema.maps.types), 119)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.attributes), 24)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.attribute_groups), 10)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.groups), 19)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.elements), 51)
-        self.assertEqual(len([e.is_global for e in XMLSchema11.meta_schema.maps.iter_globals()]), 224)
+        self.assertEqual(len([e.is_global for e in XMLSchema11.meta_schema.maps.iter_globals()]), 225)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_10_build(self):
@@ -307,7 +307,7 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertTrue(XMLSchema10.meta_schema.maps.built)
 
     def test_xsd_11_build(self):
-        self.assertEqual(len([e for e in XMLSchema11.meta_schema.maps.iter_globals()]), 224)
+        self.assertEqual(len([e for e in XMLSchema11.meta_schema.maps.iter_globals()]), 225)
         self.assertTrue(XMLSchema11.meta_schema.maps.built)
         XMLSchema11.meta_schema.maps.clear()
         XMLSchema11.meta_schema.maps.build()
@@ -332,8 +332,8 @@ class TestGlobalMaps(unittest.TestCase):
                 total_counter += 1
                 if c.is_global:
                     global_counter += 1
-        self.assertEqual(global_counter, 224)
-        self.assertEqual(total_counter, 1028)
+        self.assertEqual(global_counter, 225)
+        self.assertEqual(total_counter, 1029)
 
 
 if __name__ == '__main__':

@@ -952,29 +952,31 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 try:
                     if self.resolve_qname(qname) not in self.maps.types:
                         return False
-                except (KeyError, RuntimeError):
+                except XMLSchemaNamespaceError:
                     return False
-                except ValueError as err:
+                except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
 
         if VC_TYPE_UNAVAILABLE in elem.attrib:
-            for qname in elem.attrib[VC_TYPE_AVAILABLE].split():
+            for qname in elem.attrib[VC_TYPE_UNAVAILABLE].split():
                 try:
-                    if self.resolve_qname(qname) in self.maps.types:
-                        return False
-                except (KeyError, RuntimeError):
-                    pass
-                except ValueError as err:
-                    self.parse_error(str(err), elem)
+                    if self.resolve_qname(qname) not in self.maps.types:
+                        break
+                except XMLSchemaNamespaceError:
+                    break
+                except (KeyError, ValueError) as err:
+                    self.parse_error(err, elem)
+            else:
+                return False
 
         if VC_FACET_AVAILABLE in elem.attrib:
             for qname in elem.attrib[VC_FACET_AVAILABLE].split():
                 try:
                     if self.resolve_qname(qname) in self.maps.types:
                         pass
-                except (KeyError, RuntimeError):
+                except XMLSchemaNamespaceError:
                     pass
-                except ValueError as err:
+                except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
 
         if VC_FACET_UNAVAILABLE in elem.attrib:
@@ -982,9 +984,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 try:
                     if self.resolve_qname(qname) in self.maps.types:
                         pass
-                except (KeyError, RuntimeError):
+                except XMLSchemaNamespaceError:
                     pass
-                except ValueError as err:
+                except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
 
         return True

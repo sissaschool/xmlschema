@@ -21,7 +21,7 @@ from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
-    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID
+    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR
 from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
@@ -105,8 +105,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_attributes()
         index = self._parse_type()
         self._parse_identity_constraints(index)
-        if self.parent is None:
-            self._parse_substitution_group()
+        if self.parent is None and 'substitutionGroup' in self.elem.attrib:
+            self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
 
     def _parse_attributes(self):
         self._parse_particle(self.elem)
@@ -272,11 +272,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             finally:
                 self.constraints[constraint.name] = constraint
 
-    def _parse_substitution_group(self):
-        if 'substitutionGroup' not in self.elem.attrib:
-            return
-        substitution_group = self.elem.attrib['substitutionGroup']
-
+    def _parse_substitution_group(self, substitution_group):
         try:
             substitution_group_qname = self.schema.resolve_qname(substitution_group)
         except (KeyError, ValueError, RuntimeError) as err:
@@ -669,7 +665,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             return other.is_matching(self.name, self.default_namespace)
         elif isinstance(other, XsdElement):
-            if self.name != other.name:
+            if self.name != other.name and any(n not in other.names for n in self.names):
                 substitution_group = self.substitution_group
 
                 if other.name == self.substitution_group and other.min_occurs != other.max_occurs \
@@ -774,8 +770,9 @@ class Xsd11Element(XsdElement):
         index = self._parse_type()
         index = self._parse_alternatives(index)
         self._parse_identity_constraints(index)
-        if self.parent is None:
-            self._parse_substitution_group()
+        if self.parent is None and 'substitutionGroup' in self.elem.attrib:
+            for substitution_group in self.elem.attrib['substitutionGroup'].split():
+                self._parse_substitution_group(substitution_group)
         self._parse_target_namespace()
 
     def _parse_alternatives(self, index=0):
@@ -844,6 +841,8 @@ class XsdAlternative(XsdComponent):
     </alternative>
     """
     type = None
+    path = None
+    token = None
     _ADMITTED_TAGS = {XSD_ALTERNATIVE}
 
     def __repr__(self):
@@ -852,11 +851,6 @@ class XsdAlternative(XsdComponent):
     def _parse(self):
         XsdComponent._parse(self)
         attrib = self.elem.attrib
-        try:
-            self.path = attrib['test']
-        except KeyError as err:
-            self.path = 'true()'
-            self.parse_error(err)
 
         if 'xpathDefaultNamespace' in attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
@@ -865,25 +859,46 @@ class XsdAlternative(XsdComponent):
         parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
 
         try:
-            self.token = parser.parse(self.path)
-        except ElementPathSyntaxError as err:
-            self.parse_error(err)
-            self.token = parser.parse('true()')
-            self.path = 'true()'
+            self.path = attrib['test']
+        except KeyError:
+            pass  # an absent test is not an error, it should be the default type
+        else:
+            try:
+                self.token = parser.parse(self.path)
+            except ElementPathSyntaxError as err:
+                self.parse_error(err)
+                self.token = parser.parse('false()')
+                self.path = 'false()'
 
         try:
             type_qname = self.schema.resolve_qname(attrib['type'])
         except (KeyError, ValueError, RuntimeError) as err:
-            self.parse_error(err if 'type' in attrib else "missing 'type' attribute")
+            if 'type' in attrib:
+                self.parse_error(err)
+                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+            else:
+                child = self._parse_child_component(self.elem, strict=False)
+                if child is None or child.tag not in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                    self.parse_error("missing 'type' attribute")
+                    self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                elif child.tag == XSD_COMPLEX_TYPE:
+                    self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
+                else:
+                    self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
         else:
             try:
                 self.type = self.maps.lookup_type(type_qname)
             except KeyError:
                 self.parse_error("unknown type %r" % attrib['type'])
             else:
-                if not self.type.is_derived(self.parent.type):
+                if self.type.name != XSD_ERROR and not self.type.is_derived(self.parent.type):
                     msg = "type {!r} is not derived from {!r}"
                     self.parse_error(msg.format(attrib['type'], self.parent.type))
+
+                child = self._parse_child_component(self.elem, strict=False)
+                if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
+                    msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
+                    self.parse_error(msg % child.tag.split('}')[-1])
 
     @property
     def built(self):

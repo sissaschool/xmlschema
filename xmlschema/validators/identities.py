@@ -194,7 +194,7 @@ class XsdIdentity(XsdComponent):
 
     @property
     def built(self):
-        return self.fields and self.selector is not None
+        return bool(self.fields and self.selector)
 
     def __call__(self, *args, **kwargs):
         for error in self.validator(*args, **kwargs):
@@ -282,7 +282,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self):
-        return self.fields and self.selector is not None and self.refer is not None
+        return bool(self.fields and self.selector and self.refer)
 
     def get_refer_values(self, elem):
         values = set()
