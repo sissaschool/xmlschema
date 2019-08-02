@@ -1174,6 +1174,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         id_map = Counter()
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
+        if filler is not None:
+            kwargs['filler'] = filler
 
         for elem in source.iterfind(path, namespaces):
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -1183,7 +1185,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             for obj in xsd_element.iter_decode(
                     elem, validation, converter=converter, source=source, namespaces=namespaces,
                     use_defaults=use_defaults, datetime_types=datetime_types,
-                    filler=filler, fill_missing=fill_missing, id_map=id_map, **kwargs):
+                    fill_missing=fill_missing, id_map=id_map, **kwargs):
                 yield obj
 
     def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):

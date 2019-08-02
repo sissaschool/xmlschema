@@ -19,7 +19,6 @@ from ..etree import etree_element
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
 from xmlschema.helpers import get_qname, local_name
-from ..converters import XMLSchemaConverter
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
@@ -487,16 +486,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def iter_decode(self, elem, validation='lax', level=0, **kwargs):
+    def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """
         Creates an iterator for decoding an Element content.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance \
+        to use for the decoding.
         :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
-        :return: yields a list of 3-tuples (key, decoded data, decoder), eventually \
-        preceded by a sequence of validation or decoding errors.
+        :return: yields a list of 3-tuples (key, decoded data, decoder), \
+        eventually preceded by a sequence of validation or decoding errors.
         """
         def not_whitespace(s):
             return s is not None and s.strip()
@@ -508,7 +509,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             # Check element CDATA
             if not_whitespace(elem.text) or any(not_whitespace(child.tail) for child in elem):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
-                    pass  # [XsdAnyElement()] is equivalent to an empty complexType declaration
+                    pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
                     reason = "character data between child elements not allowed!"
                     yield self.validation_error(validation, reason, elem, **kwargs)
@@ -524,10 +525,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         errors = []
 
         try:
-            default_namespace = kwargs['converter'].get('')
-        except (KeyError, AttributeError):
-            kwargs['converter'] = self.schema.get_converter(**kwargs)
-            default_namespace = kwargs['converter'].get('')
+            default_namespace = converter.get('')
+        except (AttributeError, TypeError):
+            converter = self.schema.get_converter(converter, level=level, **kwargs)
+            default_namespace = converter.get('')
 
         model_broken = False
         for index, child in enumerate(elem):
@@ -574,7 +575,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 # TODO: use a default decoder str-->str??
                 continue
 
-            for result in xsd_element.iter_decode(child, validation, level, **kwargs):
+            for result in xsd_element.iter_decode(
+                    child, validation, converter=converter, level=level, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -601,14 +603,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
-    def iter_encode(self, element_data, validation='lax', **kwargs):
+    def iter_encode(self, element_data, validation='lax', converter=None, level=0, indent=4, **kwargs):
         """
         Creates an iterator for encoding data to a list containing Element data.
 
         :param element_data: an ElementData instance with unencoded data.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param kwargs: Keyword arguments for the encoding process.
-        :return: Yields a couple with the text of the Element and a list of 3-tuples \
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
+        for the encoding.
+        :param level: the depth of the element data in the tree structure.
+        :param indent: number of spaces for XML indentation (default is 4).
+        :param kwargs: keyword arguments for the encoding process.
+        :return: yields a couple with the text of the Element and a list of 3-tuples \
         (key, decoded data, decoder), eventually preceded by a sequence of validation \
         or encoding errors.
         """
@@ -616,16 +622,16 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             yield element_data.content
             return
 
-        converter = kwargs.get('converter')
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
-
         errors = []
         text = None
         children = []
-        indent = kwargs.get('indent', 4)
-        padding = '\n' + ' ' * indent * kwargs.get('level', 0)
-        default_namespace = converter.get('')
+        padding = '\n' + ' ' * indent * level
+
+        try:
+            default_namespace = converter.get('')
+        except (AttributeError, TypeError):
+            converter = self.schema.get_converter(converter, level=level, **kwargs)
+            default_namespace = converter.get('')
 
         model = ModelVisitor(self)
         cdata_index = 0
@@ -681,7 +687,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                                 yield self.validation_error(validation, reason, value, **kwargs)
                             continue
 
-            for result in xsd_element.iter_encode(value, validation, **kwargs):
+            for result in xsd_element.iter_encode(
+                    value, validation, converter=converter, level=level, indent=indent, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
