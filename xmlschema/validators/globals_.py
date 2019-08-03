@@ -70,7 +70,7 @@ def create_load_function(filter_function):
                     qname = get_qname(target_namespace, child.attrib['name'])
                     redefinitions.append((qname, child, schema, schema.includes[location]))
 
-            for elem in filter(lambda x: schema.version_check(x), filter_function(schema.root)):
+            for elem in filter_function(schema.root):
                 qname = get_qname(target_namespace, elem.attrib['name'])
                 try:
                     xsd_globals[qname].append((elem, schema))

@@ -535,9 +535,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
-            if not self.schema.version_check(child):
-                continue
-
             if self.interleave and self.interleave.is_matching(child.tag, default_namespace, self):
                 xsd_element = self.interleave
             else:

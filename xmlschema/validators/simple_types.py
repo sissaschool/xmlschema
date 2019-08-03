@@ -1050,7 +1050,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 elif self.parent is None or self.parent.is_simple():
                     self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION and self.schema.version_check(x), elem):
+        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:

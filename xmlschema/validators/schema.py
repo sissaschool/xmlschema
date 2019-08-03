@@ -32,7 +32,7 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, VC_NAMESPACE, NamespaceResourcesMap, NamespaceView
-from ..etree import etree_element, etree_tostring, ParseError
+from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import ElementPathMixin
@@ -53,7 +53,7 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .globals_ import iterchildren_xsd_import, iterchildren_xsd_include, \
     iterchildren_xsd_redefine, iterchildren_xsd_override, XsdGlobals
 
-XSD_VERSION_PATTERN = re.compile(r'\d+\.\d+')
+XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
@@ -355,7 +355,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
             # 4.2.2 of XSD 1.1 (Part 1: Structures) definition for details.
             # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
-            etree_filter(root)
+            if prune_etree(root, selector=lambda x: not self.version_check(x)):
+                for k in list(root.attrib):
+                    if k not in {'targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION}:
+                        del root.attrib[k]
 
         # Validate the schema document (transforming validation errors to parse errors)
         if validation == 'strict':
@@ -929,16 +932,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def version_check(self, elem):
         """
         Checks if the element is compatible with the version of the validator and XSD
-        types/facets availability. This is always true for XSD 1.0 validators, instead
-        for XSD 1.1 validators checks are done against XML Schema versioning namespace.
+        types/facets availability.
 
         :param elem: an Element of the schema.
         :return: `True` if the schema element is compatible with the validator, \
         `False` otherwise.
         """
-        if self.XSD_VERSION == '1.0':
-            return True
-
         if VC_MIN_VERSION in elem.attrib:
             vc_min_version = elem.attrib[VC_MIN_VERSION]
             if not XSD_VERSION_PATTERN.match(vc_min_version):

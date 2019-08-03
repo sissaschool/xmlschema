@@ -18,7 +18,7 @@ import unittest
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.etree import etree_element, etree_pruning
+from xmlschema.etree import etree_element, prune_etree
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
     qname_to_prefixed, get_xml_bool_attribute, get_xsd_derivation_attribute
@@ -160,14 +160,36 @@ class TestHelpers(unittest.TestCase):
 
 class TestElementTreeHelpers(unittest.TestCase):
 
-    def test_etree_pruning_function(self):
+    def test_prune_etree_function(self):
         root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
-        self.assertFalse(etree_pruning(root, lambda x: x.tag == 'C'))
+        self.assertFalse(prune_etree(root, lambda x: x.tag == 'C'))
         self.assertListEqual([e.tag for e in root.iter()], ['A', 'B', 'D'])
         self.assertEqual(root.attrib, {'id': '0'})
 
         root = ElementTree.XML('<A id="1"><B/><C/><D/></A>')
-        self.assertTrue(etree_pruning(root, lambda x: x.tag != 'C'))
+        self.assertTrue(prune_etree(root, lambda x: x.tag != 'C'))
+        self.assertListEqual([e.tag for e in root.iter()], ['A'])
+        self.assertEqual(root.attrib, {'id': '1'})
+
+        class SelectorClass:
+            tag = 'C'
+
+            @classmethod
+            def class_method(cls, elem):
+                return elem.tag == cls.tag
+
+            def method(self, elem):
+                return elem.tag != self.tag
+
+        selector = SelectorClass()
+
+        root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
+        self.assertFalse(prune_etree(root, selector.class_method))
+        self.assertListEqual([e.tag for e in root.iter()], ['A', 'B', 'D'])
+        self.assertEqual(root.attrib, {'id': '0'})
+
+        root = ElementTree.XML('<A id="1"><B/><C/><D/></A>')
+        self.assertTrue(prune_etree(root, selector.method))
         self.assertListEqual([e.tag for e in root.iter()], ['A'])
         self.assertEqual(root.attrib, {'id': '1'})
 

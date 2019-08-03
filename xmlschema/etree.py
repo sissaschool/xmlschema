@@ -372,7 +372,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
         assert False, "First tree ends before the second: %r." % e2
 
 
-def etree_pruning(root, selector):
+def prune_etree(root, selector):
     """
     Removes from an tree structure the elements that verify the selector
     function. The checking and eventual removals are performed using a

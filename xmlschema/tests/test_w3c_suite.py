@@ -95,9 +95,6 @@ def create_w3c_test_group_case(filename, group_elem, group_number, xsd_version='
         if group_elem.get('version') == '1.0':
             raise ValueError("testGroup %r is not suited for XSD 1.1" % name)
     elif group_elem.get('version') == '1.1':
-        # print(group_elem.attrib)
-        if group_elem.get('name') == '002':
-            breakpoint()
         schema_class = xmlschema.XMLSchema11
     else:
         return

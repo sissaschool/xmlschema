@@ -172,8 +172,7 @@ class XsdIdentity(XsdComponent):
         """
         current_path = ''
         xsd_fields = None
-        for e in filter(lambda x: self.schema.version_check(x),
-                        self.selector.xpath_selector.iter_select(elem)):
+        for e in self.selector.xpath_selector.iter_select(elem):
             path = etree_getpath(e, elem)
             if current_path != path:
                 # Change the XSD context only if the path is changed
