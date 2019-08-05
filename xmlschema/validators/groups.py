@@ -655,13 +655,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 value = get_qname(default_namespace, name), value
             else:
                 while model.element is not None:
-                    if not model.element.is_matching(name, default_namespace, self):
+                    xsd_element = model.element.match(name, default_namespace, self)
+                    if xsd_element is None:
                         for particle, occurs, expected in model.advance():
                             errors.append((index - cdata_index, particle, occurs, expected))
                         continue
-                    elif isinstance(model.element, XsdAnyElement):
+                    elif isinstance(xsd_element, XsdAnyElement):
                         value = get_qname(default_namespace, name), value
-                    xsd_element = model.element
 
                     for particle, occurs, expected in model.advance(True):
                         errors.append((index - cdata_index, particle, occurs, expected))
