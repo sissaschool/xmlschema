@@ -268,7 +268,10 @@ class XsdMinInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:
@@ -303,7 +306,10 @@ class XsdMinExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value > self.value:
@@ -338,7 +344,10 @@ class XsdMaxInclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:
@@ -373,7 +382,10 @@ class XsdMaxExclusiveFacet(XsdFacet):
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:

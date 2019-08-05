@@ -35,7 +35,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAME
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
-from ..xpath import ElementPathMixin
+from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
@@ -204,6 +204,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
+    :ivar xpath_proxy: a proxy for XPath operations on schema components.
+    :vartype xpath_proxy: XMLSchemaProxy
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
@@ -321,12 +323,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     self.default_open_content = XsdDefaultOpenContent(child, self)
                     break
 
-        # Set locations hints map and converter
+        # Set locations hints
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
         if self.meta_schema is not None:
             # Add fallback schema location hint for XHTML
             self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+
         self.converter = self.get_converter(converter)
+        self.xpath_proxy = XMLSchemaProxy(self)
 
         # Create or set the XSD global maps instance
         if self.meta_schema is None:

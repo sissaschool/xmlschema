@@ -17,7 +17,7 @@ from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_namespace, get_xml_bool_attribute
 from ..namespaces import XSI_NAMESPACE
-from ..xpath import ElementPathMixin
+from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
@@ -185,6 +185,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle(self.elem)
+        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'

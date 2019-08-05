@@ -153,7 +153,10 @@ class XsdValidator(object):
             error.elem = elem
             error.source = getattr(self, 'source', None)
         elif isinstance(error, Exception):
-            error = XMLSchemaParseError(self, unicode_type(error).strip('\'" '), elem)
+            message = unicode_type(error).strip()
+            if message[0] in '\'"' and message[0] == message[-1]:
+                message = message.strip('\'"')
+            error = XMLSchemaParseError(self, message, elem)
         elif isinstance(error, string_base_type):
             error = XMLSchemaParseError(self, error, elem)
         else:

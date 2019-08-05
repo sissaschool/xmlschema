@@ -419,6 +419,28 @@ class TestXsd11Wildcards(TestXsdWildcards):
           </xs:complexContent>
         </xs:complexType>""", XMLSchemaParseError)
 
+    def test_not_qname_attribute(self):
+        with self.assertRaises(XMLSchemaParseError):
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:ns="tns1" targetNamespace="tns1">
+                <xs:complexType name="type1">
+                  <xs:openContent>
+                   <xs:any notQName="ns:a" processContents="lax" />
+                  </xs:openContent>
+                </xs:complexType>            
+            </xs:schema>""")
+
+        self.assertIsInstance(self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                xmlns:ns="tns1" targetNamespace="tns1">
+            <xs:complexType name="type1">
+              <xs:sequence>
+               <xs:any notQName="ns:a" processContents="lax" />
+              </xs:sequence>
+            </xs:complexType>            
+        </xs:schema>"""), XMLSchema11)
+
     def test_any_wildcard(self):
         super(TestXsd11Wildcards, self).test_any_wildcard()
         self.check_schema("""

@@ -41,6 +41,9 @@ SKIPPED_TESTS = {
     '../saxonData/VC/vc024.xsd',            # 14414: VC 1.1? required
     '../saxonData/XmlVersions/xv004.xsd',   # 14419: non-BMP chars allowed in names in XML 1.1+
 
+    # Signed as valid that is invalid
+    '../ibmData/instance_invalid/S3_4_1/s3_4_1ii04.xsd',  # XSD 1.1: notQName not allowed in openContent/any
+
     # Invalid that may be valid
     '../sunData/combined/xsd003b/xsd003b.e.xsd',  # 3981: Redefinition that may be valid
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
@@ -90,15 +93,16 @@ def create_w3c_test_group_case(filename, group_elem, group_number, xsd_version='
     name = group_elem.attrib['name']
 
     if xsd_version == '1.1':
-        return
         schema_class = xmlschema.XMLSchema11
         if group_elem.get('version') == '1.0':
             raise ValueError("testGroup %r is not suited for XSD 1.1" % name)
     elif group_elem.get('version') == '1.1':
         schema_class = xmlschema.XMLSchema11
     else:
-        return
         schema_class = xmlschema.XMLSchema
+
+    if testgroup_num not in (10726, 10746, 13680):
+        return 
 
     schema_elem = group_elem.find('{%s}schemaTest' % TEST_SUITE_NAMESPACE)
     if schema_elem is not None:

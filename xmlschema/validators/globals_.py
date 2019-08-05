@@ -288,6 +288,12 @@ class XsdGlobals(XsdValidator):
         return all(schema.built for schema in self.iter_schemas())
 
     @property
+    def unbuilt(self):
+        """Property that returns a list with unbuilt components."""
+        return [c for s in self.iter_schemas() for c in s.iter_components()
+                if c is not s and not c.built]
+
+    @property
     def validation_attempted(self):
         if self.built:
             return 'full'
@@ -465,10 +471,15 @@ class XsdGlobals(XsdValidator):
                 for e in schema.iter_components(Xsd11Element):
                     for constraint in filter(lambda x: x.ref is not None, e.constraints.values()):
                         try:
-                            constraint.selector = self.constraints[constraint.name].selector
-                            constraint.fields = self.constraints[constraint.name].fields
+                            ref = self.constraints[constraint.name]
                         except KeyError:
                             schema.parse_error("Unknown %r constraint %r" % (type(constraint), constraint.name))
+                        else:
+                            constraint.selector = ref.selector
+                            constraint.fields = ref.fields
+                            if isinstance(constraint, XsdKeyref):
+                                constraint.refer = ref.refer
+                            constraint.ref = ref
 
                 for assertion in schema.iter_components(XsdAssert):
                     assertion.parse_xpath_test()
@@ -509,7 +520,7 @@ class XsdGlobals(XsdValidator):
                     s.parse_error(msg.format(s.root.get('defaultAttributes'), s), s.root, validation)
 
         if validation == 'strict' and not self.built:
-            raise XMLSchemaNotBuiltError(self, "global map %r not built!" % self)
+            raise XMLSchemaNotBuiltError(self, "global map has unbuilt components: %r" % self.unbuilt)
 
         # Check redefined global groups restrictions
         for group in filter(lambda x: x.schema in schemas and x.redefine is not None, self.groups.values()):

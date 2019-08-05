@@ -9,10 +9,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import unicode_literals
-from elementpath import XPath2Parser, XPathContext, XMLSchemaProxy, ElementPathSyntaxError
+from elementpath import datatypes, XPath2Parser, XPathContext, ElementPathError
 
 from ..qnames import XSD_ASSERT
-from ..xpath import ElementPathMixin
+from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -36,23 +36,37 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def __init__(self, elem, schema, parent, base_type):
         self.base_type = base_type
         super(XsdAssert, self).__init__(elem, schema, parent)
-        if not self.base_type.is_complex():
-            self.parse_error("base_type={!r} is not a complexType definition", elem=self.elem)
-            self.path = 'true()'
 
     def _parse(self):
         super(XsdAssert, self)._parse()
-        try:
-            self.path = self.elem.attrib['test']
-        except KeyError as err:
-            self.parse_error(str(err), elem=self.elem)
+        if self.base_type.is_complex():
+            try:
+                self.path = self.elem.attrib['test']
+            except KeyError as err:
+                self.parse_error(str(err), elem=self.elem)
+                self.path = 'true()'
+
+            if not self.base_type.has_simple_content():
+                variables = {'value': datatypes.XSD_BUILTIN_TYPES['anyType'].value}
+            else:
+                try:
+                    builtin_type_name = self.base_type.content_type.primitive_type.local_name
+                except AttributeError:
+                    variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
+                else:
+                    variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+
+        else:
+            self.parse_error("base_type=%r is not a complexType definition" % self.base_type)
             self.path = 'true()'
+            variables = None
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        self.parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
+        self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables,
+                                   default_namespace=self.xpath_default_namespace)
 
     @property
     def built(self):
@@ -62,7 +76,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         self.parser.schema = XMLSchemaProxy(self.schema, self)
         try:
             self.token = self.parser.parse(self.path)
-        except ElementPathSyntaxError as err:
+        except ElementPathError as err:
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
 

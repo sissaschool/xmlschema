@@ -13,8 +13,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 from __future__ import unicode_literals
 from decimal import Decimal
-from elementpath import XPath2Parser, ElementPathSyntaxError, XPathContext
-from elementpath.xpath_helpers import boolean_value
+from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError
@@ -26,7 +25,7 @@ from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attr
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
-from ..xpath import ElementPathMixin
+from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin
@@ -107,6 +106,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_identity_constraints(index)
         if self.parent is None and 'substitutionGroup' in self.elem.attrib:
             self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
+        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def _parse_attributes(self):
         self._parse_particle(self.elem)
@@ -771,6 +771,7 @@ class Xsd11Element(XsdElement):
             for substitution_group in self.elem.attrib['substitutionGroup'].split():
                 self._parse_substitution_group(substitution_group)
         self._parse_target_namespace()
+        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def _parse_alternatives(self, index=0):
         if self.ref is not None:
@@ -813,7 +814,8 @@ class Xsd11Element(XsdElement):
                 elem = etree_element(elem.tag)
 
         for alt in self.alternatives:
-            if alt.type is not None and boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
+            if alt.type is not None and \
+                    alt.token.boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
                 return alt.type
         return self.type
 
@@ -862,7 +864,7 @@ class XsdAlternative(XsdComponent):
         else:
             try:
                 self.token = parser.parse(self.path)
-            except ElementPathSyntaxError as err:
+            except ElementPathError as err:
                 self.parse_error(err)
                 self.token = parser.parse('false()')
                 self.path = 'false()'

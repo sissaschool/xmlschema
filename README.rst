@@ -133,9 +133,13 @@ values that match to the data types declared by the schema:
                  'year': '1925'}]}
 
 
+Roadmap
+=======
+* Release 1.1 before the end of 2019: this release will drops Python 2.7 support and will
+sets the XSD 1.1 validator (XMLSchema11) as the default schema class at package level.
+
 Authors
 =======
-
 Davide Brunato and others who have contributed with code or with sample cases.
 
 License
