@@ -660,8 +660,11 @@ class XsdAssertionFacet(XsdFacet):
             self.parse_error(str(err), elem=self.elem)
             self.path = 'true()'
 
-        builtin_type_name = self.base_type.primitive_type.local_name
-        variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+        try:
+            builtin_type_name = self.base_type.primitive_type.local_name
+            variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+        except AttributeError:
+            variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)

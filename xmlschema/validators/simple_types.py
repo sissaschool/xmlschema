@@ -22,7 +22,7 @@ from ..qnames import (
     XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID,
-    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, XSD_ERROR
+    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT
 )
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
@@ -979,6 +979,7 @@ class XsdAtomicRestriction(XsdAtomic):
     """
     FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     derivation = 'restriction'
+    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
@@ -1051,7 +1052,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
 
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if child.tag in {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
+            if child.tag in self._CONTENT_TAIL_TAGS:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
                 self.parse_error("unexpected tag after attribute declarations", child)
@@ -1218,3 +1219,4 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
     </restriction>
     """
     FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
+    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ASSERT}

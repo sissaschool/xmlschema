@@ -52,6 +52,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     open_content = None
 
     _ADMITTED_TAGS = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
+    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
     _block = None
     _derivation = None
 
@@ -136,8 +137,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.name = None
 
         content_elem = self._parse_child_component(elem, strict=False)
-        if content_elem is None or content_elem.tag in \
-                {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}:
+        if content_elem is None or content_elem.tag in self._CONTENT_TAIL_TAGS:
             #
             # complexType with empty content
             self.content_type = self.schema.BUILDERS.group_class(SEQUENCE_ELEMENT, self.schema, self)
@@ -301,9 +301,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         # simpleContent extension: the base type must be a simpleType or a complexType
         # with simple content.
         child = self._parse_child_component(elem, strict=False)
-        if child is not None and child.tag not in \
-                {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE}:
-            self.parse_error("unexpected tag %r." % child.tag, child)
+        if child is not None and child.tag not in self._CONTENT_TAIL_TAGS:
+            self.parse_error('unexpected tag %r' % child.tag, child)
 
         if base_type.is_simple():
             self.content_type = base_type
@@ -661,6 +660,8 @@ class Xsd11ComplexType(XsdComplexType):
     </complexType>
     """
     default_attributes_apply = True
+
+    _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE_GROUP, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT}
 
     def _parse(self):
         super(Xsd11ComplexType, self)._parse()
