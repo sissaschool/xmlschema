@@ -13,7 +13,7 @@ This module contains various helper functions and classes.
 """
 import re
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import XSD_ANNOTATION
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
@@ -102,26 +102,6 @@ def get_xsd_annotation(elem):
         return elem[0] if elem[0].tag == XSD_ANNOTATION else None
     except (TypeError, IndexError):
         return
-
-
-def get_xml_bool_attribute(elem, attribute, default=None):
-    """
-    Get an XML boolean attribute.
-
-    :param elem: the Element instance.
-    :param attribute: the attribute name.
-    :param default: default value, accepted values are `True` or `False`.
-    :return: `True` or `False`.
-    """
-    value = elem.get(attribute, default)
-    if value is None:
-        raise XMLSchemaKeyError(attribute)
-    elif value in ('true', '1') or value is True:
-        return True
-    elif value in ('false', '0') or value is False:
-        return False
-    else:
-        raise XMLSchemaTypeError("an XML boolean value is required for attribute %r." % attribute)
 
 
 def get_xsd_derivation_attribute(elem, attribute, values=None):

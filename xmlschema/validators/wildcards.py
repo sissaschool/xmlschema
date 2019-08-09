@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
-from ..helpers import get_namespace, get_xml_bool_attribute
+from ..helpers import get_namespace
 from ..namespaces import XSI_NAMESPACE
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -26,6 +26,7 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 class XsdWildcard(XsdComponent, ValidationMixin):
     names = {}
     namespace = '##any'
+    process_contents = 'strict'
     not_namespace = ()
     not_qname = ()
 
@@ -53,9 +54,52 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             self.namespace = namespace
 
-        self.process_contents = self.elem.get('processContents', 'strict')
-        if self.process_contents not in {'lax', 'skip', 'strict'}:
+        process_contents = self.elem.get('processContents', 'strict')
+        if process_contents == 'strict':
+            pass
+        elif process_contents not in ('lax', 'skip'):
             self.parse_error("wrong value %r for 'processContents' attribute." % self.process_contents)
+        else:
+            self.process_contents = process_contents
+
+    def _parse_not_constraints(self):
+        try:
+            not_namespace = self.elem.attrib['notNamespace'].strip().split()
+        except KeyError:
+            pass
+        else:
+            if 'namespace' in self.elem.attrib:
+                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
+            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
+                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
+            else:
+                self.not_namespace = not_namespace
+
+        # Parse notQName attribute
+        if 'notQName' not in self.elem.attrib:
+            return
+
+        not_qname = self.elem.attrib['notQName'].strip().split()
+
+        if isinstance(self, XsdAnyAttribute) and \
+                not all(not s.startswith('##') or s == '##defined' for s in not_qname) or \
+                not all(not s.startswith('##') or s in {'##defined', '##definedSibling'} for s in not_qname):
+            self.parse_error("wrong value for 'notQName' attribute")
+            return
+
+        try:
+            names = [self.schema.resolve_qname(x, False) for x in not_qname if not x.startswith('##')]
+        except KeyError as err:
+            self.parse_error("unmapped QName in 'notQName' attribute: %s" % str(err))
+            return
+        except ValueError as err:
+            self.parse_error("wrong QName format in 'notQName' attribute: %s" % str(err))
+            return
+
+        if self.not_namespace and any(get_namespace(x) in self.not_namespace for x in names):
+            pass
+
+        self.not_qname = not_qname
 
     def _load_namespace(self, namespace):
         if namespace in self.schema.maps.namespaces:
@@ -371,30 +415,7 @@ class Xsd11AnyElement(XsdAnyElement):
     """
     def _parse(self):
         super(Xsd11AnyElement, self)._parse()
-
-        # Parse notNamespace attribute
-        try:
-            not_namespace = self.elem.attrib['notNamespace'].strip().split()
-        except KeyError:
-            pass
-        else:
-            if 'namespace' in self.elem.attrib:
-                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
-            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
-                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
-            else:
-                self.not_namespace = not_namespace
-
-        # Parse notQName attribute
-        try:
-            not_qname = self.elem.attrib['notQName'].strip().split()
-        except KeyError:
-            pass
-        else:
-            if not all(not s.startswith('##') or s in {'##defined', '##definedSibling'} for s in not_qname):
-                self.parse_error("wrong value %r for 'notQName' attribute." % self.elem.attrib['notQName'])
-            else:
-                self.not_qname = not_qname
+        self._parse_not_constraints()
 
     def is_matching(self, name, default_namespace=None, group=None):
         if name is None:
@@ -432,30 +453,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
     """
     def _parse(self):
         super(Xsd11AnyAttribute, self)._parse()
-
-        # Parse notNamespace attribute
-        try:
-            not_namespace = self.elem.attrib['notNamespace'].strip().split()
-        except KeyError:
-            pass
-        else:
-            if 'namespace' in self.elem.attrib:
-                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
-            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
-                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
-            else:
-                self.not_namespace = not_namespace
-
-        # Parse notQName attribute
-        try:
-            not_qname = self.elem.attrib['notQName'].strip().split()
-        except KeyError:
-            pass
-        else:
-            if not all(not s.startswith('##') or s == '##defined' for s in not_qname):
-                self.parse_error("wrong value %r for 'notQName' attribute." % self.elem.attrib['notQName'])
-            else:
-                self.not_qname = not_qname
+        self._parse_not_constraints()
 
     def is_matching(self, name, default_namespace=None, group=None):
         if name is None:
@@ -554,7 +552,4 @@ class XsdDefaultOpenContent(XsdOpenContent):
             self.parse_error("a defaultOpenContent declaration cannot be empty")
 
         if 'appliesToEmpty' in self.elem.attrib:
-            try:
-                self.applies_to_empty = get_xml_bool_attribute(self.elem, 'appliesToEmpty')
-            except TypeError as err:
-                self.parse_error(err)
+            self.applies_to_empty = self.elem.attrib['appliesToEmpty'].strip() in ('true', '1')

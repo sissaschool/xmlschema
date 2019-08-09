@@ -15,7 +15,7 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENC
     XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, \
     XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, \
     XSD_OPEN_CONTENT, XSD_ASSERT
-from ..helpers import get_qname, local_name, get_xml_bool_attribute, get_xsd_derivation_attribute
+from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 from ..etree import etree_element
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -101,10 +101,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             return  # a local restriction is already parsed by the caller
 
         if 'abstract' in elem.attrib:
-            try:
-                self.abstract = get_xml_bool_attribute(elem, 'abstract')
-            except ValueError as err:
-                self.parse_error(err, elem)
+            self.abstract = elem.attrib['abstract'].strip() in ('true', '1')
 
         if 'block' in elem.attrib:
             try:
@@ -119,10 +116,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error(err, elem)
 
         if 'mixed' in elem.attrib:
-            try:
-                self.mixed = get_xml_bool_attribute(elem, 'mixed')
-            except ValueError as err:
-                self.parse_error(err, elem)
+            self.mixed = elem.attrib['mixed'].strip() in ('true', '1')
 
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])

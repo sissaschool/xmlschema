@@ -21,7 +21,7 @@ from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import etree_element, prune_etree
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
-    qname_to_prefixed, get_xml_bool_attribute, get_xsd_derivation_attribute
+    qname_to_prefixed, get_xsd_derivation_attribute
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 
 
@@ -97,24 +97,6 @@ class TestHelpers(unittest.TestCase):
         self.assertIsNone(get_xsd_annotation(elem))
         elem.append(etree_element(XSD_ANNOTATION))
         self.assertIsNone(get_xsd_annotation(elem))
-
-    def test_get_xml_bool_attribute(self):
-        elem = etree_element(XSD_ELEMENT, attrib={'a1': 'true', 'a2': '1', 'a3': 'false', 'a4': '0', 'a5': 'x'})
-        self.assertEqual(get_xml_bool_attribute(elem, 'a1'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a2'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a3'), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a4'), False)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a5')
-        self.assertRaises(KeyError, get_xml_bool_attribute, elem, 'a6')
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', True), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'true'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '1'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', False), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'false'), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '0'), False)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 1)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 0)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 'True')
 
     def test_get_xsd_derivation_attribute(self):
         elem = etree_element(XSD_ELEMENT, attrib={

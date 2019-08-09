@@ -20,7 +20,7 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaV
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname, get_xsd_form_attribute, get_xml_bool_attribute
+from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
@@ -270,13 +270,8 @@ class Xsd11Attribute(XsdAttribute):
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
-
         if 'inheritable' in self.elem.attrib:
-            try:
-                self.inheritable = get_xml_bool_attribute(self.elem, 'inheritable')
-            except ValueError as err:
-                self.parse_error(err)
-
+            self.inheritable = self.elem.attrib['inheritable'].strip() in ('true', '1')
         self._parse_target_namespace()
 
 

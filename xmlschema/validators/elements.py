@@ -21,7 +21,7 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
     XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR
-from ..helpers import get_qname, get_xml_bool_attribute, get_xsd_derivation_attribute, \
+from ..helpers import get_qname, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
@@ -147,13 +147,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
 
         if 'abstract' in attrib:
-            try:
-                self._abstract = get_xml_bool_attribute(self.elem, 'abstract')
-            except ValueError as err:
-                self.parse_error(err)
-            else:
-                if self.parent is not None:
-                    self.parse_error("local scope elements cannot have abstract attribute")
+            self._abstract = attrib['abstract'].strip() in ('true', '1')
+            if self.parent is not None:
+                self.parse_error("local scope elements cannot have abstract attribute")
 
         if 'block' in attrib:
             try:
@@ -369,7 +365,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def nillable(self):
         if self.ref is not None:
             return self.ref.nillable
-        return get_xml_bool_attribute(self.elem, 'nillable', default=False)
+        return self.elem.get('nillable', '').strip() in ('true', '1')
 
     def get_attribute(self, name):
         if name[0] != '{':
@@ -462,7 +458,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if not self.nillable:
                 yield self.validation_error(validation, "element is not nillable.", elem, **kwargs)
             try:
-                if get_xml_bool_attribute(elem, XSI_NIL):
+                if elem.attrib[XSI_NIL].strip() in ('true', '1'):
                     if elem.text is not None:
                         reason = "xsi:nil='true' but the element is not empty."
                         yield self.validation_error(validation, reason, elem, **kwargs)
@@ -662,7 +658,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             return other.is_matching(self.name, self.default_namespace)
         elif isinstance(other, XsdElement):
-            if self.name != other.name and any(n not in other.names for n in self.names):
+            if self.name == other.name:
+                pass
+            elif any(n not in other.names for n in self.names):
                 substitution_group = self.substitution_group
 
                 if other.name == self.substitution_group and other.min_occurs != other.max_occurs \
@@ -675,6 +673,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return False
                 elif not any(e.name == self.name for e in self.maps.substitution_groups[substitution_group]):
                     return False
+            else:
+                return False
 
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
