@@ -47,21 +47,21 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
     # Signed as valid that have to be checked
-    '../msData/additional/addB194.xsd',       # 4826: invalid xml:lang='enu'
-    '../msData/particles/particlesZ001.xsd',  # 10957: Invalid in XSD 1.0
-    '../msData/simpleType/stE110.xsd',      # 13892: Circular xs:union declaration
-    '../saxonData/Missing/missing001.xsd',  # 14405: missing type (this may be valid in 'lax' mode?)
-    '../saxonData/Missing/missing002.xsd',  # 14406: missing substitution group
-    '../saxonData/Missing/missing003.xsd',  # 14406: missing type and substitution group
-    '../saxonData/Missing/missing006.xsd',  # 14410: missing list item type
-    '../saxonData/VC/vc001.xsd',            # 14411: VC namespace required
-    '../saxonData/VC/vc002.xsd',            # 14412: VC namespace required
-    '../saxonData/VC/vc014.xsd',            # 14413: VC namespace required
-    '../saxonData/VC/vc024.xsd',            # 14414: VC 1.1? required
-    '../saxonData/XmlVersions/xv004.xsd',   # 14419: non-BMP chars allowed in names in XML 1.1+
+    '../msData/additional/addB194.xsd',         # invalid xml:lang='enu'
+    '../msData/particles/particlesZ001.xsd',    # Invalid in XSD 1.0
+    '../msData/simpleType/stE110.xsd',          # Circular xs:union declaration
+    '../saxonData/Missing/missing001.xsd',      # missing type (this may be valid in 'lax' mode?)
+    '../saxonData/Missing/missing002.xsd',      # missing substitution group
+    '../saxonData/Missing/missing003.xsd',      # missing type and substitution group
+    '../saxonData/Missing/missing006.xsd',      # missing list item type
+    '../saxonData/VC/vc001.xsd',                # VC namespace required
+    '../saxonData/VC/vc002.xsd',                # VC namespace required
+    '../saxonData/VC/vc014.xsd',                # VC namespace required
+    '../saxonData/VC/vc024.xsd',                # VC 1.1? required
+    '../saxonData/XmlVersions/xv004.xsd',       # non-BMP chars allowed in names in XML 1.1+
 
-    # Signed as valid that is invalid
-    '../ibmData/instance_invalid/S3_4_1/s3_4_1ii04.xsd',  # XSD 1.1: notQName not allowed in openContent/any
+    # Signed as valid that depends by implementation choice
+    '../saxonData/Assert/assert-simple007.xsd',     # XPath [err:FOCA0002] invalid lexical value
 
     # Invalid that may be valid
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
@@ -204,8 +204,8 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
     if args.numbers and testgroup_num not in args.numbers:
         return
 
-    if testgroup_num < 4730:
-        return
+    # if testgroup_num < 4730 or testgroup_num not in (10726, 10746, 13680):
+    #    return
 
     name = group_elem.attrib['name']
     group_tests = []

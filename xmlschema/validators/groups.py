@@ -732,7 +732,7 @@ class Xsd11Group(XsdGroup):
     def _parse_content_model(self, elem, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
-            if self.max_occurs != 1:
+            if self.max_occurs not in (0, 1):
                 self.parse_error("maxOccurs must be (0 | 1) for 'all' model groups")
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")

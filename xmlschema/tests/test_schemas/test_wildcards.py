@@ -398,7 +398,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
         self.check_schema("""
         <xs:complexType name="baseType">
-          <xs:openContent mode="suffix">
+          <xs:openContent mode="interleave">
             <xs:any namespace="tns1" processContents="lax"/>
           </xs:openContent>
           <xs:sequence>
@@ -410,7 +410,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
           <xs:complexContent>
             <xs:extension base="baseType">
               <xs:openContent>
-                <xs:any namespace="tns1 tns2" processContents="strict"/>
+                <!-- processContents="strict" is more restrictive -->
+                <xs:any namespace="tns1 tns2" processContents="strict"/> 
               </xs:openContent>
               <xs:sequence>
                 <xs:element name="bar" type="xs:string"/>
@@ -420,16 +421,15 @@ class TestXsd11Wildcards(TestXsdWildcards):
         </xs:complexType>""", XMLSchemaParseError)
 
     def test_not_qname_attribute(self):
-        with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                    xmlns:ns="tns1" targetNamespace="tns1">
-                <xs:complexType name="type1">
-                  <xs:openContent>
-                   <xs:any notQName="ns:a" processContents="lax" />
-                  </xs:openContent>
-                </xs:complexType>            
-            </xs:schema>""")
+        self.assertIsInstance(self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                xmlns:ns="tns1" targetNamespace="tns1">
+            <xs:complexType name="type1">
+              <xs:openContent>
+                <xs:any notQName="ns:a" processContents="lax" />
+              </xs:openContent>
+            </xs:complexType>            
+        </xs:schema>"""), XMLSchema11)
 
         self.assertIsInstance(self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 

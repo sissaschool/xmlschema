@@ -67,6 +67,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     _abstract = False
     _block = None
     _final = None
+    _form = None
+    _nillable = False
     _substitution_group = None
 
     def __init__(self, elem, schema, parent, name=None):
@@ -129,11 +131,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     self.parse_error("attribute %r is not allowed when element reference is used." % attr_name)
             return
 
-        try:
-            if (self.form or self.schema.element_form_default) == 'qualified':
-                self.qualified = True
-        except ValueError as err:
-            self.parse_error(err)
+        if 'form' in attrib:
+            try:
+                self._form = get_xsd_form_attribute(self.elem, 'form')
+            except ValueError as err:
+                self.parse_error(err)
+
+        if (self.form or self.schema.element_form_default) == 'qualified':
+            self.qualified = True
 
         try:
             if self.parent is None or self.qualified:
@@ -147,9 +152,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
 
         if 'abstract' in attrib:
-            self._abstract = attrib['abstract'].strip() in ('true', '1')
             if self.parent is not None:
                 self.parse_error("local scope elements cannot have abstract attribute")
+            if self._parse_boolean_attribute('abstract'):
+                self._abstract = True
 
         if 'block' in attrib:
             try:
@@ -159,9 +165,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except ValueError as err:
                 self.parse_error(err)
 
-        if self.parent is None:
-            self._parse_properties('nillable')
+        if self._parse_boolean_attribute('nillable'):
+            self._nillable = True
 
+        if self.parent is None:
             if 'final' in attrib:
                 try:
                     self._final = get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
@@ -172,8 +179,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if attr_name in attrib:
                     self.parse_error("attribute %r not allowed in a global element declaration" % attr_name)
         else:
-            self._parse_properties('form', 'nillable')
-
             for attr_name in ('final', 'substitutionGroup'):
                 if attr_name in attrib:
                     self.parse_error("attribute %r not allowed in a local element declaration" % attr_name)
@@ -346,6 +351,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         return self._block or self.schema.block_default if self.ref is None else self.ref.block
 
     @property
+    def nillable(self):
+        return self._nillable if self.ref is None else self.ref.nillable
+
+    @property
     def substitution_group(self):
         return self._substitution_group if self.ref is None else self.ref.substitution_group
 
@@ -359,13 +368,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def form(self):
-        return get_xsd_form_attribute(self.elem, 'form') if self.ref is None else self.ref.form
-
-    @property
-    def nillable(self):
-        if self.ref is not None:
-            return self.ref.nillable
-        return self.elem.get('nillable', '').strip() in ('true', '1')
+        return self._form if self.ref is None else self.ref.form
 
     def get_attribute(self, name):
         if name[0] != '{':

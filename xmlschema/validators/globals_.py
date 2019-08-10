@@ -12,14 +12,13 @@
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
 from __future__ import unicode_literals
-import re
 import warnings
 from collections import Counter
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
-    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
+from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
 from ..helpers import get_qname, local_name
 from ..namespaces import NamespaceResourcesMap
 
@@ -29,70 +28,47 @@ from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthEr
 from .builtins import xsd_builtin_types_factory
 
 
-def camel_case_split(s):
-    """
-    Split words of a camel case string
-    """
-    return re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)', s)
-
-
-def iterchildren_by_tag(tag):
-    """
-    Defines a generator that produce all child elements that have a specific tag.
-    """
-    def iterfind_function(elem):
-        for e in elem:
-            if e.tag == tag:
-                yield e
-    iterfind_function.__name__ = str('iterfind_xsd_%ss' % '_'.join(camel_case_split(local_name(tag))).lower())
-    return iterfind_function
-
-
-iterchildren_xsd_import = iterchildren_by_tag(XSD_IMPORT)
-iterchildren_xsd_include = iterchildren_by_tag(XSD_INCLUDE)
-iterchildren_xsd_redefine = iterchildren_by_tag(XSD_REDEFINE)
-iterchildren_xsd_override = iterchildren_by_tag(XSD_OVERRIDE)
-
-
 #
 # Defines the load functions for XML Schema structures
-def create_load_function(filter_function):
+def create_load_function(tag):
+
+    def is_redefinition(x):
+        return x.tag in (XSD_REDEFINE, XSD_OVERRIDE) and 'schemaLocation' in x.attrib
 
     def load_xsd_globals(xsd_globals, schemas):
         redefinitions = []
         for schema in schemas:
             target_namespace = schema.target_namespace
-            for elem in iterchildren_xsd_redefine(schema.root):
+
+            for elem in filter(lambda x: x.tag in (XSD_REDEFINE, XSD_OVERRIDE), schema.root):
                 location = elem.get('schemaLocation')
                 if location is None:
                     continue
-                for child in filter_function(elem):
+                for child in filter(lambda x: x.tag == tag and 'name' in x.attrib, elem):
                     qname = get_qname(target_namespace, child.attrib['name'])
-                    redefinitions.append((qname, child, schema, schema.includes[location]))
+                    redefinitions.append((qname, elem, child, schema, schema.includes[location]))
 
-            for elem in filter_function(schema.root):
+            for elem in filter(lambda x: x.tag == tag and 'name' in x.attrib, schema.root):
                 qname = get_qname(target_namespace, elem.attrib['name'])
-                try:
-                    xsd_globals[qname].append((elem, schema))
-                except KeyError:
+                if qname not in xsd_globals:
                     xsd_globals[qname] = (elem, schema)
-                except AttributeError:
-                    xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
+                else:
+                    msg = "global {} with name={!r} is already defined"
+                    schema.parse_error(msg.format(local_name(tag), qname))
 
         tags = Counter([x[0] for x in redefinitions])
-        for qname, elem, schema, redefined_schema in redefinitions:
+        for qname, elem, child, schema, redefined_schema in redefinitions:
 
             # Checks multiple redefinitions
             if tags[qname] > 1:
                 tags[qname] = 1
 
-                redefined_schemas = [x[3] for x in redefinitions if x[0] == qname]
+                redefined_schemas = [x[-1] for x in redefinitions if x[0] == qname]
                 if any(redefined_schemas.count(x) > 1 for x in redefined_schemas):
-                    schema.parse_error(
-                        "multiple redefinition for {} {!r}".format(local_name(elem.tag), qname), elem
-                    )
+                    msg = "multiple redefinition for {} {!r}"
+                    schema.parse_error(msg.format(local_name(child.tag), qname), child)
                 else:
-                    redefined_schemas = {x[3]: x[2] for x in redefinitions if x[0] == qname}
+                    redefined_schemas = {x[-1]: x[-2] for x in redefinitions if x[0] == qname}
                     for rs, s in redefined_schemas.items():
                         while True:
                             try:
@@ -101,30 +77,32 @@ def create_load_function(filter_function):
                                 break
 
                             if s is rs:
-                                schema.parse_error(
-                                    "circular redefinition for {} {!r}".format(local_name(elem.tag), qname), elem
-                                )
+                                msg = "circular redefinition for {} {!r}"
+                                schema.parse_error(msg.format(local_name(child.tag), qname), child)
                                 break
 
-            # Append redefinition
-            try:
-                xsd_globals[qname].append((elem, schema))
-            except KeyError:
-                schema.parse_error("not a redefinition!", elem)
-                # xsd_globals[qname] = elem, schema
-            except AttributeError:
-                xsd_globals[qname] = [xsd_globals[qname], (elem, schema)]
+            if elem.tag == XSD_OVERRIDE:
+                xsd_globals[qname] = (child, schema)
+            else:
+                # Append to a list if it's a redefine
+
+                try:
+                    xsd_globals[qname].append((child, schema))
+                except KeyError:
+                    schema.parse_error("not a redefinition!", child)
+                except AttributeError:
+                    xsd_globals[qname] = [xsd_globals[qname], (child, schema)]
 
     return load_xsd_globals
 
 
-load_xsd_simple_types = create_load_function(iterchildren_by_tag(XSD_SIMPLE_TYPE))
-load_xsd_attributes = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE))
-load_xsd_attribute_groups = create_load_function(iterchildren_by_tag(XSD_ATTRIBUTE_GROUP))
-load_xsd_complex_types = create_load_function(iterchildren_by_tag(XSD_COMPLEX_TYPE))
-load_xsd_elements = create_load_function(iterchildren_by_tag(XSD_ELEMENT))
-load_xsd_groups = create_load_function(iterchildren_by_tag(XSD_GROUP))
-load_xsd_notations = create_load_function(iterchildren_by_tag(XSD_NOTATION))
+load_xsd_simple_types = create_load_function(XSD_SIMPLE_TYPE)
+load_xsd_attributes = create_load_function(XSD_ATTRIBUTE)
+load_xsd_attribute_groups = create_load_function(XSD_ATTRIBUTE_GROUP)
+load_xsd_complex_types = create_load_function(XSD_COMPLEX_TYPE)
+load_xsd_elements = create_load_function(XSD_ELEMENT)
+load_xsd_groups = create_load_function(XSD_GROUP)
+load_xsd_notations = create_load_function(XSD_NOTATION)
 
 
 def create_lookup_function(xsd_classes):

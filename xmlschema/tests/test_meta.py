@@ -333,7 +333,7 @@ class TestGlobalMaps(unittest.TestCase):
                 if c.is_global:
                     global_counter += 1
         self.assertEqual(global_counter, 225)
-        self.assertEqual(total_counter, 1029)
+        self.assertEqual(total_counter, 1051)
 
 
 if __name__ == '__main__':

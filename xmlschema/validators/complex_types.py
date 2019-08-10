@@ -47,6 +47,7 @@ class XsdComplexType(XsdType, ValidationMixin):
       ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
     </complexType>
     """
+    abstract = False
     mixed = False
     assertions = ()
     open_content = None
@@ -100,8 +101,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         if elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
-        if 'abstract' in elem.attrib:
-            self.abstract = elem.attrib['abstract'].strip() in ('true', '1')
+        if self._parse_boolean_attribute('abstract'):
+            self.abstract = True
 
         if 'block' in elem.attrib:
             try:
@@ -115,8 +116,8 @@ class XsdComplexType(XsdType, ValidationMixin):
             except ValueError as err:
                 self.parse_error(err, elem)
 
-        if 'mixed' in elem.attrib:
-            self.mixed = elem.attrib['mixed'].strip() in ('true', '1')
+        if self._parse_boolean_attribute('mixed'):
+            self.mixed = True
 
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
@@ -346,9 +347,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif getattr(base_type, 'open_content', None):
                 self.open_content = base_type.open_content
 
-        if self.open_content and base_type.name != XSD_ANY_TYPE and \
+        if self.open_content and content_type and \
                 not self.open_content.is_restriction(base_type.open_content):
-            self.parse_error("%r is not a restriction of the base type openContent" % self.open_content)
+            msg = "{!r} is not a restriction of the base type {!r}"
+            self.parse_error(msg.format(self.open_content, base_type.open_content))
 
         self.content_type = content_type
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
@@ -373,7 +375,8 @@ class XsdComplexType(XsdType, ValidationMixin):
 
         try:
             if self.open_content and not base_type.open_content.is_restriction(self.open_content):
-                self.parse_error("%r is not an extension of the base type openContent" % self.open_content)
+                msg = "{!r} is not an extension of the base type {!r}"
+                self.parse_error(msg.format(self.open_content, base_type.open_content))
         except AttributeError:
             pass
 

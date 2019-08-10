@@ -350,6 +350,19 @@ class XsdComponent(XsdValidator):
                     self.parse_error("a reference component cannot has child definitions/declarations")
                 return True
 
+    def _parse_boolean_attribute(self, name):
+        try:
+            value = self.elem.attrib[name].strip()
+        except KeyError:
+            return
+        else:
+            if value in ('true', '1'):
+                return True
+            elif value in ('false', '0'):
+                return False
+            else:
+                self.parse_error("wrong value %r for boolean attribute %r" % (value, name))
+
     def _parse_child_component(self, elem, strict=True):
         child = None
         for index, child in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
@@ -359,13 +372,6 @@ class XsdComponent(XsdValidator):
                 msg = "too many XSD components, unexpected {!r} found at position {}"
                 self.parse_error(msg.format(child, index), elem)
         return child
-
-    def _parse_properties(self, *properties):
-        for name in properties:
-            try:
-                getattr(self, name)
-            except (ValueError, TypeError) as err:
-                self.parse_error(str(err))
 
     def _parse_target_namespace(self):
         """

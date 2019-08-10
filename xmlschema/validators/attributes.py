@@ -270,8 +270,8 @@ class Xsd11Attribute(XsdAttribute):
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
-        if 'inheritable' in self.elem.attrib:
-            self.inheritable = self.elem.attrib['inheritable'].strip() in ('true', '1')
+        if self._parse_boolean_attribute('inheritable'):
+            self.inheritable = True
         self._parse_target_namespace()
 
 
@@ -424,15 +424,15 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     except LookupError:
                         self.parse_error("unknown attribute group %r" % child.attrib['ref'], elem)
                     else:
-                        if isinstance(base_attributes, tuple):
+                        if not isinstance(base_attributes, tuple):
+                            for name, attr in base_attributes.items():
+                                if name is not None and name in attributes:
+                                    self.parse_error("multiple declaration for attribute {!r}".format(name))
+                                else:
+                                    attributes[name] = attr
+                        elif self.xsd_version == '1.0':
                             self.parse_error("Circular reference found between attribute groups "
                                              "{!r} and {!r}".format(self.name, attribute_group_qname))
-
-                        for name, attr in base_attributes.items():
-                            if name is not None and name in attributes:
-                                self.parse_error("multiple declaration for attribute {!r}".format(name))
-                            else:
-                                attributes[name] = attr
 
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)

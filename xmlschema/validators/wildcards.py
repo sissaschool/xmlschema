@@ -517,10 +517,8 @@ class XsdOpenContent(XsdComponent):
         return True
 
     def is_restriction(self, other):
-        if self.mode == 'none':
+        if self.mode == 'none' or other is None or other.mode == 'none':
             return True
-        elif other is None or other.mode == 'none':
-            return False
         elif self.mode == 'interleave' and other.mode == 'suffix':
             return False
         else:
@@ -551,5 +549,5 @@ class XsdDefaultOpenContent(XsdOpenContent):
         if self._parse_child_component(self.elem) is None:
             self.parse_error("a defaultOpenContent declaration cannot be empty")
 
-        if 'appliesToEmpty' in self.elem.attrib:
-            self.applies_to_empty = self.elem.attrib['appliesToEmpty'].strip() in ('true', '1')
+        if self._parse_boolean_attribute('appliesToEmpty'):
+            self.applies_to_empty = True
