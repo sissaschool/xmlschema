@@ -24,11 +24,11 @@ from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
 class XsdWildcard(XsdComponent, ValidationMixin):
-    names = {}
-    namespace = '##any'
-    process_contents = 'strict'
+    names = ()
+    namespace = ('##any',)
     not_namespace = ()
     not_qname = ()
+    process_contents = 'strict'
 
     def __init__(self, elem, schema, parent):
         if parent is None:
@@ -36,9 +36,14 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return '%s(namespace=%r, process_contents=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents
-        )
+        if self.namespace:
+            return '%s(namespace=%r, process_contents=%r)' % (
+                self.__class__.__name__, self.namespace, self.process_contents
+            )
+        else:
+            return '%s(not_namespace=%r, process_contents=%r)' % (
+                self.__class__.__name__, self.not_namespace, self.process_contents
+            )
 
     def _parse(self):
         super(XsdWildcard, self)._parse()
@@ -47,33 +52,49 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         namespace = self.elem.get('namespace', '##any').strip()
         if namespace == '##any':
             pass
-        elif namespace in {'##other', '##local', '##targetNamespace'}:
-            self.namespace = namespace
-        elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in namespace.split()):
-            self.parse_error("wrong value %r for 'namespace' attribute." % namespace)
+        elif namespace == '##other':
+            self.namespace = [namespace]
+        elif namespace == '##local':
+            self.namespace = ['']
+        elif namespace == '##targetNamespace':
+            self.namespace = [self.target_namespace]
         else:
-            self.namespace = namespace
+            self.namespace = []
+            for ns in namespace.split():
+                if ns == '##local':
+                    self.namespace.append('')
+                elif ns == '##targetNamespace':
+                    self.namespace.append(self.target_namespace)
+                elif ns.startswith('##'):
+                    self.parse_error("wrong value %r in 'namespace' attribute" % ns)
+                else:
+                    self.namespace.append(ns)
 
         process_contents = self.elem.get('processContents', 'strict')
         if process_contents == 'strict':
             pass
         elif process_contents not in ('lax', 'skip'):
-            self.parse_error("wrong value %r for 'processContents' attribute." % self.process_contents)
+            self.parse_error("wrong value %r for 'processContents' attribute" % self.process_contents)
         else:
             self.process_contents = process_contents
 
     def _parse_not_constraints(self):
-        try:
-            not_namespace = self.elem.attrib['notNamespace'].strip().split()
-        except KeyError:
+        if 'notNamespace' not in self.elem.attrib:
             pass
+        elif 'namespace' in self.elem.attrib:
+            self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive")
         else:
-            if 'namespace' in self.elem.attrib:
-                self.parse_error("'namespace' and 'notNamespace' attributes are mutually exclusive.")
-            elif not all(not s.startswith('##') or s in {'##local', '##targetNamespace'} for s in not_namespace):
-                self.parse_error("wrong value %r for 'notNamespace' attribute." % self.elem.attrib['notNamespace'])
-            else:
-                self.not_namespace = not_namespace
+            self.namespace = []
+            self.not_namespace = []
+            for ns in self.elem.attrib['notNamespace'].strip().split():
+                if ns == '##local':
+                    self.not_namespace.append('')
+                elif ns == '##targetNamespace':
+                    self.not_namespace.append(self.target_namespace)
+                elif ns.startswith('##'):
+                    self.parse_error("wrong value %r in 'notNamespace' attribute" % ns)
+                else:
+                    self.not_namespace.append(ns)
 
         # Parse notQName attribute
         if 'notQName' not in self.elem.attrib:
@@ -124,17 +145,6 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
-    def iter_namespaces(self):
-        if self.namespace in ('##any', '##other'):
-            return
-        for ns in self.namespace.split():
-            if ns == '##local':
-                yield ''
-            elif ns == '##targetNamespace':
-                yield self.target_namespace
-            else:
-                yield ns
-
     def is_matching(self, name, default_namespace=None, group=None):
         if name is None:
             return False
@@ -147,28 +157,13 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
     def is_namespace_allowed(self, namespace):
         if self.not_namespace:
-            if '##local' in self.not_namespace and namespace == '':
-                return False
-            elif '##targetNamespace' in self.not_namespace and namespace == self.target_namespace:
-                return False
-            else:
-                return namespace not in self.not_namespace
-
-        elif self.namespace == '##any' or namespace == XSI_NAMESPACE:
+            return namespace not in self.not_namespace
+        elif self.namespace[0] == '##any' or namespace == XSI_NAMESPACE:
             return True
-        elif self.namespace == '##other':
-            if namespace:
-                return namespace != self.target_namespace
-            else:
-                return False
+        elif self.namespace[0] == '##other':
+            return namespace and namespace != self.target_namespace
         else:
-            any_namespaces = self.namespace.split()
-            if '##local' in any_namespaces and namespace == '':
-                return True
-            elif '##targetNamespace' in any_namespaces and namespace == self.target_namespace:
-                return True
-            else:
-                return namespace in any_namespaces
+            return namespace in self.namespace
 
     def is_restriction(self, other, check_occurs=True):
         if check_occurs and isinstance(self, ParticleMixin) and not self.has_occurs_restriction(other):
@@ -181,22 +176,14 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return False
         elif self.namespace == other.namespace:
             return True
-        elif other.namespace == '##any':
+        elif '##any' in other.namespace:
             return True
-        elif self.namespace == '##any':
+        elif '##any' in self.namespace or '##other' in self.namespace:
             return False
-
-        other_namespaces = other.namespace.split()
-        for ns in self.namespace.split():
-            if ns in other_namespaces:
-                continue
-            elif ns == self.target_namespace:
-                if '##targetNamespace' in other_namespaces:
-                    continue
-            elif not ns.startswith('##') and '##other' in other_namespaces:
-                continue
-            return False
-        return True
+        elif '##other' in other.namespace:
+            return other.target_namespace not in self.namespace
+        else:
+            return all(ns in other.namespace for ns in self.namespace)
 
     def iter_decode(self, source, validation='lax', **kwargs):
         raise NotImplementedError
@@ -222,9 +209,14 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     _ADMITTED_TAGS = {XSD_ANY}
 
     def __repr__(self):
-        return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
-            self.__class__.__name__, self.namespace, self.process_contents, self.occurs
-        )
+        if self.namespace:
+            return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
+                self.__class__.__name__, self.namespace, self.process_contents, self.occurs
+            )
+        else:
+            return '%s(not_namespace=%r, process_contents=%r, occurs=%r)' % (
+                self.__class__.__name__, self.not_namespace, self.process_contents, self.occurs
+            )
 
     def _parse(self):
         super(XsdAnyElement, self)._parse()
@@ -303,15 +295,14 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return other.overlap(self)
         elif self.namespace == other.namespace:
             return True
-        elif self.namespace == '##any' or other.namespace == '##any':
+        elif '##any' in self.namespace or '##any' in other.namespace:
             return True
-        elif self.namespace == '##other':
-            return any(not ns.startswith('##') and ns != self.target_namespace for ns in other.namespace.split())
-        elif other.namespace == '##other':
-            return any(not ns.startswith('##') and ns != other.target_namespace for ns in self.namespace.split())
-
-        any_namespaces = self.namespace.split()
-        return any(ns in any_namespaces for ns in other.namespace.split())
+        elif '##other' in self.namespace:
+            return any(ns and ns != self.target_namespace for ns in other.namespace)
+        elif '##other' in other.namespace:
+            return any(ns and ns != other.target_namespace for ns in self.namespace)
+        else:
+            return any(ns in self.namespace for ns in other.namespace)
 
 
 class XsdAnyAttribute(XsdWildcard):
@@ -329,27 +320,23 @@ class XsdAnyAttribute(XsdWildcard):
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
     def extend_namespace(self, other):
-        if self.namespace == '##any' or self.namespace == other.namespace:
+        if '##any' in self.namespace or self.namespace == other.namespace:
             return
-        elif other.namespace == '##any':
+        elif '##any' in other.namespace:
             self.namespace = other.namespace
             return
-        elif other.namespace == '##other':
+        elif '##other' in other.namespace:
             w1, w2 = other, self
-        elif self.namespace == '##other':
+        elif '##other' in self.namespace:
             w1, w2 = self, other
-        elif self.target_namespace == other.target_namespace:
-            self.namespace = ' '.join(set(other.namespace.split() + self.namespace.split()))
-            return
         else:
-            self.namespace = ' '.join(set(list(other.iter_namespaces()) + self.namespace.split()))
+            self.namespace.extend(other.namespace)
             return
 
-        namespaces = set(w2.iter_namespaces())
-        if w1.target_namespace in namespaces and '' in namespaces:
-            self.namespace = '##any'
-        elif '' not in namespaces and w1.target_namespace == w2.target_namespace:
-            self.namespace = '##other'
+        if w1.target_namespace in w2.namespace and '' in w2.namespace:
+            self.namespace = ['##any']
+        elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
+            self.namespace = ['##other']
         else:
             msg = "not expressible wildcard namespace union: {!r} V {!r}:"
             raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))

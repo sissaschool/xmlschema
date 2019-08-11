@@ -17,6 +17,25 @@ from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
 
 class TestXsdWildcards(XsdValidatorTestCase):
 
+    def test_overlap(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:choice>
+                <xs:any namespace="##local"/>
+                <xs:any namespace="##other"/>
+                <xs:any namespace="##targetNamespace foo bar"/>
+              </xs:choice>
+            </xs:group>
+        </xs:schema>""")
+
+        any1, any2, any3 = schema.groups['group1'][:]
+        self.assertFalse(any1.overlap(any2))
+        self.assertFalse(any2.overlap(any1))
+        self.assertTrue(any3.is_matching('{foo}x'))
+        self.assertTrue(any3.is_matching('{bar}x'))
+        self.assertTrue(any3.is_matching('{tns1}x'))
+
     def test_any_wildcard(self):
         schema = self.check_schema("""
         <xs:complexType name="taggedType">
@@ -25,7 +44,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any namespace="##other" processContents="skip"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##other')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, ['##other'])
 
         schema = self.check_schema("""
         <xs:complexType name="taggedType">
@@ -34,7 +53,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any namespace="##targetNamespace" processContents="skip"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##targetNamespace')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, [''])
 
         schema = self.check_schema("""
         <xs:complexType name="taggedType">
@@ -43,7 +62,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any namespace="ns ##targetNamespace" processContents="skip"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, 'ns ##targetNamespace')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, ['ns', ''])
 
         schema = self.check_schema("""
         <xs:complexType name="taggedType">
@@ -52,7 +71,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any namespace="tns2 tns1 tns3" processContents="skip"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, 'tns2 tns1 tns3')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, ['tns2', 'tns1', 'tns3'])
         self.assertEqual(schema.types['taggedType'].content_type[-1].min_occurs, 1)
         self.assertEqual(schema.types['taggedType'].content_type[-1].max_occurs, 1)
 
@@ -63,7 +82,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any minOccurs="10" maxOccurs="unbounded"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, '##any')
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, ('##any',))
         self.assertEqual(schema.types['taggedType'].content_type[-1].min_occurs, 10)
         self.assertIsNone(schema.types['taggedType'].content_type[-1].max_occurs)
 
@@ -76,7 +95,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
           </xs:sequence>
           <xs:anyAttribute namespace="tns1:foo"/>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, 'tns1:foo')
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, ['tns1:foo'])
 
         schema = self.check_schema("""
         <xs:complexType name="taggedType">
@@ -86,7 +105,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
           </xs:sequence>
           <xs:anyAttribute namespace="##targetNamespace"/>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, '##targetNamespace')
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, [''])
 
 
 class TestXsd11Wildcards(TestXsdWildcards):
@@ -458,7 +477,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             <xs:any notNamespace="##targetNamespace" />
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].not_namespace, ['##targetNamespace'])
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_namespace, [''])
 
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
@@ -498,5 +517,5 @@ class TestXsd11Wildcards(TestXsdWildcards):
               <xs:anyAttribute notQName="tns1:foo"/>
             </xs:complexType>
         </xs:schema>""")
-        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, '##any')
+        self.assertEqual(schema.types['taggedType'].attributes[None].namespace, ('##any',))
         self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['tns1:foo'])
