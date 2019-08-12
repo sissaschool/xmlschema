@@ -1430,12 +1430,38 @@ class TestEncoding(XsdValidatorTestCase):
 
         with self.assertRaises(XMLSchemaChildrenValidationError):
             schema.to_etree({"A": [1, 2], "B": [3, 4]})
-            
+
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, converter=UnorderedConverter)
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, unordered=True)
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
+
+    def test_unordered_converter_missing_elements_at_end(self):
+        schema = self.get_schema("""
+            <xs:element name="foo">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="A" type="xs:integer" />
+                        <xs:element name="B" type="xs:integer" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            """)
+
+        with self.assertRaises(XMLSchemaChildrenValidationError):
+            schema.to_etree(
+                {"A": [1]},
+                'foo',
+                converter=UnorderedConverter,
+            )
+
+        with self.assertRaises(XMLSchemaChildrenValidationError):
+            schema.to_etree(
+                {"A": [1]},
+                'foo',
+                unordered=True,
+            )
 
 
 class TestEncoding11(TestEncoding):
