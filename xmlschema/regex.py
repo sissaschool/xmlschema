@@ -9,7 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Parse and translate XML regular expressions to Python regex syntax.
+Parse and translate XML Schema regular expressions to Python regex syntax.
 """
 from __future__ import unicode_literals
 import re
@@ -18,22 +18,12 @@ from sys import maxunicode
 
 from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
-from .codepoints import UNICODE_CATEGORIES, UNICODE_BLOCKS, UnicodeSubset
+from .codepoints import UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
 
 _RE_QUANTIFIER = re.compile(r'{\d+(,(\d+)?)?}')
 _RE_FORBIDDEN_ESCAPES = re.compile(
     r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|\d+|A|Z|z|B|b|o)'
 )
-
-_UNICODE_SUBSETS = UNICODE_CATEGORIES.copy()
-_UNICODE_SUBSETS.update(UNICODE_BLOCKS)
-
-
-def get_unicode_subset(key):
-    try:
-        return _UNICODE_SUBSETS[key]
-    except KeyError:
-        raise XMLSchemaRegexError("%r don't match to any Unicode category or block.")
 
 
 I_SHORTCUT_REPLACE = (
@@ -100,7 +90,8 @@ class XsdRegexCharGroup(MutableSet):
     _re_char_group = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
 
-    def __init__(self, *args):
+    def __init__(self, xsd_version='1.0', *args):
+        self.xsd_version = xsd_version
         self.positive = UnicodeSubset()
         self.negative = UnicodeSubset()
         for char in args:
@@ -165,11 +156,11 @@ class XsdRegexCharGroup(MutableSet):
             elif part.startswith('\\p'):
                 if self._re_unicode_ref.search(part) is None:
                     raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.positive |= get_unicode_subset(part[3:-1])
+                self.positive |= unicode_subset(part[3:-1], self.xsd_version > '1.0')
             elif part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
                     raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.negative |= get_unicode_subset(part[3:-1])
+                self.negative |= unicode_subset(part[3:-1], self.xsd_version > '1.0')
             else:
                 self.positive.update(part)
 
@@ -186,11 +177,11 @@ class XsdRegexCharGroup(MutableSet):
             elif part.startswith('\\p'):
                 if self._re_unicode_ref.search(part) is None:
                     raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.positive -= get_unicode_subset(part[3:-1])
+                self.positive -= unicode_subset(part[3:-1], self.xsd_version > '1.0')
             elif part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
                     raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.negative -= get_unicode_subset(part[3:-1])
+                self.negative -= unicode_subset(part[3:-1], self.xsd_version > '1.0')
             else:
                 self.positive.difference_update(part)
 
@@ -202,13 +193,15 @@ class XsdRegexCharGroup(MutableSet):
         self.positive, self.negative = self.negative, self.positive
 
 
-def parse_character_class(xml_regex, class_pos):
+def parse_character_class(xml_regex, class_pos, xsd_version='1.0'):
     """
     Parses a character class of an XML Schema regular expression.
 
     :param xml_regex: the source XML Schema regular expression.
     :param class_pos: the position of the character class in the source string, \
     must coincide with a '[' character.
+    :param xsd_version: the version of the XML Schema processor ('1.0' or '1.1') \
+    that called the regular expression parsing.
     :return: an `XsdRegexCharGroup` instance and the first position after the character class.
     """
     if xml_regex[class_pos] != '[':
@@ -230,7 +223,7 @@ def parse_character_class(xml_regex, class_pos):
         elif xml_regex[pos] == ']' or xml_regex[pos:pos + 2] == '-[':
             if pos == group_pos:
                 raise XMLSchemaRegexError("empty character class at position %d: %r" % (class_pos, xml_regex))
-            char_group = XsdRegexCharGroup(xml_regex[group_pos:pos])
+            char_group = XsdRegexCharGroup(xsd_version, xml_regex[group_pos:pos])
             if negative:
                 char_group.complement()
             break
@@ -249,9 +242,13 @@ def parse_character_class(xml_regex, class_pos):
     return char_group, pos
 
 
-def get_python_regex(xml_regex):
+def get_python_regex(xml_regex, xsd_version='1.0'):
     """
     Translates an XML regex expression to a Python compatible expression.
+
+    :param xml_regex: the source XML Schema regular expression.
+    :param xsd_version: the version of the XML Schema processor ('1.0' or '1.1') \
+    that called the regular expression parsing.
     """
     regex = ['^(']
     pos = 0
@@ -272,7 +269,7 @@ def get_python_regex(xml_regex):
             regex.append(r'\%s' % ch)
         elif ch == '[':
             try:
-                char_group, pos = parse_character_class(xml_regex, pos)
+                char_group, pos = parse_character_class(xml_regex, pos, xsd_version)
             except IndexError:
                 raise XMLSchemaRegexError(
                     "unterminated character group at position %d: %r" % (pos, xml_regex)
@@ -343,7 +340,7 @@ def get_python_regex(xml_regex):
                     raise XMLSchemaRegexError(
                         "truncated unicode block escape at position %d: %r" % (block_pos, xml_regex))
 
-                p_shortcut_set = get_unicode_subset(xml_regex[block_pos + 3:pos])
+                p_shortcut_set = unicode_subset(xml_regex[block_pos + 3:pos], xsd_version > '1.0')
                 if xml_regex[block_pos + 1] == 'p':
                     regex.append('[%s]' % p_shortcut_set)
                 else:

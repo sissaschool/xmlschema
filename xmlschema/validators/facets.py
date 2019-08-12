@@ -591,7 +591,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 
     def _parse_value(self, elem):
         try:
-            return re.compile(get_python_regex(elem.attrib['value']))
+            return re.compile(get_python_regex(elem.attrib['value'], self.xsd_version))
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
             return re.compile(r'^$')
