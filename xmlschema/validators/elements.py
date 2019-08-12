@@ -667,7 +667,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 substitution_group = self.substitution_group
 
                 if other.name == self.substitution_group and other.min_occurs != other.max_occurs \
-                        and self.max_occurs != 0 and not other.abstract:
+                        and self.max_occurs != 0 and not other.abstract and self.xsd_version == '1.0':
                     # Base is the head element, it's not abstract and has non deterministic occurs: this
                     # is less restrictive than W3C test group (elemZ026), marked as invalid despite it's
                     # based on an abstract declaration.
@@ -804,6 +804,13 @@ class Xsd11Element(XsdElement):
             return self.elem.attrib['targetNamespace']
         except KeyError:
             return self.schema.target_namespace
+
+    @property
+    def default_namespace(self):
+        try:
+            return self.elem.attrib['targetNamespace']
+        except KeyError:
+            return super(Xsd11Element, self).default_namespace
 
     def get_type(self, elem):
         if not self.alternatives:

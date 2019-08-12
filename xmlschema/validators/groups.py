@@ -346,6 +346,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         if self.model != other.model and self.model != 'sequence' and len(self) > 1:
             return False
         elif self.model == other.model or other.model == 'sequence':
+            if self.model =='all' and self.xsd_version > '1.0':
+                return self.is_all_restriction(other)
             return self.is_sequence_restriction(other)
         elif other.model == 'all':
             return self.is_all_restriction(other)
@@ -442,7 +444,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return False
 
         check_occurs = other.max_occurs != 0
-        restriction_items = list(self)
+        restriction_items = list(self) if self.xsd_version == '1.0' else list(self.iter_model())
         max_occurs = 0
         other_max_occurs = 0
 
@@ -767,3 +769,33 @@ class Xsd11Group(XsdGroup):
                     self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
+
+    def is_all_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
+
+        restriction_items = list(self.iter_model())
+
+        for other_item in other.iter_model():
+            min_occurs, max_occurs = 0, other_item.max_occurs
+            for k in range(len(restriction_items)-1, -1, -1):
+                item = restriction_items[k]
+
+                if item.is_restriction(other_item, check_occurs=False):
+                    if max_occurs is None:
+                        min_occurs += item.min_occurs
+                    elif item.max_occurs is None or max_occurs < item.max_occurs or \
+                            min_occurs + item.min_occurs > max_occurs:
+                        continue
+                    else:
+                        min_occurs += item.min_occurs
+                        max_occurs -= item.max_occurs
+
+                    restriction_items.remove(item)
+                    if not min_occurs or max_occurs == 0:
+                        break
+
+            if min_occurs < other_item.min_occurs:
+                return False
+
+        return not bool(restriction_items)

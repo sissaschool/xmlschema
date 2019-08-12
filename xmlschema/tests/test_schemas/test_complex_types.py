@@ -165,7 +165,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
               <xs:element name="C" minOccurs="0"/>
               <xs:element name="A"/>
             </xs:all>
-            """, expected=XMLSchemaParseError
+            """, expected=XMLSchemaParseError if self.schema_class.XSD_VERSION == '1.0' else None
         )
         self.check_complex_restriction(
             base, restriction="""

@@ -364,6 +364,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             if group_elem.tag != XSD_OPEN_CONTENT:
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)
+            try:
+                self.open_content.any_element.extend(base_type.open_content.any_element)
+            except AttributeError:
+                pass
         else:
             group_elem = None
 
@@ -687,7 +691,7 @@ class Xsd11ComplexType(XsdComplexType):
 
         # Add default attributes
         if self.default_attributes_apply and isinstance(self.schema.default_attributes, XsdAttributeGroup):
-            if any(k in self.attributes for k in self.schema.default_attributes):
+            if self.redefine is None and any(k in self.attributes for k in self.schema.default_attributes):
                 self.parse_error("at least a default attribute is already declared in the complex type")
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes

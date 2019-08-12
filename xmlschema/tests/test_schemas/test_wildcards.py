@@ -30,6 +30,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
         </xs:schema>""")
 
         any1, any2, any3 = schema.groups['group1'][:]
+
         self.assertFalse(any1.overlap(any2))
         self.assertFalse(any2.overlap(any1))
         self.assertTrue(any3.is_matching('{foo}x'))
@@ -111,6 +112,73 @@ class TestXsdWildcards(XsdValidatorTestCase):
 class TestXsd11Wildcards(TestXsdWildcards):
 
     schema_class = XMLSchema11
+
+    def test_is_restriction(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any notNamespace="tns1"/>
+                <xs:any notNamespace="tns1 tns2"/>
+                <xs:any notNamespace="tns1 tns2 tns3"/>
+                
+                <xs:any namespace="##any"/>
+                <xs:any namespace="##local" notQName="a b"/>
+                <xs:any namespace="##local" notQName="##defined a b"/>
+                
+                <xs:any namespace="##any" notQName="a b c d"/>
+                <xs:any namespace="##local" notQName="a b e"/>
+                <xs:any notNamespace="##local" notQName="c d e"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""")
+
+        any1, any2, any3 = schema.groups['group1'][:3]
+
+        self.assertTrue(any1.is_restriction(any1))
+        self.assertFalse(any1.is_restriction(any2))
+        self.assertFalse(any1.is_restriction(any3))
+        self.assertTrue(any2.is_restriction(any1))
+        self.assertTrue(any2.is_restriction(any2))
+        self.assertFalse(any2.is_restriction(any3))
+        self.assertTrue(any3.is_restriction(any1))
+        self.assertTrue(any3.is_restriction(any2))
+        self.assertTrue(any3.is_restriction(any3))
+
+        any1, any2, any3 = schema.groups['group1'][3:6]
+        self.assertTrue(any1.is_restriction(any1))
+        self.assertTrue(any2.is_restriction(any1))
+        self.assertTrue(any3.is_restriction(any1))
+
+        any1, any2, any3 = schema.groups['group1'][6:9]
+        self.assertTrue(any2.is_restriction(any1))
+        self.assertTrue(any3.is_restriction(any1))
+
+    def test_extend(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any namespace="tns1"/>
+                <xs:any namespace="tns1 tns2"/>
+                <xs:any notNamespace="tns1"/>
+                <xs:any notNamespace="tns1 tns2"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""")
+
+        any1, any2, any3, any4 = schema.groups['group1'][:]
+
+        self.assertListEqual(any1.namespace, ['tns1'])
+        any1.extend(any2)
+        self.assertListEqual(any1.namespace, ['tns1', 'tns2'])
+
+        self.assertListEqual(any3.namespace, [])
+        self.assertListEqual(any3.not_namespace, ['tns1'])
+        any3.extend(any4)
+        self.assertListEqual(any3.not_namespace, ['tns1'])
+        any4.extend(any3)
+        self.assertListEqual(any4.not_namespace, ['tns1'])
 
     def test_open_content_mode_interleave(self):
         schema = self.check_schema("""
@@ -489,7 +557,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
               </xs:sequence>
             </xs:complexType>
         </xs:schema>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['tns1:foo', 'tns1:bar'])
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['{tns1}foo', '{tns1}bar'])
 
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
@@ -502,7 +570,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:complexType>
         </xs:schema>""")
         self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname,
-                         ['##defined', 'tns1:foo', '##definedSibling'])
+                         ['##defined', '{tns1}foo', '##definedSibling'])
 
     def test_any_attribute_wildcard(self):
         super(TestXsd11Wildcards, self).test_any_attribute_wildcard()
@@ -518,4 +586,4 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:complexType>
         </xs:schema>""")
         self.assertEqual(schema.types['taggedType'].attributes[None].namespace, ('##any',))
-        self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['tns1:foo'])
+        self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['{tns1}foo'])
