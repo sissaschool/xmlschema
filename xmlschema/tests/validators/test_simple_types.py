@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import print_function, unicode_literals
+import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.qnames import XSD_LIST, XSD_UNION
@@ -190,3 +191,10 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
         self.assertFalse(schema.types['Percentage'].is_valid('-1'))
         self.assertFalse(schema.types['Percentage'].is_valid('101'))
         self.assertFalse(schema.types['Percentage'].is_valid('90.1'))
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

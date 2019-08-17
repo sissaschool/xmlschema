@@ -20,8 +20,10 @@ from xmlschema import XMLSchemaBase
 from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, py_etree_element
 from xmlschema.xpath import XMLSchemaContext
-from xmlschema.tests import SchemaObserver, XsdValidatorTestCase
 from xmlschema.validators import XsdValidator
+
+from xmlschema.tests import XsdValidatorTestCase
+from .observers import SchemaObserver
 
 
 def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):

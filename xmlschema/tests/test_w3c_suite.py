@@ -34,8 +34,7 @@ import xml.etree.ElementTree as ElementTree
 import sys
 import warnings
 
-import xmlschema
-from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaException
+from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
 from xmlschema.tests import print_test_header
 
 TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
@@ -288,12 +287,12 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                         with self.assertRaises(XMLSchemaException, msg=message) as _:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                xmlschema.validate(source, schema=schema, cls=schema_class)
+                                validate(source, schema=schema, cls=schema_class)
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                xmlschema.validate(source, schema=schema, cls=schema_class)
+                                validate(source, schema=schema, cls=schema_class)
                         except XMLSchemaException as err:
                             error = "instance %s should be valid with XSD %s, but an error " \
                                     "is raised:\n\n%s" % (rel_path, version, str(err))

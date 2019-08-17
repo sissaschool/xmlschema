@@ -17,10 +17,9 @@ import unittest
 import os
 import argparse
 
-import xmlschema
-from xmlschema.tests.test_factory import xsd_version_number
-from xmlschema.tests.test_schemas import make_schema_test_class
-from xmlschema.tests.test_validators import make_validator_test_class
+from xmlschema import XMLSchema10, XMLSchema11
+from xmlschema.tests.test_factory import xsd_version_number, \
+    make_schema_test_class, make_validator_test_class
 
 
 if __name__ == '__main__':
@@ -40,10 +39,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.version == '1.0':
-        schema_class = xmlschema.XMLSchema10
+        schema_class = XMLSchema10
         check_with_lxml = True
     else:
-        schema_class = xmlschema.XMLSchema11
+        schema_class = XMLSchema11
         check_with_lxml = False
 
     test_num = 1

@@ -157,3 +157,10 @@ class TestXMLSchema10(XsdValidatorTestCase):
 class TestXMLSchema11(TestXMLSchema10):
 
     schema_class = XMLSchema11
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

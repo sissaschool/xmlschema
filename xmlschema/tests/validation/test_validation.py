@@ -95,3 +95,10 @@ class TestValidation11(TestValidation):
                                      "   <node>alpha</node>"  # Misses required attribute
                                      "   <node node-id='2' colour='red'>beta</node>"
                                      "</tree>"))
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

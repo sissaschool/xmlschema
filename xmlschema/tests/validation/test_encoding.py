@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import sys
+import unittest
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
@@ -384,3 +385,10 @@ class TestEncoding(XsdValidatorTestCase):
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

@@ -28,9 +28,6 @@ from xmlschema.qnames import XSD_SCHEMA
 from xmlschema.helpers import get_namespace
 from xmlschema.namespaces import XSD_NAMESPACE
 
-from .schema_observers import SchemaObserver
-from .test_factory import tests_factory
-
 
 def has_network_access(*locations):
     for url in locations:

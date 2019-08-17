@@ -10,6 +10,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import print_function, unicode_literals
+import unittest
+
 from xmlschema import XMLSchemaParseError
 from xmlschema.tests import XsdValidatorTestCase
 from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
@@ -595,3 +597,10 @@ class TestXsd11Wildcards(TestXsdWildcards):
         </xs:schema>""")
         self.assertEqual(schema.types['taggedType'].attributes[None].namespace, ('##any',))
         self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['{tns1}foo'])
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

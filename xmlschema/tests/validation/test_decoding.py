@@ -683,3 +683,10 @@ class TestDecoding11(TestDecoding):
         self.assertFalse(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">alpha</ns:value>'))
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">0</ns:value>'))
         self.assertTrue(xs.is_valid('<ns:value xmlns:ns="ns" choice="bool">true</ns:value>'))
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

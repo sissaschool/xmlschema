@@ -25,7 +25,9 @@ from xmlschema.etree import etree_tostring, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
 from xmlschema.qnames import XSI_TYPE
 from xmlschema.resources import fetch_namespaces
-from xmlschema.tests import XsdValidatorTestCase, tests_factory
+
+from xmlschema.tests import XsdValidatorTestCase
+from . import tests_factory
 
 
 def iter_nested_items(items, dict_class=dict, list_class=list):
@@ -330,12 +332,11 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
     return TestValidator
 
 
-# Creates decoding/encoding tests classes from XML files
-globals().update(tests_factory(make_validator_test_class, 'xml'))
-
-
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header
+
+    # Creates decoding/encoding tests classes from XML files
+    globals().update(tests_factory(make_validator_test_class, 'xml'))
 
     print_test_header()
     unittest.main()

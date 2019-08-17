@@ -27,7 +27,7 @@ subdirectory. There are several test scripts, each one for a different topic:
     Tests about XML/XSD resources access
 
 **test_schemas.py**
-    Tests about parsing of XSD Schemas
+    Tests about parsing of XSD schemas and components
 
 **test_validators.py**
     Tests regarding XML data validation/decoding/encoding

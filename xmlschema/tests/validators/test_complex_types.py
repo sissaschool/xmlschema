@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import print_function, unicode_literals
+import unittest
 
 from xmlschema import XMLSchemaParseError, XMLSchemaModelError
 from xmlschema.etree import etree_element
@@ -292,3 +293,10 @@ class TestXsd11ComplexType(TestXsdComplexType):
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '19', 'max': '19'})))
         self.assertFalse(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '19'})))
         self.assertTrue(xsd_type.is_valid(etree_element('a', attrib={'min': '25', 'max': '100'})))
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()

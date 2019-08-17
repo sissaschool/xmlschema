@@ -10,16 +10,33 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 if __name__ == '__main__':
+    import unittest
+    import os
+
     from xmlschema.tests import print_test_header
-    from xmlschema.tests.test_etree import *
-    from xmlschema.tests.test_helpers import *
-    from xmlschema.tests.test_meta import *
-    from xmlschema.tests.test_regex import *
-    from xmlschema.tests.test_xpath import *
-    from xmlschema.tests.test_resources import *
-    from xmlschema.tests.test_models import *
-    from xmlschema.tests.test_schemas import *
-    from xmlschema.tests.test_validators import *
+    from xmlschema.tests import test_cases, test_etree, test_helpers, \
+        test_meta, test_models, test_regex, test_resources, test_xpath
+    from xmlschema.tests.validation import test_validation, test_decoding, test_encoding
+
+    def load_tests(loader, tests, pattern):
+        tests.addTests(loader.loadTestsFromModule(test_cases))
+
+        validators_dir = os.path.join(os.path.dirname(__file__), 'validators')
+        tests.addTests(loader.discover(start_dir=validators_dir, pattern=pattern or 'test_*.py'))
+
+        tests.addTests(loader.loadTestsFromModule(test_validation))
+        tests.addTests(loader.loadTestsFromModule(test_decoding))
+        tests.addTests(loader.loadTestsFromModule(test_encoding))
+
+        tests.addTests(loader.loadTestsFromModule(test_etree))
+        tests.addTests(loader.loadTestsFromModule(test_helpers))
+        tests.addTests(loader.loadTestsFromModule(test_meta))
+        tests.addTests(loader.loadTestsFromModule(test_models))
+        tests.addTests(loader.loadTestsFromModule(test_regex))
+        tests.addTests(loader.loadTestsFromModule(test_resources))
+        tests.addTests(loader.loadTestsFromModule(test_xpath))
+
+        return tests
 
     print_test_header()
     unittest.main()

@@ -14,8 +14,19 @@ Loads and runs tests concerning the building of XSD schemas with the 'xmlschema'
 """
 if __name__ == '__main__':
     import unittest
+    import os
+
     from xmlschema.tests import print_test_header
-    from xmlschema.tests.test_schemas import *
+    from xmlschema.tests.test_factory import tests_factory, make_schema_test_class
+
+    def load_tests(loader, tests, pattern):
+        validators_dir = os.path.join(os.path.dirname(__file__), 'validators')
+        validators_tests = loader.discover(start_dir=validators_dir, pattern=pattern or '*')
+        tests.addTests(validators_tests)
+        return tests
+
+    # Creates schema tests from XSD files
+    globals().update(tests_factory(make_schema_test_class, 'xsd'))
 
     print_test_header()
     unittest.main()

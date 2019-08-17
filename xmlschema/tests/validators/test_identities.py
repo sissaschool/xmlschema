@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import print_function, unicode_literals
+import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.tests import XsdValidatorTestCase
@@ -60,3 +61,10 @@ class TestXsd11Identities(TestXsdIdentities):
           <xs:key ref="key1"/>
         </xs:element>
         """)
+
+
+if __name__ == '__main__':
+    from xmlschema.tests import print_test_header
+
+    print_test_header()
+    unittest.main()
