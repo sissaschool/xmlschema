@@ -115,20 +115,19 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
     def test_is_restriction(self):
         schema = self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns1="tns1"
+                targetNamespace="tns1">
             <xs:group name="group1">
               <xs:sequence>
                 <xs:any notNamespace="tns1"/>
                 <xs:any notNamespace="tns1 tns2"/>
                 <xs:any notNamespace="tns1 tns2 tns3"/>
-                
                 <xs:any namespace="##any"/>
                 <xs:any namespace="##local" notQName="a b"/>
                 <xs:any namespace="##local" notQName="##defined a b"/>
-                
                 <xs:any namespace="##any" notQName="a b c d"/>
                 <xs:any namespace="##local" notQName="a b e"/>
-                <xs:any notNamespace="##local" notQName="c d e"/>
+                <xs:any notNamespace="##local" notQName="tns1:c d e"/>
               </xs:sequence>
             </xs:group>
         </xs:schema>""")
@@ -419,7 +418,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             <xs:element name="foo" type="xs:string"/>
           </xs:sequence>
         </xs:complexType>
-        
+
         <xs:complexType name="derivedType">
           <xs:complexContent>
             <xs:restriction base="baseType">
@@ -498,7 +497,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
             <xs:extension base="baseType">
               <xs:openContent>
                 <!-- processContents="strict" is more restrictive -->
-                <xs:any namespace="tns1 tns2" processContents="strict"/> 
+                <xs:any namespace="tns1 tns2" processContents="strict"/>
               </xs:openContent>
               <xs:sequence>
                 <xs:element name="bar" type="xs:string"/>
@@ -509,24 +508,33 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
     def test_not_qname_attribute(self):
         self.assertIsInstance(self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:ns="tns1" targetNamespace="tns1">
             <xs:complexType name="type1">
               <xs:openContent>
                 <xs:any notQName="ns:a" processContents="lax" />
               </xs:openContent>
-            </xs:complexType>            
+            </xs:complexType>
         </xs:schema>"""), XMLSchema11)
 
         self.assertIsInstance(self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:ns="tns1" targetNamespace="tns1">
             <xs:complexType name="type1">
               <xs:sequence>
                <xs:any notQName="ns:a" processContents="lax" />
               </xs:sequence>
-            </xs:complexType>            
+            </xs:complexType>
         </xs:schema>"""), XMLSchema11)
+
+        self.check_schema("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any notNamespace="##local" notQName="c d e"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""", XMLSchemaParseError)
 
     def test_any_wildcard(self):
         super(TestXsd11Wildcards, self).test_any_wildcard()
@@ -548,8 +556,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertEqual(schema.types['taggedType'].content_type[-1].not_namespace, [''])
 
         schema = self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                xmlns:tns1="tns1" targetNamespace="tns1">            
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:tns1="tns1" targetNamespace="tns1">
             <xs:complexType name="taggedType">
               <xs:sequence>
                 <xs:element name="tag" type="xs:string"/>
@@ -560,8 +568,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['{tns1}foo', '{tns1}bar'])
 
         schema = self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                xmlns:tns1="tns1" targetNamespace="tns1">            
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:tns1="tns1" targetNamespace="tns1">
             <xs:complexType name="taggedType">
               <xs:sequence>
                 <xs:element name="tag" type="xs:string"/>
@@ -575,8 +583,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
     def test_any_attribute_wildcard(self):
         super(TestXsd11Wildcards, self).test_any_attribute_wildcard()
         schema = self.schema_class("""
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
-                xmlns:tns1="tns1" targetNamespace="tns1">            
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:tns1="tns1" targetNamespace="tns1">
             <xs:complexType name="taggedType">
               <xs:sequence>
                 <xs:element name="tag" type="xs:string"/>

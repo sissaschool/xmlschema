@@ -32,9 +32,6 @@ from .builtins import xsd_builtin_types_factory
 # Defines the load functions for XML Schema structures
 def create_load_function(tag):
 
-    def is_redefinition(x):
-        return x.tag in (XSD_REDEFINE, XSD_OVERRIDE) and 'schemaLocation' in x.attrib
-
     def load_xsd_globals(xsd_globals, schemas):
         redefinitions = []
         for schema in schemas:
@@ -53,6 +50,18 @@ def create_load_function(tag):
                 if qname not in xsd_globals:
                     xsd_globals[qname] = (elem, schema)
                 else:
+                    try:
+                        other_schema = xsd_globals[qname][1]
+                    except (TypeError, IndexError):
+                        pass
+                    else:
+                        # It's ignored or replaced in case of an override
+                        if other_schema.override is schema:
+                            continue
+                        elif schema.override is other_schema:
+                            xsd_globals[qname] = (elem, schema)
+                            continue
+
                     msg = "global {} with name={!r} is already defined"
                     schema.parse_error(msg.format(local_name(tag), qname))
 
@@ -85,7 +94,6 @@ def create_load_function(tag):
                 xsd_globals[qname] = (child, schema)
             else:
                 # Append to a list if it's a redefine
-
                 try:
                     xsd_globals[qname].append((child, schema))
                 except KeyError:

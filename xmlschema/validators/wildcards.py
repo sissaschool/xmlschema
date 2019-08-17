@@ -118,9 +118,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.parse_error("wrong QName format in 'notQName' attribute: %s" % str(err))
             return
 
-        if self.not_namespace and any(
+        if self.not_namespace and all(
                 get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
-            pass
+            self.parse_error("the namespace of each QName in notQName is allowed by notNamespace")
+
         self.not_qname = names
 
     def _load_namespace(self, namespace):
@@ -197,14 +198,14 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             elif '##any' in other.namespace:
                 return True
             elif '##other' in other.namespace:
-                return other.target_namespace in self.not_namespace
+                return '' in self.not_namespace and other.target_namespace in self.not_namespace
             else:
                 return False
         elif other.not_namespace:
             if '##any' in self.namespace:
                 return False
             elif '##other' in self.namespace:
-                return [other.target_namespace] == other.not_namespace
+                return set(['', other.target_namespace]) == set(other.not_namespace)
             else:
                 return any(ns not in other.not_namespace for ns in self.namespace)
 
@@ -215,7 +216,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif '##any' in self.namespace or '##other' in self.namespace:
             return False
         elif '##other' in other.namespace:
-            return other.target_namespace not in self.namespace
+            return other.target_namespace not in self.namespace and '' not in self.namespace
         else:
             return all(ns in other.namespace for ns in self.namespace)
 
@@ -229,7 +230,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             elif other.namespace != '##other':
                 self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
             elif other.target_namespace in self.not_namespace:
-                self.not_namespace = [other.target_namespace]
+                self.not_namespace = ['', other.target_namespace] if other.target_namespace else ['']
             else:
                 self.not_namespace = ()
 
@@ -250,13 +251,21 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.namespace.extend(ns for ns in other.namespace if ns not in self.namespace)
             return
 
-        if w1.target_namespace in w2.namespace and '' in w2.namespace:
+        if w2.not_namespace:
+            self.not_namespace = [ns for ns in w2.not_namespace]
+            if w1.target_namespace not in self.not_namespace:
+                self.not_namespace.append(w1.target_namespace)
+            self.namespace = []
+        elif w1.target_namespace in w2.namespace and '' in w2.namespace:
             self.namespace = ['##any']
         elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
             self.namespace = ['##other']
-        else:
+        elif self.xsd_version == '1.0':
             msg = "not expressible wildcard namespace union: {!r} V {!r}:"
             raise XMLSchemaValueError(msg.format(other.namespace, self.namespace))
+        else:
+            self.namespace = []
+            self.not_namespace = ['', w1.target_namespace] if w1.target_namespace else ['']
 
     def iter_decode(self, source, validation='lax', **kwargs):
         raise NotImplementedError

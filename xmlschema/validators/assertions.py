@@ -94,3 +94,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     @property
     def attrib(self):
         return self.parent.attributes
+
+    @property
+    def type(self):
+        return self.parent

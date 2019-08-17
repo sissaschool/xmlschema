@@ -377,26 +377,30 @@ class XsdComponent(XsdValidator):
         """
         XSD 1.1 targetNamespace attribute in elements and attributes declarations.
         """
-        self._target_namespace = self.elem.get('targetNamespace')
-        if self._target_namespace is not None:
-            if 'name' not in self.elem.attrib:
-                self.parse_error("attribute 'name' must be present when 'targetNamespace' attribute is provided")
-            if 'form' in self.elem.attrib:
-                self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
-            if self.elem.attrib['targetNamespace'].strip() != self.schema.target_namespace:
-                if self.parent is None:
-                    self.parse_error("a global attribute must has the same namespace as its parent schema")
+        if 'targetNamespace' not in self.elem.attrib:
+            return
 
-                xsd_type = self.get_parent_type()
-                if xsd_type and xsd_type.parent is None and \
-                        (xsd_type.derivation != 'restriction' or xsd_type.base_type is self.any_type):
-                    self.parse_error("a declaration contained in a global complexType "
-                                     "must has the same namespace as its parent schema")
+        self._target_namespace = self.elem.attrib['targetNamespace'].strip()
+        if 'name' not in self.elem.attrib:
+            self.parse_error("attribute 'name' must be present when 'targetNamespace' attribute is provided")
+        if 'form' in self.elem.attrib:
+            self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
+        if self._target_namespace != self.schema.target_namespace:
+            if self.parent is None:
+                self.parse_error("a global attribute must has the same namespace as its parent schema")
 
-        elif self.qualified:
-            self._target_namespace = self.schema.target_namespace
-        else:
-            self._target_namespace = ''
+            xsd_type = self.get_parent_type()
+            if xsd_type and xsd_type.parent is None and \
+                    (xsd_type.derivation != 'restriction' or xsd_type.base_type is self.any_type):
+                self.parse_error("a declaration contained in a global complexType "
+                                 "must has the same namespace as its parent schema")
+
+            if not self._target_namespace and self.name[0] == '{':
+                self.name = local_name(self.name)
+            elif self.name[0] != '{':
+                self.name = '{%s}%s' % (self._target_namespace, self.name)
+            else:
+                self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
 
     @property
     def local_name(self):

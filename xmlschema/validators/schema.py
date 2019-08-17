@@ -244,10 +244,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     element_form_default = 'unqualified'
     block_default = ''
     final_default = ''
+    redefine = None
 
     # Additional defaults for XSD 1.1
     default_attributes = None
     default_open_content = None
+    override = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
                  locations=None, base_url=None, defuse='remote', timeout=300, build=True, use_meta=True):
@@ -781,7 +783,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         for child in filter(lambda x: x.tag == XSD_REDEFINE, self.root):
             try:
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+                schema = self.include_schema(child.attrib['schemaLocation'], self.base_url)
             except KeyError:
                 pass  # Attribute missing error already found by validation against meta-schema
             except (OSError, IOError) as err:
@@ -799,6 +801,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     raise type(err)(msg)
                 else:
                     self.errors.append(type(err)(msg))
+            else:
+                schema.redefine = self
 
     def include_schema(self, location, base_url=None):
         """
@@ -1408,7 +1412,7 @@ class XMLSchema11(XMLSchemaBase):
 
         for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
             try:
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+                schema = self.include_schema(child.attrib['schemaLocation'], self.base_url)
             except KeyError:
                 pass  # Attribute missing error already found by validation against meta-schema
             except (OSError, IOError) as err:
@@ -1418,6 +1422,8 @@ class XMLSchema11(XMLSchemaBase):
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if any(e.tag != XSD_ANNOTATION for e in child):
                     self.parse_error(str(err), child)
+            else:
+                schema.override = self
 
 
 XMLSchema = XMLSchema10

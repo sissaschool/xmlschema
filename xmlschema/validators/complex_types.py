@@ -493,7 +493,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             return self.content_type.is_valid(source, use_defaults, namespaces)
         else:
             return self.mixed or self.base_type is not None and \
-                   self.base_type.is_valid(source, use_defaults, namespaces)
+                self.base_type.is_valid(source, use_defaults, namespaces)
 
     def is_derived(self, other, derivation=None):
         if self is other:

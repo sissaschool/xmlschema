@@ -326,27 +326,24 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     def is_restriction(self, other, check_occurs=True):
         if not self:
             return True
-        elif self.ref is not None:
-            return self[0].is_restriction(other, check_occurs)
         elif not isinstance(other, ParticleMixin):
             raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
         elif not isinstance(other, XsdGroup):
             return self.is_element_restriction(other)
         elif not other:
             return False
-        elif other.ref:
-            return self.is_restriction(other[0], check_occurs)
         elif len(other) == other.min_occurs == other.max_occurs == 1:
             if len(self) > 1:
                 return self.is_restriction(other[0], check_occurs)
-            elif isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
+            elif self.ref is None and isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
                 return self[0].is_restriction(other[0], check_occurs)
 
         # Compare model with model
-        if self.model != other.model and self.model != 'sequence' and len(self) > 1:
+        if self.model != other.model and self.model != 'sequence' and \
+                (len(self) > 1 or self.ref is not None and len(self[0]) > 1) and self.xsd_version == '1.0':
             return False
         elif self.model == other.model or other.model == 'sequence':
-            if self.model =='all' and self.xsd_version > '1.0':
+            if self.model == 'all' and self.xsd_version > '1.0':
                 return self.is_all_restriction(other)
             return self.is_sequence_restriction(other)
         elif other.model == 'all':
@@ -425,7 +422,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return False
 
         check_occurs = other.max_occurs != 0
-        restriction_items = list(self)
+        restriction_items = list(self) if self.ref is None else list(self[0])
 
         for other_item in other.iter_model():
             for item in restriction_items:
@@ -440,11 +437,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         return not bool(restriction_items)
 
     def is_choice_restriction(self, other):
-        if self.parent is None and other.parent is not None and self.xsd_version == '1.0':
-            return False
+        if self.xsd_version > '1.0':
+            restriction_items = list(self.iter_model())
+        elif self.ref is None:
+            if self.parent is None and other.parent is not None:
+                return False  # not allowed restriction in XSD 1.0
+            restriction_items = list(self)
+        elif other.parent is None:
+            restriction_items = list(self[0])
+        else:
+            return False  # not allowed restriction in XSD 1.0
 
         check_occurs = other.max_occurs != 0
-        restriction_items = list(self) if self.xsd_version == '1.0' else list(self.iter_model())
         max_occurs = 0
         other_max_occurs = 0
 
@@ -778,7 +782,7 @@ class Xsd11Group(XsdGroup):
 
         for other_item in other.iter_model():
             min_occurs, max_occurs = 0, other_item.max_occurs
-            for k in range(len(restriction_items)-1, -1, -1):
+            for k in range(len(restriction_items) - 1, -1, -1):
                 item = restriction_items[k]
 
                 if item.is_restriction(other_item, check_occurs=False):

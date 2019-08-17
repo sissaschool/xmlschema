@@ -313,7 +313,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
         'facets': [
-            etree_element(XSD_PATTERN, value=r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*")
+            etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")
         ]
     },  # language codes
     {

@@ -63,6 +63,9 @@ SKIPPED_TESTS = {
     # Signed as valid that depends by implementation choice
     '../saxonData/Assert/assert-simple007.xsd',     # XPath [err:FOCA0002] invalid lexical value
 
+    # Signed as valid but not implemented yet
+    '../saxonData/Assert/assert011.xsd',          # TODO: XPath 2 doc() function in elementpath
+
     # Invalid that may be valid
     '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
     '../msData/additional/test65026.xsd',         # 4712: Lack of the processor on XML namespace knowledge
@@ -91,6 +94,7 @@ SKIPPED_TESTS = {
     '../msData/schema/schU5_a.xsd',     # Circular redefines
     '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
+
 }
 
 
@@ -204,7 +208,8 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
     if args.numbers and testgroup_num not in args.numbers:
         return
 
-    # if testgroup_num < 4730 or testgroup_num not in (10726, 10746, 13680):
+    # if testgroup_num not in (4759, 8201, 10874, 10881, 10976, 10981, 14377,
+    #                          14420, 14425, 14426, 14457, 14656, 14740, 14945, 15009, 15011):
     #    return
 
     name = group_elem.attrib['name']
@@ -215,13 +220,15 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
         if k:
             print("ERROR: multiple schemaTest definition in group %r" % name)
             return
-
         config = get_test_conf(child)
-        if config:
-            group_tests.append(config)
+        if not config:
+            return
+        group_tests.append(config)
 
     if args.xml:
         for child in group_elem.iterfind('{%s}instanceTest' % TEST_SUITE_NAMESPACE):
+            if 'version' in child.attrib and child.attrib['version'] not in args.version:
+                continue
             config = get_test_conf(child)
             if config:
                 group_tests.append(config)
@@ -231,13 +238,9 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
             print("ERROR: Missing both schemaTest and instanceTest in test group %r" % name)
         return
 
+    # print(ElementTree.tostring(testgroup_elem).decode('utf-8'))
+
     class TestGroupCase(unittest.TestCase):
-        @classmethod
-        def setUpClass(cls):
-            if not group_tests[0]['source'].endswith('.xsd'):
-                cls.schema = group_tests[0]['source']
-            else:
-                cls.schema = None
 
         @unittest.skipIf(not any(g['source'].endswith('.xsd') for g in group_tests), 'No schema tests')
         def test_xsd_schema(self):
@@ -269,6 +272,11 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
         @unittest.skipIf(not any(g['source'].endswith('.xml') for g in group_tests), 'No instance tests')
         def test_xml_instances(self):
+            if group_tests[0]['source'].endswith('.xsd'):
+                schema = group_tests[0]['source']
+            else:
+                schema = None
+
             for item in filter(lambda x: not x['source'].endswith('.xsd'), group_tests):
                 source = item['source']
                 rel_path = os.path.relpath(source)
@@ -280,12 +288,12 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                         with self.assertRaises(XMLSchemaException, msg=message) as _:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                xmlschema.validate(source, schema=self.schema, cls=schema_class)
+                                xmlschema.validate(source, schema=schema, cls=schema_class)
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                xmlschema.validate(source, schema=self.schema, cls=schema_class)
+                                xmlschema.validate(source, schema=schema, cls=schema_class)
                         except XMLSchemaException as err:
                             error = "instance %s should be valid with XSD %s, but an error " \
                                     "is raised:\n\n%s" % (rel_path, version, str(err))

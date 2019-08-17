@@ -23,7 +23,7 @@ class TestXsdIdentities(XsdValidatorTestCase):
             <xs:element name="primary_key" type="xs:string">
               <xs:key name="key1">
                 <xs:selector xpath="."/>
-                <xs:field xpath="."/>  
+                <xs:field xpath="."/>
               </xs:key>
             </xs:element>
             """)
@@ -32,13 +32,13 @@ class TestXsdIdentities(XsdValidatorTestCase):
             <xs:element name="primary_key" type="xs:string">
               <xs:key name="key1">
                 <xs:selector xpath="."/>
-                <xs:field xpath="."/>  
+                <xs:field xpath="."/>
               </xs:key>
             </xs:element>
             <xs:element name="secondary_key" type="xs:string">
               <xs:key name="key1">
                 <xs:selector xpath="."/>
-                <xs:field xpath="."/>  
+                <xs:field xpath="."/>
               </xs:key>
             </xs:element>
             """, XMLSchemaParseError)
@@ -49,14 +49,14 @@ class TestXsd11Identities(TestXsdIdentities):
     schema_class = XMLSchema11
 
     def test_ref_definition(self):
-        schema = self.check_schema("""
-            <xs:element name="primary_key" type="xs:string">
-              <xs:key name="key1">
-                <xs:selector xpath="."/>
-                <xs:field xpath="."/>  
-              </xs:key>
-            </xs:element>
-            <xs:element name="secondary_key" type="xs:string">
-              <xs:key ref="key1"/>
-            </xs:element>
-            """)
+        self.check_schema("""
+        <xs:element name="primary_key" type="xs:string">
+          <xs:key name="key1">
+            <xs:selector xpath="."/>
+            <xs:field xpath="."/>
+          </xs:key>
+        </xs:element>
+        <xs:element name="secondary_key" type="xs:string">
+          <xs:key ref="key1"/>
+        </xs:element>
+        """)

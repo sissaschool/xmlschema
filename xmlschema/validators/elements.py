@@ -292,6 +292,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if isinstance(head_element, tuple):
                 self.parse_error("circularity found for substitutionGroup %r" % substitution_group)
                 return
+            elif self._abstract and self.xsd_version > '1.0':
+                self.parse_error("in XSD 1.1 an abstract element cannot be member of a substitution group")
             elif 'substitution' in head_element.block:
                 return
 
@@ -324,7 +326,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
-                all(c.built for c in self.constraints.values())
+            all(c.built for c in self.constraints.values())
 
     @property
     def validation_attempted(self):
@@ -664,17 +666,21 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.name == other.name:
                 pass
             elif any(n not in other.names for n in self.names):
-                substitution_group = self.substitution_group
+                if other.name == self.substitution_group and \
+                        other.min_occurs != other.max_occurs and \
+                        self.max_occurs != 0 and not other.abstract \
+                        and self.xsd_version == '1.0':
+                    # An UPA violation case. Base is the head element, it's not
+                    # abstract and has non deterministic occurs: this is less
+                    # restrictive than W3C test group (elemZ026), marked as
+                    # invalid despite it's based on an abstract declaration.
+                    # See also test case invalid_restrictions1.xsd.
+                    return False
 
-                if other.name == self.substitution_group and other.min_occurs != other.max_occurs \
-                        and self.max_occurs != 0 and not other.abstract and self.xsd_version == '1.0':
-                    # Base is the head element, it's not abstract and has non deterministic occurs: this
-                    # is less restrictive than W3C test group (elemZ026), marked as invalid despite it's
-                    # based on an abstract declaration.
-                    return False
-                elif self.substitution_group is None:
-                    return False
-                elif not any(e.name == self.name for e in self.maps.substitution_groups[substitution_group]):
+                for e in other.iter_substitutes():
+                    if e.name == self.name:
+                        break
+                else:
                     return False
             else:
                 return False
@@ -763,6 +769,7 @@ class Xsd11Element(XsdElement):
     </element>
     """
     alternatives = ()
+    _target_namespace = None
 
     def _parse(self):
         XsdComponent._parse(self)
@@ -795,22 +802,14 @@ class Xsd11Element(XsdElement):
     @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
-               all(c.built for c in self.constraints.values()) and \
-               all(a.built for a in self.alternatives)
+            all(c.built for c in self.constraints.values()) and \
+            all(a.built for a in self.alternatives)
 
     @property
     def target_namespace(self):
-        try:
-            return self.elem.attrib['targetNamespace']
-        except KeyError:
+        if self._target_namespace is None:
             return self.schema.target_namespace
-
-    @property
-    def default_namespace(self):
-        try:
-            return self.elem.attrib['targetNamespace']
-        except KeyError:
-            return super(Xsd11Element, self).default_namespace
+        return self._target_namespace
 
     def get_type(self, elem):
         if not self.alternatives:

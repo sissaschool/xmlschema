@@ -263,17 +263,13 @@ class Xsd11Attribute(XsdAttribute):
     </attribute>
     """
     inheritable = False
+    _target_namespace = None
 
     @property
     def target_namespace(self):
-        return self.elem.get('targetNamespace', self.schema.target_namespace)
-
-    @property
-    def default_namespace(self):
-        try:
-            return self.elem.attrib['targetNamespace']
-        except KeyError:
-            return super(Xsd11Attribute, self).default_namespace
+        if self._target_namespace is None:
+            return self.schema.target_namespace
+        return self._target_namespace
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
@@ -451,7 +447,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if name not in self.base_attributes:
                     if self.derivation != 'restriction':
                         continue
-                    elif wildcard is None or not wildcard.is_matching(name, attr.default_namespace):
+                    elif wildcard is None or not wildcard.is_matching(name, self.default_namespace):
                         self.parse_error("Unexpected attribute %r in restriction" % name)
                     continue
 
