@@ -19,23 +19,18 @@ from .xsdbase import XsdComponent
 
 class XsdNotation(XsdComponent):
     """
-    Class for XSD 'notation' declarations.
+    Class for XSD *notation* declarations.
 
-    <notation
-      id = ID
-      name = NCName
-      public = token
-      system = anyURI
-      {any attributes with non-schema namespace}...>
-      Content: (annotation?)
-    </notation>
+    ..  <notation
+          id = ID
+          name = NCName
+          public = token
+          system = anyURI
+          {any attributes with non-schema namespace}...>
+          Content: (annotation?)
+        </notation>
     """
     _ADMITTED_TAGS = {XSD_NOTATION}
-
-    def __init__(self, elem, schema, parent):
-        if parent is not None:
-            raise XMLSchemaValueError("'parent' attribute is not None but %r must be global!" % self)
-        super(XsdNotation, self).__init__(elem, schema, parent)
 
     @property
     def built(self):
@@ -43,7 +38,7 @@ class XsdNotation(XsdComponent):
 
     def _parse(self):
         super(XsdNotation, self)._parse()
-        if not self.is_global:
+        if self.parent is not None:
             self.parse_error("a notation declaration must be global", self.elem)
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])

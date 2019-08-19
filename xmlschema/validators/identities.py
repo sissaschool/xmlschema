@@ -44,6 +44,7 @@ XsdIdentityXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
+    """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     pattern = re.compile(get_python_regex(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
@@ -86,6 +87,7 @@ class XsdSelector(XsdComponent):
 
 
 class XsdFieldSelector(XsdSelector):
+    """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
     pattern = re.compile(get_python_regex(
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
@@ -95,8 +97,17 @@ class XsdFieldSelector(XsdSelector):
 
 
 class XsdIdentity(XsdComponent):
+    """
+    Common class for XSD identity constraints.
+
+    :ivar selector: the XPath selector of the identity constraint.
+    :ivar fields: a list containing the XPath field selectors of the identity constraint.
+    """
     selector = None
     fields = ()
+
+    def __init__(self, elem, schema, parent):
+        super(XsdIdentity, self).__init__(elem, schema, parent)
 
     def _parse(self):
         super(XsdIdentity, self)._parse()

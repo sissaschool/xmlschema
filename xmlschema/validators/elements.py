@@ -39,29 +39,33 @@ XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
 
 class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
     """
-    Class for XSD 1.0 'element' declarations.
+    Class for XSD 1.0 *element* declarations.
 
-    <element
-      abstract = boolean : false
-      block = (#all | List of (extension | restriction | substitution))
-      default = string
-      final = (#all | List of (extension | restriction))
-      fixed = string
-      form = (qualified | unqualified)
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      name = NCName
-      nillable = boolean : false
-      ref = QName
-      substitutionGroup = QName
-      type = QName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
-    </element>
+    :ivar type: the XSD simpleType or complexType of the element.
+    :ivar attributes: the group of the attributes associated with the element.
+
+    ..  <element
+          abstract = boolean : false
+          block = (#all | List of (extension | restriction | substitution))
+          default = string
+          final = (#all | List of (extension | restriction))
+          fixed = string
+          form = (qualified | unqualified)
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          name = NCName
+          nillable = boolean : false
+          ref = QName
+          substitutionGroup = QName
+          type = QName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
+        </element>
     """
     type = None
     qualified = False
+    attributes = None
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _abstract = False
@@ -71,8 +75,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     _nillable = False
     _substitution_group = None
 
-    def __init__(self, elem, schema, parent, name=None):
-        super(XsdElement, self).__init__(elem, schema, parent, name)
+    def __init__(self, elem, schema, parent):
+        super(XsdElement, self).__init__(elem, schema, parent)
         self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
         if self.type is None:
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
@@ -729,7 +733,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return False
             return True
 
-    def overlap(self, other):
+    def is_overlap(self, other):
         if isinstance(other, XsdElement):
             if self.name == other.name:
                 return True
@@ -743,30 +747,46 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     return True
         return False
 
+    def is_consistent(self, other):
+        """
+        Element Declarations Consistent check between two element particles.
+
+        Ref: https://www.w3.org/TR/xmlschema-1/#cos-element-consistent
+
+        :returns: `True` if there is no inconsistency between the particles, `False` otherwise,
+        """
+        if isinstance(other, XsdAnyElement):
+            xsd_element = other.matched_element(self.name, self.default_namespace)
+            return xsd_element is None or self.is_consistent(xsd_element)
+        elif self.name != other.name:
+            return True
+        else:
+            return self.type is other.type
+
 
 class Xsd11Element(XsdElement):
     """
-    Class for XSD 1.1 'element' declarations.
+    Class for XSD 1.1 *element* declarations.
 
-    <element
-      abstract = boolean : false
-      block = (#all | List of (extension | restriction | substitution))
-      default = string
-      final = (#all | List of (extension | restriction))
-      fixed = string
-      form = (qualified | unqualified)
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      name = NCName
-      nillable = boolean : false
-      ref = QName
-      substitutionGroup = List of QName
-      targetNamespace = anyURI
-      type = QName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
-    </element>
+    ..  <element
+          abstract = boolean : false
+          block = (#all | List of (extension | restriction | substitution))
+          default = string
+          final = (#all | List of (extension | restriction))
+          fixed = string
+          form = (qualified | unqualified)
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          name = NCName
+          nillable = boolean : false
+          ref = QName
+          substitutionGroup = List of QName
+          targetNamespace = anyURI
+          type = QName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
+        </element>
     """
     alternatives = ()
     _target_namespace = None
@@ -828,7 +848,7 @@ class Xsd11Element(XsdElement):
                 return alt.type
         return self.type
 
-    def overlap(self, other):
+    def is_overlap(self, other):
         if isinstance(other, XsdElement):
             if self.name == other.name:
                 return True
@@ -836,25 +856,51 @@ class Xsd11Element(XsdElement):
                 return True
         return False
 
+    def is_consistent(self, other):
+        if isinstance(other, XsdAnyElement):
+            xsd_element = other.matched_element(self.name, self.default_namespace)
+            return xsd_element is None or self.is_consistent(xsd_element)
+        elif self.name != other.name:
+            return True
+        elif self.type is not other.type or len(self.alternatives) != len(other.alternatives):
+            return False
+        elif not self.alternatives:
+            return True
+        elif not all(any(a == x) for x in other.alternatives for a in self.alternatives):
+            return False
+        else:
+            return all(any(a == x) for x in self.alternatives for a in other.alternatives)
+
 
 class XsdAlternative(XsdComponent):
     """
-    <alternative
-      id = ID
-      test = an XPath expression
-      type = QName
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType | complexType)?)
-    </alternative>
+    XSD 1.1 type *alternative* definitions.
+
+    ..  <alternative
+          id = ID
+          test = an XPath expression
+          type = QName
+          xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (simpleType | complexType)?)
+        </alternative>
     """
     type = None
     path = None
     token = None
     _ADMITTED_TAGS = {XSD_ALTERNATIVE}
 
+    def __init__(self, elem, schema, parent):
+        super(XsdAlternative, self).__init__(elem, schema, parent)
+
     def __repr__(self):
         return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))
+
+    def __eq__(self, other):
+        return self.path == other.path and self.type is other.type
+
+    def __ne__(self, other):
+        return self.path != other.path or self.type is not other.type
 
     def _parse(self):
         XsdComponent._parse(self)

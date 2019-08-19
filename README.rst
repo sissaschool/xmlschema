@@ -26,8 +26,7 @@ Features
 
 This library includes the following features:
 
-* Full XSD 1.0 support
-* XSD 1.1 support as prerelease
+* Full XSD 1.0 and XSD 1.1 support
 * Building of XML schema objects from XSD files
 * Validation of XML instances against XSD schemas
 * Decoding of XML data into Python data and to JSON
@@ -132,11 +131,6 @@ values that match to the data types declared by the schema:
                  'title': None,
                  'year': '1925'}]}
 
-
-Roadmap
-=======
-* Release 1.1 before the end of 2019: this release will drops Python 2.7 support and will
-sets the XSD 1.1 validator (XMLSchema11) as the default schema class at package level.
 
 Authors
 =======

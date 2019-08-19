@@ -33,19 +33,23 @@ SEQUENCE_ELEMENT = etree_element(XSD_SEQUENCE)
 
 class XsdComplexType(XsdType, ValidationMixin):
     """
-    Class for XSD 1.0 'complexType' definitions.
+    Class for XSD 1.0 *complexType* definitions.
 
-    <complexType
-      abstract = boolean : false
-      block = (#all | List of (extension | restriction))
-      final = (#all | List of (extension | restriction))
-      id = ID
-      mixed = boolean : false
-      name = NCName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent |
-      ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
-    </complexType>
+    :var attributes: the attribute group related with the type.
+    :var content_type: the content type, that can be a model group or a simple type.
+    :var mixed: if `True` the complex type has mixed content.
+
+    ..  <complexType
+          abstract = boolean : false
+          block = (#all | List of (extension | restriction))
+          final = (#all | List of (extension | restriction))
+          id = ID
+          mixed = boolean : false
+          name = NCName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (simpleContent | complexContent |
+          ((group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?))))
+        </complexType>
     """
     abstract = False
     mixed = False
@@ -645,20 +649,20 @@ class XsdComplexType(XsdType, ValidationMixin):
 
 class Xsd11ComplexType(XsdComplexType):
     """
-    Class for XSD 1.1 'complexType' definitions.
+    Class for XSD 1.1 *complexType* definitions.
 
-    <complexType
-      abstract = boolean : false
-      block = (#all | List of (extension | restriction))
-      final = (#all | List of (extension | restriction))
-      id = ID
-      mixed = boolean
-      name = NCName
-      defaultAttributesApply = boolean : true
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleContent | complexContent | (openContent?,
-      (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
-    </complexType>
+    ..  <complexType
+          abstract = boolean : false
+          block = (#all | List of (extension | restriction))
+          final = (#all | List of (extension | restriction))
+          id = ID
+          mixed = boolean
+          name = NCName
+          defaultAttributesApply = boolean : true
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (simpleContent | complexContent | (openContent?,
+          (group | all | choice | sequence)?, ((attribute | attributeGroup)*, anyAttribute?), assert*)))
+        </complexType>
     """
     default_attributes_apply = True
 

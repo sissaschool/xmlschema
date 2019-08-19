@@ -33,8 +33,8 @@ class TestXsdWildcards(XsdValidatorTestCase):
 
         any1, any2, any3 = schema.groups['group1'][:]
 
-        self.assertFalse(any1.overlap(any2))
-        self.assertFalse(any2.overlap(any1))
+        self.assertFalse(any1.is_overlap(any2))
+        self.assertFalse(any2.is_overlap(any1))
         self.assertTrue(any3.is_matching('{foo}x'))
         self.assertTrue(any3.is_matching('{bar}x'))
         self.assertTrue(any3.is_matching('{tns1}x'))

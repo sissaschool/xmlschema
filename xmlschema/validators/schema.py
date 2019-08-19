@@ -605,15 +605,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """Creates a new schema instance of the same class of the caller."""
         return cls(*args, **kwargs)
 
-    def create_any_content_group(self, parent, name=None):
+    def create_any_content_group(self, parent):
         """Creates a model group related to schema instance that accepts any content."""
-        group = self.BUILDERS.group_class(SEQUENCE_ELEMENT, self, parent, name)
+        group = self.BUILDERS.group_class(SEQUENCE_ELEMENT, self, parent)
         group.append(self.BUILDERS.any_element_class(ANY_ELEMENT, self, group))
         return group
 
-    def create_any_attribute_group(self, parent, name=None):
+    def create_any_attribute_group(self, parent):
         """Creates an attribute group related to schema instance that accepts any attribute."""
-        attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent, name)
+        attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
         attribute_group[None] = self.BUILDERS.any_attribute_class(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
         return attribute_group
 
@@ -1108,7 +1108,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
 
             for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map, no_depth=True):
+                                                  use_defaults=use_defaults, id_map=id_map,
+                                                  no_depth=True, drop_results=True):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1124,7 +1125,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
 
             for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map):
+                                                  use_defaults=use_defaults, id_map=id_map,
+                                                  drop_results=True):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

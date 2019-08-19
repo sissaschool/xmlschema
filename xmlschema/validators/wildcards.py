@@ -178,8 +178,13 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return False
 
         if self.not_qname:
-            if other.not_namespace and \
-                    all(get_namespace(x) in other.not_namespace for x in self.not_qname):
+            if '##defined' in other.not_qname and '##defined' not in self.not_qname:
+                return False
+            elif '##definedSibling' in other.not_qname and '##definedSibling' not in self.not_qname:
+                return False
+            elif other.not_namespace and \
+                    all(get_namespace(x) in other.not_namespace
+                        for x in self.not_qname if not x.startswith('##')):
                 return True
             elif '##any' in other.namespace:
                 return True
@@ -205,7 +210,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             if '##any' in self.namespace:
                 return False
             elif '##other' in self.namespace:
-                return set(['', other.target_namespace]) == set(other.not_namespace)
+                return {'', other.target_namespace} == set(other.not_namespace)
             else:
                 return any(ns not in other.not_namespace for ns in self.namespace)
 
@@ -276,17 +281,17 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
 class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     """
-    Class for XSD 1.0 'any' wildcards.
+    Class for XSD 1.0 *any* wildcards.
 
-    <any
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )  : ##any
-      processContents = (lax | skip | strict) : strict
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </any>
+    ..  <any
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )  : ##any
+          processContents = (lax | skip | strict) : strict
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </any>
     """
     _ADMITTED_TAGS = {XSD_ANY}
 
@@ -341,7 +346,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
-                if self.process_contents == 'strict' and validation != 'skip':
+                if kwargs.get('drop_results'):
+                    # Validation-only mode: use anyType for decode a complex element.
+                    yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
+                elif self.process_contents == 'strict' and validation != 'skip':
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
@@ -372,9 +380,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             reason = "element %r not allowed here." % name
             yield self.validation_error(validation, reason, value, **kwargs)
 
-    def overlap(self, other):
+    def is_overlap(self, other):
         if not isinstance(other, XsdAnyElement):
-            return other.overlap(self)
+            return other.is_overlap(self)
         elif self.not_namespace:
             if other.not_namespace:
                 return True
@@ -402,18 +410,24 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         else:
             return any(ns in self.namespace for ns in other.namespace)
 
+    def is_consistent(self, other):
+        if isinstance(other, XsdAnyElement):
+            return True
+        xsd_element = self.matched_element(other.name, other.default_namespace)
+        return xsd_element is None or other.is_consistent(xsd_element)
+
 
 class XsdAnyAttribute(XsdWildcard):
     """
-    Class for XSD 1.0 'anyAttribute' wildcards.
+    Class for XSD 1.0 *anyAttribute* wildcards.
 
-    <anyAttribute
-      id = ID
-      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
-      processContents = (lax | skip | strict) : strict
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </anyAttribute>
+    ..  <anyAttribute
+          id = ID
+          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
+          processContents = (lax | skip | strict) : strict
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </anyAttribute>
     """
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
@@ -428,7 +442,10 @@ class XsdAnyAttribute(XsdWildcard):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
-                if self.process_contents == 'strict' and validation != 'skip':
+                if kwargs.get('drop_results'):
+                    # Validation-only mode: returns the value if a decoder is not found.
+                    yield value
+                elif self.process_contents == 'strict' and validation != 'skip':
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
@@ -462,19 +479,19 @@ class XsdAnyAttribute(XsdWildcard):
 
 class Xsd11AnyElement(XsdAnyElement):
     """
-    Class for XSD 1.1 'any' declarations.
+    Class for XSD 1.1 *any* declarations.
 
-    <any
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
-      notNamespace = List of (anyURI | (##targetNamespace | ##local))
-      notQName = List of (QName | (##defined | ##definedSibling))
-      processContents = (lax | skip | strict) : strict
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </any>
+    ..  <any
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
+          notNamespace = List of (anyURI | (##targetNamespace | ##local))
+          notQName = List of (QName | (##defined | ##definedSibling))
+          processContents = (lax | skip | strict) : strict
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </any>
     """
     def _parse(self):
         super(Xsd11AnyElement, self)._parse()
@@ -502,17 +519,17 @@ class Xsd11AnyElement(XsdAnyElement):
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
     """
-    Class for XSD 1.1 'anyAttribute' declarations.
+    Class for XSD 1.1 *anyAttribute* declarations.
 
-    <anyAttribute
-      id = ID
-      namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
-      notNamespace = List of (anyURI | (##targetNamespace | ##local))
-      notQName = List of (QName | ##defined)
-      processContents = (lax | skip | strict) : strict
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </anyAttribute>
+    ..  <anyAttribute
+          id = ID
+          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )
+          notNamespace = List of (anyURI | (##targetNamespace | ##local))
+          notQName = List of (QName | ##defined)
+          processContents = (lax | skip | strict) : strict
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </anyAttribute>
     """
     def _parse(self):
         super(Xsd11AnyAttribute, self)._parse()
@@ -537,18 +554,21 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
 
 class XsdOpenContent(XsdComponent):
     """
-    Class for XSD 1.1 'openContent' model definitions.
+    Class for XSD 1.1 *openContent* model definitions.
 
-    <openContent
-      id = ID
-      mode = (none | interleave | suffix) : interleave
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?), (any?)
-    </openContent>
+    ..  <openContent
+          id = ID
+          mode = (none | interleave | suffix) : interleave
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?), (any?)
+        </openContent>
     """
     _ADMITTED_TAGS = {XSD_OPEN_CONTENT}
     mode = 'interleave'
     any_element = None
+
+    def __init__(self, elem, schema, parent):
+        super(XsdOpenContent, self).__init__(elem, schema, parent)
 
     def __repr__(self):
         return '%s(mode=%r)' % (self.__class__.__name__, self.mode)
@@ -590,18 +610,21 @@ class XsdOpenContent(XsdComponent):
 
 class XsdDefaultOpenContent(XsdOpenContent):
     """
-    Class for XSD 1.1 'defaultOpenContent' model definitions.
+    Class for XSD 1.1 *defaultOpenContent* model definitions.
 
-    <defaultOpenContent
-      appliesToEmpty = boolean : false
-      id = ID
-      mode = (interleave | suffix) : interleave
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, any)
-    </defaultOpenContent>
+    ..  <defaultOpenContent
+          appliesToEmpty = boolean : false
+          id = ID
+          mode = (interleave | suffix) : interleave
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, any)
+        </defaultOpenContent>
     """
     _ADMITTED_TAGS = {XSD_DEFAULT_OPEN_CONTENT}
     applies_to_empty = False
+
+    def __init__(self, elem, schema):
+        super(XsdOpenContent, self).__init__(elem, schema)
 
     def _parse(self):
         super(XsdDefaultOpenContent, self)._parse()

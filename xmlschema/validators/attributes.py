@@ -31,30 +31,30 @@ from .wildcards import XsdAnyAttribute
 
 class XsdAttribute(XsdComponent, ValidationMixin):
     """
-    Class for XSD 1.0 'attribute' declarations.
+    Class for XSD 1.0 *attribute* declarations.
 
-    <attribute
-      default = string
-      fixed = string
-      form = (qualified | unqualified)
-      id = ID
-      name = NCName
-      ref = QName
-      type = QName
-      use = (optional | prohibited | required) : optional
-      {any attributes with non-schema namespace ...}>
-      Content: (annotation?, simpleType?)
-    </attribute>
+    :ivar type: the XSD simpleType of the attribute.
+
+    ..  <attribute
+          default = string
+          fixed = string
+          form = (qualified | unqualified)
+          id = ID
+          name = NCName
+          ref = QName
+          type = QName
+          use = (optional | prohibited | required) : optional
+          {any attributes with non-schema namespace ...}>
+          Content: (annotation?, simpleType?)
+        </attribute>
     """
     _ADMITTED_TAGS = {XSD_ATTRIBUTE}
 
     type = None
     qualified = False
 
-    def __init__(self, elem, schema, parent, name=None, xsd_type=None):
-        if xsd_type is not None:
-            self.type = xsd_type
-        super(XsdAttribute, self).__init__(elem, schema, parent, name)
+    def __init__(self, elem, schema, parent):
+        super(XsdAttribute, self).__init__(elem, schema, parent)
         self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
@@ -147,11 +147,11 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                     self.parse_error(err)
                     xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
 
-                if child and child.tag == XSD_SIMPLE_TYPE:
+                if child is not None and child.tag == XSD_SIMPLE_TYPE:
                     self.parse_error("ambiguous type definition for XSD attribute")
-                elif child:
+                elif child is not None:
                     self.parse_error("not allowed element in XSD attribute declaration: %r" % child[0])
-        elif child:
+        elif child is not None:
             # No 'type' attribute in declaration, parse for child local simpleType
             xsd_type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
         else:
@@ -245,22 +245,22 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
 class Xsd11Attribute(XsdAttribute):
     """
-    Class for XSD 1.1 'attribute' declarations.
+    Class for XSD 1.1 *attribute* declarations.
 
-    <attribute
-      default = string
-      fixed = string
-      form = (qualified | unqualified)
-      id = ID
-      name = NCName
-      ref = QName
-      targetNamespace = anyURI
-      type = QName
-      use = (optional | prohibited | required) : optional
-      inheritable = boolean
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, simpleType?)
-    </attribute>
+    ..  <attribute
+          default = string
+          fixed = string
+          form = (qualified | unqualified)
+          id = ID
+          name = NCName
+          ref = QName
+          targetNamespace = anyURI
+          type = QName
+          use = (optional | prohibited | required) : optional
+          inheritable = boolean
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, simpleType?)
+        </attribute>
     """
     inheritable = False
     _target_namespace = None
@@ -280,15 +280,15 @@ class Xsd11Attribute(XsdAttribute):
 
 class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     """
-    Class for XSD 'attributeGroup' definitions.
+    Class for XSD *attributeGroup* definitions.
 
-    <attributeGroup
-      id = ID
-      name = NCName
-      ref = QName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
-    </attributeGroup>
+    .. <attributeGroup
+          id = ID
+          name = NCName
+          ref = QName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
+        </attributeGroup>
     """
     redefine = None
     _ADMITTED_TAGS = {
@@ -296,11 +296,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
     }
 
-    def __init__(self, elem, schema, parent, name=None, derivation=None, base_attributes=None):
+    def __init__(self, elem, schema, parent, derivation=None, base_attributes=None):
         self.derivation = derivation
         self._attribute_group = ordered_dict_class()
         self.base_attributes = base_attributes
-        XsdComponent.__init__(self, elem, schema, parent, name)
+        XsdComponent.__init__(self, elem, schema, parent)
 
     def __repr__(self):
         if self.ref is not None:

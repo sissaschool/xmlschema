@@ -90,15 +90,15 @@ class XsdFacet(XsdComponent):
 
 class XsdWhiteSpaceFacet(XsdFacet):
     """
-    XSD whiteSpace facet.
+    XSD *whiteSpace* facet.
 
-    <whiteSpace
-      fixed = boolean : false
-      id = ID
-      value = (collapse | preserve | replace)
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </whiteSpace>
+    ..  <whiteSpace
+          fixed = boolean : false
+          id = ID
+          value = (collapse | preserve | replace)
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </whiteSpace>
     """
     _ADMITTED_TAGS = XSD_WHITE_SPACE,
 
@@ -126,15 +126,15 @@ class XsdWhiteSpaceFacet(XsdFacet):
 
 class XsdLengthFacet(XsdFacet):
     """
-    XSD length facet.
+    XSD *length* facet.
 
-    <length
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </length>
+    ..  <length
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </length>
     """
     _ADMITTED_TAGS = XSD_LENGTH,
 
@@ -169,15 +169,15 @@ class XsdLengthFacet(XsdFacet):
 
 class XsdMinLengthFacet(XsdFacet):
     """
-    XSD minLength facet.
+    XSD *minLength* facet.
 
-    <minLength
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minLength>
+    ..  <minLength
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minLength>
     """
     _ADMITTED_TAGS = XSD_MIN_LENGTH,
 
@@ -212,15 +212,15 @@ class XsdMinLengthFacet(XsdFacet):
 
 class XsdMaxLengthFacet(XsdFacet):
     """
-    XSD maxLength facet.
+    XSD *maxLength* facet.
 
-    <maxLength
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxLength>
+    ..  <maxLength
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxLength>
     """
     _ADMITTED_TAGS = XSD_MAX_LENGTH,
 
@@ -255,15 +255,15 @@ class XsdMaxLengthFacet(XsdFacet):
 
 class XsdMinInclusiveFacet(XsdFacet):
     """
-    XSD minInclusive facet.
+    XSD *minInclusive* facet.
 
-    <minInclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minInclusive>
+    ..  <minInclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minInclusive>
     """
     _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
@@ -293,15 +293,15 @@ class XsdMinInclusiveFacet(XsdFacet):
 
 class XsdMinExclusiveFacet(XsdFacet):
     """
-    XSD minExclusive facet.
+    XSD *minExclusive* facet.
 
-    <minExclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minExclusive>
+    ..  <minExclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minExclusive>
     """
     _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
@@ -331,15 +331,15 @@ class XsdMinExclusiveFacet(XsdFacet):
 
 class XsdMaxInclusiveFacet(XsdFacet):
     """
-    XSD maxInclusive facet.
+    XSD *maxInclusive* facet.
 
-    <maxInclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxInclusive>
+    ..  <maxInclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxInclusive>
     """
     _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
@@ -369,15 +369,15 @@ class XsdMaxInclusiveFacet(XsdFacet):
 
 class XsdMaxExclusiveFacet(XsdFacet):
     """
-    XSD maxExclusive facet.
+    XSD *maxExclusive* facet.
 
-    <maxExclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxExclusive>
+    ..  <maxExclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxExclusive>
     """
     _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
@@ -407,15 +407,15 @@ class XsdMaxExclusiveFacet(XsdFacet):
 
 class XsdTotalDigitsFacet(XsdFacet):
     """
-    XSD totalDigits facet.
+    XSD *totalDigits* facet.
 
-    <totalDigits
-      fixed = boolean : false
-      id = ID
-      value = positiveInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </totalDigits>
+    ..  <totalDigits
+          fixed = boolean : false
+          id = ID
+          value = positiveInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </totalDigits>
     """
     _ADMITTED_TAGS = XSD_TOTAL_DIGITS,
 
@@ -432,15 +432,15 @@ class XsdTotalDigitsFacet(XsdFacet):
 
 class XsdFractionDigitsFacet(XsdFacet):
     """
-    XSD fractionDigits facet.
+    XSD *fractionDigits* facet.
 
-    <fractionDigits
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </fractionDigits>
+    ..  <fractionDigits
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </fractionDigits>
     """
     _ADMITTED_TAGS = XSD_FRACTION_DIGITS,
 
@@ -464,15 +464,15 @@ class XsdFractionDigitsFacet(XsdFacet):
 
 class XsdExplicitTimezoneFacet(XsdFacet):
     """
-    XSD 1.1 explicitTimezone facet.
+    XSD 1.1 *explicitTimezone* facet.
 
-    <explicitTimezone
-      fixed = boolean : false
-      id = ID
-      value = NCName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </explicitTimezone>
+    ..  <explicitTimezone
+          fixed = boolean : false
+          id = ID
+          value = NCName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </explicitTimezone>
     """
     _ADMITTED_TAGS = XSD_EXPLICIT_TIMEZONE,
 
@@ -496,14 +496,14 @@ class XsdExplicitTimezoneFacet(XsdFacet):
 
 class XsdEnumerationFacets(MutableSequence, XsdFacet):
     """
-    Sequence of XSD enumeration facets. Values are validates if match any of enumeration values.
+    Sequence of XSD *enumeration* facets. Values are validates if match any of enumeration values.
 
-    <enumeration
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </enumeration>
+    ..  <enumeration
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </enumeration>
     """
     _ADMITTED_TAGS = {XSD_ENUMERATION}
 
@@ -570,14 +570,14 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
     """
-    Sequence of XSD pattern facets. Values are validates if match any of patterns.
+    Sequence of XSD *pattern* facets. Values are validates if match any of patterns.
 
-    <pattern
-      id = ID
-      value = string
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </pattern>
+    ..  <pattern
+          id = ID
+          value = string
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </pattern>
     """
     _ADMITTED_TAGS = {XSD_PATTERN}
 
@@ -637,15 +637,15 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 
 class XsdAssertionFacet(XsdFacet):
     """
-    XSD 1.1 assertion facet for simpleType definitions.
+    XSD 1.1 *assertion* facet for simpleType definitions.
 
-    <assertion
-      id = ID
-      test = an XPath expression
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </assertion>
+    ..  <assertion
+          id = ID
+          test = an XPath expression
+          xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </assertion>
     """
     _ADMITTED_TAGS = {XSD_ASSERTION}
 

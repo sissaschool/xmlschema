@@ -21,16 +21,19 @@ from .assertions import XsdAssert
 from .notations import XsdNotation
 from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, \
     XsdUnique, Xsd11Keyref, Xsd11Key, Xsd11Unique
-from .facets import XsdPatternFacets, XsdEnumerationFacets
+from .facets import XsdFacet, XsdWhiteSpaceFacet, XsdLengthFacet, XsdMinLengthFacet, \
+    XsdMaxLengthFacet, XsdMinExclusiveFacet, XsdMinInclusiveFacet, XsdMaxExclusiveFacet, \
+    XsdMaxInclusiveFacet, XsdFractionDigitsFacet, XsdTotalDigitsFacet, \
+    XsdExplicitTimezoneFacet, XsdPatternFacets, XsdEnumerationFacets, XsdAssertionFacet
 from .wildcards import XsdAnyElement, Xsd11AnyElement, XsdAnyAttribute, Xsd11AnyAttribute, \
     XsdOpenContent, XsdDefaultOpenContent
 from .attributes import XsdAttribute, Xsd11Attribute, XsdAttributeGroup
 from .simple_types import xsd_simple_type_factory, XsdSimpleType, XsdAtomic, XsdAtomicBuiltin, \
-    XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion
+    XsdAtomicRestriction, Xsd11AtomicRestriction, XsdList, XsdUnion, Xsd11Union
 from .complex_types import XsdComplexType, Xsd11ComplexType
 from .models import ModelGroup, ModelVisitor
 from .groups import XsdGroup, Xsd11Group
-from .elements import XsdElement, Xsd11Element
+from .elements import XsdElement, Xsd11Element, XsdAlternative
 
 from .globals_ import XsdGlobals
 from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11

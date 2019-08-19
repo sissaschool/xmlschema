@@ -553,3 +553,11 @@ From release v1.0.12 the document validation and decoding API has an optional ar
 that can be changed to True for operating with a lazy :class:`XMLResource`. The lazy mode can be
 useful for validating and decoding big XML data files. This is still an experimental feature that
 will be refined and integrated in future versions.
+
+
+XSD 1.0 and 1.1 support
+-----------------------
+From release v1.0.14 XSD 1.1 support has been added to the library through the class
+:class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
+class :class:`XMLSchema` that is still linked to XSD 1.0 validator :class:`XMLSchema10`.
+From next minor release (v1.1) the default class will become :class:`XMLSchema11`.

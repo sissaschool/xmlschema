@@ -90,13 +90,13 @@ class XsdSimpleType(XsdType, ValidationMixin):
     Base class for simpleTypes definitions. Generally used only for
     instances of xs:anySimpleType.
 
-    <simpleType
-      final = (#all | List of (list | union | restriction | extension))
-      id = ID
-      name = NCName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (restriction | list | union))
-    </simpleType>
+    ..  <simpleType
+          final = (#all | List of (list | union | restriction | extension))
+          id = ID
+          name = NCName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (restriction | list | union))
+        </simpleType>
     """
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
@@ -599,12 +599,12 @@ class XsdList(XsdSimpleType):
     Class for 'list' definitions. A list definition has an item_type attribute
     that refers to an atomic or union simpleType definition.
 
-    <list
-      id = ID
-      itemType = QName
-      {any attributes with non-schema namespace ...}>
-      Content: (annotation?, simpleType?)
-    </list>
+    ..  <list
+          id = ID
+          itemType = QName
+          {any attributes with non-schema namespace ...}>
+          Content: (annotation?, simpleType?)
+        </list>
     """
     _ADMITTED_TAGS = {XSD_LIST}
     _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
@@ -759,12 +759,12 @@ class XsdUnion(XsdSimpleType):
     Class for 'union' definitions. A union definition has a member_types
     attribute that refers to a 'simpleType' definition.
 
-    <union
-      id = ID
-      memberTypes = List of QName
-      {any attributes with non-schema namespace ...}>
-      Content: (annotation?, simpleType*)
-    </union>
+    ..  <union
+          id = ID
+          memberTypes = List of QName
+          {any attributes with non-schema namespace ...}>
+          Content: (annotation?, simpleType*)
+        </union>
     """
     _ADMITTED_TYPES = XsdSimpleType
     _ADMITTED_TAGS = {XSD_UNION}
@@ -968,14 +968,14 @@ class XsdAtomicRestriction(XsdAtomic):
     """
     Class for XSD 1.0 atomic simpleType and complexType's simpleContent restrictions.
 
-    <restriction
-      base = QName
-      id = ID
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
-      enumeration | whiteSpace | pattern)*))
-    </restriction>
+    ..  <restriction
+          base = QName
+          id = ID
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+          maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
+          enumeration | whiteSpace | pattern)*))
+        </restriction>
     """
     FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     derivation = 'restriction'
@@ -1208,15 +1208,15 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
     """
     Class for XSD 1.1 atomic simpleType and complexType's simpleContent restrictions.
 
-    <restriction
-      base = QName
-      id = ID
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
-      maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
-      enumeration | whiteSpace | pattern | assertion | explicitTimezone |
-      {any with namespace: ##other})*))
-    </restriction>
+    ..  <restriction
+          base = QName
+          id = ID
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (simpleType?, (minExclusive | minInclusive | maxExclusive |
+          maxInclusive | totalDigits | fractionDigits | length | minLength | maxLength |
+          enumeration | whiteSpace | pattern | assertion | explicitTimezone |
+          {any with namespace: ##other})*))
+        </restriction>
     """
     FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ASSERT}

@@ -512,26 +512,29 @@ class XsdComponent(XsdValidator):
 
 class XsdAnnotation(XsdComponent):
     """
-    Class for XSD 'annotation' definitions.
+    Class for XSD *annotation* definitions.
 
-    <annotation
-      id = ID
-      {any attributes with non-schema namespace . . .}>
-      Content: (appinfo | documentation)*
-    </annotation>
+    :var appinfo: a list containing the xs:appinfo children.
+    :var documentation: a list containing the xs:documentation children.
 
-    <appinfo
-      source = anyURI
-      {any attributes with non-schema namespace . . .}>
-      Content: ({any})*
-    </appinfo>
+    ..  <annotation
+          id = ID
+          {any attributes with non-schema namespace . . .}>
+          Content: (appinfo | documentation)*
+        </annotation>
 
-    <documentation
-      source = anyURI
-      xml:lang = language
-      {any attributes with non-schema namespace . . .}>
-      Content: ({any})*
-    </documentation>
+    ..  <appinfo
+          source = anyURI
+          {any attributes with non-schema namespace . . .}>
+          Content: ({any})*
+        </appinfo>
+
+    ..  <documentation
+          source = anyURI
+          xml:lang = language
+          {any attributes with non-schema namespace . . .}>
+          Content: ({any})*
+        </documentation>
     """
     _ADMITTED_TAGS = {XSD_ANNOTATION}
 
@@ -557,6 +560,8 @@ class XsdAnnotation(XsdComponent):
 
 
 class XsdType(XsdComponent):
+    """Common base class for XSD types."""
+
     abstract = False
     base_type = None
     derivation = None
@@ -573,29 +578,44 @@ class XsdType(XsdComponent):
 
     @staticmethod
     def is_simple():
+        """Returns `True` if the instance is a simpleType, `False` otherwise."""
         raise NotImplementedError
 
     @staticmethod
     def is_complex():
+        """Returns `True` if the instance is a complexType, `False` otherwise."""
         raise NotImplementedError
 
     @staticmethod
     def is_atomic():
+        """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
         return None
 
     def is_empty(self):
+        """Returns `True` if the instance has an empty value or content, `False` otherwise."""
         raise NotImplementedError
 
     def is_emptiable(self):
+        """Returns `True` if the instance has an emptiable value or content, `False` otherwise."""
         raise NotImplementedError
 
     def has_simple_content(self):
+        """
+        Returns `True` if the instance is a simpleType or a complexType with simple
+        content, `False` otherwise.
+        """
         raise NotImplementedError
 
     def has_mixed_content(self):
+        """
+        Returns `True` if the instance is a complexType with mixed content, `False` otherwise.
+        """
         raise NotImplementedError
 
     def is_element_only(self):
+        """
+        Returns `True` if the instance is a complexType with element-only content, `False` otherwise.
+        """
         raise NotImplementedError
 
     @property

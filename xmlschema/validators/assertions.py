@@ -20,15 +20,15 @@ from .xsdbase import XsdComponent
 
 class XsdAssert(XsdComponent, ElementPathMixin):
     """
-    Class for XSD 'assert' constraint declaration.
+    Class for XSD *assert* constraint definitions.
 
-    <assert
-      id = ID
-      test = an XPath expression
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </assert>
+    ..  <assert
+          id = ID
+          test = an XPath expression
+          xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </assert>
     """
     _ADMITTED_TAGS = {XSD_ASSERT}
     token = None

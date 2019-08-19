@@ -176,8 +176,9 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def check_model(self):
         """
-        Checks if the model group is deterministic. Types matching of same elements and Unique Particle
-        Attribution Constraint are checked. Raises an `XMLSchemaModelError` at first violated constraint.
+        Checks if the model group is deterministic. Element Declarations Consistent and
+        Unique Particle Attribution constraints are checked.
+        :raises: an `XMLSchemaModelError` at first violated constraint.
         """
         def safe_iter_path(group, depth):
             if depth > MAX_MODEL_DEPTH:
@@ -195,11 +196,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
         current_path = [self]
         for e in safe_iter_path(self, 0):
             for pe, previous_path in paths.values():
-                if pe.name == e.name and pe.name is not None and pe.type is not e.type:
-                    raise XMLSchemaModelError(
-                        self, "The model has elements with the same name %r but a different type" % e.name
-                    )
-                elif not pe.overlap(e):
+                # EDC check
+                if not e.is_consistent(pe):
+                    msg = "Element Declarations Consistent violation between %r and %r: " \
+                          "match the same name but with different types" % (e, pe)
+                    raise XMLSchemaModelError(self, msg)
+
+                # UPA check
+                if not pe.is_overlap(e):
                     continue
                 elif pe is not e and pe.parent is e.parent:
                     if pe.parent.model in {'all', 'choice'}:

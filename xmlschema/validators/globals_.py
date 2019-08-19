@@ -254,6 +254,17 @@ class XsdGlobals(XsdValidator):
         return lookup_element(self.elements, qname, self.validator.BUILDERS_MAP)
 
     def lookup(self, tag, qname):
+        """
+        General lookup method for XSD global components.
+
+        :param tag: the expanded QName of the XSD the global declaration/definition \
+        (eg. '{http://www.w3.org/2001/XMLSchema}element'), that is used to select \
+        the global map for lookup.
+        :param qname: the expanded QName of the component to be looked-up.
+        :returns: an XSD global component.
+        :raises: an XMLSchemaValueError if the *tag* argument is not appropriate for a global \
+        component, an XMLSchemaKeyError if the *qname* argument is not found in the global map.
+        """
         if tag in (XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE):
             return self.lookup_type(qname)
         elif tag == XSD_ELEMENT:
@@ -538,3 +549,4 @@ class XsdGlobals(XsdValidator):
                     if validation == 'strict':
                         raise
                     xsd_type.errors.append(err)
+

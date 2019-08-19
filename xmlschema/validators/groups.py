@@ -38,41 +38,41 @@ ANY_ELEMENT = etree_element(
 
 class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     """
-    A class for XSD 1.0 model group definitions.
+    Class for XSD 1.0 *model group* definitions.
 
-    <group
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded) : 1
-      minOccurs = nonNegativeInteger : 1
-      name = NCName
-      ref = QName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (all | choice | sequence)?)
-    </group>
+    ..  <group
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded) : 1
+          minOccurs = nonNegativeInteger : 1
+          name = NCName
+          ref = QName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (all | choice | sequence)?)
+        </group>
 
-    <all
-      id = ID
-      maxOccurs = 1 : 1
-      minOccurs = (0 | 1) : 1
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, element*)
-    </all>
+    ..  <all
+          id = ID
+          maxOccurs = 1 : 1
+          minOccurs = (0 | 1) : 1
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, element*)
+        </all>
 
-    <choice
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (element | group | choice | sequence | any)*)
-    </choice>
+    ..  <choice
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (element | group | choice | sequence | any)*)
+        </choice>
 
-    <sequence
-      id = ID
-      maxOccurs = (nonNegativeInteger | unbounded)  : 1
-      minOccurs = nonNegativeInteger : 1
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (element | group | choice | sequence | any)*)
-    </sequence>
+    ..  <sequence
+          id = ID
+          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          minOccurs = nonNegativeInteger : 1
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (element | group | choice | sequence | any)*)
+        </sequence>
     """
     mixed = False
     model = None
@@ -84,11 +84,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
     }
 
-    def __init__(self, elem, schema, parent, name=None):
+    def __init__(self, elem, schema, parent):
         self._group = []
         if parent is not None and parent.mixed:
             self.mixed = parent.mixed
-        super(XsdGroup, self).__init__(elem, schema, parent, name)
+        super(XsdGroup, self).__init__(elem, schema, parent)
 
     def __repr__(self):
         if self.name is None:
@@ -724,16 +724,16 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
 class Xsd11Group(XsdGroup):
     """
-    A class for XSD 1.1 model group definitions. The XSD 1.1 model groups differ
-    from XSD 1.0 groups for the 'all' model, that can contains also other groups.
+    Class for XSD 1.1 *model group* definitions.
 
-    <all
-      id = ID
-      maxOccurs = (0 | 1) : 1
-      minOccurs = (0 | 1) : 1
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?, (element | any | group)*)
-    </all>
+    .. The XSD 1.1 model groups differ from XSD 1.0 groups for the 'all' model, that can contains also other groups.
+    ..  <all
+          id = ID
+          maxOccurs = (0 | 1) : 1
+          minOccurs = (0 | 1) : 1
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?, (element | any | group)*)
+        </all>
     """
     def _parse_content_model(self, elem, content_model):
         self.model = local_name(content_model.tag)
