@@ -316,7 +316,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
             if strict:
                 raise AssertionError("%r != %r: attribute differ: %r != %r." % (e1, e2, e1.attrib, e2.attrib))
             else:
-                assert e1.attrib.keys() == e2.attrib.keys(), \
+                assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
                     "%r != %r: attribute keys differ: %r != %r." % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
                     a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()

@@ -495,16 +495,19 @@ class XsdGlobals(XsdValidator):
         :param validation: overrides the default validation mode of the validator.
         :raise: XMLSchemaParseError
         """
-        schemas = set(schemas or self.iter_schemas())
+        schemas = set(schemas if schemas is not None else self.iter_schemas())
 
         # Checks substitution groups circularities
         for qname in self.substitution_groups:
             xsd_element = self.elements[qname]
-            for e in filter(lambda x: x is xsd_element, xsd_element.iter_substitutes()):
-                msg = "circularity found for substitution group with head element %r"
-                e.parse_error(msg.format(e), validation=validation)
+            for e in xsd_element.iter_substitutes():
+                if e is xsd_element:
+                    msg = "circularity found for substitution group with head element %r"
+                    e.parse_error(msg.format(e), validation=validation)
+                elif e.abstract and e.name not in self.substitution_groups and self.validator.XSD_VERSION > '1.0':
+                    self.parse_error("in XSD 1.1 an abstract element cannot be member of a substitution group")
 
-        if self.validator.XSD_VERSION != '1.0':
+        if self.validator.XSD_VERSION > '1.0':
             for s in filter(lambda x: x.default_attributes is not None, schemas):
                 if isinstance(s.default_attributes, XsdAttributeGroup):
                     continue
@@ -549,4 +552,3 @@ class XsdGlobals(XsdValidator):
                     if validation == 'strict':
                         raise
                     xsd_type.errors.append(err)
-

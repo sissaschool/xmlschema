@@ -335,6 +335,12 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertEqual(global_counter, 225)
         self.assertEqual(total_counter, 1051)
 
+    def test_xsd_11_restrictions(self):
+        all_model_type = XMLSchema11.meta_schema.types['all']
+        self.assertTrue(
+            all_model_type.content_type.is_restriction(all_model_type.base_type.content_type)
+        )
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header
