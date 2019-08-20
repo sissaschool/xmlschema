@@ -516,6 +516,12 @@ class Xsd11AnyElement(XsdAnyElement):
                 return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
+    def is_consistent(self, other):
+        if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
+            return True
+        xsd_element = self.matched_element(other.name, other.default_namespace)
+        return xsd_element is None or other.is_consistent(xsd_element)
+
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
     """

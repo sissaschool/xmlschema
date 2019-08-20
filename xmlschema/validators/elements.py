@@ -296,8 +296,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if isinstance(head_element, tuple):
                 self.parse_error("circularity found for substitutionGroup %r" % substitution_group)
                 return
-            elif self._abstract and self.xsd_version > '1.0':
-                self.parse_error("in XSD 1.1 an abstract element cannot be member of a substitution group")
             elif 'substitution' in head_element.block:
                 return
 
@@ -858,18 +856,27 @@ class Xsd11Element(XsdElement):
 
     def is_consistent(self, other):
         if isinstance(other, XsdAnyElement):
+            if other.process_contents == 'skip':
+                return True
             xsd_element = other.matched_element(self.name, self.default_namespace)
             return xsd_element is None or self.is_consistent(xsd_element)
-        elif self.name != other.name:
-            return True
-        elif self.type is not other.type or len(self.alternatives) != len(other.alternatives):
+
+        if self.name == other.name:
+            xsd_element = self
+        else:
+            for e in self.iter_substitutes():
+                if e.name == other.name:
+                    xsd_element = e
+                    break
+            else:
+                return True
+
+        if xsd_element.type is not other.type or len(xsd_element.alternatives) != len(other.alternatives):
             return False
-        elif not self.alternatives:
-            return True
-        elif not all(any(a == x) for x in other.alternatives for a in self.alternatives):
+        elif not all(any(a == x for x in other.alternatives) for a in xsd_element.alternatives):
             return False
         else:
-            return all(any(a == x) for x in self.alternatives for a in other.alternatives)
+            return all(any(a == x for x in xsd_element.alternatives) for a in other.alternatives)
 
 
 class XsdAlternative(XsdComponent):
@@ -897,10 +904,12 @@ class XsdAlternative(XsdComponent):
         return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))
 
     def __eq__(self, other):
-        return self.path == other.path and self.type is other.type
+        return self.path == other.path and self.type is other.type and \
+               self.xpath_default_namespace == other.xpath_default_namespace
 
     def __ne__(self, other):
-        return self.path != other.path or self.type is not other.type
+        return self.path != other.path or self.type is not other.type or \
+               self.xpath_default_namespace != other.xpath_default_namespace
 
     def _parse(self):
         XsdComponent._parse(self)
