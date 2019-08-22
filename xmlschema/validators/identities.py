@@ -197,15 +197,28 @@ class XsdIdentity(XsdComponent):
 
     def validator(self, elem):
         values = Counter()
+        visited_mutable = []
+        duplicate_mutable = []
         for v in self.iter_values(elem):
             if isinstance(v, XMLSchemaValidationError):
                 yield v
             else:
-                values[v] += 1
-
+                try:
+                    values[v] += 1
+                except TypeError as e:
+                    if str(e).startswith('unhashable type'):
+                        if v not in duplicate_mutable:
+                            if v not in visited_mutable:
+                                visited_mutable.append(v)
+                            else:
+                                duplicate_mutable.append(v)
+                    else:
+                        raise TypeError(e)
         for value, count in values.items():
             if value and count > 1:
                 yield XMLSchemaValidationError(self, elem, reason="duplicated value {!r}.".format(value))
+        for value in duplicate_mutable:
+            yield XMLSchemaValidationError(self, elem, reason="duplicated value {!r}.".format(value))
 
 
 class XsdUnique(XsdIdentity):
