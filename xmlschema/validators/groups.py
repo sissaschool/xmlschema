@@ -24,7 +24,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationErr
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ParticleMixin, ModelGroup, ModelVisitor
+from .models import ParticleMixin, ModelGroup, ModelVisitor, Occurrence
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -340,11 +340,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         # Compare model with model
         if self.model != other.model and self.model != 'sequence' and \
-                (len(self) > 1 or self.ref is not None and len(self[0]) > 1) and self.xsd_version == '1.0':
+                (len(self) > 1 or self.ref is not None and len(self[0]) > 1):
             return False
         elif self.model == other.model or other.model == 'sequence':
-            if self.model == 'all' and self.xsd_version > '1.0':
-                return self.is_all_restriction(other)
             return self.is_sequence_restriction(other)
         elif other.model == 'all':
             return self.is_all_restriction(other)
@@ -389,6 +387,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     def is_sequence_restriction(self, other):
         if not self.has_occurs_restriction(other):
             return False
+
         check_occurs = other.max_occurs != 0
         check_emptiable = other.model != 'choice'
 
@@ -437,9 +436,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         return not bool(restriction_items)
 
     def is_choice_restriction(self, other):
-        if self.xsd_version > '1.0':
-            restriction_items = list(self.iter_model())
-        elif self.ref is None:
+        if self.ref is None:
             if self.parent is None and other.parent is not None:
                 return False  # not allowed restriction in XSD 1.0
             restriction_items = list(self)
@@ -454,7 +451,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         for other_item in other.iter_model():
             for item in restriction_items:
-
                 if other_item is item or item.is_restriction(other_item, check_occurs):
                     if max_occurs is not None:
                         if item.max_occurs is None:
@@ -475,11 +471,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         if restriction_items:
             return False
         elif other_max_occurs is None:
-            if other.max_occurs:
+            if other.max_occurs != 0:
                 return True
             other_max_occurs = 0
         elif other.max_occurs is None:
-            if other_max_occurs:
+            if other_max_occurs != 0:
                 return True
             other_max_occurs = 0
         else:
@@ -762,7 +758,7 @@ class Xsd11Group(XsdGroup):
                     continue
 
                 if ref != self.name:
-                    self.append(XsdGroup(child, self.schema, self))
+                    self.append(Xsd11Group(child, self.schema, self))
                 elif self.redefine is None:
                     self.parse_error("Circular definition detected for group %r:" % self.name, elem)
                 else:
@@ -773,6 +769,103 @@ class Xsd11Group(XsdGroup):
                     self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
+
+    def is_restriction(self, other, check_occurs=True):
+        if not self:
+            return True
+        elif not isinstance(other, ParticleMixin):
+            raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
+        elif not isinstance(other, XsdGroup):
+            return self.is_element_restriction(other)
+        elif not other:
+            return False
+        elif len(other) == other.min_occurs == other.max_occurs == 1:
+            if len(self) > 1:
+                return self.is_restriction(other[0], check_occurs)
+            elif self.ref is None and isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
+                return self[0].is_restriction(other[0], check_occurs)
+
+        if self.model == 'choice' and len(self) > 1:
+            print(self, other)
+            if False:
+                for item in self:
+                    if item is other or item.is_restriction(other):
+                        if self.min_occurs * item.min_occurs < other.min_occurs:
+                            continue
+                        elif other.max_occurs is None or self.max_occurs == 0 or item.max_occurs == 0:
+                            return True
+                        elif self.max_occurs is None or item.max_occurs is None:
+                            continue
+                        elif self.max_occurs * item.max_occurs <= other.max_occurs:
+                            return True
+
+        if other.model == 'sequence':
+            return self.is_sequence_restriction(other)
+        elif other.model == 'all':
+            return self.is_all_restriction(other)
+        elif other.model == 'choice':
+            return self.is_choice_restriction(other)
+
+    def is_sequence_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
+
+        check_occurs = other.max_occurs != 0
+
+        item_iterator = iter(self.iter_model())
+        item = next(item_iterator, None)
+
+        # print("SELF: ", list(self.iter_model()))
+        # print("OTHER: ", list(other.iter_model()))
+        # breakpoint()
+
+        for other_item in other.iter_model():
+            if item is not None and item.is_restriction(other_item, check_occurs):
+                item = next(item_iterator, None)
+            elif not other_item.is_emptiable():
+                print("SELF: ", list(self.iter_model()))
+                print("OTHER: ", list(other.iter_model()))
+                # breakpoint()
+                return False
+        return True
+
+    def _is_sequence_restriction(self, other):
+        if not self.has_occurs_restriction(other):
+            return False
+
+        check_occurs = other.max_occurs != 0
+
+        item_iterator = iter(self.iter_model())
+        item = next(item_iterator, None)
+
+        print("SELF: ", list(self.iter_model()))
+        print("OTHER: ", list(other.iter_model()))
+        print("Self:", self.effective_min_occurs, self.effective_max_occurs)
+        print("Other:", other.effective_min_occurs, other.effective_max_occurs)
+
+        for other_item in other.iter_model():
+            min_occurs = 0
+            max_occurs = Occurrence(other_item.effective_max_occurs)
+
+            while item is not None:
+                if other_item is item:
+                    if max_occurs < item.effective_max_occurs:
+                        return False
+                    min_occurs += item.effective_min_occurs
+                    max_occurs.sub(item.effective_max_occurs)
+                    item = next(item_iterator, None)
+                elif max_occurs >= item.effective_max_occurs and \
+                        item.is_restriction(other_item, check_occurs):
+                    min_occurs += item.effective_min_occurs
+                    max_occurs.sub(item.effective_max_occurs)
+                    item = next(item_iterator, None)
+                else:
+                    break
+
+            if min_occurs < other_item.effective_min_occurs:
+                breakpoint()
+                return False
+        return True
 
     def is_all_restriction(self, other):
         if not self.has_occurs_restriction(other):
@@ -803,3 +896,54 @@ class Xsd11Group(XsdGroup):
                 return False
 
         return not bool(restriction_items)
+
+    def is_choice_restriction(self, other):
+        restriction_items = list(self.iter_model())
+        if self.model == 'choice':
+            counter_func = max
+        else:
+            def counter_func(x, y):
+                return x + y
+
+        check_occurs = other.max_occurs != 0
+        max_occurs = 0
+        other_max_occurs = 0
+
+        for other_item in other.iter_model():
+            for item in restriction_items:
+                if other_item is item or item.is_restriction(other_item, check_occurs):
+                    if max_occurs is not None:
+                        if item.effective_max_occurs is None:
+                            max_occurs = None
+                        else:
+                            max_occurs = counter_func(max_occurs, item.effective_max_occurs)
+
+                    if other_max_occurs is not None:
+                        if other_item.effective_max_occurs is None:
+                            other_max_occurs = None
+                        else:
+                            other_max_occurs = max(other_max_occurs, other_item.effective_max_occurs)
+                    break
+            else:
+                continue
+            restriction_items.remove(item)
+
+        if restriction_items:
+            return False
+        elif other_max_occurs is None:
+            if other.max_occurs != 0:
+                return True
+            other_max_occurs = 0
+        elif other.max_occurs is None:
+            if other_max_occurs != 0:
+                return True
+            other_max_occurs = 0
+        else:
+            other_max_occurs *= other.max_occurs
+
+        if max_occurs is None:
+            return self.max_occurs == 0
+        elif self.max_occurs is None:
+            return max_occurs == 0
+        else:
+            return other_max_occurs >= max_occurs * self.max_occurs

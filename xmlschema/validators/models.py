@@ -30,6 +30,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
     Class for XSD model group particles. This class implements only model related methods,
     schema element parsing and validation methods are implemented in derived classes.
     """
+    parent = None
+
     def __init__(self, model):
         assert model in XSD_GROUP_MODELS, "Not a valid value for 'model'"
         self._group = []
@@ -107,6 +109,25 @@ class ModelGroup(MutableSequence, ParticleMixin):
             return False
         else:
             return True
+
+    @property
+    def effective_min_occurs(self):
+        if self.model == 'choice':
+            return min(e.min_occurs for e in self.iter_model())
+        return self.min_occurs * min(e.min_occurs for e in self.iter_model())
+
+    @property
+    def effective_max_occurs(self):
+        if self.max_occurs == 0:
+            return 0
+        elif self.max_occurs is None:
+            return None if any(e.max_occurs != 0 for e in self.iter_model()) else 0
+        elif any(e.max_occurs is None for e in self.iter_model()):
+            return None
+        elif self.model == 'choice':
+            return self.max_occurs * max(e.max_occurs for e in self.iter_model())
+        else:
+            return self.max_occurs * sum(e.max_occurs for e in self.iter_model())
 
     def has_occurs_restriction(self, other):
         if not self:
@@ -194,18 +215,23 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
         paths = {}
         current_path = [self]
+        try:
+            any_element = self.parent.open_content.any_element
+        except AttributeError:
+            any_element = None
+
         for e in safe_iter_path(self, 0):
             for pe, previous_path in paths.values():
                 # EDC check
-                if not e.is_consistent(pe):
+                if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
                     msg = "Element Declarations Consistent violation between %r and %r: " \
                           "match the same name but with different types" % (e, pe)
                     raise XMLSchemaModelError(self, msg)
 
                 # UPA check
-                if not pe.is_overlap(e):
+                if pe is e or not pe.is_overlap(e):
                     continue
-                elif pe is not e and pe.parent is e.parent:
+                elif pe.parent is e.parent:
                     if pe.parent.model in {'all', 'choice'}:
                         msg = "{!r} and {!r} overlap and are in the same {!r} group"
                         raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
@@ -250,17 +276,29 @@ def distinguishable_paths(path1, path2):
 
     for k in range(depth + 1, len(path1) - 1):
         univocal1 &= path1[k].is_univocal()
+        idx = path1[k].index(path1[k + 1])
         if path1[k].model == 'sequence':
-            idx = path1[k].index(path1[k + 1])
             before1 |= any(not e.is_emptiable() for e in path1[k][:idx])
             after1 |= any(not e.is_emptiable() for e in path1[k][idx + 1:])
+        elif path1[k].model == 'choice':
+            if any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
+                univocal1 = before1 = after1 = False
+        else:
+            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
+                univocal1 = before1 = after1 = False
 
     for k in range(depth + 1, len(path2) - 1):
         univocal2 &= path2[k].is_univocal()
+        idx = path2[k].index(path2[k + 1])
         if path2[k].model == 'sequence':
-            idx = path2[k].index(path2[k + 1])
             before2 |= any(not e.is_emptiable() for e in path2[k][:idx])
             after2 |= any(not e.is_emptiable() for e in path2[k][idx + 1:])
+        elif path2[k].model == 'choice':
+            if any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
+                univocal2 = before2 = after2 = False
+        else:
+            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
+                univocal2 = before2 = after2 = False
 
     if path1[depth].model != 'sequence':
         return before1 and before2 or \
@@ -565,3 +603,83 @@ class ModelVisitor(MutableSequence):
         for name, values in unordered_content.items():
             for v in values:
                 yield name, v
+
+
+class Occurrence(object):
+    """
+    Class for XSD particles occurrence counting and comparison.
+    """
+    def __init__(self, occurs):
+        self.occurs = occurs
+
+    def add(self, occurs):
+        if self.occurs is None:
+            pass
+        elif occurs is None:
+            self.occurs = None
+        else:
+            self.occurs += occurs
+
+    def sub(self, occurs):
+        if self.occurs is None:
+            pass
+        elif occurs is None:
+            self.occurs = 0
+        else:
+            self.occurs -= occurs
+
+    def mul(self, occurs):
+        if occurs == 0:
+            self.occurs = 0
+        elif not self.occurs:
+            pass
+        elif occurs is None:
+            self.occurs = None
+        else:
+            self.occurs *= occurs
+
+    def max(self, occurs):
+        if self.occurs is None:
+            pass
+        elif occurs is None:
+            self.occurs = occurs
+        else:
+            self.occurs = max(self.occurs, occurs)
+
+    def __eq__(self, occurs):
+        return self.occurs == occurs
+
+    def __ne__(self, occurs):
+        return self.occurs != occurs
+
+    def __ge__(self, occurs):
+        if self.occurs is None:
+            return True
+        elif occurs is None:
+            return False
+        else:
+            return self.occurs >= occurs
+
+    def __gt__(self, occurs):
+        if self.occurs is None:
+            return True
+        elif occurs is None:
+            return False
+        else:
+            return self.occurs > occurs
+
+    def __le__(self, occurs):
+        if occurs is None:
+            return True
+        elif self.occurs is None:
+            return False
+        else:
+            return self.occurs <= occurs
+
+    def __lt__(self, occurs):
+        if occurs is None:
+            return True
+        elif self.occurs is None:
+            return False
+        else:
+            return self.occurs < occurs

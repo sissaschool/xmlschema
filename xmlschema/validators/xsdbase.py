@@ -897,6 +897,14 @@ class ParticleMixin(object):
         else:
             return self.max_occurs <= other.max_occurs
 
+    @property
+    def effective_min_occurs(self):
+        return self.min_occurs
+
+    @property
+    def effective_max_occurs(self):
+        return self.max_occurs
+
     ###
     # Methods used by XSD components
     def parse_error(self, *args, **kwargs):
