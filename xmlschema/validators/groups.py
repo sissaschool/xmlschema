@@ -786,7 +786,6 @@ class Xsd11Group(XsdGroup):
                 return self[0].is_restriction(other[0], check_occurs)
 
         if self.model == 'choice' and len(self) > 1:
-            print(self, other)
             if False:
                 for item in self:
                     if item is other or item.is_restriction(other):
@@ -815,57 +814,12 @@ class Xsd11Group(XsdGroup):
         item_iterator = iter(self.iter_model())
         item = next(item_iterator, None)
 
-        # print("SELF: ", list(self.iter_model()))
-        # print("OTHER: ", list(other.iter_model()))
-        # breakpoint()
-
         for other_item in other.iter_model():
             if item is not None and item.is_restriction(other_item, check_occurs):
                 item = next(item_iterator, None)
             elif not other_item.is_emptiable():
-                print("SELF: ", list(self.iter_model()))
-                print("OTHER: ", list(other.iter_model()))
-                # breakpoint()
                 return False
-        return True
-
-    def _is_sequence_restriction(self, other):
-        if not self.has_occurs_restriction(other):
-            return False
-
-        check_occurs = other.max_occurs != 0
-
-        item_iterator = iter(self.iter_model())
-        item = next(item_iterator, None)
-
-        print("SELF: ", list(self.iter_model()))
-        print("OTHER: ", list(other.iter_model()))
-        print("Self:", self.effective_min_occurs, self.effective_max_occurs)
-        print("Other:", other.effective_min_occurs, other.effective_max_occurs)
-
-        for other_item in other.iter_model():
-            min_occurs = 0
-            max_occurs = Occurrence(other_item.effective_max_occurs)
-
-            while item is not None:
-                if other_item is item:
-                    if max_occurs < item.effective_max_occurs:
-                        return False
-                    min_occurs += item.effective_min_occurs
-                    max_occurs.sub(item.effective_max_occurs)
-                    item = next(item_iterator, None)
-                elif max_occurs >= item.effective_max_occurs and \
-                        item.is_restriction(other_item, check_occurs):
-                    min_occurs += item.effective_min_occurs
-                    max_occurs.sub(item.effective_max_occurs)
-                    item = next(item_iterator, None)
-                else:
-                    break
-
-            if min_occurs < other_item.effective_min_occurs:
-                breakpoint()
-                return False
-        return True
+        return item is None
 
     def is_all_restriction(self, other):
         if not self.has_occurs_restriction(other):

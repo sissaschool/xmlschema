@@ -12,6 +12,7 @@
 This module contains classes for XML Schema elements, complex types and model groups.
 """
 from __future__ import unicode_literals
+import warnings
 from decimal import Decimal
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
@@ -27,7 +28,7 @@ from ..etree import etree_element
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
-from .exceptions import XMLSchemaValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
@@ -753,13 +754,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         :returns: `True` if there is no inconsistency between the particles, `False` otherwise,
         """
-        if isinstance(other, XsdAnyElement):
-            xsd_element = other.matched_element(self.name, self.default_namespace)
-            return xsd_element is None or self.is_consistent(xsd_element)
-        elif self.name != other.name:
-            return True
-        else:
-            return self.type is other.type
+        return self.name != other.name or self.type is other.type
 
 
 class Xsd11Element(XsdElement):
@@ -806,9 +801,13 @@ class Xsd11Element(XsdElement):
             self.alternatives = self.ref.alternatives
         else:
             alternatives = []
+            has_test = True
             for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
                 if child.tag == XSD_ALTERNATIVE:
                     alternatives.append(XsdAlternative(child, self.schema, self))
+                    if not has_test:
+                        self.parse_error("test attribute missing on non-final alternative")
+                    has_test = 'test' in child.attrib
                     index += 1
                 else:
                     break
@@ -850,33 +849,40 @@ class Xsd11Element(XsdElement):
         if isinstance(other, XsdElement):
             if self.name == other.name:
                 return True
-            elif other.substitution_group == self.name or other.name == self.substitution_group:
+            elif any(self.name == x.name for x in other.iter_substitutes()):
                 return True
+
+            for e in self.iter_substitutes():
+                if other.name == e.name or any(x is e for x in other.iter_substitutes()):
+                    return True
         return False
 
-    def is_consistent(self, other):
+    def is_consistent(self, other, strict=True):
         if isinstance(other, XsdAnyElement):
             if other.process_contents == 'skip':
                 return True
             xsd_element = other.matched_element(self.name, self.default_namespace)
-            return xsd_element is None or self.is_consistent(xsd_element)
+            return xsd_element is None or self.is_consistent(xsd_element, False)
 
         if self.name == other.name:
-            xsd_element = self
+            e = self
         else:
             for e in self.iter_substitutes():
                 if e.name == other.name:
-                    xsd_element = e
                     break
             else:
                 return True
 
-        if xsd_element.type is not other.type or len(xsd_element.alternatives) != len(other.alternatives):
+        if len(e.alternatives) != len(other.alternatives):
             return False
-        elif not all(any(a == x for x in other.alternatives) for a in xsd_element.alternatives):
+        elif e.type is not other.type and strict:
             return False
-        else:
-            return all(any(a == x for x in xsd_element.alternatives) for a in other.alternatives)
+        elif e.type is not other.type or \
+                not all(any(a == x for x in other.alternatives) for a in e.alternatives) or \
+                not all(any(a == x for x in e.alternatives) for a in other.alternatives):
+            msg = "Maybe a not equivalent type table between elements %r and %r." % (self, other)
+            warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
+        return True
 
 
 class XsdAlternative(XsdComponent):

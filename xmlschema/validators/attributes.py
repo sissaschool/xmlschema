@@ -273,6 +273,8 @@ class Xsd11Attribute(XsdAttribute):
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
+        if self.use == 'prohibited' and 'fixed' in self.elem.attrib:
+            self.parse_error("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
         if self._parse_boolean_attribute('inheritable'):
             self.inheritable = True
         self._parse_target_namespace()

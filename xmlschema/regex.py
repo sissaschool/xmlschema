@@ -20,6 +20,7 @@ from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
 
+_RE_HYPHENS = re.compile(r'(?<!\\)--')
 _RE_QUANTIFIER = re.compile(r'{\d+(,(\d+)?)?}')
 _RE_FORBIDDEN_ESCAPES = re.compile(
     r'(?<!\\)\\(U[0-9a-fA-F]{8}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|o{\d+}|\d+|A|Z|z|B|b|o)'
@@ -222,7 +223,14 @@ def parse_character_class(xml_regex, class_pos, xsd_version='1.0'):
             pos += 2
         elif xml_regex[pos] == ']' or xml_regex[pos:pos + 2] == '-[':
             if pos == group_pos:
-                raise XMLSchemaRegexError("empty character class at position %d: %r" % (class_pos, xml_regex))
+                raise XMLSchemaRegexError(
+                    "empty character class at position %d: %r" % (class_pos, xml_regex)
+                )
+            if _RE_HYPHENS.search(xml_regex[group_pos:pos]) and pos - group_pos > 2:
+                raise XMLSchemaRegexError(
+                    "invalid character range '--' at position %d: %r" % (class_pos, xml_regex)
+                )
+
             char_group = XsdRegexCharGroup(xsd_version, xml_regex[group_pos:pos])
             if negative:
                 char_group.complement()
@@ -236,7 +244,9 @@ def parse_character_class(xml_regex, class_pos, xsd_version='1.0'):
         subtracted_group, pos = parse_character_class(xml_regex, pos)
         pos += 1
         if xml_regex[pos] != ']':
-            raise XMLSchemaRegexError("unterminated character group at position %d: %r" % (class_pos, xml_regex))
+            raise XMLSchemaRegexError(
+                "unterminated character group at position %d: %r" % (class_pos, xml_regex)
+            )
         char_group -= subtracted_group
 
     return char_group, pos

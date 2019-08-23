@@ -118,8 +118,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.parse_error("wrong QName format in 'notQName' attribute: %s" % str(err))
             return
 
-        if self.not_namespace and all(
-                get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
+        if self.not_namespace and any(not x.startswith('##') for x in names) and \
+                all(get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
             self.parse_error("the namespace of each QName in notQName is allowed by notNamespace")
 
         self.not_qname = names
@@ -411,10 +411,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             return any(ns in self.namespace for ns in other.namespace)
 
     def is_consistent(self, other):
-        if isinstance(other, XsdAnyElement):
-            return True
-        xsd_element = self.matched_element(other.name, other.default_namespace)
-        return xsd_element is None or other.is_consistent(xsd_element)
+        return True
 
 
 class XsdAnyAttribute(XsdWildcard):
@@ -520,7 +517,7 @@ class Xsd11AnyElement(XsdAnyElement):
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
         xsd_element = self.matched_element(other.name, other.default_namespace)
-        return xsd_element is None or other.is_consistent(xsd_element)
+        return xsd_element is None or other.is_consistent(xsd_element, False)
 
 
 class Xsd11AnyAttribute(XsdAnyAttribute):

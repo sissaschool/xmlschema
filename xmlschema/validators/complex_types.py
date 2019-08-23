@@ -272,6 +272,17 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif complex_content and base_type.is_simple():
                 self.parse_error("a complexType ancestor required: %r" % base_type, elem)
                 return self.maps.types[XSD_ANY_TYPE]
+
+            if base_type.final and elem.tag.rsplit('}', 1)[-1] in base_type.final:
+                msg = "derivation by %r blocked by attribute 'final' in base type"
+                self.parse_error(msg % elem.tag.rsplit('}', 1)[-1])
+            if base_type.base_type is self.any_simple_type and self.xsd_version > '1.0':
+                self.parse_error(
+                    "the simple content of %r is not a valid simple type in XSD 1.1 "
+                    "(derivation from xs:anySimpleType but missing variety, see http:"
+                    "//www.w3.org/TR/xmlschema11-1/#Simple_Type_Definition_details)" % base_type
+                )
+
             return base_type
 
     def _parse_simple_content_restriction(self, elem, base_type):
@@ -402,25 +413,36 @@ class XsdComplexType(XsdType, ValidationMixin):
             content_type = self.schema.BUILDERS.group_class(sequence_elem, self.schema, self)
 
             if group_elem is not None and group_elem.tag in XSD_MODEL_GROUP_TAGS:
-                # Illegal derivation from a simple content. Applies to both XSD 1.0 and XSD 1.1.
-                # For the detailed rule refer to XSD 1.1 documentation:
-                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
-                if base_type.is_simple() or base_type.has_simple_content():
+                # Illegal derivation from a simple content. Always forbidden in XSD 1.1
+                # for XSD 1.0 applies only with not empty base and not empty extension.
+                if base_type.is_simple() or base_type.has_simple_content() and self.xsd_version == '1.0':
                     self.parse_error("base %r is simple or has a simple content." % base_type, elem)
                     base_type = self.maps.types[XSD_ANY_TYPE]
 
                 group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
                 if group.model == 'all' and self.xsd_version == '1.0':
-                    self.parse_error("Cannot extend a complex content with an all model")
+                    self.parse_error("cannot extend a complex content with xs:all")
+                if base_type.content_type.model == 'all':
+                    if group.model == 'sequence':
+                        self.parse_error(
+                            "xs:sequence cannot extend xs:all even if the xs:all is a singleton"
+                        )
+                    elif group.model == 'all' and base_type.content_type.min_occurs != group.min_occurs:
+                        self.parse_error("when xs:all extends xs:all the minOccurs must be the same")
+                elif base_type.content_type.model == 'sequence':
+                    if group.model == 'all':
+                        self.parse_error("xs:all cannot extend xs:sequence")
 
                 content_type.append(base_type.content_type)
                 content_type.append(group)
                 sequence_elem.append(base_type.content_type.elem)
                 sequence_elem.append(group.elem)
 
-                if base_type.content_type.model == 'all' and base_type.content_type and group \
-                        and self.xsd_version == '1.0':
-                    self.parse_error("XSD 1.0 does not allow extension of a not empty 'ALL' model group.", elem)
+                if base_type.content_type.model == 'all' and base_type.content_type and group:
+                    if self.xsd_version == '1.0':
+                        self.parse_error("XSD 1.0 does not allow extension of a not empty 'all' model group")
+                    elif group.model != 'all':
+                        self.parse_error("cannot extend a not empty 'all' model group with a different model")
 
                 if base_type.mixed != self.mixed and base_type.name != XSD_ANY_TYPE:
                     self.parse_error("base has a different content type (mixed=%r) and the "
@@ -700,6 +722,15 @@ class Xsd11ComplexType(XsdComplexType):
             self.attributes.update(
                 (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
             )
+
+    def _parse_complex_content_extension(self, elem, base_type):
+        # Complex content extension with simple base is forbidden XSD 1.1.
+        # For the detailed rule refer to XSD 1.1 documentation:
+        #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#sec-cos-ct-extends
+        if base_type.is_simple() or base_type.has_simple_content():
+            self.parse_error("base %r is simple or has a simple content." % base_type, elem)
+            base_type = self.maps.types[XSD_ANY_TYPE]
+        super(Xsd11ComplexType, self)._parse_complex_content_extension(elem, base_type)
 
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)

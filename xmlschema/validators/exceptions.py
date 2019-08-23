@@ -349,3 +349,7 @@ class XMLSchemaIncludeWarning(XMLSchemaWarning):
 
 class XMLSchemaImportWarning(XMLSchemaWarning):
     """A schema namespace import fails."""
+
+
+class XMLSchemaTypeTableWarning(XMLSchemaWarning):
+    """Not equivalent type table found in model."""

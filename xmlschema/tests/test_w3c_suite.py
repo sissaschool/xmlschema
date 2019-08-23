@@ -66,20 +66,20 @@ SKIPPED_TESTS = {
     '../saxonData/Assert/assert011.xsd',          # TODO: XPath 2 doc() function in elementpath
 
     # Invalid that may be valid
-    '../msData/additional/adhocAddC002.xsd',      # 4642: Lack of the processor on XML namespace knowledge
-    '../msData/additional/test65026.xsd',         # 4712: Lack of the processor on XML namespace knowledge
-    '../msData/annotations/annotF001.xsd',        # 4989: Annotation contains xml:lang="" ?? (but xml.xsd allows '')
-    '../msData/datatypes/Facets/base64Binary/base64Binary_enumeration003.xsd',  # 7277: check base64 invalid values
-    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',  # 7292: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',  # 7294: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',  # 7310: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',  # 7312: XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/element/elemZ026.xsd',  # 8541: This is good because the head element is abstract
-    '../msData/element/elemZ031.xsd',  # 8557: Valid in Python that has arbitrary large integers
-    '../msData/group/groupH021.xsd',   # 8679: TODO: wrong in XSD 1.0, good in XSD 1.1
-    '../msData/identityConstraint/idC019.xsd',  # 8936: TODO: is it an error?
-    '../msData/identityConstraint/idI148.xsd',  # 9291: FIXME attribute::* in a selector (restrict XPath parser)
-    '../msData/modelGroups/mgE006.xsd',         # 9712: Is valid (is mg007.xsd invalid for the same reason)
+    '../msData/additional/adhocAddC002.xsd',    # Lack of the processor on XML namespace knowledge
+    '../msData/additional/test65026.xsd',       # Lack of the processor on XML namespace knowledge
+    '../msData/annotations/annotF001.xsd',      # Annotation contains xml:lang="" ?? (but xml.xsd allows '')
+    '../msData/datatypes/Facets/base64Binary/base64Binary_enumeration003.xsd',  # check base64 invalid values
+    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/element/elemZ026.xsd',           # This is good because the head element is abstract
+    '../msData/element/elemZ031.xsd',           # Valid in Python that has arbitrary large integers
+    '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1
+    '../msData/identityConstraint/idC019.xsd',  # TODO: is it an error?
+    '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* in a selector (restrict XPath parser)
+    '../msData/modelGroups/mgE006.xsd',         # Is valid (is mg007.xsd invalid for the same reason)
 
     # Invalid that maybe valid because depends by implementation choices
     '../msData/schema/schG6_a.xsd',     # Schema is valid because the ns import is done once, validation fails.
@@ -94,6 +94,13 @@ SKIPPED_TESTS = {
     '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
+}
+
+XSD11_SKIPPED_TESTS = {
+    # Invalid that may be valid
+    '../saxonData/Override/over026.bad.xsd',  # Same as over003.xsd, that is signed as valid.
+    '../msData/regex/reK86.xsd',              # \P{Is} is valid in regex for XSD 1.1
+    '../msData/regex/reK87.xsd',              # \P{Is} is valid in regex for XSD 1.1
 }
 
 
@@ -154,19 +161,19 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
             tag = '{%s}instanceDocument' % TEST_SUITE_NAMESPACE
 
         try:
-            source_path = elem.find(tag).get('{%s}href' % XLINK_NAMESPACE)
+            source_href = elem.find(tag).get('{%s}href' % XLINK_NAMESPACE)
         except AttributeError:
             return
         else:
-            if not schema_test and source_path.endswith('.testSet'):
+            if not schema_test and source_href.endswith('.testSet'):
                 return
-            if source_path in SKIPPED_TESTS:
+            if source_href in SKIPPED_TESTS:
                 if args.numbers:
                     print("Skip test number %d ..." % testgroup_num)
                 return
 
         # Normalize and check file path
-        source_path = os.path.normpath(os.path.join(os.path.dirname(filename), source_path))
+        source_path = os.path.normpath(os.path.join(os.path.dirname(filename), source_href))
         if not os.path.isfile(source_path):
             print("ERROR: file %r not found!" % source_path)
             return
@@ -175,6 +182,8 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
         for version in xsd_version.split():
             if version not in args.version:
+                continue
+            elif version == '1.1' and source_href in XSD11_SKIPPED_TESTS:
                 continue
 
             for e in elem.findall('{%s}expected' % TEST_SUITE_NAMESPACE):
@@ -206,10 +215,6 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
     if args.numbers and testgroup_num not in args.numbers:
         return
-
-    # if testgroup_num not in (4759, 8201, 10874, 10881, 10976, 10981, 14377,
-    #                          14420, 14425, 14426, 14457, 14656, 14740, 14945, 15009, 15011):
-    #    return
 
     name = group_elem.attrib['name']
     group_tests = []

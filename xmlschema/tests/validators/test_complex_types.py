@@ -220,6 +220,35 @@ class TestXsdComplexType(XsdValidatorTestCase):
             base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
         )
 
+        base = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+    <xs:complexType name="b">
+       <xs:choice>     
+         <xs:element name="a" minOccurs="0" maxOccurs="5"/>
+         <xs:element name="b" minOccurs="0" maxOccurs="5"/>
+         <xs:element name="c" minOccurs="0" maxOccurs="unbounded"/>
+         <xs:any namespace="http://one.com/" processContents="skip" minOccurs="2" maxOccurs="2"/>
+       </xs:all>
+    </xs:complexType>
+    
+    <xs:complexType name="e">
+      <xs:complexContent>
+        <xs:extension base="b">
+          <xs:all>
+            <xs:element name="e" minOccurs="0" maxOccurs="1"/>
+            <xs:element name="f" minOccurs="0" maxOccurs="4"/>
+            <xs:any notNamespace="http://two.com/" processContents="skip" minOccurs="2" maxOccurs="2"/>
+          </xs:all>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType> 
+    
+    <xs:element name="doc" type="e"/> 
+          
+
+</xs:schema>"""
+
     def test_occurs_restriction(self):
         base = """
         <xs:sequence minOccurs="3" maxOccurs="10">

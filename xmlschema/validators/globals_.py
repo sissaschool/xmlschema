@@ -474,7 +474,9 @@ class XsdGlobals(XsdValidator):
                         else:
                             constraint.selector = ref.selector
                             constraint.fields = ref.fields
-                            if isinstance(constraint, XsdKeyref):
+                            if not isinstance(ref, constraint.__class__):
+                                constraint.parse_error("attribute 'ref' points to a different kind constraint")
+                            elif isinstance(constraint, XsdKeyref):
                                 constraint.refer = ref.refer
                             constraint.ref = ref
 

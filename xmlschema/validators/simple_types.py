@@ -666,9 +666,16 @@ class XsdList(XsdSimpleType):
                 except KeyError:
                     self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
                     base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                else:
+                    if isinstance(base_type, tuple):
+                        self.parse_error("circular definition found for type {!r}".format(item_qname))
+                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
         if base_type.final == '#all' or 'list' in base_type.final:
             self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
+
+        if base_type is self.any_atomic_type:
+            self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
 
         try:
             self.base_type = base_type
@@ -835,11 +842,13 @@ class XsdUnion(XsdSimpleType):
 
                 member_types.append(mt)
 
-        if member_types:
-            self.member_types = member_types
-        else:
+        if not member_types:
             self.parse_error("missing xs:union type declarations", elem)
             self.member_types = [self.maps.types[XSD_ANY_ATOMIC_TYPE]]
+        elif any(mt is self.any_atomic_type for mt in member_types):
+            self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
+        else:
+            self.member_types = member_types
 
     @property
     def admitted_facets(self):
@@ -1107,6 +1116,8 @@ class XsdAtomicRestriction(XsdAtomic):
             self.parse_error("missing base type in restriction:", self)
         elif base_type.final == '#all' or 'restriction' in base_type.final:
             self.parse_error("'final' value of the baseType %r forbids derivation by restriction" % base_type)
+        if base_type is self.any_atomic_type:
+            self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
 
         self.base_type = base_type
         self.facets = facets
