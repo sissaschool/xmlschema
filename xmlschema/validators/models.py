@@ -223,6 +223,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
         for e in safe_iter_path(self, 0):
             for pe, previous_path in paths.values():
                 # EDC check
+                # if (e.name, pe.name) == ('g', 'd'):
+                #    breakpoint()
                 if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
                     msg = "Element Declarations Consistent violation between %r and %r: " \
                           "match the same name but with different types" % (e, pe)
@@ -280,7 +282,7 @@ def distinguishable_paths(path1, path2):
         if path1[k].model == 'sequence':
             before1 |= any(not e.is_emptiable() for e in path1[k][:idx])
             after1 |= any(not e.is_emptiable() for e in path1[k][idx + 1:])
-        elif path1[k].model == 'choice':
+        elif path1[k].model in ('all', 'choice'):
             if any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
                 univocal1 = before1 = after1 = False
         else:
@@ -293,7 +295,7 @@ def distinguishable_paths(path1, path2):
         if path2[k].model == 'sequence':
             before2 |= any(not e.is_emptiable() for e in path2[k][:idx])
             after2 |= any(not e.is_emptiable() for e in path2[k][idx + 1:])
-        elif path2[k].model == 'choice':
+        elif path2[k].model in ('all', 'choice'):
             if any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
                 univocal2 = before2 = after2 = False
         else:

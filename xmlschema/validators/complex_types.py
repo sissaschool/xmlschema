@@ -183,6 +183,12 @@ class XsdComplexType(XsdType, ValidationMixin):
                 return
 
             base_type = self._parse_base_type(derivation_elem, complex_content=True)
+
+            if base_type is not self:
+                self.base_type = base_type
+            elif self.redefine:
+                self.base_type = self.redefine
+
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, base_type)
             else:
@@ -191,11 +197,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
                 self.parse_error("unexpected tag %r after complexContent declaration:" % elem[k].tag, elem)
-
-            if base_type is not self:
-                self.base_type = base_type
-            elif self.redefine:
-                self.base_type = self.redefine
 
         elif content_elem.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
@@ -276,12 +277,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             if base_type.final and elem.tag.rsplit('}', 1)[-1] in base_type.final:
                 msg = "derivation by %r blocked by attribute 'final' in base type"
                 self.parse_error(msg % elem.tag.rsplit('}', 1)[-1])
-            if base_type.base_type is self.any_simple_type and self.xsd_version > '1.0':
-                self.parse_error(
-                    "the simple content of %r is not a valid simple type in XSD 1.1 "
-                    "(derivation from xs:anySimpleType but missing variety, see http:"
-                    "//www.w3.org/TR/xmlschema11-1/#Simple_Type_Definition_details)" % base_type
-                )
 
             return base_type
 
@@ -340,12 +335,14 @@ class XsdComplexType(XsdType, ValidationMixin):
                 continue
             elif child.tag in XSD_MODEL_GROUP_TAGS:
                 content_type = self.schema.BUILDERS.group_class(child, self.schema, self)
-            else:
-                content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
-            break
+                if not base_type.content_type.admits_restriction(content_type.model):
+                    msg = "restriction of an xs:{} with more than one particle with xs:{} is forbidden"
+                    self.parse_error(msg.format(base_type.content_type.model, content_type.model))
+                break
         else:
             # Empty content model
             content_type = self.schema.BUILDERS.group_class(elem, self.schema, self)
+            content_type.model = base_type.content_type.model
 
         if base_type.is_element_only() and content_type.mixed:
             self.parse_error(
@@ -420,18 +417,31 @@ class XsdComplexType(XsdType, ValidationMixin):
                     base_type = self.maps.types[XSD_ANY_TYPE]
 
                 group = self.schema.BUILDERS.group_class(group_elem, self.schema, self)
-                if group.model == 'all' and self.xsd_version == '1.0':
-                    self.parse_error("cannot extend a complex content with xs:all")
-                if base_type.content_type.model == 'all':
+
+                if self.xsd_version == '1.0':
+                    if group.model == 'all':
+                        self.parse_error("cannot extend a complex content with xs:all")
+                    if base_type.content_type.model == 'all' and group.model == 'sequence':
+                        self.parse_error("xs:sequence cannot extend xs:all")
+
+                elif base_type.content_type.model == 'all':
                     if group.model == 'sequence':
-                        self.parse_error(
-                            "xs:sequence cannot extend xs:all even if the xs:all is a singleton"
-                        )
-                    elif group.model == 'all' and base_type.content_type.min_occurs != group.min_occurs:
-                        self.parse_error("when xs:all extends xs:all the minOccurs must be the same")
+                        self.parse_error("xs:sequence cannot extend xs:all")
+                    elif group.model == 'all':
+                        if base_type.content_type.min_occurs != group.min_occurs:
+                            self.parse_error(
+                                "when xs:all extends xs:all the minOccurs must be the same"
+                            )
+                        if base_type.content_type.mixed and not base_type.content_type:
+                            self.parse_error(
+                                "xs:all cannot extend an xs:all with mixed empty content"
+                            )
+
                 elif base_type.content_type.model == 'sequence':
                     if group.model == 'all':
-                        self.parse_error("xs:all cannot extend xs:sequence")
+                        self.parse_error("xs:all cannot extend a not empty xs:sequence")
+                elif group.model == 'all':
+                    self.parse_error("xs:all cannot extend a not empty xs:choice")
 
                 content_type.append(base_type.content_type)
                 content_type.append(group)
@@ -692,6 +702,13 @@ class Xsd11ComplexType(XsdComplexType):
 
     def _parse(self):
         super(Xsd11ComplexType, self)._parse()
+
+        if self.base_type and self.base_type.base_type is self.any_simple_type and \
+                self.base_type.derivation == 'extension' and not self.attributes:
+            # Derivation from xs:anySimpleType with missing variety.
+            # See: http://www.w3.org/TR/xmlschema11-1/#Simple_Type_Definition_details
+            msg = "the simple content of {!r} is not a valid simple type in XSD 1.1"
+            self.parse_error(msg.format(self.base_type))
 
         # Add open content to complex content type
         if isinstance(self.content_type, XsdGroup):

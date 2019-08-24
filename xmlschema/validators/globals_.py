@@ -211,7 +211,7 @@ class XsdGlobals(XsdValidator):
         self.notations = {}             # Notations
         self.elements = {}              # Global elements
         self.substitution_groups = {}   # Substitution groups
-        self.constraints = {}           # Constraints (uniqueness, keys, keyref)
+        self.identities = {}            # Identity constraints (uniqueness, keys, keyref)
 
         self.global_maps = (self.notations, self.types, self.attributes,
                             self.attribute_groups, self.groups, self.elements)
@@ -230,7 +230,7 @@ class XsdGlobals(XsdValidator):
         obj.notations.update(self.notations)
         obj.elements.update(self.elements)
         obj.substitution_groups.update(self.substitution_groups)
-        obj.constraints.update(self.constraints)
+        obj.identities.update(self.identities)
         return obj
 
     __copy__ = copy
@@ -321,6 +321,13 @@ class XsdGlobals(XsdValidator):
             errors.extend(schema.all_errors)
         return errors
 
+    @property
+    def constraints(self):
+        """
+        Old reference to identity constraints, for backward compatibility. Will be removed in v1.1.0.
+        """
+        return self.identities
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -375,8 +382,8 @@ class XsdGlobals(XsdValidator):
                         del global_map[k]
                         if k in self.substitution_groups:
                             del self.substitution_groups[k]
-                        if k in self.constraints:
-                            del self.constraints[k]
+                        if k in self.identities:
+                            del self.identities[k]
 
             if remove_schemas:
                 namespaces = NamespaceResourcesMap()
@@ -390,7 +397,7 @@ class XsdGlobals(XsdValidator):
             for global_map in self.global_maps:
                 global_map.clear()
             self.substitution_groups.clear()
-            self.constraints.clear()
+            self.identities.clear()
 
             if remove_schemas:
                 self.namespaces.clear()
@@ -426,7 +433,7 @@ class XsdGlobals(XsdValidator):
                 self.notations.update(meta_schema.maps.notations)
                 self.elements.update(meta_schema.maps.elements)
                 self.substitution_groups.update(meta_schema.maps.substitution_groups)
-                self.constraints.update(meta_schema.maps.constraints)
+                self.identities.update(meta_schema.maps.identities)
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
         for schema in not_built_schemas:
@@ -466,9 +473,9 @@ class XsdGlobals(XsdValidator):
         if self.validator.XSD_VERSION != '1.0':
             for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
                 for e in schema.iter_components(Xsd11Element):
-                    for constraint in filter(lambda x: x.ref is not None, e.constraints.values()):
+                    for constraint in filter(lambda x: x.ref is not None, e.identities.values()):
                         try:
-                            ref = self.constraints[constraint.name]
+                            ref = self.identities[constraint.name]
                         except KeyError:
                             schema.parse_error("Unknown %r constraint %r" % (type(constraint), constraint.name))
                         else:
@@ -484,7 +491,7 @@ class XsdGlobals(XsdValidator):
                     assertion.parse_xpath_test()
 
         # Builds xs:keyref's key references
-        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.constraints.values()):
+        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.identities.values()):
             constraint.parse_refer()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
@@ -543,6 +550,15 @@ class XsdGlobals(XsdValidator):
                         if not xsd_type.content_type.is_restriction(base_type.content_type):
                             msg = "The derived group is an illegal restriction of the base type group."
                             xsd_type.parse_error(msg, validation=validation)
+
+                    if base_type.is_complex() and not base_type.open_content and \
+                            xsd_type.open_content and xsd_type.open_content.mode != 'none':
+                        group = xsd_type.schema.create_any_content_group(
+                            parent=xsd_type,
+                            any_element=xsd_type.open_content.any_element
+                        )
+                        if not group.is_restriction(base_type.content_type):
+                            self.parse_error("restriction has an open content but base type has not")
 
                 try:
                     xsd_type.content_type.check_model()

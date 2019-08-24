@@ -169,7 +169,11 @@ class XsdIdentity(XsdComponent):
                 if decoders is None or decoders[k] is None:
                     fields.append(result[0])
                 else:
-                    fields.append(decoders[k].decode(result[0], validation="skip"))
+                    value = decoders[k].data_value(result[0])
+                    if isinstance(value, list):
+                        fields.append(tuple(value))
+                    else:
+                        fields.append(value)
             else:
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
         return tuple(fields)
@@ -264,10 +268,10 @@ class XsdKeyref(XsdIdentity):
             return  # referenced key/unique identity constraint already set
 
         try:
-            self.refer = self.parent.constraints[self.refer]
+            self.refer = self.parent.identities[self.refer]
         except KeyError:
             try:
-                self.refer = self.maps.constraints[self.refer]
+                self.refer = self.maps.identities[self.refer]
             except KeyError:
                 self.parse_error("key/unique identity constraint %r is missing" % self.refer)
                 return

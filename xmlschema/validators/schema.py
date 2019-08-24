@@ -408,7 +408,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.groups = NamespaceView(value.groups, self.target_namespace)
             self.elements = NamespaceView(value.elements, self.target_namespace)
             self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
-            self.constraints = NamespaceView(value.constraints, self.target_namespace)
+            self.identities = NamespaceView(value.identities, self.target_namespace)
             self.global_maps = (self.notations, self.types, self.attributes,
                                 self.attribute_groups, self.groups, self.elements)
             value.register(self)
@@ -560,6 +560,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         return [e for e in self.elements.values() if e.name in self._root_elements]
 
+    @property
+    def constraints(self):
+        """
+        Old reference to identity constraints, for backward compatibility. Will be removed in v1.1.0.
+        """
+        return self.identities
+
     @classmethod
     def create_meta_schema(cls, source=None, base_schemas=None, global_maps=None):
         """
@@ -605,14 +612,34 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """Creates a new schema instance of the same class of the caller."""
         return cls(*args, **kwargs)
 
-    def create_any_content_group(self, parent):
-        """Creates a model group related to schema instance that accepts any content."""
+    def create_any_content_group(self, parent, any_element=None):
+        """
+        Creates a model group related to schema instance that accepts any content.
+
+        :param parent: the parent component to set for the any content group.
+        :param any_element: an optional any element to use for the content group. \
+        When provided it's copied, linked to the group and the minOccurs/maxOccurs \
+        are set to 0 and 'unbounded'.
+        """
         group = self.BUILDERS.group_class(SEQUENCE_ELEMENT, self, parent)
-        group.append(self.BUILDERS.any_element_class(ANY_ELEMENT, self, group))
+
+        if any_element is not None:
+            any_element = any_element.copy()
+            any_element.min_occurs = 0
+            any_element.max_occurs = None
+            any_element.parent = group
+            group.append(any_element)
+        else:
+            group.append(self.BUILDERS.any_element_class(ANY_ELEMENT, self, group))
+
         return group
 
     def create_any_attribute_group(self, parent):
-        """Creates an attribute group related to schema instance that accepts any attribute."""
+        """
+        Creates an attribute group related to schema instance that accepts any attribute.
+
+        :param parent: the parent component to set for the any attribute group.
+        """
         attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
         attribute_group[None] = self.BUILDERS.any_attribute_class(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
         return attribute_group

@@ -253,7 +253,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         return 0
 
     def _parse_identity_constraints(self, index=0):
-        self.constraints = {}
+        self.identities = {}
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
                 constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
@@ -265,18 +265,18 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 continue  # Error already caught by validation against the meta-schema
 
             if constraint.ref:
-                if constraint.name in self.constraints:
+                if constraint.name in self.identities:
                     self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
-                self.constraints[constraint.name] = constraint
+                self.identities[constraint.name] = constraint
                 continue
 
             try:
-                if child != self.maps.constraints[constraint.name]:
+                if child != self.maps.identities[constraint.name]:
                     self.parse_error("duplicated identity constraint %r:" % constraint.name, child)
             except KeyError:
-                self.maps.constraints[constraint.name] = constraint
+                self.maps.identities[constraint.name] = constraint
             finally:
-                self.constraints[constraint.name] = constraint
+                self.identities[constraint.name] = constraint
 
     def _parse_substitution_group(self, substitution_group):
         try:
@@ -329,7 +329,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
-            all(c.built for c in self.constraints.values())
+            all(c.built for c in self.identities.values())
 
     @property
     def validation_attempted(self):
@@ -337,7 +337,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return 'full'
         elif self.type.validation_attempted == 'partial':
             return 'partial'
-        elif any(c.validation_attempted == 'partial' for c in self.constraints.values()):
+        elif any(c.validation_attempted == 'partial' for c in self.identities.values()):
             return 'partial'
         else:
             return 'none'
@@ -407,12 +407,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self
-            for obj in self.constraints.values():
+            for obj in self.identities.values():
                 yield obj
         else:
             if isinstance(self, xsd_classes):
                 yield self
-            for obj in self.constraints.values():
+            for obj in self.identities.values():
                 if isinstance(obj, xsd_classes):
                     yield obj
 
@@ -425,6 +425,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             yield xsd_element
             for e in xsd_element.iter_substitutes():
                 yield e
+
+    def data_value(self, elem):
+        """Returns the decoded data value of the provided element as XPath fn:data()."""
+        text = elem.text
+        if text is None:
+            text = self.fixed if self.fixed is not None else self.default
+
+        if self.type.is_simple():
+            return self.type.decode(text, validation='skip')
+        elif self.type.has_simple_content():
+            return self.type.content_type.decode(text, validation='skip')
+        else:
+            return text
 
     def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """
@@ -536,7 +549,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             del content
 
         if validation != 'skip':
-            for constraint in self.constraints.values():
+            for constraint in self.identities.values():
                 if isinstance(constraint, XsdKeyref) and '_no_deep' in kwargs:  # TODO: Complete lazy validation
                     continue
                 for error in constraint(elem):
@@ -690,7 +703,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
-            elif self.type is not other.type and self.type.elem is not other.type.elem and \
+            elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
             elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
@@ -699,7 +712,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             elif any(value not in self.block for value in other.block.split()):
                 return False
-            elif not all(k in other.constraints for k in self.constraints):
+            elif not all(k in other.identities for k in self.identities):
                 return False
             else:
                 return True
@@ -819,8 +832,8 @@ class Xsd11Element(XsdElement):
     @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
-            all(c.built for c in self.constraints.values()) and \
-            all(a.built for a in self.alternatives)
+               all(c.built for c in self.identities.values()) and \
+               all(a.built for a in self.alternatives)
 
     @property
     def target_namespace(self):

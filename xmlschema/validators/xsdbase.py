@@ -514,8 +514,8 @@ class XsdAnnotation(XsdComponent):
     """
     Class for XSD *annotation* definitions.
 
-    :var appinfo: a list containing the xs:appinfo children.
-    :var documentation: a list containing the xs:documentation children.
+    :ivar appinfo: a list containing the xs:appinfo children.
+    :ivar documentation: a list containing the xs:documentation children.
 
     ..  <annotation
           id = ID

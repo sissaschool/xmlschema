@@ -16,7 +16,7 @@ from __future__ import unicode_literals
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_namespace
-from ..namespaces import XSI_NAMESPACE, XML_NAMESPACE
+from ..namespaces import XSI_NAMESPACE
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaNotBuiltError
@@ -118,9 +118,12 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.parse_error("wrong QName format in 'notQName' attribute: %s" % str(err))
             return
 
-        if self.not_namespace and any(not x.startswith('##') for x in names) and \
-                all(get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
-            self.parse_error("the namespace of each QName in notQName is allowed by notNamespace")
+        if self.not_namespace:
+            if any(not x.startswith('##') for x in names) and \
+                    all(get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
+                self.parse_error("the namespace of each QName in notQName is allowed by notNamespace")
+        elif any(not self.is_namespace_allowed(get_namespace(x)) for x in names if not x.startswith('##')):
+            self.parse_error("names in notQName must be in namespaces that are allowed")
 
         self.not_qname = names
 
@@ -167,6 +170,26 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             return namespace in self.namespace
 
+    def deny_namespaces(self, namespaces):
+        if self.not_namespace:
+            return all(x in self.not_namespace for x in namespaces)
+        elif '##any' in self.namespace:
+            return False
+        elif '##other' in self.namespace:
+            return all(x == self.target_namespace for x in namespaces)
+        else:
+            return all(x not in self.namespace for x in namespaces)
+
+    def deny_qnames(self, names):
+        if self.not_namespace:
+            return all(x in self.not_qname or get_namespace(x) in self.not_namespace for x in names)
+        elif '##any' in self.namespace:
+            return all(x in self.not_qname for x in names)
+        elif '##other' in self.namespace:
+            return all(x in self.not_qname or get_namespace(x) == self.target_namespace for x in names)
+        else:
+            return all(x in self.not_qname or get_namespace(x) not in self.namespace for x in names)
+
     def is_restriction(self, other, check_occurs=True):
         if check_occurs and isinstance(self, ParticleMixin) and not self.has_occurs_restriction(other):
             return False
@@ -177,24 +200,16 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif other.process_contents == 'lax' and self.process_contents == 'skip':
             return False
 
-        if self.not_qname:
-            if '##defined' in other.not_qname and '##defined' not in self.not_qname:
-                return False
-            elif '##definedSibling' in other.not_qname and '##definedSibling' not in self.not_qname:
-                return False
-            elif other.not_namespace and \
-                    all(get_namespace(x) in other.not_namespace
-                        for x in self.not_qname if not x.startswith('##')):
-                return True
-            elif '##any' in other.namespace:
-                return True
-            elif not other.not_qname:
-                return False
-            else:
-                return all(
-                    x in self.not_qname or get_namespace(x) == XML_NAMESPACE for x in other.not_qname
-                )
+        if not self.not_qname and not other.not_qname:
+            pass
+        elif '##defined' in other.not_qname and '##defined' not in self.not_qname:
+            return False
+        elif '##definedSibling' in other.not_qname and '##definedSibling' not in self.not_qname:
+            return False
         elif other.not_qname:
+            if not self.deny_qnames(x for x in other.not_qname if not x.startswith('##')):
+                return False
+        elif any(not other.is_namespace_allowed(get_namespace(x)) for x in self.not_qname if not x.startswith('##')):
             return False
 
         if self.not_namespace:
@@ -210,9 +225,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             if '##any' in self.namespace:
                 return False
             elif '##other' in self.namespace:
-                return {'', other.target_namespace} == set(other.not_namespace)
+                return set(other.not_namespace).issubset({'', other.target_namespace})
             else:
-                return any(ns not in other.not_namespace for ns in self.namespace)
+                return all(ns not in other.not_namespace for ns in self.namespace)
 
         if self.namespace == other.namespace:
             return True
@@ -236,6 +251,20 @@ class XsdWildcard(XsdComponent, ValidationMixin):
                 self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
             elif other.target_namespace in self.not_namespace:
                 self.not_namespace = ['', other.target_namespace] if other.target_namespace else ['']
+            else:
+                self.not_namespace = ()
+
+            if not self.not_namespace:
+                self.namespace = ['##any']
+            return
+
+        elif other.not_namespace:
+            if self.namespace == '##any':
+                return
+            elif self.namespace != '##other':
+                self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
+            elif self.target_namespace in other.not_namespace:
+                self.not_namespace = ['', self.target_namespace] if self.target_namespace else ['']
             else:
                 self.not_namespace = ()
 

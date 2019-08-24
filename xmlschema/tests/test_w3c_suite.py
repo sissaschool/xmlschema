@@ -79,7 +79,8 @@ SKIPPED_TESTS = {
     '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1
     '../msData/identityConstraint/idC019.xsd',  # TODO: is it an error?
     '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* in a selector (restrict XPath parser)
-    '../msData/modelGroups/mgE006.xsd',         # Is valid (is mg007.xsd invalid for the same reason)
+    '../msData/modelGroups/mgE006.xsd',         # Is valid? (is mg007.xsd invalid for the same reason)
+    '../msData/particles/particlesV020.xsd',    # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
 
     # Invalid that maybe valid because depends by implementation choices
     '../msData/schema/schG6_a.xsd',     # Schema is valid because the ns import is done once, validation fails.
@@ -94,13 +95,24 @@ SKIPPED_TESTS = {
     '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
+    # Invalid XML tests
+    '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
+    '../msData/additional/test93490_8.xml',     # 4799: Idem
 }
 
 XSD11_SKIPPED_TESTS = {
     # Invalid that may be valid
-    '../saxonData/Override/over026.bad.xsd',  # Same as over003.xsd, that is signed as valid.
-    '../msData/regex/reK86.xsd',              # \P{Is} is valid in regex for XSD 1.1
-    '../msData/regex/reK87.xsd',              # \P{Is} is valid in regex for XSD 1.1
+    '../msData/regex/reK86.xsd',                # \P{Is} is valid in regex for XSD 1.1
+    '../msData/regex/reK87.xsd',                # \P{Is} is valid in regex for XSD 1.1
+    '../msData/particles/particlesHb009.xsd',   # valid in XSD 1.1
+    '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (signed invalid for engine limitation)
+    '../saxonData/Override/over026.bad.xsd',    # Same as over003.xsd, that is signed as valid.
+    '../saxonData/CTA/cta0043.xsd',             # Only a warning for type table difference on restriction
+    '../saxonData/Wild/wild069.xsd',            # Maybe inverted?
+
+    # TODO: schema tests
+    '../saxonData/CTA/cta9005err.xsd',          # 14549: Type alternative using an inherited attribute
+    '../saxonData/CTA/cta9008err.xsd',          # 14552: Type alternative using an inherited attribute
 }
 
 
@@ -256,7 +268,7 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "schema %s should be invalid with XSD %s" % (rel_path, version)
-                        with self.assertRaises(XMLSchemaException, msg=message) as _:
+                        with self.assertRaises(XMLSchemaException, msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 schema_class(source, use_meta=False)
@@ -289,7 +301,7 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "instance %s should be invalid with XSD %s" % (rel_path, version)
-                        with self.assertRaises(XMLSchemaException, msg=message) as _:
+                        with self.assertRaises((XMLSchemaException, ElementTree.ParseError), msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 validate(source, schema=schema, cls=schema_class)
@@ -298,7 +310,7 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 validate(source, schema=schema, cls=schema_class)
-                        except XMLSchemaException as err:
+                        except (XMLSchemaException, ElementTree.ParseError) as err:
                             error = "instance %s should be valid with XSD %s, but an error " \
                                     "is raised:\n\n%s" % (rel_path, version, str(err))
                         else:

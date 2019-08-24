@@ -280,7 +280,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 continue
             elif not item.ref and not item.built:
                 return False
-        return True
+
+        return True if self.model else False
 
     @property
     def validation_attempted(self):
@@ -310,15 +311,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             for obj in self.redefine.iter_components(xsd_classes):
                 yield obj
 
-    def admitted_restriction(self, model):
+    def admits_restriction(self, model):
         if self.model == model:
             return True
-        elif self.model == 'all' and model == 'choice' and len(self) > 1:
-            return False
-        elif model == 'all' and self.model == 'choice' and len(self) > 1:
-            return False
-        if model == 'sequence' and self.model != 'sequence' and len(self) > 1:
-            return False
+        elif self.model == 'all':
+            return model == 'sequence'
+        elif self.model == 'choice':
+            return model == 'sequence' or len(self.ref or self) <= 1
+        else:
+            return model == 'choice' or len(self.ref or self) <= 1
 
     def is_empty(self):
         return not self.mixed and not self
@@ -759,6 +760,11 @@ class Xsd11Group(XsdGroup):
 
                 if ref != self.name:
                     self.append(Xsd11Group(child, self.schema, self))
+                    if (self.model != 'all') ^ (self[-1].model != 'all'):
+                        msg = "an xs:%s group cannot reference to an x:%s group"
+                        self.parse_error(msg % (self.model, self[-1].model))
+                        self.pop()
+
                 elif self.redefine is None:
                     self.parse_error("Circular definition detected for group %r:" % self.name, elem)
                 else:
@@ -769,6 +775,14 @@ class Xsd11Group(XsdGroup):
                     self.append(self.redefine)
             else:
                 continue  # Error already caught by validation against the meta-schema
+
+    def admits_restriction(self, model):
+        if self.model == model or self.model == 'all':
+            return True
+        elif self.model == 'choice':
+            return model == 'sequence' or len(self.ref or self) <= 1
+        else:
+            return model == 'choice' or len(self.ref or self) <= 1
 
     def is_restriction(self, other, check_occurs=True):
         if not self:
@@ -827,7 +841,20 @@ class Xsd11Group(XsdGroup):
 
         restriction_items = list(self.iter_model())
 
-        for other_item in other.iter_model():
+        base_items = list(other.iter_model())
+        wildcards = []
+        for w1 in filter(lambda x: isinstance(x, XsdAnyElement), base_items):
+            for w2 in wildcards:
+                if w1.process_contents == w2.process_contents and w1.occurs == w2.occurs:
+                    w2.extend(w1)
+                    w2.extended = True
+                    break
+            else:
+                wildcards.append(w1.copy())
+
+        base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
+
+        for other_item in base_items:
             min_occurs, max_occurs = 0, other_item.max_occurs
             for k in range(len(restriction_items) - 1, -1, -1):
                 item = restriction_items[k]

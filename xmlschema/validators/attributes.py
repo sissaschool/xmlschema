@@ -52,6 +52,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
     type = None
     qualified = False
+    default = None
+    fixed = None
 
     def __init__(self, elem, schema, parent):
         super(XsdAttribute, self).__init__(elem, schema, parent)
@@ -84,6 +86,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             self.parse_error("wrong value %r for 'use' attribute." % self.use)
             self.use = 'optional'
 
+        if 'default' in attrib:
+            self.default = attrib['default']
+
         if self._parse_reference():
             try:
                 xsd_attribute = self.maps.lookup_attribute(self.name)
@@ -94,9 +99,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
-                if xsd_attribute.fixed is not None and 'fixed' in attrib and \
-                        attrib.get('fixed') != xsd_attribute.fixed:
-                    self.parse_error("referenced attribute has a different fixed value %r" % xsd_attribute.fixed)
+                if self.default is None and xsd_attribute.default is not None:
+                    self.default = xsd_attribute.default
+
+                if xsd_attribute.fixed is not None:
+                    self.fixed = xsd_attribute.fixed
+                    if 'fixed' in attrib and attrib['fixed'] != self.fixed:
+                        self.parse_error("referenced attribute has a different fixed value %r" % xsd_attribute.fixed)
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
@@ -106,6 +115,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             if child is not None and child.tag == XSD_SIMPLE_TYPE:
                 self.parse_error("not allowed type definition for XSD attribute reference")
             return
+
+        if 'fixed' in attrib:
+            self.fixed = attrib['fixed']
 
         try:
             form = get_xsd_form_attribute(self.elem, 'form')
@@ -189,15 +201,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def validation_attempted(self):
         return 'full'
 
-    # XSD declaration attributes
-    @property
-    def default(self):
-        return self.elem.get('default')
-
-    @property
-    def fixed(self):
-        return self.elem.get('fixed')
-
     @property
     def form(self):
         return get_xsd_form_attribute(self.elem, 'form')
@@ -211,6 +214,12 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if self.ref is None and self.type.parent is not None:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
+
+    def data_value(self, text):
+        """Returns the decoded data value of the provided text as XPath fn:data()."""
+        for result in self.iter_decode(text, validation='skip'):
+            return result
+        return text
 
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and self.default is not None:
