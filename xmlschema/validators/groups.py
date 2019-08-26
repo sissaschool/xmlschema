@@ -832,6 +832,19 @@ class Xsd11Group(XsdGroup):
             if item is not None and item.is_restriction(other_item, check_occurs):
                 item = next(item_iterator, None)
             elif not other_item.is_emptiable():
+                break
+        else:
+            if item is None:
+                return True
+
+        # Restriction check failed: try another check without remove pointless groups
+        item_iterator = iter(self)
+        item = next(item_iterator, None)
+
+        for other_item in other.iter_model():
+            if item is not None and item.is_restriction(other_item, check_occurs):
+                item = next(item_iterator, None)
+            elif not other_item.is_emptiable():
                 return False
         return item is None
 

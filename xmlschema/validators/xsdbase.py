@@ -637,6 +637,9 @@ class XsdType(XsdComponent):
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
 
+    def text_decode(self, text):
+        raise NotImplementedError
+
 
 class ValidationMixin(object):
     """

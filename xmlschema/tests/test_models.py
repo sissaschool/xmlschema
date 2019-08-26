@@ -453,6 +453,7 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                 # match choice with <elem2>
         self.assertIsNone(model.element)
 
+
     def test_model_group7(self):
         group = self.models_schema.types['complexType7'].content_type
 
@@ -465,6 +466,21 @@ class TestModelValidation(XsdValidatorTestCase):
         model = ModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
         self.check_stop(model)
+
+    def test_model_group8(self):
+        group = self.models_schema.groups['group8']
+
+        model = ModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_true(model)                 # match choice with <elem1>
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[0][1])
+        self.check_advance_true(model)                 # match choice with <elem2>
+        self.assertEqual(model.element, group[0][2])
+        self.check_advance_true(model)                 # match choice with <elem3>
+        self.assertEqual(model.element, group[0][3])
+        self.check_advance_true(model)                 # match choice with <elem4>
+        self.assertIsNone(model.element)
 
     #
     # Tests on issues

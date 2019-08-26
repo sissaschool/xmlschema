@@ -119,4 +119,16 @@
         <xs:group ref="group7" minOccurs="0"/>
     </xs:complexType>
 
+    <xs:group name="group8">
+        <xs:sequence>
+            <xs:sequence>
+                <xs:element name="elem1" maxOccurs="unbounded"/>
+                <xs:element name="elem2" minOccurs="0"/>
+                <xs:element name="elem3" minOccurs="0"/>
+                <xs:element name="elem4" minOccurs="0"/>
+            </xs:sequence>
+            <xs:sequence/>
+        </xs:sequence>
+    </xs:group>
+
 </xs:schema>

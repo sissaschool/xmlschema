@@ -348,6 +348,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
         else:
             return text
 
+    def text_decode(self, text):
+        return self.decode(text, validation='skip')
+
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (string_base_type, bytes)):
             obj = self.normalize(obj)

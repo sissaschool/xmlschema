@@ -223,8 +223,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
         for e in safe_iter_path(self, 0):
             for pe, previous_path in paths.values():
                 # EDC check
-                # if (e.name, pe.name) == ('g', 'd'):
-                #    breakpoint()
                 if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
                     msg = "Element Declarations Consistent violation between %r and %r: " \
                           "match the same name but with different types" % (e, pe)
@@ -490,7 +488,7 @@ class ModelVisitor(MutableSequence):
                     self.element, occurs[obj] = obj, 0
                     return
 
-                elif obj:
+                else:
                     self.append((self.group, self.iterator, self.items, self.match))
                     self.group, self.iterator, self.items, self.match = obj, iter(obj), obj[::-1], False
                     occurs[obj] = 0

@@ -588,6 +588,12 @@ class XsdComplexType(XsdType, ValidationMixin):
     def has_extension(self):
         return self._derivation is True
 
+    def text_decode(self, text):
+        if self.has_simple_content():
+            return self.content_type.decode(text, validation='skip')
+        else:
+            return text
+
     def decode(self, data, *args, **kwargs):
         if hasattr(data, 'attrib') or self.is_simple():
             return super(XsdComplexType, self).decode(data, *args, **kwargs)

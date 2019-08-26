@@ -431,13 +431,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         text = elem.text
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
-
-        if self.type.is_simple():
-            return self.type.decode(text, validation='skip')
-        elif self.type.has_simple_content():
-            return self.type.content_type.decode(text, validation='skip')
-        else:
-            return text
+        return self.type.text_decode(text)
 
     def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """
@@ -507,9 +501,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.fixed is not None:
                 if text is None:
                     text = self.fixed
-                elif text != self.fixed:
+                elif text == self.fixed:
+                    pass
+                elif xsd_type.text_decode(text) != xsd_type.text_decode(self.fixed):
                     reason = "must has the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
+
             elif not text and kwargs.get('use_defaults') and self.default is not None:
                 text = self.default
 
