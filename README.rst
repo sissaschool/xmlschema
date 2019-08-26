@@ -38,7 +38,7 @@ This library includes the following features:
 
 .. note::
     Currently the XSD 1.1 validator is provided by class :class:`XMLSchema11` and
-    the default :class:`XMLSchema` class is still linked the XSD 1.0 validator,
+    the default :class:`XMLSchema` class is still an alias of the XSD 1.0 validator,
     the class :class:`XMLSchema10`. From version 1.1 of the package the default
     validator will be linked to the XSD 1.1 validator, a version that will also
     removes support for Python 2.7.
@@ -72,7 +72,7 @@ the file containing the schema as argument:
 
 .. note::
     For XSD 1.1 schemas use the class :class:`XMLSchema11`, because the default class
-    :class:`XMLSchema` is still linked to XSD 1.0 validator class :class:`XMLSchema10`.
+    :class:`XMLSchema` is still an alias of the XSD 1.0 validator class :class:`XMLSchema10`.
     From next minor release (v1.1) the default class will become :class:`XMLSchema11`.
 
 The schema can be used to validate XML documents:
