@@ -24,7 +24,7 @@ from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationErr
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ParticleMixin, ModelGroup, ModelVisitor, Occurrence
+from .models import ParticleMixin, ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -799,19 +799,6 @@ class Xsd11Group(XsdGroup):
             elif self.ref is None and isinstance(self[0], XsdGroup) and self[0].is_pointless(parent=self):
                 return self[0].is_restriction(other[0], check_occurs)
 
-        if self.model == 'choice' and len(self) > 1:
-            if False:
-                for item in self:
-                    if item is other or item.is_restriction(other):
-                        if self.min_occurs * item.min_occurs < other.min_occurs:
-                            continue
-                        elif other.max_occurs is None or self.max_occurs == 0 or item.max_occurs == 0:
-                            return True
-                        elif self.max_occurs is None or item.max_occurs is None:
-                            continue
-                        elif self.max_occurs * item.max_occurs <= other.max_occurs:
-                            return True
-
         if other.model == 'sequence':
             return self.is_sequence_restriction(other)
         elif other.model == 'all':
@@ -837,7 +824,7 @@ class Xsd11Group(XsdGroup):
             if item is None:
                 return True
 
-        # Restriction check failed: try another check without remove pointless groups
+        # Restriction check failed: try another check without removing pointless groups
         item_iterator = iter(self)
         item = next(item_iterator, None)
 
@@ -851,7 +838,6 @@ class Xsd11Group(XsdGroup):
     def is_all_restriction(self, other):
         if not self.has_occurs_restriction(other):
             return False
-
         restriction_items = list(self.iter_model())
 
         base_items = list(other.iter_model())
@@ -887,9 +873,15 @@ class Xsd11Group(XsdGroup):
                         break
 
             if min_occurs < other_item.min_occurs:
-                return False
+                break
+        else:
+            if not restriction_items:
+                return True
 
-        return not bool(restriction_items)
+        # Restriction check failed: try another check in case of a choice group
+        if self.model != 'choice':
+            return False
+        return all(x.is_restriction(other) for x in self)
 
     def is_choice_restriction(self, other):
         restriction_items = list(self.iter_model())

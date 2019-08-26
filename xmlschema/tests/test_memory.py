@@ -97,7 +97,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_validate_mem = self.check_memory_profile(output)
 
         self.assertLess(validate_mem, 2.6)
-        self.assertLessEqual(lazy_validate_mem, validate_mem / decimal.Decimal('1.3'))
+        self.assertLessEqual(lazy_validate_mem, validate_mem / decimal.Decimal('1.2'))
 
 
 if __name__ == '__main__':

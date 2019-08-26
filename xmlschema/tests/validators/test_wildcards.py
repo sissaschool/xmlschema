@@ -121,12 +121,15 @@ class TestXsd11Wildcards(TestXsdWildcards):
                 targetNamespace="tns1">
             <xs:group name="group1">
               <xs:sequence>
+                <!-- Case #1 -->
                 <xs:any notNamespace="tns1"/>
                 <xs:any notNamespace="tns1 tns2"/>
                 <xs:any notNamespace="tns1 tns2 tns3"/>
+                <!-- Case #2 -->
                 <xs:any namespace="##any"/>
                 <xs:any namespace="##local" notQName="a b"/>
                 <xs:any namespace="##local" notQName="##defined a b"/>
+                <!-- Case #3 -->
                 <xs:any namespace="##any" notQName="a b c d"/>
                 <xs:any namespace="##local" notQName="a b e"/>
                 <xs:any notNamespace="##local" notQName="tns1:c d e"/>
@@ -152,7 +155,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertTrue(any3.is_restriction(any1))
 
         any1, any2, any3 = schema.groups['group1'][6:9]
-        self.assertTrue(any2.is_restriction(any1))
+        self.assertFalse(any2.is_restriction(any1))
         self.assertTrue(any3.is_restriction(any1))
 
     def test_extend(self):

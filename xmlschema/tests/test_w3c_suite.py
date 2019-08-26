@@ -115,6 +115,10 @@ XSD11_SKIPPED_TESTS = {
     '../saxonData/CTA/cta9008err.xsd',          # 14552: Type alternative using an inherited attribute
 }
 
+# Total files counters
+total_xsd_files = 0
+total_xml_files = 0
+
 
 def extract_additional_arguments():
     """
@@ -230,6 +234,8 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
     name = group_elem.attrib['name']
     group_tests = []
+    global total_xsd_files
+    global total_xml_files
 
     # Get schema/instance path
     for k, child in enumerate(group_elem.iterfind('{%s}schemaTest' % TEST_SUITE_NAMESPACE)):
@@ -240,6 +246,7 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
         if not config:
             return
         group_tests.append(config)
+        total_xsd_files += 1
 
     if args.xml:
         for child in group_elem.iterfind('{%s}instanceTest' % TEST_SUITE_NAMESPACE):
@@ -248,13 +255,12 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
             config = get_test_conf(child)
             if config:
                 group_tests.append(config)
+                total_xml_files += 1
 
     if not group_tests:
         if len(args.expected) > 1 and args.xml:
             print("ERROR: Missing both schemaTest and instanceTest in test group %r" % name)
         return
-
-    # print(ElementTree.tostring(testgroup_elem).decode('utf-8'))
 
     class TestGroupCase(unittest.TestCase):
 
@@ -383,8 +389,16 @@ if __name__ == '__main__':
         if args.verbose and testset_groups:
             print("Added {} test groups from {}".format(testset_groups, href_attr))
 
+    globals().update(test_classes)
+
+    if test_classes:
+        print("\n+++ Number of classes under test: %d +++" % len(test_classes))
+        if total_xml_files:
+            print("+++ Number of XSD schemas under test: %d +++" % total_xsd_files)
+            print("+++ Number of XML files under test: %d +++" % total_xml_files)
+        print()
+
     if args.verbose:
         print("\n>>>>> RUN TEST GROUPS <<<<<\n")
 
-    globals().update(test_classes)
     unittest.main()

@@ -453,7 +453,6 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                 # match choice with <elem2>
         self.assertIsNone(model.element)
 
-
     def test_model_group7(self):
         group = self.models_schema.types['complexType7'].content_type
 

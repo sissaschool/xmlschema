@@ -213,9 +213,8 @@ class TestXsdComplexType(XsdValidatorTestCase):
         self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
         self.check_complex_restriction(
             base, '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
-            XMLSchemaParseError
+            XMLSchemaParseError if self.schema_class.XSD_VERSION == '1.0' else None
         )
-
         self.check_complex_restriction(
             base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
         )

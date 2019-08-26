@@ -829,8 +829,8 @@ class Xsd11Element(XsdElement):
     @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
-               all(c.built for c in self.identities.values()) and \
-               all(a.built for a in self.alternatives)
+            all(c.built for c in self.identities.values()) and \
+            all(a.built for a in self.alternatives)
 
     @property
     def target_namespace(self):
@@ -921,11 +921,11 @@ class XsdAlternative(XsdComponent):
 
     def __eq__(self, other):
         return self.path == other.path and self.type is other.type and \
-               self.xpath_default_namespace == other.xpath_default_namespace
+            self.xpath_default_namespace == other.xpath_default_namespace
 
     def __ne__(self, other):
         return self.path != other.path or self.type is not other.type or \
-               self.xpath_default_namespace != other.xpath_default_namespace
+            self.xpath_default_namespace != other.xpath_default_namespace
 
     def _parse(self):
         XsdComponent._parse(self)

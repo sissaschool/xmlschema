@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.0.14`_ (2019-08-19)
+`v1.0.14`_ (2019-08-26)
 =======================
 * Added XSD 1.1 validator with class *XMLSchema11*
 * Memory usage optimization with lazy build of the XSD 1.0 and 1.1 meta-schemas
