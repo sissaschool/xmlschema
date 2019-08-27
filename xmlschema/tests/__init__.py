@@ -41,7 +41,7 @@ def has_network_access(*locations):
 
 
 SKIP_REMOTE_TESTS = not has_network_access('http://www.sissa.it', 'http://www.w3.org/', 'http://dublincore.org/')
-PROTECTED_PREFIX_PATTERN = re.compile(r'ns\d:')
+PROTECTED_PREFIX_PATTERN = re.compile(r'\bns\d:')
 TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
 SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="{0}">

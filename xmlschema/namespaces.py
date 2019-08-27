@@ -119,6 +119,13 @@ class NamespaceMapper(MutableMapping):
         self._namespaces.clear()
 
     def map_qname(self, qname):
+        """
+        Converts an extended QName to the prefixed format. Only registered
+        namespaces are mapped.
+
+        :param qname: a QName in extended format or a local name.
+        :return: a QName in prefixed format or a local name.
+        """
         try:
             if qname[0] != '{' or not self._namespaces:
                 return qname
@@ -139,10 +146,16 @@ class NamespaceMapper(MutableMapping):
         else:
             return qname
 
-    def unmap_qname(self, qname):
+    def unmap_qname(self, qname, name_table=None):
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
+        If a *name_table* is provided a local name is mapped to the default namespace
+        only if not found in the name table.
+
+        :param qname: a QName in prefixed format or a local name
+        :param name_table: an optional lookup table for checking local names.
+        :return: a QName in extended format or a local name.
         """
         try:
             if qname[0] == '{' or not self:
@@ -153,33 +166,12 @@ class NamespaceMapper(MutableMapping):
         try:
             prefix, name = qname.split(':', 1)
         except ValueError:
-            if self.get(''):
-                return u'{%s}%s' % (self.get(''), qname)
+            if not self._namespaces.get(''):
+                return qname
+            elif name_table is None or qname not in name_table:
+                return '{%s}%s' % (self._namespaces.get(''), qname)
             else:
                 return qname
-        else:
-            try:
-                uri = self._namespaces[prefix]
-            except KeyError:
-                return qname
-            else:
-                return u'{%s}%s' % (uri, name) if uri else name
-
-    def unmap_prefixed(self, qname):
-        """
-        Converts a name in prefixed format to the extended QName format. Local names
-        are not converted, also if a default namespace is included in the instance.
-        """
-        try:
-            if qname[0] == '{':
-                return qname
-        except IndexError:
-            return qname
-
-        try:
-            prefix, name = qname.split(':', 1)
-        except ValueError:
-            return qname
         else:
             try:
                 uri = self._namespaces[prefix]

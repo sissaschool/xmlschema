@@ -11,7 +11,7 @@
 This module contains converter classes and definitions.
 """
 from __future__ import unicode_literals
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from types import MethodType
 import string
 import warnings
@@ -88,11 +88,17 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
-    # Deprecations from release v1.0.14
+    # Deprecation from release v1.0.14
     def _unmap_attribute_qname(self, name):
-        warnings.warn("_unmap_attribute_qname method has been replaced by unmap_prefixed()"
-                      "and will be removed in 1.1 version", DeprecationWarning, stacklevel=2)
-        return self.unmap_prefixed(qname=name)
+        warnings.warn("the _unmap_attribute_qname method is deprecated and will "
+                      "be removed in 1.1 version. Use the unmap_qname() instead, "
+                      "providing the attribute group of the XSD element for the "
+                      "optional *name_table* argument.",
+                      DeprecationWarning, stacklevel=2)
+        if name[0] == '{' or ':' not in name:
+            return name
+        else:
+            return self.unmap_qname(name)
 
     @property
     def lossless(self):
@@ -132,12 +138,12 @@ class XMLSchemaConverter(NamespaceMapper):
                 self.ns_prefix = (value or '') + 'xmlns'
         elif name == 'strip_namespaces':
             if value:
-                self.map_qname = self.unmap_qname = self.unmap_prefixed = MethodType(local_name, self)
+                self.map_qname = MethodType(local_name, self)
+                self.unmap_qname = MethodType(lambda x, y=None: local_name(x), self)
             elif getattr(self, 'strip_namespaces', False):
                 # Rebuild instance methods only if necessary
                 self.map_qname = MethodType(XMLSchemaConverter.map_qname, self)
                 self.unmap_qname = MethodType(XMLSchemaConverter.unmap_qname, self)
-                self.unmap_prefixed = MethodType(XMLSchemaConverter.unmap_prefixed, self)
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
@@ -231,7 +237,8 @@ class XMLSchemaConverter(NamespaceMapper):
                 elem = self.etree_element_class(tag, self.dict(attrib))
         else:
             nsmap = {prefix if prefix else None: uri for prefix, uri in self._namespaces.items()}
-            elem = self.etree_element_class(tag, OrderedDict(attrib), nsmap)
+            elem = self.etree_element_class(tag, nsmap=nsmap)
+            elem.attrib.update(attrib)
 
         if children:
             elem.extend(children)
@@ -341,8 +348,9 @@ class XMLSchemaConverter(NamespaceMapper):
                 if not self.strip_namespaces:
                     self[name[len(ns_prefix) + 1:]] = value
             elif attr_prefix and name.startswith(attr_prefix):
-                name = name[len(attr_prefix):]
-                attributes[self.unmap_prefixed(name)] = value
+                attr_name = name[len(attr_prefix):]
+                ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
+                attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
                 content.append((self.unmap_qname(name), value))
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
@@ -360,9 +368,9 @@ class XMLSchemaConverter(NamespaceMapper):
                         break
                 else:
                     if attr_prefix == '' and ns_name not in attributes:
-                        for xsd_attribute in xsd_element.attributes.values():
+                        for key, xsd_attribute in xsd_element.attributes.items():
                             if xsd_attribute.is_matching(ns_name):
-                                attributes[ns_name] = value
+                                attributes[key] = value
                                 break
                         else:
                             content.append((ns_name, value))
@@ -437,8 +445,9 @@ class UnorderedConverter(XMLSchemaConverter):
             elif name.startswith('%s:' % ns_prefix):
                 self[name[len(ns_prefix) + 1:]] = value
             elif attr_prefix and name.startswith(attr_prefix):
-                name = name[len(attr_prefix):]
-                attributes[self.unmap_prefixed(name)] = value
+                attr_name = name[len(attr_prefix):]
+                ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
+                attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
                 content_lu[self.unmap_qname(name)] = [value]
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
@@ -700,8 +709,9 @@ class BadgerFishConverter(XMLSchemaConverter):
                 index = int(name[len(cdata_prefix):])
                 content.append((index, value))
             elif attr_prefix and name.startswith(attr_prefix):
-                name = name[len(attr_prefix):]
-                attributes[self.unmap_prefixed(name)] = value
+                attr_name = name[len(attr_prefix):]
+                ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
+                attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
                 content.append((unmap_qname(name), value))
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
@@ -804,7 +814,8 @@ class AbderaConverter(XMLSchemaConverter):
             unmap_qname = self.unmap_qname
             attributes = {}
             try:
-                attributes.update([(self.unmap_prefixed(k), v) for k, v in obj['attributes'].items()])
+                attributes.update([(self.unmap_qname(k, xsd_element.attributes), v)
+                                   for k, v in obj['attributes'].items()])
             except KeyError:
                 children = obj
             else:
@@ -912,7 +923,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 elif k.startswith('xmlns:'):
                     self[k.split('xmlns:')[1]] = v
                 else:
-                    attributes[self.unmap_prefixed(k)] = v
+                    attributes[self.unmap_qname(k, xsd_element.attributes)] = v
         except AttributeError:
             content_index = 1
         else:

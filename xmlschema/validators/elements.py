@@ -501,7 +501,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.fixed is not None:
                 if text is None:
                     text = self.fixed
-                elif text == self.fixed:
+                elif text == self.fixed or validation == 'skip':
                     pass
                 elif xsd_type.text_decode(text) != xsd_type.text_decode(self.fixed):
                     reason = "must has the fixed value %r." % self.fixed

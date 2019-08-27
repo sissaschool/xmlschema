@@ -90,6 +90,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                 pdb.set_trace()
 
         def check_etree_encode(self, root, converter=None, **kwargs):
+            namespaces = kwargs.get('namespaces', {})
             data1 = self.schema.decode(root, converter=converter, **kwargs)
             if isinstance(data1, tuple):
                 data1 = data1[0]  # When validation='lax'
@@ -106,10 +107,10 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                 elem1 = elem1[0]
 
             # Checks the encoded element to not contains reserved namespace prefixes
-            if 'namespaces' in kwargs and all('ns%d' % k not in kwargs['namespaces'] for k in range(10)):
-                self.check_namespace_prefixes(etree_tostring(elem1, namespaces=kwargs['namespaces']))
+            if namespaces and all('ns%d' % k not in namespaces for k in range(10)):
+                self.check_namespace_prefixes(etree_tostring(elem1, namespaces=namespaces))
 
-            # Main check: compare original a re encoded tree
+            # Main check: compare original a re-encoded tree
             try:
                 etree_elements_assert_equal(root, elem1, strict=False)
             except AssertionError as err:
@@ -123,7 +124,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                 elif converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
                     return  # can't check encode equivalence if xsi:type is provided
                 else:
-                    # Lossy or augmenting cases are checked after a re decoding-encoding pass
+                    # Lossy or augmenting cases are checked after another decoding/encoding pass
                     data2 = self.schema.decode(elem1, converter=converter, **kwargs)
                     if isinstance(data2, tuple):
                         data2 = data2[0]
@@ -131,7 +132,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                     if sys.version_info >= (3, 6):
                         # For Python < 3.6 cannot ensure attribute decoding order
                         try:
-                            self.assertEqual(data1, data2, msg_tmpl % "re decoded data changed")
+                            self.assertEqual(data1, data2, msg_tmpl % "re-decoded data changed")
                         except AssertionError:
                             if debug_mode:
                                 pdb.set_trace()
@@ -251,6 +252,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
         def check_decoding_and_encoding_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
             namespaces = fetch_namespaces(xml_file)
+
             errors = []
             chunks = []
             for obj in self.schema.iter_decode(xml_tree, namespaces=namespaces):
@@ -259,17 +261,20 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                 else:
                     chunks.append(obj)
 
-            self.assertEqual(chunks, self.chunks, msg_tmpl % "decode data change with lxml")
+            self.assertEqual(chunks, self.chunks, msg_tmpl % "decoded data change with lxml")
             self.assertEqual(len(errors), len(self.errors), msg_tmpl % "errors number change with lxml")
 
             if not errors:
                 root = xml_tree.getroot()
+                if namespaces.get(''):
+                    # Add a not empty prefix for encoding to avoid the use of reserved prefix ns0
+                    namespaces['tns0'] = namespaces['']
+
                 options = {
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
                     'dict_class': ordered_dict_class,
                 }
-
                 self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
                 self.check_etree_encode(root, ParkerConverter, validation='skip', **options)

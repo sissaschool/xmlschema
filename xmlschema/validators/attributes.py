@@ -57,7 +57,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
     def __init__(self, elem, schema, parent):
         super(XsdAttribute, self).__init__(elem, schema, parent)
-        self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
 
@@ -98,7 +97,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
-                self.qualified = xsd_attribute.qualified
+                if xsd_attribute.qualified:
+                    self.qualified = True
+
                 if self.default is None and xsd_attribute.default is not None:
                     self.default = xsd_attribute.default
 
@@ -224,8 +225,14 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and self.default is not None:
             text = self.default
-        if self.fixed is not None and text != self.fixed and validation != 'skip':
-            yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
+
+        if self.fixed is not None:
+            if text is None:
+                text = self.fixed
+            elif text == self.fixed or validation == 'skip':
+                pass
+            elif self.type.text_decode(text) != self.type.text_decode(self.fixed):
+                yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -315,11 +322,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def __repr__(self):
         if self.ref is not None:
-            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(ref=%r)' % (self.__class__.__name__, self.name)
         elif self.name is not None:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+            return '%s(name=%r)' % (self.__class__.__name__, self.name)
         elif self:
-            names = [a if a.name is None else a.prefixed_name for a in self.values()]
+            names = [a if a.name is None else a.name for a in self.values()]
             return '%s(%r)' % (self.__class__.__name__, names)
         else:
             return '%s()' % self.__class__.__name__
@@ -560,18 +567,18 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if not attrs and not self:
             return
 
-        if validation != 'skip' and any(k not in attrs for k in self.iter_required()):
-            missing_attrs = {k for k in self.iter_required() if k not in attrs}
-            reason = "missing required attributes: %r" % missing_attrs
-            yield self.validation_error(validation, reason, attrs, **kwargs)
+        if validation != 'skip':
+            for k in filter(lambda x: x not in attrs, self.iter_required()):
+                reason = "missing required attribute: %r" % k
+                yield self.validation_error(validation, reason, attrs, **kwargs)
 
         use_defaults = kwargs.get('use_defaults', True)
-        filler = kwargs.get('filler')
-        additional_attrs = {k: v for k, v in self.iter_predefined(use_defaults) if k not in attrs}
+        additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
             attrs.update(additional_attrs)
 
+        filler = kwargs.get('filler')
         result_list = []
         for name, value in attrs.items():
             try:
@@ -616,13 +623,16 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         yield result_list
 
     def iter_encode(self, attrs, validation='lax', **kwargs):
-        if validation != 'skip' and any(k not in attrs for k in self.iter_required()):
-            missing_attrs = {k for k in self.iter_required() if k not in attrs}
-            reason = "missing required attributes: %r" % missing_attrs
-            yield self.validation_error(validation, reason, attrs, **kwargs)
+        if not attrs and not self:
+            return
+
+        if validation != 'skip':
+            for k in filter(lambda x: x not in attrs, self.iter_required()):
+                reason = "missing required attribute: %r" % k
+                yield self.validation_error(validation, reason, attrs, **kwargs)
 
         use_defaults = kwargs.get('use_defaults', True)
-        additional_attrs = {k: v for k, v in self.iter_predefined(use_defaults) if k not in attrs}
+        additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
             attrs.update(additional_attrs)

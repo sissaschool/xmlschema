@@ -112,6 +112,9 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
     .. automethod:: element_decode
     .. automethod:: element_encode
 
+    .. automethod:: map_qname
+    .. automethod:: unmap_qname
+
 .. autoclass:: xmlschema.UnorderedConverter
 
 .. autoclass:: xmlschema.ParkerConverter
