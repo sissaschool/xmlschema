@@ -37,9 +37,9 @@ This library includes the following features:
 * Remote attacks protection by default using an XMLParser that forbids entities
 
 .. note::
-    Currently the XSD 1.1 validator is provided by class :class:`XMLSchema11` and
-    the default :class:`XMLSchema` class is still an alias of the XSD 1.0 validator,
-    the class :class:`XMLSchema10`. From version 1.1 of the package the default
+    Currently the XSD 1.1 validator is provided by class `XMLSchema11` and
+    the default `XMLSchema` class is still an alias of the XSD 1.0 validator,
+    the class `XMLSchema10`. From version 1.1 of the package the default
     validator will be linked to the XSD 1.1 validator, a version that will also
     removes support for Python 2.7.
 
@@ -71,9 +71,9 @@ the file containing the schema as argument:
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
 
 .. note::
-    For XSD 1.1 schemas use the class :class:`XMLSchema11`, because the default class
-    :class:`XMLSchema` is still an alias of the XSD 1.0 validator class :class:`XMLSchema10`.
-    From next minor release (v1.1) the default class will become :class:`XMLSchema11`.
+    For XSD 1.1 schemas use the class `XMLSchema11`, because the default class
+    `XMLSchema` is still an alias of the XSD 1.0 validator class `XMLSchema10`.
+    From next minor release (v1.1) the default class will become `XMLSchema11`.
 
 The schema can be used to validate XML documents:
 
