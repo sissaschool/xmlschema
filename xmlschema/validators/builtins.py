@@ -155,6 +155,10 @@ def base64_binary_validator(x):
             yield XMLSchemaValidationError(base64_binary_validator, x, "not a base64 encoding: %s." % err)
 
 
+def error_type_validator(x):
+    yield XMLSchemaValidationError(error_type_validator, x, "not value is allowed for xs:error type.")
+
+
 #
 # XSD builtin decoding functions
 def boolean_to_python(s):
@@ -309,7 +313,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
         'facets': [
-            etree_element(XSD_PATTERN, value=r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*")
+            etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")
         ]
     },  # language codes
     {
@@ -516,6 +520,13 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
     },  # PnYnMnDTnHnMnS with day and time equals to 0
+    # --- xs:error primitive type (XSD 1.1) ---
+    {
+        'name': XSD_ERROR,
+        'python_type': type(None),
+        'admitted_facets': (),
+        'facets': [error_type_validator],
+    },  # xs:error has no value space and no lexical space
 )
 
 

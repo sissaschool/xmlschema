@@ -30,6 +30,8 @@ class XsdFacet(XsdComponent):
     """
     XML Schema constraining facets base class.
     """
+    fixed = False
+
     def __init__(self, elem, schema, parent, base_type):
         self.base_type = base_type
         super(XsdFacet, self).__init__(elem, schema, parent)
@@ -43,34 +45,27 @@ class XsdFacet(XsdComponent):
 
     def _parse(self):
         super(XsdFacet, self)._parse()
-        elem = self.elem
-        self.fixed = elem.get('fixed', False)
+        if 'fixed' in self.elem.attrib and self.elem.attrib['fixed'] in ('true', '1'):
+            self.fixed = True
         base_facet = self.base_facet
         self.base_value = None if base_facet is None else base_facet.value
 
         try:
-            self._parse_value(elem)
+            self._parse_value(self.elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
             self.value = None
             self.parse_error(unicode_type(err))
         else:
             if base_facet is not None and base_facet.fixed and \
                     base_facet.value is not None and self.value != base_facet.value:
-                self.parse_error("%r facet value is fixed to %r" % (elem.tag, base_facet.value))
+                self.parse_error("%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
 
     def _parse_value(self, elem):
         self.value = elem.attrib['value']
 
     @property
     def built(self):
-        return self.base_type.is_global or self.base_type.built
-
-    @property
-    def validation_attempted(self):
-        if self.built:
-            return 'full'
-        else:
-            return self.base_type.validation_attempted
+        return True
 
     @property
     def base_facet(self):
@@ -95,17 +90,17 @@ class XsdFacet(XsdComponent):
 
 class XsdWhiteSpaceFacet(XsdFacet):
     """
-    XSD whiteSpace facet.
+    XSD *whiteSpace* facet.
 
-    <whiteSpace
-      fixed = boolean : false
-      id = ID
-      value = (collapse | preserve | replace)
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </whiteSpace>
+    ..  <whiteSpace
+          fixed = boolean : false
+          id = ID
+          value = (collapse | preserve | replace)
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </whiteSpace>
     """
-    _admitted_tags = XSD_WHITE_SPACE,
+    _ADMITTED_TAGS = XSD_WHITE_SPACE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -131,17 +126,17 @@ class XsdWhiteSpaceFacet(XsdFacet):
 
 class XsdLengthFacet(XsdFacet):
     """
-    XSD length facet.
+    XSD *length* facet.
 
-    <length
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </length>
+    ..  <length
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </length>
     """
-    _admitted_tags = XSD_LENGTH,
+    _ADMITTED_TAGS = XSD_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -174,17 +169,17 @@ class XsdLengthFacet(XsdFacet):
 
 class XsdMinLengthFacet(XsdFacet):
     """
-    XSD minLength facet.
+    XSD *minLength* facet.
 
-    <minLength
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minLength>
+    ..  <minLength
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minLength>
     """
-    _admitted_tags = XSD_MIN_LENGTH,
+    _ADMITTED_TAGS = XSD_MIN_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -217,17 +212,17 @@ class XsdMinLengthFacet(XsdFacet):
 
 class XsdMaxLengthFacet(XsdFacet):
     """
-    XSD maxLength facet.
+    XSD *maxLength* facet.
 
-    <maxLength
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxLength>
+    ..  <maxLength
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxLength>
     """
-    _admitted_tags = XSD_MAX_LENGTH,
+    _ADMITTED_TAGS = XSD_MAX_LENGTH,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -260,20 +255,23 @@ class XsdMaxLengthFacet(XsdFacet):
 
 class XsdMinInclusiveFacet(XsdFacet):
     """
-    XSD minInclusive facet.
+    XSD *minInclusive* facet.
 
-    <minInclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minInclusive>
+    ..  <minInclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minInclusive>
     """
-    _admitted_tags = XSD_MIN_INCLUSIVE,
+    _ADMITTED_TAGS = XSD_MIN_INCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:
@@ -295,20 +293,23 @@ class XsdMinInclusiveFacet(XsdFacet):
 
 class XsdMinExclusiveFacet(XsdFacet):
     """
-    XSD minExclusive facet.
+    XSD *minExclusive* facet.
 
-    <minExclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </minExclusive>
+    ..  <minExclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </minExclusive>
     """
-    _admitted_tags = XSD_MIN_EXCLUSIVE,
+    _ADMITTED_TAGS = XSD_MIN_EXCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value > self.value:
@@ -330,20 +331,23 @@ class XsdMinExclusiveFacet(XsdFacet):
 
 class XsdMaxInclusiveFacet(XsdFacet):
     """
-    XSD maxInclusive facet.
+    XSD *maxInclusive* facet.
 
-    <maxInclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxInclusive>
+    ..  <maxInclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxInclusive>
     """
-    _admitted_tags = XSD_MAX_INCLUSIVE,
+    _ADMITTED_TAGS = XSD_MAX_INCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:
@@ -365,20 +369,23 @@ class XsdMaxInclusiveFacet(XsdFacet):
 
 class XsdMaxExclusiveFacet(XsdFacet):
     """
-    XSD maxExclusive facet.
+    XSD *maxExclusive* facet.
 
-    <maxExclusive
-      fixed = boolean : false
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </maxExclusive>
+    ..  <maxExclusive
+          fixed = boolean : false
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </maxExclusive>
     """
-    _admitted_tags = XSD_MAX_EXCLUSIVE,
+    _ADMITTED_TAGS = XSD_MAX_EXCLUSIVE,
 
     def _parse_value(self, elem):
-        self.value = self.base_type.decode(elem.attrib['value'])
+        try:
+            self.value = self.base_type.primitive_type.decode(elem.attrib['value'])
+        except AttributeError:
+            self.value = self.base_type.decode(elem.attrib['value'])
 
         facet = self.base_type.get_facet(XSD_MIN_EXCLUSIVE)
         if facet is not None and facet.value >= self.value:
@@ -400,17 +407,17 @@ class XsdMaxExclusiveFacet(XsdFacet):
 
 class XsdTotalDigitsFacet(XsdFacet):
     """
-    XSD totalDigits facet.
+    XSD *totalDigits* facet.
 
-    <totalDigits
-      fixed = boolean : false
-      id = ID
-      value = positiveInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </totalDigits>
+    ..  <totalDigits
+          fixed = boolean : false
+          id = ID
+          value = positiveInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </totalDigits>
     """
-    _admitted_tags = XSD_TOTAL_DIGITS,
+    _ADMITTED_TAGS = XSD_TOTAL_DIGITS,
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
@@ -425,17 +432,17 @@ class XsdTotalDigitsFacet(XsdFacet):
 
 class XsdFractionDigitsFacet(XsdFacet):
     """
-    XSD fractionDigits facet.
+    XSD *fractionDigits* facet.
 
-    <fractionDigits
-      fixed = boolean : false
-      id = ID
-      value = nonNegativeInteger
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </fractionDigits>
+    ..  <fractionDigits
+          fixed = boolean : false
+          id = ID
+          value = nonNegativeInteger
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </fractionDigits>
     """
-    _admitted_tags = XSD_FRACTION_DIGITS,
+    _ADMITTED_TAGS = XSD_FRACTION_DIGITS,
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
@@ -457,17 +464,17 @@ class XsdFractionDigitsFacet(XsdFacet):
 
 class XsdExplicitTimezoneFacet(XsdFacet):
     """
-    XSD 1.1 explicitTimezone facet.
+    XSD 1.1 *explicitTimezone* facet.
 
-    <explicitTimezone
-      fixed = boolean : false
-      id = ID
-      value = NCName
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </explicitTimezone>
+    ..  <explicitTimezone
+          fixed = boolean : false
+          id = ID
+          value = NCName
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </explicitTimezone>
     """
-    _admitted_tags = XSD_EXPLICIT_TIMEZONE,
+    _ADMITTED_TAGS = XSD_EXPLICIT_TIMEZONE,
 
     def _parse_value(self, elem):
         self.value = value = elem.attrib['value']
@@ -489,16 +496,16 @@ class XsdExplicitTimezoneFacet(XsdFacet):
 
 class XsdEnumerationFacets(MutableSequence, XsdFacet):
     """
-    Sequence of XSD enumeration facets. Values are validates if match any of enumeration values.
+    Sequence of XSD *enumeration* facets. Values are validates if match any of enumeration values.
 
-    <enumeration
-      id = ID
-      value = anySimpleType
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </enumeration>
+    ..  <enumeration
+          id = ID
+          value = anySimpleType
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </enumeration>
     """
-    _admitted_tags = {XSD_ENUMERATION}
+    _ADMITTED_TAGS = {XSD_ENUMERATION}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -519,12 +526,12 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
             if self.base_type.name == XSD_NOTATION_TYPE:
                 try:
                     notation_qname = self.schema.resolve_qname(value)
-                except ValueError as err:
+                except (KeyError, ValueError, RuntimeError) as err:
                     self.parse_error(err, elem)
                 else:
                     if notation_qname not in self.maps.notations:
-                        self.parse_error("value {} must match a notation global declaration".format(value), elem)
-
+                        msg = "value {!r} must match a notation declaration"
+                        self.parse_error(msg.format(value), elem)
             return value
 
     # Implements the abstract methods of MutableSequence
@@ -563,16 +570,16 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
     """
-    Sequence of XSD pattern facets. Values are validates if match any of patterns.
+    Sequence of XSD *pattern* facets. Values are validates if match any of patterns.
 
-    <pattern
-      id = ID
-      value = string
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </pattern>
+    ..  <pattern
+          id = ID
+          value = string
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </pattern>
     """
-    _admitted_tags = {XSD_PATTERN}
+    _ADMITTED_TAGS = {XSD_PATTERN}
 
     def __init__(self, elem, schema, parent, base_type):
         XsdFacet.__init__(self, elem, schema, parent, base_type)
@@ -584,7 +591,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 
     def _parse_value(self, elem):
         try:
-            return re.compile(get_python_regex(elem.attrib['value']))
+            return re.compile(get_python_regex(elem.attrib['value'], self.xsd_version))
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
             return re.compile(r'^$')
@@ -630,17 +637,17 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 
 class XsdAssertionFacet(XsdFacet):
     """
-    XSD 1.1 assertion facet for simpleType definitions.
+    XSD 1.1 *assertion* facet for simpleType definitions.
 
-    <assertion
-      id = ID
-      test = an XPath expression
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
-      {any attributes with non-schema namespace . . .}>
-      Content: (annotation?)
-    </assertion>
+    ..  <assertion
+          id = ID
+          test = an XPath expression
+          xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))
+          {any attributes with non-schema namespace . . .}>
+          Content: (annotation?)
+        </assertion>
     """
-    _admitted_tags = {XSD_ASSERTION}
+    _ADMITTED_TAGS = {XSD_ASSERTION}
 
     def __repr__(self):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)
@@ -653,8 +660,11 @@ class XsdAssertionFacet(XsdFacet):
             self.parse_error(str(err), elem=self.elem)
             self.path = 'true()'
 
-        builtin_type_name = self.base_type.primitive_type.local_name
-        variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+        try:
+            builtin_type_name = self.base_type.primitive_type.local_name
+            variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+        except AttributeError:
+            variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)

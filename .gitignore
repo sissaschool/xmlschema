@@ -6,7 +6,8 @@
 *.json
 .idea/
 .tox/
-.coverage
+.coverage*
+!.coveragerc
 .ipynb_checkpoints/
 doc/_*/
 dist/

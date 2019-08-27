@@ -13,16 +13,18 @@ This module defines a mixin class for enabling XPath on schemas.
 """
 from __future__ import unicode_literals
 from abc import abstractmethod
-from elementpath import XPath2Parser, XPathContext
+from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
 
 from .compat import Sequence
 from .qnames import XSD_SCHEMA
+from .namespaces import XSD_NAMESPACE
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 
-class ElementPathContext(XPathContext):
+class XMLSchemaContext(XPathSchemaContext):
     """
-    XPath dynamic context class for XMLSchema. Implements safe iteration methods for
-    schema elements that recognize circular references.
+    XPath dynamic context class for *xmlschema* library. Implements safe iteration
+    methods for schema elements that recognize circular references.
     """
     def _iter_descendants(self):
         def safe_iter_descendants(context):
@@ -76,6 +78,79 @@ class ElementPathContext(XPathContext):
         return safe_iter_context(self)
 
 
+class XMLSchemaProxy(AbstractSchemaProxy):
+    """XPath schema proxy for the *xmlschema* library."""
+    def __init__(self, schema=None, base_element=None):
+        if schema is None:
+            from xmlschema import XMLSchema
+            schema = XMLSchema.meta_schema
+        super(XMLSchemaProxy, self).__init__(schema, base_element)
+
+        if base_element is not None:
+            try:
+                if base_element.schema is not schema:
+                    raise XMLSchemaValueError("%r is not an element of %r" % (base_element, schema))
+            except AttributeError:
+                raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
+
+    def get_context(self):
+        return XMLSchemaContext(root=self._schema, item=self._base_element)
+
+    def get_type(self, qname):
+        try:
+            return self._schema.maps.types[qname]
+        except KeyError:
+            return None
+
+    def get_attribute(self, qname):
+        try:
+            return self._schema.maps.attributes[qname]
+        except KeyError:
+            return None
+
+    def get_element(self, qname):
+        try:
+            return self._schema.maps.elements[qname]
+        except KeyError:
+            return None
+
+    def get_substitution_group(self, qname):
+        try:
+            return self._schema.maps.substitution_groups[qname]
+        except KeyError:
+            return None
+
+    def is_instance(self, obj, type_qname):
+        xsd_type = self._schema.maps.types[type_qname]
+        try:
+            xsd_type.encode(obj)
+        except ValueError:
+            return False
+        else:
+            return True
+
+    def cast_as(self, obj, type_qname):
+        xsd_type = self._schema.maps.types[type_qname]
+        return xsd_type.decode(obj)
+
+    def iter_atomic_types(self):
+        for xsd_type in self._schema.maps.types.values():
+            if xsd_type.target_namespace != XSD_NAMESPACE and hasattr(xsd_type, 'primitive_type'):
+                yield xsd_type
+
+    def get_primitive_type(self, xsd_type):
+        if not xsd_type.is_simple():
+            return self._schema.maps.types['{%s}anyType' % XSD_NAMESPACE]
+        elif not hasattr(xsd_type, 'primitive_type'):
+            if xsd_type.base_type is None:
+                return xsd_type
+            return self.get_primitive_type(xsd_type.base_type)
+        elif xsd_type.primitive_type is not xsd_type:
+            return self.get_primitive_type(xsd_type.primitive_type)
+        else:
+            return xsd_type
+
+
 class ElementPathMixin(Sequence):
     """
     Mixin abstract class for enabling ElementTree and XPath API on XSD components.
@@ -88,6 +163,7 @@ class ElementPathMixin(Sequence):
     tail = None
     namespaces = {}
     xpath_default_namespace = None
+    xpath_proxy = None
 
     @abstractmethod
     def __iter__(self):
@@ -133,9 +209,10 @@ class ElementPathMixin(Sequence):
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 
-        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
+        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
+                              default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
-        context = ElementPathContext(self)
+        context = XMLSchemaContext(self)
         return root_token.select(context)
 
     def find(self, path, namespaces=None):
@@ -151,9 +228,11 @@ class ElementPathMixin(Sequence):
             path = ''.join(['/', XSD_SCHEMA, path])
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
-        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
+
+        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
+                              default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
-        context = ElementPathContext(self)
+        context = XMLSchemaContext(self)
         return next(root_token.select(context), None)
 
     def findall(self, path, namespaces=None):
@@ -171,9 +250,10 @@ class ElementPathMixin(Sequence):
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
 
-        parser = XPath2Parser(namespaces, strict=False, default_namespace=self.xpath_default_namespace)
+        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
+                              default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
-        context = ElementPathContext(self)
+        context = XMLSchemaContext(self)
         return root_token.get_results(context)
 
     def iter(self, tag=None):

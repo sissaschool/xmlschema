@@ -26,7 +26,7 @@ XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 "URI of the XML namespace (xml)"
 
 XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
-XHTML_DATATYPES_NAMESPACE = "http://www.w3.org/1999/xhtml/datatypes/"
+XHTML_DATATYPES_NAMESPACE = 'http://www.w3.org/1999/xhtml/datatypes/'
 "URIs of the Extensible Hypertext Markup Language namespace (html)"
 
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
@@ -38,7 +38,7 @@ XSLT_NAMESPACE = "http://www.w3.org/1999/XSL/Transform"
 HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 "URI of the XML Schema has Facet and Property namespace (hfp)"
 
-VC_NAMESPACE = "http://www.w3.org/2007/XMLSchema-versioning"
+VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
 
@@ -119,6 +119,13 @@ class NamespaceMapper(MutableMapping):
         self._namespaces.clear()
 
     def map_qname(self, qname):
+        """
+        Converts an extended QName to the prefixed format. Only registered
+        namespaces are mapped.
+
+        :param qname: a QName in extended format or a local name.
+        :return: a QName in prefixed format or a local name.
+        """
         try:
             if qname[0] != '{' or not self._namespaces:
                 return qname
@@ -139,7 +146,17 @@ class NamespaceMapper(MutableMapping):
         else:
             return qname
 
-    def unmap_qname(self, qname):
+    def unmap_qname(self, qname, name_table=None):
+        """
+        Converts a QName in prefixed format or a local name to the extended QName format.
+        Local names are converted only if a default namespace is included in the instance.
+        If a *name_table* is provided a local name is mapped to the default namespace
+        only if not found in the name table.
+
+        :param qname: a QName in prefixed format or a local name
+        :param name_table: an optional lookup table for checking local names.
+        :return: a QName in extended format or a local name.
+        """
         try:
             if qname[0] == '{' or not self:
                 return qname
@@ -149,8 +166,10 @@ class NamespaceMapper(MutableMapping):
         try:
             prefix, name = qname.split(':', 1)
         except ValueError:
-            if self.get(''):
-                return u'{%s}%s' % (self.get(''), qname)
+            if not self._namespaces.get(''):
+                return qname
+            elif name_table is None or qname not in name_table:
+                return '{%s}%s' % (self._namespaces.get(''), qname)
             else:
                 return qname
         else:

@@ -54,5 +54,9 @@ class XMLSchemaRegexError(XMLSchemaException, ValueError):
     """Raised when an error is found when parsing an XML Schema regular expression."""
 
 
+class XMLSchemaNamespaceError(XMLSchemaException, RuntimeError):
+    """Raised when a wrong runtime condition is found with a namespace."""
+
+
 class XMLSchemaWarning(Warning):
     """Base warning class for the XMLSchema package."""

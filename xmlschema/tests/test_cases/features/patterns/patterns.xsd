@@ -11,6 +11,8 @@
                 <xs:element name="Prefix" type="prefix-name" minOccurs="0" maxOccurs="unbounded"/>
                 <xs:element name="Timestamp" type="TimestampType" minOccurs="0" maxOccurs="unbounded"/>
                 <xs:element name="Digits" type="DigitsType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Word" type="Word5Type" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="NoWord" type="NotWord5Type" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -67,6 +69,19 @@
     <xs:simpleType name="issue079Type">
         <xs:restriction base="xs:string">
             <xs:pattern value="[^\n\t]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Pull Request 114 -->
+    <xs:simpleType name="Word5Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value='[\w]{0,5}'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NotWord5Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value='[\W]{0,5}'/>
         </xs:restriction>
     </xs:simpleType>
 

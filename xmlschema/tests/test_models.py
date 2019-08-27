@@ -15,10 +15,11 @@ This module runs tests concerning model groups validation.
 import unittest
 
 from xmlschema.validators import ModelVisitor
-from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.compat import ordered_dict_class
+from xmlschema.tests import casepath, XsdValidatorTestCase
 
 
-class TestModelValidation(XMLSchemaTestCase):
+class TestModelValidation(XsdValidatorTestCase):
 
     # --- Test helper functions ---
 
@@ -465,10 +466,25 @@ class TestModelValidation(XMLSchemaTestCase):
         self.assertEqual(model.element, group[0][0])
         self.check_stop(model)
 
+    def test_model_group8(self):
+        group = self.models_schema.groups['group8']
+
+        model = ModelVisitor(group)
+        self.assertEqual(model.element, group[0][0])
+        self.check_advance_true(model)                 # match choice with <elem1>
+        self.check_advance_false(model)
+        self.assertEqual(model.element, group[0][1])
+        self.check_advance_true(model)                 # match choice with <elem2>
+        self.assertEqual(model.element, group[0][2])
+        self.check_advance_true(model)                 # match choice with <elem3>
+        self.assertEqual(model.element, group[0][3])
+        self.check_advance_true(model)                 # match choice with <elem4>
+        self.assertIsNone(model.element)
+
     #
     # Tests on issues
     def test_issue_086(self):
-        issue_086_xsd = self.casepath('issues/issue_086/issue_086.xsd')
+        issue_086_xsd = casepath('issues/issue_086/issue_086.xsd')
         schema = self.schema_class(issue_086_xsd)
         group = schema.types['Foo'].content_type
 
@@ -522,6 +538,71 @@ class TestModelValidation(XMLSchemaTestCase):
         self.check_advance_true(model)  # <a> matching
         self.assertEqual(model.element, group[1][0][0])  # 'a' element
         self.check_stop(model)
+
+
+class TestModelBasedSorting(XsdValidatorTestCase):
+
+    def test_sort_content(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" type="xs:string"/>
+                    <xs:element name="B2" type="xs:integer"/>
+                    <xs:element name="B3" type="xs:boolean"/>
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        self.assertListEqual(
+            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            [('B1', 'abc'), ('B2', 10), ('B3', True)]
+        )
+        self.assertListEqual(
+            model.sort_content([('B3', True), ('B2', 10), ('B1', 'abc')]),
+            [('B1', 'abc'), ('B2', 10), ('B3', True)]
+        )
+        self.assertListEqual(
+            model.sort_content([('B2', 10), ('B4', None), ('B1', 'abc'), ('B3', True)]),
+            [('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
+        )
+        content = [('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)]
+        self.assertListEqual(
+            model.sort_content(content),
+            [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
+        )
+        content = [(2, 'world!'), ('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)]
+        self.assertListEqual(
+            model.sort_content(content),
+            [(1, 'hello'), ('B1', 'abc'), (2, 'world!'), ('B2', 10), ('B3', True), ('B4', None)]
+        )
+
+        # With a dict-type argument
+        content = ordered_dict_class([('B2', [10]), ('B1', ['abc']), ('B3', [True])])
+        self.assertListEqual(
+            model.sort_content(content), [('B1', 'abc'), ('B2', 10), ('B3', True)]
+        )
+        content = ordered_dict_class([('B2', [10]), ('B1', ['abc']), ('B3', [True]), (1, 'hello')])
+        self.assertListEqual(
+            model.sort_content(content), [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True)]
+        )
+
+        # With partial content
+        self.assertListEqual(model.sort_content([]), [])
+        self.assertListEqual(model.sort_content([('B1', 'abc')]), [('B1', 'abc')])
+        self.assertListEqual(model.sort_content([('B2', 10)]), [('B2', 10)])
+        self.assertListEqual(model.sort_content([('B3', True)]), [('B3', True)])
+        self.assertListEqual(
+            model.sort_content([('B3', True), ('B1', 'abc')]), [('B1', 'abc'), ('B3', True)]
+        )
+        self.assertListEqual(
+            model.sort_content([('B2', 10), ('B1', 'abc')]), [('B1', 'abc'), ('B2', 10)]
+        )
+        self.assertListEqual(
+            model.sort_content([('B3', True), ('B2', 10)]), [('B2', 10), ('B3', True)]
+        )
 
 
 if __name__ == '__main__':

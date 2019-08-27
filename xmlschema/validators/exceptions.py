@@ -329,16 +329,16 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             expected_tags = []
             for xsd_element in expected:
                 if xsd_element.name is not None:
-                    expected_tags.append(repr(xsd_element.prefixed_name))
+                    expected_tags.append(xsd_element.prefixed_name)
                 elif xsd_element.process_contents == 'strict':
                     expected_tags.append('from %r namespace/s' % xsd_element.namespace)
 
             if not expected_tags:
-                reason += " No child element is expected at this point."
-            elif len(expected_tags) > 1:
-                reason += " Tags %s are expected." % expected_tags
-            else:
+                pass  # reason += " No child element is expected at this point." <-- this can be misleading
+            elif len(expected_tags) == 1:
                 reason += " Tag %s expected." % expected_tags[0]
+            else:
+                reason += " Tag (%s) expected." % ' | '.join(expected_tags)
 
         super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source, namespaces)
 
@@ -349,3 +349,7 @@ class XMLSchemaIncludeWarning(XMLSchemaWarning):
 
 class XMLSchemaImportWarning(XMLSchemaWarning):
     """A schema namespace import fails."""
+
+
+class XMLSchemaTypeTableWarning(XMLSchemaWarning):
+    """Not equivalent type table found in model."""

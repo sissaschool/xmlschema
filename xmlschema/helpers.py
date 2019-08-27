@@ -13,7 +13,7 @@ This module contains various helper functions and classes.
 """
 import re
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaKeyError
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import XSD_ANNOTATION
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
@@ -44,23 +44,26 @@ def get_qname(uri, name):
 
 def local_name(qname):
     """
-    Return the local part of an expanded QName. If the name is `None` or empty
-    returns the *name* argument.
+    Return the local part of an expanded QName or a prefixed name. If the name
+    is `None` or empty returns the *name* argument.
 
-    :param qname: an expanded QName or a local name.
+    :param qname: an expanded QName or a prefixed name or a local name.
     """
     try:
-        if qname[0] != '{':
-            return qname
-        return qname[qname.rindex('}') + 1:]
+        if qname[0] == '{':
+            _, qname = qname.split('}')
+        elif ':' in qname:
+            _, qname = qname.split(':')
     except IndexError:
         return ''
     except ValueError:
-        raise XMLSchemaValueError("wrong format for a universal name! %r" % qname)
+        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
     except TypeError:
         if qname is None:
             return qname
-        raise XMLSchemaTypeError("required a string-like object or None! %r" % qname)
+        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object or None")
+    else:
+        return qname
 
 
 def qname_to_prefixed(qname, namespaces):
@@ -101,83 +104,6 @@ def get_xsd_annotation(elem):
         return
 
 
-def iter_xsd_components(elem, start=0):
-    """
-    Returns an iterator for XSD child components, excluding the annotation.
-
-    :param elem: the parent Element.
-    :param start: the start child component to yield, the optional annotation is not counted. \
-    With the default value 0 starts from the first component.
-    """
-    counter = 0
-    for child in elem:
-        if child.tag == XSD_ANNOTATION:
-            if counter > 0:
-                raise XMLSchemaValueError("XSD annotation not allowed after the first position.")
-        else:
-            if start > 0:
-                start -= 1
-            else:
-                yield child
-            counter += 1
-
-
-def has_xsd_components(elem, start=0):
-    try:
-        next(iter_xsd_components(elem, start))
-    except StopIteration:
-        return False
-    else:
-        return True
-
-
-def get_xsd_component(elem, required=True, strict=True):
-    """
-    Returns the first XSD component child, excluding the annotation.
-
-    :param elem: the parent Element.
-    :param required: if `True`, that is the default, raises a *ValueError* if there \
-    is not any component; with `False` in those cases `None` is returned.
-    :param strict: raises a *ValueError* if there is more than one component.
-    """
-    components_iterator = iter_xsd_components(elem)
-    try:
-        xsd_component = next(components_iterator)
-    except StopIteration:
-        if required:
-            raise XMLSchemaValueError("missing XSD component")
-        return None
-    else:
-        if not strict:
-            return xsd_component
-        try:
-            next(components_iterator)
-        except StopIteration:
-            return xsd_component
-        else:
-            raise XMLSchemaValueError("too many XSD components")
-
-
-def get_xml_bool_attribute(elem, attribute, default=None):
-    """
-    Get an XML boolean attribute.
-
-    :param elem: the Element instance.
-    :param attribute: the attribute name.
-    :param default: default value, accepted values are `True` or `False`.
-    :return: `True` or `False`.
-    """
-    value = elem.get(attribute, default)
-    if value is None:
-        raise XMLSchemaKeyError(attribute)
-    elif value in ('true', '1') or value is True:
-        return True
-    elif value in ('false', '0') or value is False:
-        return False
-    else:
-        raise XMLSchemaTypeError("an XML boolean value is required for attribute %r" % attribute)
-
-
 def get_xsd_derivation_attribute(elem, attribute, values=None):
     """
     Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
@@ -198,7 +124,7 @@ def get_xsd_derivation_attribute(elem, attribute, values=None):
     items = value.split()
     if len(items) == 1 and items[0] == '#all':
         return ' '.join(values)
-    elif not all([s in values for s in items]):
+    elif not all(s in values for s in items):
         raise XMLSchemaValueError("wrong value %r for attribute %r." % (value, attribute))
     return value
 

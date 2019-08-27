@@ -15,4 +15,6 @@
     <Timestamp>2015-12-31T13:32:26-02:00</Timestamp>
     <Timestamp>2015-12-31T13:32:26+02:00</Timestamp>
     <Digits>5067746900909</Digits>
+    <Word>abc</Word>
+    <NoWord>.</NoWord>
 </ns:patterns>

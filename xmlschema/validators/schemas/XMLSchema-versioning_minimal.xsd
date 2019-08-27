@@ -1,0 +1,27 @@
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.w3.org/2007/XMLSchema-versioning">
+
+  <xs:attribute name="minVersion" type="xs:decimal" />
+  <xs:attribute name="maxVersion" type="xs:decimal" />
+  <xs:attribute name="typeAvailable">
+    <xs:simpleType>
+      <xs:list itemType="xs:QName"/>
+    </xs:simpleType>
+  </xs:attribute>
+  <xs:attribute name="typeUnavailable">
+    <xs:simpleType>
+      <xs:list itemType="xs:QName"/>
+    </xs:simpleType>
+  </xs:attribute>
+  <xs:attribute name="facetAvailable">
+    <xs:simpleType>
+      <xs:list itemType="xs:QName"/>
+    </xs:simpleType>
+  </xs:attribute>
+  <xs:attribute name="facetUnavailable">
+    <xs:simpleType>
+      <xs:list itemType="xs:QName"/>
+    </xs:simpleType>
+  </xs:attribute>
+</xs:schema>
