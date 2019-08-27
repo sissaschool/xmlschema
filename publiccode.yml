@@ -1,0 +1,67 @@
+# This repository adheres to the publiccode.yml standard by including this 
+# metadata file that makes public software easily discoverable.
+# More info at https://github.com/italia/publiccode.yml
+
+publiccodeYmlVersion: '0.2'
+name: xmlschema
+url: 'https://github.com/sissaschool/xmlschema'
+landingURL: 'https://github.com/sissaschool/xmlschema'
+releaseDate: '2019-08-27'
+softwareVersion: v1.0.14
+developmentStatus: stable
+platforms:
+  - linux
+  - windows
+  - mac
+softwareType: library
+inputTypes:
+  - XSD schemas
+  - XML data
+categories:
+  - data-analytics
+  - data-collection
+maintenance:
+  type: internal
+  contacts:
+    - name: Davide Brunato
+      email: davide.brunato@sissa.it
+      affiliation: ' Scuola Internazionale Superiore di Studi Avanzati'
+legal:
+  license: MIT
+  mainCopyrightOwner: Scuola Internazionale Superiore di Studi Avanzati
+  repoOwner: Scuola Internazionale Superiore di Studi Avanzati
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
+it:
+  riuso:
+    codiceIPA: sissa
+  piattaforme:
+    spid: false
+description:
+  en:
+    genericName: xmlschema
+    apiDocumentation: 'https://xmlschema.readthedocs.io/en/latest/api.html'
+    documentation: 'http://xmlschema.readthedocs.io/en/latest/'
+    shortDescription: XML Schema validator and data conversion library for Python
+    longDescription: >
+      The _xmlschema_ library is an implementation of [XML
+      Schema](http://www.w3.org/2001/XMLSchema) for Python (supports Python 2.7
+      and Python 3.5+).
+
+
+      This library arises from the needs of a solid Python layer for processing
+      XML Schema based files for [MaX (Materials design at the
+      Exascale)](http://www.max-centre.eu/)  European project. A significant
+      problem is the encoding and the decoding of the XML data files produced by
+      different simulation software. Another important requirement is the XML
+      data validation, in order to put the produced data under control. The lack
+      of a suitable alternative for Python in the schema-based decoding of XML
+      data has led to build this library. Obviously this library can be useful
+      for other cases related to XML Schema based processing, not only for the
+      original scope.
+    features:
+      - XSD 1.0 and XSD 1.1 validator and decoder
+outputTypes:
+  - JSON
