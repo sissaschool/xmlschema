@@ -15,8 +15,12 @@ platforms:
   - mac
 softwareType: library
 inputTypes:
-  - XSD schemas
-  - XML data
+  - text/xml
+  - application/xml
+  - application/json 
+outputTypes:
+  - application/json 
+  - application/xml
 categories:
   - data-analytics
   - data-collection
@@ -62,5 +66,3 @@ description:
       original scope.
     features:
       - XSD 1.0 and XSD 1.1 validator and decoder
-outputTypes:
-  - JSON
