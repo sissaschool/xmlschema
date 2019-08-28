@@ -838,6 +838,26 @@ class Xsd11Element(XsdElement):
             return self.schema.target_namespace
         return self._target_namespace
 
+    def iter_components(self, xsd_classes=None):
+        if xsd_classes is None:
+            yield self
+            for obj in self.identities.values():
+                yield obj
+        else:
+            if isinstance(self, xsd_classes):
+                yield self
+            for obj in self.identities.values():
+                if isinstance(obj, xsd_classes):
+                    yield obj
+
+        for alt in self.alternatives:
+            for obj in alt.iter_components(xsd_classes):
+                yield obj
+
+        if self.ref is None and self.type.parent is not None:
+            for obj in self.type.iter_components(xsd_classes):
+                yield obj
+
     def get_type(self, elem):
         if not self.alternatives:
             return self.type
@@ -849,10 +869,12 @@ class Xsd11Element(XsdElement):
             else:
                 elem = etree_element(elem.tag)
 
-        for alt in self.alternatives:
-            if alt.type is not None and \
-                    alt.token.boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
+        for alt in filter(lambda x: x.type is not None, self.alternatives):
+            if alt.token is None:
                 return alt.type
+            elif alt.token.boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
+                return alt.type
+
         return self.type
 
     def is_overlap(self, other):
@@ -986,3 +1008,10 @@ class XsdAlternative(XsdComponent):
     @property
     def validation_attempted(self):
         return 'full' if self.built else self.type.validation_attempted
+
+    def iter_components(self, xsd_classes=None):
+        if xsd_classes is None or isinstance(self, xsd_classes):
+            yield self
+        if self.type is not None and self.type.parent is not None:
+            for obj in self.type.iter_components(xsd_classes):
+                yield obj
