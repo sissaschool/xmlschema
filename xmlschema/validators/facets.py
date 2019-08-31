@@ -681,9 +681,12 @@ class XsdAssertionFacet(XsdFacet):
 
     def __call__(self, value):
         self.parser.variables['value'] = value
-        if not self.token.evaluate():
-            msg = "value is not true with test path %r."
-            yield XMLSchemaValidationError(self, value, reason=msg % self.path)
+        try:
+            if not self.token.evaluate():
+                msg = "value is not true with test path %r."
+                yield XMLSchemaValidationError(self, value, reason=msg % self.path)
+        except ElementPathError as err:
+            yield XMLSchemaValidationError(self, value, reason=str(err))
 
 
 XSD_10_FACETS_BUILDERS = {

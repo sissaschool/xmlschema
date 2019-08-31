@@ -50,7 +50,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
         # Parse namespace and processContents
         namespace = self.elem.get('namespace', '##any').strip()
-        if namespace == '##any':
+        if namespace == '##any' or namespace == '':
             pass
         elif namespace == '##other':
             self.namespace = [namespace]

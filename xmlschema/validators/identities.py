@@ -193,6 +193,8 @@ class XsdIdentity(XsdComponent):
                 # Change the XSD context only if the path is changed
                 current_path = path
                 xsd_element = self.parent.find(path)
+                if not hasattr(xsd_element, 'tag'):
+                    yield XMLSchemaValidationError(self, e, "{!r} is not an element".format(xsd_element))
                 xsd_fields = self.get_fields(xsd_element)
 
             if all(fld is None for fld in xsd_fields):
