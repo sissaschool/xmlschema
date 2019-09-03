@@ -511,6 +511,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 text = self.default
 
             if not xsd_type.is_simple():
+                for assertion in xsd_type.assertions:
+                    for error in assertion(elem, value=text):
+                        yield self.validation_error(validation, error, **kwargs)
+
                 xsd_type = xsd_type.content_type
 
             if text is None:
@@ -886,6 +890,13 @@ class Xsd11Element(XsdElement):
 
             for e in self.iter_substitutes():
                 if other.name == e.name or any(x is e for x in other.iter_substitutes()):
+                    return True
+
+        elif isinstance(other, XsdAnyElement):
+            if other.is_matching(self.name, self.default_namespace):
+                return True
+            for e in self.maps.substitution_groups.get(self.name, ()):
+                if other.is_matching(e.name, self.default_namespace):
                     return True
         return False
 

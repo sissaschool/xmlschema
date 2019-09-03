@@ -80,7 +80,8 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
 
-    def __call__(self, elem):
+    def __call__(self, elem, value=None):
+        self.parser.variables['value'] = value
         if not self.token.evaluate(XPathContext(root=elem)):
             msg = "expression is not true with test path %r."
             yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)

@@ -519,6 +519,8 @@ class Xsd11AnyElement(XsdAnyElement):
           Content: (annotation?)
         </any>
     """
+    precedences = ()
+
     def _parse(self):
         super(Xsd11AnyElement, self)._parse()
         self._parse_not_constraints()
@@ -534,11 +536,15 @@ class Xsd11AnyElement(XsdAnyElement):
             name = '{%s}%s' % (default_namespace, name)
             namespace = default_namespace
 
-        if '##defined' in self.not_qname and name in self.maps.elements:
+        if group in self.precedences and \
+                any(e.is_matching(name) for e in self.precedences[group]):
+            return False
+        elif '##defined' in self.not_qname and name in self.maps.elements:
             if self.maps.elements[name].schema is self.schema:
                 return False
         if group and '##definedSibling' in self.not_qname:
-            if any(e is not self and e.match(name, default_namespace) for e in group.iter_elements()):
+            if any(e.is_matching(name) for e in group.iter_elements()
+                   if not isinstance(e, XsdAnyElement)):
                 return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
@@ -547,6 +553,14 @@ class Xsd11AnyElement(XsdAnyElement):
             return True
         xsd_element = self.matched_element(other.name, other.default_namespace)
         return xsd_element is None or other.is_consistent(xsd_element, False)
+
+    def add_precedence(self, other, group):
+        if not self.precedences:
+            self.precedences = {}
+        try:
+            self.precedences[group].append(other)
+        except KeyError:
+            self.precedences[group] = [other]
 
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
