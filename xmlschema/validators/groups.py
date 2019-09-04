@@ -538,11 +538,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
-            if self.interleave and self.interleave.is_matching(child.tag, default_namespace, self):
+            if self.interleave and self.interleave.is_matching(child.tag, default_namespace, group=self):
                 xsd_element = self.interleave
             else:
                 while model.element is not None:
-                    xsd_element = model.element.match(child.tag, default_namespace, self)
+                    xsd_element = model.element.match(
+                        child.tag, default_namespace, group=self, occurs=model.occurs
+                    )
                     if xsd_element is None:
                         for particle, occurs, expected in model.advance(False):
                             errors.append((index, particle, occurs, expected))
@@ -557,11 +559,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         errors.append((index, particle, occurs, expected))
                     break
                 else:
-                    if self.suffix and self.suffix.is_matching(child.tag, default_namespace, self):
+                    if self.suffix and self.suffix.is_matching(child.tag, default_namespace, group=self):
                         xsd_element = self.suffix
                     else:
                         for xsd_element in self.iter_elements():
-                            if xsd_element.is_matching(child.tag, default_namespace, self):
+                            if xsd_element.is_matching(child.tag, default_namespace, group=self):
                                 if not model_broken:
                                     errors.append((index, xsd_element, 0, []))
                                     model_broken = True
@@ -653,12 +655,14 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 cdata_index += 1
                 continue
 
-            if self.interleave and self.interleave.is_matching(name, default_namespace, self):
+            if self.interleave and self.interleave.is_matching(name, default_namespace, group=self):
                 xsd_element = self.interleave
                 value = get_qname(default_namespace, name), value
             else:
                 while model.element is not None:
-                    xsd_element = model.element.match(name, default_namespace, self)
+                    xsd_element = model.element.match(
+                        name, default_namespace, group=self, occurs=model.occurs
+                    )
                     if xsd_element is None:
                         for particle, occurs, expected in model.advance():
                             errors.append((index - cdata_index, particle, occurs, expected))
@@ -670,13 +674,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         errors.append((index - cdata_index, particle, occurs, expected))
                     break
                 else:
-                    if self.suffix and self.suffix.is_matching(name, default_namespace, self):
+                    if self.suffix and self.suffix.is_matching(name, default_namespace, group=self):
                         xsd_element = self.suffix
                         value = get_qname(default_namespace, name), value
                     else:
                         errors.append((index - cdata_index, self, 0, []))
                         for xsd_element in self.iter_elements():
-                            if not xsd_element.is_matching(name, default_namespace, self):
+                            if not xsd_element.is_matching(name, default_namespace, group=self):
                                 continue
                             elif isinstance(xsd_element, XsdAnyElement):
                                 value = get_qname(default_namespace, name), value

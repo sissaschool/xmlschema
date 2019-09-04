@@ -359,7 +359,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
@@ -456,7 +456,7 @@ class UnorderedConverter(XMLSchemaConverter):
                 # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content_lu[self.unmap_qname(name)] = [value]
@@ -576,7 +576,7 @@ class ParkerConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.matched_element(ns_name)
+                            matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))
@@ -721,7 +721,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
@@ -841,7 +841,7 @@ class AbderaConverter(XMLSchemaConverter):
                     else:
                         ns_name = unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.matched_element(ns_name)
+                            matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))

@@ -150,7 +150,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, **kwargs):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -342,15 +342,30 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def is_emptiable(self):
         return self.min_occurs == 0 or self.process_contents != 'strict'
 
-    def matched_element(self, name, default_namespace=None, group=None):
-        if self.is_matching(name, default_namespace, group):
-            try:
-                if name[0] != '{' and default_namespace:
-                    return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
-                else:
-                    return self.maps.lookup_element(name)
-            except LookupError:
-                pass
+    def match(self, name, default_namespace=None, resolve=False, **kwargs):
+        """
+        Returns the element wildcard if name is matching the name provided
+        as argument, `None` otherwise.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used when it's not `None` and not empty for \
+        completing local name arguments.
+        :param resolve: when `True` it doesn't return the wildcard but try to \
+        resolve and return the element matching the name.
+        :param kwargs: additional options used by XSD 1.1 xs:any wildcards.
+        """
+        if not self.is_matching(name, default_namespace, **kwargs):
+            return
+        elif not resolve:
+            return self
+
+        try:
+            if name[0] != '{' and default_namespace:
+                return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
+            else:
+                return self.maps.lookup_element(name)
+        except LookupError:
+            pass
 
     def __iter__(self):
         return iter(())
@@ -457,6 +472,31 @@ class XsdAnyAttribute(XsdWildcard):
     """
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
+    def match(self, name, default_namespace=None, resolve=False, **kwargs):
+        """
+        Returns the attribute wildcard if name is matching the name provided
+        as argument, `None` otherwise.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used when it's not `None` and not empty for \
+        completing local name arguments.
+        :param resolve: when `True` it doesn't return the wildcard but try to \
+        resolve and return the attribute matching the name.
+        :param kwargs: additional options that can be used by certain components.
+        """
+        if not self.is_matching(name, default_namespace, **kwargs):
+            return
+        elif not resolve:
+            return self
+
+        try:
+            if name[0] != '{' and default_namespace:
+                return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
+            else:
+                return self.maps.lookup_attribute(name)
+        except LookupError:
+            pass
+
     def iter_decode(self, attribute, validation='lax', **kwargs):
         if self.process_contents == 'skip':
             return
@@ -525,7 +565,18 @@ class Xsd11AnyElement(XsdAnyElement):
         super(Xsd11AnyElement, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, group=None, occurs=None):
+        """
+        Returns `True` if the component name is matching the name provided as argument,
+        `False` otherwise. For XSD elements the matching is extended to substitutes.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used if it's not None and not empty for completing \
+        the name argument in case it's a local name.
+        :param group: used only by XSD 1.1 any element wildcards to verify siblings in \
+        case of ##definedSibling value in notQName attribute.
+        :param occurs: a Counter instance for verify model occurrences counting.
+        """
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -536,10 +587,14 @@ class Xsd11AnyElement(XsdAnyElement):
             name = '{%s}%s' % (default_namespace, name)
             namespace = default_namespace
 
-        if group in self.precedences and \
-                any(e.is_matching(name) for e in self.precedences[group]):
-            return False
-        elif '##defined' in self.not_qname and name in self.maps.elements:
+        if group in self.precedences:
+            if not occurs:
+                if any(e.is_matching(name) for e in self.precedences[group]):
+                    return False
+            elif any(e.is_matching(name) and not e.is_over(occurs[e]) for e in self.precedences[group]):
+                return False
+
+        if '##defined' in self.not_qname and name in self.maps.elements:
             if self.maps.elements[name].schema is self.schema:
                 return False
         if group and '##definedSibling' in self.not_qname:
@@ -551,7 +606,7 @@ class Xsd11AnyElement(XsdAnyElement):
     def is_consistent(self, other):
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
-        xsd_element = self.matched_element(other.name, other.default_namespace)
+        xsd_element = self.match(other.name, other.default_namespace, resolve=True)
         return xsd_element is None or other.is_consistent(xsd_element, False)
 
     def add_precedence(self, other, group):

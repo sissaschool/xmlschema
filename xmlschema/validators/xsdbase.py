@@ -427,7 +427,7 @@ class XsdComponent(XsdValidator):
     def built(self):
         raise NotImplementedError
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, **kwargs):
         """
         Returns `True` if the component name is matching the name provided as argument,
         `False` otherwise. For XSD elements the matching is extended to substitutes.
@@ -435,8 +435,7 @@ class XsdComponent(XsdValidator):
         :param name: a local or fully-qualified name.
         :param default_namespace: used if it's not None and not empty for completing the name \
         argument in case it's a local name.
-        :param group: used only by XSD 1.1 any element wildcards to verify siblings in \
-        case of ##definedSibling value in notQName attribute.
+        :param kwargs: additional options that can be used by certain components.
         """
         if not name:
             return self.name == name
@@ -448,9 +447,9 @@ class XsdComponent(XsdValidator):
             qname = '{%s}%s' % (default_namespace, name)
             return self.qualified_name == qname or not self.qualified and self.local_name == name
 
-    def match(self, name, default_namespace=None, group=None):
+    def match(self, name, default_namespace=None, **kwargs):
         """Returns the component if its name is matching the name provided as argument, `None` otherwise."""
-        return self if self.is_matching(name, default_namespace, group) else None
+        return self if self.is_matching(name, default_namespace, **kwargs) else None
 
     def get_global(self):
         """Returns the global XSD component that contains the component instance."""
