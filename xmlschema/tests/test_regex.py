@@ -390,6 +390,10 @@ class TestPatterns(unittest.TestCase):
         self.assertEqual(regex, r'^([^\w\W])$')
         self.assertRaises(XMLSchemaRegexError, get_python_regex, '[]')
 
+    def test_character_class_range(self):
+        regex = get_python_regex('[bc-]')
+        self.assertEqual(regex, r'^([\-bc])$')
+
 
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header

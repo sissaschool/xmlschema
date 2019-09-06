@@ -194,7 +194,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
             escaped = on_range = False
             char = s[k]
-            if k >= length - 1 or s[k + 1] != '-':
+            if k >= length - 2 or s[k + 1] != '-':
                 yield ord(char)
         elif s[k] == '\\':
             if escaped:
@@ -209,7 +209,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 yield ord('\\')
             on_range = False
             char = s[k]
-            if k >= length - 1 or s[k + 1] != '-':
+            if k >= length - 2 or s[k + 1] != '-':
                 yield ord(char)
     if escaped:
         yield ord('\\')

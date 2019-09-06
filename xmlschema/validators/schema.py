@@ -27,9 +27,9 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyErro
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_SCHEMA, \
     XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, \
-    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_ANY, \
-    XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, \
-    XSD_DEFAULT_OPEN_CONTENT
+    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, \
+    XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
+    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
     XLINK_NAMESPACE, VC_NAMESPACE, NamespaceResourcesMap, NamespaceView
@@ -644,6 +644,19 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         attribute_group[None] = self.BUILDERS.any_attribute_class(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
         return attribute_group
 
+    def create_empty_content_group(self, parent, model='sequence'):
+        if model == 'sequence':
+            group_elem = etree_element(XSD_SEQUENCE)
+        elif model == 'choice':
+            group_elem = etree_element(XSD_CHOICE)
+        elif model == 'all':
+            group_elem = etree_element(XSD_ALL)
+        else:
+            raise XMLSchemaValueError("'model' argument must be (sequence | choice | all)")
+
+        group_elem.text = '\n    '
+        return self.BUILDERS.group_class(group_elem, self, parent)
+
     def copy(self):
         """Makes a copy of the schema instance. The new instance has independent maps of shared XSD components."""
         schema = object.__new__(self.__class__)
@@ -1113,7 +1126,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         if not self.built:
             if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
             self.build()
 
         if not isinstance(source, XMLResource):
@@ -1195,7 +1208,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         if not self.built:
             if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
             self.build()
 
         if validation not in XSD_VALIDATION_MODES:
@@ -1272,7 +1285,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         if not self.built:
             if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built." % self)
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
             self.build()
 
         if validation not in XSD_VALIDATION_MODES:

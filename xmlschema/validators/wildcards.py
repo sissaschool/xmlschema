@@ -588,7 +588,7 @@ class Xsd11AnyElement(XsdAnyElement):
             namespace = default_namespace
 
         if group in self.precedences:
-            if not occurs:
+            if occurs is None:
                 if any(e.is_matching(name) for e in self.precedences[group]):
                     return False
             elif any(e.is_matching(name) and not e.is_over(occurs[e]) for e in self.precedences[group]):
