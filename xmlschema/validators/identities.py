@@ -212,11 +212,7 @@ class XsdIdentity(XsdComponent):
     def built(self):
         return self.selector is not None
 
-    def __call__(self, *args, **kwargs):
-        for error in self.validator(*args, **kwargs):
-            yield error
-
-    def validator(self, elem):
+    def __call__(self, elem):
         values = Counter()
         for v in self.iter_values(elem):
             if isinstance(v, XMLSchemaValidationError):
@@ -308,7 +304,7 @@ class XsdKeyref(XsdIdentity):
                     values.add(v)
         return values
 
-    def validator(self, elem):
+    def __call__(self, elem):
         if self.refer is None:
             return
 

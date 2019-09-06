@@ -130,6 +130,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.type = xsd_element.type
                 self.qualified = xsd_element.qualified
 
+
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
                 if attr_name in attrib:
@@ -253,6 +254,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         return 0
 
     def _parse_identity_constraints(self, index=0):
+        if self.ref is not None:
+            self.identities = self.ref.identities
+            return
+
         self.identities = {}
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
