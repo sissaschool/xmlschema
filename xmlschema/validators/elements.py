@@ -467,7 +467,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Decode attributes
         attribute_group = getattr(xsd_type, 'attributes', self.attributes)
-        for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
+        for result in attribute_group.iter_decode(elem.attrib, validation, level=level, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, elem, **kwargs)
             else:
@@ -529,7 +529,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                for result in xsd_type.iter_decode(text, validation, **kwargs):
+                for result in xsd_type.iter_decode(text, validation, level=level, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                     elif result is None and 'filler' in kwargs:

@@ -1172,6 +1172,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 else:
                     del result
 
+        # Check unresolved IDREF values
+        for k, v in id_map.items():
+            if isinstance(v, XMLSchemaValidationError):
+                yield v
+            elif v == 0:
+                yield self.validation_error('lax', "IDREF %r not found in XML document" % k, source.root)
+
     def iter_decode(self, source, path=None, schema_path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
                     converter=None, filler=None, fill_missing=False, **kwargs):
@@ -1242,6 +1249,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     use_defaults=use_defaults, datetime_types=datetime_types,
                     fill_missing=fill_missing, id_map=id_map, **kwargs):
                 yield obj
+
+        for k, v in id_map.items():
+            if isinstance(v, XMLSchemaValidationError):
+                yield v
+            elif v == 0:
+                yield self.validation_error('lax', "IDREF %r not found in XML document" % k, source.root)
 
     def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):
         """

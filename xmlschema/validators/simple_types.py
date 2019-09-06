@@ -17,19 +17,21 @@ from decimal import DecimalException
 from ..compat import string_base_type, unicode_type
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import (
-    XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP,
-    XSD_ANY_ATTRIBUTE, XSD_PATTERN, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE,
-    XSD_MAX_EXCLUSIVE, XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST,
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, XSD_ID,
-    XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT
-)
+from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
+    XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_PATTERN, \
+    XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, \
+    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, \
+    XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, \
+    XSD_ERROR, XSD_ASSERT
 from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, XMLSchemaDecodeError, XMLSchemaParseError
+from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
+    XMLSchemaDecodeError, XMLSchemaParseError
 from .xsdbase import XsdAnnotation, XsdType, ValidationMixin
-from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS, XSD_10_FACETS, \
-    XSD_11_FACETS, XSD_10_LIST_FACETS, XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
+from .facets import XsdFacet, XsdWhiteSpaceFacet, XSD_10_FACETS_BUILDERS, \
+    XSD_11_FACETS_BUILDERS, XSD_10_FACETS, XSD_11_FACETS, XSD_10_LIST_FACETS, \
+    XSD_11_LIST_FACETS, XSD_10_UNION_FACETS, XSD_11_UNION_FACETS, MULTIPLE_FACETS
 
 
 def xsd_simple_type_factory(elem, schema, parent):
@@ -515,15 +517,28 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
 
-        if self.name == XSD_ID:
+        if self.name == XSD_ID and kwargs.get('level'):
             try:
                 id_map = kwargs['id_map']
             except KeyError:
                 pass
             else:
-                id_map[obj] += 1
+                try:
+                    id_map[obj] += 1
+                except TypeError:
+                    id_map[obj] = 1
+
                 if id_map[obj] > 1:
                     yield self.validation_error(validation, "Duplicated xsd:ID value {!r}".format(obj))
+
+        elif self.name == XSD_IDREF:
+            try:
+                id_map = kwargs['id_map']
+            except KeyError:
+                pass
+            else:
+                if obj not in id_map:
+                    id_map[obj] = kwargs.get('node', 0)
 
         if validation == 'skip':
             try:
