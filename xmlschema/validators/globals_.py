@@ -15,6 +15,7 @@ from __future__ import unicode_literals
 import warnings
 from collections import Counter
 
+from ..compat import string_base_type
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
@@ -119,7 +120,7 @@ def create_lookup_function(xsd_classes):
     else:
         types_desc = xsd_classes.__name__
 
-    def lookup(global_map, qname, tag_map):
+    def lookup(qname, global_map, tag_map):
         try:
             obj = global_map[qname]
         except KeyError:
@@ -236,22 +237,22 @@ class XsdGlobals(XsdValidator):
     __copy__ = copy
 
     def lookup_notation(self, qname):
-        return lookup_notation(self.notations, qname, self.validator.BUILDERS_MAP)
+        return lookup_notation(qname, self.notations, self.validator.BUILDERS_MAP)
 
     def lookup_type(self, qname):
-        return lookup_type(self.types, qname, self.validator.BUILDERS_MAP)
+        return lookup_type(qname, self.types, self.validator.BUILDERS_MAP)
 
     def lookup_attribute(self, qname):
-        return lookup_attribute(self.attributes, qname, self.validator.BUILDERS_MAP)
+        return lookup_attribute(qname, self.attributes, self.validator.BUILDERS_MAP)
 
     def lookup_attribute_group(self, qname):
-        return lookup_attribute_group(self.attribute_groups, qname, self.validator.BUILDERS_MAP)
+        return lookup_attribute_group(qname, self.attribute_groups, self.validator.BUILDERS_MAP)
 
     def lookup_group(self, qname):
-        return lookup_group(self.groups, qname, self.validator.BUILDERS_MAP)
+        return lookup_group(qname, self.groups, self.validator.BUILDERS_MAP)
 
     def lookup_element(self, qname):
-        return lookup_element(self.elements, qname, self.validator.BUILDERS_MAP)
+        return lookup_element(qname, self.elements, self.validator.BUILDERS_MAP)
 
     def lookup(self, tag, qname):
         """
@@ -313,6 +314,10 @@ class XsdGlobals(XsdValidator):
     @property
     def xsd_version(self):
         return self.validator.XSD_VERSION
+
+    @property
+    def builders_map(self):
+        return self.validator.BUILDERS_MAP
 
     @property
     def all_errors(self):
@@ -455,8 +460,23 @@ class XsdGlobals(XsdValidator):
             self.lookup_notation(qname)
         for qname in self.attributes:
             self.lookup_attribute(qname)
+
         for qname in self.attribute_groups:
             self.lookup_attribute_group(qname)
+        for schema in filter(
+                lambda x: isinstance(x.default_attributes, string_base_type),
+                not_built_schemas):
+            try:
+                schema.default_attributes = schema.maps.attribute_groups[schema.default_attributes]
+            except KeyError:
+                schema.default_attributes = None
+                msg = "defaultAttributes={!r} doesn't match an attribute group of {!r}"
+                schema.parse_error(
+                    error=msg.format(schema.root.get('defaultAttributes'), schema),
+                    elem=schema.root,
+                    validation=schema.validation
+                )
+
         for qname in self.types:
             self.lookup_type(qname)
         for qname in self.elements:
@@ -470,7 +490,7 @@ class XsdGlobals(XsdValidator):
                 group.build()
 
         # Build XSD 1.1 identity references and assertions
-        if self.validator.XSD_VERSION != '1.0':
+        if self.xsd_version != '1.0':
             for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
                 for e in schema.iter_components(Xsd11Element):
                     for constraint in filter(lambda x: x.ref is not None, e.identities.values()):
@@ -513,20 +533,8 @@ class XsdGlobals(XsdValidator):
                 if e is xsd_element:
                     msg = "circularity found for substitution group with head element %r"
                     e.parse_error(msg.format(e), validation=validation)
-                elif e.abstract and e.name not in self.substitution_groups and self.validator.XSD_VERSION > '1.0':
+                elif e.abstract and e.name not in self.substitution_groups and self.xsd_version > '1.0':
                     self.parse_error("in XSD 1.1 an abstract element cannot be member of a substitution group")
-
-        if self.validator.XSD_VERSION > '1.0':
-            for s in filter(lambda x: x.default_attributes is not None, schemas):
-                if isinstance(s.default_attributes, XsdAttributeGroup):
-                    continue
-
-                try:
-                    s.default_attributes = s.maps.attribute_groups[s.default_attributes]
-                except KeyError:
-                    s.default_attributes = None
-                    msg = "defaultAttributes={!r} doesn't match an attribute group of {!r}"
-                    s.parse_error(msg.format(s.root.get('defaultAttributes'), s), s.root, validation)
 
         if validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map has unbuilt components: %r" % self.unbuilt)

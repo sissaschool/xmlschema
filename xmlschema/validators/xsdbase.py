@@ -395,12 +395,12 @@ class XsdComponent(XsdValidator):
                 self.parse_error("a declaration contained in a global complexType "
                                  "must has the same namespace as its parent schema")
 
-            if not self._target_namespace and self.name[0] == '{':
-                self.name = local_name(self.name)
-            elif self.name[0] != '{':
-                self.name = '{%s}%s' % (self._target_namespace, self.name)
-            else:
-                self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
+        if not self._target_namespace and self.name[0] == '{':
+            self.name = local_name(self.name)
+        elif self.name[0] != '{':
+            self.name = '{%s}%s' % (self._target_namespace, self.name)
+        else:
+            self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
 
     @property
     def local_name(self):

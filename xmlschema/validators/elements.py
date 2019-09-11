@@ -66,7 +66,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     """
     type = None
     qualified = False
-    attributes = None
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _abstract = False
@@ -78,7 +77,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __init__(self, elem, schema, parent):
         super(XsdElement, self).__init__(elem, schema, parent)
-        self.names = (self.qualified_name,) if self.qualified else (self.qualified_name, self.local_name)
+        if self.qualified or self.ref is not None or 'targetNamespace' in elem.attrib:
+            self.names = (self.qualified_name,)
+        else:
+            self.names = (self.qualified_name, self.local_name)
         if self.type is None:
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if self.qualified is None:
@@ -93,12 +95,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def __setattr__(self, name, value):
         if name == "type":
             assert value is None or isinstance(value, XsdType), "Wrong value %r for attribute 'type'." % value
-            if hasattr(value, 'attributes'):
-                self.attributes = value.attributes
-            else:
-                self.attributes = self.schema.BUILDERS.attribute_group_class(
-                    XSD_ATTRIBUTE_GROUP_ELEMENT, self.schema, self
-                )
+            self.attributes = self.get_attributes(value)
         super(XsdElement, self).__setattr__(name, value)
 
     def __iter__(self):
@@ -129,7 +126,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.ref = xsd_element
                 self.type = xsd_element.type
                 self.qualified = xsd_element.qualified
-
 
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
@@ -388,6 +384,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def get_type(self, elem):
         return self.type
 
+    def get_attributes(self, xsd_type):
+        try:
+            return xsd_type.attributes
+        except AttributeError:
+            return self.schema.empty_attribute_group
+
     def get_path(self, ancestor=None, reverse=False):
         """
         Returns the XPath expression of the element. The path is relative to the schema instance
@@ -427,9 +429,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def iter_substitutes(self):
         for xsd_element in self.maps.substitution_groups.get(self.name, ()):
-            yield xsd_element
+            if not xsd_element.abstract:
+                yield xsd_element
             for e in xsd_element.iter_substitutes():
-                yield e
+                if not e.abstract:
+                    yield e
 
     def data_value(self, elem):
         """Returns the decoded data value of the provided element as XPath fn:data()."""
@@ -454,19 +458,29 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             converter = self.schema.get_converter(converter, level=level, **kwargs)
         value = content = attributes = None
 
-        # Get the instance type: xsi:type or the schema's declaration
-        if XSI_TYPE not in elem.attrib:
-            xsd_type = self.get_type(elem)
-        else:
-            xsi_type = elem.attrib[XSI_TYPE]
+        # Get the instance effective type
+        xsd_type = self.get_type(elem)
+        if XSI_TYPE in elem.attrib:
+            type_name = elem.attrib[XSI_TYPE]
             try:
-                xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
-            except KeyError:
-                yield self.validation_error(validation, "unknown type %r" % xsi_type, elem, **kwargs)
-                xsd_type = self.get_type(elem)
+                if hasattr(xsd_type, 'attributes') and XSI_TYPE in xsd_type.attributes:
+                    xsd_type.attributes[XSI_TYPE].validate(type_name)
+            except XMLSchemaValidationError as err:
+                yield self.validation_error(validation, err, elem, **kwargs)
+            else:
+                try:
+                    xsi_type = self.maps.lookup_type(converter.unmap_qname(type_name))
+                except KeyError as err:
+                    yield self.validation_error(validation, err, elem, **kwargs)
+                else:
+                    if xsi_type.is_derived(xsd_type):
+                        xsd_type = xsi_type
+                    else:
+                        reason = "%r is not a derived type of %r" % (xsd_type, self.type)
+                        yield self.validation_error(validation, reason, elem, **kwargs)
 
         # Decode attributes
-        attribute_group = getattr(xsd_type, 'attributes', self.attributes)
+        attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_decode(elem.attrib, validation, level=level, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, elem, **kwargs)
@@ -474,23 +488,28 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 attributes = result
 
         # Checks the xsi:nil attribute of the instance
-        if validation != 'skip' and XSI_NIL in elem.attrib:
+        if XSI_NIL in elem.attrib:
+            xsi_nil = elem.attrib[XSI_NIL].strip()
             if not self.nillable:
                 yield self.validation_error(validation, "element is not nillable.", elem, **kwargs)
-            try:
-                if elem.attrib[XSI_NIL].strip() in ('true', '1'):
-                    if elem.text is not None:
-                        reason = "xsi:nil='true' but the element is not empty."
-                        yield self.validation_error(validation, reason, elem, **kwargs)
-                    else:
-                        element_data = ElementData(elem.tag, None, None, attributes)
-                        yield converter.element_decode(element_data, self, level)
-                        return
-            except TypeError:
+            elif xsi_nil not in {'0', '1', 'false', 'true'}:
                 reason = "xsi:nil attribute must has a boolean value."
                 yield self.validation_error(validation, reason, elem, **kwargs)
+            elif xsi_nil in ('0', 'false'):
+                pass
+            elif elem.text is not None or len(elem):
+                reason = "xsi:nil='true' but the element is not empty."
+                yield self.validation_error(validation, reason, elem, **kwargs)
+            else:
+                element_data = ElementData(elem.tag, None, None, attributes)
+                yield converter.element_decode(element_data, self, level)
+                return
 
         if not xsd_type.has_simple_content():
+            for assertion in xsd_type.assertions:
+                for error in assertion(elem, **kwargs):
+                    yield self.validation_error(validation, error, **kwargs)
+
             for result in xsd_type.content_type.iter_decode(
                     elem, validation, converter, level + 1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
@@ -515,21 +534,28 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not text and kwargs.get('use_defaults') and self.default is not None:
                 text = self.default
 
-            if not xsd_type.is_simple():
+            if xsd_type.is_complex():
+                if text and xsd_type.content_type.is_list():
+                    value = text.split()
+                else:
+                    value = text
+
                 for assertion in xsd_type.assertions:
-                    for error in assertion(elem, value=text):
+                    for error in assertion(elem, value=value, **kwargs):
                         yield self.validation_error(validation, error, **kwargs)
 
                 xsd_type = xsd_type.content_type
 
             if text is None:
-                for result in xsd_type.iter_decode('', validation, **kwargs):
+                for result in xsd_type.iter_decode('', validation, _skip_id=True, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                for result in xsd_type.iter_decode(text, validation, level=level, **kwargs):
+                if level == 0:
+                    kwargs['_skip_id'] = True
+                for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                     elif result is None and 'filler' in kwargs:
@@ -594,20 +620,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             xsd_type = self.get_type(element_data)
 
-        attribute_group = getattr(xsd_type, 'attributes', self.attributes)
+        attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 errors.append(result)
             else:
                 attributes = result
 
-        if validation != 'skip' and XSI_NIL in element_data.attributes:
+        if XSI_NIL in element_data.attributes:
+            xsi_nil = element_data.attributes[XSI_NIL].strip()
             if not self.nillable:
                 errors.append("element is not nillable.")
-            xsi_nil = element_data.attributes[XSI_NIL]
-            if xsi_nil.strip() not in ('0', '1', 'true', 'false'):
+            elif xsi_nil not in {'0', '1', 'true', 'false'}:
                 errors.append("xsi:nil attribute must has a boolean value.")
-            if element_data.text is not None:
+            elif xsi_nil in ('0', 'false'):
+                pass
+            elif element_data.text is not None or element_data.content:
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
                 elem = converter.etree_element(element_data.tag, attrib=attributes, level=level)
@@ -865,6 +893,12 @@ class Xsd11Element(XsdElement):
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
 
+    def iter_substitutes(self):
+        for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+            yield xsd_element
+            for e in xsd_element.iter_substitutes():
+                yield e
+
     def get_type(self, elem):
         if not self.alternatives:
             return self.type
@@ -908,7 +942,7 @@ class Xsd11Element(XsdElement):
             if other.process_contents == 'skip':
                 return True
             xsd_element = other.match(self.name, self.default_namespace, resolve=True)
-            return xsd_element is None or self.is_consistent(xsd_element, False)
+            return xsd_element is None or self.is_consistent(xsd_element, strict=False)
 
         if self.name == other.name:
             e = self

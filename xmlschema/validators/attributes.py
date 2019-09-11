@@ -88,6 +88,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if 'default' in attrib:
             self.default = attrib['default']
 
+        if 'fixed' in attrib:
+            self.fixed = attrib['fixed']
+
         if self._parse_reference():
             try:
                 xsd_attribute = self.maps.lookup_attribute(self.name)
@@ -104,9 +107,11 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                     self.default = xsd_attribute.default
 
                 if xsd_attribute.fixed is not None:
-                    self.fixed = xsd_attribute.fixed
-                    if 'fixed' in attrib and attrib['fixed'] != self.fixed:
-                        self.parse_error("referenced attribute has a different fixed value %r" % xsd_attribute.fixed)
+                    if self.fixed is None:
+                        self.fixed = xsd_attribute.fixed
+                    elif xsd_attribute.fixed != self.fixed:
+                        msg = "referenced attribute has a different fixed value %r"
+                        self.parse_error(msg % xsd_attribute.fixed)
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
@@ -116,9 +121,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             if child is not None and child.tag == XSD_SIMPLE_TYPE:
                 self.parse_error("not allowed type definition for XSD attribute reference")
             return
-
-        if 'fixed' in attrib:
-            self.fixed = attrib['fixed']
 
         try:
             form = get_xsd_form_attribute(self.elem, 'form')
@@ -390,6 +392,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             except KeyError:
                 self.parse_error("an attribute group declaration requires a 'name' attribute.")
                 return
+            else:
+                if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
+                    self.schema.default_attributes = self
 
         attributes = ordered_dict_class()
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
@@ -601,6 +606,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             reason = "%r attribute not allowed for element." % name
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
+            else:
+                if xsd_attribute.use == 'prohibited':
+                    reason = "use of attribute %r is prohibited" % name
+                    yield self.validation_error(validation, reason, attrs, **kwargs)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):

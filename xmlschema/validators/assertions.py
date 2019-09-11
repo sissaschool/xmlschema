@@ -80,11 +80,15 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
 
-    def __call__(self, elem, value=None):
+    def __call__(self, elem, value=None, source=None, **kwargs):
         self.parser.variables['value'] = value
-        if not self.token.evaluate(XPathContext(root=elem)):
-            msg = "expression is not true with test path %r."
-            yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
+        root = elem if source is None else source.root
+        try:
+            if not self.token.evaluate(XPathContext(root=root, item=elem)):
+                msg = "expression is not true with test path %r."
+                yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
+        except ElementPathError as err:
+            yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
 
     # For implementing ElementPathMixin
     def __iter__(self):

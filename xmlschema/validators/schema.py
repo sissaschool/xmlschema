@@ -319,6 +319,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         self.converter = self.get_converter(converter)
         self.xpath_proxy = XMLSchemaProxy(self)
+        self.empty_attribute_group = self.BUILDERS.attribute_group_class(
+            etree_element(XSD_ATTRIBUTE_GROUP), self, self
+        )
 
         # Create or set the XSD global maps instance
         if self.meta_schema is None:
@@ -634,16 +637,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         return group
 
-    def create_any_attribute_group(self, parent):
-        """
-        Creates an attribute group related to schema instance that accepts any attribute.
-
-        :param parent: the parent component to set for the any attribute group.
-        """
-        attribute_group = self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
-        attribute_group[None] = self.BUILDERS.any_attribute_class(ANY_ATTRIBUTE_ELEMENT, self, attribute_group)
-        return attribute_group
-
     def create_empty_content_group(self, parent, model='sequence'):
         if model == 'sequence':
             group_elem = etree_element(XSD_SEQUENCE)
@@ -657,8 +650,33 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         group_elem.text = '\n    '
         return self.BUILDERS.group_class(group_elem, self, parent)
 
+    def create_any_attribute_group(self, parent):
+        """
+        Creates an attribute group related to schema instance that accepts any attribute.
+
+        :param parent: the parent component to set for the any attribute group.
+        """
+        attribute_group = self.BUILDERS.attribute_group_class(
+            ATTRIBUTE_GROUP_ELEMENT, self, parent
+        )
+        attribute_group[None] = self.BUILDERS.any_attribute_class(
+            ANY_ATTRIBUTE_ELEMENT, self, attribute_group
+        )
+        return attribute_group
+
+    def create_empty_attribute_group(self, parent):
+        """
+        Creates an empty attribute group related to schema instance.
+
+        :param parent: the parent component to set for the any attribute group.
+        """
+        return self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
+
     def copy(self):
-        """Makes a copy of the schema instance. The new instance has independent maps of shared XSD components."""
+        """
+        Makes a copy of the schema instance. The new instance has independent maps
+        of shared XSD components.
+        """
         schema = object.__new__(self.__class__)
         schema.__dict__.update(self.__dict__)
         schema.source = self.source.copy()

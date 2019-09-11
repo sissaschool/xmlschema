@@ -197,7 +197,9 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
         test_conf = {}
 
         for version in xsd_version.split():
-            if version not in args.version:
+            if 'version' in elem.attrib and version not in elem.attrib['version']:
+                continue
+            elif version not in args.version:
                 continue
             elif version == '1.1' and source_href in XSD11_SKIPPED_TESTS:
                 continue

@@ -20,7 +20,7 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ELEMENT, XSD_ANY
 from xmlschema.helpers import get_qname, local_name
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaModelError, XMLSchemaChildrenValidationError
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
@@ -545,6 +545,17 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     else:
                         continue
                     break
+                elif isinstance(xsd_element, XsdAnyElement):
+                    try:
+                        matched_element = self.maps.lookup_element(child.tag)
+                    except LookupError:
+                        pass
+                    else:
+                        # EDC check of matched element
+                        for e in filter(lambda x: isinstance(x, XsdElement), self.iter_elements()):
+                            if not matched_element.is_consistent(e):
+                                msg = "%r that matches %r is not consistent with local declaration %r"
+                                raise XMLSchemaModelError(self, msg % (child, xsd_element, e))
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))

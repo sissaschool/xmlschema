@@ -323,6 +323,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         </any>
     """
     _ADMITTED_TAGS = {XSD_ANY}
+    precedences = ()
 
     def __repr__(self):
         if self.namespace:
@@ -409,6 +410,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
         name, value = obj
         namespace = get_namespace(name)
+
         if self.is_namespace_allowed(namespace):
             self._load_namespace(namespace)
             try:
@@ -502,9 +504,8 @@ class XsdAnyAttribute(XsdWildcard):
             return
 
         name, value = attribute
-        namespace = get_namespace(name)
-        if self.is_namespace_allowed(namespace):
-            self._load_namespace(namespace)
+        if self.is_matching(name):
+            self._load_namespace(get_namespace(name))
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
@@ -559,8 +560,6 @@ class Xsd11AnyElement(XsdAnyElement):
           Content: (annotation?)
         </any>
     """
-    precedences = ()
-
     def _parse(self):
         super(Xsd11AnyElement, self)._parse()
         self._parse_not_constraints()
@@ -607,7 +606,7 @@ class Xsd11AnyElement(XsdAnyElement):
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
         xsd_element = self.match(other.name, other.default_namespace, resolve=True)
-        return xsd_element is None or other.is_consistent(xsd_element, False)
+        return xsd_element is None or other.is_consistent(xsd_element, strict=False)
 
     def add_precedence(self, other, group):
         if not self.precedences:
@@ -636,7 +635,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
         super(Xsd11AnyAttribute, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, **kwargs):
         if name is None:
             return False
         elif not name or name[0] == '{':

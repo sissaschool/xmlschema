@@ -517,7 +517,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
 
-        if self.name == XSD_ID and kwargs.get('level'):
+        if self.name == XSD_ID and '_skip_id' not in kwargs:
             try:
                 id_map = kwargs['id_map']
             except KeyError:

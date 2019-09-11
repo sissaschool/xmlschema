@@ -578,7 +578,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         """
         # XSD 1.1 assertions
         for assertion in self.assertions:
-            for error in assertion(elem):
+            for error in assertion(elem, **kwargs):
                 yield self.validation_error(validation, error, **kwargs)
 
         for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
@@ -699,11 +699,14 @@ class Xsd11ComplexType(XsdComplexType):
                     elif not self.attributes[name].inheritable:
                         self.parse_error("attribute %r must be inheritable")
 
-        if self.elem.get('defaultAttributesApply') in {'false', '0'}:
-            self.default_attributes_apply = False
+        if 'defaultAttributesApply' in self.elem.attrib:
+            if self.elem.attrib['defaultAttributesApply'].strip() in {'false', '0'}:
+                self.default_attributes_apply = False
 
         # Add default attributes
-        if self.default_attributes_apply and isinstance(self.schema.default_attributes, XsdAttributeGroup):
+        if self.schema.default_attributes is None:
+            pass
+        elif self.default_attributes_apply:
             if self.redefine is None and any(k in self.attributes for k in self.schema.default_attributes):
                 self.parse_error("at least a default attribute is already declared in the complex type")
             self.attributes.update(

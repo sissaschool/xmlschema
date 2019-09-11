@@ -158,9 +158,9 @@ class ElementPathMixin(Sequence):
     :cvar text: The Element text. Its value is always `None`. For compatibility with the ElementTree API.
     :cvar tail: The Element tail. Its value is always `None`. For compatibility with the ElementTree API.
     """
-    _attrib = {}
     text = None
     tail = None
+    attributes = {}
     namespaces = {}
     xpath_default_namespace = None
     xpath_proxy = None
@@ -189,11 +189,11 @@ class ElementPathMixin(Sequence):
     @property
     def attrib(self):
         """Returns the Element attributes. For compatibility with the ElementTree API."""
-        return getattr(self, 'attributes', self._attrib)
+        return self.attributes
 
     def get(self, key, default=None):
         """Gets an Element attribute. For compatibility with the ElementTree API."""
-        return self.attrib.get(key, default)
+        return self.attributes.get(key, default)
 
     def iterfind(self, path, namespaces=None):
         """
