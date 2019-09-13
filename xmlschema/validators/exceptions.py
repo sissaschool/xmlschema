@@ -13,7 +13,7 @@ This module contains exception and warning classes for the 'xmlschema.validators
 """
 from __future__ import unicode_literals
 
-from ..compat import PY3
+from ..compat import PY3, string_base_type
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..etree import etree_tostring, is_etree_element, etree_getpath
 from ..helpers import qname_to_prefixed
@@ -198,9 +198,14 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :type namespaces: dict
     """
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
+        if not isinstance(obj, string_base_type):
+            _obj = obj
+        else:
+            _obj =  obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8')
+
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,
-            message="failed validating {!r} with {!r}".format(obj, validator),
+            message="failed validating {!r} with {!r}".format(_obj, validator),
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,

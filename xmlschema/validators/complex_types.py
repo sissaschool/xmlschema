@@ -335,6 +335,8 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             content_type = self.schema.create_empty_content_group(self, base_type.content_type.model)
 
+        content_type.restriction = base_type.content_type
+
         if base_type.is_element_only() and content_type.mixed:
             self.parse_error(
                 "derived a mixed content from a base type that has element-only content.", elem
@@ -355,6 +357,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             msg = "{!r} is not a restriction of the base type {!r}"
             self.parse_error(msg.format(self.open_content, base_type.open_content))
 
+        content_type
         self.content_type = content_type
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
 

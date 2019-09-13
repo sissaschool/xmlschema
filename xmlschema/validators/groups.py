@@ -77,6 +77,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     mixed = False
     model = None
     redefine = None
+    restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
     suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'
 
@@ -545,14 +546,17 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     else:
                         continue
                     break
-                elif isinstance(xsd_element, XsdAnyElement):
+                elif isinstance(xsd_element, XsdAnyElement) and xsd_element.process_contents != 'skip':
                     try:
                         matched_element = self.maps.lookup_element(child.tag)
                     except LookupError:
                         pass
                     else:
+                        # If it's a restriction the context is the base_type's group
+                        group = self.restriction if self.restriction is not None else self
+
                         # EDC check of matched element
-                        for e in filter(lambda x: isinstance(x, XsdElement), self.iter_elements()):
+                        for e in filter(lambda x: isinstance(x, XsdElement), group.iter_elements()):
                             if not matched_element.is_consistent(e):
                                 msg = "%r that matches %r is not consistent with local declaration %r"
                                 raise XMLSchemaModelError(self, msg % (child, xsd_element, e))

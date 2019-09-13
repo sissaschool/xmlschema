@@ -98,6 +98,15 @@ SKIPPED_TESTS = {
     # Invalid XML tests
     '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
     '../msData/additional/test93490_8.xml',     # 4799: Idem
+
+    # Skip for missing XML version 1.1 implementation
+    '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
+    '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
+    '../saxonData/XmlVersions/xv005.v01.xml',   # 14854
+    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
+    '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
 }
 
 XSD11_SKIPPED_TESTS = {
@@ -185,7 +194,10 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                 return
             if source_href in SKIPPED_TESTS:
                 if args.numbers:
-                    print("Skip test number %d ..." % testgroup_num)
+                    if source_href.endswith('.xsd'):
+                        print("Skip test number %d ..." % testgroup_num)
+                    else:
+                        print("Skip file %r for test number %d ..." % (source_href, testgroup_num))
                 return
 
         # Normalize and check file path
