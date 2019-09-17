@@ -240,14 +240,17 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             return all(ns in other.namespace for ns in self.namespace)
 
-    def extend(self, other):
+    def union(self, other):
         """Extends the XSD wildcard to include the namespace of another XSD wildcard."""
+        if self.not_qname:
+            self.not_qname = [qname for qname in self.not_qname if qname in other.not_qname]
+
         if self.not_namespace:
             if other.not_namespace:
                 self.not_namespace = [ns for ns in self.not_namespace if ns in other.not_namespace]
-            elif other.namespace == '##any':
+            elif '##any' in other.namespace:
                 self.not_namespace = ()
-            elif other.namespace != '##other':
+            elif '##other' not in other.namespace:
                 self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
             elif other.target_namespace in self.not_namespace:
                 self.not_namespace = ['', other.target_namespace] if other.target_namespace else ['']
@@ -259,9 +262,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return
 
         elif other.not_namespace:
-            if self.namespace == '##any':
+            if '##any' in self.namespace:
                 return
-            elif self.namespace != '##other':
+            elif '##other' not in self.namespace:
                 self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
             elif self.target_namespace in other.not_namespace:
                 self.not_namespace = ['', self.target_namespace] if self.target_namespace else ['']
@@ -300,6 +303,59 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             self.namespace = []
             self.not_namespace = ['', w1.target_namespace] if w1.target_namespace else ['']
+
+    def intersection(self, other):
+        """Intersects the XSD wildcard with another XSD wildcard."""
+        if self.not_qname:
+            self.not_qname.extend([qname for qname in other.not_qname if qname in self.not_qname])
+        else:
+            self.not_qname = [qname for qname in other.not_qname]
+
+        if self.not_namespace:
+            if other.not_namespace:
+                self.not_namespace.extend(ns for ns in other.not_namespace if ns not in self.not_namespace)
+            elif '##any' in other.namespace:
+                pass
+            elif '##other' not in other.namespace:
+                self.namespace = [ns for ns in other.namespace if ns not in self.not_namespace]
+                self.not_namespace = ()
+            else:
+                if other.target_namespace not in self.not_namespace:
+                    self.not_namespace.append(other.target_namespace)
+                if '' not in self.not_namespace:
+                    self.not_namespace.append('')
+            return
+
+        elif other.not_namespace:
+            if '##any' in self.namespace:
+                self.not_namespace = [ns for ns in other.not_namespace]
+                self.namespace = ()
+            elif '##other' not in self.namespace:
+                self.namespace = [ns for ns in self.namespace if ns not in other.not_namespace]
+            else:
+                self.not_namespace = [ns for ns in other.not_namespace]
+                if self.target_namespace not in self.not_namespace:
+                    self.not_namespace.append(self.target_namespace)
+                if '' not in self.not_namespace:
+                    self.not_namespace.append('')
+                self.namespace = ()
+            return
+
+        if self.namespace == other.namespace:
+            return
+        elif '##any' in other.namespace:
+            return
+        elif '##any' in self.namespace:
+            self.namespace = other.namespace[:]
+        elif '##other' in self.namespace:
+            self.namespace = [ns for ns in other.namespace if ns not in ('', self.target_namespace)]
+        elif '##other' not in other.namespace:
+            self.namespace = [ns for ns in self.namespace if ns in other.namespace]
+        else:
+            if other.target_namespace in self.namespace:
+                self.namespace.remove(other.target_namespace)
+            if '' in self.namespace:
+                self.namespace.remove('')
 
     def iter_decode(self, source, validation='lax', **kwargs):
         raise NotImplementedError
@@ -382,11 +438,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return iter(())
 
     def iter_decode(self, elem, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
-
         namespace = get_namespace(elem.tag)
         if self.is_namespace_allowed(namespace):
+            if self.process_contents == 'skip':
+                return
+
             self._load_namespace(namespace)
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
@@ -500,11 +556,11 @@ class XsdAnyAttribute(XsdWildcard):
             pass
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
-
         name, value = attribute
         if self.is_matching(name):
+            if self.process_contents == 'skip':
+                return
+
             self._load_namespace(get_namespace(name))
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)

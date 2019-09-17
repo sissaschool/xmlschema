@@ -23,8 +23,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, \
     XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, \
-    XSD_ERROR, XSD_ASSERT
-from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
+    XSD_ERROR, XSD_ASSERT, XSI_TYPE
+from ..helpers import get_qname, local_name, qname_to_extended, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
@@ -386,6 +386,13 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
     def get_facet(self, tag):
         return self.facets.get(tag)
+
+    def get_instance_type(self, attrs, namespaces):
+        type_qname = qname_to_extended(attrs[XSI_TYPE], namespaces)
+        xsi_type = self.maps.lookup_type(type_qname)
+        if not xsi_type.is_derived(self):
+            raise XMLSchemaValueError("%r is not a derived type of %r" % (xsi_type, self))
+        return xsi_type
 
 
 #
@@ -877,6 +884,10 @@ class XsdUnion(XsdSimpleType):
 
     def is_list(self):
         return all(mt.is_list() for mt in self.member_types)
+
+    def is_dynamic_consistent(self, other):
+        return other.is_derived(self) or hasattr(other, 'member_types') and \
+            any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

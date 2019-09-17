@@ -65,6 +65,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         </element>
     """
     type = None
+    alternatives = ()
     qualified = False
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
@@ -461,23 +462,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         # Get the instance effective type
         xsd_type = self.get_type(elem)
         if XSI_TYPE in elem.attrib:
-            type_name = elem.attrib[XSI_TYPE]
             try:
-                if hasattr(xsd_type, 'attributes') and XSI_TYPE in xsd_type.attributes:
-                    xsd_type.attributes[XSI_TYPE].validate(type_name)
-            except XMLSchemaValidationError as err:
+                xsd_type = xsd_type.get_instance_type(elem.attrib, converter)
+            except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
-            else:
-                try:
-                    xsi_type = self.maps.lookup_type(converter.unmap_qname(type_name))
-                except KeyError as err:
-                    yield self.validation_error(validation, err, elem, **kwargs)
-                else:
-                    if xsi_type.is_derived(xsd_type):
-                        xsd_type = xsi_type
-                    else:
-                        reason = "%r is not a derived type of %r" % (xsd_type, self.type)
-                        yield self.validation_error(validation, reason, elem, **kwargs)
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
@@ -610,15 +598,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         children = element_data.content
         attributes = ()
 
-        if element_data.attributes and XSI_TYPE in element_data.attributes:
-            xsi_type = element_data.attributes[XSI_TYPE]
+        xsd_type = self.get_type(element_data)
+        if XSI_TYPE in element_data.attributes:
             try:
-                xsd_type = self.maps.lookup_type(converter.unmap_qname(xsi_type))
-            except KeyError:
-                errors.append("unknown type %r" % xsi_type)
-                xsd_type = self.get_type(element_data)
-        else:
-            xsd_type = self.get_type(element_data)
+                xsd_type = xsd_type.get_instance_type(element_data.attributes, converter)
+            except (KeyError, TypeError) as err:
+                errors.append(err)
 
         attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
@@ -801,6 +786,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         return self.name != other.name or self.type is other.type
 
+    def is_dynamic_consistent(self, other, xsd_type=None):
+        return self.name != other.name or xsd_type.is_dynamic_consistent(other.type)
+
 
 class Xsd11Element(XsdElement):
     """
@@ -826,7 +814,6 @@ class Xsd11Element(XsdElement):
           Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
         </element>
     """
-    alternatives = ()
     _target_namespace = None
 
     def _parse(self):
@@ -964,6 +951,27 @@ class Xsd11Element(XsdElement):
             warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
         return True
 
+    def is_dynamic_consistent(self, other, xsd_type=None):
+        if self.name == other.name:
+            e = self
+        else:
+            for e in self.iter_substitutes():
+                if e.name == other.name:
+                    break
+            else:
+                return True
+
+        if xsd_type is None:
+            xsd_type = e.type
+        if len(e.alternatives) != len(other.alternatives):
+            return False
+        elif not xsd_type.is_dynamic_consistent(other.type):
+            return False
+        elif not all(any(a == x for x in other.alternatives) for a in e.alternatives) or \
+                not all(any(a == x for x in e.alternatives) for a in other.alternatives):
+            msg = "Maybe a not equivalent type table between elements %r and %r." % (self, other)
+            warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
+        return True
 
 class XsdAlternative(XsdComponent):
     """

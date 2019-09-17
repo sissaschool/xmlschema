@@ -82,7 +82,7 @@ class NamespaceResourcesMap(MutableMapping):
 
 class NamespaceMapper(MutableMapping):
     """
-    A class to map/unmap namespace prefixes to URIs.
+    A class to map/unmap namespace prefixes to URIs. The
 
     :param namespaces: Initial data with namespace prefixes and URIs.
     """

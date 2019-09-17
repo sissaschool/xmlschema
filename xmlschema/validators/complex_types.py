@@ -10,12 +10,12 @@
 #
 from __future__ import unicode_literals
 
-from ..exceptions import XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, \
     XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, \
-    XSD_OPEN_CONTENT, XSD_ASSERT
-from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
+    XSD_OPEN_CONTENT, XSD_ASSERT, XSI_TYPE
+from ..helpers import get_qname, local_name, qname_to_extended, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdType, ValidationMixin
@@ -357,7 +357,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             msg = "{!r} is not a restriction of the base type {!r}"
             self.parse_error(msg.format(self.open_content, base_type.open_content))
 
-        content_type
         self.content_type = content_type
         self._parse_content_tail(elem, derivation='restriction', base_attributes=base_type.attributes)
 
@@ -538,6 +537,17 @@ class XsdComplexType(XsdType, ValidationMixin):
     @staticmethod
     def get_facet(*_args, **_kwargs):
         return None
+
+    def get_instance_type(self, attrs, namespaces):
+        if XSI_TYPE in self.attributes:
+            self.attributes[XSI_TYPE].validate(attrs[XSI_TYPE])
+
+        type_qname = qname_to_extended(attrs[XSI_TYPE], namespaces)
+        xsi_type = self.maps.lookup_type(type_qname)
+        if not xsi_type.is_derived(self):
+            raise XMLSchemaTypeError("%r is not a derived type of %r" % (xsi_type, self))
+
+        return xsi_type
 
     def admit_simple_restriction(self):
         if 'restriction' in self.final:
@@ -733,7 +743,7 @@ class Xsd11ComplexType(XsdComplexType):
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)
             try:
-                self.open_content.any_element.extend(base_type.open_content.any_element)
+                self.open_content.any_element.union(base_type.open_content.any_element)
             except AttributeError:
                 pass
         else:

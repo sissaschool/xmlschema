@@ -12,15 +12,17 @@
 This module contains classes for XML Schema model groups.
 """
 from __future__ import unicode_literals
+import warnings
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ELEMENT, XSD_ANY
+    XSD_CHOICE, XSD_ELEMENT, XSD_ANY, XSI_TYPE
 from xmlschema.helpers import get_qname, local_name
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaModelError, XMLSchemaChildrenValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
+    XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
@@ -479,6 +481,62 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
+    def check_dynamic_context(self, elem, xsd_element, converter):
+        if isinstance(xsd_element, XsdAnyElement):
+            if xsd_element.process_contents == 'skip':
+                return
+
+            try:
+                xsd_element = self.maps.lookup_element(elem.tag)
+            except LookupError:
+                alternatives = ()
+                try:
+                    xsd_type = self.any_type.get_instance_type(elem.attrib, converter)
+                except KeyError:
+                    return
+            else:
+                alternatives = xsd_element.alternatives
+                try:
+                    xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
+                except KeyError:
+                    xsd_type = xsd_element.type
+
+        elif XSI_TYPE not in elem.attrib:
+            return
+        else:
+            alternatives = xsd_element.alternatives
+            try:
+                xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
+            except KeyError:
+                xsd_type = xsd_element.type
+
+        # If it's a restriction the context is the base_type's group
+        group = self.restriction if self.restriction is not None else self
+
+        # Dynamic EDC check of matched element
+        for e in filter(lambda x: isinstance(x, XsdElement), group.iter_elements()):
+            if e.name == elem.tag:
+                pass
+            else:
+                for e in e.iter_substitutes():
+                    if e.name == elem.tag:
+                        break
+                else:
+                    continue
+
+            if len(e.alternatives) != len(alternatives):
+                pass
+            elif not xsd_type.is_dynamic_consistent(e.type):
+                pass
+            elif not all(any(a == x for x in alternatives) for a in e.alternatives) or \
+                    not all(any(a == x for x in e.alternatives) for a in alternatives):
+                msg = "Maybe a not equivalent type table between elements %r and %r." % (self, xsd_element)
+                warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
+                continue
+
+            reason = "%r that matches %r is not consistent with local declaration %r"
+            raise XMLSchemaValidationError(self, reason % (elem, xsd_element, e))
+
     def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """
         Creates an iterator for decoding an Element content.
@@ -546,20 +604,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     else:
                         continue
                     break
-                elif isinstance(xsd_element, XsdAnyElement) and xsd_element.process_contents != 'skip':
-                    try:
-                        matched_element = self.maps.lookup_element(child.tag)
-                    except LookupError:
-                        pass
-                    else:
-                        # If it's a restriction the context is the base_type's group
-                        group = self.restriction if self.restriction is not None else self
 
-                        # EDC check of matched element
-                        for e in filter(lambda x: isinstance(x, XsdElement), group.iter_elements()):
-                            if not matched_element.is_consistent(e):
-                                msg = "%r that matches %r is not consistent with local declaration %r"
-                                raise XMLSchemaModelError(self, msg % (child, xsd_element, e))
+                try:
+                    self.check_dynamic_context(child, xsd_element, converter)
+                except XMLSchemaValidationError as err:
+                    yield self.validation_error(validation, err, elem, **kwargs)
 
                 for particle, occurs, expected in model.advance(True):
                     errors.append((index, particle, occurs, expected))
@@ -855,7 +904,7 @@ class Xsd11Group(XsdGroup):
         for w1 in filter(lambda x: isinstance(x, XsdAnyElement), base_items):
             for w2 in wildcards:
                 if w1.process_contents == w2.process_contents and w1.occurs == w2.occurs:
-                    w2.extend(w1)
+                    w2.union(w1)
                     w2.extended = True
                     break
             else:

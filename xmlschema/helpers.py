@@ -68,12 +68,13 @@ def local_name(qname):
 
 def qname_to_prefixed(qname, namespaces):
     """
-    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
-    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
+    Transforms a fully qualified name into a prefixed name using a namespace map.
+    Returns the *qname* argument if it's not a fully qualified name or if it has
+    boolean value `False`.
 
-    :param qname: a fully qualified name or a local name.
+    :param qname: an extended QName or a local name.
     :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a prefixed or local reference.
+    :return: a QName in prefixed format or a local name.
     """
     if not qname:
         return qname
@@ -88,6 +89,36 @@ def qname_to_prefixed(qname, namespaces):
             return qname.replace('{%s}' % uri, '')
     else:
         return qname
+
+
+def qname_to_extended(qname, namespaces):
+    """
+    Converts a QName in prefixed format or a local name to the extended QName format.
+
+    :param qname: a QName in prefixed format or a local name.
+    :param namespaces: a map from prefixes to namespace URIs.
+    :return: a QName in extended format or a local name.
+    """
+    try:
+        if qname[0] == '{' or not namespaces:
+            return qname
+    except IndexError:
+        return qname
+
+    try:
+        prefix, name = qname.split(':', 1)
+    except ValueError:
+        if not namespaces.get(''):
+            return qname
+        else:
+            return '{%s}%s' % (namespaces[''], qname)
+    else:
+        try:
+            uri = namespaces[prefix]
+        except KeyError:
+            return qname
+        else:
+            return u'{%s}%s' % (uri, name) if uri else name
 
 
 def get_xsd_annotation(elem):

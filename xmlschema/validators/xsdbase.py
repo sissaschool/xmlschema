@@ -633,6 +633,10 @@ class XsdType(XsdComponent):
     def is_derived(self, other, derivation=None):
         raise NotImplementedError
 
+    def is_dynamic_consistent(self, other):
+        return other.is_derived(self) or hasattr(other, 'member_types') and \
+            any(mt.is_derived(self) for mt in other.member_types)
+
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
 

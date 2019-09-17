@@ -452,10 +452,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     else:
                         if not isinstance(base_attributes, tuple):
                             for name, attr in base_attributes.items():
-                                if name is not None and name in attributes:
+                                if name not in attributes:
+                                    attributes[name] = attr
+                                elif name is not None:
                                     self.parse_error("multiple declaration for attribute {!r}".format(name))
                                 else:
-                                    attributes[name] = attr
+                                    attributes[name].intersection(attr)
+
                         elif self.xsd_version == '1.0':
                             self.parse_error("Circular reference found between attribute groups "
                                              "{!r} and {!r}".format(self.name, attribute_group_qname))
@@ -479,7 +482,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if name is None:
                     if self.derivation == 'extension':
                         try:
-                            attr.extend(base_attr)
+                            attr.union(base_attr)
                         except ValueError as err:
                             self.parse_error(err)
                     elif not attr.is_restriction(base_attr):

@@ -174,14 +174,14 @@ class TestXsd11Wildcards(TestXsdWildcards):
         any1, any2, any3, any4 = schema.groups['group1'][:]
 
         self.assertListEqual(any1.namespace, ['tns1'])
-        any1.extend(any2)
+        any1.union(any2)
         self.assertListEqual(any1.namespace, ['tns1', 'tns2'])
 
         self.assertListEqual(any3.namespace, [])
         self.assertListEqual(any3.not_namespace, ['tns1'])
-        any3.extend(any4)
+        any3.union(any4)
         self.assertListEqual(any3.not_namespace, ['tns1'])
-        any4.extend(any3)
+        any4.union(any3)
         self.assertListEqual(any4.not_namespace, ['tns1'])
 
     def test_open_content_mode_interleave(self):

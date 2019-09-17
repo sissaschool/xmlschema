@@ -36,6 +36,7 @@ attributes.
 
 
 def raw_xml_encode(value):
+    """Encodes a simple value to XML."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
     elif isinstance(value, (list, tuple)):
