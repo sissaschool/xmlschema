@@ -209,7 +209,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif other.not_qname:
             if not self.deny_qnames(x for x in other.not_qname if not x.startswith('##')):
                 return False
-        elif any(not other.is_namespace_allowed(get_namespace(x)) for x in self.not_qname if not x.startswith('##')):
+        elif any(not other.is_namespace_allowed(get_namespace(x))
+                 for x in self.not_qname if not x.startswith('##')):
             return False
 
         if self.not_namespace:
@@ -244,8 +245,11 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         """
         Update an XSD wildcard with the union of itself and another XSD wildcard.
         """
-        if self.not_qname:
-            self.not_qname = [qname for qname in self.not_qname if qname in other.not_qname]
+        if not self.not_qname:
+            self.not_qname = other.not_qname[:]
+        else:
+            self.not_qname = [x for x in self.not_qname if x in other.not_qname or
+                              not other.is_namespace_allowed(get_namespace(x))]
 
         if self.not_namespace:
             if other.not_namespace:
