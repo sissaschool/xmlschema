@@ -241,7 +241,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return all(ns in other.namespace for ns in self.namespace)
 
     def union(self, other):
-        """Extends the XSD wildcard to include the namespace of another XSD wildcard."""
+        """
+        Update an XSD wildcard with the union of itself and another XSD wildcard.
+        """
         if self.not_qname:
             self.not_qname = [qname for qname in self.not_qname if qname in other.not_qname]
 
@@ -249,13 +251,14 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             if other.not_namespace:
                 self.not_namespace = [ns for ns in self.not_namespace if ns in other.not_namespace]
             elif '##any' in other.namespace:
-                self.not_namespace = ()
-            elif '##other' not in other.namespace:
-                self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
-            elif other.target_namespace in self.not_namespace:
-                self.not_namespace = ['', other.target_namespace] if other.target_namespace else ['']
+                self.not_namespace = []
+                self.namespace = ['##any']
+                return
+            elif '##other' in other.namespace:
+                not_namespace = ('', other.target_namespace)
+                self.not_namespace = [ns for ns in self.not_namespace if ns in not_namespace]
             else:
-                self.not_namespace = ()
+                self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
 
             if not self.not_namespace:
                 self.namespace = ['##any']
@@ -264,15 +267,13 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif other.not_namespace:
             if '##any' in self.namespace:
                 return
-            elif '##other' not in self.namespace:
-                self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
-            elif self.target_namespace in other.not_namespace:
-                self.not_namespace = ['', self.target_namespace] if self.target_namespace else ['']
+            elif '##other' in self.namespace:
+                not_namespace = ('', self.target_namespace)
+                self.not_namespace = [ns for ns in other.not_namespace if ns in not_namespace]
             else:
-                self.not_namespace = ()
+                self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
 
-            if not self.not_namespace:
-                self.namespace = ['##any']
+            self.namespace = ['##any'] if not self.not_namespace else []
             return
 
         if '##any' in self.namespace or self.namespace == other.namespace:
@@ -288,12 +289,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.namespace.extend(ns for ns in other.namespace if ns not in self.namespace)
             return
 
-        if w2.not_namespace:
-            self.not_namespace = [ns for ns in w2.not_namespace]
-            if w1.target_namespace not in self.not_namespace:
-                self.not_namespace.append(w1.target_namespace)
-            self.namespace = []
-        elif w1.target_namespace in w2.namespace and '' in w2.namespace:
+        if w1.target_namespace in w2.namespace and '' in w2.namespace:
             self.namespace = ['##any']
         elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
             self.namespace = ['##other']
@@ -305,7 +301,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.not_namespace = ['', w1.target_namespace] if w1.target_namespace else ['']
 
     def intersection(self, other):
-        """Intersects the XSD wildcard with another XSD wildcard."""
+        """
+        Update an XSD wildcard with the intersection of itself and another XSD wildcard.
+        """
         if self.not_qname:
             self.not_qname.extend([qname for qname in other.not_qname if qname in self.not_qname])
         else:
@@ -318,7 +316,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
                 pass
             elif '##other' not in other.namespace:
                 self.namespace = [ns for ns in other.namespace if ns not in self.not_namespace]
-                self.not_namespace = ()
+                self.not_namespace = []
             else:
                 if other.target_namespace not in self.not_namespace:
                     self.not_namespace.append(other.target_namespace)
@@ -329,7 +327,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif other.not_namespace:
             if '##any' in self.namespace:
                 self.not_namespace = [ns for ns in other.not_namespace]
-                self.namespace = ()
+                self.namespace = []
             elif '##other' not in self.namespace:
                 self.namespace = [ns for ns in self.namespace if ns not in other.not_namespace]
             else:
@@ -338,7 +336,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
                     self.not_namespace.append(self.target_namespace)
                 if '' not in self.not_namespace:
                     self.not_namespace.append('')
-                self.namespace = ()
+                self.namespace = []
             return
 
         if self.namespace == other.namespace:
