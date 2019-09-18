@@ -516,26 +516,22 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         # Dynamic EDC check of matched element
         for e in filter(lambda x: isinstance(x, XsdElement), group.iter_elements()):
             if e.name == elem.tag:
-                pass
+                other = e
             else:
-                for e in e.iter_substitutes():
-                    if e.name == elem.tag:
+                for other in e.iter_substitutes():
+                    if other.name == elem.tag:
                         break
                 else:
                     continue
 
-            if len(e.alternatives) != len(alternatives):
-                pass
-            elif not xsd_type.is_dynamic_consistent(e.type):
-                pass
-            elif not all(any(a == x for x in alternatives) for a in e.alternatives) or \
-                    not all(any(a == x for x in e.alternatives) for a in alternatives):
+            if len(other.alternatives) != len(alternatives) or \
+                    not xsd_type.is_dynamic_consistent(other.type):
+                reason = "%r that matches %r is not consistent with local declaration %r"
+                raise XMLSchemaValidationError(self, reason % (elem, xsd_element, other))
+            elif not all(any(a == x for x in alternatives) for a in other.alternatives) or \
+                    not all(any(a == x for x in other.alternatives) for a in alternatives):
                 msg = "Maybe a not equivalent type table between elements %r and %r." % (self, xsd_element)
                 warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
-                continue
-
-            reason = "%r that matches %r is not consistent with local declaration %r"
-            raise XMLSchemaValidationError(self, reason % (elem, xsd_element, e))
 
     def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """

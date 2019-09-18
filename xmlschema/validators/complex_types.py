@@ -719,7 +719,7 @@ class Xsd11ComplexType(XsdComplexType):
         # Add default attributes
         if self.schema.default_attributes is None:
             pass
-        elif self.default_attributes_apply:
+        elif self.default_attributes_apply and not self.is_override():
             if self.redefine is None and any(k in self.attributes for k in self.schema.default_attributes):
                 self.parse_error("at least a default attribute is already declared in the complex type")
             self.attributes.update(

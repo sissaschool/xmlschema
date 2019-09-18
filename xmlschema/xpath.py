@@ -36,7 +36,7 @@ class XMLSchemaContext(XPathSchemaContext):
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
-                    if context.item.is_global:
+                    if context.item.parent is None:
                         for item in safe_iter_descendants(context):
                             yield item
                     elif getattr(context.item, 'ref', None) is not None:
@@ -64,7 +64,7 @@ class XMLSchemaContext(XPathSchemaContext):
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
-                    if context.item.is_global:
+                    if context.item.parent is None:
                         for item in safe_iter_context(context):
                             yield item
                     elif getattr(context.item, 'ref', None) is not None:
@@ -267,7 +267,7 @@ class ElementPathMixin(Sequence):
             if tag is None or elem.is_matching(tag):
                 yield elem
             for child in elem:
-                if child.is_global:
+                if child.parent is None:
                     for e in safe_iter(child):
                         yield e
                 elif getattr(child, 'ref', None) is not None:

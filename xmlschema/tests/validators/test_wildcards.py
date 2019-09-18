@@ -231,6 +231,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
                 <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
                 <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
                 <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
+                <xs:any namespace="##any" notQName="##defined qn1"/> 
+                <xs:any namespace="##local" notQName="##defined"/>
               </xs:sequence>
             </xs:group>
         </xs:schema>""")
@@ -279,6 +281,13 @@ class TestXsd11Wildcards(TestXsdWildcards):
         any1.intersection(any2)
         self.assertListEqual(any1.namespace, [])
         self.assertListEqual(any1.not_namespace, ['tns2', 'tns1', ''])
+
+        # <xs:any namespace="##any" notQName="##defined qn1"/>
+        # <xs:any namespace="##local" notQName="##defined"/>
+        any1, any2 = schema.groups['group1'][14:16]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [''])
+        self.assertListEqual(any1.not_qname, ['##defined', 'qn1'])
 
     def test_open_content_mode_interleave(self):
         schema = self.check_schema("""

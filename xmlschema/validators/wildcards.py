@@ -309,9 +309,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         Update an XSD wildcard with the intersection of itself and another XSD wildcard.
         """
         if self.not_qname:
-            self.not_qname.extend([qname for qname in other.not_qname if qname in self.not_qname])
+            self.not_qname.extend(x for x in other.not_qname if x not in self.not_qname)
         else:
-            self.not_qname = [qname for qname in other.not_qname]
+            self.not_qname = [x for x in other.not_qname]
 
         if self.not_namespace:
             if other.not_namespace:
@@ -398,9 +398,6 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         self._parse_particle(self.elem)
         self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
-    def is_emptiable(self):
-        return self.min_occurs == 0 or self.process_contents != 'strict'
-
     def match(self, name, default_namespace=None, resolve=False, **kwargs):
         """
         Returns the element wildcard if name is matching the name provided
@@ -440,12 +437,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return iter(())
 
     def iter_decode(self, elem, validation='lax', **kwargs):
-        namespace = get_namespace(elem.tag)
-        if self.is_namespace_allowed(namespace):
+        if self.is_matching(elem.tag):
             if self.process_contents == 'skip':
                 return
 
-            self._load_namespace(namespace)
+            self._load_namespace(get_namespace(elem.tag))
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
@@ -652,8 +648,7 @@ class Xsd11AnyElement(XsdAnyElement):
                 return False
 
         if '##defined' in self.not_qname and name in self.maps.elements:
-            if self.maps.elements[name].schema is self.schema:
-                return False
+            return False
         if group and '##definedSibling' in self.not_qname:
             if any(e.is_matching(name) for e in group.iter_elements()
                    if not isinstance(e, XsdAnyElement)):
@@ -705,8 +700,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
             namespace = default_namespace
 
         if '##defined' in self.not_qname and name in self.maps.attributes:
-            if self.maps.attributes[name].schema is self.schema:
-                return False
+            return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
 

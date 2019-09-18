@@ -286,7 +286,7 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertEqual(len(XMLSchema10.meta_schema.maps.attribute_groups), 9)
         self.assertEqual(len(XMLSchema10.meta_schema.maps.groups), 18)
         self.assertEqual(len(XMLSchema10.meta_schema.maps.elements), 45)
-        self.assertEqual(len([e.is_global for e in XMLSchema10.meta_schema.maps.iter_globals()]), 200)
+        self.assertEqual(len([e.is_global() for e in XMLSchema10.meta_schema.maps.iter_globals()]), 200)
         self.assertEqual(len(XMLSchema10.meta_schema.maps.substitution_groups), 0)
 
     def test_xsd_11_globals(self):
@@ -296,7 +296,7 @@ class TestGlobalMaps(unittest.TestCase):
         self.assertEqual(len(XMLSchema11.meta_schema.maps.attribute_groups), 10)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.groups), 19)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.elements), 51)
-        self.assertEqual(len([e.is_global for e in XMLSchema11.meta_schema.maps.iter_globals()]), 225)
+        self.assertEqual(len([e.is_global() for e in XMLSchema11.meta_schema.maps.iter_globals()]), 225)
         self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
 
     def test_xsd_10_build(self):
@@ -319,7 +319,7 @@ class TestGlobalMaps(unittest.TestCase):
         for g in XMLSchema10.meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
-                if c.is_global:
+                if c.is_global():
                     global_counter += 1
         self.assertEqual(global_counter, 200)
         self.assertEqual(total_counter, 901)
@@ -330,7 +330,7 @@ class TestGlobalMaps(unittest.TestCase):
         for g in XMLSchema11.meta_schema.maps.iter_globals():
             for c in g.iter_components():
                 total_counter += 1
-                if c.is_global:
+                if c.is_global():
                     global_counter += 1
         self.assertEqual(global_counter, 225)
         self.assertEqual(total_counter, 1051)

@@ -70,7 +70,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
     @property
     def built(self):
-        return self.token is not None and (self.base_type.is_global or self.base_type.built)
+        return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
     def parse_xpath_test(self):
         self.parser.schema = XMLSchemaProxy(self.schema, self)

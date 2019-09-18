@@ -17,10 +17,11 @@ import re
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE
 from ..helpers import get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring, is_etree_element
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
+    XMLSchemaDecodeError, XMLSchemaEncodeError
 
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
@@ -252,10 +253,15 @@ class XsdComponent(XsdValidator):
     def xsd_version(self):
         return self.schema.XSD_VERSION
 
-    @property
     def is_global(self):
-        """Is `True` if the instance is a global component, `False` if it's local."""
+        """Returns `True` if the instance is a global component, `False` if it's local."""
         return self.parent is None
+
+    def is_override(self):
+        """Returns `True` if the instance is an override of a global component."""
+        if self.parent is not None:
+            return False
+        return any(self.elem in x for x in self.schema.root if x.tag == XSD_OVERRIDE)
 
     @property
     def schema_elem(self):
@@ -634,8 +640,8 @@ class XsdType(XsdComponent):
         raise NotImplementedError
 
     def is_dynamic_consistent(self, other):
-        return other.is_derived(self) or hasattr(other, 'member_types') and \
-            any(mt.is_derived(self) for mt in other.member_types)
+        return self.is_derived(other) or hasattr(other, 'member_types') and \
+            any(self.is_derived(mt) for mt in other.member_types)
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])

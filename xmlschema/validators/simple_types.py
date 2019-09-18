@@ -739,7 +739,7 @@ class XsdList(XsdSimpleType):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if not self.base_type.is_global:
+        if self.base_type.parent is not None:
             for obj in self.base_type.iter_components(xsd_classes):
                 yield obj
 
@@ -1154,7 +1154,7 @@ class XsdAtomicRestriction(XsdAtomic):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if not self.base_type.is_global:
+        if self.base_type.parent is not None:
             for obj in self.base_type.iter_components(xsd_classes):
                 yield obj
 

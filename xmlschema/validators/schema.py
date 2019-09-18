@@ -43,6 +43,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchema
 from .xsdbase import XSD_VALIDATION_MODES, XsdValidator, ValidationMixin, XsdComponent
 from .notations import XsdNotation
 from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
+from .facets import XSD_11_FACETS
 from .simple_types import xsd_simple_type_factory, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
 from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
@@ -554,7 +555,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for e in xsd_element.iter():
                     if e is xsd_element or isinstance(e, XsdAnyElement):
                         continue
-                    elif e.ref or e.is_global:
+                    elif e.ref or e.parent is None:
                         if e.name in names:
                             names.discard(e.name)
                             if not names:
@@ -1044,8 +1045,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if VC_FACET_AVAILABLE in elem.attrib:
             for qname in elem.attrib[VC_FACET_AVAILABLE].split():
                 try:
-                    if self.resolve_qname(qname) in self.maps.types:
-                        pass
+                    if self.resolve_qname(qname) not in XSD_11_FACETS:
+                        return False
                 except XMLSchemaNamespaceError:
                     pass
                 except (KeyError, ValueError) as err:
@@ -1054,12 +1055,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if VC_FACET_UNAVAILABLE in elem.attrib:
             for qname in elem.attrib[VC_FACET_UNAVAILABLE].split():
                 try:
-                    if self.resolve_qname(qname) in self.maps.types:
-                        pass
+                    if self.resolve_qname(qname) not in XSD_11_FACETS:
+                        break
                 except XMLSchemaNamespaceError:
-                    pass
+                    break
                 except (KeyError, ValueError) as err:
-                    self.parse_error(str(err), elem)
+                    self.parse_error(err, elem)
+            else:
+                return False
 
         return True
 

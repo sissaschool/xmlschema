@@ -786,9 +786,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         return self.name != other.name or self.type is other.type
 
-    def is_dynamic_consistent(self, other, xsd_type=None):
-        return self.name != other.name or xsd_type.is_dynamic_consistent(other.type)
-
 
 class Xsd11Element(XsdElement):
     """
@@ -951,27 +948,6 @@ class Xsd11Element(XsdElement):
             warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
         return True
 
-    def is_dynamic_consistent(self, other, xsd_type=None):
-        if self.name == other.name:
-            e = self
-        else:
-            for e in self.iter_substitutes():
-                if e.name == other.name:
-                    break
-            else:
-                return True
-
-        if xsd_type is None:
-            xsd_type = e.type
-        if len(e.alternatives) != len(other.alternatives):
-            return False
-        elif not xsd_type.is_dynamic_consistent(other.type):
-            return False
-        elif not all(any(a == x for x in other.alternatives) for a in e.alternatives) or \
-                not all(any(a == x for x in e.alternatives) for a in other.alternatives):
-            msg = "Maybe a not equivalent type table between elements %r and %r." % (self, other)
-            warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
-        return True
 
 class XsdAlternative(XsdComponent):
     """

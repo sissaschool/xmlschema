@@ -261,7 +261,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: a data structure containing the decoded data.
         """
         result_dict = self.dict()
-        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
+        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
                 ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
@@ -899,7 +899,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
+        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
         if attributes:
             result_list.insert(1, attributes)
