@@ -16,10 +16,10 @@ import re
 from elementpath import XPath2Parser, ElementPathError, datatypes
 
 from ..compat import unicode_type, MutableSequence
-from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
-    XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
-    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
-    XSD_BASE64_BINARY, XSD_HEX_BINARY
+from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+    XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
+    XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
+    XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -150,6 +150,8 @@ class XsdLengthFacet(XsdFacet):
             self.validator = self.hex_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_length_validator
+        elif primitive_type.name == XSD_QNAME:
+            pass  # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
         else:
             self.validator = self.length_validator
 
@@ -193,7 +195,7 @@ class XsdMinLengthFacet(XsdFacet):
             self.validator = self.hex_min_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_min_length_validator
-        else:
+        elif primitive_type.name != XSD_QNAME:
             self.validator = self.min_length_validator
 
     def min_length_validator(self, x):
@@ -236,7 +238,7 @@ class XsdMaxLengthFacet(XsdFacet):
             self.validator = self.hex_max_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_max_length_validator
-        else:
+        elif primitive_type.name != XSD_QNAME:
             self.validator = self.max_length_validator
 
     def max_length_validator(self, x):

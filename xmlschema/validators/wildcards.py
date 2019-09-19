@@ -36,13 +36,13 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        if self.namespace:
-            return '%s(namespace=%r, process_contents=%r)' % (
-                self.__class__.__name__, self.namespace, self.process_contents
-            )
-        else:
+        if self.not_namespace:
             return '%s(not_namespace=%r, process_contents=%r)' % (
                 self.__class__.__name__, self.not_namespace, self.process_contents
+            )
+        else:
+            return '%s(namespace=%r, process_contents=%r)' % (
+                self.__class__.__name__, self.namespace, self.process_contents
             )
 
     def _parse(self):
@@ -50,8 +50,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
         # Parse namespace and processContents
         namespace = self.elem.get('namespace', '##any').strip()
-        if namespace == '##any' or namespace == '':
+        if namespace == '##any':
             pass
+        elif not namespace:
+            self.namespace = []  # an empty value means no namespace allowed!
         elif namespace == '##other':
             self.namespace = [namespace]
         elif namespace == '##local':
@@ -163,9 +165,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def is_namespace_allowed(self, namespace):
         if self.not_namespace:
             return namespace not in self.not_namespace
-        elif self.namespace[0] == '##any' or namespace == XSI_NAMESPACE:
+        elif '##any' in self.namespace or namespace == XSI_NAMESPACE:
             return True
-        elif self.namespace[0] == '##other':
+        elif '##other' in self.namespace:
             return namespace and namespace != self.target_namespace
         else:
             return namespace in self.namespace

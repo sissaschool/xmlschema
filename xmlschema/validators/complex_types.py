@@ -79,7 +79,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def __repr__(self):
         if self.name is not None:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-        elif not hasattr(self, 'content_type'):
+        elif not hasattr(self, 'content_type') or not hasattr(self, 'attributes'):
             return '%s(id=%r)' % (self.__class__.__name__, id(self))
         else:
             return '%s(content=%r, attributes=%r)' % (
@@ -717,13 +717,18 @@ class Xsd11ComplexType(XsdComplexType):
                 self.default_attributes_apply = False
 
         # Add default attributes
-        if self.schema.default_attributes is None:
+        if self.redefine is None:
+            default_attributes = self.schema.default_attributes
+        else:
+            default_attributes = self.redefine.schema.default_attributes
+
+        if default_attributes is None:
             pass
         elif self.default_attributes_apply and not self.is_override():
-            if self.redefine is None and any(k in self.attributes for k in self.schema.default_attributes):
+            if self.redefine is None and any(k in self.attributes for k in default_attributes):
                 self.parse_error("at least a default attribute is already declared in the complex type")
             self.attributes.update(
-                (k, v) for k, v in self.schema.default_attributes.items() if k not in self.attributes
+                (k, v) for k, v in default_attributes.items() if k not in self.attributes
             )
 
     def _parse_complex_content_extension(self, elem, base_type):

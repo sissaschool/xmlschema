@@ -293,6 +293,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def is_complex():
         return False
 
+    @staticmethod
+    def is_list():
+        return False
+
     def is_empty(self):
         return self.max_length == 0
 
@@ -462,10 +466,6 @@ class XsdAtomic(XsdSimpleType):
     @staticmethod
     def is_atomic():
         return True
-
-    @staticmethod
-    def is_list():
-        return False
 
 
 class XsdAtomicBuiltin(XsdAtomic):

@@ -381,7 +381,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     def _parse(self):
         super(XsdAttributeGroup, self)._parse()
         elem = self.elem
-        any_attribute = False
+        any_attribute = None
         attribute_group_refs = []
 
         if elem.tag == XSD_ATTRIBUTE_GROUP:
@@ -398,15 +398,19 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         attributes = ordered_dict_class()
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if any_attribute:
+            if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
                 else:
                     self.parse_error("another declaration after anyAttribute")
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
-                any_attribute = True
-                attributes[None] = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
+                any_attribute = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
+                if None in attributes:
+                    attributes[None] = attributes[None].copy()
+                    attributes[None].intersection(any_attribute)
+                else:
+                    attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
                 attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
@@ -457,7 +461,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                                 elif name is not None:
                                     self.parse_error("multiple declaration for attribute {!r}".format(name))
                                 else:
-                                    attributes[name].intersection(attr)
+                                    attributes[None] = attributes[None].copy()
+                                    attributes[None].intersection(attr)
 
                         elif self.xsd_version == '1.0':
                             self.parse_error("Circular reference found between attribute groups "
@@ -498,7 +503,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         attr.type.normalize(attr.fixed) != base_attr.type.normalize(base_attr.fixed):
                     self.parse_error("Attribute %r: derived attribute has a different fixed value" % name)
 
-            self._attribute_group.update(self.base_attributes.items())
+            if self.redefine is not None:
+                pass  # In case of redefinition do not copy base attributes
+            else:
+                self._attribute_group.update(self.base_attributes.items())
+
         elif self.redefine is not None and not attribute_group_refs:
             for name, attr in self._attribute_group.items():
                 if name is None:

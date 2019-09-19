@@ -110,6 +110,22 @@ class TestXsdWildcards(XsdValidatorTestCase):
         </xs:complexType>""")
         self.assertEqual(schema.types['taggedType'].attributes[None].namespace, [''])
 
+    def test_namespace_variants(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any namespace="urn:a" processContents="skip"/>
+                <xs:any namespace="" processContents="lax"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""")
+
+        any1 = schema.groups['group1'][0]
+        self.assertEqual(any1.namespace, ['urn:a'])
+        any2 = schema.groups['group1'][1]
+        self.assertEqual(any2.namespace, [])
+
 
 class TestXsd11Wildcards(TestXsdWildcards):
 
