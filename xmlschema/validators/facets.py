@@ -13,6 +13,7 @@ This module contains declarations and classes for XML Schema constraint facets.
 """
 from __future__ import unicode_literals
 import re
+import operator
 from elementpath import XPath2Parser, ElementPathError, datatypes
 
 from ..compat import unicode_type, MutableSequence
@@ -20,6 +21,7 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
     XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
     XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
+from ..helpers import count_digits
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -428,8 +430,10 @@ class XsdTotalDigitsFacet(XsdFacet):
         self.validator = self.total_digits_validator
 
     def total_digits_validator(self, x):
-        if len([d for d in str(x).strip('0') if d.isdigit()]) > self.value:
-            yield XMLSchemaValidationError(self, x, "the number of digits is greater than %r." % self.value)
+        if operator.add(*count_digits(x)) > self.value:
+            yield XMLSchemaValidationError(
+                self, x, "the number of digits is greater than %r." % self.value
+            )
 
 
 class XsdFractionDigitsFacet(XsdFacet):
@@ -460,8 +464,10 @@ class XsdFractionDigitsFacet(XsdFacet):
         self.validator = self.fraction_digits_validator
 
     def fraction_digits_validator(self, x):
-        if len(str(x).strip('0').partition('.')[2]) > self.value:
-            yield XMLSchemaValidationError(self, x, "the number of fraction digits is greater than %r." % self.value)
+        if count_digits(x)[1] > self.value:
+            yield XMLSchemaValidationError(
+                self, x, "the number of fraction digits is greater than %r." % self.value
+            )
 
 
 class XsdExplicitTimezoneFacet(XsdFacet):

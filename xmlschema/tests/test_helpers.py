@@ -15,13 +15,14 @@ This module runs tests on various internal helper functions.
 from __future__ import unicode_literals
 
 import unittest
+import decimal
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import etree_element, prune_etree
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
 from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
-    qname_to_prefixed, get_xsd_derivation_attribute
+    qname_to_prefixed, get_xsd_derivation_attribute, count_digits
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 
 
@@ -138,6 +139,34 @@ class TestHelpers(unittest.TestCase):
         self.assertIsNone(component._parse_child_component(elem, strict=False))
         elem.append(etree_element(XSD_SIMPLE_TYPE))
         self.assertEqual(component._parse_child_component(elem), elem[2])
+
+    def test_count_digits_function(self):
+        self.assertEqual(count_digits(10), (2, 0))
+        self.assertEqual(count_digits(-10), (2, 0))
+
+        self.assertEqual(count_digits(081.2), (2, 1))
+        self.assertEqual(count_digits(-081.200), (2, 1))
+        self.assertEqual(count_digits(0.51), (0, 2))
+        self.assertEqual(count_digits(-0.510), (0, 2))
+        self.assertEqual(count_digits(-0.510), (0, 2))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0')), (3, 0))
+        self.assertEqual(count_digits(decimal.Decimal('100.01')), (3, 2))
+        self.assertEqual(count_digits('100.01'), (3, 2))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0E+4')), (7, 0))
+        self.assertEqual(count_digits(decimal.Decimal('100.00001E+4')), (7, 1))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E4')), (7, 0))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E12')), (15, 0))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E19')), (22, 0))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0E-4')), (0, 2))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-4')), (0, 2))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-8')), (0, 6))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-9')), (0, 7))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-12')), (0, 10))
+        self.assertEqual(count_digits(decimal.Decimal('100.10E-4')), (0, 5))
+        self.assertEqual(count_digits(decimal.Decimal('0100.10E-12')), (0, 13))
 
 
 class TestElementTreeHelpers(unittest.TestCase):

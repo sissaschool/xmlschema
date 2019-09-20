@@ -489,6 +489,10 @@ class XsdGlobals(XsdValidator):
             for group in schema.iter_components(XsdGroup):
                 group.build()
 
+        # Builds xs:keyref's key references
+        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.identities.values()):
+            constraint.parse_refer()
+
         # Build XSD 1.1 identity references and assertions
         if self.xsd_version != '1.0':
             for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
@@ -509,10 +513,6 @@ class XsdGlobals(XsdValidator):
 
                 for assertion in schema.iter_components(XsdAssert):
                     assertion.parse_xpath_test()
-
-        # Builds xs:keyref's key references
-        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.identities.values()):
-            constraint.parse_refer()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 

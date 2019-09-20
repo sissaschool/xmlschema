@@ -294,7 +294,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self):
-        return self.selector is not None and self.refer is not None
+        return self.selector is not None and isinstance(self.refer, XsdIdentity)
 
     def get_refer_values(self, elem):
         values = set()

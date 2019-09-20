@@ -12,7 +12,9 @@
 This module contains various helper functions and classes.
 """
 import re
+from decimal import Decimal
 
+from .compat import string_base_type
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import XSD_ANNOTATION
 
@@ -176,6 +178,39 @@ def get_xsd_form_attribute(elem, attribute):
             "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
         )
     return value
+
+
+def count_digits(number):
+    """
+    Counts the digits of a number.
+
+    :param number: an int or a float or a Decimal or a string representing a number.
+    :return: a couple with the number of digits of the integer part and \
+    the number of digits of the decimal part.
+    """
+    if isinstance(number, string_base_type):
+        number = str(Decimal(number)).lstrip('-+')
+    else:
+        number = str(number).lstrip('-+')
+
+    if 'E' in number:
+        significand, _, exponent = number.partition('E')
+    elif 'e' in number:
+        significand, _, exponent = number.partition('e')
+    elif '.' not in number:
+        return len(number.lstrip('0')), 0
+    else:
+        integer_part, _, decimal_part = number.partition('.')
+        return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
+
+    significand = significand.strip('0')
+    exponent = int(exponent)
+
+    num_digits = len(significand) - 1 if '.' in significand else len(significand)
+    if exponent > 0:
+        return num_digits + exponent, 0
+    else:
+        return 0, num_digits - exponent - 1
 
 
 class ParticleCounter(object):
