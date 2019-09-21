@@ -568,6 +568,8 @@ class XsdType(XsdComponent):
     """Common base class for XSD types."""
 
     abstract = False
+    blocked = False
+    block = ''
     base_type = None
     derivation = None
     redefine = None
@@ -580,6 +582,34 @@ class XsdType(XsdComponent):
     @property
     def built(self):
         raise NotImplementedError
+
+    @property
+    def content_type_label(self):
+        if self.is_empty():
+            return 'empty'
+        elif self.has_simple_content():
+            return 'simple'
+        elif self.is_element_only():
+            return 'element-only'
+        elif self.has_mixed_content():
+            return 'mixed'
+        else:
+            return 'unknown'
+
+    @property
+    def root_type(self):
+        """The root type of the type definition hierarchy. Is itself for a root type."""
+        if self.base_type is None:
+            return self  # Note that a XsdUnion type is always considered a root type
+
+        try:
+            if self.base_type.is_simple():
+                return self.base_type.primitive_type
+            else:
+                return self.base_type.content_type.primitive_type
+        except AttributeError:
+            # The type has complex or XsdList content
+            return self.base_type
 
     @staticmethod
     def is_simple():
@@ -623,21 +653,20 @@ class XsdType(XsdComponent):
         """
         raise NotImplementedError
 
-    @property
-    def content_type_label(self):
-        if self.is_empty():
-            return 'empty'
-        elif self.has_simple_content():
-            return 'simple'
-        elif self.is_element_only():
-            return 'element-only'
-        elif self.has_mixed_content():
-            return 'mixed'
-        else:
-            return 'unknown'
-
     def is_derived(self, other, derivation=None):
         raise NotImplementedError
+
+    def is_blocked(self, block=''):
+        if self.blocked:
+            return True
+        elif not block:
+            return False
+        elif self.derivation and self.derivation in block:
+            return True
+        elif self.base_type is None:
+            return False
+        else:
+            return self.base_type.is_blocked(block)
 
     def is_dynamic_consistent(self, other):
         return self.is_derived(other) or hasattr(other, 'member_types') and \

@@ -107,6 +107,9 @@ SKIPPED_TESTS = {
     '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in XML 1.1)
     '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
     '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
+
+    # Skip for TODO
+    '../sunData/combined/005/test.1.v.xml',     # 3959: is valid but needs equality operators (#cos-ct-derived-ok)
 }
 
 XSD11_SKIPPED_TESTS = {

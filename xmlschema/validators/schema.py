@@ -299,12 +299,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.parse_error(err, root)
 
         if 'blockDefault' in root.attrib:
-            try:
-                self.block_default = get_xsd_derivation_attribute(
-                    root, 'blockDefault', {'extension', 'restriction', 'substitution'}
-                )
-            except ValueError as err:
-                self.parse_error(err, root)
+            if self.meta_schema is None:
+                pass  # Skip XSD 1.0 meta-schema that has blockDefault="#all"
+            else:
+                try:
+                    self.block_default = get_xsd_derivation_attribute(
+                        root, 'blockDefault', {'extension', 'restriction', 'substitution'}
+                    )
+                except ValueError as err:
+                    self.parse_error(err, root)
 
         if 'finalDefault' in root.attrib:
             try:

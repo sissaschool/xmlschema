@@ -467,6 +467,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
 
+        if xsd_type.is_blocked(self.block):
+            yield self.validation_error(validation, "usage of %r is blocked" % xsd_type, elem, **kwargs)
+
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_decode(elem.attrib, validation, level=level, **kwargs):
@@ -572,7 +575,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for constraint in self.identities.values():
                 if isinstance(constraint, XsdKeyref) and '_no_deep' in kwargs:  # TODO: Complete lazy validation
                     continue
-                for error in constraint(elem):
+                for error in constraint(elem, converter):
                     yield self.validation_error(validation, error, elem, **kwargs)
 
     def iter_encode(self, obj, validation='lax', converter=None, level=0, **kwargs):

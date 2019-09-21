@@ -536,6 +536,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             self.clear()
 
         self._attribute_group.update(attributes)
+        if None in self._attribute_group and None not in attributes and self.derivation == 'restriction':
+            wildcard = self._attribute_group[None].copy()
+            wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
+            self._attribute_group[None] = wildcard
 
         if self.xsd_version == '1.0':
             has_key = False

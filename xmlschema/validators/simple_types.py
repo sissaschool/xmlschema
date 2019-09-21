@@ -411,7 +411,10 @@ class XsdAtomic(XsdSimpleType):
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
     def __init__(self, elem, schema, parent, name=None, facets=None, base_type=None):
-        self.base_type = base_type
+        if base_type is None:
+            self.primitive_type = self
+        else:
+            self.base_type = base_type
         super(XsdAtomic, self).__init__(elem, schema, parent, name, facets)
 
     def __repr__(self):
@@ -421,38 +424,27 @@ class XsdAtomic(XsdSimpleType):
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
     def __setattr__(self, name, value):
-        if name == 'base_type' and value is not None and not isinstance(value, XsdType):
-            raise XMLSchemaValueError("%r attribute must be an XsdType instance or None: %r" % (name, value))
         super(XsdAtomic, self).__setattr__(name, value)
-        if name in ('base_type', 'white_space'):
-            if getattr(self, 'white_space', None) is None:
+        if name == 'base_type':
+            assert isinstance(value, XsdType)
+            if not hasattr(self, 'white_space'):
                 try:
-                    white_space = self.base_type.white_space
+                    self.white_space = self.base_type.white_space
                 except AttributeError:
-                    return
+                    pass
+            try:
+                if value.is_simple():
+                    self.primitive_type = self.base_type.primitive_type
                 else:
-                    if white_space is not None:
-                        self.white_space = white_space
+                    self.primitive_type = self.base_type.content_type.primitive_type
+            except AttributeError:
+                self.primitive_type = value
 
     @property
     def admitted_facets(self):
-        primitive_type = self.primitive_type
-        if primitive_type is None or primitive_type.is_complex():
+        if self.primitive_type.is_complex():
             return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
-        return primitive_type.admitted_facets
-
-    @property
-    def primitive_type(self):
-        if self.base_type is None:
-            return self
-        try:
-            if self.base_type.is_simple():
-                return self.base_type.primitive_type
-            else:
-                return self.base_type.content_type.primitive_type
-        except AttributeError:
-            # The base_type is XsdList or XsdUnion.
-            return self.base_type
+        return self.primitive_type.admitted_facets
 
     def get_facet(self, tag):
         try:
@@ -479,8 +471,8 @@ class XsdAtomicBuiltin(XsdAtomic):
       - to_python(value): Decoding from XML
       - from_python(value): Encoding to XML
     """
-    def __init__(self, elem, schema, name, python_type, base_type=None, admitted_facets=None, facets=None,
-                 to_python=None, from_python=None):
+    def __init__(self, elem, schema, name, python_type, base_type=None, admitted_facets=None,
+                 facets=None, to_python=None, from_python=None):
         """
         :param name: the XSD type's qualified name.
         :param python_type: the correspondent Python's type. If a tuple or list of types \

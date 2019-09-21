@@ -56,7 +56,6 @@ class XsdComplexType(XsdType, ValidationMixin):
     _ADMITTED_TAGS = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
     _block = None
-    _derivation = None
 
     @staticmethod
     def normalize(text):
@@ -149,11 +148,20 @@ class XsdComplexType(XsdType, ValidationMixin):
             if derivation_elem is None:
                 return
 
-            self.base_type = self._parse_base_type(derivation_elem)
+            self.base_type = base_type = self._parse_base_type(derivation_elem)
+
+            block = base_type.block
+            if self._block is None and block:
+                self._block = block
+
             if derivation_elem.tag == XSD_RESTRICTION:
-                self._parse_simple_content_restriction(derivation_elem, self.base_type)
+                self._parse_simple_content_restriction(derivation_elem, base_type)
+                if base_type.blocked or 'restriction' in block and base_type != self:
+                    self.blocked = True
             else:
-                self._parse_simple_content_extension(derivation_elem, self.base_type)
+                self._parse_simple_content_extension(derivation_elem, base_type)
+                if base_type.blocked or 'extension' in block and base_type != self:
+                    self.blocked = True
 
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
@@ -182,10 +190,18 @@ class XsdComplexType(XsdType, ValidationMixin):
             elif self.redefine:
                 self.base_type = self.redefine
 
+            block = base_type.block
+            if self._block is None and block:
+                self._block = block
+
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, base_type)
+                if base_type.blocked or 'restriction' in block and base_type != self:
+                    self.blocked = True
             else:
                 self._parse_complex_content_extension(derivation_elem, base_type)
+                if base_type.blocked or 'extension' in block and base_type != self:
+                    self.blocked = True
 
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
@@ -232,8 +248,8 @@ class XsdComplexType(XsdType, ValidationMixin):
             return
 
         derivation = local_name(derivation_elem.tag)
-        if self._derivation is None:
-            self._derivation = derivation == 'extension'
+        if self.derivation is None:
+            self.derivation = derivation
         elif self.redefine is None:
             raise XMLSchemaValueError("%r is expected to have a redefined/overridden component" % self)
 
@@ -555,15 +571,11 @@ class XsdComplexType(XsdType, ValidationMixin):
         else:
             return self.has_simple_content() or self.mixed and self.is_emptiable()
 
-    @property
-    def derivation(self):
-        return 'extension' if self._derivation else 'restriction' if self._derivation is False else None
-
     def has_restriction(self):
-        return self._derivation is False
+        return self.derivation == 'restriction'
 
     def has_extension(self):
-        return self._derivation is True
+        return self.derivation == 'extension'
 
     def text_decode(self, text):
         if self.has_simple_content():
