@@ -25,12 +25,16 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
     if cls is None:
         cls = XMLSchema
 
-    if schema is None:
+    try:
         schema, locations = fetch_schema_locations(source, locations, base_url=base_url)
+    except ValueError:
+        if schema is None:
+            raise
+        elif not isinstance(schema, XMLSchemaBase):
+            schema = cls(schema, validation='strict', locations=locations, base_url=base_url,
+                         defuse=defuse, timeout=timeout)
+    else:
         schema = cls(schema, validation='strict', locations=locations, defuse=defuse, timeout=timeout)
-    elif not isinstance(schema, XMLSchemaBase):
-        schema = cls(schema, validation='strict', locations=locations, base_url=base_url,
-                     defuse=defuse, timeout=timeout)
 
     if not isinstance(source, XMLResource):
         source = XMLResource(source, defuse=defuse, timeout=timeout, lazy=lazy)

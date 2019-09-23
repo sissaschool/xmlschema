@@ -516,7 +516,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     if xsd_type.is_derived(model_element.type, derivation):
                         reason = "usage of %r with type %s is blocked by head element"
                         raise XMLSchemaValidationError(self, reason % (xsd_element, derivation))
-            
+
             if XSI_TYPE not in elem.attrib:
                 return
 

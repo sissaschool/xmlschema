@@ -557,7 +557,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                if level == 0:
+                if level == 0 or self.xsd_version != '1.0':
                     kwargs['_skip_id'] = True
                 for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):

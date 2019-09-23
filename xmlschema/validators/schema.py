@@ -1259,6 +1259,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         converter = self.get_converter(converter, namespaces, **kwargs)
         id_map = Counter()
+        inherited = {}
+
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
@@ -1272,7 +1274,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             for obj in xsd_element.iter_decode(
                     elem, validation, converter=converter, source=source, namespaces=namespaces,
                     use_defaults=use_defaults, datetime_types=datetime_types,
-                    fill_missing=fill_missing, id_map=id_map, **kwargs):
+                    fill_missing=fill_missing, id_map=id_map, inherited=inherited, **kwargs):
                 yield obj
 
         for k, v in id_map.items():
