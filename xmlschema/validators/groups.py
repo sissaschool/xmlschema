@@ -481,7 +481,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def check_dynamic_context(self, elem, xsd_element, converter):
+    def check_dynamic_context(self, elem, xsd_element, model_element, converter):
         if isinstance(xsd_element, XsdAnyElement):
             if xsd_element.process_contents == 'skip':
                 return
@@ -501,14 +501,24 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 except KeyError:
                     xsd_type = xsd_element.type
 
-        elif XSI_TYPE not in elem.attrib:
-            return
         else:
-            alternatives = xsd_element.alternatives
-            try:
-                xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
-            except KeyError:
+            if XSI_TYPE not in elem.attrib:
                 xsd_type = xsd_element.type
+            else:
+                alternatives = xsd_element.alternatives
+                try:
+                    xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
+                except KeyError:
+                    xsd_type = xsd_element.type
+
+            if model_element is not xsd_element and model_element.block:
+                for derivation in model_element.block.split():
+                    if xsd_type.is_derived(model_element.type, derivation):
+                        reason = "usage of %r with type %s is blocked by head element"
+                        raise XMLSchemaValidationError(self, reason % (xsd_element, derivation))
+            
+            if XSI_TYPE not in elem.attrib:
+                return
 
         # If it's a restriction the context is the base_type's group
         group = self.restriction if self.restriction is not None else self
@@ -602,7 +612,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     break
 
                 try:
-                    self.check_dynamic_context(child, xsd_element, converter)
+                    self.check_dynamic_context(child, xsd_element, model.element, converter)
                 except XMLSchemaValidationError as err:
                     yield self.validation_error(validation, err, elem, **kwargs)
 

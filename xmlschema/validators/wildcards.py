@@ -686,6 +686,8 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
           Content: (annotation?)
         </anyAttribute>
     """
+    inheritable = False  # Added for reduce checkings on XSD 1.1 attributes
+
     def _parse(self):
         super(Xsd11AnyAttribute, self)._parse()
         self._parse_not_constraints()

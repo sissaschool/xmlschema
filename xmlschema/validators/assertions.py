@@ -65,8 +65,8 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables,
-                                   default_namespace=self.xpath_default_namespace)
+        self.parser = XPath2Parser(self.namespaces, variables, False,
+                                   self.xpath_default_namespace, schema=self.xpath_proxy)
 
     @property
     def built(self):

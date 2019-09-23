@@ -65,8 +65,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         </element>
     """
     type = None
-    alternatives = ()
     qualified = False
+    alternatives = ()
+    inheritable = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
     _abstract = False
@@ -382,7 +383,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
         return self.type.attributes[name]
 
-    def get_type(self, elem):
+    def get_type(self, elem, inherited=None):
         return self.type
 
     def get_attributes(self, xsd_type):
@@ -455,12 +456,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
+        if self.abstract:
+            yield self.validation_error(validation, "cannot use an abstract element for validation", elem, **kwargs)
+
         if not isinstance(converter, XMLSchemaConverter):
             converter = self.schema.get_converter(converter, level=level, **kwargs)
+        inherited = kwargs.get('inherited')
         value = content = attributes = None
 
         # Get the instance effective type
-        xsd_type = self.get_type(elem)
+        xsd_type = self.get_type(elem, inherited)
         if XSI_TYPE in elem.attrib:
             try:
                 xsd_type = xsd_type.get_instance_type(elem.attrib, converter)
@@ -477,6 +482,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, result, elem, **kwargs)
             else:
                 attributes = result
+
+        if self.inheritable and any(name in self.inheritable for name in elem.attrib):
+            if inherited:
+                inherited = inherited.copy()
+                inherited.update((k, v) for k, v in elem.attrib.items() if k in self.inheritable)
+            else:
+                inherited = {k: v for k, v in elem.attrib.items() if k in self.inheritable}
+            kwargs['inherited'] = inherited
 
         # Checks the xsi:nil attribute of the instance
         if XSI_NIL in elem.attrib:
@@ -822,10 +835,16 @@ class Xsd11Element(XsdElement):
         index = self._parse_type()
         index = self._parse_alternatives(index)
         self._parse_identity_constraints(index)
+
         if self.parent is None and 'substitutionGroup' in self.elem.attrib:
             for substitution_group in self.elem.attrib['substitutionGroup'].split():
                 self._parse_substitution_group(substitution_group)
+
         self._parse_target_namespace()
+
+        if any(v.inheritable for v in self.attributes.values()):
+            self.inheritable = {k: v for k, v in self.attributes.items() if v.inheritable}
+
         self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def _parse_alternatives(self, index=0):
@@ -886,7 +905,7 @@ class Xsd11Element(XsdElement):
             for e in xsd_element.iter_substitutes():
                 yield e
 
-    def get_type(self, elem):
+    def get_type(self, elem, inherited=None):
         if not self.alternatives:
             return self.type
 
@@ -897,11 +916,16 @@ class Xsd11Element(XsdElement):
             else:
                 elem = etree_element(elem.tag)
 
-        for alt in filter(lambda x: x.type is not None, self.alternatives):
-            if alt.token is None:
-                return alt.type
-            elif alt.token.boolean_value(list(alt.token.select(context=XPathContext(root=elem)))):
-                return alt.type
+        if inherited:
+            dummy = etree_element('_dummy_element', attrib=inherited)
+
+            for alt in filter(lambda x: x.type is not None, self.alternatives):
+                if alt.token is None or alt.test(elem) or alt.test(dummy):
+                    return alt.type
+        else:
+            for alt in filter(lambda x: x.type is not None, self.alternatives):
+                if alt.token is None or alt.test(elem):
+                    return alt.type
 
         return self.type
 
@@ -992,7 +1016,9 @@ class XsdAlternative(XsdComponent):
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        parser = XPath2Parser(self.namespaces, strict=False, default_namespace=self.xpath_default_namespace)
+        parser = XPath2Parser(
+            self.namespaces, strict=False, default_namespace=self.xpath_default_namespace
+        )
 
         try:
             self.path = attrib['test']
@@ -1050,3 +1076,9 @@ class XsdAlternative(XsdComponent):
         if self.type is not None and self.type.parent is not None:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj
+
+    def test(self, elem):
+        try:
+            return self.token.boolean_value(list(self.token.select(context=XPathContext(elem))))
+        except TypeError:
+            return False

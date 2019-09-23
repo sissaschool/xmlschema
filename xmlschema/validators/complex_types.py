@@ -718,7 +718,7 @@ class Xsd11ComplexType(XsdComplexType):
         # Add inheritable attributes
         if hasattr(self.base_type, 'attributes'):
             for name, attr in self.base_type.attributes.items():
-                if name and attr.inheritable:
+                if attr.inheritable:
                     if name not in self.attributes:
                         self.attributes[name] = attr
                     elif not self.attributes[name].inheritable:

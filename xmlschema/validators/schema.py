@@ -1162,6 +1162,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         namespaces.update(source.get_namespaces())
 
         id_map = Counter()
+        inherited = {}
 
         if source.is_lazy() and path is None:
             # TODO: Document validation in lazy mode.
@@ -1172,8 +1173,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
 
             for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map,
-                                                  no_depth=True, drop_results=True):
+                                                  use_defaults=use_defaults, id_map=id_map, no_depth=True,
+                                                  inherited=inherited, drop_results=True):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1190,7 +1191,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
             for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
                                                   use_defaults=use_defaults, id_map=id_map,
-                                                  drop_results=True):
+                                                  inherited=inherited, drop_results=True):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
