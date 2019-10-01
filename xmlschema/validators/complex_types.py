@@ -546,7 +546,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             for obj in self.base_type.iter_components(xsd_classes):
                 yield obj
 
-        for obj in self.assertions:
+        for obj in filter(lambda x: x.base_type is self, self.assertions):
             if xsd_classes is None or isinstance(obj, xsd_classes):
                 yield obj
 
@@ -857,7 +857,7 @@ class Xsd11ComplexType(XsdComplexType):
 
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(elem, self.schema, self, **kwargs)
-        self.assertions = []
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if child.tag == XSD_ASSERT:
-                self.assertions.append(XsdAssert(child, self.schema, self, self))
+
+        self.assertions = [XsdAssert(e, self.schema, self, self) for e in elem if e.tag == XSD_ASSERT]
+        if getattr(self.base_type, 'assertions', None):
+            self.assertions.extend(assertion for assertion in self.base_type.assertions)

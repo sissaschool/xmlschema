@@ -814,7 +814,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def get_element(self, tag, path=None, namespaces=None):
         if not path:
-            return self.find(tag)
+            return self.find(tag, namespaces)
         elif path[-1] == '*':
             return self.find(path[:-1] + tag, namespaces)
         else:
@@ -1185,7 +1185,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 schema_path = '/%s/*' % source.root.tag
 
         for elem in source.iterfind(path, namespaces):
-            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
+            xsd_element = self.get_element(elem.tag, schema_path, self.namespaces)
             if xsd_element is None:
                 yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
 

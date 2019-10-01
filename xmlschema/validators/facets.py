@@ -643,6 +643,25 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         return [e.get('value', '') for e in self._elements]
 
 
+class XsdAssertionXPathParser(XPath2Parser):
+    """Parser for XSD 1.1 assertion facets."""
+
+XsdAssertionXPathParser.unregister('last')
+XsdAssertionXPathParser.unregister('position')
+
+@XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
+def evaluate(self, context=None):
+    self.missing_context("Context item size is undefined")
+
+
+@XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
+def evaluate(self, context=None):
+    self.missing_context("Context item position is undefined")
+
+
+XsdAssertionXPathParser.build_tokenizer()
+
+
 class XsdAssertionFacet(XsdFacet):
     """
     XSD 1.1 *assertion* facet for simpleType definitions.
@@ -678,8 +697,8 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables,
-                                   default_namespace=self.xpath_default_namespace)
+        self.parser = XsdAssertionXPathParser(self.namespaces, strict=False, variables=variables,
+                                              default_namespace=self.xpath_default_namespace)
 
         try:
             self.token = self.parser.parse(self.path)

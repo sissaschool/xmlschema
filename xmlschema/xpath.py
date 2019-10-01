@@ -213,7 +213,7 @@ class ElementPathMixin(Sequence):
                               default_namespace=self.xpath_default_namespace)
         root_token = parser.parse(path)
         context = XMLSchemaContext(self)
-        return root_token.select(context)
+        return root_token.select_results(context)
 
     def find(self, path, namespaces=None):
         """
@@ -226,14 +226,17 @@ class ElementPathMixin(Sequence):
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
             path = ''.join(['/', XSD_SCHEMA, path])
+
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
+            namespaces[''] = self.xpath_default_namespace
+        elif '' not in namespaces:
+            namespaces[''] = self.xpath_default_namespace
 
-        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
-                              default_namespace=self.xpath_default_namespace)
+        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
         root_token = parser.parse(path)
         context = XMLSchemaContext(self)
-        return next(root_token.select(context), None)
+        return next(root_token.select_results(context), None)
 
     def findall(self, path, namespaces=None):
         """
