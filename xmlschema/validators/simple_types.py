@@ -739,10 +739,6 @@ class XsdList(XsdSimpleType):
         if isinstance(obj, (string_base_type, bytes)):
             obj = self.normalize(obj)
 
-        if validation != 'skip' and self.patterns:
-            for error in self.patterns(obj):
-                yield error
-
         items = []
         for chunk in obj.split():
             for result in self.base_type.iter_decode(chunk, validation, **kwargs):
@@ -751,21 +747,11 @@ class XsdList(XsdSimpleType):
                 else:
                     items.append(result)
 
-        if validation != 'skip':
-            for validator in self.validators:
-                for error in validator(items):
-                    yield error
-
         yield items
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         if not hasattr(obj, '__iter__') or isinstance(obj, (str, unicode_type, bytes)):
             obj = [obj]
-
-        if validation != 'skip':
-            for validator in self.validators:
-                for error in validator(obj):
-                    yield error
 
         encoded_items = []
         for item in obj:
@@ -888,22 +874,15 @@ class XsdUnion(XsdSimpleType):
             for obj in mt.iter_components(xsd_classes):
                 yield obj
 
-    def iter_decode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
-            obj = self.normalize(obj)
-
-        if validation != 'skip' and self.patterns:
-            for error in self.patterns(obj):
-                yield error
-
-        # Try the text as a whole
+    def iter_decode(self, obj, validation='lax', patterns=None, **kwargs):
+        # Try decoding the whole text
         for member_type in self.member_types:
             for result in member_type.iter_decode(obj, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
-                    if validation != 'skip':
-                        for validator in self.validators:
-                            for error in validator(result):
-                                yield error
+                    if validation != 'skip' and patterns:
+                        obj = member_type.normalize(obj)
+                        for error in patterns(obj):
+                            yield error
 
                     yield result
                     return
@@ -935,24 +914,12 @@ class XsdUnion(XsdSimpleType):
                 reason = "no type suitable for decoding the values %r." % not_decodable
                 yield self.decode_error(validation, obj, self.member_types, reason)
 
-            for validator in self.validators:
-                for error in validator(items):
-                    yield error
-
         yield items if len(items) > 1 else items[0] if items else None
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for member_type in self.member_types:
             for result in member_type.iter_encode(obj, validation='lax', **kwargs):
                 if result is not None and not isinstance(result, XMLSchemaValidationError):
-                    if validation != 'skip':
-                        for validator in self.validators:
-                            for error in validator(obj):
-                                yield error
-                        if self.patterns is not None:
-                            for error in self.patterns(result):
-                                yield error
-
                     yield result
                     return
                 elif validation == 'strict':
@@ -965,14 +932,6 @@ class XsdUnion(XsdSimpleType):
                 for item in obj:
                     for result in member_type.iter_encode(item, validation='lax', **kwargs):
                         if result is not None and not isinstance(result, XMLSchemaValidationError):
-                            if validation != 'skip':
-                                for validator in self.validators:
-                                    for error in validator(result):
-                                        yield error
-                                if self.patterns is not None:
-                                    for error in self.patterns(result):
-                                        yield error
-
                             results.append(result)
                             break
                         elif validation == 'strict':
@@ -1154,10 +1113,6 @@ class XsdAtomicRestriction(XsdAtomic):
         if isinstance(obj, (string_base_type, bytes)):
             obj = self.normalize(obj)
 
-        if validation != 'skip' and self.patterns:
-            for error in self.patterns(obj):
-                yield error
-
         if self.base_type.is_simple():
             base_type = self.base_type
         elif self.base_type.has_simple_content():
@@ -1168,6 +1123,13 @@ class XsdAtomicRestriction(XsdAtomic):
         else:
             raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
                                       "simple or mixed content required." % self.base_type)
+
+        if validation != 'skip' and self.patterns:
+            if not isinstance(self.primitive_type, XsdUnion):
+                for error in self.patterns(obj):
+                    yield error
+            elif 'patterns' not in kwargs:
+                kwargs['patterns'] = self.patterns
 
         for result in base_type.iter_decode(obj, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
