@@ -316,6 +316,52 @@ class TestDecoding(XsdValidatorTestCase):
         xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, COLLECTION_DICT)
 
+    def test_date_decoding(self):
+        # Issue #136
+        schema = xmlschema.XMLSchema("""<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0">
+                <xs:element name="Date">
+                    <xs:simpleType>
+                        <xs:restriction base="xs:date">
+                            <xs:minInclusive value="2000-01-01"/>
+                            <xs:maxInclusive value="2099-12-31"/>
+                        </xs:restriction>
+                    </xs:simpleType>
+                </xs:element>
+            </xs:schema>""")
+
+        self.assertEqual(schema.to_dict("<Date>2019-01-01</Date>"), '2019-01-01')
+        self.assertEqual(schema.to_dict("<Date>2019-01-01</Date>", datetime_types=True),
+                         datatypes.Date10.fromstring('2019-01-01'))
+
+        data, errors = schema.to_dict("<Date>2019-01-01</Date>", validation='lax')
+        self.assertEqual(data, '2019-01-01')
+        self.assertEqual(errors, [])
+
+        data, errors = schema.to_dict("<Date>2019-01-01</Date>", validation='lax', datetime_types=True)
+        self.assertEqual(data, datatypes.Date10.fromstring('2019-01-01'))
+        self.assertEqual(errors, [])
+
+        data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax')
+        self.assertEqual(data, '1999-12-31')
+        self.assertEqual(len(errors), 1)
+        self.assertIn('value has to be greater or equal than', unicode_type(errors[0]))
+
+        data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax', datetime_types=True)
+        self.assertEqual(data, datatypes.Date10.fromstring('1999-12-31'))
+        self.assertEqual(len(errors), 1)
+
+        data, errors = schema.to_dict("<Date>2019</Date>", validation='lax')
+        self.assertIsNone(data)
+        self.assertEqual(len(errors), 1)
+
+        with self.assertRaises(XMLSchemaValidationError):
+            schema.to_dict("<Date>2019</Date>")
+
+        data, errors = schema.to_dict("<Date>2019</Date>", validation='lax')
+        self.assertIsNone(data)
+        self.assertEqual(len(errors), 1)
+
     def test_json_dump_and_load(self):
         vh_xml_tree = ElementTree.parse(self.vh_xml_file)
         col_xml_tree = ElementTree.parse(self.col_xml_file)

@@ -554,17 +554,6 @@ class XsdComplexType(XsdType, ValidationMixin):
     def get_facet(*_args, **_kwargs):
         return None
 
-    def get_instance_type(self, attrs, namespaces):
-        if XSI_TYPE in self.attributes:
-            self.attributes[XSI_TYPE].validate(attrs[XSI_TYPE])
-
-        type_qname = qname_to_extended(attrs[XSI_TYPE], namespaces)
-        xsi_type = self.maps.lookup_type(type_qname)
-        if not xsi_type.is_derived(self):
-            raise XMLSchemaTypeError("%r is not a derived type of %r" % (xsi_type, self))
-
-        return xsi_type
-
     def admit_simple_restriction(self):
         if 'restriction' in self.final:
             return False

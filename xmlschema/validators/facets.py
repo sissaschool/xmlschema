@@ -42,8 +42,11 @@ class XsdFacet(XsdComponent):
         return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
 
     def __call__(self, value):
-        for error in self.validator(value):
-            yield error
+        try:
+            for error in self.validator(value):
+                yield error
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
     def _parse(self):
         super(XsdFacet, self)._parse()
@@ -290,9 +293,13 @@ class XsdMinInclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x < self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be greater or equal than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value < self.value:
+                reason = "value has to be greater or equal than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMinExclusiveFacet(XsdFacet):
@@ -328,9 +335,13 @@ class XsdMinExclusiveFacet(XsdFacet):
         if facet is not None and facet.value <= self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x <= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be greater than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value <= self.value:
+                reason = "value has to be greater than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -366,9 +377,13 @@ class XsdMaxInclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x > self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be lesser or equal than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value > self.value:
+                reason = "value has to be lesser or equal than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -404,9 +419,13 @@ class XsdMaxExclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x >= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be lesser than %r" % self.value)
+    def __call__(self, value):
+        try:
+            if value >= self.value:
+                reason = "value has to be lesser than %r" % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -634,9 +653,12 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
             return '%s(%s...\'])' % (self.__class__.__name__, s[:70])
 
     def __call__(self, text):
-        if all(pattern.match(text) is None for pattern in self.patterns):
-            msg = "value doesn't match any pattern of %r."
-            yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+        try:
+            if all(pattern.match(text) is None for pattern in self.patterns):
+                msg = "value doesn't match any pattern of %r."
+                yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+        except TypeError as err:
+            yield XMLSchemaValidationError(self, text, unicode_type(err))
 
     @property
     def regexps(self):
@@ -646,8 +668,10 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 class XsdAssertionXPathParser(XPath2Parser):
     """Parser for XSD 1.1 assertion facets."""
 
+
 XsdAssertionXPathParser.unregister('last')
 XsdAssertionXPathParser.unregister('position')
+
 
 @XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
 def evaluate(self, context=None):

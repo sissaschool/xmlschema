@@ -19,8 +19,8 @@ from ..compat import string_base_type
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT
-from ..helpers import get_qname, local_name
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
+from ..helpers import get_qname, local_name, qname_to_extended
 from ..namespaces import NamespaceResourcesMap
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
@@ -125,8 +125,8 @@ def create_lookup_function(xsd_classes):
             obj = global_map[qname]
         except KeyError:
             if '{' in qname:
-                raise XMLSchemaKeyError("missing a %s component for %r!" % (types_desc, qname))
-            raise XMLSchemaKeyError("missing a %s component for %r! As the name has no namespace "
+                raise XMLSchemaKeyError("missing an %s component for %r!" % (types_desc, qname))
+            raise XMLSchemaKeyError("missing an %s component for %r! As the name has no namespace "
                                     "maybe a missing default namespace declaration." % (types_desc, qname))
         else:
             if isinstance(obj, xsd_classes):
@@ -280,6 +280,23 @@ class XsdGlobals(XsdValidator):
             return self.lookup_notation(qname)
         else:
             raise XMLSchemaValueError("wrong tag {!r} for an XSD global definition/declaration".format(tag))
+
+    def get_instance_type(self, type_name, base_type, namespaces):
+        """
+        Returns the instance XSI type from global maps, validating it with the reference base type.
+
+        :param type_name: the XSI type attribute value, a QName in prefixed format.
+        :param base_type: the XSD from which the instance type has to be derived.
+        :param namespaces: a map from prefixes to namespaces.
+        """
+        if base_type.is_complex() and XSI_TYPE in base_type.attributes:
+            base_type.attributes[XSI_TYPE].validate(type_name)
+
+        extended_name = qname_to_extended(type_name, namespaces)
+        xsi_type = lookup_type(extended_name, self.types, self.validator.BUILDERS_MAP)
+        if not xsi_type.is_derived(base_type):
+            raise XMLSchemaTypeError("%r is not a derived type of %r" % (xsi_type, self))
+        return xsi_type
 
     @property
     def built(self):

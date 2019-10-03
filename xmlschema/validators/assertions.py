@@ -11,6 +11,7 @@
 from __future__ import unicode_literals
 from elementpath import datatypes, XPath2Parser, XPathContext, ElementPathError
 
+from ..etree import ElementTree
 from ..qnames import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 

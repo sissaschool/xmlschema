@@ -482,6 +482,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return other_max_occurs >= max_occurs * self.max_occurs
 
     def check_dynamic_context(self, elem, xsd_element, model_element, converter):
+        alternatives = ()
         if isinstance(xsd_element, XsdAnyElement):
             if xsd_element.process_contents == 'skip':
                 return
@@ -489,17 +490,20 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
-                alternatives = ()
                 try:
-                    xsd_type = self.any_type.get_instance_type(elem.attrib, converter)
+                    type_name = elem.attrib[XSI_TYPE].strip()
                 except KeyError:
                     return
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, self.any_type, converter)
             else:
                 alternatives = xsd_element.alternatives
                 try:
-                    xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
+                    type_name = elem.attrib[XSI_TYPE].strip()
                 except KeyError:
                     xsd_type = xsd_element.type
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
 
         else:
             if XSI_TYPE not in elem.attrib:
@@ -507,9 +511,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 alternatives = xsd_element.alternatives
                 try:
-                    xsd_type = xsd_element.type.get_instance_type(elem.attrib, converter)
+                    type_name = elem.attrib[XSI_TYPE].strip()
                 except KeyError:
                     xsd_type = xsd_element.type
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
 
             if model_element is not xsd_element and model_element.block:
                 for derivation in model_element.block.split():

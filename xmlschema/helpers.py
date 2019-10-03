@@ -213,6 +213,11 @@ def count_digits(number):
         return 0, num_digits - exponent - 1
 
 
+def strictly_equal(obj1, obj2):
+    """Checks if the objects are equal and are of the same type."""
+    return obj1 == obj2 and type(obj1) is type(obj2)
+
+
 class ParticleCounter(object):
     """
     An helper class for counting total min/max occurrences of XSD particles.

@@ -18,13 +18,14 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, \
-    XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
+    XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
+    XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
     XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR
 from ..helpers import get_qname, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, ParticleCounter
 from ..etree import etree_element
+from ..helpers import strictly_equal
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -467,8 +468,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         # Get the instance effective type
         xsd_type = self.get_type(elem, inherited)
         if XSI_TYPE in elem.attrib:
+            type_name = elem.attrib[XSI_TYPE].strip()
             try:
-                xsd_type = xsd_type.get_instance_type(elem.attrib, converter)
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
 
@@ -531,7 +533,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     text = self.fixed
                 elif text == self.fixed or validation == 'skip':
                     pass
-                elif xsd_type.text_decode(text) != xsd_type.text_decode(self.fixed):
+                elif not strictly_equal(xsd_type.text_decode(text), xsd_type.text_decode(self.fixed)):
                     reason = "must has the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
 
@@ -539,14 +541,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 text = self.default
 
             if xsd_type.is_complex():
+                for assertion in xsd_type.assertions:
+                    for error in assertion(elem, value=text, **kwargs):
+                        yield self.validation_error(validation, error, **kwargs)
+
                 if text and xsd_type.content_type.is_list():
                     value = text.split()
                 else:
                     value = text
-
-                for assertion in xsd_type.assertions:
-                    for error in assertion(elem, value=value, **kwargs):
-                        yield self.validation_error(validation, error, **kwargs)
 
                 xsd_type = xsd_type.content_type
 
@@ -559,6 +561,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 if level == 0 or self.xsd_version != '1.0':
                     kwargs['_skip_id'] = True
+
                 for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
@@ -616,8 +619,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         xsd_type = self.get_type(element_data)
         if XSI_TYPE in element_data.attributes:
+            type_name = element_data.attributes[XSI_TYPE].strip()
             try:
-                xsd_type = xsd_type.get_instance_type(element_data.attributes, converter)
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
             except (KeyError, TypeError) as err:
                 errors.append(err)
 
@@ -1080,5 +1084,5 @@ class XsdAlternative(XsdComponent):
     def test(self, elem):
         try:
             return self.token.boolean_value(list(self.token.select(context=XPathContext(elem))))
-        except TypeError:
+        except (TypeError, ValueError):
             return False

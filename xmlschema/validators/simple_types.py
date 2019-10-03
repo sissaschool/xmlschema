@@ -23,8 +23,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, \
     XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, \
-    XSD_ERROR, XSD_ASSERT, XSI_TYPE
-from ..helpers import get_qname, local_name, qname_to_extended, get_xsd_derivation_attribute
+    XSD_ERROR, XSD_ASSERT
+from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
@@ -361,7 +361,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if isinstance(obj, (string_base_type, bytes)):
             obj = self.normalize(obj)
 
-        if validation != 'skip':
+        if validation != 'skip' and obj is not None:
             if self.patterns is not None:
                 for error in self.patterns(obj):
                     yield error
@@ -377,7 +377,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         elif validation != 'skip':
             yield self.encode_error(validation, obj, unicode_type)
 
-        if validation != 'skip':
+        if validation != 'skip' and obj is not None:
             if self.patterns is not None:
                 for error in self.patterns(obj):
                     yield error
@@ -390,13 +390,6 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
     def get_facet(self, tag):
         return self.facets.get(tag)
-
-    def get_instance_type(self, attrs, namespaces):
-        type_qname = qname_to_extended(attrs[XSI_TYPE], namespaces)
-        xsi_type = self.maps.lookup_type(type_qname)
-        if not xsi_type.is_derived(self):
-            raise XMLSchemaValueError("%r is not a derived type of %r" % (xsi_type, self))
-        return xsi_type
 
 
 #
@@ -1137,7 +1130,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 if isinstance(result, XMLSchemaDecodeError):
                     yield unicode_type(obj) if validation == 'skip' else None
             else:
-                if validation != 'skip':
+                if validation != 'skip' and result is not None:
                     for validator in self.validators:
                         for error in validator(result):
                             yield error
@@ -1150,7 +1143,7 @@ class XsdAtomicRestriction(XsdAtomic):
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, unicode_type, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]
 
-            if validation != 'skip':
+            if validation != 'skip' and obj is not None:
                 for validator in self.validators:
                     for error in validator(obj):
                         yield error
@@ -1186,7 +1179,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     yield unicode_type(obj) if validation == 'skip' else None
                     return
             else:
-                if validation != 'skip':
+                if validation != 'skip' and obj is not None:
                     for validator in self.validators:
                         for error in validator(obj):
                             yield error
