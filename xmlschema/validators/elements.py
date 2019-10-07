@@ -20,12 +20,11 @@ from elementpath.datatypes import AbstractDateTime, Duration
 from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, \
-    XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR
-from ..helpers import get_qname, get_xsd_derivation_attribute, \
-    get_xsd_form_attribute, ParticleCounter
+    XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
+    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR, get_qname
 from ..etree import etree_element
-from ..helpers import strictly_equal
+from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
+    ParticleCounter, strictly_equal
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 

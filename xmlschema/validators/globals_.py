@@ -17,11 +17,10 @@ from collections import Counter
 
 from ..compat import string_base_type
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
-from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
-from ..helpers import get_qname, local_name, qname_to_extended
-from ..namespaces import NamespaceResourcesMap
+from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
+from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
+    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
+    XSD_ELEMENT, XSI_TYPE, get_qname, local_name, qname_to_extended
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \

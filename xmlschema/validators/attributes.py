@@ -19,8 +19,9 @@ from ..compat import MutableMapping, ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
+    get_namespace, get_qname
+from ..helpers import get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError

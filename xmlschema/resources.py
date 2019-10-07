@@ -18,9 +18,9 @@ from .compat import (
     pathname2url, URLError, uses_relative
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
+from .namespaces import get_namespace
 from .qnames import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
-from .helpers import get_namespace
-from .etree import ElementTree, PyElementTree, SafeXMLParser, is_etree_element, etree_tostring
+from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')
@@ -285,7 +285,7 @@ class XMLResource(object):
 
     def _fromsource(self, source):
         url, lazy = None, self._lazy
-        if is_etree_element(source):
+        if hasattr(source, 'tag'):
             self._lazy = False
             return source, None, None, None  # Source is already an Element --> nothing to load
         elif isinstance(source, string_base_type):
@@ -344,7 +344,7 @@ class XMLResource(object):
             except (AttributeError, TypeError):
                 pass
             else:
-                if is_etree_element(root):
+                if hasattr(root, 'tag'):
                     self._lazy = False
                     return root, source, None, None
 

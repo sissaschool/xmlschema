@@ -18,8 +18,7 @@ from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ELEMENT, XSD_ANY, XSI_TYPE
-from xmlschema.helpers import get_qname, local_name
+    XSD_CHOICE, XSD_ELEMENT, XSD_ANY, XSI_TYPE, get_qname, local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning

@@ -13,8 +13,8 @@ This module contains ElementTree setup and helpers for xmlschema package.
 """
 from __future__ import unicode_literals
 import sys
-import re
 import importlib
+import re
 from collections import Counter
 
 try:
@@ -23,10 +23,9 @@ except ImportError:
     lxml_etree = None
 
 from .compat import PY3
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
-from .helpers import get_namespace, get_qname, qname_to_prefixed
-from .xpath import ElementPathMixin
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
+from .qnames import get_qname, qname_to_prefixed
 
 ###
 # Programmatic import of xml.etree.ElementTree
@@ -128,11 +127,6 @@ class SafeXMLParser(PyElementTree.XMLParser):
         raise PyElementTree.ParseError(
             "External references are forbidden (system_id={!r}, public_id={!r})".format(system_id, public_id)
         )
-
-
-def is_etree_element(elem):
-    """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
 def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
@@ -265,21 +259,6 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:
             return path
-
-
-def etree_last_child(elem):
-    """Returns the last child of the element, ignoring children that are lxml comments."""
-    for child in reversed(elem):
-        if not callable(child.tag):
-            return child
-
-
-def etree_child_index(elem, child):
-    """Return the index or raise ValueError if it is not a *child* of *elem*."""
-    for index in range(len(elem)):
-        if elem[index] is child:
-            return index
-    raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
 
 
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):

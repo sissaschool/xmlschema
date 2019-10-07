@@ -23,8 +23,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, \
     XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, \
     XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, \
-    XSD_ERROR, XSD_ASSERT
-from ..helpers import get_qname, local_name, get_xsd_derivation_attribute
+    XSD_ERROR, XSD_ASSERT, get_qname, local_name
+from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError

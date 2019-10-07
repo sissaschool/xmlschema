@@ -20,10 +20,10 @@ import xml.etree.ElementTree as ElementTree
 
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import etree_element, prune_etree
-from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.helpers import get_xsd_annotation, get_namespace, get_qname, local_name, \
-    qname_to_prefixed, get_xsd_derivation_attribute, count_digits
+from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE, get_namespace
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
+from xmlschema.qnames import get_qname, local_name, qname_to_prefixed
+from xmlschema.helpers import get_xsd_annotation, get_xsd_derivation_attribute, count_digits
 
 
 class TestHelpers(unittest.TestCase):

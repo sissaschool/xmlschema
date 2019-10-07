@@ -17,8 +17,8 @@ from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, qname_to_prefixed, qname_to_extended
+from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
+    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_prefixed, qname_to_extended
 from ..etree import etree_getpath
 from ..regex import get_python_regex
 
@@ -152,9 +152,10 @@ class XsdIdentity(XsdComponent):
         """
         Get fields for a schema or instance context element.
 
-        :param context: Context Element or XsdElement
-        :param decoders: Context schema fields decoders.
-        :return: A tuple with field values. An empty field is replaced by `None`.
+        :param context: context Element or XsdElement
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param decoders: context schema fields decoders.
+        :return: a tuple with field values. An empty field is replaced by `None`.
         """
         fields = []
         for k, field in enumerate(self.fields):

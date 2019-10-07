@@ -10,12 +10,12 @@
 #
 from __future__ import unicode_literals
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, XSD_RESTRICTION, \
-    XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, \
-    XSD_OPEN_CONTENT, XSD_ASSERT, XSI_TYPE
-from ..helpers import get_qname, local_name, qname_to_extended, get_xsd_derivation_attribute
+from ..exceptions import XMLSchemaValueError
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
+    XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
+    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_SIMPLE_CONTENT, \
+    XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT, get_qname, local_name
+from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdType, ValidationMixin

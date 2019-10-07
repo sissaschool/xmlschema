@@ -18,9 +18,9 @@ import warnings
 
 from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
-from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
-from .helpers import local_name
+from .qnames import local_name
+from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])

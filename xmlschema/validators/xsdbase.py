@@ -17,9 +17,10 @@ import re
 from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE
-from ..helpers import get_qname, local_name, qname_to_prefixed
-from ..etree import etree_tostring, is_etree_element
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE, \
+    get_qname, local_name, qname_to_prefixed
+from ..etree import etree_tostring
+from ..helpers import is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaDecodeError, XMLSchemaEncodeError
 

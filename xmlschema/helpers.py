@@ -11,116 +11,19 @@
 """
 This module contains various helper functions and classes.
 """
-import re
 from decimal import Decimal
 
 from .compat import string_base_type
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from .exceptions import XMLSchemaValueError
 from .qnames import XSD_ANNOTATION
+from .xpath import ElementPathMixin
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
-NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(name):
-    try:
-        return NAMESPACE_PATTERN.match(name).group(1)
-    except (AttributeError, TypeError):
-        return ''
-
-
-def get_qname(uri, name):
-    """
-    Returns an expanded QName from URI and local part. If any argument has boolean value
-    `False` or if the name is already an expanded QName, returns the *name* argument.
-
-    :param uri: namespace URI
-    :param name: local or qualified name
-    :return: string or the name argument
-    """
-    if not uri or not name or name[0] in ('{', '.', '/', '['):
-        return name
-    else:
-        return '{%s}%s' % (uri, name)
-
-
-def local_name(qname):
-    """
-    Return the local part of an expanded QName or a prefixed name. If the name
-    is `None` or empty returns the *name* argument.
-
-    :param qname: an expanded QName or a prefixed name or a local name.
-    """
-    try:
-        if qname[0] == '{':
-            _, qname = qname.split('}')
-        elif ':' in qname:
-            _, qname = qname.split(':')
-    except IndexError:
-        return ''
-    except ValueError:
-        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
-    except TypeError:
-        if qname is None:
-            return qname
-        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object or None")
-    else:
-        return qname
-
-
-def qname_to_prefixed(qname, namespaces):
-    """
-    Transforms a fully qualified name into a prefixed name using a namespace map.
-    Returns the *qname* argument if it's not a fully qualified name or if it has
-    boolean value `False`.
-
-    :param qname: an extended QName or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: a QName in prefixed format or a local name.
-    """
-    if not qname:
-        return qname
-
-    namespace = get_namespace(qname)
-    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
-        if not uri:
-            return '%s:%s' % (prefix, qname) if prefix else qname
-        elif prefix:
-            return qname.replace('{%s}' % uri, '%s:' % prefix)
-        else:
-            return qname.replace('{%s}' % uri, '')
-    else:
-        return qname
-
-
-def qname_to_extended(qname, namespaces):
-    """
-    Converts a QName in prefixed format or a local name to the extended QName format.
-
-    :param qname: a QName in prefixed format or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: a QName in extended format or a local name.
-    """
-    try:
-        if qname[0] == '{' or not namespaces:
-            return qname
-    except IndexError:
-        return qname
-
-    try:
-        prefix, name = qname.split(':', 1)
-    except ValueError:
-        if not namespaces.get(''):
-            return qname
-        else:
-            return '{%s}%s' % (namespaces[''], qname)
-    else:
-        try:
-            uri = namespaces[prefix]
-        except KeyError:
-            return qname
-        else:
-            return u'{%s}%s' % (uri, name) if uri else name
+def is_etree_element(elem):
+    """More safer test for matching ElementTree elements."""
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
 def get_xsd_annotation(elem):

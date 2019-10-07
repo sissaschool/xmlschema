@@ -938,6 +938,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             import_error = None
             for url in locations:
                 try:
+                    # print("Import namespace ", namespace, url)
                     self.import_schema(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
                     # It's not an error if the location access fails (ref. section 4.2.6.2):

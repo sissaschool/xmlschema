@@ -11,7 +11,6 @@
 from __future__ import unicode_literals
 from elementpath import datatypes, XPath2Parser, XPathContext, ElementPathError
 
-from ..etree import ElementTree
 from ..qnames import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
@@ -49,7 +48,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error("base_type=%r is not a complexType definition" % self.base_type)
         else:
             try:
-                self.path = self.elem.attrib['test']
+                self.path = self.elem.attrib['test'].strip()
             except KeyError as err:
                 self.parse_error(str(err), elem=self.elem)
 
@@ -87,7 +86,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
 
-    def __call__(self, elem, value=None, source=None, **kwargs):
+    def __call__(self, elem, value=None, source=None, namespaces=None, **kwargs):
         if value is not None:
             self.parser.variables['value'] = self.base_type.text_decode(value)
 
@@ -96,12 +95,19 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         else:
             context = XPathContext(root=source.root, item=elem)
 
+        default_namespace = self.parser.namespaces['']
+
+        if namespaces and '' in namespaces:
+            self.parser.namespaces[''] = namespaces['']
+
         try:
             if not self.token.evaluate(context.copy()):
                 msg = "expression is not true with test path %r."
                 yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
         except ElementPathError as err:
             yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
+
+        self.parser.namespaces[''] = default_namespace
 
     # For implementing ElementPathMixin
     def __iter__(self):
