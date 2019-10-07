@@ -18,6 +18,7 @@ the standard.
 import os
 from collections import namedtuple, Counter
 from abc import ABCMeta
+import logging
 import warnings
 import re
 
@@ -71,10 +72,12 @@ ANY_ELEMENT = etree_element(
         'maxOccurs': 'unbounded'
     })
 
+# XSD schemas of W3C standards
 SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 XML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd')
 XSI_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd')
 XLINK_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xlink.xsd')
+XHTML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
 VC_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd')
 
 
@@ -180,6 +183,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype BUILDERS_MAP: dict
     :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
     :vartype BASE_SCHEMAS: dict
+    :cvar FALLBACK_LOCATIONS: fallback schema location hints for other standard namespaces.
+    :vartype FALLBACK_LOCATIONS: dict
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
     :cvar attribute_form_default: the schema's *attributeFormDefault* attribute, defaults to 'unqualified'.
@@ -237,6 +242,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     BUILDERS = None
     BUILDERS_MAP = None
     BASE_SCHEMAS = None
+    FALLBACK_LOCATIONS = None
     meta_schema = None
 
     # Schema defaults
@@ -318,8 +324,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         # Set locations hints
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
         if self.meta_schema is not None:
-            # Add fallback schema location hint for XHTML
-            self.locations[XHTML_NAMESPACE] = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
+            self.locations.update(self.FALLBACK_LOCATIONS)
 
         self.converter = self.get_converter(converter)
         self.xpath_proxy = XMLSchemaProxy(self)
@@ -938,7 +943,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             import_error = None
             for url in locations:
                 try:
-                    # print("Import namespace ", namespace, url)
                     self.import_schema(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
                     # It's not an error if the location access fails (ref. section 4.2.6.2):
@@ -1425,7 +1429,10 @@ class XMLSchema10(XMLSchemaBase):
     BASE_SCHEMAS = {
         XML_NAMESPACE: XML_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
+    }
+    FALLBACK_LOCATIONS = {
         XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
+        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
     }
 
 
@@ -1486,8 +1493,11 @@ class XMLSchema11(XMLSchemaBase):
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
         XML_NAMESPACE: XML_SCHEMA_FILE,
         XSI_NAMESPACE: XSI_SCHEMA_FILE,
-        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
         VC_NAMESPACE: VC_SCHEMA_FILE,
+    }
+    FALLBACK_LOCATIONS = {
+        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
+        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
     }
 
     def _include_schemas(self):
