@@ -14,6 +14,7 @@ import pdb
 import os
 import pickle
 import time
+import logging
 import warnings
 
 from xmlschema import XMLSchemaBase
@@ -46,6 +47,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     locations = test_args.locations
     defuse = test_args.defuse
     debug_mode = test_args.debug
+    loglevel = logging.DEBUG if debug_mode else None
 
     class TestSchema(XsdValidatorTestCase):
 
@@ -61,9 +63,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
         def check_xsd_file(self):
             if expected_errors > 0:
-                xs = schema_class(xsd_file, validation='lax', locations=locations, defuse=defuse)
+                xs = schema_class(xsd_file, validation='lax', locations=locations,
+                                  defuse=defuse, loglevel=loglevel)
             else:
-                xs = schema_class(xsd_file, locations=locations, defuse=defuse)
+                xs = schema_class(xsd_file, locations=locations, defuse=defuse, loglevel=loglevel)
             self.errors.extend(xs.maps.all_errors)
 
             if inspect:

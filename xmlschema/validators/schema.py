@@ -55,6 +55,9 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
 from .globals_ import XsdGlobals
 
+logger = logging.getLogger('xmlschema')
+logging.basicConfig(format='[%(levelname)s] %(message)s')
+
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 
 # Elements for building dummy groups
@@ -172,6 +175,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     meta-schema is added at the end. In the latter case the meta-schema is rebuilt if any base \
     namespace has been overridden by an import. Ignored if the argument *global_maps* is provided.
     :type use_meta: bool
+    :param loglevel: for setting a different logging level for schema initialization \
+    and building. For default is WARNING (30).
+    :type loglevel: int
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).
     :vartype XSD_VERSION: str
@@ -258,10 +264,18 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     default_open_content = None
     override = None
 
-    def __init__(self, source, namespace=None, validation='strict', global_maps=None, converter=None,
-                 locations=None, base_url=None, defuse='remote', timeout=300, build=True, use_meta=True):
+    def __init__(self, source, namespace=None, validation='strict', global_maps=None,
+                 converter=None, locations=None, base_url=None, defuse='remote',
+                 timeout=300, build=True, use_meta=True, loglevel=None):
         super(XMLSchemaBase, self).__init__(validation)
+        if loglevel is not None:
+            logger.setLevel(loglevel)
+        elif build and global_maps is None:
+            logger.setLevel(logging.WARNING)
+
         self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
+        logger.debug("Read schema from %r", self.source)
+
         self.imports = {}
         self.includes = {}
         self.warnings = []
@@ -290,6 +304,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.target_namespace = namespace
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
+
+        logger.debug("Schema targetNamespace is %r", self.target_namespace)
+        logger.debug("Declared namespaces: %r", self.namespaces)
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
@@ -321,11 +338,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             except ValueError as err:
                 self.parse_error(err, root)
 
-        # Set locations hints
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
-        if self.meta_schema is not None:
-            self.locations.update(self.FALLBACK_LOCATIONS)
-
         self.converter = self.get_converter(converter)
         self.xpath_proxy = XMLSchemaProxy(self)
         self.empty_attribute_group = self.BUILDERS.attribute_group_class(
@@ -396,8 +409,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 self.default_open_content = XsdDefaultOpenContent(child, self)
                 break
 
-        if build:
-            self.maps.build()
+        try:
+            if build:
+                self.maps.build()
+        finally:
+            if loglevel is not None:
+                logger.setLevel(logging.WARNING)  # Restore default logging
 
     def __repr__(self):
         if self.url:
@@ -829,7 +846,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """Processes schema document inclusions and redefinitions."""
         for child in filter(lambda x: x.tag == XSD_INCLUDE, self.root):
             try:
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+                location = child.attrib['schemaLocation'].strip()
+                logger.info("Include schema from %r", location)
+                self.include_schema(location, self.base_url)
             except KeyError:
                 pass
             except (OSError, IOError) as err:
@@ -850,7 +869,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         for child in filter(lambda x: x.tag == XSD_REDEFINE, self.root):
             try:
-                schema = self.include_schema(child.attrib['schemaLocation'], self.base_url)
+                location = child.attrib['schemaLocation'].strip()
+                logger.info("Redefine schema %r", location)
+                schema = self.include_schema(location, self.base_url)
             except KeyError:
                 pass  # Attribute missing error already found by validation against meta-schema
             except (OSError, IOError) as err:
@@ -940,13 +961,18 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 if local_hints:
                     locations = local_hints + locations
 
+            if namespace in self.FALLBACK_LOCATIONS:
+                locations.append(self.FALLBACK_LOCATIONS[namespace])
+
             import_error = None
             for url in locations:
                 try:
+                    logger.debug("Import namespace %r from %r", namespace, url)
                     self.import_schema(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
                     # It's not an error if the location access fails (ref. section 4.2.6.2):
                     #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
+                    logger.debug('%s', err)
                     if import_error is None:
                         import_error = err
                 except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
@@ -963,6 +989,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 except XMLSchemaValueError as err:
                     self.parse_error(err)
                 else:
+                    logger.info("Namespace %r imported from %r", namespace, url)
                     break
             else:
                 if import_error is not None:
@@ -1505,7 +1532,9 @@ class XMLSchema11(XMLSchemaBase):
 
         for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
             try:
-                schema = self.include_schema(child.attrib['schemaLocation'], self.base_url)
+                location = child.attrib['schemaLocation'].strip()
+                logger.info("Override schema %r", location)
+                schema = self.include_schema(location, self.base_url)
             except KeyError:
                 pass  # Attribute missing error already found by validation against meta-schema
             except (OSError, IOError) as err:
