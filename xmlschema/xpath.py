@@ -93,6 +93,20 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             except AttributeError:
                 raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
 
+    def bind_parser(self, parser):
+        if parser.schema is not self:
+            parser.schema = self
+
+        try:
+            parser.symbol_table = self._schema.xpath_tokens[parser.__class__]
+        except KeyError:
+            parser.symbol_table = parser.__class__.symbol_table.copy()
+            self._schema.xpath_tokens[parser.__class__] = parser.symbol_table
+            for xsd_type in self.iter_atomic_types():
+                parser.schema_constructor(xsd_type.name)
+
+        parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
+
     def get_context(self):
         return XMLSchemaContext(root=self._schema, item=self._base_element)
 
@@ -166,7 +180,13 @@ class ElementPathMixin(Sequence):
     attributes = {}
     namespaces = {}
     xpath_default_namespace = None
-    xpath_proxy = None
+
+    _xpath_parser = None  # Internal XPath 2.0 parser, instantiated at first use.
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_xpath_parser', None)
+        return state
 
     @abstractmethod
     def __iter__(self):
@@ -198,48 +218,56 @@ class ElementPathMixin(Sequence):
         """Gets an Element attribute. For compatibility with the ElementTree API."""
         return self.attributes.get(key, default)
 
-    def iterfind(self, path, namespaces=None):
+    @property
+    def xpath_proxy(self):
+        """Returns an XPath proxy instance bound with the schema."""
+        raise NotImplementedError
+
+    def _rebind_xpath_parser(self):
+        """Rebind XPath 2 parser with schema component."""
+        if self._xpath_parser is not None:
+            self._xpath_parser.schema.bind_parser(self._xpath_parser)
+
+    def _get_xpath_namespaces(self, namespaces=None):
         """
-        Creates and iterator for all XSD subelements matching the path.
+        Returns a dictionary with namespaces for XPath selection.
 
-        :param path: an XPath expression that considers the XSD component as the root element.
-        :param namespaces: is an optional mapping from namespace prefix to full name.
-        :return: an iterable yielding all matching XSD subelements in document order.
+        :param namespaces: an optional map from namespace prefix to namespace URI. \
+        If this argument is not provided the schema's namespaces are used.
         """
-        path = path.strip()
-        if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA, path])
-        if namespaces is None:
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-
-        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
-                              default_namespace=self.xpath_default_namespace)
-        root_token = parser.parse(path)
-        context = XMLSchemaContext(self)
-        return root_token.select_results(context)
-
-    def find(self, path, namespaces=None):
-        """
-        Finds the first XSD subelement matching the path.
-
-        :param path: an XPath expression that considers the XSD component as the root element.
-        :param namespaces: an optional mapping from namespace prefix to full name.
-        :return: The first matching XSD subelement or ``None`` if there is not match.
-        """
-        path = path.strip()
-        if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA, path])
-
         if namespaces is None:
             namespaces = {k: v for k, v in self.namespaces.items() if k}
             namespaces[''] = self.xpath_default_namespace
         elif '' not in namespaces:
             namespaces[''] = self.xpath_default_namespace
 
-        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
-        root_token = parser.parse(path)
+        xpath_namespaces = XPath2Parser.DEFAULT_NAMESPACES.copy()
+        xpath_namespaces.update(namespaces)
+        return xpath_namespaces
+
+    def _xpath_parse(self, path, namespaces=None):
+        path = path.strip()
+        if path.startswith('/') and not path.startswith('//'):
+            path = ''.join(['/', XSD_SCHEMA, path])
+
+        namespaces = self._get_xpath_namespaces(namespaces)
+        if self._xpath_parser is None:
+            self._xpath_parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
+        else:
+            self._xpath_parser.namespaces = namespaces
+
+        return self._xpath_parser.parse(path)
+
+    def find(self, path, namespaces=None):
+        """
+        Finds the first XSD subelement matching the path.
+
+        :param path: an XPath expression that considers the XSD component as the root element.
+        :param namespaces: an optional mapping from namespace prefix to namespace URI.
+        :return: The first matching XSD subelement or ``None`` if there is not match.
+        """
         context = XMLSchemaContext(self)
-        return next(root_token.select_results(context), None)
+        return next(self._xpath_parse(path, namespaces).select_results(context), None)
 
     def findall(self, path, namespaces=None):
         """
@@ -250,17 +278,19 @@ class ElementPathMixin(Sequence):
         :return: a list containing all matching XSD subelements in document order, an empty \
         list is returned if there is no match.
         """
-        path = path.strip()
-        if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA, path])
-        if namespaces is None:
-            namespaces = {k: v for k, v in self.namespaces.items() if k}
-
-        parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy,
-                              default_namespace=self.xpath_default_namespace)
-        root_token = parser.parse(path)
         context = XMLSchemaContext(self)
-        return root_token.get_results(context)
+        return self._xpath_parse(path, namespaces).get_results(context)
+
+    def iterfind(self, path, namespaces=None):
+        """
+        Creates and iterator for all XSD subelements matching the path.
+
+        :param path: an XPath expression that considers the XSD component as the root element.
+        :param namespaces: is an optional mapping from namespace prefix to full name.
+        :return: an iterable yielding all matching XSD subelements in document order.
+        """
+        context = XMLSchemaContext(self)
+        return self._xpath_parse(path, namespaces).select_results(context)
 
     def iter(self, tag=None):
         """

@@ -216,8 +216,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar xpath_proxy: a proxy for XPath operations on schema components.
-    :vartype xpath_proxy: XMLSchemaProxy
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
@@ -340,10 +338,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
         self.converter = self.get_converter(converter)
-        self.xpath_proxy = XMLSchemaProxy(self)
-        self.empty_attribute_group = self.BUILDERS.attribute_group_class(
-            etree_element(XSD_ATTRIBUTE_GROUP), self, self
-        )
+        self.xpath_tokens = {}
 
         # Create or set the XSD global maps instance
         if self.meta_schema is None:
@@ -416,6 +411,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if loglevel is not None:
                 logger.setLevel(logging.WARNING)  # Restore default logging
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['xpath_tokens']
+        state.pop('_xpath_parser', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.xpath_tokens = {}
+
     def __repr__(self):
         if self.url:
             basename = os.path.basename(self.url)
@@ -456,6 +461,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def __len__(self):
         return len(self.elements)
+
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self)
 
     @property
     def xsd_version(self):

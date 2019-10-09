@@ -395,10 +395,13 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 self.__class__.__name__, self.not_namespace, self.process_contents, self.occurs
             )
 
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
+
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle(self.elem)
-        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def match(self, name, default_namespace=None, resolve=False, **kwargs):
         """

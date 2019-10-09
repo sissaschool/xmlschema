@@ -57,8 +57,6 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
 
-        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
-
     @property
     def built(self):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
@@ -77,7 +75,11 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             variables = None
 
         self.parser = XPath2Parser(
-            self.namespaces, variables, False, self.xpath_default_namespace, schema=self.xpath_proxy
+            namespaces=self.namespaces,
+            variables=variables,
+            strict=False,
+            default_namespace=self.xpath_default_namespace,
+            schema=XMLSchemaProxy(self.schema, self)
         )
 
         try:
@@ -89,6 +91,8 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def __call__(self, elem, value=None, source=None, namespaces=None, **kwargs):
         if value is not None:
             self.parser.variables['value'] = self.base_type.text_decode(value)
+        if not self.parser.is_schema_bound():
+            self.parser.schema.bind_parser(self.parser)
 
         if source is None:
             context = XPathContext(root=elem)
@@ -96,7 +100,6 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             context = XPathContext(root=source.root, item=elem)
 
         default_namespace = self.parser.namespaces['']
-
         if namespaces and '' in namespaces:
             self.parser.namespaces[''] = namespaces['']
 

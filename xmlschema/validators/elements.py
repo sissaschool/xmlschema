@@ -96,14 +96,21 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __setattr__(self, name, value):
         if name == "type":
-            assert value is None or isinstance(value, XsdType), "Wrong value %r for attribute 'type'." % value
-            self.attributes = self.get_attributes(value)
+            assert value is None or isinstance(value, XsdType)
+            try:
+                self.attributes = value.attributes
+            except AttributeError:
+                self.attributes = self.schema.create_empty_attribute_group(self)
         super(XsdElement, self).__setattr__(name, value)
 
     def __iter__(self):
         if not self.type.has_simple_content():
             for e in self.type.content_type.iter_elements():
                 yield e
+
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
 
     def _parse(self):
         XsdComponent._parse(self)
@@ -112,7 +119,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         self._parse_identity_constraints(index)
         if self.parent is None and 'substitutionGroup' in self.elem.attrib:
             self._parse_substitution_group(self.elem.attrib['substitutionGroup'])
-        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def _parse_attributes(self):
         self._parse_particle(self.elem)
@@ -390,7 +396,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         try:
             return xsd_type.attributes
         except AttributeError:
-            return self.schema.empty_attribute_group
+            return self.attributes
 
     def get_path(self, ancestor=None, reverse=False):
         """
@@ -847,8 +853,6 @@ class Xsd11Element(XsdElement):
 
         if any(v.inheritable for v in self.attributes.values()):
             self.inheritable = {k: v for k, v in self.attributes.items() if v.inheritable}
-
-        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
     def _parse_alternatives(self, index=0):
         if self.ref is not None:
