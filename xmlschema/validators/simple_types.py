@@ -549,6 +549,11 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield self.decode_error(validation, obj, self.to_python, reason=str(err))
             yield None
             return
+        except TypeError:
+            # xs:error type (eg. an XSD 1.1 type alternative used to catch invalid values)
+            yield self.validation_error(validation, "Invalid value {!r}".format(obj))
+            yield None
+            return
 
         for validator in self.validators:
             for error in validator(result):
@@ -585,6 +590,10 @@ class XsdAtomicBuiltin(XsdAtomic):
                     obj = value
             except ValueError:
                 yield self.encode_error(validation, obj, self.from_python)
+                yield None
+                return
+            except TypeError:
+                yield self.validation_error(validation, "Invalid value {!r}".format(obj))
                 yield None
                 return
 
