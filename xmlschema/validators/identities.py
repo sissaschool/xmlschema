@@ -269,9 +269,10 @@ class XsdKeyref(XsdIdentity):
         elif isinstance(self.refer, (XsdKey, XsdUnique)):
             return  # referenced key/unique identity constraint already set
 
-        try:
-            self.refer = self.parent.identities[self.refer]
-        except KeyError:
+        refer = self.parent.identities.get(self.refer)
+        if refer is not None and refer.ref is None:
+            self.refer = refer
+        else:
             try:
                 self.refer = self.maps.identities[self.refer]
             except KeyError:
