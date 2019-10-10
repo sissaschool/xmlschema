@@ -14,7 +14,8 @@ This module contains declarations and classes for XML Schema constraint facets.
 from __future__ import unicode_literals
 import re
 import operator
-from elementpath import XPath2Parser, ElementPathError, datatypes
+from elementpath import XPath2Parser, ElementPathError
+from elementpath.datatypes import XSD_BUILTIN_TYPES
 
 from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -713,9 +714,9 @@ class XsdAssertionFacet(XsdFacet):
 
         try:
             builtin_type_name = self.base_type.primitive_type.local_name
-            variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+            variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
         except AttributeError:
-            variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
+            variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)

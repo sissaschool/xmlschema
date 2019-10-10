@@ -9,7 +9,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from __future__ import unicode_literals
-from elementpath import datatypes, XPath2Parser, XPathContext, ElementPathError
+from elementpath import XPath2Parser, XPathContext, ElementPathError
+from elementpath.datatypes import XSD_BUILTIN_TYPES
 
 from ..qnames import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
@@ -62,17 +63,15 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
     def parse_xpath_test(self):
-        if self.base_type.has_simple_content():
-            variables = {'value': datatypes.XSD_BUILTIN_TYPES['anyType'].value}
-        elif self.base_type.is_complex():
+        if not self.base_type.has_simple_content():
+            variables = {'value': XSD_BUILTIN_TYPES['anyType'].value}
+        else:
             try:
                 builtin_type_name = self.base_type.content_type.primitive_type.local_name
             except AttributeError:
-                variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
+                variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
             else:
-                variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
-        else:
-            variables = None
+                variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
 
         self.parser = XPath2Parser(
             namespaces=self.namespaces,
@@ -125,3 +124,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     @property
     def type(self):
         return self.parent
+
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
