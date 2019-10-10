@@ -158,8 +158,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :type converter: XMLSchemaConverter or None
-    :param locations: schema location hints for namespace imports. Can be a dictionary or \
-    a sequence of couples (namespace URI, resource URL).
+    :param locations: schema location hints, that can include additional namespaces to \
+    import after processing schema's import statements. Usually filled with the couples \
+    (namespace, url) extracted from xsi:schemaLocations. Can be a dictionary or a sequence \
+    of couples (namespace URI, resource URL).
     :type locations: dict or list or None
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
@@ -216,7 +218,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar locations: schema location hints.
+    :ivar locations: schemas location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
     :vartype namespaces: dict
@@ -349,7 +351,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         elif global_maps is None:
             if use_meta is False:
                 self.maps = XsdGlobals(self, validation)
-                self.locations.update(self.BASE_SCHEMAS)
             elif self.target_namespace not in self.BASE_SCHEMAS:
                 if not self.meta_schema.maps.types:
                     self.meta_schema.maps.build()
@@ -384,9 +385,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason, elem=e.elem)
 
-        # Includes and imports schemas (errors are treated as warnings)
-        self._include_schemas()
-        self._import_namespaces()
+        # Inclusions and imports schemas (errors are treated as warnings)
+        self._parse_inclusions()
+        self._parse_imports()
+
+        # Imports by argument (usually from XML schemaLocation attribute).
+        for ns in self.locations:
+            if ns not in self.maps.namespaces:
+                self._import_namespace(ns, self.locations[ns])
 
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
@@ -612,9 +618,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         :param source: an optional argument referencing to or containing the XSD meta-schema \
         resource. Required if the schema class doesn't already have a meta-schema.
-        :param base_schemas: an optional dictionary that contains namespace URIs and schema locations. \
-        If provided it's used as substitute for class 's BASE_SCHEMAS. Also a sequence of (namespace, \
-        location) items can be provided if there are more schema documents for one or more namespaces.
+        :param base_schemas: an optional dictionary that contains namespace URIs and \
+        schema locations. If provided it's used as substitute for class 's BASE_SCHEMAS. \
+        Also a sequence of (namespace, location) items can be provided if there are more \
+        schema documents for one or more namespaces.
         :param global_maps: is an optional argument containing an :class:`XsdGlobals` \
         instance for the new meta schema. If not provided a new map is created.
         """
@@ -851,7 +858,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         else:
             return self.find(path, namespaces)
 
-    def _include_schemas(self):
+    def _parse_inclusions(self):
         """Processes schema document inclusions and redefinitions."""
         for child in filter(lambda x: x.tag == XSD_INCLUDE, self.root):
             try:
@@ -915,8 +922,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 break
         else:
             schema = self.create_schema(
-                schema_url, self.target_namespace, self.validation, self.maps, self.converter,
-                self.locations, self.base_url, self.defuse, self.timeout, False
+                source=schema_url,
+                namespace=self.target_namespace,
+                validation=self.validation,
+                global_maps=self.maps,
+                converter=self.converter,
+                base_url=self.base_url,
+                defuse=self.defuse,
+                timeout=self.timeout,
+                build=False,
             )
 
         if location not in self.includes:
@@ -925,10 +939,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.includes[schema_url] = schema
         return schema
 
-    def _import_namespaces(self):
+    def _parse_imports(self):
         """
-        Processes namespace imports. Imports are done on namespace basis not on resource: this
-        is the standard and also avoids import loops that sometimes are hard to detect.
+        Parse namespace import elements. Imports are done on namespace basis, not on
+        single resource. A warning is generated for a failure of a namespace import.
         """
         namespace_imports = NamespaceResourcesMap(map(
             lambda x: (x.get('namespace'), x.get('schemaLocation')),
@@ -973,38 +987,41 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if namespace in self.FALLBACK_LOCATIONS:
                 locations.append(self.FALLBACK_LOCATIONS[namespace])
 
-            import_error = None
-            for url in locations:
-                try:
-                    logger.debug("Import namespace %r from %r", namespace, url)
-                    self.import_schema(namespace, url, self.base_url)
-                except (OSError, IOError) as err:
-                    # It's not an error if the location access fails (ref. section 4.2.6.2):
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
-                    logger.debug('%s', err)
-                    if import_error is None:
-                        import_error = err
-                except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                    if namespace:
-                        msg = "cannot import namespace %r: %s." % (namespace, err)
-                    else:
-                        msg = "cannot import chameleon schema: %s." % err
-                    if isinstance(err, (XMLSchemaParseError, ParseError)):
-                        self.parse_error(msg)
-                    elif self.validation == 'strict':
-                        raise type(err)(msg)
-                    else:
-                        self.errors.append(type(err)(msg))
-                except XMLSchemaValueError as err:
-                    self.parse_error(err)
+            self._import_namespace(namespace, locations)
+
+    def _import_namespace(self, namespace, locations):
+        import_error = None
+        for url in locations:
+            try:
+                logger.debug("Import namespace %r from %r", namespace, url)
+                self.import_schema(namespace, url, self.base_url)
+            except (OSError, IOError) as err:
+                # It's not an error if the location access fails (ref. section 4.2.6.2):
+                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
+                logger.debug('%s', err)
+                if import_error is None:
+                    import_error = err
+            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                if namespace:
+                    msg = "cannot import namespace %r: %s." % (namespace, err)
                 else:
-                    logger.info("Namespace %r imported from %r", namespace, url)
-                    break
+                    msg = "cannot import chameleon schema: %s." % err
+                if isinstance(err, (XMLSchemaParseError, ParseError)):
+                    self.parse_error(msg)
+                elif self.validation == 'strict':
+                    raise type(err)(msg)
+                else:
+                    self.errors.append(type(err)(msg))
+            except XMLSchemaValueError as err:
+                self.parse_error(err)
             else:
-                if import_error is not None:
-                    self.warnings.append("Namespace import failed: %s." % str(import_error))
-                    warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
-                self.imports[namespace] = None
+                logger.info("Namespace %r imported from %r", namespace, url)
+                break
+        else:
+            if import_error is not None:
+                self.warnings.append("Namespace import failed: %s." % str(import_error))
+                warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
+            self.imports[namespace] = None
 
     def import_schema(self, namespace, location, base_url=None, force=False):
         """
@@ -1033,8 +1050,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     return schema
 
         schema = self.create_schema(
-            schema_url, None, self.validation, self.maps, self.converter,
-            self.locations, self.base_url, self.defuse, self.timeout, False
+            source=schema_url,
+            validation=self.validation,
+            global_maps=self.maps,
+            converter=self.converter,
+            base_url=self.base_url,
+            defuse=self.defuse,
+            timeout=self.timeout,
+            build=False,
         )
         if schema.target_namespace != namespace:
             raise XMLSchemaValueError('imported schema %r has an unmatched namespace %r' % (location, namespace))
@@ -1536,8 +1559,8 @@ class XMLSchema11(XMLSchemaBase):
         XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
     }
 
-    def _include_schemas(self):
-        super(XMLSchema11, self)._include_schemas()
+    def _parse_inclusions(self):
+        super(XMLSchema11, self)._parse_inclusions()
 
         for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
             try:
