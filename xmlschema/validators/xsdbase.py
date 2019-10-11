@@ -625,7 +625,14 @@ class XsdType(XsdComponent):
     @staticmethod
     def is_atomic():
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
-        return None
+        return False
+
+    @staticmethod
+    def is_datetime():
+        """
+        Returns `True` if the instance is a datetime/duration XSD builtin-type, `False` otherwise.
+        """
+        return False
 
     def is_empty(self):
         """Returns `True` if the instance has an empty value or content, `False` otherwise."""

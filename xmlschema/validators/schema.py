@@ -385,11 +385,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
                 self.parse_error(e.reason, elem=e.elem)
 
-        # Inclusions and imports schemas (errors are treated as warnings)
         self._parse_inclusions()
         self._parse_imports()
 
-        # Imports by argument (usually from XML schemaLocation attribute).
+        # Imports by argument (usually from xsi:schemaLocation attribute).
         for ns in self.locations:
             if ns not in self.maps.namespaces:
                 self._import_namespace(ns, self.locations[ns])

@@ -23,7 +23,7 @@ except ImportError:
     lxml_etree = None
 
 from .compat import PY3
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname, qname_to_prefixed
 

@@ -400,6 +400,7 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic
     built-in type or another derived simpleType.
     """
+    to_python = str
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
 
@@ -501,6 +502,9 @@ class XsdAtomicBuiltin(XsdAtomic):
     @property
     def admitted_facets(self):
         return self._admitted_facets or self.primitive_type.admitted_facets
+
+    def is_datetime(self):
+        return self.to_python.__name__ == 'fromstring'
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (string_base_type, bytes)):
@@ -1151,35 +1155,21 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.is_list():
             if not hasattr(obj, '__iter__') or isinstance(obj, (str, unicode_type, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]
-
-            if validation != 'skip' and obj is not None:
-                for validator in self.validators:
-                    for error in validator(obj):
-                        yield error
-
-            for result in self.base_type.iter_encode(obj, validation):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                    if isinstance(result, XMLSchemaEncodeError):
-                        yield unicode_type(obj) if validation == 'skip' else None
-                        return
-                else:
-                    yield result
-            return
-
-        if isinstance(obj, (string_base_type, bytes)):
-            obj = self.normalize(obj)
-
-        if self.base_type.is_simple():
             base_type = self.base_type
-        elif self.base_type.has_simple_content():
-            base_type = self.base_type.content_type
-        elif self.base_type.mixed:
-            yield unicode_type(obj)
-            return
         else:
-            raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
-                                      "simple or mixed content required." % self.base_type)
+            if isinstance(obj, (string_base_type, bytes)):
+                obj = self.normalize(obj)
+
+            if self.base_type.is_simple():
+                base_type = self.base_type
+            elif self.base_type.has_simple_content():
+                base_type = self.base_type.content_type
+            elif self.base_type.mixed:
+                yield unicode_type(obj)
+                return
+            else:
+                raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
+                                          "simple or mixed content required." % self.base_type)
 
         for result in base_type.iter_encode(obj, validation):
             if isinstance(result, XMLSchemaValidationError):
@@ -1188,7 +1178,11 @@ class XsdAtomicRestriction(XsdAtomic):
                     yield unicode_type(obj) if validation == 'skip' else None
                     return
             else:
-                if validation != 'skip' and obj is not None:
+                if validation != 'skip' and self.validators and obj is not None:
+                    if isinstance(obj, (string_base_type, bytes)):
+                        if self.primitive_type.is_datetime():
+                            obj = self.primitive_type.to_python(obj)
+
                     for validator in self.validators:
                         for error in validator(obj):
                             yield error
