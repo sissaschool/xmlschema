@@ -185,7 +185,6 @@ XSD_YEAR_MONTH_DURATION = XSD_TEMPLATE % 'yearMonthDuration'
 XSD_ERROR = XSD_TEMPLATE % 'error'
 
 
-
 def get_qname(uri, name):
     """
     Returns an expanded QName from URI and local part. If any argument has boolean value

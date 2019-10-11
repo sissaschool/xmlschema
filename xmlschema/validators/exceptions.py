@@ -202,7 +202,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if not isinstance(obj, string_base_type):
             _obj = obj
         else:
-            _obj =  obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8')
+            _obj = obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8')
 
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,

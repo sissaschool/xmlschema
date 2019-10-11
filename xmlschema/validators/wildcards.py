@@ -250,8 +250,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         if not self.not_qname:
             self.not_qname = other.not_qname[:]
         else:
-            self.not_qname = [x for x in self.not_qname if x in other.not_qname or
-                              not other.is_namespace_allowed(get_namespace(x))]
+            self.not_qname = [
+                x for x in self.not_qname
+                if x in other.not_qname or not other.is_namespace_allowed(get_namespace(x))
+            ]
 
         if self.not_namespace:
             if other.not_namespace:

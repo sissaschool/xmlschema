@@ -247,7 +247,7 @@ class TestXsd11Wildcards(TestXsdWildcards):
                 <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
                 <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
                 <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
-                <xs:any namespace="##any" notQName="##defined qn1"/> 
+                <xs:any namespace="##any" notQName="##defined qn1"/>
                 <xs:any namespace="##local" notQName="##defined"/>
               </xs:sequence>
             </xs:group>

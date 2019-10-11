@@ -276,7 +276,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
     def test_upa_violation_with_wildcard(self):
         self.check_schema("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
-        	targetNamespace="tns" xmlns:ns="tns" elementFormDefault="unqualified">
+            targetNamespace="tns" xmlns:ns="tns" elementFormDefault="unqualified">
 
             <xs:complexType name="baseType">
                 <xs:sequence>
@@ -295,7 +295,7 @@ class TestXsdComplexType(XsdValidatorTestCase):
                     </xs:extension>
                 </xs:complexContent>
             </xs:complexType>
-            
+
         </xs:schema>
         """, XMLSchemaModelError if self.schema_class.XSD_VERSION == '1.0' else None)
 
