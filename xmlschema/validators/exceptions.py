@@ -224,7 +224,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
             msg.append('Reason: %s\n' % self.reason)
         if hasattr(self.validator, 'tostring'):
             msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
-        if self.elem is not None:
+        if is_etree_element(self.elem):
             elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
             if hasattr(self.elem, 'sourceline'):
                 msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))

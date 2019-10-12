@@ -153,19 +153,21 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     if isinstance(elem, etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                etree_register_namespace(prefix, uri)
+                if not re.match(r'ns\d+$', prefix):
+                    etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
 
     elif isinstance(elem, py_etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                PyElementTree.register_namespace(prefix, uri)
+                if not re.match(r'ns\d+$', prefix):
+                    PyElementTree.register_namespace(prefix, uri)
         tostring = PyElementTree.tostring
 
     elif lxml_etree is not None:
         if namespaces:
             for prefix, uri in namespaces.items():
-                if prefix:
+                if prefix and not re.match(r'ns\d+$', prefix):
                     lxml_etree_register_namespace(prefix, uri)
         tostring = lxml_etree.tostring
     else:
