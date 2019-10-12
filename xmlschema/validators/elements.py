@@ -358,11 +358,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     @property
     def final(self):
-        return self._final or self.schema.final_default if self.ref is None else self.ref.final
+        if self.ref is not None:
+            return self.ref.final
+        elif self._final is not None:
+            return self._final
+        return self.schema.final_default
 
     @property
     def block(self):
-        return self._block or self.schema.block_default if self.ref is None else self.ref.block
+        if self.ref is not None:
+            return self.ref.block
+        elif self._block is not None:
+            return self._block
+        return self.schema.block_default
 
     @property
     def nillable(self):
@@ -479,8 +487,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
 
-        if xsd_type.is_blocked(self.block):
-            yield self.validation_error(validation, "usage of %r is blocked" % xsd_type, elem, **kwargs)
+            if xsd_type.is_blocked(self):
+                yield self.validation_error(validation, "usage of %r is blocked" % xsd_type, elem, **kwargs)
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)

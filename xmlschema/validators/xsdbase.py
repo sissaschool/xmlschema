@@ -569,8 +569,7 @@ class XsdType(XsdComponent):
     """Common base class for XSD types."""
 
     abstract = False
-    blocked = False
-    block = ''
+    block = None
     base_type = None
     derivation = None
     redefine = None
@@ -664,17 +663,20 @@ class XsdType(XsdComponent):
     def is_derived(self, other, derivation=None):
         raise NotImplementedError
 
-    def is_blocked(self, block=''):
-        if self.blocked:
-            return True
-        elif not block:
+    def is_blocked(self, xsd_element):
+        """
+        Returns `True` if the base type derivation is blocked, `False` otherwise.
+        """
+        xsd_type = xsd_element.type
+        if self is xsd_type:
             return False
-        elif self.derivation and self.derivation in block:
-            return True
-        elif self.base_type is None:
+
+        block = ('%s %s' % (xsd_element.block, xsd_type.block)).strip()
+        if not block:
             return False
-        else:
-            return self.base_type.is_blocked(block)
+        block = {x for x in block.split() if x in ('extension', 'restriction')}
+
+        return any(self.is_derived(xsd_type, derivation) for derivation in block)
 
     def is_dynamic_consistent(self, other):
         return self.is_derived(other) or hasattr(other, 'member_types') and \

@@ -52,10 +52,10 @@ class XsdComplexType(XsdType, ValidationMixin):
     mixed = False
     assertions = ()
     open_content = None
+    _block = None
 
     _ADMITTED_TAGS = {XSD_COMPLEX_TYPE, XSD_RESTRICTION}
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
-    _block = None
 
     @staticmethod
     def normalize(text):
@@ -149,19 +149,10 @@ class XsdComplexType(XsdType, ValidationMixin):
                 return
 
             self.base_type = base_type = self._parse_base_type(derivation_elem)
-
-            block = base_type.block
-            if self._block is None and block:
-                self._block = block
-
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_simple_content_restriction(derivation_elem, base_type)
-                if base_type.blocked or 'restriction' in block and base_type != self:
-                    self.blocked = True
             else:
                 self._parse_simple_content_extension(derivation_elem, base_type)
-                if base_type.blocked or 'extension' in block and base_type != self:
-                    self.blocked = True
 
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
@@ -184,24 +175,15 @@ class XsdComplexType(XsdType, ValidationMixin):
                 return
 
             base_type = self._parse_base_type(derivation_elem, complex_content=True)
-
             if base_type is not self:
                 self.base_type = base_type
             elif self.redefine:
                 self.base_type = self.redefine
 
-            block = base_type.block
-            if self._block is None and block:
-                self._block = block
-
             if derivation_elem.tag == XSD_RESTRICTION:
                 self._parse_complex_content_restriction(derivation_elem, base_type)
-                if base_type.blocked or 'restriction' in block and base_type != self:
-                    self.blocked = True
             else:
                 self._parse_complex_content_extension(derivation_elem, base_type)
-                if base_type.blocked or 'extension' in block and base_type != self:
-                    self.blocked = True
 
             if content_elem is not elem[-1]:
                 k = 2 if content_elem is not elem[0] else 1
@@ -451,16 +433,16 @@ class XsdComplexType(XsdType, ValidationMixin):
         self._parse_content_tail(elem, derivation='extension', base_attributes=base_type.attributes)
 
     @property
+    def block(self):
+        return self.schema.block_default if self._block is None else self._block
+
+    @property
     def built(self):
         return self.content_type.parent is not None or self.content_type.built
 
     @property
     def validation_attempted(self):
         return 'full' if self.built else self.content_type.validation_attempted
-
-    @property
-    def block(self):
-        return self.schema.block_default if self._block is None else self._block
 
     @staticmethod
     def is_simple():
@@ -514,14 +496,15 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.base_type.is_valid(source, use_defaults, namespaces)
 
     def is_derived(self, other, derivation=None):
+        if derivation and derivation == self.derivation:
+            derivation = None  # derivation mode checked
+
         if self is other:
-            return True
-        elif derivation and self.derivation and derivation != self.derivation and other.is_complex():
-            return False
+            return derivation is None
         elif other.name == XSD_ANY_TYPE:
             return True
         elif self.base_type is other:
-            return True
+            return derivation is None or self.base_type.derivation == derivation
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is None:

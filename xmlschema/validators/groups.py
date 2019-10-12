@@ -481,6 +481,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return other_max_occurs >= max_occurs * self.max_occurs
 
     def check_dynamic_context(self, elem, xsd_element, model_element, converter):
+        if model_element is not xsd_element:
+            if 'substitution' in model_element.block \
+                    or xsd_element.type.is_blocked(model_element):
+                raise XMLSchemaValidationError(
+                    model_element, "substitution of %r is blocked" % model_element
+                )
+
         alternatives = ()
         if isinstance(xsd_element, XsdAnyElement):
             if xsd_element.process_contents == 'skip':
@@ -707,8 +714,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             content = model.iter_unordered_content(element_data.content)
         elif converter.losslessly:
             content = element_data.content
-        else:
+        elif isinstance(element_data.content, list):
             content = model.iter_collapsed_content(element_data.content)
+        else:
+            content = []
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
@@ -775,13 +784,17 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
 
-        if validation != 'skip' and errors:
+        if validation != 'skip' and (errors or not content):
             attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
                 elem = converter.etree_element(element_data.tag, text, child_tags, attrib)
             else:
                 elem = converter.etree_element(element_data.tag, text, children, attrib)
+
+            if not content:
+                reason = "wrong content type {!r}".format(type(element_data.content))
+                yield self.validation_error(validation, reason, elem, **kwargs)
 
             for index, particle, occurs, expected in errors:
                 yield self.children_validation_error(validation, elem, index, particle, occurs, expected, **kwargs)
