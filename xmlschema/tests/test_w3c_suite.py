@@ -98,6 +98,18 @@ SKIPPED_TESTS = {
     # Invalid XML tests
     '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
     '../msData/additional/test93490_8.xml',     # 4799: Idem
+
+    # Skip for missing XML version 1.1 implementation
+    '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
+    '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
+    '../saxonData/XmlVersions/xv005.v01.xml',   # 14854
+    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
+    '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
+
+    # Skip for TODO
+    '../sunData/combined/005/test.1.v.xml',     # 3959: is valid but needs equality operators (#cos-ct-derived-ok)
 }
 
 XSD11_SKIPPED_TESTS = {
@@ -185,7 +197,10 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                 return
             if source_href in SKIPPED_TESTS:
                 if args.numbers:
-                    print("Skip test number %d ..." % testgroup_num)
+                    if source_href.endswith('.xsd'):
+                        print("Skip test number %d ..." % testgroup_num)
+                    else:
+                        print("Skip file %r for test number %d ..." % (source_href, testgroup_num))
                 return
 
         # Normalize and check file path
@@ -197,7 +212,9 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
         test_conf = {}
 
         for version in xsd_version.split():
-            if version not in args.version:
+            if 'version' in elem.attrib and version not in elem.attrib['version']:
+                continue
+            elif version not in args.version:
                 continue
             elif version == '1.1' and source_href in XSD11_SKIPPED_TESTS:
                 continue
@@ -227,9 +244,18 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
         if test_conf:
             test_conf['source'] = source_path
+            if schema_test and not source_path.endswith('.xml'):
+                test_conf['sources'] = [
+                    os.path.normpath(
+                        os.path.join(os.path.dirname(filename), schema_href.get('{%s}href' % XLINK_NAMESPACE))
+                    )
+                    for schema_href in elem.findall(tag)
+                ]
         return test_conf
 
-    if args.numbers and testgroup_num not in args.numbers:
+    if group_num == 1:
+        return  # Skip introspection tests that have several failures due to schema mismatch.
+    elif args.numbers and group_num not in args.numbers:
         return
 
     name = group_elem.attrib['name']
@@ -264,25 +290,37 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
     class TestGroupCase(unittest.TestCase):
 
-        @unittest.skipIf(not any(g['source'].endswith('.xsd') for g in group_tests), 'No schema tests')
+        @unittest.skipIf(group_tests[0]['source'].endswith('.xml'), 'No schema test')
         def test_xsd_schema(self):
             for item in filter(lambda x: x['source'].endswith('.xsd'), group_tests):
                 source = item['source']
                 rel_path = os.path.relpath(source)
 
-                for version, expected in sorted(filter(lambda x: x[0] != 'source', item.items())):
+                for version, expected in sorted(filter(lambda x: not x[0].startswith('source'), item.items())):
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "schema %s should be invalid with XSD %s" % (rel_path, version)
                         with self.assertRaises(XMLSchemaException, msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                schema_class(source, use_meta=False)
+                                if len(item['sources']) <= 1:
+                                    schema_class(source, use_meta=False)
+                                else:
+                                    schema = schema_class(source, use_meta=False, build=False)
+                                    for other in item['sources'][1:]:
+                                        schema_class(other, global_maps=schema.maps, build=False)
+                                    schema.build()
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                schema = schema_class(source, use_meta=False)
+                                if len(item['sources']) <= 1:
+                                    schema = schema_class(source, use_meta=False)
+                                else:
+                                    schema = schema_class(source, use_meta=False, build=False)
+                                    for other in item['sources'][1:]:
+                                        schema_class(other, global_maps=schema.maps, build=False)
+                                    schema.build()
                         except XMLSchemaException as err:
                             schema = None
                             message = "schema %s should be valid with XSD %s, but an error is raised:" \
@@ -292,12 +330,14 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
                         self.assertIsInstance(schema, schema_class, msg=message)
 
-        @unittest.skipIf(not any(g['source'].endswith('.xml') for g in group_tests), 'No instance tests')
+        @unittest.skipIf(group_tests[0]['source'].endswith('.xsd') and len(group_tests) == 1, 'No instance tests')
         def test_xml_instances(self):
             if group_tests[0]['source'].endswith('.xsd'):
                 schema = group_tests[0]['source']
+                schemas = group_tests[0]['sources']
             else:
                 schema = None
+                schemas = []
 
             for item in filter(lambda x: not x['source'].endswith('.xsd'), group_tests):
                 source = item['source']
@@ -310,12 +350,27 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
                         with self.assertRaises((XMLSchemaException, ElementTree.ParseError), msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                validate(source, schema=schema, cls=schema_class)
+                                if len(schemas) <= 1:
+                                    validate(source, schema=schema, cls=schema_class)
+                                else:
+                                    xs = schema_class(schemas[0], use_meta=False, build=False)
+                                    for other in schemas[1:]:
+                                        schema_class(other, global_maps=xs.maps, build=False)
+                                    xs.build()
+                                    xs.validate(source)
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                validate(source, schema=schema, cls=schema_class)
+                                if len(schemas) <= 1:
+                                    validate(source, schema=schema, cls=schema_class)
+                                else:
+                                    xs = schema_class(schemas[0], use_meta=False, build=False)
+                                    for other in schemas[1:]:
+                                        schema_class(other, global_maps=xs.maps, build=False)
+                                    xs.build()
+                                    xs.validate(source)
+
                         except (XMLSchemaException, ElementTree.ParseError) as err:
                             error = "instance %s should be valid with XSD %s, but an error " \
                                     "is raised:\n\n%s" % (rel_path, version, str(err))

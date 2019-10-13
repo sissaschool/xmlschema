@@ -13,13 +13,16 @@ This module contains declarations and classes for XML Schema constraint facets.
 """
 from __future__ import unicode_literals
 import re
-from elementpath import XPath2Parser, ElementPathError, datatypes
+import operator
+from elementpath import XPath2Parser, ElementPathError
+from elementpath.datatypes import XSD_BUILTIN_TYPES
 
 from ..compat import unicode_type, MutableSequence
-from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, XSD_WHITE_SPACE, \
-    XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, \
-    XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
-    XSD_BASE64_BINARY, XSD_HEX_BINARY
+from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+    XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
+    XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
+    XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
+from ..helpers import count_digits
 from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
@@ -40,8 +43,11 @@ class XsdFacet(XsdComponent):
         return '%s(value=%r, fixed=%r)' % (self.__class__.__name__, self.value, self.fixed)
 
     def __call__(self, value):
-        for error in self.validator(value):
-            yield error
+        try:
+            for error in self.validator(value):
+                yield error
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
     def _parse(self):
         super(XsdFacet, self)._parse()
@@ -150,6 +156,8 @@ class XsdLengthFacet(XsdFacet):
             self.validator = self.hex_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_length_validator
+        elif primitive_type.name == XSD_QNAME:
+            pass  # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
         else:
             self.validator = self.length_validator
 
@@ -193,7 +201,7 @@ class XsdMinLengthFacet(XsdFacet):
             self.validator = self.hex_min_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_min_length_validator
-        else:
+        elif primitive_type.name != XSD_QNAME:
             self.validator = self.min_length_validator
 
     def min_length_validator(self, x):
@@ -236,7 +244,7 @@ class XsdMaxLengthFacet(XsdFacet):
             self.validator = self.hex_max_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_max_length_validator
-        else:
+        elif primitive_type.name != XSD_QNAME:
             self.validator = self.max_length_validator
 
     def max_length_validator(self, x):
@@ -286,9 +294,13 @@ class XsdMinInclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x < self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be greater or equal than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value < self.value:
+                reason = "value has to be greater or equal than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMinExclusiveFacet(XsdFacet):
@@ -324,9 +336,13 @@ class XsdMinExclusiveFacet(XsdFacet):
         if facet is not None and facet.value <= self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x <= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be greater than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value <= self.value:
+                reason = "value has to be greater than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -362,9 +378,13 @@ class XsdMaxInclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x > self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be lesser or equal than %r." % self.value)
+    def __call__(self, value):
+        try:
+            if value > self.value:
+                reason = "value has to be lesser or equal than %r." % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -400,9 +420,13 @@ class XsdMaxExclusiveFacet(XsdFacet):
         if facet is not None and facet.value < self.value:
             self.parse_error("maximum value of base_type is lesser")
 
-    def validator(self, x):
-        if x >= self.value:
-            yield XMLSchemaValidationError(self, x, "value has to be lesser than %r" % self.value)
+    def __call__(self, value):
+        try:
+            if value >= self.value:
+                reason = "value has to be lesser than %r" % self.value
+                yield XMLSchemaValidationError(self, value, reason)
+        except (TypeError, ValueError) as err:
+            yield XMLSchemaValidationError(self, value, unicode_type(err))
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -426,8 +450,10 @@ class XsdTotalDigitsFacet(XsdFacet):
         self.validator = self.total_digits_validator
 
     def total_digits_validator(self, x):
-        if len([d for d in str(x).strip('0') if d.isdigit()]) > self.value:
-            yield XMLSchemaValidationError(self, x, "the number of digits is greater than %r." % self.value)
+        if operator.add(*count_digits(x)) > self.value:
+            yield XMLSchemaValidationError(
+                self, x, "the number of digits is greater than %r." % self.value
+            )
 
 
 class XsdFractionDigitsFacet(XsdFacet):
@@ -458,8 +484,10 @@ class XsdFractionDigitsFacet(XsdFacet):
         self.validator = self.fraction_digits_validator
 
     def fraction_digits_validator(self, x):
-        if len(str(x).strip('0').partition('.')[2]) > self.value:
-            yield XMLSchemaValidationError(self, x, "the number of fraction digits is greater than %r." % self.value)
+        if count_digits(x)[1] > self.value:
+            yield XMLSchemaValidationError(
+                self, x, "the number of fraction digits is greater than %r." % self.value
+            )
 
 
 class XsdExplicitTimezoneFacet(XsdFacet):
@@ -626,13 +654,37 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
             return '%s(%s...\'])' % (self.__class__.__name__, s[:70])
 
     def __call__(self, text):
-        if all(pattern.match(text) is None for pattern in self.patterns):
-            msg = "value doesn't match any pattern of %r."
-            yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+        try:
+            if all(pattern.match(text) is None for pattern in self.patterns):
+                msg = "value doesn't match any pattern of %r."
+                yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+        except TypeError as err:
+            yield XMLSchemaValidationError(self, text, unicode_type(err))
 
     @property
     def regexps(self):
         return [e.get('value', '') for e in self._elements]
+
+
+class XsdAssertionXPathParser(XPath2Parser):
+    """Parser for XSD 1.1 assertion facets."""
+
+
+XsdAssertionXPathParser.unregister('last')
+XsdAssertionXPathParser.unregister('position')
+
+
+@XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('last', nargs=0))
+def evaluate(self, context=None):
+    self.missing_context("Context item size is undefined")
+
+
+@XsdAssertionXPathParser.method(XsdAssertionXPathParser.function('position', nargs=0))
+def evaluate(self, context=None):
+    self.missing_context("Context item position is undefined")
+
+
+XsdAssertionXPathParser.build_tokenizer()
 
 
 class XsdAssertionFacet(XsdFacet):
@@ -662,16 +714,16 @@ class XsdAssertionFacet(XsdFacet):
 
         try:
             builtin_type_name = self.base_type.primitive_type.local_name
-            variables = {'value': datatypes.XSD_BUILTIN_TYPES[builtin_type_name].value}
+            variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
         except AttributeError:
-            variables = {'value': datatypes.XSD_BUILTIN_TYPES['anySimpleType'].value}
+            variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        self.parser = XPath2Parser(self.namespaces, strict=False, variables=variables,
-                                   default_namespace=self.xpath_default_namespace)
+        self.parser = XsdAssertionXPathParser(self.namespaces, strict=False, variables=variables,
+                                              default_namespace=self.xpath_default_namespace)
 
         try:
             self.token = self.parser.parse(self.path)
@@ -681,9 +733,12 @@ class XsdAssertionFacet(XsdFacet):
 
     def __call__(self, value):
         self.parser.variables['value'] = value
-        if not self.token.evaluate():
-            msg = "value is not true with test path %r."
-            yield XMLSchemaValidationError(self, value, reason=msg % self.path)
+        try:
+            if not self.token.evaluate():
+                msg = "value is not true with test path %r."
+                yield XMLSchemaValidationError(self, value, reason=msg % self.path)
+        except ElementPathError as err:
+            yield XMLSchemaValidationError(self, value, reason=str(err))
 
 
 XSD_10_FACETS_BUILDERS = {

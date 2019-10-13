@@ -15,9 +15,10 @@ import unittest
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
 from xmlschema.compat import unicode_type, ordered_dict_class
-from xmlschema.etree import etree_element, etree_tostring, is_etree_element, ElementTree
+from xmlschema.qnames import local_name
+from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
-from xmlschema.helpers import local_name
+from xmlschema.helpers import is_etree_element
 from xmlschema.tests import XsdValidatorTestCase
 from xmlschema.validators import XMLSchema11
 
@@ -373,8 +374,8 @@ class TestEncoding(XsdValidatorTestCase):
             </xs:element>
             """)
 
-        with self.assertRaises(XMLSchemaChildrenValidationError):
-            schema.to_etree({"A": [1, 2], "B": [3, 4]})
+        root = schema.to_etree(ordered_dict_class([('A', [1, 2]), ('B', [3, 4])]))
+        self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, converter=UnorderedConverter)
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])

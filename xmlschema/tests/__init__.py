@@ -20,13 +20,11 @@ import xmlschema
 from xmlschema import XMLSchema
 from xmlschema.compat import urlopen, URLError, unicode_type
 from xmlschema.exceptions import XMLSchemaValueError
-from xmlschema.etree import (
-    is_etree_element, etree_element, etree_register_namespace, etree_elements_assert_equal
-)
-from xmlschema.resources import fetch_namespaces
 from xmlschema.qnames import XSD_SCHEMA
-from xmlschema.helpers import get_namespace
-from xmlschema.namespaces import XSD_NAMESPACE
+from xmlschema.namespaces import XSD_NAMESPACE, get_namespace
+from xmlschema.etree import etree_element, etree_register_namespace, etree_elements_assert_equal
+from xmlschema.resources import fetch_namespaces
+from xmlschema.helpers import is_etree_element
 
 
 def has_network_access(*locations):

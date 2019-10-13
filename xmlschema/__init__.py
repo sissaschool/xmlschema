@@ -10,6 +10,7 @@
 #
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError, \
     XMLSchemaNamespaceError
+from .etree import etree_tostring
 from .resources import (
     normalize_url, fetch_resource, load_xml_resource, fetch_namespaces,
     fetch_schema_locations, fetch_schema, XMLResource
@@ -29,7 +30,7 @@ from .validators import (
     XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 )
 
-__version__ = '1.0.14'
+__version__ = '1.0.15'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2019, SISSA"

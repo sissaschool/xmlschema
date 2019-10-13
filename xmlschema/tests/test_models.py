@@ -14,6 +14,7 @@ This module runs tests concerning model groups validation.
 """
 import unittest
 
+from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import ModelVisitor
 from xmlschema.compat import ordered_dict_class
 from xmlschema.tests import casepath, XsdValidatorTestCase
@@ -150,9 +151,9 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_stop(model)                                        # <qualification> is optional
         self.assertIsNone(model.element)
 
-    # --- XSD 1.0 schema ---
+    # --- XSD 1.0/1.1 meta-schema models ---
 
-    def test_simple_derivation_model(self):
+    def test_meta_simple_derivation_model(self):
         """
         <xs:group name="simpleDerivation">
           <xs:choice>
@@ -162,7 +163,7 @@ class TestModelValidation(XsdValidatorTestCase):
           </xs:choice>
         </xs:group>
         """
-        group = self.schema_class.meta_schema.groups['simpleDerivation']
+        group = XMLSchema10.meta_schema.groups['simpleDerivation']
 
         model = ModelVisitor(group)
         self.check_advance_true(model)     # <restriction> match
@@ -185,8 +186,9 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_false(model, [(group, 0, group[:])])  # <other> not match with <union>
         self.assertIsNone(model.element)
 
-    def test_simple_restriction_model(self):
+    def test_meta_simple_restriction_model(self):
         """
+        <!-- XSD 1.0 -->
         <xs:group name="facets">
           <xs:choice>
             <xs:element ref="xs:minExclusive"/>
@@ -210,25 +212,38 @@ class TestModelValidation(XsdValidatorTestCase):
             <xs:group ref="xs:facets" minOccurs="0" maxOccurs="unbounded"/>
           </xs:sequence>
         </xs:group>
+
+        <!-- XSD 1.1 -->
+        <xs:group name="simpleRestrictionModel">
+          <xs:sequence>
+            <xs:element name="simpleType" type="xs:localSimpleType" minOccurs="0"/>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="xs:facet"/>  <!-- Use a substitution group -->
+              <xs:any processContents="lax" namespace="##other"/>
+            </xs:choice>
+          </xs:sequence>
+        </xs:group>
         """
         # Sequence with an optional single element and an optional unlimited choice.
         group = self.schema_class.meta_schema.groups['simpleRestrictionModel']
 
         model = ModelVisitor(group)
-        self.assertEqual(model.element, group[0])
-        self.check_advance_true(model)      # <simpleType> match
-        self.assertEqual(model.element, group[1][0][0])
-        self.check_advance_false(model)     # <maxExclusive> do not match
-        self.assertEqual(model.element, group[1][0][1])
-        self.check_advance_false(model)     # <maxExclusive> do not match
-        self.assertEqual(model.element, group[1][0][2])
-        self.check_advance_true(model)      # <maxExclusive> match
-        self.assertEqual(model.element, group[1][0][0])
-        for _ in range(12):
-            self.check_advance_false(model)  # no match for all the inner choice group "xs:facets"
-        self.assertIsNone(model.element)
 
-    def test_schema_model(self):
+        if self.schema_class.XSD_VERSION == '1.0':
+            self.assertEqual(model.element, group[0])
+            self.check_advance_true(model)      # <simpleType> match
+            self.assertEqual(model.element, group[1][0][0])
+            self.check_advance_false(model)     # <maxExclusive> do not match
+            self.assertEqual(model.element, group[1][0][1])
+            self.check_advance_false(model)     # <maxExclusive> do not match
+            self.assertEqual(model.element, group[1][0][2])
+            self.check_advance_true(model)      # <maxExclusive> match
+            self.assertEqual(model.element, group[1][0][0])
+            for _ in range(12):
+                self.check_advance_false(model)  # no match for all the inner choice group "xs:facets"
+            self.assertIsNone(model.element)
+
+    def test_meta_schema_top_model(self):
         """
         <xs:group name="schemaTop">
           <xs:choice>
@@ -288,7 +303,7 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                  # <attribute> match
         self.assertIsNone(model.element)
 
-    def test_attr_declaration(self):
+    def test_meta_attr_declarations_group(self):
         """
         <xs:group name="attrDecls">
           <xs:sequence>
@@ -322,7 +337,7 @@ class TestModelValidation(XsdValidatorTestCase):
             self.check_advance(model, match)
         self.assertEqual(model.element, group[1])
 
-    def test_complex_type_model(self):
+    def test_meta_complex_type_model(self):
         """
         <xs:group name="complexTypeModel">
           <xs:choice>
@@ -343,6 +358,20 @@ class TestModelValidation(XsdValidatorTestCase):
             <xs:element ref="xs:sequence"/>
           </xs:choice>
         </xs:group>
+
+        <xs:group name="complexTypeModel">
+          <xs:choice>
+            <xs:element ref="xs:simpleContent"/>
+            <xs:element ref="xs:complexContent"/>
+            <xs:sequence>
+              <xs:element ref="xs:openContent" minOccurs="0"/>
+              <xs:group ref="xs:typeDefParticle" minOccurs="0"/>
+              <xs:group ref="xs:attrDecls"/>
+              <xs:group ref="xs:assertions"/>
+            </xs:sequence>
+          </xs:choice>
+        </xs:group>
+
         """
         group = self.schema_class.meta_schema.groups['complexTypeModel']
 
@@ -357,27 +386,31 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                  # <complexContent> match
         self.assertIsNone(model.element)
 
-        model.restart()
-        self.assertEqual(model.element, group[0])
-        for match in [False, False, False, False, True]:
-            self.check_advance(model, match)            # <all> match
-        self.check_stop(model)
-        self.assertIsNone(model.element)
+        if self.schema_class.XSD_VERSION == '1.0':
+            model.restart()
+            self.assertEqual(model.element, group[0])
+            for match in [False, False, False, False, True]:
+                self.check_advance(model, match)            # <all> match
+            self.check_stop(model)
+            self.assertIsNone(model.element)
 
-        model.restart()
-        self.assertEqual(model.element, group[0])
-        for match in [False, False, False, False, True, False, True, False, False, False]:
-            self.check_advance(model, match)            # <all> match, <attributeGroup> match
-        self.assertIsNone(model.element)
+            model.restart()
+            self.assertEqual(model.element, group[0])
+            for match in [False, False, False, False, True, False, True, False, False, False]:
+                self.check_advance(model, match)            # <all> match, <attributeGroup> match
+            self.assertIsNone(model.element)
 
-    def test_schema_document_model(self):
+    def test_meta_schema_document_model(self):
         group = self.schema_class.meta_schema.elements['schema'].type.content_type
 
         # A schema model with a wrong tag
         model = ModelVisitor(group)
-        self.assertEqual(model.element, group[0][0])
-        self.check_advance_false(model)                 # eg. anyAttribute
-        self.check_stop(model)
+        if self.schema_class.XSD_VERSION == '1.0':
+            self.assertEqual(model.element, group[0][0])
+            self.check_advance_false(model)                 # eg. anyAttribute
+            self.check_stop(model)
+        else:
+            self.assertEqual(model.element, group[0][0][0])
 
     #
     # Tests on schema test_cases/features/models/models.xsd
@@ -540,9 +573,14 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_stop(model)
 
 
+class TestModelValidation11(TestModelValidation):
+    schema_class = XMLSchema11
+
+
 class TestModelBasedSorting(XsdValidatorTestCase):
 
     def test_sort_content(self):
+        # test of ModelVisitor's sort_content/iter_unordered_content
         schema = self.get_schema("""
             <xs:element name="A" type="A_type" />
             <xs:complexType name="A_type">
@@ -603,6 +641,161 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         self.assertListEqual(
             model.sort_content([('B3', True), ('B2', 10)]), [('B2', 10), ('B3', True)]
         )
+
+    def test_iter_collapsed_content_with_optional_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" />
+                    <xs:element name="B3" />
+                    <xs:element name="B4" />
+                    <xs:element name="B5" />
+                    <xs:element name="B6" minOccurs="0" />
+                    <xs:element name="B7" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B3', 10), ('B4', None), ('B5', True), ('B6', 'alpha'), ('B7', 20)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B5', True), ('B6', 'alpha'), ('B7', 20)]  # Missing B4
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+    def test_iter_collapsed_content_with_repeated_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" maxOccurs="unbounded" />
+                    <xs:element name="B3" maxOccurs="unbounded" />
+                    <xs:element name="B4" />
+                    <xs:element name="B5" maxOccurs="unbounded" />
+                    <xs:element name="B6" minOccurs="0" />
+                    <xs:element name="B7" maxOccurs="unbounded" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [
+            ('B3', 10), ('B4', None), ('B5', True), ('B5', False), ('B6', 'alpha'), ('B7', 20)
+        ]
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True),
+                   ('B5', False), ('B6', 'alpha'), ('B7', 20), ('B7', 30)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True), ('B5', False)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+    def test_iter_collapsed_content_with_repeated_groups(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence minOccurs="1" maxOccurs="2">
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4)]
+        )
+
+        # Model broken by unknown element at start
+        content = [('X', None), ('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('X', None), ('B1', 2), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('B1', 2), ('X', None), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('X', None), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('X', None), ('B2', 4)]
+        )
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4), ('X', None)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4), ('X', None)]
+        )
+
+    def test_iter_collapsed_content_with_single_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" />
+                    <xs:element name="B2" />
+                    <xs:element name="B3" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B1', 'abc'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B3', False), ('B1', 'abc'), ('B2', 10)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 'abc'), ('B3', False), ('B2', 10)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 'abc'), ('B1', 'def'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 'abc'), ('B2', 10), ('B3', False), ('B1', 'def')]
+        )
+
+        content = [('B1', 'abc'), ('B2', 10), ('X', None)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('X', None), ('B1', 'abc'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
 
 
 if __name__ == '__main__':

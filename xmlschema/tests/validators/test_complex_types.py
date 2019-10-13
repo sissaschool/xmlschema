@@ -273,6 +273,32 @@ class TestXsdComplexType(XsdValidatorTestCase):
                 </xs:sequence>
             </xs:complexType>""")
 
+    def test_upa_violation_with_wildcard(self):
+        self.check_schema("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="tns" xmlns:ns="tns" elementFormDefault="unqualified">
+
+            <xs:complexType name="baseType">
+                <xs:sequence>
+                   <xs:any processContents="lax" minOccurs="0" maxOccurs="unbounded"></xs:any>
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:complexType name="addressType">
+                <xs:complexContent>
+                    <xs:extension base="ns:baseType">
+                        <xs:sequence>
+                            <xs:element name="state" type="xs:string" />
+                            <xs:element name="currency" type="xs:string" />
+                            <xs:element name="zip" type="xs:int" />
+                        </xs:sequence>
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>
+
+        </xs:schema>
+        """, XMLSchemaModelError if self.schema_class.XSD_VERSION == '1.0' else None)
+
 
 class TestXsd11ComplexType(TestXsdComplexType):
 

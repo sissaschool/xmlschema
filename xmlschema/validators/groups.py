@@ -12,15 +12,16 @@
 This module contains classes for XML Schema model groups.
 """
 from __future__ import unicode_literals
+import warnings
 
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
-    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_ANY, XSD_RESTRICTION, XSD_EXTENSION
-from xmlschema.helpers import get_qname, local_name
+from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
+    XSD_CHOICE, XSD_ELEMENT, XSD_ANY, XSI_TYPE, get_qname, local_name
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError
+from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
+    XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
@@ -77,12 +78,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     mixed = False
     model = None
     redefine = None
+    restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
     suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'
 
-    _ADMITTED_TAGS = {
-        XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE
-    }
+    _ADMITTED_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 
     def __init__(self, elem, schema, parent):
         self._group = []
@@ -114,49 +114,53 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     def _parse(self):
         super(XsdGroup, self)._parse()
         self.clear()
-        elem = self.elem
-        self._parse_particle(elem)
+        self._parse_particle(self.elem)
 
-        if elem.tag == XSD_GROUP:
-            # Global group or reference
-            if self._parse_reference():
-                try:
-                    xsd_group = self.schema.maps.lookup_group(self.name)
-                except KeyError:
-                    self.parse_error("missing group %r" % self.prefixed_name)
-                    xsd_group = self.schema.create_any_content_group(self, self.name)
+        if self.elem.tag != XSD_GROUP:
+            # Local group (sequence|all|choice)
+            if 'name' in self.elem.attrib:
+                self.parse_error("attribute 'name' not allowed for a local group")
+            self._parse_content_model(self.elem)
 
-                if isinstance(xsd_group, tuple):
-                    # Disallowed circular definition, substitute with any content group.
-                    self.parse_error("Circular definitions detected for group %r:" % self.name, xsd_group[0])
-                    self.model = 'sequence'
-                    self.mixed = True
-                    self.append(self.schema.BUILDERS.any_element_class(ANY_ELEMENT, self.schema, self))
-                else:
-                    self.model = xsd_group.model
-                    if self.model == 'all':
-                        if self.max_occurs != 1:
-                            self.parse_error("maxOccurs must be 1 for 'all' model groups")
-                        if self.min_occurs not in (0, 1):
-                            self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
-                        if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
-                            self.parse_error("in XSD 1.0 the 'all' model group cannot be nested")
-                    self.append(xsd_group)
-                    self.ref = xsd_group
-                return
-
+        elif self._parse_reference():
             try:
-                self.name = get_qname(self.target_namespace, elem.attrib['name'])
+                xsd_group = self.schema.maps.lookup_group(self.name)
             except KeyError:
-                return
+                self.parse_error("missing group %r" % self.prefixed_name)
+                xsd_group = self.schema.create_any_content_group(self, self.name)
+
+            if isinstance(xsd_group, tuple):
+                # Disallowed circular definition, substitute with any content group.
+                self.parse_error("Circular definitions detected for group %r:" % self.name, xsd_group[0])
+                self.model = 'sequence'
+                self.mixed = True
+                self.append(self.schema.BUILDERS.any_element_class(ANY_ELEMENT, self.schema, self))
             else:
-                content_model = self._parse_child_component(elem, strict=True)
+                self.model = xsd_group.model
+                if self.model == 'all':
+                    if self.max_occurs != 1:
+                        self.parse_error("maxOccurs must be 1 for 'all' model groups")
+                    if self.min_occurs not in (0, 1):
+                        self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
+                    if self.xsd_version == '1.0' and isinstance(self.parent, XsdGroup):
+                        self.parse_error("in XSD 1.0 the 'all' model group cannot be nested")
+                self.append(xsd_group)
+                self.ref = xsd_group
+
+        else:
+            attrib = self.elem.attrib
+            try:
+                self.name = get_qname(self.target_namespace, attrib['name'])
+            except KeyError:
+                pass
+            else:
+                content_model = self._parse_child_component(self.elem, strict=True)
                 if self.parent is not None:
                     self.parse_error("attribute 'name' not allowed for a local group")
                 else:
-                    if 'minOccurs' in elem.attrib:
+                    if 'minOccurs' in attrib:
                         self.parse_error("attribute 'minOccurs' not allowed for a global group")
-                    if 'maxOccurs' in elem.attrib:
+                    if 'maxOccurs' in attrib:
                         self.parse_error("attribute 'maxOccurs' not allowed for a global group")
                     if 'minOccurs' in content_model.attrib:
                         self.parse_error(
@@ -166,26 +170,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         self.parse_error(
                             "attribute 'maxOccurs' not allowed for the model of a global group", content_model
                         )
-                    if content_model.tag not in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
-                        self.parse_error('unexpected tag %r' % content_model.tag, content_model)
-                        return
 
-        elif elem.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
-            # Local group (sequence|all|choice)
-            if 'name' in elem.attrib:
-                self.parse_error("attribute 'name' not allowed for a local group")
-            content_model = elem
-            self.name = None
-        elif elem.tag in {XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_RESTRICTION}:
-            self.name = self.model = None
-            return
-        else:
-            self.parse_error('unexpected tag %r' % elem.tag)
-            return
+                if content_model.tag in {XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                    self._parse_content_model(content_model)
+                else:
+                    self.parse_error('unexpected tag %r' % content_model.tag, content_model)
 
-        self._parse_content_model(elem, content_model)
-
-    def _parse_content_model(self, elem, content_model):
+    def _parse_content_model(self, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
             if self.max_occurs != 1:
@@ -198,7 +189,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif content_model.tag == XSD_ALL:
-                self.parse_error("'all' model can contains only elements.", elem)
+                self.parse_error("'all' model can contains only elements.")
             elif child.tag == XSD_ANY:
                 self.append(XsdAnyElement(child, self.schema, self))
             elif child.tag in (XSD_SEQUENCE, XSD_CHOICE):
@@ -220,11 +211,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     else:
                         self.append(xsd_group)
                 elif self.redefine is None:
-                    self.parse_error("Circular definition detected for group %r:" % self.name, elem)
+                    self.parse_error("Circular definition detected for group %r:" % self.name)
                 else:
                     if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
                         self.parse_error(
-                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:"
                         )
                     self.append(self.redefine)
             else:
@@ -489,6 +480,81 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
+    def check_dynamic_context(self, elem, xsd_element, model_element, converter):
+        if model_element is not xsd_element:
+            if 'substitution' in model_element.block \
+                    or xsd_element.type.is_blocked(model_element):
+                raise XMLSchemaValidationError(
+                    model_element, "substitution of %r is blocked" % model_element
+                )
+
+        alternatives = ()
+        if isinstance(xsd_element, XsdAnyElement):
+            if xsd_element.process_contents == 'skip':
+                return
+
+            try:
+                xsd_element = self.maps.lookup_element(elem.tag)
+            except LookupError:
+                try:
+                    type_name = elem.attrib[XSI_TYPE].strip()
+                except KeyError:
+                    return
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, self.any_type, converter)
+            else:
+                alternatives = xsd_element.alternatives
+                try:
+                    type_name = elem.attrib[XSI_TYPE].strip()
+                except KeyError:
+                    xsd_type = xsd_element.type
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
+
+        else:
+            if XSI_TYPE not in elem.attrib:
+                xsd_type = xsd_element.type
+            else:
+                alternatives = xsd_element.alternatives
+                try:
+                    type_name = elem.attrib[XSI_TYPE].strip()
+                except KeyError:
+                    xsd_type = xsd_element.type
+                else:
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
+
+            if model_element is not xsd_element and model_element.block:
+                for derivation in model_element.block.split():
+                    if xsd_type.is_derived(model_element.type, derivation):
+                        reason = "usage of %r with type %s is blocked by head element"
+                        raise XMLSchemaValidationError(self, reason % (xsd_element, derivation))
+
+            if XSI_TYPE not in elem.attrib:
+                return
+
+        # If it's a restriction the context is the base_type's group
+        group = self.restriction if self.restriction is not None else self
+
+        # Dynamic EDC check of matched element
+        for e in filter(lambda x: isinstance(x, XsdElement), group.iter_elements()):
+            if e.name == elem.tag:
+                other = e
+            else:
+                for other in e.iter_substitutes():
+                    if other.name == elem.tag:
+                        break
+                else:
+                    continue
+
+            if len(other.alternatives) != len(alternatives) or \
+                    not xsd_type.is_dynamic_consistent(other.type):
+                reason = "%r that matches %r is not consistent with local declaration %r"
+                raise XMLSchemaValidationError(self, reason % (elem, xsd_element, other))
+            elif not all(any(a == x for x in alternatives) for a in other.alternatives) or \
+                    not all(any(a == x for x in other.alternatives) for a in alternatives):
+                msg = "Maybe a not equivalent type table between elements %r and %r." % (self, xsd_element)
+                warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
+
     def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
         """
         Creates an iterator for decoding an Element content.
@@ -538,38 +604,47 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
 
-            if self.interleave and self.interleave.is_matching(child.tag, default_namespace, self):
-                xsd_element = self.interleave
-            else:
-                while model.element is not None:
-                    xsd_element = model.element.match(child.tag, default_namespace, self)
-                    if xsd_element is None:
-                        for particle, occurs, expected in model.advance(False):
-                            errors.append((index, particle, occurs, expected))
-                            model.clear()
-                            model_broken = True  # the model is broken, continues with raw decoding.
-                            break
-                        else:
-                            continue
+            while model.element is not None:
+                xsd_element = model.element.match(
+                    child.tag, default_namespace, group=self, occurs=model.occurs
+                )
+                if xsd_element is None:
+                    if self.interleave is not None and \
+                            self.interleave.is_matching(child.tag, default_namespace, self, model.occurs):
+                        xsd_element = self.interleave
                         break
 
-                    for particle, occurs, expected in model.advance(True):
+                    for particle, occurs, expected in model.advance(False):
                         errors.append((index, particle, occurs, expected))
-                    break
-                else:
-                    if self.suffix and self.suffix.is_matching(child.tag, default_namespace, self):
-                        xsd_element = self.suffix
+                        model.clear()
+                        model_broken = True  # the model is broken, continues with raw decoding.
+                        break
                     else:
-                        for xsd_element in self.iter_elements():
-                            if xsd_element.is_matching(child.tag, default_namespace, self):
-                                if not model_broken:
-                                    errors.append((index, xsd_element, 0, []))
-                                    model_broken = True
-                                break
-                        else:
-                            errors.append((index, self, 0, None))
-                            xsd_element = None
-                            model_broken = True
+                        continue
+                    break
+
+                try:
+                    self.check_dynamic_context(child, xsd_element, model.element, converter)
+                except XMLSchemaValidationError as err:
+                    yield self.validation_error(validation, err, elem, **kwargs)
+
+                for particle, occurs, expected in model.advance(True):
+                    errors.append((index, particle, occurs, expected))
+                break
+            else:
+                if self.suffix is not None and self.suffix.is_matching(child.tag, default_namespace, self):
+                    xsd_element = self.suffix
+                else:
+                    for xsd_element in self.iter_elements():
+                        if xsd_element.is_matching(child.tag, default_namespace, group=self):
+                            if not model_broken:
+                                errors.append((index, xsd_element, 0, []))
+                                model_broken = True
+                            break
+                    else:
+                        errors.append((index, self, 0, None))
+                        xsd_element = None
+                        model_broken = True
 
             if xsd_element is None or kwargs.get('no_depth'):
                 # TODO: use a default decoder str-->str??
@@ -637,10 +712,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         cdata_index = 0
         if isinstance(element_data.content, dict) or kwargs.get('unordered'):
             content = model.iter_unordered_content(element_data.content)
+        elif not isinstance(element_data.content, list):
+            content = []
         elif converter.losslessly:
             content = element_data.content
         else:
-            content = model.iter_collapsed_content(element_data.content)
+            content = ModelVisitor(self).iter_collapsed_content(element_data.content)
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):
@@ -653,12 +730,14 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 cdata_index += 1
                 continue
 
-            if self.interleave and self.interleave.is_matching(name, default_namespace, self):
+            if self.interleave and self.interleave.is_matching(name, default_namespace, group=self):
                 xsd_element = self.interleave
                 value = get_qname(default_namespace, name), value
             else:
                 while model.element is not None:
-                    xsd_element = model.element.match(name, default_namespace, self)
+                    xsd_element = model.element.match(
+                        name, default_namespace, group=self, occurs=model.occurs
+                    )
                     if xsd_element is None:
                         for particle, occurs, expected in model.advance():
                             errors.append((index - cdata_index, particle, occurs, expected))
@@ -670,13 +749,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         errors.append((index - cdata_index, particle, occurs, expected))
                     break
                 else:
-                    if self.suffix and self.suffix.is_matching(name, default_namespace, self):
+                    if self.suffix and self.suffix.is_matching(name, default_namespace, group=self):
                         xsd_element = self.suffix
                         value = get_qname(default_namespace, name), value
                     else:
                         errors.append((index - cdata_index, self, 0, []))
                         for xsd_element in self.iter_elements():
-                            if not xsd_element.is_matching(name, default_namespace, self):
+                            if not xsd_element.is_matching(name, default_namespace, group=self):
                                 continue
                             elif isinstance(xsd_element, XsdAnyElement):
                                 value = get_qname(default_namespace, name), value
@@ -705,13 +784,17 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
 
-        if validation != 'skip' and errors:
+        if validation != 'skip' and (errors or not content):
             attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
                 elem = converter.etree_element(element_data.tag, text, child_tags, attrib)
             else:
                 elem = converter.etree_element(element_data.tag, text, children, attrib)
+
+            if not content:
+                reason = "wrong content type {!r}".format(type(element_data.content))
+                yield self.validation_error(validation, reason, elem, **kwargs)
 
             for index, particle, occurs, expected in errors:
                 yield self.children_validation_error(validation, elem, index, particle, occurs, expected, **kwargs)
@@ -732,7 +815,7 @@ class Xsd11Group(XsdGroup):
           Content: (annotation?, (element | any | group)*)
         </all>
     """
-    def _parse_content_model(self, elem, content_model):
+    def _parse_content_model(self, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
             if self.max_occurs not in (0, 1):
@@ -766,11 +849,11 @@ class Xsd11Group(XsdGroup):
                         self.pop()
 
                 elif self.redefine is None:
-                    self.parse_error("Circular definition detected for group %r:" % self.name, elem)
+                    self.parse_error("Circular definition detected for group %r:" % self.name)
                 else:
                     if child.get('minOccurs', '1') != '1' or child.get('maxOccurs', '1') != '1':
                         self.parse_error(
-                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:", elem
+                            "Redefined group reference cannot have minOccurs/maxOccurs other than 1:"
                         )
                     self.append(self.redefine)
             else:
@@ -845,7 +928,7 @@ class Xsd11Group(XsdGroup):
         for w1 in filter(lambda x: isinstance(x, XsdAnyElement), base_items):
             for w2 in wildcards:
                 if w1.process_contents == w2.process_contents and w1.occurs == w2.occurs:
-                    w2.extend(w1)
+                    w2.union(w1)
                     w2.extended = True
                     break
             else:

@@ -164,8 +164,6 @@ Resource access API
 .. autofunction:: xmlschema.normalize_url
 
 
-
-
 XSD components API
 ------------------
 

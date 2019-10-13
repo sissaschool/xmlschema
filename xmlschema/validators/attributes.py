@@ -19,8 +19,9 @@ from ..compat import MutableMapping, ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE
-from ..helpers import get_namespace, get_qname, get_xsd_form_attribute
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
+    get_namespace, get_qname
+from ..helpers import get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
 from .exceptions import XMLSchemaValidationError
@@ -88,6 +89,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if 'default' in attrib:
             self.default = attrib['default']
 
+        if 'fixed' in attrib:
+            self.fixed = attrib['fixed']
+
         if self._parse_reference():
             try:
                 xsd_attribute = self.maps.lookup_attribute(self.name)
@@ -104,9 +108,11 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                     self.default = xsd_attribute.default
 
                 if xsd_attribute.fixed is not None:
-                    self.fixed = xsd_attribute.fixed
-                    if 'fixed' in attrib and attrib['fixed'] != self.fixed:
-                        self.parse_error("referenced attribute has a different fixed value %r" % xsd_attribute.fixed)
+                    if self.fixed is None:
+                        self.fixed = xsd_attribute.fixed
+                    elif xsd_attribute.fixed != self.fixed:
+                        msg = "referenced attribute has a different fixed value %r"
+                        self.parse_error(msg % xsd_attribute.fixed)
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
@@ -116,9 +122,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             if child is not None and child.tag == XSD_SIMPLE_TYPE:
                 self.parse_error("not allowed type definition for XSD attribute reference")
             return
-
-        if 'fixed' in attrib:
-            self.fixed = attrib['fixed']
 
         try:
             form = get_xsd_form_attribute(self.elem, 'form')
@@ -379,7 +382,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     def _parse(self):
         super(XsdAttributeGroup, self)._parse()
         elem = self.elem
-        any_attribute = False
+        any_attribute = None
         attribute_group_refs = []
 
         if elem.tag == XSD_ATTRIBUTE_GROUP:
@@ -390,18 +393,25 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             except KeyError:
                 self.parse_error("an attribute group declaration requires a 'name' attribute.")
                 return
+            else:
+                if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
+                    self.schema.default_attributes = self
 
         attributes = ordered_dict_class()
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
-            if any_attribute:
+            if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
                 else:
                     self.parse_error("another declaration after anyAttribute")
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
-                any_attribute = True
-                attributes[None] = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
+                any_attribute = self.schema.BUILDERS.any_attribute_class(child, self.schema, self)
+                if None in attributes:
+                    attributes[None] = attributes[None].copy()
+                    attributes[None].intersection(any_attribute)
+                else:
+                    attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
                 attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
@@ -447,10 +457,14 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     else:
                         if not isinstance(base_attributes, tuple):
                             for name, attr in base_attributes.items():
-                                if name is not None and name in attributes:
+                                if name not in attributes:
+                                    attributes[name] = attr
+                                elif name is not None:
                                     self.parse_error("multiple declaration for attribute {!r}".format(name))
                                 else:
-                                    attributes[name] = attr
+                                    attributes[None] = attributes[None].copy()
+                                    attributes[None].intersection(attr)
+
                         elif self.xsd_version == '1.0':
                             self.parse_error("Circular reference found between attribute groups "
                                              "{!r} and {!r}".format(self.name, attribute_group_qname))
@@ -474,7 +488,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if name is None:
                     if self.derivation == 'extension':
                         try:
-                            attr.extend(base_attr)
+                            attr.union(base_attr)
                         except ValueError as err:
                             self.parse_error(err)
                     elif not attr.is_restriction(base_attr):
@@ -490,7 +504,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         attr.type.normalize(attr.fixed) != base_attr.type.normalize(base_attr.fixed):
                     self.parse_error("Attribute %r: derived attribute has a different fixed value" % name)
 
-            self._attribute_group.update(self.base_attributes.items())
+            if self.redefine is not None:
+                pass  # In case of redefinition do not copy base attributes
+            else:
+                self._attribute_group.update(self.base_attributes.items())
+
         elif self.redefine is not None and not attribute_group_refs:
             for name, attr in self._attribute_group.items():
                 if name is None:
@@ -519,6 +537,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             self.clear()
 
         self._attribute_group.update(attributes)
+        if None in self._attribute_group and None not in attributes and self.derivation == 'restriction':
+            wildcard = self._attribute_group[None].copy()
+            wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
+            self._attribute_group[None] = wildcard
 
         if self.xsd_version == '1.0':
             has_key = False
@@ -601,6 +623,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             reason = "%r attribute not allowed for element." % name
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
+            else:
+                if xsd_attribute.use == 'prohibited':
+                    reason = "use of attribute %r is prohibited" % name
+                    yield self.validation_error(validation, reason, attrs, **kwargs)
 
             for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):

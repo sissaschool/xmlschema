@@ -14,9 +14,9 @@ This module contains classes for XML Schema wildcards.
 from __future__ import unicode_literals
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT
-from ..helpers import get_namespace
 from ..namespaces import XSI_NAMESPACE
+from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
+    XSD_DEFAULT_OPEN_CONTENT, get_namespace
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaNotBuiltError
@@ -36,13 +36,13 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        if self.namespace:
-            return '%s(namespace=%r, process_contents=%r)' % (
-                self.__class__.__name__, self.namespace, self.process_contents
-            )
-        else:
+        if self.not_namespace:
             return '%s(not_namespace=%r, process_contents=%r)' % (
                 self.__class__.__name__, self.not_namespace, self.process_contents
+            )
+        else:
+            return '%s(namespace=%r, process_contents=%r)' % (
+                self.__class__.__name__, self.namespace, self.process_contents
             )
 
     def _parse(self):
@@ -52,6 +52,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         namespace = self.elem.get('namespace', '##any').strip()
         if namespace == '##any':
             pass
+        elif not namespace:
+            self.namespace = []  # an empty value means no namespace allowed!
         elif namespace == '##other':
             self.namespace = [namespace]
         elif namespace == '##local':
@@ -150,7 +152,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def built(self):
         return True
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, **kwargs):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -163,9 +165,9 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     def is_namespace_allowed(self, namespace):
         if self.not_namespace:
             return namespace not in self.not_namespace
-        elif self.namespace[0] == '##any' or namespace == XSI_NAMESPACE:
+        elif '##any' in self.namespace or namespace == XSI_NAMESPACE:
             return True
-        elif self.namespace[0] == '##other':
+        elif '##other' in self.namespace:
             return namespace and namespace != self.target_namespace
         else:
             return namespace in self.namespace
@@ -209,7 +211,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif other.not_qname:
             if not self.deny_qnames(x for x in other.not_qname if not x.startswith('##')):
                 return False
-        elif any(not other.is_namespace_allowed(get_namespace(x)) for x in self.not_qname if not x.startswith('##')):
+        elif any(not other.is_namespace_allowed(get_namespace(x))
+                 for x in self.not_qname if not x.startswith('##')):
             return False
 
         if self.not_namespace:
@@ -240,36 +243,45 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             return all(ns in other.namespace for ns in self.namespace)
 
-    def extend(self, other):
-        """Extends the XSD wildcard to include the namespace of another XSD wildcard."""
+    def union(self, other):
+        """
+        Update an XSD wildcard with the union of itself and another XSD wildcard.
+        """
+        if not self.not_qname:
+            self.not_qname = other.not_qname[:]
+        else:
+            self.not_qname = [
+                x for x in self.not_qname
+                if x in other.not_qname or not other.is_namespace_allowed(get_namespace(x))
+            ]
+
         if self.not_namespace:
             if other.not_namespace:
                 self.not_namespace = [ns for ns in self.not_namespace if ns in other.not_namespace]
-            elif other.namespace == '##any':
-                self.not_namespace = ()
-            elif other.namespace != '##other':
-                self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
-            elif other.target_namespace in self.not_namespace:
-                self.not_namespace = ['', other.target_namespace] if other.target_namespace else ['']
+            elif '##any' in other.namespace:
+                self.not_namespace = []
+                self.namespace = ['##any']
+                return
+            elif '##other' in other.namespace:
+                not_namespace = ('', other.target_namespace)
+                self.not_namespace = [ns for ns in self.not_namespace if ns in not_namespace]
             else:
-                self.not_namespace = ()
+                self.not_namespace = [ns for ns in self.not_namespace if ns not in other.namespace]
 
             if not self.not_namespace:
                 self.namespace = ['##any']
             return
 
         elif other.not_namespace:
-            if self.namespace == '##any':
+            if '##any' in self.namespace:
                 return
-            elif self.namespace != '##other':
-                self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
-            elif self.target_namespace in other.not_namespace:
-                self.not_namespace = ['', self.target_namespace] if self.target_namespace else ['']
+            elif '##other' in self.namespace:
+                not_namespace = ('', self.target_namespace)
+                self.not_namespace = [ns for ns in other.not_namespace if ns in not_namespace]
             else:
-                self.not_namespace = ()
+                self.not_namespace = [ns for ns in other.not_namespace if ns not in self.namespace]
 
-            if not self.not_namespace:
-                self.namespace = ['##any']
+            self.namespace = ['##any'] if not self.not_namespace else []
             return
 
         if '##any' in self.namespace or self.namespace == other.namespace:
@@ -285,12 +297,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.namespace.extend(ns for ns in other.namespace if ns not in self.namespace)
             return
 
-        if w2.not_namespace:
-            self.not_namespace = [ns for ns in w2.not_namespace]
-            if w1.target_namespace not in self.not_namespace:
-                self.not_namespace.append(w1.target_namespace)
-            self.namespace = []
-        elif w1.target_namespace in w2.namespace and '' in w2.namespace:
+        if w1.target_namespace in w2.namespace and '' in w2.namespace:
             self.namespace = ['##any']
         elif '' not in w2.namespace and w1.target_namespace == w2.target_namespace:
             self.namespace = ['##other']
@@ -300,6 +307,61 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         else:
             self.namespace = []
             self.not_namespace = ['', w1.target_namespace] if w1.target_namespace else ['']
+
+    def intersection(self, other):
+        """
+        Update an XSD wildcard with the intersection of itself and another XSD wildcard.
+        """
+        if self.not_qname:
+            self.not_qname.extend(x for x in other.not_qname if x not in self.not_qname)
+        else:
+            self.not_qname = [x for x in other.not_qname]
+
+        if self.not_namespace:
+            if other.not_namespace:
+                self.not_namespace.extend(ns for ns in other.not_namespace if ns not in self.not_namespace)
+            elif '##any' in other.namespace:
+                pass
+            elif '##other' not in other.namespace:
+                self.namespace = [ns for ns in other.namespace if ns not in self.not_namespace]
+                self.not_namespace = []
+            else:
+                if other.target_namespace not in self.not_namespace:
+                    self.not_namespace.append(other.target_namespace)
+                if '' not in self.not_namespace:
+                    self.not_namespace.append('')
+            return
+
+        elif other.not_namespace:
+            if '##any' in self.namespace:
+                self.not_namespace = [ns for ns in other.not_namespace]
+                self.namespace = []
+            elif '##other' not in self.namespace:
+                self.namespace = [ns for ns in self.namespace if ns not in other.not_namespace]
+            else:
+                self.not_namespace = [ns for ns in other.not_namespace]
+                if self.target_namespace not in self.not_namespace:
+                    self.not_namespace.append(self.target_namespace)
+                if '' not in self.not_namespace:
+                    self.not_namespace.append('')
+                self.namespace = []
+            return
+
+        if self.namespace == other.namespace:
+            return
+        elif '##any' in other.namespace:
+            return
+        elif '##any' in self.namespace:
+            self.namespace = other.namespace[:]
+        elif '##other' in self.namespace:
+            self.namespace = [ns for ns in other.namespace if ns not in ('', self.target_namespace)]
+        elif '##other' not in other.namespace:
+            self.namespace = [ns for ns in self.namespace if ns in other.namespace]
+        else:
+            if other.target_namespace in self.namespace:
+                self.namespace.remove(other.target_namespace)
+            if '' in self.namespace:
+                self.namespace.remove('')
 
     def iter_decode(self, source, validation='lax', **kwargs):
         raise NotImplementedError
@@ -323,6 +385,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         </any>
     """
     _ADMITTED_TAGS = {XSD_ANY}
+    precedences = ()
 
     def __repr__(self):
         if self.namespace:
@@ -334,23 +397,38 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 self.__class__.__name__, self.not_namespace, self.process_contents, self.occurs
             )
 
+    @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
+
     def _parse(self):
         super(XsdAnyElement, self)._parse()
         self._parse_particle(self.elem)
-        self.xpath_proxy = XMLSchemaProxy(self.schema, self)
 
-    def is_emptiable(self):
-        return self.min_occurs == 0 or self.process_contents != 'strict'
+    def match(self, name, default_namespace=None, resolve=False, **kwargs):
+        """
+        Returns the element wildcard if name is matching the name provided
+        as argument, `None` otherwise.
 
-    def matched_element(self, name, default_namespace=None, group=None):
-        if self.is_matching(name, default_namespace, group):
-            try:
-                if name[0] != '{' and default_namespace:
-                    return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
-                else:
-                    return self.maps.lookup_element(name)
-            except LookupError:
-                pass
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used when it's not `None` and not empty for \
+        completing local name arguments.
+        :param resolve: when `True` it doesn't return the wildcard but try to \
+        resolve and return the element matching the name.
+        :param kwargs: additional options used by XSD 1.1 xs:any wildcards.
+        """
+        if not self.is_matching(name, default_namespace, **kwargs):
+            return
+        elif not resolve:
+            return self
+
+        try:
+            if name[0] != '{' and default_namespace:
+                return self.maps.lookup_element('{%s}%s' % (default_namespace, name))
+            else:
+                return self.maps.lookup_element(name)
+        except LookupError:
+            pass
 
     def __iter__(self):
         return iter(())
@@ -366,12 +444,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return iter(())
 
     def iter_decode(self, elem, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
+        if self.is_matching(elem.tag):
+            if self.process_contents == 'skip':
+                return
 
-        namespace = get_namespace(elem.tag)
-        if self.is_namespace_allowed(namespace):
-            self._load_namespace(namespace)
+            self._load_namespace(get_namespace(elem.tag))
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
@@ -394,6 +471,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
         name, value = obj
         namespace = get_namespace(name)
+
         if self.is_namespace_allowed(namespace):
             self._load_namespace(namespace)
             try:
@@ -457,14 +535,38 @@ class XsdAnyAttribute(XsdWildcard):
     """
     _ADMITTED_TAGS = {XSD_ANY_ATTRIBUTE}
 
-    def iter_decode(self, attribute, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
+    def match(self, name, default_namespace=None, resolve=False, **kwargs):
+        """
+        Returns the attribute wildcard if name is matching the name provided
+        as argument, `None` otherwise.
 
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used when it's not `None` and not empty for \
+        completing local name arguments.
+        :param resolve: when `True` it doesn't return the wildcard but try to \
+        resolve and return the attribute matching the name.
+        :param kwargs: additional options that can be used by certain components.
+        """
+        if not self.is_matching(name, default_namespace, **kwargs):
+            return
+        elif not resolve:
+            return self
+
+        try:
+            if name[0] != '{' and default_namespace:
+                return self.maps.lookup_attribute('{%s}%s' % (default_namespace, name))
+            else:
+                return self.maps.lookup_attribute(name)
+        except LookupError:
+            pass
+
+    def iter_decode(self, attribute, validation='lax', **kwargs):
         name, value = attribute
-        namespace = get_namespace(name)
-        if self.is_namespace_allowed(namespace):
-            self._load_namespace(namespace)
+        if self.is_matching(name):
+            if self.process_contents == 'skip':
+                return
+
+            self._load_namespace(get_namespace(name))
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
@@ -523,7 +625,18 @@ class Xsd11AnyElement(XsdAnyElement):
         super(Xsd11AnyElement, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, group=None, occurs=None):
+        """
+        Returns `True` if the component name is matching the name provided as argument,
+        `False` otherwise. For XSD elements the matching is extended to substitutes.
+
+        :param name: a local or fully-qualified name.
+        :param default_namespace: used if it's not None and not empty for completing \
+        the name argument in case it's a local name.
+        :param group: used only by XSD 1.1 any element wildcards to verify siblings in \
+        case of ##definedSibling value in notQName attribute.
+        :param occurs: a Counter instance for verify model occurrences counting.
+        """
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -534,19 +647,34 @@ class Xsd11AnyElement(XsdAnyElement):
             name = '{%s}%s' % (default_namespace, name)
             namespace = default_namespace
 
-        if '##defined' in self.not_qname and name in self.maps.elements:
-            if self.maps.elements[name].schema is self.schema:
+        if group in self.precedences:
+            if occurs is None:
+                if any(e.is_matching(name) for e in self.precedences[group]):
+                    return False
+            elif any(e.is_matching(name) and not e.is_over(occurs[e]) for e in self.precedences[group]):
                 return False
+
+        if '##defined' in self.not_qname and name in self.maps.elements:
+            return False
         if group and '##definedSibling' in self.not_qname:
-            if any(e is not self and e.match(name, default_namespace) for e in group.iter_elements()):
+            if any(e.is_matching(name) for e in group.iter_elements()
+                   if not isinstance(e, XsdAnyElement)):
                 return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
     def is_consistent(self, other):
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':
             return True
-        xsd_element = self.matched_element(other.name, other.default_namespace)
-        return xsd_element is None or other.is_consistent(xsd_element, False)
+        xsd_element = self.match(other.name, other.default_namespace, resolve=True)
+        return xsd_element is None or other.is_consistent(xsd_element, strict=False)
+
+    def add_precedence(self, other, group):
+        if not self.precedences:
+            self.precedences = {}
+        try:
+            self.precedences[group].append(other)
+        except KeyError:
+            self.precedences[group] = [other]
 
 
 class Xsd11AnyAttribute(XsdAnyAttribute):
@@ -563,11 +691,13 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
           Content: (annotation?)
         </anyAttribute>
     """
+    inheritable = False  # Added for reduce checkings on XSD 1.1 attributes
+
     def _parse(self):
         super(Xsd11AnyAttribute, self)._parse()
         self._parse_not_constraints()
 
-    def is_matching(self, name, default_namespace=None, group=None):
+    def is_matching(self, name, default_namespace=None, **kwargs):
         if name is None:
             return False
         elif not name or name[0] == '{':
@@ -579,8 +709,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
             namespace = default_namespace
 
         if '##defined' in self.not_qname and name in self.maps.attributes:
-            if self.maps.attributes[name].schema is self.schema:
-                return False
+            return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
 

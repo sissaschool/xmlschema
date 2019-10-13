@@ -12,9 +12,9 @@
 This module contains namespace definitions for W3C core standards and namespace related classes.
 """
 from __future__ import unicode_literals
+import re
 
 from .compat import MutableMapping, Mapping
-from .helpers import get_namespace
 
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
@@ -40,6 +40,16 @@ HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 
 VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
+
+
+NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+
+
+def get_namespace(name):
+    try:
+        return NAMESPACE_PATTERN.match(name).group(1)
+    except (AttributeError, TypeError):
+        return ''
 
 
 class NamespaceResourcesMap(MutableMapping):
@@ -82,7 +92,7 @@ class NamespaceResourcesMap(MutableMapping):
 
 class NamespaceMapper(MutableMapping):
     """
-    A class to map/unmap namespace prefixes to URIs.
+    A class to map/unmap namespace prefixes to URIs. The
 
     :param namespaces: Initial data with namespace prefixes and URIs.
     """

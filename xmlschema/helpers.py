@@ -11,83 +11,19 @@
 """
 This module contains various helper functions and classes.
 """
-import re
+from decimal import Decimal
 
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
+from .compat import string_base_type
+from .exceptions import XMLSchemaValueError
 from .qnames import XSD_ANNOTATION
+from .xpath import ElementPathMixin
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
-NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(name):
-    try:
-        return NAMESPACE_PATTERN.match(name).group(1)
-    except (AttributeError, TypeError):
-        return ''
-
-
-def get_qname(uri, name):
-    """
-    Returns an expanded QName from URI and local part. If any argument has boolean value
-    `False` or if the name is already an expanded QName, returns the *name* argument.
-
-    :param uri: namespace URI
-    :param name: local or qualified name
-    :return: string or the name argument
-    """
-    if not uri or not name or name[0] in ('{', '.', '/', '['):
-        return name
-    else:
-        return '{%s}%s' % (uri, name)
-
-
-def local_name(qname):
-    """
-    Return the local part of an expanded QName or a prefixed name. If the name
-    is `None` or empty returns the *name* argument.
-
-    :param qname: an expanded QName or a prefixed name or a local name.
-    """
-    try:
-        if qname[0] == '{':
-            _, qname = qname.split('}')
-        elif ':' in qname:
-            _, qname = qname.split(':')
-    except IndexError:
-        return ''
-    except ValueError:
-        raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
-    except TypeError:
-        if qname is None:
-            return qname
-        raise XMLSchemaTypeError("the argument 'qname' must be a string-like object or None")
-    else:
-        return qname
-
-
-def qname_to_prefixed(qname, namespaces):
-    """
-    Transforms a fully qualified name into a prefixed name using a namespace map. Returns the
-    *qname* argument if it's not a fully qualified name or if it has boolean value `False`.
-
-    :param qname: a fully qualified name or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: string with a prefixed or local reference.
-    """
-    if not qname:
-        return qname
-
-    namespace = get_namespace(qname)
-    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
-        if not uri:
-            return '%s:%s' % (prefix, qname) if prefix else qname
-        elif prefix:
-            return qname.replace('{%s}' % uri, '%s:' % prefix)
-        else:
-            return qname.replace('{%s}' % uri, '')
-    else:
-        return qname
+def is_etree_element(elem):
+    """More safer test for matching ElementTree elements."""
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
 
 
 def get_xsd_annotation(elem):
@@ -145,6 +81,44 @@ def get_xsd_form_attribute(elem, attribute):
             "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
         )
     return value
+
+
+def count_digits(number):
+    """
+    Counts the digits of a number.
+
+    :param number: an int or a float or a Decimal or a string representing a number.
+    :return: a couple with the number of digits of the integer part and \
+    the number of digits of the decimal part.
+    """
+    if isinstance(number, string_base_type):
+        number = str(Decimal(number)).lstrip('-+')
+    else:
+        number = str(number).lstrip('-+')
+
+    if 'E' in number:
+        significand, _, exponent = number.partition('E')
+    elif 'e' in number:
+        significand, _, exponent = number.partition('e')
+    elif '.' not in number:
+        return len(number.lstrip('0')), 0
+    else:
+        integer_part, _, decimal_part = number.partition('.')
+        return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
+
+    significand = significand.strip('0')
+    exponent = int(exponent)
+
+    num_digits = len(significand) - 1 if '.' in significand else len(significand)
+    if exponent > 0:
+        return num_digits + exponent, 0
+    else:
+        return 0, num_digits - exponent - 1
+
+
+def strictly_equal(obj1, obj2):
+    """Checks if the objects are equal and are of the same type."""
+    return obj1 == obj2 and type(obj1) is type(obj2)
 
 
 class ParticleCounter(object):

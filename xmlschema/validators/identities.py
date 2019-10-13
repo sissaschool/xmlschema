@@ -17,8 +17,8 @@ from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, qname_to_prefixed
+from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
+    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_prefixed, qname_to_extended
 from ..etree import etree_getpath
 from ..regex import get_python_regex
 
@@ -148,13 +148,14 @@ class XsdIdentity(XsdComponent):
         for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
             yield xsd_element
 
-    def get_fields(self, context, decoders=None):
+    def get_fields(self, context, namespaces=None, decoders=None):
         """
         Get fields for a schema or instance context element.
 
-        :param context: Context Element or XsdElement
-        :param decoders: Context schema fields decoders.
-        :return: A tuple with field values. An empty field is replaced by `None`.
+        :param context: context Element or XsdElement
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param decoders: context schema fields decoders.
+        :return: a tuple with field values. An empty field is replaced by `None`.
         """
         fields = []
         for k, field in enumerate(self.fields):
@@ -170,6 +171,8 @@ class XsdIdentity(XsdComponent):
                     fields.append(result[0])
                 else:
                     value = decoders[k].data_value(result[0])
+                    if decoders[k].type.root_type.name == XSD_QNAME:
+                        value = qname_to_extended(value, namespaces)
                     if isinstance(value, list):
                         fields.append(tuple(value))
                     else:
@@ -178,11 +181,12 @@ class XsdIdentity(XsdComponent):
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
         return tuple(fields)
 
-    def iter_values(self, elem):
+    def iter_values(self, elem, namespaces):
         """
         Iterate field values, excluding empty values (tuples with all `None` values).
 
-        :param elem: Instance XML element.
+        :param elem: instance XML element.
+        :param namespaces: XML document namespaces.
         :return: N-Tuple with value fields.
         """
         current_path = ''
@@ -193,13 +197,15 @@ class XsdIdentity(XsdComponent):
                 # Change the XSD context only if the path is changed
                 current_path = path
                 xsd_element = self.parent.find(path)
+                if not hasattr(xsd_element, 'tag'):
+                    yield XMLSchemaValidationError(self, e, "{!r} is not an element".format(xsd_element))
                 xsd_fields = self.get_fields(xsd_element)
 
             if all(fld is None for fld in xsd_fields):
                 continue
 
             try:
-                fields = self.get_fields(e, decoders=xsd_fields)
+                fields = self.get_fields(e, namespaces, decoders=xsd_fields)
             except XMLSchemaValueError as err:
                 yield XMLSchemaValidationError(self, e, reason=str(err))
             else:
@@ -208,15 +214,11 @@ class XsdIdentity(XsdComponent):
 
     @property
     def built(self):
-        return bool(self.fields and self.selector)
+        return self.selector is not None
 
-    def __call__(self, *args, **kwargs):
-        for error in self.validator(*args, **kwargs):
-            yield error
-
-    def validator(self, elem):
+    def __call__(self, elem, namespaces):
         values = Counter()
-        for v in self.iter_values(elem):
+        for v in self.iter_values(elem, namespaces):
             if isinstance(v, XMLSchemaValidationError):
                 yield v
             else:
@@ -267,9 +269,10 @@ class XsdKeyref(XsdIdentity):
         elif isinstance(self.refer, (XsdKey, XsdUnique)):
             return  # referenced key/unique identity constraint already set
 
-        try:
-            self.refer = self.parent.identities[self.refer]
-        except KeyError:
+        refer = self.parent.identities.get(self.refer)
+        if refer is not None and refer.ref is None:
+            self.refer = refer
+        else:
             try:
                 self.refer = self.maps.identities[self.refer]
             except KeyError:
@@ -296,29 +299,29 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self):
-        return bool(self.fields and self.selector and self.refer)
+        return self.selector is not None and isinstance(self.refer, XsdIdentity)
 
-    def get_refer_values(self, elem):
+    def get_refer_values(self, elem, namespaces):
         values = set()
         for e in elem.iterfind(self.refer_path):
-            for v in self.refer.iter_values(e):
+            for v in self.refer.iter_values(e, namespaces):
                 if not isinstance(v, XMLSchemaValidationError):
                     values.add(v)
         return values
 
-    def validator(self, elem):
+    def __call__(self, elem, namespaces):
         if self.refer is None:
             return
 
         refer_values = None
-        for v in self.iter_values(elem):
+        for v in self.iter_values(elem, namespaces):
             if isinstance(v, XMLSchemaValidationError):
                 yield v
                 continue
 
             if refer_values is None:
                 try:
-                    refer_values = self.get_refer_values(elem)
+                    refer_values = self.get_refer_values(elem, namespaces)
                 except XMLSchemaValueError as err:
                     yield XMLSchemaValidationError(self, elem, str(err))
                     continue

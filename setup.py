@@ -38,8 +38,8 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.0.14',
-    install_requires=['elementpath~=1.2.0'],
+    version='1.0.15',
+    install_requires=['elementpath~=1.3.0'],
     packages=['xmlschema'],
     include_package_data=True,
     cmdclass={

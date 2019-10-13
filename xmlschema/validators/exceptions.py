@@ -13,10 +13,11 @@ This module contains exception and warning classes for the 'xmlschema.validators
 """
 from __future__ import unicode_literals
 
-from ..compat import PY3
+from ..compat import PY3, string_base_type
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..etree import etree_tostring, is_etree_element, etree_getpath
-from ..helpers import qname_to_prefixed
+from ..qnames import qname_to_prefixed
+from ..etree import etree_tostring, etree_getpath
+from ..helpers import is_etree_element
 from ..resources import XMLResource
 
 
@@ -198,9 +199,14 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :type namespaces: dict
     """
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
+        if not isinstance(obj, string_base_type):
+            _obj = obj
+        else:
+            _obj = obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8')
+
         super(XMLSchemaValidationError, self).__init__(
             validator=validator,
-            message="failed validating {!r} with {!r}".format(obj, validator),
+            message="failed validating {!r} with {!r}".format(_obj, validator),
             elem=obj if is_etree_element(obj) else None,
             source=source,
             namespaces=namespaces,
@@ -218,8 +224,12 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
             msg.append('Reason: %s\n' % self.reason)
         if hasattr(self.validator, 'tostring'):
             msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
-        if self.elem is not None:
-            elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+        if is_etree_element(self.elem):
+            try:
+                elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+            except (ValueError, TypeError):
+                elem_as_string = repr(self.elem)
+
             if hasattr(self.elem, 'sourceline'):
                 msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
             else:

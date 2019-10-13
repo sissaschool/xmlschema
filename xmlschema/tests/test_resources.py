@@ -26,8 +26,9 @@ from xmlschema import (
 )
 from xmlschema.tests import casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
-from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, is_etree_element, \
+from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
+from xmlschema.helpers import is_etree_element
 
 
 def is_windows_path(path):

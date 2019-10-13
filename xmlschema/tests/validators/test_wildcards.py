@@ -110,6 +110,22 @@ class TestXsdWildcards(XsdValidatorTestCase):
         </xs:complexType>""")
         self.assertEqual(schema.types['taggedType'].attributes[None].namespace, [''])
 
+    def test_namespace_variants(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any namespace="urn:a" processContents="skip"/>
+                <xs:any namespace="" processContents="lax"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""")
+
+        any1 = schema.groups['group1'][0]
+        self.assertEqual(any1.namespace, ['urn:a'])
+        any2 = schema.groups['group1'][1]
+        self.assertEqual(any2.namespace, [])
+
 
 class TestXsd11Wildcards(TestXsdWildcards):
 
@@ -158,31 +174,136 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertFalse(any2.is_restriction(any1))
         self.assertTrue(any3.is_restriction(any1))
 
-    def test_extend(self):
+    def test_wildcard_union(self):
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
             <xs:group name="group1">
               <xs:sequence>
-                <xs:any namespace="tns1"/>
-                <xs:any namespace="tns1 tns2"/>
-                <xs:any notNamespace="tns1"/>
-                <xs:any notNamespace="tns1 tns2"/>
+                <xs:any namespace="tns1"/> <xs:any namespace="tns1 tns2"/>
+                <xs:any notNamespace="tns1"/> <xs:any notNamespace="tns1 tns2"/>
+                <xs:any namespace="##any"/> <xs:any notNamespace="tns1"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="tns1"/>
+                <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
               </xs:sequence>
             </xs:group>
         </xs:schema>""")
 
-        any1, any2, any3, any4 = schema.groups['group1'][:]
-
+        # <xs:any namespace="tns1"/> <xs:any namespace="tns1 tns2"/>
+        any1, any2 = schema.groups['group1'][:2]
         self.assertListEqual(any1.namespace, ['tns1'])
-        any1.extend(any2)
+        any1.union(any2)
         self.assertListEqual(any1.namespace, ['tns1', 'tns2'])
 
-        self.assertListEqual(any3.namespace, [])
-        self.assertListEqual(any3.not_namespace, ['tns1'])
-        any3.extend(any4)
-        self.assertListEqual(any3.not_namespace, ['tns1'])
-        any4.extend(any3)
-        self.assertListEqual(any4.not_namespace, ['tns1'])
+        # <xs:any notNamespace="tns1"/> <xs:any notNamespace="tns1 tns2"/>
+        any1, any2 = schema.groups['group1'][2:4]
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1'])
+        any1.union(any2)
+        self.assertListEqual(any1.not_namespace, ['tns1'])
+        any2.union(any1)
+        self.assertListEqual(any2.not_namespace, ['tns1'])
+
+        # <xs:any namespace="##any"/> <xs:any notNamespace="tns1"/>
+        any1, any2 = schema.groups['group1'][4:6]
+        any1.union(any2)
+        self.assertEqual(any1.namespace, ('##any',))
+        self.assertEqual(any1.not_namespace, ())
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="tns1"/>
+        any1, any2 = schema.groups['group1'][6:8]
+        any1.union(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1'])
+
+        # <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
+        any1, any2 = schema.groups['group1'][8:10]
+        any1.union(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1'])
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
+        any1, any2 = schema.groups['group1'][10:12]
+        any1.union(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['', 'tns1'])
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
+        any1, any2 = schema.groups['group1'][12:14]
+        any1.union(any2)
+        self.assertListEqual(any1.namespace, ['##any'])
+        self.assertListEqual(any1.not_namespace, [])
+
+    def test_wildcard_intersection(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:sequence>
+                <xs:any namespace="tns1"/> <xs:any namespace="tns1 tns2"/>
+                <xs:any notNamespace="tns1"/> <xs:any notNamespace="tns1 tns2"/>
+                <xs:any namespace="##any"/> <xs:any notNamespace="tns1"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="tns1"/>
+                <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
+                <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
+                <xs:any namespace="##any" notQName="##defined qn1"/>
+                <xs:any namespace="##local" notQName="##defined"/>
+              </xs:sequence>
+            </xs:group>
+        </xs:schema>""")
+
+        # <xs:any namespace="tns1"/> <xs:any namespace="tns1 tns2"/>
+        any1, any2 = schema.groups['group1'][:2]
+        self.assertListEqual(any1.namespace, ['tns1'])
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, ['tns1'])
+
+        # <xs:any notNamespace="tns1"/> <xs:any notNamespace="tns1 tns2"/>
+        any1, any2 = schema.groups['group1'][2:4]
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1'])
+        any1.intersection(any2)
+        self.assertListEqual(any1.not_namespace, ['tns1', 'tns2'])
+        any2.intersection(any1)
+        self.assertListEqual(any2.not_namespace, ['tns1', 'tns2'])
+
+        # <xs:any namespace="##any"/> <xs:any notNamespace="tns1"/>
+        any1, any2 = schema.groups['group1'][4:6]
+        any1.intersection(any2)
+        self.assertEqual(any1.namespace, [])
+        self.assertEqual(any1.not_namespace, ['tns1'])
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="tns1"/>
+        any1, any2 = schema.groups['group1'][6:8]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1', ''])
+
+        # <xs:any notNamespace="tns1"/> <xs:any namespace="##other"/>
+        any1, any2 = schema.groups['group1'][8:10]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns1', ''])
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="##local tns1"/>
+        any1, any2 = schema.groups['group1'][10:12]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['', 'tns1'])
+
+        # <xs:any namespace="##other"/> <xs:any notNamespace="tns2"/>
+        any1, any2 = schema.groups['group1'][12:14]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [])
+        self.assertListEqual(any1.not_namespace, ['tns2', 'tns1', ''])
+
+        # <xs:any namespace="##any" notQName="##defined qn1"/>
+        # <xs:any namespace="##local" notQName="##defined"/>
+        any1, any2 = schema.groups['group1'][14:16]
+        any1.intersection(any2)
+        self.assertListEqual(any1.namespace, [''])
+        self.assertListEqual(any1.not_qname, ['##defined', 'qn1'])
 
     def test_open_content_mode_interleave(self):
         schema = self.check_schema("""

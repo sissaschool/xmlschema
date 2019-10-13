@@ -103,21 +103,21 @@ The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
     >>> from pprint import pprint
     >>> pprint(sorted(schema.maps.types.keys())[:5])
     ['{http://example.com/vehicles}vehicleType',
-     '{http://www.w3.org/1999/xlink}actuateType',
-     '{http://www.w3.org/1999/xlink}arcType',
-     '{http://www.w3.org/1999/xlink}arcroleType',
-     '{http://www.w3.org/1999/xlink}extended']
+     '{http://www.w3.org/2001/XMLSchema}ENTITIES',
+     '{http://www.w3.org/2001/XMLSchema}ENTITY',
+     '{http://www.w3.org/2001/XMLSchema}ID',
+     '{http://www.w3.org/2001/XMLSchema}IDREF']
     >>> pprint(sorted(schema.maps.elements.keys())[:10])
     ['{http://example.com/vehicles}bikes',
      '{http://example.com/vehicles}cars',
      '{http://example.com/vehicles}vehicles',
-     '{http://www.w3.org/1999/xlink}arc',
-     '{http://www.w3.org/1999/xlink}locator',
-     '{http://www.w3.org/1999/xlink}resource',
-     '{http://www.w3.org/1999/xlink}title',
      '{http://www.w3.org/2001/XMLSchema}all',
      '{http://www.w3.org/2001/XMLSchema}annotation',
-     '{http://www.w3.org/2001/XMLSchema}any']
+     '{http://www.w3.org/2001/XMLSchema}any',
+     '{http://www.w3.org/2001/XMLSchema}anyAttribute',
+     '{http://www.w3.org/2001/XMLSchema}appinfo',
+     '{http://www.w3.org/2001/XMLSchema}attribute',
+     '{http://www.w3.org/2001/XMLSchema}attributeGroup']
 
 Schema objects include methods for finding XSD elements and attributes in the schema.
 Those are methods ot the ElementTree's API, so you can use an XPath expression for

@@ -18,9 +18,9 @@ import warnings
 
 from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
-from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from .namespaces import XSI_NAMESPACE
-from .helpers import local_name
+from .qnames import local_name
+from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -36,6 +36,7 @@ attributes.
 
 
 def raw_xml_encode(value):
+    """Encodes a simple value to XML."""
     if isinstance(value, bool):
         return 'true' if value else 'false'
     elif isinstance(value, (list, tuple)):
@@ -260,7 +261,7 @@ class XMLSchemaConverter(NamespaceMapper):
         :return: a data structure containing the decoded data.
         """
         result_dict = self.dict()
-        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
+        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
                 ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
@@ -359,7 +360,7 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
@@ -456,7 +457,7 @@ class UnorderedConverter(XMLSchemaConverter):
                 # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content_lu[self.unmap_qname(name)] = [value]
@@ -576,7 +577,7 @@ class ParkerConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.matched_element(ns_name)
+                            matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))
@@ -721,7 +722,7 @@ class BadgerFishConverter(XMLSchemaConverter):
             else:
                 ns_name = unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
-                    matched_element = xsd_child.matched_element(ns_name)
+                    matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
                             content.append((ns_name, value))
@@ -841,7 +842,7 @@ class AbderaConverter(XMLSchemaConverter):
                     else:
                         ns_name = unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
-                            matched_element = xsd_child.matched_element(ns_name)
+                            matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
                                     content.append((ns_name, value))
@@ -898,7 +899,7 @@ class JsonMLConverter(XMLSchemaConverter):
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        if level == 0 and xsd_element.is_global and not self.strip_namespaces and self:
+        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
         if attributes:
             result_list.insert(1, attributes)

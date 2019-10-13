@@ -10,10 +10,7 @@
 #
 from __future__ import unicode_literals
 
-from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_NOTATION
-from ..helpers import get_qname
-
+from ..qnames import XSD_NOTATION, get_qname
 from .xsdbase import XsdComponent
 
 
