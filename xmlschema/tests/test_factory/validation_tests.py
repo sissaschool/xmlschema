@@ -98,7 +98,11 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
             for _ in iter_nested_items(data1, dict_class=ordered_dict_class):
                 pass
 
-            elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
+            try:
+                elem1 = self.schema.encode(data1, path=root.tag, converter=converter, **kwargs)
+            except XMLSchemaValidationError as err:
+                raise AssertionError(str(err) + msg_tmpl % "error during re-encoding")
+
             if isinstance(elem1, tuple):
                 # When validation='lax'
                 if converter is not ParkerConverter:

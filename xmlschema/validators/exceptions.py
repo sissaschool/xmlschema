@@ -225,7 +225,11 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if hasattr(self.validator, 'tostring'):
             msg.append("Schema:\n\n%s\n" % self.validator.tostring('  ', 20))
         if is_etree_element(self.elem):
-            elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+            try:
+                elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+            except (ValueError, TypeError):
+                elem_as_string = repr(self.elem)
+
             if hasattr(self.elem, 'sourceline'):
                 msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
             else:

@@ -178,7 +178,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     namespace has been overridden by an import. Ignored if the argument *global_maps* is provided.
     :type use_meta: bool
     :param loglevel: for setting a different logging level for schema initialization \
-    and building. For default is WARNING (30).
+    and building. For default is WARNING (30). For INFO level set it with 20, for \
+    DEBUG level with 10. The default loglevel is restored after schema building, \
+    when exiting the initialization method.
     :type loglevel: int
 
     :cvar XSD_VERSION: store the XSD version (1.0 or 1.1).

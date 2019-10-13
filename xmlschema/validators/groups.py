@@ -712,12 +712,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         cdata_index = 0
         if isinstance(element_data.content, dict) or kwargs.get('unordered'):
             content = model.iter_unordered_content(element_data.content)
+        elif not isinstance(element_data.content, list):
+            content = []
         elif converter.losslessly:
             content = element_data.content
-        elif isinstance(element_data.content, list):
-            content = model.iter_collapsed_content(element_data.content)
         else:
-            content = []
+            content = ModelVisitor(self).iter_collapsed_content(element_data.content)
 
         for index, (name, value) in enumerate(content):
             if isinstance(name, int):

@@ -607,26 +607,42 @@ class ModelVisitor(MutableSequence):
         """
         prev_name = None
         unordered_content = defaultdict(deque)
+
         for name, value in content:
             if isinstance(name, int) or self.element is None:
                 yield name, value
-            elif prev_name != name:
+                continue
+
+            while self.element is not None:
+                if self.element.is_matching(name):
+                    yield name, value
+                    prev_name = name
+                    for _ in self.advance(True):
+                        pass
+                    break
+
+                for key in unordered_content:
+                    if self.element.is_matching(key):
+                        break
+                else:
+                    if prev_name == name:
+                        unordered_content[name].append(value)
+                        break
+
+                    for _ in self.advance(False):
+                        pass
+                    continue
+
+                try:
+                    yield key, unordered_content[key].popleft()
+                except IndexError:
+                    del unordered_content[key]
+                else:
+                    for _ in self.advance(True):
+                        pass
+            else:
                 yield name, value
                 prev_name = name
-            elif self.element.is_matching(name):
-                yield name, value
-            else:
-                unordered_content[name].append(value)
-                while self.element is not None and unordered_content:
-                    for key in unordered_content:
-                        if self.element.is_matching(key):
-                            try:
-                                yield name, unordered_content[key].popleft()
-                            except IndexError:
-                                del unordered_content[key]
-                            break
-                    else:
-                        break
 
         # Add the remaining consumable content onto the end of the data.
         for name, values in unordered_content.items():

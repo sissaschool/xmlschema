@@ -374,8 +374,8 @@ class TestEncoding(XsdValidatorTestCase):
             </xs:element>
             """)
 
-        with self.assertRaises(XMLSchemaChildrenValidationError):
-            schema.to_etree({"A": [1, 2], "B": [3, 4]})
+        root = schema.to_etree(ordered_dict_class([('A', [1, 2]), ('B', [3, 4])]))
+        self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, converter=UnorderedConverter)
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])

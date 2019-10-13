@@ -2,12 +2,13 @@
 CHANGELOG
 *********
 
-`v1.0.15`_ (2019-10-11)
+`v1.0.15`_ (2019-10-13)
 =======================
 * Improved XPath 2.0 bindings
-* Added logging for schema initialization and building
+* Added logging for schema initialization and building (handled with argument *loglevel*)
+* Update encoding of collapsed contents with a new model based reordering method
 * Removed XLink namespace from meta-schema (loaded from a fallback location like XHTML)
-* Fixed half of failed W3C instance tests (remain 266 over 15344 tests)
+* Fixed half of failed W3C instance tests (remain 255 over 15344 tests)
 
 `v1.0.14`_ (2019-08-27)
 =======================

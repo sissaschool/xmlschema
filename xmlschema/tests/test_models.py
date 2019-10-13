@@ -580,6 +580,7 @@ class TestModelValidation11(TestModelValidation):
 class TestModelBasedSorting(XsdValidatorTestCase):
 
     def test_sort_content(self):
+        # test of ModelVisitor's sort_content/iter_unordered_content
         schema = self.get_schema("""
             <xs:element name="A" type="A_type" />
             <xs:complexType name="A_type">
@@ -640,6 +641,161 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         self.assertListEqual(
             model.sort_content([('B3', True), ('B2', 10)]), [('B2', 10), ('B3', True)]
         )
+
+    def test_iter_collapsed_content_with_optional_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" />
+                    <xs:element name="B3" />
+                    <xs:element name="B4" />
+                    <xs:element name="B5" />
+                    <xs:element name="B6" minOccurs="0" />
+                    <xs:element name="B7" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B3', 10), ('B4', None), ('B5', True), ('B6', 'alpha'), ('B7', 20)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B5', True), ('B6', 'alpha'), ('B7', 20)]  # Missing B4
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+    def test_iter_collapsed_content_with_repeated_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" maxOccurs="unbounded" />
+                    <xs:element name="B3" maxOccurs="unbounded" />
+                    <xs:element name="B4" />
+                    <xs:element name="B5" maxOccurs="unbounded" />
+                    <xs:element name="B6" minOccurs="0" />
+                    <xs:element name="B7" maxOccurs="unbounded" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [
+            ('B3', 10), ('B4', None), ('B5', True), ('B5', False), ('B6', 'alpha'), ('B7', 20)
+        ]
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True),
+                   ('B5', False), ('B6', 'alpha'), ('B7', 20), ('B7', 30)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+        content = [('B3', 10), ('B3', 11), ('B3', 12), ('B4', None), ('B5', True), ('B5', False)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)), content
+        )
+
+    def test_iter_collapsed_content_with_repeated_groups(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence minOccurs="1" maxOccurs="2">
+                    <xs:element name="B1" minOccurs="0" />
+                    <xs:element name="B2" minOccurs="0" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4)]
+        )
+
+        # Model broken by unknown element at start
+        content = [('X', None), ('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('X', None), ('B1', 2), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('B1', 2), ('X', None), ('B2', 3), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('X', None), ('B2', 4)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('X', None), ('B2', 4)]
+        )
+
+        content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4), ('X', None)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 1), ('B2', 3), ('B1', 2), ('B2', 4), ('X', None)]
+        )
+
+    def test_iter_collapsed_content_with_single_elements(self):
+        schema = self.get_schema("""
+            <xs:element name="A" type="A_type" />
+            <xs:complexType name="A_type">
+                <xs:sequence>
+                    <xs:element name="B1" />
+                    <xs:element name="B2" />
+                    <xs:element name="B3" />
+                </xs:sequence>
+            </xs:complexType>
+            """)
+
+        model = ModelVisitor(schema.types['A_type'].content_type)
+
+        content = [('B1', 'abc'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B3', False), ('B1', 'abc'), ('B2', 10)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 'abc'), ('B3', False), ('B2', 10)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('B1', 'abc'), ('B1', 'def'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(
+            list(model.iter_collapsed_content(content)),
+            [('B1', 'abc'), ('B2', 10), ('B3', False), ('B1', 'def')]
+        )
+
+        content = [('B1', 'abc'), ('B2', 10), ('X', None)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+        content = [('X', None), ('B1', 'abc'), ('B2', 10), ('B3', False)]
+        model.restart()
+        self.assertListEqual(list(model.iter_collapsed_content(content)), content)
 
 
 if __name__ == '__main__':
