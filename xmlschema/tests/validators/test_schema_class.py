@@ -13,9 +13,11 @@ from __future__ import print_function, unicode_literals
 import unittest
 import platform
 import warnings
+import os
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.etree import etree_element
+from xmlschema.namespaces import SCHEMAS_DIR
 from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
 from xmlschema.tests import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators import XMLSchema11
@@ -113,8 +115,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""", XMLSchemaParseError)
 
     def test_base_schemas(self):
-        from xmlschema.validators.schema import XML_SCHEMA_FILE
-        self.schema_class(XML_SCHEMA_FILE)
+        self.schema_class(os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'))
 
     def test_root_elements(self):
         # Test issue #107 fix

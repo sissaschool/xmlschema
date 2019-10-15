@@ -32,8 +32,8 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
     XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
-    XLINK_NAMESPACE, VC_NAMESPACE, NamespaceResourcesMap, NamespaceView
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
+    SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -74,14 +74,6 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
-
-# XSD schemas of W3C standards
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-XML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd')
-XSI_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd')
-XLINK_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xlink.xsd')
-XHTML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
-VC_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd')
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -1024,14 +1016,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
             self.imports[namespace] = None
 
-    def import_schema(self, namespace, location, base_url=None, force=False):
+    def import_schema(self, namespace, location, base_url=None, force=False, build=False):
         """
         Imports a schema for an external namespace, from a specific URL.
 
         :param namespace: is the URI of the external namespace.
         :param location: is the URL of the schema.
         :param base_url: is an optional base URL for fetching the schema resource.
-        :param force: is set to `True` imports the schema also if the namespace is already imported.
+        :param force: if set to `True` imports the schema also if the namespace is already imported.
+        :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance.
         """
         if not force:
@@ -1058,7 +1051,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             base_url=self.base_url,
             defuse=self.defuse,
             timeout=self.timeout,
-            build=False,
+            build=build,
         )
         if schema.target_namespace != namespace:
             raise XMLSchemaValueError('imported schema %r has an unmatched namespace %r' % (location, namespace))
@@ -1487,13 +1480,10 @@ class XMLSchema10(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: XML_SCHEMA_FILE,
-        XSI_NAMESPACE: XSI_SCHEMA_FILE,
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = {
-        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
-        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
-    }
+    FALLBACK_LOCATIONS = LOCATION_HINTS
 
 
 # ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
@@ -1550,15 +1540,12 @@ class XMLSchema11(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        XML_NAMESPACE: XML_SCHEMA_FILE,
-        XSI_NAMESPACE: XSI_SCHEMA_FILE,
-        VC_NAMESPACE: VC_SCHEMA_FILE,
+        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = {
-        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
-        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
-    }
+    FALLBACK_LOCATIONS = LOCATION_HINTS
 
     def _parse_inclusions(self):
         super(XMLSchema11, self)._parse_inclusions()
