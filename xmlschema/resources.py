@@ -169,12 +169,17 @@ def fetch_schema_locations(source, locations=None, **resource_options):
     base_url = resource.base_url
     namespace = resource.namespace
     locations = resource.get_locations(locations)
-    for ns, url in filter(lambda x: x[0] == namespace, locations):
+    if not locations:
+        msg = "the XML data resource {!r} does not contain any schema location hint."
+        raise XMLSchemaValueError(msg.format(source))
+
+    for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
             return fetch_resource(url, base_url, timeout), locations
         except XMLSchemaURLError:
             pass
-    raise XMLSchemaValueError("not found a schema for XML data resource %r (namespace=%r)." % (source, namespace))
+
+    raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
 
 
 def fetch_schema(source, locations=None, **resource_options):
