@@ -10,32 +10,24 @@
 #
 from __future__ import unicode_literals
 
-from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_NOTATION
-from ..helpers import get_qname
-
+from ..qnames import XSD_NOTATION, get_qname
 from .xsdbase import XsdComponent
 
 
 class XsdNotation(XsdComponent):
     """
-    Class for XSD 'notation' declarations.
+    Class for XSD *notation* declarations.
 
-    <notation
-      id = ID
-      name = NCName
-      public = token
-      system = anyURI
-      {any attributes with non-schema namespace}...>
-      Content: (annotation?)
-    </notation>
+    ..  <notation
+          id = ID
+          name = NCName
+          public = token
+          system = anyURI
+          {any attributes with non-schema namespace}...>
+          Content: (annotation?)
+        </notation>
     """
-    _admitted_tags = {XSD_NOTATION}
-
-    def __init__(self, elem, schema, parent):
-        if parent is not None:
-            raise XMLSchemaValueError("'parent' attribute is not None but %r must be global!" % self)
-        super(XsdNotation, self).__init__(elem, schema, parent)
+    _ADMITTED_TAGS = {XSD_NOTATION}
 
     @property
     def built(self):
@@ -43,15 +35,15 @@ class XsdNotation(XsdComponent):
 
     def _parse(self):
         super(XsdNotation, self)._parse()
-        if not self.is_global:
-            self.parse_error("a notation declaration must be global.", self.elem)
+        if self.parent is not None:
+            self.parse_error("a notation declaration must be global", self.elem)
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("a notation must have a 'name'.", self.elem)
+            self.parse_error("a notation must have a 'name' attribute", self.elem)
 
         if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-            self.parse_error("a notation must has a 'public' or a 'system' attribute.", self.elem)
+            self.parse_error("a notation must has a 'public' or a 'system' attribute", self.elem)
 
     @property
     def public(self):

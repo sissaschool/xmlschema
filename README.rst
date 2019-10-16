@@ -26,15 +26,22 @@ Features
 
 This library includes the following features:
 
-* Full XSD 1.0 support
+* Full XSD 1.0 and XSD 1.1 support
 * Building of XML schema objects from XSD files
 * Validation of XML instances against XSD schemas
 * Decoding of XML data into Python data and to JSON
 * Encoding of Python data and JSON to XML
 * Data decoding and encoding ruled by converter classes
 * An XPath based API for finding schema's elements and attributes
-* Support of XSD validation modes
+* Support of XSD validation modes *strict*/*lax*/*skip*
 * Remote attacks protection by default using an XMLParser that forbids entities
+
+.. note::
+    Currently the XSD 1.1 validator is provided by class `XMLSchema11` and
+    the default `XMLSchema` class is still an alias of the XSD 1.0 validator,
+    the class `XMLSchema10`. From version 1.1 of the package the default
+    validator will be linked to the XSD 1.1 validator, a version that will also
+    removes support for Python 2.7.
 
 
 Installation
@@ -62,6 +69,11 @@ the file containing the schema as argument:
 
     >>> import xmlschema
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+
+.. note::
+    For XSD 1.1 schemas use the class `XMLSchema11`, because the default class
+    `XMLSchema` is still an alias of the XSD 1.0 validator class `XMLSchema10`.
+    From next minor release (v1.1) the default class will become `XMLSchema11`.
 
 The schema can be used to validate XML documents:
 
@@ -126,14 +138,9 @@ values that match to the data types declared by the schema:
                  'title': None,
                  'year': '1925'}]}
 
-Roadmap
-=======
-
-* XSD 1.1
 
 Authors
 =======
-
 Davide Brunato and others who have contributed with code or with sample cases.
 
 License

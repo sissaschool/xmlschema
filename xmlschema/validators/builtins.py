@@ -25,8 +25,21 @@ from elementpath import datatypes
 
 from ..compat import PY3, long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
-from ..qnames import *
-from ..etree import etree_element, is_etree_element
+from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+    XSD_PATTERN, XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
+    XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_EXPLICIT_TIMEZONE, \
+    XSD_STRING, XSD_NORMALIZED_STRING, XSD_NAME, XSD_NCNAME, XSD_QNAME, XSD_TOKEN, \
+    XSD_NMTOKEN, XSD_ID, XSD_IDREF, XSD_LANGUAGE, XSD_DECIMAL, XSD_DOUBLE, XSD_FLOAT, \
+    XSD_INTEGER, XSD_BYTE, XSD_SHORT, XSD_INT, XSD_LONG, XSD_UNSIGNED_BYTE, \
+    XSD_UNSIGNED_SHORT, XSD_UNSIGNED_INT, XSD_UNSIGNED_LONG, XSD_POSITIVE_INTEGER, \
+    XSD_NEGATIVE_INTEGER, XSD_NON_NEGATIVE_INTEGER, XSD_NON_POSITIVE_INTEGER, \
+    XSD_GDAY, XSD_GMONTH, XSD_GMONTH_DAY, XSD_GYEAR, XSD_GYEAR_MONTH, XSD_TIME, XSD_DATE, \
+    XSD_DATETIME, XSD_DATE_TIME_STAMP, XSD_ENTITY, XSD_ANY_URI, XSD_BOOLEAN, \
+    XSD_DURATION, XSD_DAY_TIME_DURATION, XSD_YEAR_MONTH_DURATION, XSD_BASE64_BINARY, \
+    XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
+from ..etree import etree_element
+from ..helpers import is_etree_element
 from .exceptions import XMLSchemaValidationError
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
@@ -153,6 +166,10 @@ def base64_binary_validator(x):
             base64.standard_b64decode(x)
         except (ValueError, TypeError) as err:
             yield XMLSchemaValidationError(base64_binary_validator, x, "not a base64 encoding: %s." % err)
+
+
+def error_type_validator(x):
+    yield XMLSchemaValidationError(error_type_validator, x, "not value is allowed for xs:error type.")
 
 
 #
@@ -309,7 +326,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'python_type': (unicode_type, str),
         'base_type': XSD_TOKEN,
         'facets': [
-            etree_element(XSD_PATTERN, value=r"([a-zA-Z]{2}|[iI]-[a-zA-Z]+|[xX]-[a-zA-Z]{1,8})(-[a-zA-Z]{1,8})*")
+            etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")
         ]
     },  # language codes
     {
@@ -516,6 +533,13 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
     },  # PnYnMnDTnHnMnS with day and time equals to 0
+    # --- xs:error primitive type (XSD 1.1) ---
+    {
+        'name': XSD_ERROR,
+        'python_type': type(None),
+        'admitted_facets': (),
+        'facets': [error_type_validator],
+    },  # xs:error has no value space and no lexical space
 )
 
 

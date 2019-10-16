@@ -15,17 +15,26 @@ This module runs tests on various internal helper functions.
 from __future__ import unicode_literals
 
 import unittest
+import decimal
+import xml.etree.ElementTree as ElementTree
 
-from xmlschema.etree import etree_element
-from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
-from xmlschema.helpers import get_xsd_annotation, iter_xsd_components, get_namespace, get_qname, \
-    local_name, qname_to_prefixed, has_xsd_components, get_xsd_component, \
-    get_xml_bool_attribute, get_xsd_derivation_attribute
+from xmlschema import XMLSchema, XMLSchemaParseError
+from xmlschema.etree import etree_element, prune_etree
+from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE, get_namespace
 from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
-from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.qnames import get_qname, local_name, qname_to_prefixed
+from xmlschema.helpers import get_xsd_annotation, get_xsd_derivation_attribute, count_digits
 
 
-class TestHelpers(XMLSchemaTestCase):
+class TestHelpers(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        XMLSchema.meta_schema.build()
+
+    @classmethod
+    def tearDownClass(cls):
+        XMLSchema.meta_schema.clear()
 
     def test_get_namespace_function(self):
         self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)
@@ -90,79 +99,6 @@ class TestHelpers(XMLSchemaTestCase):
         elem.append(etree_element(XSD_ANNOTATION))
         self.assertIsNone(get_xsd_annotation(elem))
 
-    def test_iter_xsd_components(self):
-        elem = etree_element(XSD_SCHEMA)
-        self.assertFalse(list(iter_xsd_components(elem)))
-        self.assertFalse(list(iter_xsd_components(elem, start=1)))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertFalse(list(iter_xsd_components(elem)))
-        self.assertFalse(list(iter_xsd_components(elem, start=1)))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(list(iter_xsd_components(elem)), [elem[1]])
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(list(iter_xsd_components(elem)), elem[1:])
-        self.assertEqual(list(iter_xsd_components(elem, start=1)), [elem[2]])
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, list, iter_xsd_components(elem))
-
-    def test_has_xsd_components(self):
-        elem = etree_element(XSD_SCHEMA)
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertTrue(has_xsd_components(elem))
-
-        elem.clear()
-        self.assertFalse(has_xsd_components(elem))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertFalse(has_xsd_components(elem))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertTrue(has_xsd_components(elem))
-        self.assertFalse(has_xsd_components(elem, start=1))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, list, iter_xsd_components(elem))
-
-    def test_get_xsd_component(self):
-        elem = etree_element(XSD_SCHEMA)
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertIsNone(get_xsd_component(elem, required=False))
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(get_xsd_component(elem), elem[0])
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertEqual(get_xsd_component(elem, strict=False), elem[0])
-
-        elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertIsNone(get_xsd_component(elem, required=False))
-        elem.append(etree_element(XSD_SIMPLE_TYPE))
-        self.assertEqual(get_xsd_component(elem), elem[1])
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertRaises(ValueError, get_xsd_component, elem)
-        self.assertEqual(get_xsd_component(elem, strict=False), elem[1])
-
-        elem.clear()
-        elem.append(etree_element(XSD_ANNOTATION))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertRaises(ValueError, get_xsd_component, elem, True, False)
-
-    def test_get_xml_bool_attribute(self):
-        elem = etree_element(XSD_ELEMENT, attrib={'a1': 'true', 'a2': '1', 'a3': 'false', 'a4': '0', 'a5': 'x'})
-        self.assertEqual(get_xml_bool_attribute(elem, 'a1'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a2'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a3'), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a4'), False)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a5')
-        self.assertRaises(KeyError, get_xml_bool_attribute, elem, 'a6')
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', True), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'true'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '1'), True)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', False), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', 'false'), False)
-        self.assertEqual(get_xml_bool_attribute(elem, 'a6', '0'), False)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 1)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 0)
-        self.assertRaises(TypeError, get_xml_bool_attribute, elem, 'a6', 'True')
-
     def test_get_xsd_derivation_attribute(self):
         elem = etree_element(XSD_ELEMENT, attrib={
             'a1': 'extension', 'a2': ' restriction', 'a3': '#all', 'a4': 'other',
@@ -176,6 +112,97 @@ class TestHelpers(XMLSchemaTestCase):
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values), 'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
+
+    def test_parse_component(self):
+        component = XMLSchema.meta_schema.types['anyType']
+
+        elem = etree_element(XSD_SCHEMA)
+        self.assertIsNone(component._parse_child_component(elem))
+        elem.append(etree_element(XSD_ELEMENT))
+        self.assertEqual(component._parse_child_component(elem), elem[0])
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
+        self.assertEqual(component._parse_child_component(elem, strict=False), elem[0])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION))
+        self.assertIsNone(component._parse_child_component(elem))
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertEqual(component._parse_child_component(elem), elem[1])
+        elem.append(etree_element(XSD_ELEMENT))
+        self.assertRaises(XMLSchemaParseError, component._parse_child_component, elem)
+        self.assertEqual(component._parse_child_component(elem, strict=False), elem[1])
+
+        elem.clear()
+        elem.append(etree_element(XSD_ANNOTATION))
+        elem.append(etree_element(XSD_ANNOTATION))
+        self.assertIsNone(component._parse_child_component(elem, strict=False))
+        elem.append(etree_element(XSD_SIMPLE_TYPE))
+        self.assertEqual(component._parse_child_component(elem), elem[2])
+
+    def test_count_digits_function(self):
+        self.assertEqual(count_digits(10), (2, 0))
+        self.assertEqual(count_digits(-10), (2, 0))
+
+        self.assertEqual(count_digits(081.2), (2, 1))
+        self.assertEqual(count_digits(-081.200), (2, 1))
+        self.assertEqual(count_digits(0.51), (0, 2))
+        self.assertEqual(count_digits(-0.510), (0, 2))
+        self.assertEqual(count_digits(-0.510), (0, 2))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0')), (3, 0))
+        self.assertEqual(count_digits(decimal.Decimal('100.01')), (3, 2))
+        self.assertEqual(count_digits('100.01'), (3, 2))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0E+4')), (7, 0))
+        self.assertEqual(count_digits(decimal.Decimal('100.00001E+4')), (7, 1))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E4')), (7, 0))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E12')), (15, 0))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E19')), (22, 0))
+
+        self.assertEqual(count_digits(decimal.Decimal('100.0E-4')), (0, 2))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-4')), (0, 2))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-8')), (0, 6))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-9')), (0, 7))
+        self.assertEqual(count_digits(decimal.Decimal('0100.00E-12')), (0, 10))
+        self.assertEqual(count_digits(decimal.Decimal('100.10E-4')), (0, 5))
+        self.assertEqual(count_digits(decimal.Decimal('0100.10E-12')), (0, 13))
+
+
+class TestElementTreeHelpers(unittest.TestCase):
+
+    def test_prune_etree_function(self):
+        root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
+        self.assertFalse(prune_etree(root, lambda x: x.tag == 'C'))
+        self.assertListEqual([e.tag for e in root.iter()], ['A', 'B', 'D'])
+        self.assertEqual(root.attrib, {'id': '0'})
+
+        root = ElementTree.XML('<A id="1"><B/><C/><D/></A>')
+        self.assertTrue(prune_etree(root, lambda x: x.tag != 'C'))
+        self.assertListEqual([e.tag for e in root.iter()], ['A'])
+        self.assertEqual(root.attrib, {'id': '1'})
+
+        class SelectorClass:
+            tag = 'C'
+
+            @classmethod
+            def class_method(cls, elem):
+                return elem.tag == cls.tag
+
+            def method(self, elem):
+                return elem.tag != self.tag
+
+        selector = SelectorClass()
+
+        root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
+        self.assertFalse(prune_etree(root, selector.class_method))
+        self.assertListEqual([e.tag for e in root.iter()], ['A', 'B', 'D'])
+        self.assertEqual(root.attrib, {'id': '0'})
+
+        root = ElementTree.XML('<A id="1"><B/><C/><D/></A>')
+        self.assertTrue(prune_etree(root, selector.method))
+        self.assertListEqual([e.tag for e in root.iter()], ['A'])
+        self.assertEqual(root.attrib, {'id': '1'})
 
 
 if __name__ == '__main__':

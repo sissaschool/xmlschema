@@ -18,15 +18,15 @@ import xml.etree.ElementTree as ElementTree
 from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
 
 from xmlschema import XMLSchema
-from xmlschema.tests import XMLSchemaTestCase
+from xmlschema.tests import casepath
 
 
-class XsdXPathTest(XMLSchemaTestCase):
+class XsdXPathTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.xs1 = XMLSchema(cls.casepath("examples/vehicles/vehicles.xsd"))
-        cls.xs2 = XMLSchema(cls.casepath("examples/collection/collection.xsd"))
+        cls.xs1 = XMLSchema(casepath("examples/vehicles/vehicles.xsd"))
+        cls.xs2 = XMLSchema(casepath("examples/collection/collection.xsd"))
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
@@ -45,43 +45,43 @@ class XsdXPathTest(XMLSchemaTestCase):
         self.assertTrue(self.xs1.findall('.'))
         self.assertTrue(isinstance(self.xs1.find('.'), XMLSchema))
         self.assertTrue(sorted(self.xs1.findall("*"), key=lambda x: x.name) == elements)
-        self.assertTrue(self.xs1.findall("*") == self.xs1.findall("./*"))
-        self.assertTrue(self.xs1.find("./vh:bikes") == self.xs1.elements['bikes'])
-        self.assertTrue(self.xs1.find("./vh:vehicles/vh:cars").name == self.xs1.elements['cars'].name)
-        self.assertFalse(self.xs1.find("./vh:vehicles/vh:cars") == self.xs1.elements['cars'])
-        self.assertFalse(self.xs1.find("/vh:vehicles/vh:cars") == self.xs1.elements['cars'])
-        self.assertTrue(self.xs1.find("vh:vehicles/vh:cars/..") == self.xs1.elements['vehicles'])
-        self.assertTrue(self.xs1.find("vh:vehicles/*/..") == self.xs1.elements['vehicles'])
-        self.assertTrue(self.xs1.find("vh:vehicles/vh:cars/../vh:cars") == self.xs1.find("vh:vehicles/vh:cars"))
+        self.assertListEqual(self.xs1.findall("*"), self.xs1.findall("./*"))
+        self.assertEqual(self.xs1.find("./vh:bikes"), self.xs1.elements['bikes'])
+        self.assertEqual(self.xs1.find("./vh:vehicles/vh:cars").name, self.xs1.elements['cars'].name)
+        self.assertNotEqual(self.xs1.find("./vh:vehicles/vh:cars"), self.xs1.elements['cars'])
+        self.assertNotEqual(self.xs1.find("/vh:vehicles/vh:cars"), self.xs1.elements['cars'])
+        self.assertEqual(self.xs1.find("vh:vehicles/vh:cars/.."), self.xs1.elements['vehicles'])
+        self.assertEqual(self.xs1.find("vh:vehicles/*/.."), self.xs1.elements['vehicles'])
+        self.assertEqual(self.xs1.find("vh:vehicles/vh:cars/../vh:cars"), self.xs1.find("vh:vehicles/vh:cars"))
 
     def test_xpath_axis(self):
-        self.assertTrue(self.xs1.find("vh:vehicles/child::vh:cars/..") == self.xs1.elements['vehicles'])
+        self.assertEqual(self.xs1.find("vh:vehicles/child::vh:cars/.."), self.xs1.elements['vehicles'])
 
     def test_xpath_subscription(self):
-        self.assertTrue(len(self.xs1.findall("./vh:vehicles/*")) == 2)
-        self.assertTrue(self.xs1.findall("./vh:vehicles/*[2]") == [self.bikes])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/*[3]") == [])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/*[last()-1]") == [self.cars])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/*[position()=last()]") == [self.bikes])
+        self.assertEqual(len(self.xs1.findall("./vh:vehicles/*")), 2)
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/*[2]"), [self.bikes])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/*[3]"), [])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/*[last()-1]"), [self.cars])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/*[position()=last()]"), [self.bikes])
 
     def test_xpath_group(self):
-        self.assertTrue(self.xs1.findall("/(vh:vehicles/*/*)") == self.xs1.findall("/vh:vehicles/*/*"))
-        self.assertTrue(self.xs1.findall("/(vh:vehicles/*/*)[1]") == self.xs1.findall("/vh:vehicles/*/*[1]"))
+        self.assertEqual(self.xs1.findall("/(vh:vehicles/*/*)"), self.xs1.findall("/vh:vehicles/*/*"))
+        self.assertEqual(self.xs1.findall("/(vh:vehicles/*/*)[1]"), self.xs1.findall("/vh:vehicles/*/*[1]")[:1])
 
     def test_xpath_predicate(self):
         car = self.xs1.elements['cars'].type.content_type[0]
-        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]") == [car])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/vh:cars['ciao']") == [self.cars])
-        self.assertTrue(self.xs1.findall("./vh:vehicles/*['']") == [])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]"), [car])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]"), [car])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars['ciao']"), [self.cars])
+        self.assertListEqual(self.xs1.findall("./vh:vehicles/*['']"), [])
 
     def test_xpath_descendants(self):
         selector = Selector('.//xs:element', self.xs2.namespaces, parser=XPath1Parser)
         elements = list(selector.iter_select(self.xs2.root))
-        self.assertTrue(len(elements) == 14)
+        self.assertEqual(len(elements), 14)
         selector = Selector('.//xs:element|.//xs:attribute|.//xs:keyref', self.xs2.namespaces, parser=XPath1Parser)
         elements = list(selector.iter_select(self.xs2.root))
-        self.assertTrue(len(elements) == 17)
+        self.assertEqual(len(elements), 17)
 
     def test_xpath_issues(self):
         namespaces = {'ps': "http://schemas.microsoft.com/powershell/2004/04"}

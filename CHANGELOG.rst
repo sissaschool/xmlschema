@@ -2,6 +2,20 @@
 CHANGELOG
 *********
 
+`v1.0.15`_ (2019-10-13)
+=======================
+* Improved XPath 2.0 bindings
+* Added logging for schema initialization and building (handled with argument *loglevel*)
+* Update encoding of collapsed contents with a new model based reordering method
+* Removed XLink namespace from meta-schema (loaded from a fallback location like XHTML)
+* Fixed half of failed W3C instance tests (remain 255 over 15344 tests)
+
+`v1.0.14`_ (2019-08-27)
+=======================
+* Added XSD 1.1 validator with class *XMLSchema11*
+* Memory usage optimization with lazy build of the XSD 1.0 and 1.1 meta-schemas
+* Added facilities for the encoding of unordered and collapsed content
+
 `v1.0.13`_ (2019-06-19)
 =======================
 * Fix path normalization and tests for Windows platform
@@ -249,3 +263,5 @@ v0.9.6 (2017-05-05)
 .. _v1.0.10: https://github.com/brunato/xmlschema/compare/v1.0.9...v1.0.10
 .. _v1.0.11: https://github.com/brunato/xmlschema/compare/v1.0.10...v1.0.11
 .. _v1.0.13: https://github.com/brunato/xmlschema/compare/v1.0.11...v1.0.13
+.. _v1.0.14: https://github.com/brunato/xmlschema/compare/v1.0.13...v1.0.14
+.. _v1.0.15: https://github.com/brunato/xmlschema/compare/v1.0.14...v1.0.15

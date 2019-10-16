@@ -14,7 +14,6 @@ This module runs tests concerning resources.
 """
 import unittest
 import os
-import platform
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -25,9 +24,11 @@ from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
     load_xml_resource, XMLResource, XMLSchemaURLError
 )
-from xmlschema.tests import XMLSchemaTestCase, SKIP_REMOTE_TESTS
+from xmlschema.tests import casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
-from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, is_etree_element, etree_element, py_etree_element
+from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
+    etree_element, py_etree_element
+from xmlschema.helpers import is_etree_element
 
 
 def is_windows_path(path):
@@ -39,7 +40,17 @@ def add_leading_slash(path):
     return '/' + path if path and path[0] not in ('/', '\\') else path
 
 
-class TestResources(XMLSchemaTestCase):
+class TestResources(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.vh_dir = casepath('examples/vehicles')
+        cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
+        cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
+
+        cls.col_dir = casepath('examples/collection')
+        cls.col_xsd_file = casepath('examples/collection/collection.xsd')
+        cls.col_xml_file = casepath('examples/collection/collection.xml')
 
     def check_url(self, url, expected):
         url_parts = urlsplit(url)
@@ -108,13 +119,13 @@ class TestResources(XMLSchemaTestCase):
         self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
 
     def test_fetch_resource(self):
-        wrong_path = self.casepath('resources/dummy_file.txt')
+        wrong_path = casepath('resources/dummy_file.txt')
         self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
-        right_path = self.casepath('resources/dummy file.txt')
+        right_path = casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
 
     def test_fetch_namespaces(self):
-        self.assertFalse(fetch_namespaces(self.casepath('resources/malformed.xml')))
+        self.assertFalse(fetch_namespaces(casepath('resources/malformed.xml')))
 
     def test_fetch_schema_locations(self):
         locations = fetch_schema_locations(self.col_xml_file)
@@ -301,15 +312,15 @@ class TestResources(XMLSchemaTestCase):
         resource = XMLResource(self.vh_xml_file, defuse='always')
         self.assertIsInstance(resource.root, py_etree_element)
 
-        xml_file = self.casepath('resources/with_entity.xml')
+        xml_file = casepath('resources/with_entity.xml')
         self.assertIsInstance(XMLResource(xml_file), XMLResource)
         self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
 
-        xml_file = self.casepath('resources/unused_external_entity.xml')
+        xml_file = casepath('resources/unused_external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file), XMLResource)
         self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
 
-        xml_file = self.casepath('resources/external_entity.xml')
+        xml_file = casepath('resources/external_entity.xml')
         self.assertIsInstance(XMLResource(xml_file), XMLResource)
         self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
 
@@ -430,7 +441,7 @@ class TestResources(XMLSchemaTestCase):
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
             self.assertFalse(schema_file.closed)
 
-
+            
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header
 

@@ -16,6 +16,7 @@ from __future__ import unicode_literals
 import unittest
 import sys
 import re
+from itertools import chain
 from unicodedata import category
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaRegexError
@@ -94,6 +95,19 @@ class TestUnicodeSubset(unittest.TestCase):
         cds.add((0, 10))
         self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
 
+        cds1 = UnicodeSubset(chain(
+            UNICODE_CATEGORIES['L'].code_points,
+            UNICODE_CATEGORIES['M'].code_points,
+            UNICODE_CATEGORIES['N'].code_points,
+            UNICODE_CATEGORIES['S'].code_points
+        ))
+        cds2 = UnicodeSubset(chain(
+            UNICODE_CATEGORIES['C'].code_points,
+            UNICODE_CATEGORIES['P'].code_points,
+            UNICODE_CATEGORIES['Z'].code_points
+        ))
+        self.assertListEqual(cds1.code_points, UnicodeSubset(cds2.complement()).code_points)
+
     def test_union_and_intersection(self):
         cds1 = UnicodeSubset([50, (90, 200), 10])
         cds2 = UnicodeSubset([10, 51, (89, 150), 90])
@@ -132,14 +146,14 @@ class TestUnicodeCategories(unittest.TestCase):
         self.assertEqual(min([min(s) for s in categories.values()]), 0)
         self.assertEqual(max([max(s) for s in categories.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in categories.items() if len(k) > 1]
-        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
+        self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     def test_unicode_categories(self):
         self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1), sys.maxunicode + 1)
         self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
         self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
-        self.assertFalse(any([s.intersection(t) for s in base_sets for t in base_sets if s != t]))
+        self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     @unittest.skipIf(not ((3, 7) <= sys.version_info < (3, 8)), "Test only for Python 3.7")
     def test_unicodedata_category(self):
@@ -336,34 +350,49 @@ class TestPatterns(unittest.TestCase):
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('x11').group(0), 'x11')
         self.assertIsNone(pattern.search('3a'))
-        
+
         regex = get_python_regex(r"\w*")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('aA_x7').group(0), 'aA_x7')
         self.assertIsNone(pattern.search('.'))
         self.assertIsNone(pattern.search('-'))
-        
+
         regex = get_python_regex(r"\W*")
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('aA_x7'))
         self.assertEqual(pattern.search('.-').group(0), '.-')
-        
+
         regex = get_python_regex(r"\d*")
         pattern = re.compile(regex)
         self.assertEqual(pattern.search('6410').group(0), '6410')
         self.assertIsNone(pattern.search('a'))
         self.assertIsNone(pattern.search('-'))
-        
+
         regex = get_python_regex(r"\D*")
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('6410'))
         self.assertEqual(pattern.search('a').group(0), 'a')
         self.assertEqual(pattern.search('-').group(0), '-')
 
+        # Pull Request 114
+        regex = get_python_regex(r"[\w]{0,5}")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('abc').group(0), 'abc')
+        self.assertIsNone(pattern.search('.'))
+
+        regex = get_python_regex(r"[\W]{0,5}")
+        pattern = re.compile(regex)
+        self.assertEqual(pattern.search('.').group(0), '.')
+        self.assertIsNone(pattern.search('abc'))
+
     def test_empty_character_group_repr(self):
         regex = get_python_regex('[a-[a-f]]')
         self.assertEqual(regex, r'^([^\w\W])$')
         self.assertRaises(XMLSchemaRegexError, get_python_regex, '[]')
+
+    def test_character_class_range(self):
+        regex = get_python_regex('[bc-]')
+        self.assertEqual(regex, r'^([\-bc])$')
 
 
 if __name__ == '__main__':

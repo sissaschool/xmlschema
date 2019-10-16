@@ -20,8 +20,8 @@ Import the library in your code with::
 
     import xmlschema
 
-The module initialization builds the XSD meta-schemas and of the dictionary
-containing the code points of the Unicode categories.
+The module initialization builds the dictionary containing the code points of
+the Unicode categories.
 
 
 Create a schema instance
@@ -103,21 +103,21 @@ The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
     >>> from pprint import pprint
     >>> pprint(sorted(schema.maps.types.keys())[:5])
     ['{http://example.com/vehicles}vehicleType',
-     '{http://www.w3.org/1999/xlink}actuateType',
-     '{http://www.w3.org/1999/xlink}arcType',
-     '{http://www.w3.org/1999/xlink}arcroleType',
-     '{http://www.w3.org/1999/xlink}extended']
+     '{http://www.w3.org/2001/XMLSchema}ENTITIES',
+     '{http://www.w3.org/2001/XMLSchema}ENTITY',
+     '{http://www.w3.org/2001/XMLSchema}ID',
+     '{http://www.w3.org/2001/XMLSchema}IDREF']
     >>> pprint(sorted(schema.maps.elements.keys())[:10])
     ['{http://example.com/vehicles}bikes',
      '{http://example.com/vehicles}cars',
      '{http://example.com/vehicles}vehicles',
-     '{http://www.w3.org/1999/xlink}arc',
-     '{http://www.w3.org/1999/xlink}locator',
-     '{http://www.w3.org/1999/xlink}resource',
-     '{http://www.w3.org/1999/xlink}title',
      '{http://www.w3.org/2001/XMLSchema}all',
      '{http://www.w3.org/2001/XMLSchema}annotation',
-     '{http://www.w3.org/2001/XMLSchema}any']
+     '{http://www.w3.org/2001/XMLSchema}any',
+     '{http://www.w3.org/2001/XMLSchema}anyAttribute',
+     '{http://www.w3.org/2001/XMLSchema}appinfo',
+     '{http://www.w3.org/2001/XMLSchema}attribute',
+     '{http://www.w3.org/2001/XMLSchema}attributeGroup']
 
 Schema objects include methods for finding XSD elements and attributes in the schema.
 Those are methods ot the ElementTree's API, so you can use an XPath expression for
@@ -553,3 +553,11 @@ From release v1.0.12 the document validation and decoding API has an optional ar
 that can be changed to True for operating with a lazy :class:`XMLResource`. The lazy mode can be
 useful for validating and decoding big XML data files. This is still an experimental feature that
 will be refined and integrated in future versions.
+
+
+XSD 1.0 and 1.1 support
+-----------------------
+From release v1.0.14 XSD 1.1 support has been added to the library through the class
+:class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
+class :class:`XMLSchema` that is still linked to XSD 1.0 validator :class:`XMLSchema10`.
+From next minor release (v1.1) the default class will become :class:`XMLSchema11`.

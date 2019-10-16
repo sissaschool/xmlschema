@@ -194,7 +194,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 raise XMLSchemaRegexError("bad character %r at position %d" % (s[k], k))
             escaped = on_range = False
             char = s[k]
-            if k >= length - 1 or s[k + 1] != '-':
+            if k >= length - 2 or s[k + 1] != '-':
                 yield ord(char)
         elif s[k] == '\\':
             if escaped:
@@ -209,7 +209,7 @@ def iterparse_character_group(s, expand_ranges=False):
                 yield ord('\\')
             on_range = False
             char = s[k]
-            if k >= length - 1 or s[k + 1] != '-':
+            if k >= length - 2 or s[k + 1] != '-':
                 yield ord(char)
     if escaped:
         yield ord('\\')
@@ -678,3 +678,18 @@ if maxunicode == UCS4_MAXUNICODE:
         'IsCJKCompatibilityIdeographsSupplement': UnicodeSubset('\U0002F800-\U0002FA1F'),
         'IsTags': UnicodeSubset('\U000E0000-\U000E007F')
     })
+
+
+def unicode_subset(name, block_safe=False):
+    if name.startswith('Is'):
+        try:
+            return UNICODE_BLOCKS[name]
+        except KeyError:
+            if block_safe:
+                return UnicodeSubset.fromlist([0, maxunicode])
+            raise XMLSchemaRegexError("%r doesn't match to any Unicode block." % name)
+    else:
+        try:
+            return UNICODE_CATEGORIES[name]
+        except KeyError:
+            raise XMLSchemaRegexError("%r doesn't match to any Unicode category." % name)

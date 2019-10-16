@@ -27,7 +27,7 @@ subdirectory. There are several test scripts, each one for a different topic:
     Tests about XML/XSD resources access
 
 **test_schemas.py**
-    Tests about parsing of XSD Schemas
+    Tests about parsing of XSD schemas and components
 
 **test_validators.py**
     Tests regarding XML data validation/decoding/encoding
@@ -142,14 +142,34 @@ Testing with the W3C XML Schema 1.1 test suite
 ----------------------------------------------
 
 From release v1.0.11, using the script *test_w3c_suite.py*, you can run also tests based on the
-`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests, currently
-limited to XSD 1.0 schema tests, clone the W3C repo on the project's parent directory and than
-run the script:
+`W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests clone the
+W3C repo on the project's parent directory and than run the script:
 
 .. code-block:: text
 
    git clone https://github.com/w3c/xsdtests.git
    python xmlschema/xmlschema/tests/test_w3c_suite.py
+
+You can also provides additional options for select a different set of tests:
+
+**--xml**
+    Add tests for instances, skipped for default.
+
+**--xsd10**
+    Run only XSD 1.0 tests.
+
+**--xsd11**
+    Run only XSD 1.1 tests.
+
+**--valid**
+    Run only tests signed as *valid*.
+
+**--invalid**
+    Run only tests signed as *invalid*.
+
+**[NUM [NUM ...]]**
+    Run only the cases that match a list of progressive numbers, associated
+    to the test classes by the script.
 
 
 Testing other schemas and instances

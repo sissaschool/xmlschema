@@ -13,8 +13,8 @@ This module contains ElementTree setup and helpers for xmlschema package.
 """
 from __future__ import unicode_literals
 import sys
-import re
 import importlib
+import re
 from collections import Counter
 
 try:
@@ -23,10 +23,9 @@ except ImportError:
     lxml_etree = None
 
 from .compat import PY3
-from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE
-from .helpers import get_namespace, get_qname, qname_to_prefixed
-from .xpath import ElementPathMixin
+from .exceptions import XMLSchemaTypeError
+from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
+from .qnames import get_qname, qname_to_prefixed
 
 ###
 # Programmatic import of xml.etree.ElementTree
@@ -130,11 +129,6 @@ class SafeXMLParser(PyElementTree.XMLParser):
         )
 
 
-def is_etree_element(elem):
-    """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
-
-
 def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
     """
     Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
@@ -159,19 +153,21 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     if isinstance(elem, etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                etree_register_namespace(prefix, uri)
+                if not re.match(r'ns\d+$', prefix):
+                    etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
 
     elif isinstance(elem, py_etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                PyElementTree.register_namespace(prefix, uri)
+                if not re.match(r'ns\d+$', prefix):
+                    PyElementTree.register_namespace(prefix, uri)
         tostring = PyElementTree.tostring
 
     elif lxml_etree is not None:
         if namespaces:
             for prefix, uri in namespaces.items():
-                if prefix:
+                if prefix and not re.match(r'ns\d+$', prefix):
                     lxml_etree_register_namespace(prefix, uri)
         tostring = lxml_etree.tostring
     else:
@@ -267,21 +263,6 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
             return path
 
 
-def etree_last_child(elem):
-    """Returns the last child of the element, ignoring children that are lxml comments."""
-    for child in reversed(elem):
-        if not callable(child.tag):
-            return child
-
-
-def etree_child_index(elem, child):
-    """Return the index or raise ValueError if it is not a *child* of *elem*."""
-    for index in range(len(elem)):
-        if elem[index] is child:
-            return index
-    raise XMLSchemaValueError("%r is not a child of %r" % (child, elem))
-
-
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
     """
     Tests the equality of two XML Element trees.
@@ -316,7 +297,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
             if strict:
                 raise AssertionError("%r != %r: attribute differ: %r != %r." % (e1, e2, e1.attrib, e2.attrib))
             else:
-                assert e1.attrib.keys() == e2.attrib.keys(), \
+                assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
                     "%r != %r: attribute keys differ: %r != %r." % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
                     a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()
@@ -370,3 +351,27 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
         pass
     else:
         assert False, "First tree ends before the second: %r." % e2
+
+
+def prune_etree(root, selector):
+    """
+    Removes from an tree structure the elements that verify the selector
+    function. The checking and eventual removals are performed using a
+    breadth-first visit method.
+
+    :param root: the root element of the tree.
+    :param selector: the single argument function to apply on each visited node.
+    :return: `True` if the root node verify the selector function, `None` otherwise.
+    """
+    def _prune_subtree(elem):
+        for child in elem[:]:
+            if selector(child):
+                elem.remove(child)
+
+        for child in elem:
+            _prune_subtree(child)
+
+    if selector(root):
+        del root[:]
+        return True
+    _prune_subtree(root)

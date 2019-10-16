@@ -10,7 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Check xmlschema package import memory usage.
+Check xmlschema package memory usage.
 
 Refs:
     https://pypi.org/project/memory_profiler/
@@ -47,8 +47,16 @@ parser.add_argument('xml_file', metavar='XML_FILE', nargs='?', help='Input XML f
 args = parser.parse_args()
 
 
+# noinspection PyUnresolvedReferences
 @profile
 def import_package():
+    # Imports of packages used by xmlschema that
+    # have a significant memory usage impact.
+    import decimal
+    from urllib.error import URLError
+    import lxml.etree
+    import elementpath
+
     import xmlschema
     return xmlschema
 
@@ -128,13 +136,17 @@ if __name__ == '__main__':
         etree_emptied_iterparse(args.xml_file)
     elif args.test_num == 5:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         decode(args.xml_file)
     elif args.test_num == 6:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         lazy_decode(args.xml_file)
     elif args.test_num == 7:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         validate(args.xml_file)
     elif args.test_num == 8:
         import xmlschema
+        xmlschema.XMLSchema.meta_schema.build()
         lazy_validate(args.xml_file)
