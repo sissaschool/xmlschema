@@ -13,13 +13,12 @@ This module contains classes for XML Schema wildcards.
 """
 from __future__ import unicode_literals
 
+from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import XSI_NAMESPACE
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
     XSD_DEFAULT_OPEN_CONTENT, get_namespace
 from ..xpath import XMLSchemaProxy, ElementPathMixin
-
-from .exceptions import XMLSchemaNotBuiltError
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
 
@@ -128,25 +127,6 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             self.parse_error("names in notQName must be in namespaces that are allowed")
 
         self.not_qname = names
-
-    def _load_namespace(self, namespace):
-        if namespace in self.schema.maps.namespaces:
-            return
-
-        for url in self.schema.get_locations(namespace):
-            try:
-                schema = self.schema.import_schema(namespace, url, base_url=self.schema.base_url)
-                if schema is not None:
-                    try:
-                        schema.maps.build()
-                    except XMLSchemaNotBuiltError:
-                        # Namespace build fails: remove unbuilt schemas and the url hint
-                        schema.maps.clear(remove_schemas=True, only_unbuilt=True)
-                        self.schema.locations[namespace].remove(url)
-                    else:
-                        break
-            except (OSError, IOError):
-                pass
 
     @property
     def built(self):
@@ -444,48 +424,65 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         return iter(())
 
     def iter_decode(self, elem, validation='lax', **kwargs):
-        if self.is_matching(elem.tag):
-            if self.process_contents == 'skip':
-                return
+        if not self.is_matching(elem.tag):
+            if validation != 'skip':
+                reason = "element %r not allowed here." % elem.tag
+                yield self.validation_error(validation, reason, elem, **kwargs)
 
-            self._load_namespace(get_namespace(elem.tag))
+        elif self.process_contents == 'skip':
+            return
+
+        elif self.maps.load_namespace(get_namespace(elem.tag)):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
-                if kwargs.get('drop_results'):
-                    # Validation-only mode: use anyType for decode a complex element.
+                if validation == 'skip':
                     yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
-                elif self.process_contents == 'strict' and validation != 'skip':
+                elif self.process_contents == 'strict':
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
                 for result in xsd_element.iter_decode(elem, validation, **kwargs):
                     yield result
-        elif validation != 'skip':
-            reason = "element %r not allowed here." % elem.tag
+
+        elif validation == 'skip':
+            yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
+
+        elif self.process_contents == 'strict':
+            reason = "unavailable namespace {!r}".format(get_namespace(elem.tag))
             yield self.validation_error(validation, reason, elem, **kwargs)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
-
         name, value = obj
         namespace = get_namespace(name)
 
-        if self.is_namespace_allowed(namespace):
-            self._load_namespace(namespace)
+        if not self.is_namespace_allowed(namespace):
+            if validation != 'skip':
+                reason = "element %r not allowed here." % name
+                yield self.validation_error(validation, reason, value, **kwargs)
+
+        elif self.process_contents == 'skip':
+            return
+
+        elif self.maps.load_namespace(namespace):
             try:
                 xsd_element = self.maps.lookup_element(name)
             except LookupError:
-                if self.process_contents == 'strict' and validation != 'skip':
+                if validation == 'skip':
+                    yield self.any_type.encode(value)
+                elif self.process_contents == 'strict':
                     reason = "element %r not found." % name
                     yield self.validation_error(validation, reason, **kwargs)
             else:
                 for result in xsd_element.iter_encode(value, validation, **kwargs):
                     yield result
-        elif validation != 'skip':
-            reason = "element %r not allowed here." % name
-            yield self.validation_error(validation, reason, value, **kwargs)
+
+        elif validation == 'skip':
+            yield self.any_type.encode(value)
+
+        elif self.process_contents == 'strict':
+            reason = "unavailable namespace {!r}".format(namespace)
+            yield self.validation_error(validation, reason, **kwargs)
 
     def is_overlap(self, other):
         if not isinstance(other, XsdAnyElement):
@@ -562,47 +559,66 @@ class XsdAnyAttribute(XsdWildcard):
 
     def iter_decode(self, attribute, validation='lax', **kwargs):
         name, value = attribute
-        if self.is_matching(name):
-            if self.process_contents == 'skip':
-                return
 
-            self._load_namespace(get_namespace(name))
+        if not self.is_matching(name):
+            if validation != 'skip':
+                reason = "attribute %r not allowed." % name
+                yield self.validation_error(validation, reason, attribute, **kwargs)
+
+        elif self.process_contents == 'skip':
+            return
+
+        elif self.maps.load_namespace(get_namespace(name)):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
-                if kwargs.get('drop_results'):
-                    # Validation-only mode: returns the value if a decoder is not found.
+                if validation == 'skip':
                     yield value
-                elif self.process_contents == 'strict' and validation != 'skip':
+                elif self.process_contents == 'strict':
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
                 for result in xsd_attribute.iter_decode(value, validation, **kwargs):
                     yield result
-        elif validation != 'skip':
-            reason = "attribute %r not allowed." % name
-            yield self.validation_error(validation, reason, attribute, **kwargs)
+
+        elif validation == 'skip':
+            yield value
+
+        elif self.process_contents == 'strict':
+            reason = "unavailable namespace {!r}".format(get_namespace(name))
+            yield self.validation_error(validation, reason, **kwargs)
 
     def iter_encode(self, attribute, validation='lax', **kwargs):
-        if self.process_contents == 'skip':
-            return
-
         name, value = attribute
         namespace = get_namespace(name)
-        if self.is_namespace_allowed(namespace):
-            self._load_namespace(namespace)
+
+        if not self.is_namespace_allowed(namespace):
+            if validation != 'skip':
+                reason = "attribute %r not allowed." % name
+                yield self.validation_error(validation, reason, attribute, **kwargs)
+
+        elif self.process_contents == 'skip':
+            return
+
+        elif self.maps.load_namespace(namespace):
             try:
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
-                if self.process_contents == 'strict' and validation != 'skip':
+                if validation == 'skip':
+                    yield unicode_type(value)
+                elif self.process_contents == 'strict':
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
                 for result in xsd_attribute.iter_encode(value, validation, **kwargs):
                     yield result
-        elif validation != 'skip':
-            reason = "attribute %r not allowed." % name
-            yield self.validation_error(validation, reason, attribute, **kwargs)
+
+        elif validation == 'skip':
+            yield unicode_type(value)
+
+        elif self.process_contents == 'strict':
+            reason = "unavailable namespace {!r}".format(get_namespace(name))
+            yield self.validation_error(validation, reason, **kwargs)
 
 
 class Xsd11AnyElement(XsdAnyElement):

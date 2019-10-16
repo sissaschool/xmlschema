@@ -17,7 +17,7 @@ from collections import Counter
 
 from ..compat import string_base_type
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
-from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
+from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
     XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
     XSD_ELEMENT, XSI_TYPE, get_qname, local_name, qname_to_extended
@@ -203,6 +203,7 @@ class XsdGlobals(XsdValidator):
 
         self.validator = validator
         self.namespaces = NamespaceResourcesMap()  # Registered schemas by namespace URI
+        self.missing_locations = []     # Missing or failing resource locations
 
         self.types = {}                 # Global types (both complex and simple)
         self.attributes = {}            # Global attributes
@@ -384,6 +385,61 @@ class XsdGlobals(XsdValidator):
             elif not any(schema.url == obj.url and schema.__class__ == obj.__class__ for obj in ns_schemas):
                 ns_schemas.append(schema)
 
+    def load_namespace(self, namespace, build=True):
+        """
+        Load namespace from available location hints. Returns `True` if the namespace
+        is already loaded or if the namespace can be loaded from one of the locations,
+        returns `False` otherwise. Failing locations are inserted into the missing
+        locations list.
+
+        :param namespace: the namespace to load.
+        :param build: if left with `True` value builds the maps after load. If the \
+        build fails the resource URL is added to missing locations.
+        """
+        namespace = namespace.strip()
+        if namespace in self.namespaces:
+            return True
+        elif self.validator.meta_schema is None:
+            return False  # Do not load additional namespaces for meta-schema (XHTML)
+
+        # Try from schemas location hints: usually the namespaces related to these
+        # hints are already loaded during schema construction, but it's better to
+        # retry once if the initial load has failed.
+        for schema in self.iter_schemas():
+            for url in schema.get_locations(namespace):
+                if url in self.missing_locations:
+                    continue
+
+                try:
+                    if schema.import_schema(namespace, url, schema.base_url) is not None:
+                        if build:
+                            self.build()
+                except (OSError, IOError):
+                    pass
+                except XMLSchemaNotBuiltError:
+                    self.clear(remove_schemas=True, only_unbuilt=True)
+                    self.missing_locations.append(url)
+                else:
+                    return True
+
+        # Try from library location hint, if there is any.
+        if namespace in LOCATION_HINTS:
+            url = LOCATION_HINTS[namespace]
+            if url not in self.missing_locations:
+                try:
+                    if self.validator.import_schema(namespace, url) is not None:
+                        if build:
+                            self.build()
+                except (OSError, IOError):
+                    return False
+                except XMLSchemaNotBuiltError:
+                    self.clear(remove_schemas=True, only_unbuilt=True)
+                    self.missing_locations.append(url)
+                else:
+                    return True
+
+        return False
+
     def clear(self, remove_schemas=False, only_unbuilt=False):
         """
         Clears the instance maps and schemas.
@@ -415,6 +471,7 @@ class XsdGlobals(XsdValidator):
                 self.namespaces = namespaces
 
         else:
+            self.missing_locations.clear()
             for global_map in self.global_maps:
                 global_map.clear()
             self.substitution_groups.clear()
