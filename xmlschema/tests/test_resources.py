@@ -206,17 +206,22 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertIsNone(resource.text)
 
+    @unittest.skipIf(
+        platform.python_version_tuple()[0] < '3',
+        "Skip: urlopen on Python 2 can't seek 'file://' paths."
+    )
     def test_xml_resource_from_resource(self):
         xml_file = urlopen('file://{}'.format(add_leading_slash(self.vh_xml_file)))
         try:
             resource = XMLResource(xml_file)
             self.assertEqual(resource.source, xml_file)
             self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
-            self.check_url(resource.url, self.vh_xml_file)
+            self.assertIsNone(resource.url)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<?xml'))
+            self.assertFalse(xml_file.closed)
         finally:
             xml_file.close()
 
@@ -225,21 +230,35 @@ class TestResources(unittest.TestCase):
             resource = XMLResource(schema_file)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_xsd_file)
+            self.assertIsNone(resource.url)
             self.assertIsNone(resource.document)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iter():
+                pass
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iterfind():
+                pass
+            self.assertFalse(schema_file.closed)
 
         with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file, lazy=False)
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
-            self.check_url(resource.url, self.vh_xsd_file)
+            self.assertIsNone(resource.url)
             self.assertIsInstance(resource.document, ElementTree.ElementTree)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iter():
+                pass
+            self.assertFalse(schema_file.closed)
+            for _ in resource.iterfind():
+                pass
+            self.assertFalse(schema_file.closed)
 
     def test_xml_resource_from_string(self):
         with open(self.vh_xsd_file) as schema_file:
@@ -355,13 +374,15 @@ class TestResources(unittest.TestCase):
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
             resource = XMLResource(schema_file)
-            self.assertEqual(resource.url, normalize_url(self.vh_xml_file))
+            self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
+            self.assertFalse(schema_file.closed)
 
         with open(self.vh_xsd_file) as schema_file:
             resource = XMLResource(schema_file)
-            self.assertEqual(resource.url, normalize_url(self.vh_xsd_file))
+            self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'xs', 'vh'})
+            self.assertFalse(schema_file.closed)
 
         resource = XMLResource(self.col_xml_file)
         self.assertEqual(resource.url, normalize_url(self.col_xml_file))
@@ -378,7 +399,49 @@ class TestResources(unittest.TestCase):
         self.assertEqual(len(locations), 2)
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
 
+    @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
+                     "Remote networks are not accessible or avoid SSL verification error on Windows.")
+    def test_remote_schemas_loading(self):
+        col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd")
+        self.assertTrue(isinstance(col_schema, self.schema_class))
+        vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
+                                      "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd")
+        self.assertTrue(isinstance(vh_schema, self.schema_class))
 
+    def test_schema_defuse(self):
+        vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')
+        self.assertIsInstance(vh_schema.root, etree_element)
+        for schema in vh_schema.maps.iter_schemas():
+            self.assertIsInstance(schema.root, etree_element)
+
+    def test_fid_with_name_attr(self):
+        """XMLResource gets correct data when passed a file like object
+        with a name attribute that isn't on disk.
+
+        These file descriptors appear when working with the contents from a
+        zip using the zipfile module and with Django files in some
+        instances.
+        """
+        class FileProxy(object):
+            def __init__(self, fid, fake_name):
+                self._fid = fid
+                self.name = fake_name
+
+            def __getattr__(self, attr):
+                try:
+                    return self.__dict__[attr]
+                except (KeyError, AttributeError):
+                    return getattr(self.__dict__["_fid"], attr)
+
+        fake_name = "not__on____disk.xml"
+        with open(self.vh_xml_file) as schema_file:
+            resource = XMLResource(FileProxy(schema_file, fake_name))
+            self.assertIsNone(resource.url)
+            self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
+            self.assertFalse(schema_file.closed)
+
+            
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header
 
