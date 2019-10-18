@@ -250,7 +250,7 @@ class XMLResource(object):
         if base_url is not None and not isinstance(base_url, string_base_type):
             raise XMLSchemaValueError(u"'base_url' argument has to be a string: {!r}".format(base_url))
 
-        self._root = self._document = self._url = self._text = self._fid = None
+        self._root = self._text = self._url = None
         self._base_url = base_url
         self.defuse = defuse
         self.timeout = timeout
@@ -279,7 +279,7 @@ class XMLResource(object):
 
     def __setattr__(self, name, value):
         if name == 'source':
-            self._root, self._document, self._text, self._url, self._fid = self._fromsource(value)
+            self._root, self._text, self._url = self._fromsource(value)
         elif name == 'defuse' and value not in DEFUSE_MODES:
             raise XMLSchemaValueError(u"'defuse' attribute: {!r} is not a defuse mode.".format(value))
         elif name == 'timeout' and (not isinstance(value, int) or value <= 0):
@@ -289,47 +289,54 @@ class XMLResource(object):
         super(XMLResource, self).__setattr__(name, value)
 
     def _fromsource(self, source):
-        url, lazy = None, self._lazy
-        if hasattr(source, 'tag'):
+        url = None
+        if hasattr(source, 'tag') and hasattr(source, 'attrib'):
             self._lazy = False
-            return source, None, None, None, None  # Source is already an Element --> nothing to load
+            return source, None, None  # Source is already an Element --> nothing to load
+
         elif isinstance(source, string_base_type):
             _url, self._url = self._url, None
             try:
-                if lazy:
+                if self._lazy:
                     # check if source is a string containing a valid XML root
                     for _, root in self.iterparse(StringIO(source), events=('start',)):
-                        return root, None, source, None, None
+                        return root, source, None
                 else:
-                    return self.fromstring(source), None, source, None, None
+                    return self.fromstring(source), source, None
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 if '\n' in source:
                     raise
             finally:
                 self._url = _url
+
             url = normalize_url(source) if '\n' not in source else None
 
         elif isinstance(source, StringIO):
             _url, self._url = self._url, None
             try:
-                if lazy:
+                if self._lazy:
                     for _, root in self.iterparse(source, events=('start',)):
-                        return root, None, source.getvalue(), None, None
+                        return root, source.getvalue(), None
                 else:
-                    document = self.parse(source)
-                    return document.getroot(), document, source.getvalue(), None, None
+                    return self.parse(source).getroot(), source.getvalue(), None
             finally:
                 self._url = _url
 
         elif hasattr(source, 'read'):
+            try:
+                # Save remote urls for open new resources (non seekable)
+                if is_remote_url(source.url):
+                    url = source.url
+            except AttributeError:
+                pass
+
             _url, self._url = self._url, url
             try:
-                if lazy:
+                if self._lazy:
                     for _, root in self.iterparse(source, events=('start',)):
-                        return root, None, None, url, source
+                        return root, None, url
                 else:
-                    document = self.parse(source)
-                    return document.getroot(), document, None, url, source
+                    return self.parse(source).getroot(), None, url
             finally:
                 self._url = _url
 
@@ -342,7 +349,7 @@ class XMLResource(object):
             else:
                 if hasattr(root, 'tag'):
                     self._lazy = False
-                    return root, source, None, None, None
+                    return root, None, None
 
         if url is None:
             raise XMLSchemaTypeError(
@@ -353,13 +360,11 @@ class XMLResource(object):
             resource = urlopen(url, timeout=self.timeout)
             _url, self._url = self._url, url
             try:
-                if lazy:
+                if self._lazy:
                     for _, root in self.iterparse(resource, events=('start',)):
-                        return root, None, None, url, None
+                        return root, None, url
                 else:
-                    document = self.parse(resource)
-                    root = document.getroot()
-                    return root, document, None, url, None
+                    return self.parse(resource).getroot(), None, url
             finally:
                 self._url = _url
                 resource.close()
@@ -368,14 +373,6 @@ class XMLResource(object):
     def root(self):
         """The XML tree root Element."""
         return self._root
-
-    @property
-    def document(self):
-        """
-        The ElementTree document, `None` if the instance is lazy or is not created
-        from another document or from an URL.
-        """
-        return self._document
 
     @property
     def text(self):
@@ -393,8 +390,21 @@ class XMLResource(object):
         return os.path.dirname(self._url) if self._url else self._base_url
 
     @property
+    def document(self):
+        """
+        The resource as ElementTree XML document. It's `None` if the instance
+        is lazy or if it's an lxml Element.
+        """
+        if isinstance(self.source, ElementTree.ElementTree):
+            return self.source
+        elif hasattr(self.source, 'getroot') and hasattr(self.source, 'parse'):
+            return self.source  # lxml's _ElementTree
+        elif not self._lazy and not hasattr(self.root, 'nsmap'):
+            return ElementTree.ElementTree(self.root)
+
+    @property
     def namespace(self):
-        """The namespace of the XML document."""
+        """The namespace of the XML resource."""
         return get_namespace(self._root.tag) if self._root is not None else None
 
     @staticmethod
@@ -477,24 +487,48 @@ class XMLResource(object):
         return obj
 
     def open(self):
-        """Returns a opened resource reader object for the instance URL."""
-        if self._fid is not None:
-            self._fid.seek(0)
-            return self._fid
-
-        if self._url is None:
+        """
+        Returns a opened resource reader object for the instance URL. If the
+        source attribute is a seekable file-like object rewind the source and
+        return it.
+        """
+        if self.seek(0) == 0:
+            return self.source
+        elif self._url is None:
             raise XMLSchemaValueError("can't open, the resource has no URL associated.")
         try:
             return urlopen(self._url, timeout=self.timeout)
         except URLError as err:
             raise XMLSchemaURLError(reason="cannot access to resource %r: %s" % (self._url, err.reason))
 
+    def seek(self, position):
+        if not hasattr(self.source, 'read'):
+            return
+
+        try:
+            if not self.source.seekable():
+                return
+        except AttributeError:
+            pass
+        else:
+            return self.source.seek(position)
+
+        try:
+            return self.source.seek(position)
+        except AttributeError:
+            pass
+
+        try:
+            return self.source.fp.seek(position)
+        except AttributeError:
+            pass
+
     def load(self):
         """
         Loads the XML text from the data source. If the data source is an Element
         the source XML text can't be retrieved.
         """
-        if self._url is None and self._fid is None:
+        if self._url is None and not hasattr(self.source, 'read'):
             return  # Created from Element or text source --> already loaded
 
         resource = self.open()
@@ -506,7 +540,7 @@ class XMLResource(object):
             # We don't want to close the file obj if it wasn't originally
             # opened by `XMLResource`. That is the concern of the code
             # where the file obj came from.
-            if self._fid is None:
+            if resource is not self.source:
                 resource.close()
 
         if isinstance(data, bytes):
@@ -537,9 +571,8 @@ class XMLResource(object):
             for elem in self._root.iter(tag):
                 yield elem
             return
-        elif self._fid is not None:
-            self._fid.seek(0)
-            resource = self._fid
+        elif self.seek(0) == 0:
+            resource = self.source
         elif self._url is not None:
             resource = urlopen(self._url, timeout=self.timeout)
         else:
@@ -551,7 +584,7 @@ class XMLResource(object):
                     yield elem
                 elem.clear()
         finally:
-            if self._fid is None:
+            if resource is not self.source:
                 resource.close()
 
     def iterfind(self, path=None, namespaces=None):
@@ -563,9 +596,8 @@ class XMLResource(object):
                 for e in iter_select(self._root, path, namespaces, strict=False):
                     yield e
             return
-        elif self._fid is not None:
-            self._fid.seek(0)
-            resource = self._fid
+        elif self.seek(0) == 0:
+            resource = self.source
         elif self._url is not None:
             resource = urlopen(self._url, timeout=self.timeout)
         else:
@@ -603,7 +635,7 @@ class XMLResource(object):
                         elif level == 0:
                             elem.clear()
         finally:
-            if self._fid is None:
+            if self.source is not resource:
                 resource.close()
 
     def iter_location_hints(self):
@@ -656,7 +688,7 @@ class XMLResource(object):
         local_root = self.root.tag[0] != '{'
         nsmap = {}
 
-        if self._url is not None or self._fid is not None:
+        if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
             try:
                 for event, node in self.iterparse(resource, events=('start-ns', 'end')):
@@ -670,7 +702,7 @@ class XMLResource(object):
                 # We don't want to close the file obj if it wasn't
                 # originally opened by `XMLResource`. That is the concern
                 # of the code where the file obj came from.
-                if self._fid is None:
+                if self.source is not resource:
                     resource.close()
         elif isinstance(self._text, string_base_type):
             try:

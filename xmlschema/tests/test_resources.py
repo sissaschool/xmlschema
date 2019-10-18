@@ -179,7 +179,7 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(vh_root)
         self.assertEqual(resource.source, vh_root)
-        self.assertIsNone(resource.document)
+        self.assertIsInstance(resource.document, ElementTree.ElementTree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
         self.assertIsNone(resource.text)
@@ -436,12 +436,11 @@ class TestResources(unittest.TestCase):
                 except (KeyError, AttributeError):
                     return getattr(self.__dict__["_fid"], attr)
 
-        fake_name = "not__on____disk.xml"
-        with open(self.vh_xml_file) as schema_file:
-            resource = XMLResource(FileProxy(schema_file, fake_name))
+        with open(self.vh_xml_file) as xml_file:
+            resource = XMLResource(FileProxy(xml_file, fake_name="not__on____disk.xml"))
             self.assertIsNone(resource.url)
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
-            self.assertFalse(schema_file.closed)
+            self.assertFalse(xml_file.closed)
 
             
 if __name__ == '__main__':
