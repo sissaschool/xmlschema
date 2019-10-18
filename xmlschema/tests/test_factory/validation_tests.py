@@ -47,7 +47,7 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
         yield items
 
 
-def make_validator_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
+def make_validator_test_class(test_file, test_args, test_num, schema_class, narrow, check_with_lxml):
     """
     Creates a validator test class.
 
@@ -55,6 +55,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
     :param test_args: line arguments for test case.
     :param test_num: a positive integer number associated with the test case.
     :param schema_class: the schema class to use.
+    :param narrow: skip other converters checks.
     :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
     Works only for XSD 1.0 tests.
     """
@@ -239,19 +240,21 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
             self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-            self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-            self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-            self.check_etree_encode(root, BadgerFishConverter, **options)
-            self.check_etree_encode(root, AbderaConverter, **options)
-            self.check_etree_encode(root, JsonMLConverter, **options)
+            if narrow:
+                self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
+                self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
+                self.check_etree_encode(root, BadgerFishConverter, **options)
+                self.check_etree_encode(root, AbderaConverter, **options)
+                self.check_etree_encode(root, JsonMLConverter, **options)
 
             options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
-            self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-            self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-            self.check_json_serialization(root, BadgerFishConverter, **options)
-            self.check_json_serialization(root, AbderaConverter, **options)
-            self.check_json_serialization(root, JsonMLConverter, **options)
+            if narrow:
+                self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+                self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+                self.check_json_serialization(root, BadgerFishConverter, **options)
+                self.check_json_serialization(root, AbderaConverter, **options)
+                self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_decoding_and_encoding_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
@@ -280,19 +283,21 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, chec
                     'dict_class': ordered_dict_class,
                 }
                 self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-                self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-                self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-                self.check_etree_encode(root, BadgerFishConverter, **options)
-                self.check_etree_encode(root, AbderaConverter, **options)
-                self.check_etree_encode(root, JsonMLConverter, **options)
+                if narrow:
+                    self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
+                    self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
+                    self.check_etree_encode(root, BadgerFishConverter, **options)
+                    self.check_etree_encode(root, AbderaConverter, **options)
+                    self.check_etree_encode(root, JsonMLConverter, **options)
 
                 options.pop('dict_class')
                 self.check_json_serialization(root, cdata_prefix='#', **options)
-                self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-                self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-                self.check_json_serialization(root, BadgerFishConverter, **options)
-                self.check_json_serialization(root, AbderaConverter, **options)
-                self.check_json_serialization(root, JsonMLConverter, **options)
+                if narrow:
+                    self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+                    self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+                    self.check_json_serialization(root, BadgerFishConverter, **options)
+                    self.check_json_serialization(root, AbderaConverter, **options)
+                    self.check_json_serialization(root, JsonMLConverter, **options)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:

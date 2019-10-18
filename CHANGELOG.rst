@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.0.16`_ (2019-10-XX)
+=======================
+* Improved XMLResource with zip files interface and lazy
+* Fix for validation with XSD wildcards and 'lax' process content
+* Fix for issue #1...
+
 `v1.0.15`_ (2019-10-13)
 =======================
 * Improved XPath 2.0 bindings

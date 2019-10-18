@@ -27,7 +27,7 @@ from xmlschema.tests import XsdValidatorTestCase
 from .observers import SchemaObserver
 
 
-def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
+def make_schema_test_class(test_file, test_args, test_num, schema_class, narrow, check_with_lxml):
     """
     Creates a schema test class.
 
@@ -35,6 +35,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
     :param test_args: line arguments for test case.
     :param test_num: a positive integer number associated with the test case.
     :param schema_class: the schema class to use.
+    :param narrow: skip extra checks (observed inspections).
     :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
     Works only for XSD 1.0 tests.
     """
@@ -69,7 +70,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 xs = schema_class(xsd_file, locations=locations, defuse=defuse, loglevel=loglevel)
             self.errors.extend(xs.maps.all_errors)
 
-            if inspect:
+            if narrow and inspect:
                 components_ids = set([id(c) for c in xs.maps.iter_components()])
                 missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
                 if any(c for c in missing):

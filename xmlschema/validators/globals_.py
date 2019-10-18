@@ -15,7 +15,7 @@ from __future__ import unicode_literals
 import warnings
 from collections import Counter
 
-from ..compat import string_base_type
+from ..compat import string_base_type, lru_cache
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
@@ -385,6 +385,7 @@ class XsdGlobals(XsdValidator):
             elif not any(schema.url == obj.url and schema.__class__ == obj.__class__ for obj in ns_schemas):
                 ns_schemas.append(schema)
 
+    @lru_cache(maxsize=1000)
     def load_namespace(self, namespace, build=True):
         """
         Load namespace from available location hints. Returns `True` if the namespace
@@ -471,7 +472,7 @@ class XsdGlobals(XsdValidator):
                 self.namespaces = namespaces
 
         else:
-            self.missing_locations.clear()
+            del self.missing_locations[:]
             for global_map in self.global_maps:
                 global_map.clear()
             self.substitution_groups.clear()

@@ -14,6 +14,7 @@ This module runs tests concerning resources.
 """
 import unittest
 import os
+import platform
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -22,9 +23,9 @@ except ImportError:
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
-    load_xml_resource, XMLResource, XMLSchemaURLError
+    load_xml_resource, XMLResource, XMLSchemaURLError, XMLSchema
 )
-from xmlschema.tests import casepath
+from xmlschema.tests import SKIP_REMOTE_TESTS, casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
@@ -44,6 +45,7 @@ class TestResources(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.schema_class = XMLSchema
         cls.vh_dir = casepath('examples/vehicles')
         cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
