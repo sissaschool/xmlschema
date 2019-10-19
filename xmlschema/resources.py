@@ -11,7 +11,7 @@
 import os.path
 import re
 import codecs
-from elementpath import iter_select, Selector
+from elementpath import iter_select, Selector, XPath1Parser
 
 from .compat import (
     PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
@@ -26,8 +26,23 @@ from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
 DEFUSE_MODES = ('always', 'remote', 'never')
 
 
+XML_RESOURCE_XPATH_SYMBOLS = {
+    'position', 'last', 'not', 'and', 'or', '!=', '<=', '>=', '(', ')', 'text',
+    '[', ']', '.', ',', '/', '|', '*', '=', '<', '>', ':', '(end)', '(name)',
+    '(string)', '(float)', '(decimal)', '(integer)'
+}
+
+
+class XmlResourceXPathParser(XPath1Parser):
+    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XML_RESOURCE_XPATH_SYMBOLS}
+    SYMBOLS = XML_RESOURCE_XPATH_SYMBOLS
+
+
+XmlResourceXPathParser.build_tokenizer()
+
+
 def is_remote_url(url):
-    return url is not None and urlsplit(url).scheme not in ('', 'file')
+    return isinstance(url, string_base_type) and urlsplit(url).scheme not in ('', 'file')
 
 
 def url_path_is_directory(url):
@@ -424,14 +439,23 @@ class XMLResource(object):
 
     def parse(self, source):
         """
-        An equivalent of *ElementTree.parse()* that can protect from XML entities attacks. When
-        protection is applied XML data are loaded and defused before building the ElementTree instance.
+        An equivalent of *ElementTree.parse()* that can protect from XML entities attacks.
+        When protection is applied XML data are loaded and defused before building the
+        ElementTree instance. The protection applied is based on value of *defuse*
+        attribute and *base_url* property.
 
         :param source: a filename or file object containing XML data.
         :returns: an ElementTree instance.
         """
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
-            text = source.read()
+        if self.defuse == 'always' or self.defuse == 'remote' and \
+                hasattr(source, 'read') and is_remote_url(self.base_url):
+
+            if hasattr(source, 'read'):
+                text = source.read()
+            else:
+                with open(source) as f:
+                    text = f.read()
+
             if isinstance(text, bytes):
                 self.defusing(BytesIO(text))
                 return ElementTree.parse(BytesIO(text))
@@ -445,11 +469,14 @@ class XMLResource(object):
         """
         An equivalent of *ElementTree.iterparse()* that can protect from XML entities attacks.
         When protection is applied the iterator yields pure-Python Element instances.
+        The protection applied is based on resource *defuse* attribute and *base_url* property.
 
         :param source: a filename or file object containing XML data.
         :param events: a list of events to report back. If omitted, only “end” events are reported.
         """
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
+        if self.defuse == 'always' or self.defuse == 'remote' and \
+                hasattr(source, 'read') and is_remote_url(self.base_url):
+
             parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
                 return PyElementTree.iterparse(source, events, parser)
@@ -461,17 +488,20 @@ class XMLResource(object):
     def fromstring(self, text):
         """
         An equivalent of *ElementTree.fromstring()* that can protect from XML entities attacks.
+        The protection applied is based on resource *defuse* attribute and *base_url* property.
 
         :param text: a string containing XML data.
         :returns: the root Element instance.
         """
-        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self._url):
+        if self.defuse == 'always' or self.defuse == 'remote' and is_remote_url(self.base_url):
             self.defusing(StringIO(text))
         return ElementTree.fromstring(text)
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
-        return etree_tostring(self._root, self.get_namespaces(), indent, max_lines, spaces_for_tab, xml_declaration)
+        elem = self._root
+        namespaces = self.get_namespaces()
+        return etree_tostring(elem, namespaces, indent, max_lines, spaces_for_tab, xml_declaration)
 
     def copy(self, **kwargs):
         """Resource copy method. Change init parameters with keyword arguments."""
@@ -502,6 +532,10 @@ class XMLResource(object):
             raise XMLSchemaURLError(reason="cannot access to resource %r: %s" % (self._url, err.reason))
 
     def seek(self, position):
+        """
+        Change stream position if the XML resource was created with a seekable
+        file-like object. In the other cases this method has no effect.
+        """
         if not hasattr(self.source, 'read'):
             return
 
@@ -521,6 +555,16 @@ class XMLResource(object):
         try:
             return self.source.fp.seek(position)
         except AttributeError:
+            pass
+
+    def close(self):
+        """
+        Close the XML resource if it's created with a file-like object.
+        In other cases this method has no effect.
+        """
+        try:
+            self.source.close()
+        except (AttributeError, TypeError):
             pass
 
     def load(self):
@@ -619,7 +663,11 @@ class XMLResource(object):
                             yield elem
                             elem.clear()
             else:
-                selector = Selector(path, namespaces, strict=False)
+                selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
+                path.replace(' ', '').replace('./', '')
+                path_level = path.count('/') + 1
+                select_all = '*' in path and set(path).issubset({'*', '/'})
+
                 level = 0
                 for event, elem in self.iterparse(resource, events=('start', 'end')):
                     if event == "start":
@@ -629,7 +677,8 @@ class XMLResource(object):
                         level += 1
                     else:
                         level -= 1
-                        if elem in selector.select(self._root):
+                        if level == path_level and \
+                                (select_all or elem in selector.select(self._root)):
                             yield elem
                             elem.clear()
                         elif level == 0:

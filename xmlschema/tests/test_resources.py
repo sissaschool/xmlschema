@@ -13,12 +13,14 @@
 This module runs tests concerning resources.
 """
 import unittest
+import time
 import os
 import platform
 
 try:
     from pathlib import PureWindowsPath, PurePath
 except ImportError:
+    # noinspection PyPackageRequirements
     from pathlib2 import PureWindowsPath, PurePath
 
 from xmlschema import (
@@ -29,6 +31,7 @@ from xmlschema.tests import SKIP_REMOTE_TESTS, casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
+from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.helpers import is_etree_element
 
 
@@ -344,14 +347,36 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertTrue(resource.is_loaded())
 
-    def test_xml_resource_open(self):
+    def test_xml_resource_parse(self):
         resource = XMLResource(self.vh_xml_file)
-        xml_file = resource.open()
-        data = xml_file.read().decode('utf-8')
-        self.assertTrue(data.startswith('<?xml '))
-        xml_file.close()
-        resource = XMLResource('<A/>')
-        self.assertRaises(ValueError, resource.open)
+
+        self.assertEqual(resource.defuse, 'remote')
+        xml_document = resource.parse(self.col_xml_file)
+        self.assertTrue(is_etree_element(xml_document.getroot()))
+
+        resource.defuse = 'always'
+        xml_document = resource.parse(self.col_xml_file)
+        self.assertTrue(is_etree_element(xml_document.getroot()))
+
+    def test_xml_resource_iterparse(self):
+        resource = XMLResource(self.vh_xml_file)
+
+        self.assertEqual(resource.defuse, 'remote')
+        for _, elem in resource.iterparse(self.col_xml_file, events=('end',)):
+            self.assertTrue(is_etree_element(elem))
+
+        resource.defuse = 'always'
+        for _, elem in resource.iterparse(self.col_xml_file, events=('end',)):
+            self.assertTrue(is_etree_element(elem))
+
+    def test_xml_resource_fromstring(self):
+        resource = XMLResource(self.vh_xml_file)
+
+        self.assertEqual(resource.defuse, 'remote')
+        self.assertEqual(resource.fromstring('<root/>').tag, 'root')
+
+        resource.defuse = 'always'
+        self.assertEqual(resource.fromstring('<root/>').tag, 'root')
 
     def test_xml_resource_tostring(self):
         resource = XMLResource(self.vh_xml_file)
@@ -372,6 +397,114 @@ class TestResources(unittest.TestCase):
         self.assertIsNotNone(resource.text)
         resource2 = resource.copy()
         self.assertEqual(resource.text, resource2.text)
+
+    def test_xml_resource_open(self):
+        resource = XMLResource(self.vh_xml_file)
+        xml_file = resource.open()
+        self.assertIsNot(xml_file, resource.source)
+        data = xml_file.read().decode('utf-8')
+        self.assertTrue(data.startswith('<?xml '))
+        xml_file.close()
+        resource = XMLResource('<A/>')
+        self.assertRaises(ValueError, resource.open)
+
+        resource = XMLResource(source=open(self.vh_xml_file))
+        xml_file = resource.open()
+        self.assertIs(xml_file, resource.source)
+        xml_file.close()
+
+    def test_xml_resource_seek(self):
+        resource = XMLResource(self.vh_xml_file)
+        self.assertIsNone(resource.seek(0))
+        self.assertIsNone(resource.seek(1))
+        xml_file = open(self.vh_xml_file)
+        resource = XMLResource(source=xml_file)
+        self.assertEqual(resource.seek(0), 0)
+        self.assertEqual(resource.seek(1), 1)
+        xml_file.close()
+
+    def test_xml_resource_close(self):
+        resource = XMLResource(self.vh_xml_file)
+        resource.close()
+        xml_file = resource.open()
+        self.assertTrue(callable(xml_file.read))
+
+        xml_file = open(self.vh_xml_file)
+        resource = XMLResource(source=xml_file)
+        resource.close()
+        with self.assertRaises(ValueError):
+            resource.open()
+
+    def test_xml_resource_iter(self):
+        for lazy in (False, True):
+            resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=lazy)
+            k = 0
+            for k, _ in enumerate(resource.iter()):
+                pass
+            self.assertEqual(k, 1389)
+
+            k = 0
+            for k, _ in enumerate(resource.iter('{%s}complexType' % XSD_NAMESPACE)):
+                pass
+            self.assertEqual(k, 55)
+
+    def test_xml_resource_iterfind(self):
+        resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=False)
+        self.assertFalse(resource.is_lazy())
+
+        start_time = time.time()
+        for _ in range(10):
+            for _ in resource.iterfind():
+                pass
+        t1 = time.time() - start_time
+
+        start_time = time.time()
+        for _ in range(10):
+            for _ in resource.iterfind(path='.'):
+                pass
+        t2 = time.time() - start_time
+        self.assertLessEqual(t1, t2 / 30.0)
+        self.assertGreaterEqual(t1, t2 / 100.0)
+
+        start_time = time.time()
+        counter = 0
+        for _ in resource.iterfind(path='*'):
+            counter += 1
+        t3 = time.time() - start_time
+        self.assertGreaterEqual(t2, t3 / counter * 10)
+
+        resource = XMLResource(self.schema_class.meta_schema.source.url)
+        self.assertTrue(resource.is_lazy())
+
+        start_time = time.time()
+        for _ in range(10):
+            for _ in resource.iterfind():
+                pass
+        tl1 = time.time() - start_time
+        self.assertLessEqual(t1, tl1 / 1000.0)
+        self.assertGreaterEqual(t1, tl1 / 10000.0)
+
+        start_time = time.time()
+        for _ in range(10):
+            for _ in resource.iterfind(path='.'):
+                pass
+        tl2 = time.time() - start_time
+
+        self.assertLessEqual(t2, tl2 / 80.0)
+        self.assertGreaterEqual(t2, tl2 / 1000.0)
+
+        start_time = time.time()
+        counter3 = 0
+        for _ in resource.iterfind(path='*'):
+            counter3 += 1
+        tl3 = time.time() - start_time
+        self.assertGreaterEqual(tl2, tl3 / counter3 * 10)
+
+        start_time = time.time()
+        for _ in resource.iterfind(path='. /. / xs:complexType', namespaces={'xs': XSD_NAMESPACE}):
+            pass
+        tl4 = time.time() - start_time
+        self.assertTrue(0.7 < (tl3 / tl4) < 1)
 
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
