@@ -66,14 +66,21 @@ def normalize_url(url, base_url=None, keep_relative=False):
     conformant to URL format specification.
     :return: A normalized URL.
     """
-    def add_trailing_slash(r):
-        return urlunsplit((r[0], r[1], r[2] + '/' if r[2] and r[2][-1] != '/' else r[2], r[3], r[4]))
+    def add_trailing_slash(x):
+        return urlunsplit((x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4]))
+
+    def filter_url(x):
+        x = x.strip().replace('\\', '/')
+        while x.startswith('//'):
+            x = x.replace('//', '/', 1)
+        if not urlsplit(x).scheme:
+            x = x.replace('#', '%23')
+        return x
+
+    url = filter_url(url)
 
     if base_url is not None:
-        base_url = base_url.replace('\\', '/')
-        while base_url.startswith('//'):
-            base_url = base_url.replace('//', '/', 1)
-
+        base_url = filter_url(base_url)
         base_url_parts = urlsplit(base_url)
         base_url = add_trailing_slash(base_url_parts)
         if base_url_parts.scheme not in uses_relative:
@@ -101,10 +108,6 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 # Add 'file' scheme if '//' prefix is added
                 if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) and url.startswith('//'):
                     url = 'file:' + url
-
-    url = url.replace('\\', '/')
-    while url.startswith('//'):
-        url = url.replace('//', '/', 1)
 
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
@@ -622,6 +625,7 @@ class XMLResource(object):
         else:
             resource = StringIO(self._text)
 
+        # Note: lazy iteration change the order (top level element is the last)
         try:
             for event, elem in self.iterparse(resource, events=('end',)):
                 if tag is None or elem.tag == tag:
@@ -664,8 +668,8 @@ class XMLResource(object):
                             elem.clear()
             else:
                 selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
-                path.replace(' ', '').replace('./', '')
-                path_level = path.count('/') + 1
+                path = path.replace(' ', '').replace('./', '')
+                path_level = path.count('/') + 1 if path != '.' else 0
                 select_all = '*' in path and set(path).issubset({'*', '/'})
 
                 level = 0
