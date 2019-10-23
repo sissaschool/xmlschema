@@ -224,34 +224,38 @@ def local_name(qname):
         return qname
 
 
-def qname_to_prefixed(qname, namespaces):
+def qname_to_prefixed(qname, namespaces, use_empty=True):
     """
-    Transforms a fully qualified name into a prefixed name using a namespace map.
-    Returns the *qname* argument if it's not a fully qualified name or if it has
-    boolean value `False`.
+    Maps a QName in extended format to a QName in prefixed format.
+    Do not change local names and QNames in prefixed format.
 
-    :param qname: an extended QName or a local name.
+    :param qname: a QName or a local name.
     :param namespaces: a map from prefixes to namespace URIs.
+    :param use_empty: if `True` use the empty prefix for mapping.
     :return: a QName in prefixed format or a local name.
     """
-    if not qname:
+    if not qname or qname[0] != '{':
         return qname
 
     namespace = get_namespace(qname)
-    for prefix, uri in sorted(filter(lambda x: x[1] == namespace, namespaces.items()), reverse=True):
-        if not uri:
-            return '%s:%s' % (prefix, qname) if prefix else qname
-        elif prefix:
-            return qname.replace('{%s}' % uri, '%s:' % prefix)
-        else:
-            return qname.replace('{%s}' % uri, '')
+    prefixes = [x for x in namespaces if namespaces[x] == namespace]
+
+    if not prefixes:
+        return qname
+    elif prefixes[0]:
+        return '%s:%s' % (prefixes[0], qname.split('}', 1)[1])
+    elif len(prefixes) > 1:
+        return '%s:%s' % (prefixes[1], qname.split('}', 1)[1])
+    elif use_empty:
+        return qname.split('}', 1)[1]
     else:
         return qname
 
 
 def qname_to_extended(qname, namespaces):
     """
-    Converts a QName in prefixed format or a local name to the extended QName format.
+    Maps a QName in prefixed format or a local name to the extended QName format.
+    Local names are mapped if *namespaces* has a not empty default namespace.
 
     :param qname: a QName in prefixed format or a local name.
     :param namespaces: a map from prefixes to namespace URIs.

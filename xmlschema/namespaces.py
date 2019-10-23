@@ -70,6 +70,9 @@ NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
 def get_namespace(name):
+    if not name or name[0] != '{':
+        return ''
+
     try:
         return NAMESPACE_PATTERN.match(name).group(1)
     except (AttributeError, TypeError):

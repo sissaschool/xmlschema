@@ -40,6 +40,9 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)
         self.assertEqual(get_namespace(''), '')
         self.assertEqual(get_namespace(None), '')
+        self.assertEqual(get_namespace('{}name'), '')
+        self.assertEqual(get_namespace('{  }name'), '  ')
+        self.assertEqual(get_namespace('{ ns }name'), ' ns ')
 
     def test_get_qname_functions(self):
         self.assertEqual(get_qname(XSD_NAMESPACE, 'element'), XSD_ELEMENT)
@@ -81,8 +84,21 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(qname_to_prefixed('', {}), '')
 
         self.assertEqual(qname_to_prefixed('type', {'': XSI_NAMESPACE}), 'type')
-        self.assertEqual(qname_to_prefixed('type', {'ns': ''}), 'ns:type')
         self.assertEqual(qname_to_prefixed('type', {'': ''}), 'type')
+        self.assertEqual(qname_to_prefixed('{}type', {'': ''}), 'type')
+        self.assertEqual(qname_to_prefixed('{}type', {'': ''}, use_empty=False), '{}type')
+
+        # Attention! in XML the empty namespace (that means no namespace) can be
+        # associated only with empty prefix, so these cases should never happen.
+        self.assertEqual(qname_to_prefixed('{}type', {'p': ''}), 'p:type')
+        self.assertEqual(qname_to_prefixed('type', {'p': ''}), 'type')
+
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns'}, use_empty=True), 'type')
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns'}, use_empty=False), '{ns}type')
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=True), 'p:type')
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=False), 'p:type')
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=True), 'type')
+        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=False), '{ns}type')
 
     def test_get_xsd_annotation(self):
         elem = etree_element(XSD_SCHEMA)
