@@ -458,14 +458,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             text = self.fixed if self.fixed is not None else self.default
         return self.type.text_decode(text)
 
-    def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
-        :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -473,8 +471,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if self.abstract:
             yield self.validation_error(validation, "cannot use an abstract element for validation", elem, **kwargs)
 
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
+        try:
+            level = kwargs['level']
+        except KeyError:
+            level = 0
+
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
+        else:
+            if not isinstance(converter, XMLSchemaConverter):
+                converter = kwargs['converter'] = self.get_converter(**kwargs)
+
         inherited = kwargs.get('inherited')
         value = content = attributes = None
 
@@ -492,7 +501,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
-        for result in attribute_group.iter_decode(elem.attrib, validation, level=level, **kwargs):
+        for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, elem, **kwargs)
             else:
@@ -529,8 +538,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
 
-            for result in xsd_type.content_type.iter_decode(
-                    elem, validation, converter, level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -601,29 +609,40 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             del content
 
         if validation != 'skip':
-            for constraint in self.identities.values():
-                if isinstance(constraint, XsdKeyref) and '_no_deep' in kwargs:  # TODO: Complete lazy validation
-                    continue
-                for error in constraint(elem, converter):
-                    yield self.validation_error(validation, error, elem, **kwargs)
+            if 'max_depth' in kwargs:
+                # Don't check key references with lazy or shallow validation
+                for constraint in filter(lambda x: not isinstance(x, XsdKeyref), self.identities.values()):
+                    for error in constraint(elem, converter):
+                        yield self.validation_error(validation, error, elem, **kwargs)
+            else:
+                for constraint in self.identities.values():
+                    for error in constraint(elem, converter):
+                        yield self.validation_error(validation, error, elem, **kwargs)
 
-    def iter_encode(self, obj, validation='lax', converter=None, level=0, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to an Element.
 
         :param obj: the data that has to be encoded.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
-        for the encoding.
-        :param level: the depth of the element data in the tree structure.
         :param kwargs: keyword arguments for the encoding process.
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
-        element_data = converter.element_encode(obj, self, level)
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
+        else:
+            if not isinstance(converter, XMLSchemaConverter):
+                converter = kwargs['converter'] = self.get_converter(**kwargs)
 
+        try:
+            level = kwargs['level']
+        except KeyError:
+            level = 0
+
+        element_data = converter.element_encode(obj, self, level)
         errors = []
         tag = element_data.tag
         text = None
@@ -683,8 +702,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         text = result
         else:
-            for result in xsd_type.content_type.iter_encode(
-                    element_data, validation, converter, level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_encode(element_data, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     errors.append(result)
                 elif result:

@@ -14,6 +14,7 @@ This module contains classes for XML Schema model groups.
 from __future__ import unicode_literals
 import warnings
 
+from .. import limits
 from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
@@ -555,15 +556,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 msg = "Maybe a not equivalent type table between elements %r and %r." % (self, xsd_element)
                 warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
 
-    def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element content.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance \
-        to use for the decoding.
-        :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a list of 3-tuples (key, decoded data, decoder), \
         eventually preceded by a sequence of validation or decoding errors.
@@ -590,16 +588,21 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
 
-        model = ModelVisitor(self)
-        errors = []
+        level = kwargs['level'] = kwargs.pop('level', 0) + 1
+        if level > limits.MAX_XML_DEPTH:
+            reason = "XML data depth exceeded (MAX_XML_DEPTH=%r)" % limits.MAX_XML_DEPTH
+            self.validation_error('strict', reason, elem, **kwargs)
 
         try:
-            default_namespace = converter.get('')
-        except (AttributeError, TypeError):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
-            default_namespace = converter.get('')
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
 
+        default_namespace = converter.get('')
+        model = ModelVisitor(self)
+        errors = []
         model_broken = False
+
         for index, child in enumerate(elem):
             if callable(child.tag):
                 continue  # child is a <class 'lxml.etree._Comment'>
@@ -646,12 +649,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         xsd_element = None
                         model_broken = True
 
-            if xsd_element is None or kwargs.get('no_depth'):
-                # TODO: use a default decoder str-->str??
+            if 'max_depth' in kwargs and kwargs['max_depth'] <= level:
+                continue
+            elif xsd_element is None:
+                # TODO: apply a default decoder str-->str??
                 continue
 
-            for result in xsd_element.iter_decode(
-                    child, validation, converter=converter, level=level, **kwargs):
+            for result in xsd_element.iter_decode(child, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -678,16 +682,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         yield result_list
 
-    def iter_encode(self, element_data, validation='lax', converter=None, level=0, indent=4, **kwargs):
+    def iter_encode(self, element_data, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to a list containing Element data.
 
         :param element_data: an ElementData instance with unencoded data.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
-        for the encoding.
-        :param level: the depth of the element data in the tree structure.
-        :param indent: number of spaces for XML indentation (default is 4).
         :param kwargs: keyword arguments for the encoding process.
         :return: yields a couple with the text of the Element and a list of 3-tuples \
         (key, decoded data, decoder), eventually preceded by a sequence of validation \
@@ -697,19 +697,26 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             yield element_data.content
             return
 
+        level = kwargs['level'] = kwargs.pop('level', 0) + 1
         errors = []
         text = None
         children = []
+        try:
+            indent = kwargs['indent']
+        except KeyError:
+            indent = 4
+
         padding = '\n' + ' ' * indent * level
 
         try:
-            default_namespace = converter.get('')
-        except (AttributeError, TypeError):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
-            default_namespace = converter.get('')
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
 
+        default_namespace = converter.get('')
         model = ModelVisitor(self)
         cdata_index = 0
+
         if isinstance(element_data.content, dict) or kwargs.get('unordered'):
             content = model.iter_unordered_content(element_data.content)
         elif not isinstance(element_data.content, list):
@@ -766,8 +773,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                                 yield self.validation_error(validation, reason, value, **kwargs)
                             continue
 
-            for result in xsd_element.iter_encode(
-                    value, validation, converter=converter, level=level, indent=indent, **kwargs):
+            for result in xsd_element.iter_encode(value, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:

@@ -526,35 +526,6 @@ For example you can build a schema using a *strict* mode and then decode XML dat
 using the *validation* argument setted to 'lax'.
 
 
-XML entity-based attacks protection
------------------------------------
-
-The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
-the pure Python version of XMLParser that forbids the use of entities.
-The protection is applied both to XSD schemas and to XML data. The usage of this feature is
-regulated by the XMLSchema's argument *defuse*.
-For default this argument has value *'remote'* that means the protection on XML data is
-applied only to data loaded from remote. Other values for this argument can be *'always'*
-and *'never'*.
-
-
-Limit on model groups checking
-------------------------------
-
-From release v1.0.11 the model groups of the schemas are checked against restriction violations
-and *Unique Particle Attribution* violations.
-
-To avoids XSD model recursion attacks a limit of ``MAX_MODEL_DEPTH = 15`` is set. If this limit
-is exceeded an ``XMLSchemaModelDepthError`` is raised, the error is caught and a warning is generated.
-If you need to set an higher limit for checking all your groups you can import the library and change
-the value in the specific module that processes the model checks:
-
-.. doctest::
-
-    >>> import xmlschema
-    >>> xmlschema.validators.models.MAX_MODEL_DEPTH = 20
-
-
 Lazy validation
 ---------------
 
@@ -570,3 +541,53 @@ From release v1.0.14 XSD 1.1 support has been added to the library through the c
 :class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
 class :class:`XMLSchema` that is still linked to XSD 1.0 validator :class:`XMLSchema10`.
 From next minor release (v1.1) the default class will become :class:`XMLSchema11`.
+
+
+XML entity-based attacks protection
+...................................
+
+The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
+the pure Python version of XMLParser that forbids the use of entities.
+The protection is applied both to XSD schemas and to XML data. The usage of this feature is
+regulated by the XMLSchema's argument *defuse*.
+For default this argument has value *'remote'* that means the protection on XML data is
+applied only to data loaded from remote. Other values for this argument can be *'always'*
+and *'never'*.
+
+Processing limits
+-----------------
+
+From release v1.0.16 a module has been added in order to group constants that define
+processing limits, generally to protect against attacks prepared to exhaust system
+resources. These limits usually don't need to be changed, but this possibility has
+been left at the module level for situations where a different setting is needed.
+
+Limit on XSD model groups checking
+..................................
+
+Model groups of the schemas are checked against restriction violations and *Unique Particle
+Attribution* violations. To avoids XSD model recursion attacks a depth limit of 15 levels
+is set. If this limit is exceeded an ``XMLSchemaModelDepthError`` is raised, the error is
+caught and a warning is generated. If you need to set an higher limit for checking all your
+groups you can import the library and change the value of ``MAX_MODEL_DEPTH`` in the limits
+module:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.limits.MAX_MODEL_DEPTH = 20
+
+
+Limit on XML data depth
+.......................
+
+A limit of 9999 on maximum depth is set for XML validation/decoding/encoding to avoid
+attacks based on extremely deep XML data. To increase or decrease this limit change the
+value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the package:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xmlschema.limits.MAX_XML_DEPTH = 1000
+
+

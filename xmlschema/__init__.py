@@ -8,6 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+from . import limits
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError, \
     XMLSchemaNamespaceError
 from .etree import etree_tostring

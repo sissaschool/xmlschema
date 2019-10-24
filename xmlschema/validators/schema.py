@@ -822,27 +822,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except KeyError:
             return []
 
-    def get_converter(self, converter=None, namespaces=None, **kwargs):
-        """
-        Returns a new converter instance.
-
-        :param converter: can be a converter class or instance. If it's an instance \
-        the new instance is copied from it and configured with the provided arguments.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: optional arguments for initialize the converter instance.
-        :return: a converter instance.
-        """
-        if converter is None:
-            converter = getattr(self, 'converter', XMLSchemaConverter)
-
-        if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(namespaces=namespaces, **kwargs)
-        elif issubclass(converter, XMLSchemaConverter):
-            return converter(namespaces, **kwargs)
-        else:
-            msg = "'converter' argument must be a %r subclass or instance: %r"
-            raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
-
     def get_element(self, tag, path=None, namespaces=None):
         if not path:
             return self.find(tag, namespaces)
@@ -1223,16 +1202,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         inherited = {}
 
         if source.is_lazy() and path is None:
-            # TODO: Document validation in lazy mode.
-            # Validation is done pushing a _no_deep argument for root node and with
-            # a path='*' for validating children. This is a feature under test.
             xsd_element = self.get_element(source.root.tag, schema_path)
             if xsd_element is None:
-                yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
+                msg = "%r is not an element of the schema"
+                yield self.validation_error('lax', msg % source.root, source.root)
 
             for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map, no_depth=True,
-                                                  inherited=inherited, drop_results=True):
+                                                  use_defaults=use_defaults, id_map=id_map,
+                                                  inherited=inherited, max_depth=1):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1249,7 +1226,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
             for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
                                                   use_defaults=use_defaults, id_map=id_map,
-                                                  inherited=inherited, drop_results=True):
+                                                  inherited=inherited):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1264,7 +1241,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def iter_decode(self, source, path=None, schema_path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
-                    converter=None, filler=None, fill_missing=False, **kwargs):
+                    converter=None, filler=None, fill_missing=False, max_depth=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1292,6 +1269,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         an attribute declaration. If not provided undecodable data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
+        :param max_depth: maximum level of decoding. For default has no limit.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of validation \
         or decoding errors.
@@ -1323,6 +1301,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
             kwargs['filler'] = filler
+        if max_depth is not None:
+            kwargs['max_depth'] = max_depth
 
         for elem in source.iterfind(path, namespaces):
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)

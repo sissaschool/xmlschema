@@ -14,16 +14,12 @@ This module contains classes and functions for processing XSD content models.
 from __future__ import unicode_literals
 from collections import defaultdict, deque, Counter
 
+from .. import limits
 from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .xsdbase import ParticleMixin
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-
-MAX_MODEL_DEPTH = 15
-"""Limit depth for safe visiting of models"""
-
-XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
 
 class ModelGroup(MutableSequence, ParticleMixin):
@@ -34,7 +30,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
     parent = None
 
     def __init__(self, model):
-        assert model in XSD_GROUP_MODELS, "Not a valid value for 'model'"
         self._group = []
         self.model = model
 
@@ -61,7 +56,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def __setattr__(self, name, value):
         if name == 'model' and value is not None:
-            if value not in XSD_GROUP_MODELS:
+            if value not in {'sequence', 'choice', 'all'}:
                 raise XMLSchemaValueError("invalid model group %r." % value)
             if self.model is not None and value != self.model and self.model != 'all':
                 raise XMLSchemaValueError("cannot change group model from %r to %r" % (self.model, value))
@@ -165,11 +160,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
         """
         A generator function iterating elements and groups of a model group. Skips pointless groups,
         iterating deeper through them. Raises `XMLSchemaModelDepthError` if the argument *depth* is
-        over `MAX_MODEL_DEPTH` value.
+        over `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
-        if depth > MAX_MODEL_DEPTH:
+        if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if not isinstance(item, ModelGroup):
@@ -183,11 +178,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def iter_elements(self, depth=0):
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError` if the
-        argument *depth* is over `MAX_MODEL_DEPTH` value.
+        argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
-        if depth > MAX_MODEL_DEPTH:
+        if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if isinstance(item, ModelGroup):
@@ -203,12 +198,12 @@ class ModelGroup(MutableSequence, ParticleMixin):
         :raises: an `XMLSchemaModelError` at first violated constraint.
         """
         def safe_iter_path(group, depth):
-            if depth > MAX_MODEL_DEPTH:
+            if not depth:
                 raise XMLSchemaModelDepthError(group)
             for item in group:
                 if isinstance(item, ModelGroup):
                     current_path.append(item)
-                    for _item in safe_iter_path(item, depth + 1):
+                    for _item in safe_iter_path(item, depth - 1):
                         yield _item
                     current_path.pop()
                 else:
@@ -221,7 +216,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         except AttributeError:
             any_element = None
 
-        for e in safe_iter_path(self, 0):
+        for e in safe_iter_path(self, limits.MAX_MODEL_DEPTH):
             for pe, previous_path in paths.values():
                 # EDC check
                 if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
