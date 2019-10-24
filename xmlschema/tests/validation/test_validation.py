@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import sys
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError
@@ -55,7 +56,13 @@ class TestValidation(XsdValidatorTestCase):
             path_line = str(err).splitlines()[-1]
         else:
             path_line = ''
-        self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+
+        if sys.version_info >= (3, 6):
+            self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+        else:
+            self.assertTrue(
+                'Path: /vh:vehicles/vh:cars' == path_line or 'Path: /vhx:vehicles/vhx:cars', path_line
+            )  # Due to unordered dicts
 
         # Issue #80
         vh_2_xt = ElementTree.parse(vh_2_file)

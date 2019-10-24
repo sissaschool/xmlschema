@@ -551,14 +551,18 @@ class XMLResource(object):
             return self.source.seek(position)
 
         try:
-            return self.source.seek(position)
+            value = self.source.seek(position)
         except AttributeError:
             pass
+        else:
+            return value if PY3 else position
 
         try:
-            return self.source.fp.seek(position)
+            value = self.source.fp.seek(position)
         except AttributeError:
             pass
+        else:
+            return value if PY3 else position
 
     def close(self):
         """

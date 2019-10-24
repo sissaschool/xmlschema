@@ -40,7 +40,7 @@ Otherwise the argument can be also an opened file-like object:
 .. doctest::
 
     >>> import xmlschema
-    >>> schema_file = open('xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> schema_file = open('xmlschema/tests/test_cases/examples/collection/collection.xsd')
     >>> schema = xmlschema.XMLSchema(schema_file)
 
 Alternatively you can pass a string containing the schema definition:
@@ -54,8 +54,8 @@ Alternatively you can pass a string containing the schema definition:
     ... </xs:schema>
     ... """)
 
-this option might not works when the schema includes other local subschemas, because the package
-cannot knows anything about the schema's source location:
+Strings and file-like objects might not work when the schema includes other local subschemas,
+because the package cannot knows anything about the schema's source location:
 
 .. doctest::
 
@@ -72,6 +72,15 @@ cannot knows anything about the schema's source location:
       <xs:element xmlns:xs="http://www.w3.org/2001/XMLSchema" ref="vh:cars" />
 
     Path: /xs:schema/xs:element/xs:complexType/xs:sequence/xs:element
+
+In these cases you can provide an appropriate *base_url* optional argument to define the
+reference directory path for other includes and imports:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> schema_file = open('xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> schema = xmlschema.XMLSchema(schema_file, base_url='xmlschema/tests/test_cases/examples/vehicles/')
 
 
 XSD declarations

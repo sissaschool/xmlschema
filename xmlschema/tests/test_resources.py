@@ -138,8 +138,11 @@ class TestResources(unittest.TestCase):
         ambiguous_path = casepath('resources/dummy file #2.txt')
         self.assertTrue(fetch_resource(ambiguous_path).endswith('dummy file %232.txt'))
 
-        with urlopen(fetch_resource(ambiguous_path)) as res:
+        res = urlopen(fetch_resource(ambiguous_path))
+        try:
             self.assertEqual(res.read(), b'DUMMY CONTENT')
+        finally:
+            res.close()
 
     def test_fetch_namespaces(self):
         self.assertFalse(fetch_namespaces(casepath('resources/malformed.xml')))
@@ -570,7 +573,7 @@ class TestResources(unittest.TestCase):
             self.assertEqual(set(resource.get_namespaces().keys()), {'vh', 'xsi'})
             self.assertFalse(xml_file.closed)
 
-            
+
 if __name__ == '__main__':
     from xmlschema.tests import print_test_header
 
