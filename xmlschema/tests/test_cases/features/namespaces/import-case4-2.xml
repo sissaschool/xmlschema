@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<a:rootA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://example.com/xmlschema/ns-B import-case4b.xsd"
+         xmlns:a="http://example.com/xmlschema/ns-A"
+         xmlns:b="http://example.com/xmlschema/ns-B">
+    <b:rootB/>
+</a:rootA>

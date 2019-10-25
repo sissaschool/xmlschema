@@ -33,7 +33,7 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
-    SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView
+    SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -1201,15 +1201,30 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         id_map = Counter()
         inherited = {}
 
-        if source.is_lazy() and path is None:
-            xsd_element = self.get_element(source.root.tag, schema_path)
-            if xsd_element is None:
-                msg = "%r is not an element of the schema"
-                yield self.validation_error('lax', msg % source.root, source.root)
+        namespace = source.namespace or namespaces.get('', '')
+        try:
+            schema = self.maps.namespaces[namespace][0]
+        except (KeyError, IndexError):
+            reason = 'the namespace {!r} is not loaded'.format(namespace)
+            yield self.validation_error('lax', reason, source.root, source, namespaces)
+            return
 
-            for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map,
-                                                  inherited=inherited, max_depth=1):
+        kwargs = {
+            'source': source,
+            'namespaces': namespaces,
+            'use_defaults': use_defaults,
+            'id_map': id_map,
+            'inherited': inherited
+        }
+
+        if source.is_lazy() and path is None:
+            xsd_element = schema.get_element(source.root.tag, schema_path, namespaces)
+            if xsd_element is None:
+                reason = "{!r} is not an element of the schema".format(source.root)
+                yield schema.validation_error('lax', reason, source.root, source, namespaces)
+                return
+
+            for result in xsd_element.iter_decode(source.root, max_depth=1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1220,13 +1235,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 schema_path = '/%s/*' % source.root.tag
 
         for elem in source.iterfind(path, namespaces):
-            xsd_element = self.get_element(elem.tag, schema_path, self.namespaces)
+            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
+                reason = "{!r} is not an element of the schema".format(elem)
+                yield schema.validation_error('lax', reason, elem, source, namespaces)
+                return
 
-            for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map,
-                                                  inherited=inherited):
+            for result in xsd_element.iter_decode(elem, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1269,7 +1284,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         an attribute declaration. If not provided undecodable data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
-        :param max_depth: maximum level of decoding. For default has no limit.
+        :param max_depth: maximum level of decoding, for default there is no limit.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of validation \
         or decoding errors.
@@ -1304,15 +1319,26 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
 
+        namespace = source.namespace or namespaces.get('', '')
+        try:
+            schema = self.maps.namespaces[namespace][0]
+        except (KeyError, IndexError):
+            reason = 'the namespace {!r} is not loaded'.format(namespace)
+            yield self.validation_error('lax', reason, source.root, source, namespaces)
+            return
+
         for elem in source.iterfind(path, namespaces):
-            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
+            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                yield self.validation_error(validation, "%r is not an element of the schema" % elem, elem)
+                reason = "{!r} is not an element of the schema".format(elem)
+                yield schema.validation_error('lax', reason, elem, source, namespaces)
+                return
 
             for obj in xsd_element.iter_decode(
-                    elem, validation, converter=converter, source=source, namespaces=namespaces,
-                    use_defaults=use_defaults, datetime_types=datetime_types,
-                    fill_missing=fill_missing, id_map=id_map, inherited=inherited, **kwargs):
+                    elem, validation, converter=converter, source=source,
+                    namespaces=namespaces, use_defaults=use_defaults,
+                    datetime_types=datetime_types, fill_missing=fill_missing,
+                    id_map=id_map, inherited=inherited, **kwargs):
                 yield obj
 
         for k, v in id_map.items():
@@ -1374,7 +1400,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         namespaces = {} if namespaces is None else namespaces.copy()
         converter = self.get_converter(converter, namespaces, **kwargs)
 
-        if path is not None:
+        namespace = get_namespace(path) or namespaces.get('', '')
+        if namespace:
+            try:
+                schema = self.maps.namespaces[namespace][0]
+            except (KeyError, IndexError):
+                reason = 'the namespace {!r} is not loaded'.format(namespace)
+                raise XMLSchemaEncodeError(self, obj, self, reason, namespaces=namespaces)
+            else:
+                xsd_element = schema.find(path, namespaces=namespaces)
+        elif path is not None:
             xsd_element = self.find(path, namespaces=namespaces)
         elif isinstance(obj, dict) and len(obj) == 1:
             xsd_element = self.elements.get(list(obj.keys())[0])
@@ -1386,10 +1421,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         if not isinstance(xsd_element, XsdElement):
             if path is not None:
-                msg = "the path %r doesn't match any element of the schema!" % path
+                reason = "the path %r doesn't match any element of the schema!" % path
             else:
-                msg = "unable to select an element for decoding data, provide a valid 'path' argument."
-            yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
+                reason = "unable to select an element for decoding data, provide a valid 'path' argument."
+            raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
             for result in xsd_element.iter_encode(obj, validation, converter=converter,
                                                   unordered=unordered, **kwargs):

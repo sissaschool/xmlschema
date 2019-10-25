@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An valid import case: two namespaces, each one with a global element that
+  can be used as valid root element for XML instances.
+  -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:a="http://example.com/xmlschema/ns-A"
+  xmlns:b="http://example.com/xmlschema/ns-B"
+  targetNamespace="http://example.com/xmlschema/ns-B"
+  elementFormDefault="qualified">
+
+  <xs:import schemaLocation="import-case4a.xsd" namespace="http://example.com/xmlschema/ns-A"/>
+
+  <xs:element name="rootB" type="b:rootType"/>
+
+  <xs:complexType name="rootType">
+    <xs:sequence>
+      <xs:element ref="a:rootA" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>
+
