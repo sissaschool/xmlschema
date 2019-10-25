@@ -344,11 +344,9 @@ class XsdComplexType(XsdType, ValidationMixin):
                 "derived an empty content from base type that has not empty content.", elem
             )
 
-        if not self.open_content:
-            if self.schema.default_open_content:
+        if not self.open_content and self.schema.default_open_content:
+            if content_type or self.schema.default_open_content.applies_to_empty:
                 self.open_content = self.schema.default_open_content
-            elif getattr(base_type, 'open_content', None):
-                self.open_content = base_type.open_content
 
         if self.open_content and content_type and \
                 not self.open_content.is_restriction(base_type.open_content):
@@ -679,7 +677,13 @@ class Xsd11ComplexType(XsdComplexType):
 
         # Add open content to complex content type
         if isinstance(self.content_type, XsdGroup):
-            open_content = self.open_content or self.schema.default_open_content
+            open_content = self.open_content
+            if open_content is not None:
+                pass
+            elif self.schema.default_open_content is not None:
+                if self.content_type or self.schema.default_open_content.applies_to_empty:
+                    open_content = self.schema.default_open_content
+
             if open_content is None:
                 pass
             elif open_content.mode == 'interleave':
