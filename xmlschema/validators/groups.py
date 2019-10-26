@@ -697,7 +697,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             yield element_data.content
             return
 
-        level = kwargs['level'] = kwargs.pop('level', 0) + 1
+        level = kwargs['level'] = kwargs.get('level', 0) + 1
         errors = []
         text = None
         children = []

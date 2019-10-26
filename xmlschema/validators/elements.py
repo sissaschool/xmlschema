@@ -474,7 +474,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         try:
             level = kwargs['level']
         except KeyError:
-            level = 0
+            level = kwargs['level'] = 0
 
         try:
             converter = kwargs['converter']
@@ -574,15 +574,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 xsd_type = xsd_type.content_type
 
             if text is None:
-                for result in xsd_type.iter_decode('', validation, _skip_id=True, **kwargs):
+                for result in xsd_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                if level == 0 or self.xsd_version != '1.0':
-                    kwargs['_skip_id'] = True
-
                 for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)

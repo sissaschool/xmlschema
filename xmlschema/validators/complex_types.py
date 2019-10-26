@@ -701,8 +701,10 @@ class Xsd11ComplexType(XsdComplexType):
                         self.parse_error("attribute %r must be inheritable")
 
         if 'defaultAttributesApply' in self.elem.attrib:
-            if self.elem.attrib['defaultAttributesApply'].strip() in {'false', '0'}:
-                self.default_attributes_apply = False
+            attr = self.elem.attrib['defaultAttributesApply'].strip()
+            self.default_attributes_apply = False if attr in {'false', '0'} else True
+        else:
+            self.default_attributes_apply = True
 
         # Add default attributes
         if self.redefine is None:

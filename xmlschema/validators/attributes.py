@@ -594,7 +594,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 reason = "missing required attribute: %r" % k
                 yield self.validation_error(validation, reason, attrs, **kwargs)
 
+        kwargs['level'] = kwargs.get('level', 0) + 1
         use_defaults = kwargs.get('use_defaults', True)
+
         additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}

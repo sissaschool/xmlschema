@@ -513,28 +513,25 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield self.decode_error(validation, obj, self.to_python,
                                     reason="value is not an instance of {!r}".format(self.instance_types))
 
-        if self.name == XSD_ID:
-            try:
-                id_map = kwargs['id_map']
-            except KeyError:
-                pass
-            else:
-                try:
-                    id_map[obj] += 1
-                except TypeError:
-                    id_map[obj] = 1
-
-                if id_map[obj] > 1 and '_skip_id' not in kwargs:
-                    yield self.validation_error(validation, "Duplicated xsd:ID value {!r}".format(obj))
-
-        elif self.name == XSD_IDREF:
+        if self.name == XSD_IDREF:
             try:
                 id_map = kwargs['id_map']
             except KeyError:
                 pass
             else:
                 if obj not in id_map:
-                    id_map[obj] = kwargs.get('node', 0)
+                    id_map[obj] = 0
+
+        elif self.name == XSD_ID and kwargs.get('level') != 0:
+            try:
+                id_map = kwargs['id_map']
+            except KeyError:
+                pass
+            else:
+                if not id_map[obj]:
+                    id_map[obj] = 1
+                else:
+                    yield self.validation_error(validation, "Duplicated xsd:ID value {!r}".format(obj))
 
         if validation == 'skip':
             try:
