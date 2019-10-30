@@ -299,7 +299,7 @@ class XsdComponent(XsdValidator):
     @property
     def target_namespace(self):
         """Property that references to schema's targetNamespace."""
-        return self.schema.target_namespace
+        return self.schema.target_namespace if self.ref is None else self.ref.target_namespace
 
     @property
     def default_namespace(self):

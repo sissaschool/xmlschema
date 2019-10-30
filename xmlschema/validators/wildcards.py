@@ -140,7 +140,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         elif default_namespace is None:
             return self.is_namespace_allowed('')
         else:
-            return self.is_namespace_allowed(default_namespace)
+            return self.is_namespace_allowed('') or \
+                   self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace):
         if self.not_namespace:
@@ -656,12 +657,15 @@ class Xsd11AnyElement(XsdAnyElement):
         if name is None:
             return False
         elif not name or name[0] == '{':
-            namespace = get_namespace(name)
-        elif default_namespace is None:
-            namespace = ''
+            if not self.is_namespace_allowed(get_namespace(name)):
+                return False
+        elif default_namespace is not None:
+            if not self.is_namespace_allowed(''):
+                return False
         else:
             name = '{%s}%s' % (default_namespace, name)
-            namespace = default_namespace
+            if not self.is_namespace_allowed('') and not self.is_namespace_allowed(default_namespace):
+                return False
 
         if group in self.precedences:
             if occurs is None:
@@ -676,7 +680,8 @@ class Xsd11AnyElement(XsdAnyElement):
             if any(e.is_matching(name) for e in group.iter_elements()
                    if not isinstance(e, XsdAnyElement)):
                 return False
-        return name not in self.not_qname and self.is_namespace_allowed(namespace)
+
+        return name not in self.not_qname
 
     def is_consistent(self, other):
         if isinstance(other, XsdAnyElement) or self.process_contents == 'skip':

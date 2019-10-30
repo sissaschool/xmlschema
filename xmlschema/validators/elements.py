@@ -715,26 +715,38 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def is_matching(self, name, default_namespace=None, group=None):
         if default_namespace and name[0] != '{':
-            name = '{%s}%s' % (default_namespace, name)
-
-        if name in self.names:
-            return True
-
-        for xsd_element in self.iter_substitutes():
-            if name in xsd_element.names:
+            qname = '{%s}%s' % (default_namespace, name)
+            if name in self.names or qname in self.names:
                 return True
+
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names or qname in xsd_element.names:
+                    return True
+
+        elif name in self.names:
+            return True
+        else:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names:
+                    return True
         return False
 
     def match(self, name, default_namespace=None, **kwargs):
         if default_namespace and name[0] != '{':
-            name = '{%s}%s' % (default_namespace, name)
+            qname = '{%s}%s' % (default_namespace, name)
+            if name in self.names or qname in self.names:
+                return self
 
-        if name in self.names:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names or qname in xsd_element.names:
+                    return xsd_element
+
+        elif name in self.names:
             return self
-
-        for xsd_element in self.iter_substitutes():
-            if name in xsd_element.names:
-                return xsd_element
+        else:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names:
+                    return xsd_element
 
     def is_restriction(self, other, check_occurs=True):
         if isinstance(other, XsdAnyElement):
@@ -905,9 +917,12 @@ class Xsd11Element(XsdElement):
 
     @property
     def target_namespace(self):
-        if self._target_namespace is None:
+        if self._target_namespace is not None:
+            return self._target_namespace
+        elif self.ref is not None:
+            return self.ref.target_namespace
+        else:
             return self.schema.target_namespace
-        return self._target_namespace
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:

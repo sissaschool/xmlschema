@@ -286,9 +286,12 @@ class Xsd11Attribute(XsdAttribute):
 
     @property
     def target_namespace(self):
-        if self._target_namespace is None:
+        if self._target_namespace is not None:
+            return self._target_namespace
+        elif self.ref is not None:
+            return self.ref.target_namespace
+        else:
             return self.schema.target_namespace
-        return self._target_namespace
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
