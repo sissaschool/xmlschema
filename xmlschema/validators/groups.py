@@ -821,6 +821,11 @@ class Xsd11Group(XsdGroup):
           Content: (annotation?, (element | any | group)*)
         </all>
     """
+    def __iter__(self):
+        if self.model == 'sequence':
+            return iter(self._group)
+        return iter(sorted(self._group, key=lambda x: isinstance(x, XsdAnyElement)))
+
     def _parse_content_model(self, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':

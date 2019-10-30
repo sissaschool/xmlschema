@@ -15,12 +15,14 @@ This module runs tests concerning model groups validation.
 import unittest
 
 from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.validators import ModelVisitor
+from xmlschema.validators import XsdElement, ModelVisitor
 from xmlschema.compat import ordered_dict_class
 from xmlschema.tests import casepath, XsdValidatorTestCase
 
 
 class TestModelValidation(XsdValidatorTestCase):
+
+    schema_class = XMLSchema10
 
     # --- Test helper functions ---
 
@@ -514,6 +516,32 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                 # match choice with <elem4>
         self.assertIsNone(model.element)
 
+    def test_empty_choice_groups(self):
+        schema = self.schema_class("""<?xml version="1.0"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:group name="group1">
+                <xs:sequence>
+                    <xs:choice minOccurs="0">
+                        <xs:choice minOccurs="0"/>
+                    </xs:choice>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:group>
+            <xs:element name="root">
+                <xs:complexType>
+                    <xs:choice>
+                        <xs:group ref="group1"/>
+                    </xs:choice>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>""")
+
+        xml_data = "<root><elem1/></root>"
+        model = ModelVisitor(schema.elements['root'].type.content_type)
+        self.assertIsInstance(model.element, XsdElement)
+        self.assertEqual(model.element.name, 'elem1')
+        self.assertIsNone(schema.validate(xml_data))
+
     #
     # Tests on issues
     def test_issue_086(self):
@@ -575,6 +603,32 @@ class TestModelValidation(XsdValidatorTestCase):
 
 class TestModelValidation11(TestModelValidation):
     schema_class = XMLSchema11
+
+    def test_all_model_with_wildcard(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" type="xs:string" />
+                            <xs:any maxOccurs="3" processContents="lax" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = """
+            <root>
+              <wildcard1/>
+              <a>1</a>
+              <wildcard2/>
+              <wildcard3/>
+            </root>
+            """
+
+        self.assertIsNone(schema.validate(xml_data))
 
 
 class TestModelBasedSorting(XsdValidatorTestCase):

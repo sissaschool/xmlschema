@@ -379,7 +379,12 @@ class ModelVisitor(MutableSequence):
     def _start(self):
         while True:
             item = next(self.items, None)
-            if item is None or not isinstance(item, ModelGroup):
+            if item is None:
+                if not self:
+                    break
+                else:
+                    self.group, self.items, self.match = self.pop()
+            elif not isinstance(item, ModelGroup):
                 self.element = item
                 break
             elif item:
@@ -464,7 +469,9 @@ class ModelVisitor(MutableSequence):
         if match:
             occurs[element] += 1
             self.match = True
-            if not element.is_over(occurs[element]):
+            if self.group.model == 'all':
+                pass
+            elif not element.is_over(occurs[element]):
                 return
 
         obj = None
