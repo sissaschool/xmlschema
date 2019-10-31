@@ -630,6 +630,27 @@ class TestModelValidation11(TestModelValidation):
 
         self.assertIsNone(schema.validate(xml_data))
 
+    def test_all_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" minOccurs="0" maxOccurs="5"/>
+                            <xs:element name="b" maxOccurs="5"/>
+                            <xs:element name="c" minOccurs="2" maxOccurs="5"/>
+                            <xs:element name="d" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = '<root><a/><b/><d/><c/><a/><c/></root>'
+
+        self.assertIsNone(schema.validate(xml_data))
+
 
 class TestModelBasedSorting(XsdValidatorTestCase):
 

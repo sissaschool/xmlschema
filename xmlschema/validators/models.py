@@ -440,7 +440,10 @@ class ModelVisitor(MutableSequence):
 
             item_occurs = occurs[item]
             model = self.group.model
-            if item_occurs:
+            if model == 'all':
+                return False
+
+            elif item_occurs:
                 self.match = True
                 if model == 'choice':
                     occurs[item] = 0
@@ -470,7 +473,7 @@ class ModelVisitor(MutableSequence):
             occurs[element] += 1
             self.match = True
             if self.group.model == 'all':
-                pass
+                self.items = (e for e in self.group if not e.is_over(occurs[e]))
             elif not element.is_over(occurs[element]):
                 return
 
@@ -487,8 +490,6 @@ class ModelVisitor(MutableSequence):
                 if obj is None:
                     if not self.match:
                         if self.group.model == 'all':
-                            for e in self.group:
-                                occurs[e] = occurs[(e,)]
                             if all(e.min_occurs <= occurs[e] for e in self.group):
                                 occurs[self.group] = 1
                         group, expected = self.group, self.expected
@@ -497,16 +498,14 @@ class ModelVisitor(MutableSequence):
                     elif self.group.model != 'all':
                         self.items, self.match = iter(self.group), False
                     elif any(not e.is_over(occurs[e]) for e in self.group):
-                        for e in self.group:
-                            occurs[(e,)] += occurs[e]
                         self.items, self.match = (e for e in self.group if not e.is_over(occurs[e])), False
                     else:
-                        for e in self.group:
-                            occurs[(e,)] += occurs[e]
                         occurs[self.group] = 1
 
                 elif not isinstance(obj, ModelGroup):  # XsdElement or XsdAnyElement
-                    self.element, occurs[obj] = obj, 0
+                    self.element = obj
+                    if self.group.model != 'all':
+                        occurs[obj] = 0
                     return
 
                 else:
@@ -515,7 +514,7 @@ class ModelVisitor(MutableSequence):
                     occurs[obj] = 0
                     if obj.model == 'all':
                         for e in obj:
-                            occurs[(e,)] = 0
+                            occurs[e] = 0
 
         except IndexError:
             # Model visit ended
