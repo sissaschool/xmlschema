@@ -235,7 +235,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             elif text == self.fixed or validation == 'skip':
                 pass
             elif self.type.text_decode(text) != self.type.text_decode(self.fixed):
-                yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
+                msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
+                yield self.validation_error(validation, msg, text, **kwargs)
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):

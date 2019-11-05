@@ -821,11 +821,6 @@ class Xsd11Group(XsdGroup):
           Content: (annotation?, (element | any | group)*)
         </all>
     """
-    def __iter__(self):
-        if self.model == 'sequence':
-            return iter(self._group)
-        return iter(sorted(self._group, key=lambda x: isinstance(x, XsdAnyElement)))
-
     def _parse_content_model(self, content_model):
         self.model = local_name(content_model.tag)
         if self.model == 'all':
@@ -855,7 +850,7 @@ class Xsd11Group(XsdGroup):
                 if ref != self.name:
                     self.append(Xsd11Group(child, self.schema, self))
                     if (self.model != 'all') ^ (self[-1].model != 'all'):
-                        msg = "an xs:%s group cannot reference to an x:%s group"
+                        msg = "an xs:%s group cannot include a reference to an x:%s group"
                         self.parse_error(msg % (self.model, self[-1].model))
                         self.pop()
 

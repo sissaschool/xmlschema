@@ -338,7 +338,9 @@ class ModelVisitor(MutableSequence):
         self.occurs = Counter()
         self._subgroups = []
         self.element = None
-        self.group, self.items, self.match = root, iter(root), False
+        self.group = root
+        self.items = self.iter_group()
+        self.match = False
         self._start()
 
     def __str__(self):
@@ -374,7 +376,9 @@ class ModelVisitor(MutableSequence):
         del self._subgroups[:]
         self.occurs.clear()
         self.element = None
-        self.group, self.items, self.match = self.root, iter(self.root), False
+        self.group = self.root
+        self.items = self.iter_group()
+        self.match = False
 
     def _start(self):
         while True:
@@ -421,6 +425,18 @@ class ModelVisitor(MutableSequence):
             for e in self.advance():
                 yield e
 
+    def iter_group(self):
+        if self.group.model != 'all':
+            for item in self.group:
+                yield item
+        elif not self.occurs:
+            for e in self.group.iter_elements():
+                yield e
+        else:
+            for e in self.group.iter_elements():
+                if not e.is_over(self.occurs[e]):
+                    yield e
+
     def advance(self, match=False):
         """
         Generator function for advance to the next element. Yields tuples with
@@ -448,7 +464,7 @@ class ModelVisitor(MutableSequence):
                 if model == 'choice':
                     occurs[item] = 0
                     occurs[self.group] += 1
-                    self.items, self.match = iter(self.group), False
+                    self.items, self.match = self.iter_group(), False
                 elif model == 'sequence' and item is self.group[-1]:
                     self.occurs[self.group] += 1
                 return item.is_missing(item_occurs)
@@ -473,7 +489,7 @@ class ModelVisitor(MutableSequence):
             occurs[element] += 1
             self.match = True
             if self.group.model == 'all':
-                self.items = (e for e in self.group if not e.is_over(occurs[e]))
+                self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
             elif not element.is_over(occurs[element]):
                 return
 
@@ -490,15 +506,16 @@ class ModelVisitor(MutableSequence):
                 if obj is None:
                     if not self.match:
                         if self.group.model == 'all':
-                            if all(e.min_occurs <= occurs[e] for e in self.group):
+                            if all(e.min_occurs <= occurs[e] for e in self.group.iter_elements()):
                                 occurs[self.group] = 1
                         group, expected = self.group, self.expected
                         if stop_item(group) and expected:
                             yield group, occurs[group], expected
                     elif self.group.model != 'all':
-                        self.items, self.match = iter(self.group), False
+                        self.items, self.match = self.iter_group(), False
                     elif any(not e.is_over(occurs[e]) for e in self.group):
-                        self.items, self.match = (e for e in self.group if not e.is_over(occurs[e])), False
+                        self.items = self.iter_group()
+                        self.match = False
                     else:
                         occurs[self.group] = 1
 
