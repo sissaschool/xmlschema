@@ -75,7 +75,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
             x = x.replace('//', '/', 1)
         while x.startswith('file:////'):
             x = x.replace('file:////', 'file:///', 1)
-        if not urlsplit(x).scheme:
+        if urlsplit(x).scheme in {'', 'file'}:
             x = x.replace('#', '%23')
         return x
 
@@ -136,7 +136,7 @@ def normalize_url(url, base_url=None, keep_relative=False):
             url_parts.fragment,
         ))
     
-    return normalized_url.replace('\\', '/')
+    return filter_url(normalized_url)
 
 
 def fetch_resource(location, base_url=None, timeout=30):
