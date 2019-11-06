@@ -120,7 +120,7 @@ class TestResources(unittest.TestCase):
         )
         self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'), 'file:///k:\\Dir A\\schema.xsd')
 
-    def test_normalize_url_issue_116(self):
+    def test_normalize_url_slashes(self):
         # Issue #116
         self.assertEqual(
             normalize_url('//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'),
@@ -134,12 +134,13 @@ class TestResources(unittest.TestCase):
         self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
         self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
 
-        self.check_url(normalize_url('issue #000.xml', 'file://host/home/'),
-                       'file://host/home/issue %23000.xml')
-        self.check_url(normalize_url('data.xml', 'file://host/home/issue 000'),
-                       'file://host/home/issue 000/data.xml')
-        self.check_url(normalize_url('data.xml', '/host/home/issue #000'),
-                       '/host/home/issue %23000/data.xml')
+    def test_normalize_url_hash_character(self):
+        self.check_url(normalize_url('issue #000.xml', 'file:///dir1/dir2/'),
+                       'file:///dir1/dir2/issue %23000.xml')
+        self.check_url(normalize_url('data.xml', 'file:///dir1/dir2/issue 000'),
+                       'file:///dir1/dir2/issue 000/data.xml')
+        self.check_url(normalize_url('data.xml', '/dir1/dir2/issue #000'),
+                       '/dir1/dir2/issue %23000/data.xml')
 
     def test_fetch_resource(self):
         wrong_path = casepath('resources/dummy_file.txt')
@@ -456,11 +457,11 @@ class TestResources(unittest.TestCase):
         xml_file = resource.open()
         self.assertTrue(callable(xml_file.read))
 
-        xml_file = open(self.vh_xml_file)
-        resource = XMLResource(source=xml_file)
-        resource.close()
-        with self.assertRaises(ValueError):
-            resource.open()
+        with open(self.vh_xml_file) as xml_file:
+            resource = XMLResource(source=xml_file)
+            resource.close()
+            with self.assertRaises(ValueError):
+                resource.open()
 
     def test_xml_resource_iter(self):
         resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=False)
