@@ -113,9 +113,9 @@ def normalize_url(url, base_url=None, keep_relative=False):
 
     url_parts = urlsplit(url, scheme='file')
     if url_parts.scheme not in uses_relative:
-        return 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
+        normalized_url = 'file:///{}'.format(url_parts.geturl())  # Eg. k:/Python/lib/....
     elif url_parts.scheme != 'file':
-        return urlunsplit((
+        normalized_url = urlunsplit((
             url_parts.scheme,
             url_parts.netloc,
             pathname2url(url_parts.path),
@@ -123,18 +123,20 @@ def normalize_url(url, base_url=None, keep_relative=False):
             url_parts.fragment,
         ))
     elif os.path.isabs(url_parts.path):
-        return url_parts.geturl()
+        normalized_url = url_parts.geturl()
     elif keep_relative:
         # Can't use urlunsplit with a scheme because it converts relative paths to absolute ones.
-        return 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
+        normalized_url = 'file:{}'.format(urlunsplit(('',) + url_parts[1:]))
     else:
-        return urlunsplit((
+        normalized_url = urlunsplit((
             url_parts.scheme,
             url_parts.netloc,
             os.path.abspath(url_parts.path),
             url_parts.query,
             url_parts.fragment,
         ))
+    
+    return normalized_url.replace('\\', '/')
 
 
 def fetch_resource(location, base_url=None, timeout=30):
