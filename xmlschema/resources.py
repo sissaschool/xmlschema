@@ -73,6 +73,8 @@ def normalize_url(url, base_url=None, keep_relative=False):
         x = x.strip().replace('\\', '/')
         while x.startswith('//'):
             x = x.replace('//', '/', 1)
+        while x.startswith('file:////'):
+            x = x.replace('file:////', 'file:///', 1)
         if not urlsplit(x).scheme:
             x = x.replace('#', '%23')
         return x

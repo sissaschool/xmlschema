@@ -43,6 +43,15 @@ def add_leading_slash(path):
     return '/' + path if path and path[0] not in ('/', '\\') else path
 
 
+def filter_windows_path(path):
+    if path.startswith('/\\'):
+        return path[1:]
+    elif path and path[0] not in ('/', '\\'):
+        return '/' + path
+    else:
+        return path
+
+
 class TestResources(unittest.TestCase):
 
     @classmethod
@@ -68,14 +77,14 @@ class TestResources(unittest.TestCase):
         self.assertEqual(url_parts.fragment, expected_parts.fragment, "%r: Fragment parts differ." % url)
 
         if is_windows_path(url_parts.path) or is_windows_path(expected_parts.path):
-            path = PureWindowsPath(url_parts.path)
-            expected_path = PureWindowsPath(add_leading_slash(expected_parts.path))
+            path = PureWindowsPath(filter_windows_path(url_parts.path))
+            expected_path = PureWindowsPath(filter_windows_path(expected_parts.path))
         else:
             path = PurePath(url_parts.path)
             expected_path = PurePath(expected_parts.path)
         self.assertEqual(path, expected_path, "%r: Paths differ." % url)
 
-    def test_normalize_url(self):
+    def test_normalize_url_posix(self):
         url1 = "https://example.com/xsd/other_schema.xsd"
         self.check_url(normalize_url(url1, base_url="/path_my_schema/schema.xsd"), url1)
 
@@ -98,6 +107,7 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('dummy path.xsd', 'http://site/base'), 'http://site/base/dummy%20path.xsd')
         self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'), 'file://host/home/dummy path.xsd')
 
+    def test_normalize_url_windows(self):
         win_abs_path1 = 'z:\\Dir_1_0\\Dir2-0\\schemas/XSD_1.0/XMLSchema.xsd'
         win_abs_path2 = 'z:\\Dir-1.0\\Dir-2_0\\'
         self.check_url(normalize_url(win_abs_path1), win_abs_path1)
@@ -108,7 +118,9 @@ class TestResources(unittest.TestCase):
         self.check_url(
             normalize_url('xsd1.0/schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd'
         )
+        self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'), 'file:///k:\\Dir A\\schema.xsd')
 
+    def test_normalize_url_issue_116(self):
         # Issue #116
         self.assertEqual(
             normalize_url('//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'),
