@@ -15,6 +15,7 @@ import os
 import importlib
 import sys
 import subprocess
+import platform
 
 
 @unittest.skipIf(sys.version_info < (3,), "In Python 2 ElementTree is not overwritten by cElementTree")
@@ -51,6 +52,7 @@ class TestElementTree(unittest.TestCase):
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
         self.assertIs(xmlschema_etree.ElementTree, ElementTree)
 
+    @unittest.skipIf(platform.system() == 'Windows', "Run only for UNIX based systems.")
     def test_element_tree_import_script(self):
         test_dir = os.path.dirname(__file__) or '.'
 
