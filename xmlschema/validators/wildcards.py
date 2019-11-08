@@ -141,7 +141,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return self.is_namespace_allowed('')
         else:
             return self.is_namespace_allowed('') or \
-                   self.is_namespace_allowed(default_namespace)
+                self.is_namespace_allowed(default_namespace)
 
     def is_namespace_allowed(self, namespace):
         if self.not_namespace:

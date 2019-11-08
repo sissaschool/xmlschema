@@ -988,16 +988,18 @@ class Xsd11Group(XsdGroup):
             for item in restriction_items:
                 if other_item is item or item.is_restriction(other_item, check_occurs):
                     if max_occurs is not None:
-                        if item.effective_max_occurs is None:
+                        effective_max_occurs = item.effective_max_occurs
+                        if effective_max_occurs is None:
                             max_occurs = None
                         else:
-                            max_occurs = counter_func(max_occurs, item.effective_max_occurs)
+                            max_occurs = counter_func(max_occurs, effective_max_occurs)
 
                     if other_max_occurs is not None:
-                        if other_item.effective_max_occurs is None:
+                        effective_max_occurs = other_item.effective_max_occurs
+                        if effective_max_occurs is None:
                             other_max_occurs = None
                         else:
-                            other_max_occurs = max(other_max_occurs, other_item.effective_max_occurs)
+                            other_max_occurs = max(other_max_occurs, effective_max_occurs)
                     break
             else:
                 continue

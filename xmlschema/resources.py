@@ -135,7 +135,6 @@ def normalize_url(url, base_url=None, keep_relative=False):
             url_parts.query,
             url_parts.fragment,
         ))
-    
     return filter_url(normalized_url)
 
 

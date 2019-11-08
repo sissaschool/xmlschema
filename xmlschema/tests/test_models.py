@@ -542,6 +542,24 @@ class TestModelValidation(XsdValidatorTestCase):
         self.assertEqual(model.element.name, 'elem1')
         self.assertIsNone(schema.validate(xml_data))
 
+    def test_sequence_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="2" maxOccurs="unbounded">
+                            <xs:element name="ax" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = '<root><ax/><ax/></root>'
+
+        self.assertIsNone(schema.validate(xml_data))
+
     #
     # Tests on issues
     def test_issue_086(self):
