@@ -156,33 +156,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
             else:
                 return self.max_occurs * sum(e.max_occurs for e in self) <= other.max_occurs
 
-    def count_occurs(self, occurs):
-        """
-        Calculates the current model group occurrences from the occurs of its items.
-        """
-        group_occurs = None
-        if self.model == 'sequence':
-            for item in filter(lambda x: occurs[x], self):
-                if group_occurs is not None:
-                    return 1
-                group_occurs = item.min_occurs_reps(occurs)
-
-        elif self.model == 'choice':
-            for item in filter(lambda x: occurs[x], self):
-                group_occurs = item.min_occurs_reps(occurs)
-                break
-
-        else:
-            for item in filter(lambda x: occurs[x], self):
-                group_occurs = min(1, item.min_occurs_reps(occurs))
-
-        if group_occurs is None:
-            return 0
-        elif self.is_over(group_occurs):
-            return self.max_occurs
-        else:
-            return group_occurs
-
     def iter_model(self, depth=0):
         """
         A generator function iterating elements and groups of a model group. Skips pointless groups,
@@ -486,27 +459,47 @@ class ModelVisitor(MutableSequence):
             if model == 'all':
                 return False
 
-            elif item_occurs:
+            elif model == 'choice':
+                if not item_occurs:
+                    return False
+
                 self.match = True
-                if model == 'choice':
-                    occurs[self.group] += max(1, self.group.count_occurs(self.occurs))
+
+                group_occurs = min(1, occurs[item] // (item.min_occurs or 1))
+                if self.group.is_over(group_occurs):
+                    group_occurs = self.group.max_occurs
+                occurs[self.group] += group_occurs
+
+                if group_occurs == 1:
                     occurs[item] = 0
-                    self.items, self.match = self.iter_group(), False
-                elif model == 'sequence' and item is self.group[-1]:
-                    self.occurs[self.group] += max(1, self.group.count_occurs(self.occurs))
+                else:
+                    item_occurs %= item.min_occurs
+                    occurs[item] = item_occurs
+
+                self.items, self.match = self.iter_group(), False
                 return item.is_missing(item_occurs)
 
-            elif model == 'sequence':
-                if self.match:
-                    if item is self.group[-1]:
-                        occurs[self.group] += max(1, self.group.count_occurs(self.occurs))
-                    return not item.is_emptiable()
-                elif item.is_emptiable():
-                    return False
-                elif self.group.min_occurs <= occurs[self.group] or self:
-                    return stop_item(self.group)
+            elif item_occurs:
+                self.match = True
+            elif self.match:
+                pass
+            elif item.is_emptiable():
+                return False
+            elif self.group.min_occurs <= occurs[self.group] or self:
+                return stop_item(self.group)
+            else:
+                return True
+
+            if item is self.group[-1]:
+                if any(occurs[x] for x in self if x is not item):
+                    group_occurs = 1
                 else:
-                    return True
+                    group_occurs = max(1, occurs[item] // (item.min_occurs or 1))
+                    if self.group.is_over(group_occurs):
+                        group_occurs = self.group.max_occurs
+                self.occurs[self.group] += max(1, group_occurs)
+
+            return item.is_missing(item_occurs)
 
         element, occurs = self.element, self.occurs
         if element is None:

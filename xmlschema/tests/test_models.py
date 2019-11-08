@@ -516,6 +516,8 @@ class TestModelValidation(XsdValidatorTestCase):
         self.check_advance_true(model)                 # match choice with <elem4>
         self.assertIsNone(model.element)
 
+    #
+    # Test pathological cases
     def test_empty_choice_groups(self):
         schema = self.schema_class("""<?xml version="1.0"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -549,16 +551,34 @@ class TestModelValidation(XsdValidatorTestCase):
                 <xs:element name="root">
                     <xs:complexType>
                         <xs:sequence minOccurs="2" maxOccurs="unbounded">
-                            <xs:element name="ax" maxOccurs="unbounded"/>
+                            <xs:element name="a" maxOccurs="unbounded"/>
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
             </xs:schema>
             """)
 
-        xml_data = '<root><ax/><ax/></root>'
-
+        xml_data = '<root><a/><a/></root>'
         self.assertIsNone(schema.validate(xml_data))
+
+    def test_choice_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:choice maxOccurs="unbounded" minOccurs="0">
+                            <xs:element maxOccurs="5" minOccurs="3" name="ax"/>
+                            <xs:element maxOccurs="5" minOccurs="3" name="bx"/>
+                        </xs:choice>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/></root>'))
+        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/><ax/><ax/></root>'))
+        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/><ax/><ax/><ax/></root>'))
 
     #
     # Tests on issues

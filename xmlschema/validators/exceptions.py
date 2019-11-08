@@ -346,7 +346,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             if not expected_tags:
                 pass  # reason += " No child element is expected at this point." <-- this can be misleading
             elif len(expected_tags) == 1:
-                reason += " Tag %s expected." % expected_tags[0]
+                reason += " Tag %r expected." % expected_tags[0]
             else:
                 reason += " Tag (%s) expected." % ' | '.join(expected_tags)
 

@@ -958,13 +958,6 @@ class ParticleMixin(object):
     def is_over(self, occurs):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
-    def min_occurs_reps(self, occurs):
-        """Returns the repetitions of minimum occurrences."""
-        if not self.min_occurs:
-            return occurs[self]
-        else:
-            return occurs[self] // self.min_occurs
-
     def has_occurs_restriction(self, other):
         if self.min_occurs == self.max_occurs == 0:
             return True
