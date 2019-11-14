@@ -558,8 +558,48 @@ class TestModelValidation(XsdValidatorTestCase):
             </xs:schema>
             """)
 
-        xml_data = '<root><a/><a/></root>'
-        self.assertIsNone(schema.validate(xml_data))
+        self.assertIsNone(schema.validate('<root><a/><a/></root>'))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                            <xs:element name="a" minOccurs="2" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                            <xs:group ref="group1" minOccurs="2" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:group name="group1">
+                    <xs:choice>
+                        <xs:element name="ax" maxOccurs="unbounded"/>
+                        <xs:element name="b"/>
+                        <xs:element name="c"/>
+                    </xs:choice>
+                </xs:group>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><ax/><ax/></root>'))
+        # self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        # self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
 
     def test_choice_model_with_extended_occurs(self):
         schema = self.schema_class(
@@ -568,17 +608,34 @@ class TestModelValidation(XsdValidatorTestCase):
                 <xs:element name="root">
                     <xs:complexType>
                         <xs:choice maxOccurs="unbounded" minOccurs="0">
-                            <xs:element maxOccurs="5" minOccurs="3" name="ax"/>
-                            <xs:element maxOccurs="5" minOccurs="3" name="bx"/>
+                            <xs:element maxOccurs="5" minOccurs="3" name="a"/>
+                            <xs:element maxOccurs="5" minOccurs="3" name="b"/>
                         </xs:choice>
                     </xs:complexType>
                 </xs:element>
             </xs:schema>
             """)
 
-        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/></root>'))
-        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/><ax/><ax/></root>'))
-        self.assertIsNone(schema.validate('<root><ax/><ax/><ax/><ax/><ax/><ax/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                    <xs:choice minOccurs="2" maxOccurs="3">
+                        <xs:element name="a" maxOccurs="unbounded"/>
+                        <xs:element name="b" maxOccurs="unbounded"/>
+                        <xs:element name="c"/>
+                    </xs:choice>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
 
     #
     # Tests on issues

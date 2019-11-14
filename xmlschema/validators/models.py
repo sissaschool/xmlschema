@@ -393,7 +393,9 @@ class ModelVisitor(MutableSequence):
                 break
             elif item:
                 self.append((self.group, self.items, self.match))
-                self.group, self.items, self.match = item, iter(item), False
+                self.group = item
+                self.items = self.iter_group()
+                self.match = False
 
     @property
     def expected(self):
@@ -426,16 +428,13 @@ class ModelVisitor(MutableSequence):
                 yield e
 
     def iter_group(self):
+        """Returns an iterator for the current model group."""
         if self.group.model != 'all':
-            for item in self.group:
-                yield item
+            return iter(self.group)
         elif not self.occurs:
-            for e in self.group.iter_elements():
-                yield e
+            return self.group.iter_elements()
         else:
-            for e in self.group.iter_elements():
-                if not e.is_over(self.occurs[e]):
-                    yield e
+            return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))
 
     def advance(self, match=False):
         """
@@ -444,6 +443,17 @@ class ModelVisitor(MutableSequence):
 
         :param match: provides current element match.
         """
+        def get_choices(self, occurs):
+            max_group_occurs = max(1, occurs // (self.min_occurs or 1))
+            if self.max_occurs is None:
+                return [x for x in range(1, max_group_occurs + 1)]
+            else:
+                delta_occurs = self.max_occurs - self.min_occurs + 1
+                if occurs % max_group_occurs > delta_occurs:
+                    return []
+                else:
+                    return [x for x in range(1, max_group_occurs + 1)]
+
         def stop_item(item):
             """
             Stops element or group matching, incrementing current group counter.
@@ -455,30 +465,24 @@ class ModelVisitor(MutableSequence):
                 self.group, self.items, self.match = self.pop()
 
             item_occurs = occurs[item]
-            model = self.group.model
-            if model == 'all':
-                return False
-
-            elif model == 'choice':
+            if self.group.model == 'choice':
                 if not item_occurs:
                     return False
 
-                self.match = True
+                item_max_occurs = occurs[(item,)] or item_occurs
+                min_group_occurs = max(1, item_occurs // (item.max_occurs or item_occurs))
+                max_group_occurs = max(1, item_max_occurs // (item.min_occurs or 1))
 
-                group_occurs = min(1, occurs[item] // (item.min_occurs or 1))
-                if self.group.is_over(group_occurs):
-                    group_occurs = self.group.max_occurs
-                occurs[self.group] += group_occurs
+                occurs[self.group] += min_group_occurs
+                occurs[(self.group,)] += max_group_occurs
+                occurs[item] = 0
 
-                if group_occurs == 1:
-                    occurs[item] = 0
-                else:
-                    item_occurs %= item.min_occurs
-                    occurs[item] = item_occurs
+                self.items = self.iter_group()
+                self.match = False
+                return item.is_missing(max(item_occurs, occurs[(item,)]))
 
-                self.items, self.match = self.iter_group(), False
-                return item.is_missing(item_occurs)
-
+            elif self.group.model == 'all':
+                return False
             elif item_occurs:
                 self.match = True
             elif self.match:
@@ -494,12 +498,11 @@ class ModelVisitor(MutableSequence):
                 if any(occurs[x] for x in self if x is not item):
                     group_occurs = 1
                 else:
-                    group_occurs = max(1, occurs[item] // (item.min_occurs or 1))
+                    group_occurs = max(1, item_occurs // (item.min_occurs or 1))
                     if self.group.is_over(group_occurs):
                         group_occurs = self.group.max_occurs
                 self.occurs[self.group] += max(1, group_occurs)
-
-            return item.is_missing(item_occurs)
+            return item.is_missing(max(item_occurs, occurs[(item,)]))
 
         element, occurs = self.element, self.occurs
         if element is None:
@@ -510,6 +513,9 @@ class ModelVisitor(MutableSequence):
             self.match = True
             if self.group.model == 'all':
                 self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
+            elif self.group.model == 'choice':  # or len(self.group) == 1:
+                if not element.is_over(occurs[element]) or element.is_ambiguous():
+                    return
             elif not element.is_over(occurs[element]):
                 return
 
@@ -523,40 +529,42 @@ class ModelVisitor(MutableSequence):
                     stop_item(self.group)
 
                 obj = next(self.items, None)
-                if obj is None:
-                    if not self.match:
-                        if self.group.model == 'all':
-                            if all(e.min_occurs <= occurs[e] for e in self.group.iter_elements()):
-                                occurs[self.group] = 1
-                        group, expected = self.group, self.expected
-                        if stop_item(group) and expected:
-                            yield group, occurs[group], expected
-                    elif self.group.model != 'all':
-                        self.items, self.match = self.iter_group(), False
-                    elif any(not e.is_over(occurs[e]) for e in self.group):
-                        self.items = self.iter_group()
-                        self.match = False
-                    else:
-                        occurs[self.group] = 1
+                if isinstance(obj, ModelGroup):
+                    # inner 'sequence' or 'choice' XsdGroup
+                    self.append((self.group, self.items, self.match))
+                    self.group = obj
+                    self.items = self.iter_group()
+                    self.match = False
+                    occurs[obj] = 0
 
-                elif not isinstance(obj, ModelGroup):  # XsdElement or XsdAnyElement
+                elif obj is not None:
+                    # XsdElement or XsdAnyElement
                     self.element = obj
-                    if self.group.model != 'all':
+                    if self.group.model == 'sequence':
                         occurs[obj] = 0
                     return
 
+                elif not self.match:
+                    if self.group.model == 'all':
+                        if all(e.min_occurs <= occurs[e] for e in self.group.iter_elements()):
+                            occurs[self.group] = 1
+
+                    group, expected = self.group, self.expected
+                    if stop_item(group) and expected:
+                        yield group, occurs[group], expected
+
+                elif self.group.model != 'all':
+                    self.items, self.match = self.iter_group(), False
+                elif any(not e.is_over(occurs[e]) for e in self.group):
+                    self.items = self.iter_group()
+                    self.match = False
                 else:
-                    self.append((self.group, self.items, self.match))
-                    self.group, self.items, self.match = obj, iter(obj), False
-                    occurs[obj] = 0
-                    if obj.model == 'all':
-                        for e in obj:
-                            occurs[e] = 0
+                    occurs[self.group] = 1
 
         except IndexError:
             # Model visit ended
             self.element = None
-            if self.group.is_missing(occurs[self.group]):
+            if self.group.is_missing(max(occurs[self.group], occurs[(self.group,)])):
                 if self.group.model == 'choice':
                     yield self.group, occurs[self.group], self.expected
                 elif self.group.model == 'sequence':
