@@ -600,6 +600,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         kwargs['level'] = kwargs.get('level', 0) + 1
         use_defaults = kwargs.get('use_defaults', True)
+        id_map = kwargs.get('id_map', '')
+        num_id = len(id_map)
 
         additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
@@ -643,6 +645,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 else:
                     result_list.append((name, result))
                     break
+
+        if self.xsd_version == '1.0' and len(id_map) - num_id > 1:
+            reason = "No more than one attribute of type ID should be present in an element"
+            yield self.validation_error(validation, reason, attrs, **kwargs)
 
         if kwargs.get('fill_missing') is True:
             if filler is None:

@@ -21,7 +21,7 @@ from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
-    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR, get_qname
+    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
 from ..etree import etree_element
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     ParticleCounter, strictly_equal
@@ -244,15 +244,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if not self.type.is_valid(attrib['default']):
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
-            elif self.xsd_version == '1.0' and (
-                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
                 msg = "'fixed' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
-            elif self.xsd_version == '1.0' and (
-                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
         return 0
@@ -963,6 +961,7 @@ class Xsd11Element(XsdElement):
 
         if inherited:
             dummy = etree_element('_dummy_element', attrib=inherited)
+            dummy.attrib.update(elem.attrib)
 
             for alt in filter(lambda x: x.type is not None, self.alternatives):
                 if alt.token is None or alt.test(elem) or alt.test(dummy):

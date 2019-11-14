@@ -502,7 +502,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         elif other.name == XSD_ANY_TYPE:
             return True
         elif self.base_type is other:
-            return derivation is None or self.base_type.derivation == derivation
+            return derivation is None  # or self.base_type.derivation == derivation
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         elif self.base_type is None:

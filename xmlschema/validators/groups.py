@@ -486,7 +486,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if 'substitution' in model_element.block \
                     or xsd_element.type.is_blocked(model_element):
                 raise XMLSchemaValidationError(
-                    model_element, "substitution of %r is blocked" % model_element
+                    model_element, elem, "substitution of %r is blocked" % model_element
                 )
 
         alternatives = ()
