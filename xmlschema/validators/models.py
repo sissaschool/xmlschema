@@ -453,12 +453,12 @@ class ModelVisitor(MutableSequence):
             if isinstance(item, ModelGroup):
                 self.group, self.items, self.match = self.pop()
 
-            item_occurs = occurs[item]
             if self.group.model == 'choice':
+                item_occurs = occurs[item]
                 if not item_occurs:
                     return False
-
                 item_max_occurs = occurs[(item,)] or item_occurs
+
                 min_group_occurs = max(1, item_occurs // (item.max_occurs or item_occurs))
                 max_group_occurs = max(1, item_max_occurs // (item.min_occurs or 1))
 
@@ -468,31 +468,40 @@ class ModelVisitor(MutableSequence):
 
                 self.items = self.iter_group()
                 self.match = False
-                return item.is_missing(max(item_occurs, occurs[(item,)]))
+                return item.is_missing(item_max_occurs)
 
             elif self.group.model == 'all':
                 return False
-            elif item_occurs:
-                self.match = True
             elif self.match:
                 pass
+            elif occurs[item]:
+                self.match = True
             elif item.is_emptiable():
                 return False
-            elif self.group.min_occurs <= occurs[self.group] or self:
+            elif self.group.min_occurs <= max(occurs[self.group], occurs[(self.group,)]) or self:
                 return stop_item(self.group)
             else:
                 return True
 
             if item is self.group[-1]:
-                if any(occurs[x] for x in self if x is not item):
-                    self.occurs[self.group] += 1
-                else:
-                    group_occurs = max(1, item_occurs // (item.min_occurs or 1))
-                    if self.group.is_over(group_occurs):
-                        group_occurs = self.group.max_occurs
-                    self.occurs[self.group] += max(1, group_occurs)
+                for k, item2 in enumerate(self.group, start=1):
+                    item_occurs = occurs[item2]
+                    if not item_occurs:
+                        continue
 
-            return item.is_missing(max(item_occurs, occurs[(item,)]))
+                    item_max_occurs = occurs[(item2,)] or item_occurs
+                    if item_max_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
+                        self.occurs[self.group] += 1
+                        break
+
+                    min_group_occurs = max(1, item_occurs // (item2.max_occurs or item_occurs))
+                    max_group_occurs = max(1, item_max_occurs // (item2.min_occurs or 1))
+
+                    occurs[self.group] += min_group_occurs
+                    occurs[(self.group,)] += max_group_occurs
+                    break
+
+            return item.is_missing(max(occurs[item], occurs[(item,)]))
 
         element, occurs = self.element, self.occurs
         if element is None:
@@ -514,7 +523,7 @@ class ModelVisitor(MutableSequence):
                 yield element, occurs[element], [element]
 
             while True:
-                while self.group.is_over(occurs[self.group]):
+                while self.group.is_over(max(occurs[self.group], occurs[(self.group,)])):
                     stop_item(self.group)
 
                 obj = next(self.items, None)

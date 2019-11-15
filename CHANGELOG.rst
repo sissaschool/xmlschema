@@ -2,11 +2,12 @@
 CHANGELOG
 *********
 
-`v1.0.16`_ (2019-10-XX)
+`v1.0.16`_ (2019-11-15)
 =======================
-* Improved XMLResource with zip files interface and lazy
+* Improved XMLResource class for working with compressed files
 * Fix for validation with XSD wildcards and 'lax' process content
-* Fix for issue #1...
+* Fix ambiguous items validation for xs:choice and xs:sequence models
+* Dozens of W3C's failed tests fixed
 
 `v1.0.15`_ (2019-10-13)
 =======================
@@ -271,3 +272,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.13: https://github.com/brunato/xmlschema/compare/v1.0.11...v1.0.13
 .. _v1.0.14: https://github.com/brunato/xmlschema/compare/v1.0.13...v1.0.14
 .. _v1.0.15: https://github.com/brunato/xmlschema/compare/v1.0.14...v1.0.15
+.. _v1.0.16: https://github.com/brunato/xmlschema/compare/v1.0.15...v1.0.16
