@@ -443,17 +443,6 @@ class ModelVisitor(MutableSequence):
 
         :param match: provides current element match.
         """
-        def get_choices(self, occurs):
-            max_group_occurs = max(1, occurs // (self.min_occurs or 1))
-            if self.max_occurs is None:
-                return [x for x in range(1, max_group_occurs + 1)]
-            else:
-                delta_occurs = self.max_occurs - self.min_occurs + 1
-                if occurs % max_group_occurs > delta_occurs:
-                    return []
-                else:
-                    return [x for x in range(1, max_group_occurs + 1)]
-
         def stop_item(item):
             """
             Stops element or group matching, incrementing current group counter.
@@ -496,12 +485,13 @@ class ModelVisitor(MutableSequence):
 
             if item is self.group[-1]:
                 if any(occurs[x] for x in self if x is not item):
-                    group_occurs = 1
+                    self.occurs[self.group] += 1
                 else:
                     group_occurs = max(1, item_occurs // (item.min_occurs or 1))
                     if self.group.is_over(group_occurs):
                         group_occurs = self.group.max_occurs
-                self.occurs[self.group] += max(1, group_occurs)
+                    self.occurs[self.group] += max(1, group_occurs)
+
             return item.is_missing(max(item_occurs, occurs[(item,)]))
 
         element, occurs = self.element, self.occurs
@@ -513,10 +503,9 @@ class ModelVisitor(MutableSequence):
             self.match = True
             if self.group.model == 'all':
                 self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
-            elif self.group.model == 'choice':  # or len(self.group) == 1:
-                if not element.is_over(occurs[element]) or element.is_ambiguous():
-                    return
             elif not element.is_over(occurs[element]):
+                return
+            elif self.group.model == 'choice' and element.is_ambiguous():
                 return
 
         obj = None
@@ -535,7 +524,7 @@ class ModelVisitor(MutableSequence):
                     self.group = obj
                     self.items = self.iter_group()
                     self.match = False
-                    occurs[obj] = 0
+                    occurs[obj] = occurs[(obj,)] = 0
 
                 elif obj is not None:
                     # XsdElement or XsdAnyElement
@@ -694,83 +683,3 @@ class ModelVisitor(MutableSequence):
         for name, values in unordered_content.items():
             for v in values:
                 yield name, v
-
-
-class Occurrence(object):
-    """
-    Class for XSD particles occurrence counting and comparison.
-    """
-    def __init__(self, occurs):
-        self.occurs = occurs
-
-    def add(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = None
-        else:
-            self.occurs += occurs
-
-    def sub(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = 0
-        else:
-            self.occurs -= occurs
-
-    def mul(self, occurs):
-        if occurs == 0:
-            self.occurs = 0
-        elif not self.occurs:
-            pass
-        elif occurs is None:
-            self.occurs = None
-        else:
-            self.occurs *= occurs
-
-    def max(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = occurs
-        else:
-            self.occurs = max(self.occurs, occurs)
-
-    def __eq__(self, occurs):
-        return self.occurs == occurs
-
-    def __ne__(self, occurs):
-        return self.occurs != occurs
-
-    def __ge__(self, occurs):
-        if self.occurs is None:
-            return True
-        elif occurs is None:
-            return False
-        else:
-            return self.occurs >= occurs
-
-    def __gt__(self, occurs):
-        if self.occurs is None:
-            return True
-        elif occurs is None:
-            return False
-        else:
-            return self.occurs > occurs
-
-    def __le__(self, occurs):
-        if occurs is None:
-            return True
-        elif self.occurs is None:
-            return False
-        else:
-            return self.occurs <= occurs
-
-    def __lt__(self, occurs):
-        if occurs is None:
-            return True
-        elif self.occurs is None:
-            return False
-        else:
-            return self.occurs < occurs
