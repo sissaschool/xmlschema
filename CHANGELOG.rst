@@ -2,12 +2,11 @@
 CHANGELOG
 *********
 
-`v1.0.16`_ (2019-11-15)
+`v1.0.16`_ (2019-11-18)
 =======================
 * Improved XMLResource class for working with compressed files
 * Fix for validation with XSD wildcards and 'lax' process content
 * Fix ambiguous items validation for xs:choice and xs:sequence models
-* Dozens of W3C's failed tests fixed
 
 `v1.0.15`_ (2019-10-13)
 =======================
