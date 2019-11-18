@@ -526,7 +526,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
             if model_element is not xsd_element and model_element.block:
                 for derivation in model_element.block.split():
-                    if xsd_type.is_derived(model_element.type, derivation):
+                    if xsd_type is not model_element.type and \
+                            xsd_type.is_derived(model_element.type, derivation):
                         reason = "usage of %r with type %s is blocked by head element"
                         raise XMLSchemaValidationError(self, reason % (xsd_element, derivation))
 
@@ -578,7 +579,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
                     pass  # [XsdAnyElement()] equals to an empty complexType declaration
                 else:
-                    reason = "character data between child elements not allowed!"
+                    reason = "character data between child elements not allowed"
                     yield self.validation_error(validation, reason, elem, **kwargs)
                     cdata_index = 0  # Do not decode CDATA
 

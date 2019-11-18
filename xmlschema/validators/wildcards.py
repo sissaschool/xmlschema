@@ -782,8 +782,8 @@ class XsdOpenContent(XsdComponent):
         return True
 
     def is_restriction(self, other):
-        if self.mode == 'none' or other is None or other.mode == 'none':
-            return True
+        if other is None or other.mode == 'none':
+            return self.mode == 'none'
         elif self.mode == 'interleave' and other.mode == 'suffix':
             return False
         else:

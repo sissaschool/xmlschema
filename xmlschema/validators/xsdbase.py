@@ -701,8 +701,8 @@ class XsdType(XsdComponent):
         return any(self.is_derived(xsd_type, derivation) for derivation in block)
 
     def is_dynamic_consistent(self, other):
-        return self.is_derived(other) or hasattr(other, 'member_types') and \
-            any(self.is_derived(mt) for mt in other.member_types)
+        return other is self.any_type or self.is_derived(other) or \
+            hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])

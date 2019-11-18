@@ -531,6 +531,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield converter.element_decode(element_data, self, level)
                 return
 
+        if xsd_type.is_empty() and elem.text:
+            reason = "character data is not allowed because the type's content is empty"
+            yield self.validation_error(validation, reason, elem, **kwargs)
+
         if not xsd_type.has_simple_content():
             for assertion in xsd_type.assertions:
                 for error in assertion(elem, **kwargs):
