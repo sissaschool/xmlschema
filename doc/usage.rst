@@ -544,7 +544,7 @@ From next minor release (v1.1) the default class will become :class:`XMLSchema11
 
 
 XML entity-based attacks protection
-...................................
+-----------------------------------
 
 The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
 the pure Python version of XMLParser that forbids the use of entities.
