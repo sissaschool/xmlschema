@@ -235,7 +235,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             elif text == self.fixed or validation == 'skip':
                 pass
             elif self.type.text_decode(text) != self.type.text_decode(self.fixed):
-                yield self.validation_error(validation, "value differs from fixed value", text, **kwargs)
+                msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
+                yield self.validation_error(validation, msg, text, **kwargs)
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
@@ -286,9 +287,12 @@ class Xsd11Attribute(XsdAttribute):
 
     @property
     def target_namespace(self):
-        if self._target_namespace is None:
+        if self._target_namespace is not None:
+            return self._target_namespace
+        elif self.ref is not None:
+            return self.ref.target_namespace
+        else:
             return self.schema.target_namespace
-        return self._target_namespace
 
     def _parse(self):
         super(Xsd11Attribute, self)._parse()
@@ -594,7 +598,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 reason = "missing required attribute: %r" % k
                 yield self.validation_error(validation, reason, attrs, **kwargs)
 
+        kwargs['level'] = kwargs.get('level', 0) + 1
         use_defaults = kwargs.get('use_defaults', True)
+        id_map = kwargs.get('id_map', '')
+        num_id = len(id_map)
+
         additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
@@ -637,6 +645,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 else:
                     result_list.append((name, result))
                     break
+
+        if self.xsd_version == '1.0' and len(id_map) - num_id > 1:
+            reason = "No more than one attribute of type ID should be present in an element"
+            yield self.validation_error(validation, reason, attrs, **kwargs)
 
         if kwargs.get('fill_missing') is True:
             if filler is None:

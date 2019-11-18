@@ -21,7 +21,7 @@ from ..exceptions import XMLSchemaAttributeError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
-    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ID, XSD_ERROR, get_qname
+    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
 from ..etree import etree_element
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     ParticleCounter, strictly_equal
@@ -244,15 +244,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if not self.type.is_valid(attrib['default']):
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
-            elif self.xsd_version == '1.0' and (
-                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
                 msg = "'fixed' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
-            elif self.xsd_version == '1.0' and (
-                    self.type.name == XSD_ID or self.type.is_derived(self.schema.meta_schema.types['ID'])):
+            elif self.xsd_version == '1.0' and self.type.is_key():
                 self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
 
         return 0
@@ -458,14 +456,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             text = self.fixed if self.fixed is not None else self.default
         return self.type.text_decode(text)
 
-    def iter_decode(self, elem, validation='lax', converter=None, level=0, **kwargs):
+    def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
-        :param level: the depth of the element in the tree structure.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -473,8 +469,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if self.abstract:
             yield self.validation_error(validation, "cannot use an abstract element for validation", elem, **kwargs)
 
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
+        try:
+            level = kwargs['level']
+        except KeyError:
+            level = kwargs['level'] = 0
+
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
+        else:
+            if not isinstance(converter, XMLSchemaConverter):
+                converter = kwargs['converter'] = self.get_converter(**kwargs)
+
         inherited = kwargs.get('inherited')
         value = content = attributes = None
 
@@ -492,7 +499,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
-        for result in attribute_group.iter_decode(elem.attrib, validation, level=level, **kwargs):
+        for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield self.validation_error(validation, result, elem, **kwargs)
             else:
@@ -524,13 +531,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield converter.element_decode(element_data, self, level)
                 return
 
+        if xsd_type.is_empty() and elem.text:
+            reason = "character data is not allowed because the type's content is empty"
+            yield self.validation_error(validation, reason, elem, **kwargs)
+
         if not xsd_type.has_simple_content():
             for assertion in xsd_type.assertions:
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
 
-            for result in xsd_type.content_type.iter_decode(
-                    elem, validation, converter, level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -566,15 +576,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 xsd_type = xsd_type.content_type
 
             if text is None:
-                for result in xsd_type.iter_decode('', validation, _skip_id=True, **kwargs):
+                for result in xsd_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                if level == 0 or self.xsd_version != '1.0':
-                    kwargs['_skip_id'] = True
-
                 for result in xsd_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
@@ -601,29 +608,40 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             del content
 
         if validation != 'skip':
-            for constraint in self.identities.values():
-                if isinstance(constraint, XsdKeyref) and '_no_deep' in kwargs:  # TODO: Complete lazy validation
-                    continue
-                for error in constraint(elem, converter):
-                    yield self.validation_error(validation, error, elem, **kwargs)
+            if 'max_depth' in kwargs:
+                # Don't check key references with lazy or shallow validation
+                for constraint in filter(lambda x: not isinstance(x, XsdKeyref), self.identities.values()):
+                    for error in constraint(elem, converter):
+                        yield self.validation_error(validation, error, elem, **kwargs)
+            else:
+                for constraint in self.identities.values():
+                    for error in constraint(elem, converter):
+                        yield self.validation_error(validation, error, elem, **kwargs)
 
-    def iter_encode(self, obj, validation='lax', converter=None, level=0, **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         """
         Creates an iterator for encoding data to an Element.
 
         :param obj: the data that has to be encoded.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
-        for the encoding.
-        :param level: the depth of the element data in the tree structure.
         :param kwargs: keyword arguments for the encoding process.
         :return: yields an Element, eventually preceded by a sequence of \
         validation or encoding errors.
         """
-        if not isinstance(converter, XMLSchemaConverter):
-            converter = self.schema.get_converter(converter, level=level, **kwargs)
-        element_data = converter.element_encode(obj, self, level)
+        try:
+            converter = kwargs['converter']
+        except KeyError:
+            converter = kwargs['converter'] = self.get_converter(**kwargs)
+        else:
+            if not isinstance(converter, XMLSchemaConverter):
+                converter = kwargs['converter'] = self.get_converter(**kwargs)
 
+        try:
+            level = kwargs['level']
+        except KeyError:
+            level = 0
+
+        element_data = converter.element_encode(obj, self, level)
         errors = []
         tag = element_data.tag
         text = None
@@ -683,8 +701,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         text = result
         else:
-            for result in xsd_type.content_type.iter_encode(
-                    element_data, validation, converter, level + 1, **kwargs):
+            for result in xsd_type.content_type.iter_encode(element_data, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     errors.append(result)
                 elif result:
@@ -700,26 +717,38 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def is_matching(self, name, default_namespace=None, group=None):
         if default_namespace and name[0] != '{':
-            name = '{%s}%s' % (default_namespace, name)
-
-        if name in self.names:
-            return True
-
-        for xsd_element in self.iter_substitutes():
-            if name in xsd_element.names:
+            qname = '{%s}%s' % (default_namespace, name)
+            if name in self.names or qname in self.names:
                 return True
+
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names or qname in xsd_element.names:
+                    return True
+
+        elif name in self.names:
+            return True
+        else:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names:
+                    return True
         return False
 
     def match(self, name, default_namespace=None, **kwargs):
         if default_namespace and name[0] != '{':
-            name = '{%s}%s' % (default_namespace, name)
+            qname = '{%s}%s' % (default_namespace, name)
+            if name in self.names or qname in self.names:
+                return self
 
-        if name in self.names:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names or qname in xsd_element.names:
+                    return xsd_element
+
+        elif name in self.names:
             return self
-
-        for xsd_element in self.iter_substitutes():
-            if name in xsd_element.names:
-                return xsd_element
+        else:
+            for xsd_element in self.iter_substitutes():
+                if name in xsd_element.names:
+                    return xsd_element
 
     def is_restriction(self, other, check_occurs=True):
         if isinstance(other, XsdAnyElement):
@@ -890,9 +919,12 @@ class Xsd11Element(XsdElement):
 
     @property
     def target_namespace(self):
-        if self._target_namespace is None:
+        if self._target_namespace is not None:
+            return self._target_namespace
+        elif self.ref is not None:
+            return self.ref.target_namespace
+        else:
             return self.schema.target_namespace
-        return self._target_namespace
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
@@ -933,6 +965,7 @@ class Xsd11Element(XsdElement):
 
         if inherited:
             dummy = etree_element('_dummy_element', attrib=inherited)
+            dummy.attrib.update(elem.attrib)
 
             for alt in filter(lambda x: x.type is not None, self.alternatives):
                 if alt.token is None or alt.test(elem) or alt.test(dummy):

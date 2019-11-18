@@ -60,6 +60,10 @@ features/namespaces/default_ns_valid2.xsd
 features/namespaces/import-case1.xsd --errors=1  # Unknown type
 features/namespaces/import-case2.xsd --errors=1  # Missing namespace import in imported chameleon schema
 features/namespaces/import-case3.xsd
+features/namespaces/import-case4a.xsd
+features/namespaces/import-case4b.xsd
+features/namespaces/import-case4-1.xml  # This and the next are also regression tests for issue #140
+features/namespaces/import-case4-2.xml
 features/namespaces/include-case1.xsd
 features/namespaces/include-case1bis.xsd
 features/namespaces/include-case2.xsd

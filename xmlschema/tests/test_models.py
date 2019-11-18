@@ -15,12 +15,14 @@ This module runs tests concerning model groups validation.
 import unittest
 
 from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.validators import ModelVisitor
+from xmlschema.validators import XsdElement, ModelVisitor
 from xmlschema.compat import ordered_dict_class
 from xmlschema.tests import casepath, XsdValidatorTestCase
 
 
 class TestModelValidation(XsdValidatorTestCase):
+
+    schema_class = XMLSchema10
 
     # --- Test helper functions ---
 
@@ -515,6 +517,146 @@ class TestModelValidation(XsdValidatorTestCase):
         self.assertIsNone(model.element)
 
     #
+    # Test pathological cases
+    def test_empty_choice_groups(self):
+        schema = self.schema_class("""<?xml version="1.0"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:group name="group1">
+                <xs:sequence>
+                    <xs:choice minOccurs="0">
+                        <xs:choice minOccurs="0"/>
+                    </xs:choice>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:group>
+            <xs:element name="root">
+                <xs:complexType>
+                    <xs:choice>
+                        <xs:group ref="group1"/>
+                    </xs:choice>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>""")
+
+        xml_data = "<root><elem1/></root>"
+        model = ModelVisitor(schema.elements['root'].type.content_type)
+        self.assertIsInstance(model.element, XsdElement)
+        self.assertEqual(model.element.name, 'elem1')
+        self.assertIsNone(schema.validate(xml_data))
+
+    def test_sequence_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="2" maxOccurs="unbounded">
+                            <xs:element name="ax" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><ax/><ax/></root>'))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                            <xs:element name="a" minOccurs="2" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
+
+    def test_sequence_model_with_nested_choice_model(self):
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                            <xs:group ref="group1" minOccurs="2" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:group name="group1">
+                    <xs:choice>
+                        <xs:element name="a" maxOccurs="unbounded"/>
+                        <xs:element name="b"/>
+                        <xs:element name="c"/>
+                    </xs:choice>
+                </xs:group>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
+
+    def test_sequence_model_with_optional_elements(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="2" maxOccurs="2">
+                            <xs:element name="a" minOccurs="1" maxOccurs="2" />
+                            <xs:element name="b" minOccurs="0" />
+                        </xs:sequence>
+                    </xs:complexType>
+               </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/><b/></root>'))
+
+    def test_choice_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:choice maxOccurs="unbounded" minOccurs="0">
+                            <xs:element maxOccurs="5" minOccurs="3" name="a"/>
+                            <xs:element maxOccurs="5" minOccurs="3" name="b"/>
+                        </xs:choice>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/></root>'))
+        self.assertIsNone(schema.validate('<root><a/><a/><a/><a/><a/><a/></root>'))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                    <xs:choice minOccurs="2" maxOccurs="3">
+                        <xs:element name="a" maxOccurs="unbounded"/>
+                        <xs:element name="b" maxOccurs="unbounded"/>
+                        <xs:element name="c"/>
+                    </xs:choice>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
+
+    #
     # Tests on issues
     def test_issue_086(self):
         issue_086_xsd = casepath('issues/issue_086/issue_086.xsd')
@@ -575,6 +717,98 @@ class TestModelValidation(XsdValidatorTestCase):
 
 class TestModelValidation11(TestModelValidation):
     schema_class = XMLSchema11
+
+    def test_all_model_with_wildcard(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" type="xs:string" />
+                            <xs:any maxOccurs="3" processContents="lax" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = """
+            <root>
+              <wildcard1/>
+              <a>1</a>
+              <wildcard2/>
+              <wildcard3/>
+            </root>
+            """
+
+        self.assertIsNone(schema.validate(xml_data))
+
+    def test_all_model_with_extended_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" minOccurs="0" maxOccurs="5"/>
+                            <xs:element name="b" maxOccurs="5"/>
+                            <xs:element name="c" minOccurs="2" maxOccurs="5"/>
+                            <xs:element name="d" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = '<root><a/><b/><d/><c/><a/><c/></root>'
+
+        self.assertIsNone(schema.validate(xml_data))
+
+    def test_all_model_with_relaxed_occurs(self):
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" minOccurs="0" maxOccurs="5"/>
+                            <xs:element name="b" maxOccurs="5"/>
+                            <xs:element name="c" minOccurs="2" maxOccurs="unbounded"/>
+                            <xs:element name="d" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """)
+
+        xml_data = '<root><a/><b/><d/><c/><a/><c/><c/><a/><a/><b/></root>'
+
+        self.assertIsNone(schema.validate(xml_data))
+
+        schema = self.schema_class(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all>
+                            <xs:element name="a" minOccurs="0" maxOccurs="5"/>
+                            <xs:group ref="group1"/>
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:group name="group1">
+                    <xs:all>
+                        <xs:element name="b" maxOccurs="5"/>
+                        <xs:element name="c" minOccurs="2" maxOccurs="unbounded"/>
+                        <xs:element name="d" />
+                    </xs:all>
+                </xs:group>
+            </xs:schema>
+            """)
+
+        self.assertIsNone(schema.validate(xml_data))
 
 
 class TestModelBasedSorting(XsdValidatorTestCase):

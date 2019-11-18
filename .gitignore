@@ -6,6 +6,7 @@
 *.json
 .idea/
 .tox/
+.eggs/
 .coverage*
 !.coveragerc
 .ipynb_checkpoints/

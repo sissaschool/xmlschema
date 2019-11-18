@@ -21,6 +21,7 @@ import re
 import argparse
 
 TEST_FACTORY_OPTIONS = {
+    'narrow': '-n' in sys.argv or '--narrow' in sys.argv,         # Skip extra checks (eg. other converters)
     'extra_cases': '-x' in sys.argv or '--extra' in sys.argv,     # Include extra test cases
     'check_with_lxml': '-l' in sys.argv or '--lxml' in sys.argv,  # Check with lxml.etree.XMLSchema (for XSD 1.0)
 }
@@ -28,7 +29,8 @@ TEST_FACTORY_OPTIONS = {
 
 RUN_W3C_TEST_SUITE = '-w' in sys.argv or '--w3c' in sys.argv
 
-sys.argv = [a for a in sys.argv if a not in {'-x', '--extra', '-l', '--lxml'}]  # Clean sys.argv for unittest
+sys.argv = [a for a in sys.argv if a not in
+            {'-x', '--extra', '-l', '--lxml', '-n', '--narrow'}]  # Clean sys.argv for unittest
 
 
 def get_test_args(args_line):

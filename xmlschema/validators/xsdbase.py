@@ -21,6 +21,7 @@ from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring
 from ..helpers import is_etree_element
+from ..converters import XMLSchemaConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaDecodeError, XMLSchemaEncodeError
 
@@ -195,6 +196,27 @@ class XsdValidator(object):
             self.parse_error(msg % (value, ' | '.join(admitted_values)), elem)
             return ''
 
+    def get_converter(self, converter=None, namespaces=None, **kwargs):
+        """
+        Returns a new converter instance.
+
+        :param converter: can be a converter class or instance. If it's an instance \
+        the new instance is copied from it and configured with the provided arguments.
+        :param namespaces: is an optional mapping from namespace prefix to URI.
+        :param kwargs: optional arguments for initialize the converter instance.
+        :return: a converter instance.
+        """
+        if converter is None:
+            converter = getattr(self, 'converter', XMLSchemaConverter)
+
+        if isinstance(converter, XMLSchemaConverter):
+            return converter.copy(namespaces=namespaces, **kwargs)
+        elif issubclass(converter, XMLSchemaConverter):
+            return converter(namespaces, **kwargs)
+        else:
+            msg = "'converter' argument must be a %r subclass or instance: %r"
+            raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
+
 
 class XsdComponent(XsdValidator):
     """
@@ -277,7 +299,7 @@ class XsdComponent(XsdValidator):
     @property
     def target_namespace(self):
         """Property that references to schema's targetNamespace."""
-        return self.schema.target_namespace
+        return self.schema.target_namespace if self.ref is None else self.ref.target_namespace
 
     @property
     def default_namespace(self):
@@ -679,8 +701,8 @@ class XsdType(XsdComponent):
         return any(self.is_derived(xsd_type, derivation) for derivation in block)
 
     def is_dynamic_consistent(self, other):
-        return self.is_derived(other) or hasattr(other, 'member_types') and \
-            any(self.is_derived(mt) for mt in other.member_types)
+        return other is self.any_type or self.is_derived(other) or \
+            hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])

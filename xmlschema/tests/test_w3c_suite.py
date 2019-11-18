@@ -99,6 +99,9 @@ SKIPPED_TESTS = {
     '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
     '../msData/additional/test93490_8.xml',     # 4799: Idem
 
+    # Valid XML tests
+    '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',  # defaultAttributeApply is true (false in comment)
+
     # Skip for missing XML version 1.1 implementation
     '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
     '../saxonData/XmlVersions/xv003.v01.xml',   # 14852

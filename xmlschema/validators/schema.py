@@ -32,8 +32,8 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
     XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, XHTML_NAMESPACE, \
-    XLINK_NAMESPACE, VC_NAMESPACE, NamespaceResourcesMap, NamespaceView
+from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
+    SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
@@ -74,14 +74,6 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
-
-# XSD schemas of W3C standards
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-XML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd')
-XSI_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd')
-XLINK_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xlink.xsd')
-XHTML_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd')
-VC_SCHEMA_FILE = os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd')
 
 
 class XMLSchemaMeta(ABCMeta):
@@ -830,27 +822,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         except KeyError:
             return []
 
-    def get_converter(self, converter=None, namespaces=None, **kwargs):
-        """
-        Returns a new converter instance.
-
-        :param converter: can be a converter class or instance. If it's an instance \
-        the new instance is copied from it and configured with the provided arguments.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param kwargs: optional arguments for initialize the converter instance.
-        :return: a converter instance.
-        """
-        if converter is None:
-            converter = getattr(self, 'converter', XMLSchemaConverter)
-
-        if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(namespaces=namespaces, **kwargs)
-        elif issubclass(converter, XMLSchemaConverter):
-            return converter(namespaces, **kwargs)
-        else:
-            msg = "'converter' argument must be a %r subclass or instance: %r"
-            raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
-
     def get_element(self, tag, path=None, namespaces=None):
         if not path:
             return self.find(tag, namespaces)
@@ -1024,14 +995,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
             self.imports[namespace] = None
 
-    def import_schema(self, namespace, location, base_url=None, force=False):
+    def import_schema(self, namespace, location, base_url=None, force=False, build=False):
         """
         Imports a schema for an external namespace, from a specific URL.
 
         :param namespace: is the URI of the external namespace.
         :param location: is the URL of the schema.
         :param base_url: is an optional base URL for fetching the schema resource.
-        :param force: is set to `True` imports the schema also if the namespace is already imported.
+        :param force: if set to `True` imports the schema also if the namespace is already imported.
+        :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance.
         """
         if not force:
@@ -1058,7 +1030,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             base_url=self.base_url,
             defuse=self.defuse,
             timeout=self.timeout,
-            build=False,
+            build=build,
         )
         if schema.target_namespace != namespace:
             raise XMLSchemaValueError('imported schema %r has an unmatched namespace %r' % (location, namespace))
@@ -1229,17 +1201,30 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         id_map = Counter()
         inherited = {}
 
-        if source.is_lazy() and path is None:
-            # TODO: Document validation in lazy mode.
-            # Validation is done pushing a _no_deep argument for root node and with
-            # a path='*' for validating children. This is a feature under test.
-            xsd_element = self.get_element(source.root.tag, schema_path)
-            if xsd_element is None:
-                yield self.validation_error('lax', "%r is not an element of the schema" % source.root, source.root)
+        namespace = source.namespace or namespaces.get('', '')
+        try:
+            schema = self.maps.namespaces[namespace][0]
+        except (KeyError, IndexError):
+            reason = 'the namespace {!r} is not loaded'.format(namespace)
+            yield self.validation_error('lax', reason, source.root, source, namespaces)
+            return
 
-            for result in xsd_element.iter_decode(source.root, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map, no_depth=True,
-                                                  inherited=inherited, drop_results=True):
+        kwargs = {
+            'source': source,
+            'namespaces': namespaces,
+            'use_defaults': use_defaults,
+            'id_map': id_map,
+            'inherited': inherited
+        }
+
+        if source.is_lazy() and path is None:
+            xsd_element = schema.get_element(source.root.tag, schema_path, namespaces)
+            if xsd_element is None:
+                reason = "{!r} is not an element of the schema".format(source.root)
+                yield schema.validation_error('lax', reason, source.root, source, namespaces)
+                return
+
+            for result in xsd_element.iter_decode(source.root, max_depth=1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1250,13 +1235,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 schema_path = '/%s/*' % source.root.tag
 
         for elem in source.iterfind(path, namespaces):
-            xsd_element = self.get_element(elem.tag, schema_path, self.namespaces)
+            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                yield self.validation_error('lax', "%r is not an element of the schema" % elem, elem)
+                reason = "{!r} is not an element of the schema".format(elem)
+                yield schema.validation_error('lax', reason, elem, source, namespaces)
+                return
 
-            for result in xsd_element.iter_decode(elem, source=source, namespaces=namespaces,
-                                                  use_defaults=use_defaults, id_map=id_map,
-                                                  inherited=inherited, drop_results=True):
+            for result in xsd_element.iter_decode(elem, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield result
                 else:
@@ -1271,7 +1256,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def iter_decode(self, source, path=None, schema_path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
-                    converter=None, filler=None, fill_missing=False, **kwargs):
+                    converter=None, filler=None, fill_missing=False, max_depth=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1299,6 +1284,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         an attribute declaration. If not provided undecodable data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
+        :param max_depth: maximum level of decoding, for default there is no limit.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of validation \
         or decoding errors.
@@ -1330,16 +1316,29 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
             kwargs['filler'] = filler
+        if max_depth is not None:
+            kwargs['max_depth'] = max_depth
+
+        namespace = source.namespace or namespaces.get('', '')
+        try:
+            schema = self.maps.namespaces[namespace][0]
+        except (KeyError, IndexError):
+            reason = 'the namespace {!r} is not loaded'.format(namespace)
+            yield self.validation_error('lax', reason, source.root, source, namespaces)
+            return
 
         for elem in source.iterfind(path, namespaces):
-            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
+            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                yield self.validation_error(validation, "%r is not an element of the schema" % elem, elem)
+                reason = "{!r} is not an element of the schema".format(elem)
+                yield schema.validation_error('lax', reason, elem, source, namespaces)
+                return
 
             for obj in xsd_element.iter_decode(
-                    elem, validation, converter=converter, source=source, namespaces=namespaces,
-                    use_defaults=use_defaults, datetime_types=datetime_types,
-                    fill_missing=fill_missing, id_map=id_map, inherited=inherited, **kwargs):
+                    elem, validation, converter=converter, source=source,
+                    namespaces=namespaces, use_defaults=use_defaults,
+                    datetime_types=datetime_types, fill_missing=fill_missing,
+                    id_map=id_map, inherited=inherited, **kwargs):
                 yield obj
 
         for k, v in id_map.items():
@@ -1401,7 +1400,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         namespaces = {} if namespaces is None else namespaces.copy()
         converter = self.get_converter(converter, namespaces, **kwargs)
 
-        if path is not None:
+        namespace = get_namespace(path) or namespaces.get('', '')
+        if namespace:
+            try:
+                schema = self.maps.namespaces[namespace][0]
+            except (KeyError, IndexError):
+                reason = 'the namespace {!r} is not loaded'.format(namespace)
+                raise XMLSchemaEncodeError(self, obj, self, reason, namespaces=namespaces)
+            else:
+                xsd_element = schema.find(path, namespaces=namespaces)
+        elif path is not None:
             xsd_element = self.find(path, namespaces=namespaces)
         elif isinstance(obj, dict) and len(obj) == 1:
             xsd_element = self.elements.get(list(obj.keys())[0])
@@ -1413,10 +1421,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         if not isinstance(xsd_element, XsdElement):
             if path is not None:
-                msg = "the path %r doesn't match any element of the schema!" % path
+                reason = "the path %r doesn't match any element of the schema!" % path
             else:
-                msg = "unable to select an element for decoding data, provide a valid 'path' argument."
-            yield XMLSchemaEncodeError(self, obj, self.elements, reason=msg)
+                reason = "unable to select an element for decoding data, provide a valid 'path' argument."
+            raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
             for result in xsd_element.iter_encode(obj, validation, converter=converter,
                                                   unordered=unordered, **kwargs):
@@ -1487,13 +1495,10 @@ class XMLSchema10(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: XML_SCHEMA_FILE,
-        XSI_NAMESPACE: XSI_SCHEMA_FILE,
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = {
-        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
-        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
-    }
+    FALLBACK_LOCATIONS = LOCATION_HINTS
 
 
 # ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
@@ -1550,15 +1555,12 @@ class XMLSchema11(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        XML_NAMESPACE: XML_SCHEMA_FILE,
-        XSI_NAMESPACE: XSI_SCHEMA_FILE,
-        VC_NAMESPACE: VC_SCHEMA_FILE,
+        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = {
-        XLINK_NAMESPACE: XLINK_SCHEMA_FILE,
-        XHTML_NAMESPACE: XHTML_SCHEMA_FILE,
-    }
+    FALLBACK_LOCATIONS = LOCATION_HINTS
 
     def _parse_inclusions(self):
         super(XMLSchema11, self)._parse_inclusions()

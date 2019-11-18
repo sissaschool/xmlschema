@@ -38,6 +38,7 @@ def tests_factory(test_class_builder, suffix='xml'):
 
     test_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     testfiles = [os.path.join(test_dir, 'test_cases/testfiles')]
+    narrow = TEST_FACTORY_OPTIONS['narrow']
     if TEST_FACTORY_OPTIONS['extra_cases']:
         package_dir = os.path.dirname(os.path.dirname(test_dir))
         testfiles.extend(glob.glob(os.path.join(package_dir, 'test_cases/testfiles')))
@@ -94,7 +95,9 @@ def tests_factory(test_class_builder, suffix='xml'):
             schema_class = ObservedXMLSchema11 if test_args.inspect else XMLSchema11
             check_with_lxml = False
 
-        test_class = test_class_builder(test_file, test_args, test_num, schema_class, check_with_lxml)
+        test_class = test_class_builder(
+            test_file, test_args, test_num, schema_class, narrow, check_with_lxml
+        )
         test_classes[test_class.__name__] = test_class
         logger.debug("Add XSD %s test class %r.", test_args.version, test_class.__name__)
 

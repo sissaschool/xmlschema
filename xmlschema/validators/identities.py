@@ -201,7 +201,7 @@ class XsdIdentity(XsdComponent):
                     yield XMLSchemaValidationError(self, e, "{!r} is not an element".format(xsd_element))
                 xsd_fields = self.get_fields(xsd_element)
 
-            if all(fld is None for fld in xsd_fields):
+            if not xsd_fields or all(fld is None for fld in xsd_fields):
                 continue
 
             try:

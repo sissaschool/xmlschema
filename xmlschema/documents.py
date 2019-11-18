@@ -171,7 +171,7 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
 
     :param source: can be a string or a :meth:`read()` supporting file-like object \
     containing the JSON document.
-    :param schema: an :class:`XMLSchema` instance.
+    :param schema: an :class:`XMLSchema` or an :class:`XMLSchema11` instance.
     :param path: is an optional XPath expression for selecting the element of the schema \
     that matches the data that has to be encoded. For default the first global element of \
     the schema is used.

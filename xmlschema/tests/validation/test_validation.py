@@ -10,6 +10,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import sys
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError
@@ -55,7 +56,13 @@ class TestValidation(XsdValidatorTestCase):
             path_line = str(err).splitlines()[-1]
         else:
             path_line = ''
-        self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+
+        if sys.version_info >= (3, 6):
+            self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
+        else:
+            self.assertTrue(
+                'Path: /vh:vehicles/vh:cars' == path_line or 'Path: /vhx:vehicles/vhx:cars', path_line
+            )  # Due to unordered dicts
 
         # Issue #80
         vh_2_xt = ElementTree.parse(vh_2_file)
@@ -70,12 +77,32 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root, namespaces=namespaces)
 
-        # Testing adding 'no_depth' argument
         for result in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
-                                              source=source, no_depth=True):
+                                              source=source, max_depth=1):
             del result
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
+
+    def test_max_depth_argument(self):
+        schema = self.schema_class(self.col_xsd_file)
+        self.assertEqual(
+            schema.decode(self.col_xml_file, max_depth=1),
+            {'@xmlns:col': 'http://example.com/ns/collection',
+             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd'})
+
+        xmlschema.limits.MAX_XML_DEPTH = 1
+        with self.assertRaises(XMLSchemaValidationError):
+            self.assertEqual(schema.decode(self.col_xml_file))
+        xmlschema.limits.MAX_XML_DEPTH = 9999
+
+        self.assertEqual(
+            schema.decode(self.col_xml_file, max_depth=2),
+            {'@xmlns:col': 'http://example.com/ns/collection',
+             '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+             '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+             'object': [{'@id': 'b0836217462', '@available': True},
+                        {'@id': 'b0836217463', '@available': True}]})
 
 
 class TestValidation11(TestValidation):

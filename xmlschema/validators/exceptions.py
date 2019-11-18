@@ -317,11 +317,11 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.occurs = occurs
         self.expected = expected
 
-        tag = qname_to_prefixed(elem.tag, validator.namespaces)
+        tag = qname_to_prefixed(elem.tag, validator.namespaces, use_empty=False)
         if index >= len(elem):
             reason = "The content of element %r is not complete." % tag
         else:
-            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces)
+            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces, use_empty=False)
             reason = "Unexpected child with tag %r at position %d." % (child_tag, index + 1)
 
         if occurs and particle.is_missing(occurs):
@@ -346,7 +346,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             if not expected_tags:
                 pass  # reason += " No child element is expected at this point." <-- this can be misleading
             elif len(expected_tags) == 1:
-                reason += " Tag %s expected." % expected_tags[0]
+                reason += " Tag %r expected." % expected_tags[0]
             else:
                 reason += " Tag (%s) expected." % ' | '.join(expected_tags)
 

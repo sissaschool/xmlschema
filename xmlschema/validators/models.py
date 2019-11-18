@@ -14,16 +14,12 @@ This module contains classes and functions for processing XSD content models.
 from __future__ import unicode_literals
 from collections import defaultdict, deque, Counter
 
+from .. import limits
 from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .xsdbase import ParticleMixin
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-
-MAX_MODEL_DEPTH = 15
-"""Limit depth for safe visiting of models"""
-
-XSD_GROUP_MODELS = {'sequence', 'choice', 'all'}
 
 
 class ModelGroup(MutableSequence, ParticleMixin):
@@ -34,7 +30,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
     parent = None
 
     def __init__(self, model):
-        assert model in XSD_GROUP_MODELS, "Not a valid value for 'model'"
         self._group = []
         self.model = model
 
@@ -61,7 +56,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def __setattr__(self, name, value):
         if name == 'model' and value is not None:
-            if value not in XSD_GROUP_MODELS:
+            if value not in {'sequence', 'choice', 'all'}:
                 raise XMLSchemaValueError("invalid model group %r." % value)
             if self.model is not None and value != self.model and self.model != 'all':
                 raise XMLSchemaValueError("cannot change group model from %r to %r" % (self.model, value))
@@ -165,11 +160,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
         """
         A generator function iterating elements and groups of a model group. Skips pointless groups,
         iterating deeper through them. Raises `XMLSchemaModelDepthError` if the argument *depth* is
-        over `MAX_MODEL_DEPTH` value.
+        over `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
-        if depth > MAX_MODEL_DEPTH:
+        if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if not isinstance(item, ModelGroup):
@@ -183,11 +178,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def iter_elements(self, depth=0):
         """
         A generator function iterating model's elements. Raises `XMLSchemaModelDepthError` if the
-        argument *depth* is over `MAX_MODEL_DEPTH` value.
+        argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
-        if depth > MAX_MODEL_DEPTH:
+        if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if isinstance(item, ModelGroup):
@@ -203,12 +198,12 @@ class ModelGroup(MutableSequence, ParticleMixin):
         :raises: an `XMLSchemaModelError` at first violated constraint.
         """
         def safe_iter_path(group, depth):
-            if depth > MAX_MODEL_DEPTH:
+            if not depth:
                 raise XMLSchemaModelDepthError(group)
             for item in group:
                 if isinstance(item, ModelGroup):
                     current_path.append(item)
-                    for _item in safe_iter_path(item, depth + 1):
+                    for _item in safe_iter_path(item, depth - 1):
                         yield _item
                     current_path.pop()
                 else:
@@ -221,7 +216,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         except AttributeError:
             any_element = None
 
-        for e in safe_iter_path(self, 0):
+        for e in safe_iter_path(self, limits.MAX_MODEL_DEPTH):
             for pe, previous_path in paths.values():
                 # EDC check
                 if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
@@ -343,7 +338,9 @@ class ModelVisitor(MutableSequence):
         self.occurs = Counter()
         self._subgroups = []
         self.element = None
-        self.group, self.items, self.match = root, iter(root), False
+        self.group = root
+        self.items = self.iter_group()
+        self.match = False
         self._start()
 
     def __str__(self):
@@ -379,17 +376,26 @@ class ModelVisitor(MutableSequence):
         del self._subgroups[:]
         self.occurs.clear()
         self.element = None
-        self.group, self.items, self.match = self.root, iter(self.root), False
+        self.group = self.root
+        self.items = self.iter_group()
+        self.match = False
 
     def _start(self):
         while True:
             item = next(self.items, None)
-            if item is None or not isinstance(item, ModelGroup):
+            if item is None:
+                if not self:
+                    break
+                else:
+                    self.group, self.items, self.match = self.pop()
+            elif not isinstance(item, ModelGroup):
                 self.element = item
                 break
             elif item:
                 self.append((self.group, self.items, self.match))
-                self.group, self.items, self.match = item, iter(item), False
+                self.group = item
+                self.items = self.iter_group()
+                self.match = False
 
     @property
     def expected(self):
@@ -421,6 +427,15 @@ class ModelVisitor(MutableSequence):
             for e in self.advance():
                 yield e
 
+    def iter_group(self):
+        """Returns an iterator for the current model group."""
+        if self.group.model != 'all':
+            return iter(self.group)
+        elif not self.occurs:
+            return self.group.iter_elements()
+        else:
+            return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))
+
     def advance(self, match=False):
         """
         Generator function for advance to the next element. Yields tuples with
@@ -438,29 +453,55 @@ class ModelVisitor(MutableSequence):
             if isinstance(item, ModelGroup):
                 self.group, self.items, self.match = self.pop()
 
-            item_occurs = occurs[item]
-            model = self.group.model
-            if item_occurs:
-                self.match = True
-                if model == 'choice':
-                    occurs[item] = 0
-                    occurs[self.group] += 1
-                    self.items, self.match = iter(self.group), False
-                elif model == 'sequence' and item is self.group[-1]:
-                    self.occurs[self.group] += 1
-                return item.is_missing(item_occurs)
-
-            elif model == 'sequence':
-                if self.match:
-                    if item is self.group[-1]:
-                        occurs[self.group] += 1
-                    return not item.is_emptiable()
-                elif item.is_emptiable():
+            if self.group.model == 'choice':
+                item_occurs = occurs[item]
+                if not item_occurs:
                     return False
-                elif self.group.min_occurs <= occurs[self.group] or self:
-                    return stop_item(self.group)
-                else:
-                    return True
+                item_max_occurs = occurs[(item,)] or item_occurs
+
+                min_group_occurs = max(1, item_occurs // (item.max_occurs or item_occurs))
+                max_group_occurs = max(1, item_max_occurs // (item.min_occurs or 1))
+
+                occurs[self.group] += min_group_occurs
+                occurs[(self.group,)] += max_group_occurs
+                occurs[item] = 0
+
+                self.items = self.iter_group()
+                self.match = False
+                return item.is_missing(item_max_occurs)
+
+            elif self.group.model == 'all':
+                return False
+            elif self.match:
+                pass
+            elif occurs[item]:
+                self.match = True
+            elif item.is_emptiable():
+                return False
+            elif self.group.min_occurs <= max(occurs[self.group], occurs[(self.group,)]) or self:
+                return stop_item(self.group)
+            else:
+                return True
+
+            if item is self.group[-1]:
+                for k, item2 in enumerate(self.group, start=1):
+                    item_occurs = occurs[item2]
+                    if not item_occurs:
+                        continue
+
+                    item_max_occurs = occurs[(item2,)] or item_occurs
+                    if item_max_occurs == 1 or any(not x.is_emptiable() for x in self.group[k:]):
+                        self.occurs[self.group] += 1
+                        break
+
+                    min_group_occurs = max(1, item_occurs // (item2.max_occurs or item_occurs))
+                    max_group_occurs = max(1, item_max_occurs // (item2.min_occurs or 1))
+
+                    occurs[self.group] += min_group_occurs
+                    occurs[(self.group,)] += max_group_occurs
+                    break
+
+            return item.is_missing(max(occurs[item], occurs[(item,)]))
 
         element, occurs = self.element, self.occurs
         if element is None:
@@ -469,7 +510,11 @@ class ModelVisitor(MutableSequence):
         if match:
             occurs[element] += 1
             self.match = True
-            if not element.is_over(occurs[element]):
+            if self.group.model == 'all':
+                self.items = (e for e in self.group.iter_elements() if not e.is_over(occurs[e]))
+            elif not element.is_over(occurs[element]):
+                return
+            elif self.group.model == 'choice' and element.is_ambiguous():
                 return
 
         obj = None
@@ -478,47 +523,46 @@ class ModelVisitor(MutableSequence):
                 yield element, occurs[element], [element]
 
             while True:
-                while self.group.is_over(occurs[self.group]):
+                while self.group.is_over(max(occurs[self.group], occurs[(self.group,)])):
                     stop_item(self.group)
 
                 obj = next(self.items, None)
-                if obj is None:
-                    if not self.match:
-                        if self.group.model == 'all':
-                            for e in self.group:
-                                occurs[e] = occurs[(e,)]
-                            if all(e.min_occurs <= occurs[e] for e in self.group):
-                                occurs[self.group] = 1
-                        group, expected = self.group, self.expected
-                        if stop_item(group) and expected:
-                            yield group, occurs[group], expected
-                    elif self.group.model != 'all':
-                        self.items, self.match = iter(self.group), False
-                    elif any(not e.is_over(occurs[e]) for e in self.group):
-                        for e in self.group:
-                            occurs[(e,)] += occurs[e]
-                        self.items, self.match = (e for e in self.group if not e.is_over(occurs[e])), False
-                    else:
-                        for e in self.group:
-                            occurs[(e,)] += occurs[e]
-                        occurs[self.group] = 1
+                if isinstance(obj, ModelGroup):
+                    # inner 'sequence' or 'choice' XsdGroup
+                    self.append((self.group, self.items, self.match))
+                    self.group = obj
+                    self.items = self.iter_group()
+                    self.match = False
+                    occurs[obj] = occurs[(obj,)] = 0
 
-                elif not isinstance(obj, ModelGroup):  # XsdElement or XsdAnyElement
-                    self.element, occurs[obj] = obj, 0
+                elif obj is not None:
+                    # XsdElement or XsdAnyElement
+                    self.element = obj
+                    if self.group.model == 'sequence':
+                        occurs[obj] = 0
                     return
 
+                elif not self.match:
+                    if self.group.model == 'all':
+                        if all(e.min_occurs <= occurs[e] for e in self.group.iter_elements()):
+                            occurs[self.group] = 1
+
+                    group, expected = self.group, self.expected
+                    if stop_item(group) and expected:
+                        yield group, occurs[group], expected
+
+                elif self.group.model != 'all':
+                    self.items, self.match = self.iter_group(), False
+                elif any(not e.is_over(occurs[e]) for e in self.group):
+                    self.items = self.iter_group()
+                    self.match = False
                 else:
-                    self.append((self.group, self.items, self.match))
-                    self.group, self.items, self.match = obj, iter(obj), False
-                    occurs[obj] = 0
-                    if obj.model == 'all':
-                        for e in obj:
-                            occurs[(e,)] = 0
+                    occurs[self.group] = 1
 
         except IndexError:
             # Model visit ended
             self.element = None
-            if self.group.is_missing(occurs[self.group]):
+            if self.group.is_missing(max(occurs[self.group], occurs[(self.group,)])):
                 if self.group.model == 'choice':
                     yield self.group, occurs[self.group], self.expected
                 elif self.group.model == 'sequence':
@@ -648,83 +692,3 @@ class ModelVisitor(MutableSequence):
         for name, values in unordered_content.items():
             for v in values:
                 yield name, v
-
-
-class Occurrence(object):
-    """
-    Class for XSD particles occurrence counting and comparison.
-    """
-    def __init__(self, occurs):
-        self.occurs = occurs
-
-    def add(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = None
-        else:
-            self.occurs += occurs
-
-    def sub(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = 0
-        else:
-            self.occurs -= occurs
-
-    def mul(self, occurs):
-        if occurs == 0:
-            self.occurs = 0
-        elif not self.occurs:
-            pass
-        elif occurs is None:
-            self.occurs = None
-        else:
-            self.occurs *= occurs
-
-    def max(self, occurs):
-        if self.occurs is None:
-            pass
-        elif occurs is None:
-            self.occurs = occurs
-        else:
-            self.occurs = max(self.occurs, occurs)
-
-    def __eq__(self, occurs):
-        return self.occurs == occurs
-
-    def __ne__(self, occurs):
-        return self.occurs != occurs
-
-    def __ge__(self, occurs):
-        if self.occurs is None:
-            return True
-        elif occurs is None:
-            return False
-        else:
-            return self.occurs >= occurs
-
-    def __gt__(self, occurs):
-        if self.occurs is None:
-            return True
-        elif occurs is None:
-            return False
-        else:
-            return self.occurs > occurs
-
-    def __le__(self, occurs):
-        if occurs is None:
-            return True
-        elif self.occurs is None:
-            return False
-        else:
-            return self.occurs <= occurs
-
-    def __lt__(self, occurs):
-        if occurs is None:
-            return True
-        elif self.occurs is None:
-            return False
-        else:
-            return self.occurs < occurs

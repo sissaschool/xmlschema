@@ -12,10 +12,13 @@
 This module contains namespace definitions for W3C core standards and namespace related classes.
 """
 from __future__ import unicode_literals
+import os
 import re
 
 from .compat import MutableMapping, Mapping
 
+###
+# Namespace URIs
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
 
@@ -42,10 +45,34 @@ VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
 
+###
+# Schema location hints
+
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'validators/schemas/')
+
+LOCATION_HINTS = {
+    # Locally saved schemas
+    HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
+    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd'),
+    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd'),
+
+    # Remote locations: contributors can propose additional official locations
+    # for other namespaces for extending this list.
+    XSLT_NAMESPACE: os.path.join(SCHEMAS_DIR, 'http://www.w3.org/2007/schema-for-xslt20.xsd'),
+}
+
+
+###
+# Helper functions and classes
+
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
 def get_namespace(name):
+    if not name or name[0] != '{':
+        return ''
+
     try:
         return NAMESPACE_PATTERN.match(name).group(1)
     except (AttributeError, TypeError):
