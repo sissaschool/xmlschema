@@ -11,7 +11,7 @@
     <xs:element name="tree">
         <xs:complexType defaultAttributesApply="false">
             <xs:sequence>
-                <xs:element name="node" maxOccurs="unbounded" type="ns:node-type"/>
+                <xs:element name="node" maxOccurs="unbounded" form="qualified" type="ns:node-type"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>

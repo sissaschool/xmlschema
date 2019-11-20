@@ -109,18 +109,14 @@ class TestValidation11(TestValidation):
     schema_class = XMLSchema11
 
     def test_default_attributes(self):
-        """<?xml version="1.0" encoding="UTF-8"?>
-                <ns:node xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                xsi:schemaLocation="ns ./default_attributes.xsd" colour="red">Root Node</ns:node>
-        """
         xs = self.schema_class(self.casepath('features/attributes/default_attributes.xsd'))
-        self.assertTrue(xs.is_valid("<tree xmlns='ns'>"
-                                    "   <node node-id='1'>alpha</node>"
-                                    "   <node node-id='2' colour='red'>beta</node>"
+        self.assertTrue(xs.is_valid("<tree xmlns='ns'>\n"
+                                    "   <node node-id='1'>alpha</node>\n"
+                                    "   <node node-id='2' colour='red'>beta</node>\n"
                                     "</tree>"))
-        self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
-                                     "   <node>alpha</node>"  # Misses required attribute
-                                     "   <node node-id='2' colour='red'>beta</node>"
+        self.assertFalse(xs.is_valid("<tree xmlns='ns'>\n"
+                                     "   <node>alpha</node>\n"  # Misses required attribute
+                                     "   <node node-id='2' colour='red'>beta</node>\n"
                                      "</tree>"))
 
 

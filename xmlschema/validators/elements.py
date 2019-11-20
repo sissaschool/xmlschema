@@ -79,10 +79,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __init__(self, elem, schema, parent):
         super(XsdElement, self).__init__(elem, schema, parent)
-        if self.qualified or self.ref is not None or 'targetNamespace' in elem.attrib:
-            self.names = (self.qualified_name,)
-        else:
-            self.names = (self.qualified_name, self.local_name)
         if self.type is None:
             raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
         if self.qualified is None:
@@ -718,36 +714,29 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def is_matching(self, name, default_namespace=None, group=None):
         if default_namespace and name[0] != '{':
             qname = '{%s}%s' % (default_namespace, name)
-            if name in self.names or qname in self.names:
+            if name == self.name or qname == self.name:
                 return True
-
-            for xsd_element in self.iter_substitutes():
-                if name in xsd_element.names or qname in xsd_element.names:
-                    return True
-
-        elif name in self.names:
+            return any(name == e.name or qname == e.name for e in self.iter_substitutes())
+        elif name == self.name:
             return True
         else:
-            for xsd_element in self.iter_substitutes():
-                if name in xsd_element.names:
-                    return True
-        return False
+            return any(name == e.name for e in self.iter_substitutes())
 
     def match(self, name, default_namespace=None, **kwargs):
         if default_namespace and name[0] != '{':
             qname = '{%s}%s' % (default_namespace, name)
-            if name in self.names or qname in self.names:
+            if name == self.name or qname == self.name:
                 return self
 
             for xsd_element in self.iter_substitutes():
-                if name in xsd_element.names or qname in xsd_element.names:
+                if name == xsd_element.name or qname == xsd_element.name:
                     return xsd_element
 
-        elif name in self.names:
+        elif name == self.name:
             return self
         else:
             for xsd_element in self.iter_substitutes():
-                if name in xsd_element.names:
+                if name == xsd_element.name:
                     return xsd_element
 
     def is_restriction(self, other, check_occurs=True):
@@ -758,9 +747,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
             return other.is_matching(self.name, self.default_namespace)
         elif isinstance(other, XsdElement):
-            if self.name == other.name:
-                pass
-            elif any(n not in other.names for n in self.names):
+            if self.name != other.name:
                 if other.name == self.substitution_group and \
                         other.min_occurs != other.max_occurs and \
                         self.max_occurs != 0 and not other.abstract \
@@ -777,8 +764,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         break
                 else:
                     return False
-            else:
-                return False
 
             if check_occurs and not self.has_occurs_restriction(other):
                 return False
