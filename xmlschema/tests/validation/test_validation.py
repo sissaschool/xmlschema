@@ -68,6 +68,10 @@ class TestValidation(XsdValidatorTestCase):
         vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
+        # Issue #145
+        with open(self.vh_xml_file) as f:
+            self.assertIsNone(xmlschema.validate(f, schema=self.vh_xsd_file))
+
     def test_document_validate_api_lazy(self):
         source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
         namespaces = source.get_namespaces()
@@ -93,7 +97,7 @@ class TestValidation(XsdValidatorTestCase):
 
         xmlschema.limits.MAX_XML_DEPTH = 1
         with self.assertRaises(XMLSchemaValidationError):
-            self.assertEqual(schema.decode(self.col_xml_file))
+            schema.decode(self.col_xml_file)
         xmlschema.limits.MAX_XML_DEPTH = 9999
 
         self.assertEqual(

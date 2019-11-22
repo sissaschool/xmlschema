@@ -13,17 +13,20 @@ import json
 
 from .compat import ordered_dict_class
 from .resources import fetch_schema_locations, XMLResource
-from .validators.schema import XMLSchema, XMLSchemaBase
+from .validators import XMLSchema, XMLSchemaBase
 
 
 def get_context(source, schema=None, cls=None, locations=None, base_url=None,
                 defuse='remote', timeout=300, lazy=False):
     """
-    Helper method for obtaining XML document validation/decode context.
-    Return an XMLResource instance and a schema instance.
+    Get the XML document validation/decode context.
+
+    :return: an XMLResource instance and a schema instance.
     """
     if cls is None:
         cls = XMLSchema
+    if not isinstance(source, XMLResource):
+        source = XMLResource(source, base_url, defuse=defuse, timeout=timeout, lazy=lazy)
 
     try:
         schema, locations = fetch_schema_locations(source, locations, base_url=base_url)
@@ -35,9 +38,6 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
                          defuse=defuse, timeout=timeout)
     else:
         schema = cls(schema, validation='strict', locations=locations, defuse=defuse, timeout=timeout)
-
-    if not isinstance(source, XMLResource):
-        source = XMLResource(source, defuse=defuse, timeout=timeout, lazy=lazy)
 
     return source, schema
 
