@@ -576,6 +576,24 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.url, normalize_url(self.col_xsd_file))
         self.assertEqual(set(resource.get_namespaces().keys()), {'', 'xs'})
 
+        resource = XMLResource("""<?xml version="1.0" ?>
+            <root xmlns="tns1">
+	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+            </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'empty'})
+
+        resource = XMLResource("""<?xml version="1.0" ?>
+                <root xmlns:tns="tns1">
+    	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+                </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns'})
+
+        resource = XMLResource("""<?xml version="1.0" ?>
+                    <root xmlns:tns="tns1">
+        	            <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
+                    </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'tns2'})
+
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)
         self.check_url(resource.url, normalize_url(self.col_xml_file))

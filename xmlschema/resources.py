@@ -721,20 +721,20 @@ class XMLResource(object):
     def get_namespaces(self):
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
-        prefix declaration is encountered then adds the namespace using a different prefix,
-        but only in the case if the namespace URI is not already mapped by another prefix.
+        prefix declaration is encountered and the prefix maps a different namespace,
+        adds the namespace using a different generated prefix.
 
         :return: A dictionary for mapping namespace prefixes to full URI.
         """
         def update_nsmap(prefix, uri):
-            if prefix not in nsmap and (prefix or not local_root):
+            if prefix not in nsmap:
                 nsmap[prefix] = uri
-            elif not any(uri == ns for ns in nsmap.values()):
+            elif nsmap[prefix] == uri:
+                return
+            else:
+                # Generate a different prefix for the namespace
                 if not prefix:
-                    try:
-                        prefix = re.search(r'(\w+)$', uri.strip()).group()
-                    except AttributeError:
-                        return
+                    prefix = 'empty'
 
                 while prefix in nsmap:
                     match = re.search(r'(\d+)$', prefix)
@@ -745,7 +745,6 @@ class XMLResource(object):
                         prefix += '2'
                 nsmap[prefix] = uri
 
-        local_root = self.root.tag[0] != '{'
         nsmap = {}
 
         if self._url is not None or hasattr(self.source, 'read'):
