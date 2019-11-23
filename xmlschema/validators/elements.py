@@ -486,7 +486,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if XSI_TYPE in elem.attrib:
             type_name = elem.attrib[XSI_TYPE].strip()
             try:
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
+                namespaces = getattr(elem, 'nsmap', converter)
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
 

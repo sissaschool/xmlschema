@@ -96,6 +96,7 @@ SKIPPED_TESTS = {
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
     # Invalid XML tests
+    '../sunData/combined/xsd005/xsd005.n05.xml',  # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
     '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
     '../msData/additional/test93490_8.xml',     # 4799: Idem
 
