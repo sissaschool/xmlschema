@@ -30,7 +30,7 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, \
     XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, \
     XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
-    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE
+    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE, XSI_TYPE
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
@@ -721,6 +721,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         any_type.attributes = self.create_any_attribute_group(any_type)
         return any_type
 
+    def create_element(self, name):
+        """
+        Creates an xs:element instance related to schema instance.
+        """
+        return self.BUILDERS.element_class(
+            elem=etree_element(XSD_ELEMENT, name=name),
+            schema=self,
+            parent=None,
+        )
+
     def copy(self):
         """
         Makes a copy of the schema instance. The new instance has independent maps
@@ -1234,9 +1244,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if source.is_lazy() and path is None:
             xsd_element = schema.get_element(source.root.tag, schema_path, namespaces)
             if xsd_element is None:
-                reason = "{!r} is not an element of the schema".format(source.root)
-                yield schema.validation_error('lax', reason, source.root, source, namespaces)
-                return
+                if XSI_TYPE in source.root.attrib:
+                    xsd_element = self.create_element(name=source.root.tag)
+                else:
+                    reason = "{!r} is not an element of the schema".format(source.root)
+                    yield schema.validation_error('lax', reason, source.root, source, namespaces)
+                    return
 
             for result in xsd_element.iter_decode(source.root, max_depth=1, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
@@ -1251,9 +1264,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         for elem in source.iterfind(path, namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                reason = "{!r} is not an element of the schema".format(elem)
-                yield schema.validation_error('lax', reason, elem, source, namespaces)
-                return
+                if XSI_TYPE in elem.attrib:
+                    xsd_element = self.create_element(name=elem.tag)
+                else:
+                    reason = "{!r} is not an element of the schema".format(elem)
+                    yield schema.validation_error('lax', reason, elem, source, namespaces)
+                    return
 
             for result in xsd_element.iter_decode(elem, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
@@ -1344,9 +1360,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         for elem in source.iterfind(path, namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
-                reason = "{!r} is not an element of the schema".format(elem)
-                yield schema.validation_error('lax', reason, elem, source, namespaces)
-                return
+                if XSI_TYPE in elem.attrib:
+                    xsd_element = self.create_element(name=elem.tag)
+                else:
+                    reason = "{!r} is not an element of the schema".format(elem)
+                    yield schema.validation_error('lax', reason, elem, source, namespaces)
+                    return
 
             for obj in xsd_element.iter_decode(
                     elem, validation, converter=converter, source=source,
