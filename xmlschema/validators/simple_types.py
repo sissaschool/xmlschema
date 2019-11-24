@@ -335,7 +335,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return self.base_type.is_derived(other, derivation)
 
     def is_dynamic_consistent(self, other):
-        return other is self.any_type or other is self.any_simple_type or self.is_derived(other) or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or self.is_derived(other) or \
             hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def normalize(self, text):
@@ -871,7 +871,7 @@ class XsdUnion(XsdSimpleType):
         return all(mt.is_list() for mt in self.member_types)
 
     def is_dynamic_consistent(self, other):
-        return other is self.any_type or other is self.any_simple_type or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
             other.is_derived(self) or hasattr(other, 'member_types') and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 

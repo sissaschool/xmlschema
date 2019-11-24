@@ -420,7 +420,7 @@ class XsdComponent(XsdValidator):
 
             xsd_type = self.get_parent_type()
             if xsd_type and xsd_type.parent is None and \
-                    (xsd_type.derivation != 'restriction' or xsd_type.base_type is self.any_type):
+                    (xsd_type.derivation != 'restriction' or xsd_type.base_type.name == XSD_ANY_TYPE):
                 self.parse_error("a declaration contained in a global complexType "
                                  "must has the same namespace as its parent schema")
 
@@ -701,7 +701,7 @@ class XsdType(XsdComponent):
         return any(self.is_derived(xsd_type, derivation) for derivation in block)
 
     def is_dynamic_consistent(self, other):
-        return other is self.any_type or self.is_derived(other) or \
+        return other.name == XSD_ANY_TYPE or self.is_derived(other) or \
             hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def is_key(self):

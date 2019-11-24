@@ -19,7 +19,7 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENC
 from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .xsdbase import XsdType, ValidationMixin
+from .xsdbase import XsdComponent, XsdType, ValidationMixin
 from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
@@ -742,12 +742,10 @@ class Xsd11ComplexType(XsdComplexType):
             self.default_attributes_apply = True
 
         # Add default attributes
-        if self.default_attributes_apply:
-            default_attributes = self.default_attributes
-            if default_attributes is not None:
-                if self.redefine is None and any(k in self.attributes for k in default_attributes):
-                    self.parse_error("at least a default attribute is already declared in the complex type")
-                self.attributes.update((k, v) for k, v in default_attributes.items())
+        if self.default_attributes_apply and isinstance(self.default_attributes, XsdComponent):
+            if self.redefine is None and any(k in self.attributes for k in self.default_attributes):
+                self.parse_error("at least a default attribute is already declared in the complex type")
+            self.attributes.update((k, v) for k, v in self.default_attributes.items())
 
     def _parse_complex_content_extension(self, elem, base_type):
         # Complex content extension with simple base is forbidden XSD 1.1.

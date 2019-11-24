@@ -30,7 +30,7 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, \
     XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, \
     XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
-    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
+    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
@@ -706,6 +706,20 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         :param parent: the parent component to set for the any attribute group.
         """
         return self.BUILDERS.attribute_group_class(ATTRIBUTE_GROUP_ELEMENT, self, parent)
+
+    def create_any_type(self):
+        """
+        Creates an xs:anyType instance related to schema instance.
+        """
+        any_type = self.BUILDERS.complex_type_class(
+            elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
+            schema=self,
+            parent=None,
+            mixed=True
+        )
+        any_type.content_type = self.create_any_content_group(any_type)
+        any_type.attributes = self.create_any_attribute_group(any_type)
+        return any_type
 
     def copy(self):
         """

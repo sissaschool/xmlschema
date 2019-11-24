@@ -530,6 +530,11 @@ class XsdGlobals(XsdValidator):
         if not meta_schema.built:
             xsd_builtin_types_factory(meta_schema, self.types)
 
+        if self is not meta_schema.maps:
+            # Rebuild xs:anyType for maps not owned by the meta-schema
+            # in order to do a correct namespace lookup for wildcards.
+            self.types[XSD_ANY_TYPE] = self.validator.create_any_type()
+
         for qname in self.notations:
             self.lookup_notation(qname)
         for qname in self.attributes:
