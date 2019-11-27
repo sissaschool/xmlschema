@@ -632,7 +632,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
             else:
-                if xsd_attribute.use == 'prohibited':
+                if xsd_attribute.use == 'prohibited' and \
+                        (None not in self or not self[None].is_matching(name)):
                     reason = "use of attribute %r is prohibited" % name
                     yield self.validation_error(validation, reason, attrs, **kwargs)
 

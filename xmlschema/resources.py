@@ -700,6 +700,7 @@ class XMLResource(object):
 
     def iter_location_hints(self):
         """Yields schema location hints from the XML tree."""
+        namespaces = {}
         for elem in self.iter():
             try:
                 locations = elem.attrib[XSI_SCHEMA_LOCATION]

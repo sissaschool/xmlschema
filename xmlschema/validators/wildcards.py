@@ -17,7 +17,7 @@ from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import XSI_NAMESPACE
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
-    XSD_DEFAULT_OPEN_CONTENT, get_namespace
+    XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE, get_namespace
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
@@ -437,7 +437,11 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
-                if validation == 'skip':
+                if XSI_TYPE in elem.attrib:
+                    xsd_element = self.schema.create_element(name=elem.tag)
+                    for result in xsd_element.iter_decode(elem, validation, **kwargs):
+                        yield result
+                elif validation == 'skip':
                     yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
                 elif self.process_contents == 'strict':
                     reason = "element %r not found." % elem.tag

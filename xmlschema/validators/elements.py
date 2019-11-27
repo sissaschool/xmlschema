@@ -520,6 +520,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, reason, elem, **kwargs)
             elif xsi_nil in ('0', 'false'):
                 pass
+            elif self.fixed is not None:
+                reason = "xsi:nil='true' but the element has a fixed value."
+                yield self.validation_error(validation, reason, elem, **kwargs)
             elif elem.text is not None or len(elem):
                 reason = "xsi:nil='true' but the element is not empty."
                 yield self.validation_error(validation, reason, elem, **kwargs)
@@ -668,6 +671,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 errors.append("xsi:nil attribute must has a boolean value.")
             elif xsi_nil in ('0', 'false'):
                 pass
+            elif self.fixed is not None:
+                errors.append("xsi:nil='true' but the element has a fixed value.")
             elif element_data.text is not None or element_data.content:
                 errors.append("xsi:nil='true' but the element is not empty.")
             else:
