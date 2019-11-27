@@ -427,7 +427,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iter_decode(self, elem, validation='lax', **kwargs):
         if not self.is_matching(elem.tag):
             if validation != 'skip':
-                reason = "element %r not allowed here." % elem.tag
+                reason = "{!r} is not allowed here".format(elem)
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         elif self.process_contents == 'skip':
@@ -459,7 +459,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
         if not self.is_namespace_allowed(namespace):
             if validation != 'skip':
-                reason = "element %r not allowed here." % name
+                reason = "element {!r} is not allowed here".format(name)
                 yield self.validation_error(validation, reason, value, **kwargs)
 
         elif self.process_contents == 'skip':
@@ -659,7 +659,7 @@ class Xsd11AnyElement(XsdAnyElement):
         elif not name or name[0] == '{':
             if not self.is_namespace_allowed(get_namespace(name)):
                 return False
-        elif default_namespace is not None:
+        elif default_namespace is None:
             if not self.is_namespace_allowed(''):
                 return False
         else:

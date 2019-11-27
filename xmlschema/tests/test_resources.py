@@ -580,19 +580,19 @@ class TestResources(unittest.TestCase):
             <root xmlns="tns1">
 	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
             </root>""")
-        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'empty'})
+        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'default'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
                 <root xmlns:tns="tns1">
     	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
                 </root>""")
-        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns'})
+        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
                     <root xmlns:tns="tns1">
         	            <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
                     </root>""")
-        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'tns2'})
+        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns2'})
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)

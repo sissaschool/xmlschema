@@ -722,20 +722,23 @@ class XMLResource(object):
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
-        adds the namespace using a different generated prefix.
+        adds the namespace using a different generated prefix. The empty prefix '' is
+        used only if it's declared at root level to avoid erroneous mapping of local
+        names. In other cases uses 'default' prefix as substitute.
 
         :return: A dictionary for mapping namespace prefixes to full URI.
         """
         def update_nsmap(prefix, uri):
+            # Use 'default' for a default namespace declared in an inner element.
+            if not prefix and elem is not self._root and nsmap.get('') != uri:
+                prefix = 'default'
+
             if prefix not in nsmap:
                 nsmap[prefix] = uri
             elif nsmap[prefix] == uri:
                 return
             else:
-                # Generate a different prefix for the namespace
-                if not prefix:
-                    prefix = 'empty'
-
+                # Generate a different prefix in case of an unmatched duplicate
                 while prefix in nsmap:
                     match = re.search(r'(\d+)$', prefix)
                     if match:
@@ -745,16 +748,19 @@ class XMLResource(object):
                         prefix += '2'
                 nsmap[prefix] = uri
 
+        elem = self._root
         nsmap = {}
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
             try:
-                for event, node in self.iterparse(resource, events=('start-ns', 'end')):
+                for event, node in self.iterparse(resource, events=('start', 'start-ns', 'end')):
                     if event == 'start-ns':
                         update_nsmap(*node)
-                    else:
+                    elif event == 'end':
                         node.clear()
+                    else:
+                        elem = node
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
             finally:
@@ -765,11 +771,13 @@ class XMLResource(object):
                     resource.close()
         elif isinstance(self._text, string_base_type):
             try:
-                for event, node in self.iterparse(StringIO(self._text), events=('start-ns', 'end')):
+                for event, node in self.iterparse(StringIO(self._text), events=('start', 'start-ns', 'end')):
                     if event == 'start-ns':
                         update_nsmap(*node)
-                    else:
+                    elif event == 'end':
                         node.clear()
+                    else:
+                        elem = node
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
         else:

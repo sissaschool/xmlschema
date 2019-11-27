@@ -848,7 +848,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
     def get_element(self, tag, path=None, namespaces=None):
         if not path:
-            return self.find(tag, namespaces)
+            return self.find(tag)
         elif path[-1] == '*':
             return self.find(path[:-1] + tag, namespaces)
         else:
@@ -1225,7 +1225,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         id_map = Counter()
         inherited = {}
 
-        namespace = source.namespace or namespaces.get('', '')
+        namespace = source.namespace
         try:
             schema = self.maps.namespaces[namespace][0]
         except (KeyError, IndexError):

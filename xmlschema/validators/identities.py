@@ -134,7 +134,7 @@ class XsdIdentity(XsdComponent):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
-                self.parse_error("element %r not allowed here:" % child.tag, elem)
+                self.parse_error("%r is not allowed here" % child, elem)
 
     def _parse_identity_reference(self):
         super(XsdIdentity, self)._parse()
