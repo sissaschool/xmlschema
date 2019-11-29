@@ -929,9 +929,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 build=False,
             )
 
-        if location not in self.includes:
+        if schema is self:
+            return self
+        elif location not in self.includes:
             self.includes[location] = schema
-        elif self.includes[location] != schema:
+        elif self.includes[location] is not schema:
             self.includes[schema_url] = schema
         return schema
 
@@ -1189,7 +1191,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     def is_valid(self, source, path=None, schema_path=None, use_defaults=True, namespaces=None):
         """
         Like :meth:`validate` except that do not raises an exception but returns ``True`` if
-        the XML document is valid, ``False`` if it's invalid.
+        the XML data is valid, ``False`` if it's invalid.
         """
         error = next(self.iter_errors(source, path, schema_path, use_defaults, namespaces), None)
         return error is None
@@ -1215,7 +1217,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             self.build()
 
         if not isinstance(source, XMLResource):
-            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
         if not schema_path and path:
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
@@ -1235,13 +1237,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         kwargs = {
             'source': source,
+            'no_decode': None,
             'namespaces': namespaces,
             'use_defaults': use_defaults,
             'id_map': id_map,
-            'inherited': inherited
+            'inherited': inherited,
         }
 
         if source.is_lazy() and path is None:
+            kwargs['locations'] = {}  # Lazy schema load
+
             xsd_element = schema.get_element(source.root.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in source.root.attrib:
@@ -1327,7 +1332,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if validation not in XSD_VALIDATION_MODES:
             raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
         elif not isinstance(source, XMLResource):
-            source = XMLResource(source=source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
 
         if not schema_path and path:
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)

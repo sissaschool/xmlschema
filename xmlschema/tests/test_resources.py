@@ -15,6 +15,7 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
+import warnings
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -169,8 +170,11 @@ class TestResources(unittest.TestCase):
         self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
 
     def test_load_xml_resource(self):
-        self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
-        root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
+            root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
+
         self.assertTrue(is_etree_element(root))
         self.assertEqual(root.tag, '{http://example.com/vehicles}vehicles')
         self.assertTrue(text.startswith('<?xml version'))
@@ -398,7 +402,7 @@ class TestResources(unittest.TestCase):
     def test_xml_resource_timeout(self):
         resource = XMLResource(self.vh_xml_file, timeout=30)
         self.assertEqual(resource.timeout, 30)
-        self.assertRaises(ValueError, XMLResource, self.vh_xml_file, timeout='100')
+        self.assertRaises(TypeError, XMLResource, self.vh_xml_file, timeout='100')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, timeout=0)
 
     def test_xml_resource_is_lazy(self):
@@ -578,21 +582,21 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns="tns1">
-	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+                <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
             </root>""")
         self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'default'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
-                <root xmlns:tns="tns1">
-    	            <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
-                </root>""")
+            <root xmlns:tns="tns1">
+                <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+            </root>""")
         self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
-                    <root xmlns:tns="tns1">
-        	            <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
-                    </root>""")
-        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns2'})
+            <root xmlns:tns="tns1">
+                <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
+            </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns0'})
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)

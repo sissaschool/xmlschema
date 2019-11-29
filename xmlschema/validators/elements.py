@@ -22,9 +22,10 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
     XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
-from ..etree import etree_element
+from ..etree import etree_element, etree_iter_location_hints
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     ParticleCounter, strictly_equal
+from ..namespaces import get_namespace
 from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -452,6 +453,40 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             text = self.fixed if self.fixed is not None else self.default
         return self.type.text_decode(text)
 
+    def check_dynamic_context(self, elem, **kwargs):
+        try:
+            locations = kwargs['locations']
+        except KeyError:
+            return
+
+        for ns, url in etree_iter_location_hints(elem):
+            if ns not in locations:
+                locations[ns] = url
+            elif locations[ns] is None:
+                reason = "schemaLocation declaration after namespace start"
+                raise XMLSchemaValidationError(self, elem, reason)
+
+            if ns == self.target_namespace:
+                schema = self.schema.include_schema(url, self.schema.base_url)
+            else:
+                schema = self.schema.import_namespace(ns, url, self.schema.base_url)
+
+            if not schema.built:
+                reason = "dynamic loaded schema change the assessment"
+                raise XMLSchemaValidationError(self, elem, reason)
+
+        if elem.attrib:
+            for name in elem.attrib:
+                if name[0] == '{':
+                    ns = get_namespace(name)
+                    if ns not in locations:
+                        locations[ns] = None
+
+        if elem.tag[0] == '{':
+            ns = get_namespace(elem.tag)
+            if ns not in locations:
+                locations[ns] = None
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
@@ -463,7 +498,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         validation or decoding errors.
         """
         if self.abstract:
-            yield self.validation_error(validation, "cannot use an abstract element for validation", elem, **kwargs)
+            msg = "cannot use an abstract element for validation"
+            yield self.validation_error(validation, msg, elem, **kwargs)
 
         try:
             level = kwargs['level']
@@ -477,6 +513,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             if not isinstance(converter, XMLSchemaConverter):
                 converter = kwargs['converter'] = self.get_converter(**kwargs)
+
+        try:
+            pass  # self.check_dynamic_context(elem, **kwargs)
+        except XMLSchemaValidationError as err:
+            yield self.validation_error(validation, err, elem, **kwargs)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
