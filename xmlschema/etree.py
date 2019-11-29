@@ -25,7 +25,7 @@ except ImportError:
 from .compat import PY3
 from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
-from .qnames import get_qname, qname_to_prefixed
+from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 ###
 # Programmatic import of xml.etree.ElementTree
@@ -261,6 +261,18 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
         if e is elem:
             return path
+
+
+def etree_iter_location_hints(elem):
+    """Yields schema location hints contained in the attributes of an element."""
+    if XSI_SCHEMA_LOCATION in elem.attrib:
+        locations = elem.attrib[XSI_SCHEMA_LOCATION].split()
+        for ns, url in zip(locations[0::2], locations[1::2]):
+            yield ns, url
+
+    if XSI_NONS_SCHEMA_LOCATION in elem.attrib:
+        for url in elem.attrib[XSI_NONS_SCHEMA_LOCATION].split():
+            yield '', url
 
 
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
