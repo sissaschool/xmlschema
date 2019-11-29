@@ -87,6 +87,23 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
 
+    def test_document_is_valid_api(self):
+        self.assertTrue(xmlschema.is_valid(self.vh_xml_file))
+        self.assertTrue(xmlschema.is_valid(self.vh_xml_file, use_defaults=False))
+
+        vh_2_file = self.casepath('examples/vehicles/vehicles-2_errors.xml')
+        self.assertFalse(xmlschema.is_valid(vh_2_file))
+
+    def test_document_iter_errors_api(self):
+        self.assertListEqual(list(xmlschema.iter_errors(self.vh_xml_file)), [])
+        self.assertListEqual(list(xmlschema.iter_errors(self.vh_xml_file, use_defaults=False)), [])
+
+        vh_2_file = self.casepath('examples/vehicles/vehicles-2_errors.xml')
+        errors = list(xmlschema.iter_errors(vh_2_file))
+        self.assertEqual(len(errors), 2)
+        self.assertIsInstance(errors[0], XMLSchemaValidationError)
+        self.assertIsInstance(errors[1], XMLSchemaValidationError)
+
     def test_max_depth_argument(self):
         schema = self.schema_class(self.col_xsd_file)
         self.assertEqual(

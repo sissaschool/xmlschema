@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.0.17`_ (2019-11-xx)
+=======================
+* Added *is_valid()* and *iter_errors()* to module API
+
 `v1.0.16`_ (2019-11-18)
 =======================
 * Improved XMLResource class for working with compressed files
@@ -272,3 +276,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.14: https://github.com/brunato/xmlschema/compare/v1.0.13...v1.0.14
 .. _v1.0.15: https://github.com/brunato/xmlschema/compare/v1.0.14...v1.0.15
 .. _v1.0.16: https://github.com/brunato/xmlschema/compare/v1.0.15...v1.0.16
+.. _v1.0.17: https://github.com/brunato/xmlschema/compare/v1.0.16...v1.0.17

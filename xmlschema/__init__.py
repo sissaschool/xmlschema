@@ -21,7 +21,7 @@ from .converters import (
     ElementData, XMLSchemaConverter, UnorderedConverter, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter
 )
-from .documents import validate, to_dict, to_json, from_json
+from .documents import validate, is_valid, iter_errors, to_dict, to_json, from_json
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,

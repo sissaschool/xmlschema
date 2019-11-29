@@ -7,6 +7,8 @@ Document level API
 ------------------
 
 .. autofunction:: xmlschema.validate
+.. autofunction:: xmlschema.is_valid
+.. autofunction:: xmlschema.iter_errors
 .. autofunction:: xmlschema.to_dict
 .. autofunction:: xmlschema.to_json
 .. autofunction:: xmlschema.from_json
