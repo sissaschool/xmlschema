@@ -131,7 +131,7 @@ class NamespaceMapper(MutableMapping):
         self._namespaces = {}
         self.register_namespace = register_namespace
         if namespaces is not None:
-            self.update(namespaces)
+            self._namespaces.update(namespaces)
 
     def __getitem__(self, prefix):
         return self._namespaces[prefix]
@@ -153,6 +153,10 @@ class NamespaceMapper(MutableMapping):
         return len(self._namespaces)
 
     @property
+    def namespaces(self):
+        return self._namespaces
+
+    @property
     def default_namespace(self):
         return self._namespaces.get('')
 
@@ -164,22 +168,24 @@ class NamespaceMapper(MutableMapping):
         A method for setting an item that checks the prefix before inserting.
         In case of collision the prefix is changed adding a numerical suffix.
         """
-        if prefix not in self._namespaces:
-            self[prefix] = uri
-        elif self._namespaces[prefix] == uri:
-            return
-        else:
-            if not prefix:
-                prefix = 'default'
+        if not prefix:
+            if '' not in self._namespaces:
+                self._namespaces[prefix] = uri
+                return
+            elif self._namespaces[''] == uri:
+                return
+            prefix = 'default'
 
-            while prefix in self._namespaces:
-                match = re.search(r'(\d+)$', prefix)
-                if match:
-                    index = int(match.group()) + 1
-                    prefix = prefix[:match.span()[0]] + str(index)
-                else:
-                    prefix += '0'
-            self._namespaces[prefix] = uri
+        while prefix in self._namespaces:
+            if self._namespaces[prefix] == uri:
+                return
+            match = re.search(r'(\d+)$', prefix)
+            if match:
+                index = int(match.group()) + 1
+                prefix = prefix[:match.span()[0]] + str(index)
+            else:
+                prefix += '0'
+        self._namespaces[prefix] = uri
 
     def map_qname(self, qname):
         """
@@ -196,7 +202,7 @@ class NamespaceMapper(MutableMapping):
             return qname
 
         qname_uri = get_namespace(qname)
-        for prefix, uri in self.items():
+        for prefix, uri in self._namespaces.items():
             if uri != qname_uri:
                 continue
             if prefix:

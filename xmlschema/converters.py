@@ -264,7 +264,8 @@ class XMLSchemaConverter(NamespaceMapper):
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
             result_dict.update(
-                ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v) for k, v in self.items()
+                ('%s:%s' % (self.ns_prefix, k) if k else self.ns_prefix, v)
+                for k, v in self._namespaces.items()
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
@@ -900,7 +901,9 @@ class JsonMLConverter(XMLSchemaConverter):
             ])
 
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
-            attributes.update([('xmlns:%s' % k if k else 'xmlns', v) for k, v in self.items()])
+            attributes.update(
+                [('xmlns:%s' % k if k else 'xmlns', v) for k, v in self._namespaces.items()]
+            )
         if attributes:
             result_list.insert(1, attributes)
         return result_list
@@ -913,7 +916,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         data_len = len(obj)
         if data_len == 1:
-            if not xsd_element.is_matching(unmap_qname(obj[0]), self.get('')):
+            if not xsd_element.is_matching(unmap_qname(obj[0]), self._namespaces.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
@@ -930,7 +933,7 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             content_index = 2
 
-        if not xsd_element.is_matching(unmap_qname(obj[0]), self.get('')):
+        if not xsd_element.is_matching(unmap_qname(obj[0]), self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
 
         if data_len <= content_index:

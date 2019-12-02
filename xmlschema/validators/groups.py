@@ -595,11 +595,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             self.validation_error('strict', reason, elem, **kwargs)
 
         try:
-            converter = kwargs['converter']
+            namespaces = kwargs['namespaces']
         except KeyError:
-            converter = kwargs['converter'] = self.get_converter(**kwargs)
+            namespaces = default_namespace = None
+        else:
+            try:
+                default_namespace = namespaces.get('')
+            except AttributeError:
+                default_namespace = None
 
-        default_namespace = converter.get('')
         model = ModelVisitor(self)
         errors = []
         model_broken = False
@@ -628,7 +632,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     break
 
                 try:
-                    self.check_dynamic_context(child, xsd_element, model.element, converter)
+                    self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
                     yield self.validation_error(validation, err, elem, **kwargs)
 

@@ -320,9 +320,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             msg = "head element %r can't be substituted by an element that has a restriction of its type"
             self.parse_error(msg % head_element)
 
-        if self.type.name == XSD_ANY_TYPE and 'type' not in self.elem.attrib:
-            self.type = self.maps.elements[substitution_group_qname].type
-
         try:
             self.maps.substitution_groups[substitution_group_qname].add(self)
         except KeyError:
@@ -502,6 +499,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             yield self.validation_error(validation, msg, elem, **kwargs)
 
         try:
+            namespaces = kwargs['namespaces']
+        except KeyError:
+            namespaces = None
+
+        try:
             level = kwargs['level']
         except KeyError:
             level = kwargs['level'] = 0
@@ -511,7 +513,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             converter = kwargs['converter'] = self.get_converter(**kwargs)
         else:
-            if not isinstance(converter, XMLSchemaConverter):
+            if not isinstance(converter, XMLSchemaConverter) and converter is not None:
                 converter = kwargs['converter'] = self.get_converter(**kwargs)
 
         try:
@@ -527,8 +529,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if XSI_TYPE in elem.attrib:
             type_name = elem.attrib[XSI_TYPE].strip()
             try:
-                namespaces = getattr(elem, 'nsmap', converter)
-                xsd_type = self.maps.get_instance_type(type_name, xsd_type, namespaces)
+                xsd_type = self.maps.get_instance_type(type_name, xsd_type, getattr(elem, 'nsmap', namespaces))
             except (KeyError, TypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
 
@@ -568,8 +569,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 reason = "xsi:nil='true' but the element is not empty."
                 yield self.validation_error(validation, reason, elem, **kwargs)
             else:
-                element_data = ElementData(elem.tag, None, None, attributes)
-                yield converter.element_decode(element_data, self, level)
+                if converter is not None:
+                    element_data = ElementData(elem.tag, None, None, attributes)
+                    yield converter.element_decode(element_data, self, level)
                 return
 
         if xsd_type.is_empty() and elem.text:
@@ -643,8 +645,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             except KeyError:
                 value = elem.text
 
-        element_data = ElementData(elem.tag, value, content, attributes)
-        yield converter.element_decode(element_data, self, level)
+        if converter is not None:
+            element_data = ElementData(elem.tag, value, content, attributes)
+            yield converter.element_decode(element_data, self, level)
         if content is not None:
             del content
 
@@ -652,11 +655,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if 'max_depth' in kwargs:
                 # Don't check key references with lazy or shallow validation
                 for constraint in filter(lambda x: not isinstance(x, XsdKeyref), self.identities.values()):
-                    for error in constraint(elem, converter):
+                    for error in constraint(elem, namespaces):
                         yield self.validation_error(validation, error, elem, **kwargs)
             else:
                 for constraint in self.identities.values():
-                    for error in constraint(elem, converter):
+                    for error in constraint(elem, namespaces):
                         yield self.validation_error(validation, error, elem, **kwargs)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
@@ -1035,23 +1038,26 @@ class Xsd11Element(XsdElement):
             xsd_element = other.match(self.name, self.default_namespace, resolve=True)
             return xsd_element is None or self.is_consistent(xsd_element, strict=False)
 
-        if self.name == other.name:
-            e = self
-        else:
-            for e in self.iter_substitutes():
-                if e.name == other.name:
+        e1, e2 = self, other
+        if self.name != other.name:
+            for e1 in self.iter_substitutes():
+                if e1.name == other.name:
                     break
             else:
-                return True
+                for e2 in other.iter_substitutes():
+                    if e2.name == self.name:
+                        break
+                else:
+                    return True
 
-        if len(e.alternatives) != len(other.alternatives):
+        if len(e1.alternatives) != len(e2.alternatives):
             return False
-        elif e.type is not other.type and strict:
+        elif e1.type is not e2.type and strict:
             return False
-        elif e.type is not other.type or \
-                not all(any(a == x for x in other.alternatives) for a in e.alternatives) or \
-                not all(any(a == x for x in e.alternatives) for a in other.alternatives):
-            msg = "Maybe a not equivalent type table between elements %r and %r." % (self, other)
+        elif e1.type is not e2.type or \
+                not all(any(a == x for x in e2.alternatives) for a in e1.alternatives) or \
+                not all(any(a == x for x in e1.alternatives) for a in e2.alternatives):
+            msg = "Maybe a not equivalent type table between elements %r and %r." % (e1, e2)
             warnings.warn(msg, XMLSchemaTypeTableWarning, stacklevel=3)
         return True
 

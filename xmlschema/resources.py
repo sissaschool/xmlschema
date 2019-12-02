@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os.path
+import re
 import codecs
 from elementpath import iter_select, Selector, XPath1Parser
 
@@ -17,7 +18,7 @@ from .compat import (
     pathname2url, URLError, uses_relative
 )
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
-from .namespaces import get_namespace, NamespaceMapper
+from .namespaces import get_namespace
 from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, etree_iter_location_hints
 
 
@@ -154,11 +155,11 @@ def fetch_resource(location, base_url=None, timeout=30):
         resource = urlopen(url, timeout=timeout)
     except URLError as err:
         # fallback joining the path without a base URL
-        url = normalize_url(location)
+        alt_url = normalize_url(location)
         try:
-            resource = urlopen(url, timeout=timeout)
+            resource = urlopen(alt_url, timeout=timeout)
         except URLError:
-            raise XMLSchemaURLError(reason=err.reason)
+            raise XMLSchemaURLError("cannot access to resource %r: %s" % (url, err.reason))
         else:
             resource.close()
             return url
@@ -262,17 +263,14 @@ class XMLResource(object):
     :param lazy: if a value `False` is provided the XML data is fully loaded into and \
     processed from memory. For default only the root element of the source is loaded, \
     except in case the *source* argument is an Element or an ElementTree instance.
-    :param nsmap: if provided the created resource uses a specific :class:`NamespaceMapper` \
-    instance for storing namespace registrations.
     """
     _root = _text = _url = None
 
-    def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True, nsmap=None):
+    def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
         self._base_url = base_url
         self.defuse = defuse
         self.timeout = timeout
         self._lazy = lazy
-        self.nsmap = NamespaceMapper() if nsmap is None else nsmap
         self.source = source
 
     def __str__(self):
@@ -298,11 +296,6 @@ class XMLResource(object):
     def __setattr__(self, name, value):
         if name == 'source':
             self._root, self._text, self._url = self._fromsource(value)
-            self.nsmap.clear()
-        elif name == 'source':
-            if not isinstance(value, NamespaceMapper):
-                msg = "invalid type {!r} for the attribute 'nsmap'"
-                raise XMLSchemaTypeError(msg.format(type(value)))
         elif name == '_base_url':
             if value is not None and not isinstance(value, string_base_type):
                 msg = "invalid type {!r} for the attribute 'base_url'"
@@ -549,10 +542,11 @@ class XMLResource(object):
             return self.source
         elif self._url is None:
             raise XMLSchemaValueError("can't open, the resource has no URL associated.")
+
         try:
             return urlopen(self._url, timeout=self.timeout)
         except URLError as err:
-            raise XMLSchemaURLError(reason="cannot access to resource %r: %s" % (self._url, err.reason))
+            raise XMLSchemaURLError("cannot access to resource %r: %s" % (self._url, err.reason))
 
     def seek(self, position):
         """
@@ -660,7 +654,15 @@ class XMLResource(object):
                 resource.close()
 
     def iterfind(self, path=None, namespaces=None):
-        """XML resource tree iterfind selector."""
+        """
+        XML resource tree iterfind selector.
+
+        :param path: an XPath expression to select nodes. If not provided the \
+        iteration returns only the root node.
+        :param namespaces: optional mapping from namespace prefixes to URIs. If the \
+        resource is lazy and an empty dictionary is provided, the namespace map is \
+        updated during the iteration.
+        """
         if not self._lazy:
             if path is None:
                 yield self._root
@@ -676,20 +678,37 @@ class XMLResource(object):
             self.load()
             resource = StringIO(self._text)
 
+        if namespaces or namespaces is None:
+            events = ('start', 'end')
+            nsmap = None
+        else:
+            events = ('start-ns', 'end-ns', 'start', 'end')
+            nsmap = []
+
         try:
             if path is None:
                 level = 0
-                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                for event, node in self.iterparse(resource, events):
                     if event == "start":
                         if level == 0:
                             self._root.clear()
-                            self._root = elem
+                            self._root = node
                         level += 1
-                    else:
+                    elif event == 'end':
                         level -= 1
                         if level == 0:
-                            yield elem
-                            elem.clear()
+                            yield node
+                            node.clear()
+                    elif event == 'start-ns':
+                        nsmap.append(node)
+                        namespaces[node[0]] = node[1]
+                    else:
+                        try:
+                            del namespaces[nsmap.pop()[0]]
+                        except KeyError:
+                            pass
+                        namespaces.update(nsmap)
+
             else:
                 selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
                 path = path.replace(' ', '').replace('./', '')
@@ -697,20 +716,30 @@ class XMLResource(object):
                 select_all = '*' in path and set(path).issubset({'*', '/'})
 
                 level = 0
-                for event, elem in self.iterparse(resource, events=('start', 'end')):
+                for event, node in self.iterparse(resource, events):
                     if event == "start":
                         if level == 0:
                             self._root.clear()
-                            self._root = elem
+                            self._root = node
                         level += 1
-                    else:
+                    elif event == 'end':
                         level -= 1
                         if level == path_level and \
-                                (select_all or elem in selector.select(self._root)):
-                            yield elem
-                            elem.clear()
+                                (select_all or node in selector.select(self._root)):
+                            yield node
+                            node.clear()
                         elif level == 0:
-                            elem.clear()
+                            node.clear()
+                    elif event == 'start-ns':
+                        nsmap.append(node)
+                        namespaces[node[0]] = node[1]
+                    else:
+                        try:
+                            del namespaces[nsmap.pop()[0]]
+                        except KeyError:
+                            pass
+                        namespaces.update(nsmap)
+
         finally:
             if self.source is not resource:
                 resource.close()
@@ -756,18 +785,34 @@ class XMLResource(object):
         used only if it's declared at root level to avoid erroneous mapping of local
         names. In other cases uses 'default' prefix as substitute.
 
-        :return: A dictionary for mapping namespace prefixes to full URI.
+        :param namespaces: builds the namespace map starting over the dictionary provided.
+        :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        namespaces = {} if namespaces is None else namespaces.copy()
+        def update_nsmap(prefix, uri):
+            if not prefix:
+                if '' not in nsmap:
+                    nsmap[prefix] = uri
+                    return
+                elif nsmap[''] == uri:
+                    return
+                prefix = 'default'
 
-        self.nsmap.clear()
+            while prefix in nsmap:
+                if nsmap[prefix] == uri:
+                    return
+                match = re.search(r'(\d+)$', prefix)
+                if match:
+                    index = int(match.group()) + 1
+                    prefix = prefix[:match.span()[0]] + str(index)
+                else:
+                    prefix += '0'
+            nsmap[prefix] = uri
+
+        nsmap = {}
         if not self.namespace:
-            self.nsmap[''] = ''
-
-        if False and self._lazy:
-            if namespaces:
-                self.nsmap.update(namespaces)
-            return dict(self.nsmap)
+            nsmap[''] = ''
+        if namespaces:
+            nsmap.update(namespaces)
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
@@ -776,21 +821,20 @@ class XMLResource(object):
         else:
             if hasattr(self._root, 'nsmap'):
                 # Can extract namespace mapping information only from lxml etree structures
-                self.nsmap.clear()
-                if namespaces:
-                    self.nsmap.update(namespaces)
-
                 for elem in self._root.iter():
                     for k, v in elem.nsmap.items():
-                        self.nsmap.insert_item(k if k is not None else '', v)
-            return {k: v for k, v in self.nsmap.items() if v}
+                        update_nsmap(k if k is not None else '', v)
+
+            if nsmap.get('') == '':
+                del nsmap['']
+            return nsmap
 
         try:
             for event, node in self.iterparse(resource, events=('start-ns', 'end')):
                 if event == 'end':
                     node.clear()
                 else:
-                    self.nsmap.insert_item(*node)
+                    update_nsmap(*node)
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
         finally:
@@ -800,7 +844,9 @@ class XMLResource(object):
             if self.source is not resource:
                 resource.close()
 
-        return {k: v for k, v in self.nsmap.items() if v}
+        if nsmap.get('') == '':
+            del nsmap['']
+        return nsmap
 
     def get_locations(self, locations=None):
         """

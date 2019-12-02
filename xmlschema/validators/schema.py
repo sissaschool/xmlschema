@@ -277,9 +277,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         root = self.source.root
 
         # Parse namespaces and targetNamespace
-        self.namespaces = {'xml': XML_NAMESPACE}  # the XML namespace is implicit
-        self.namespaces.update(self.source.get_namespaces())
-
+        self.namespaces = self.source.get_namespaces(
+            namespaces={'xml': XML_NAMESPACE}  # the XML namespace is implicitly declared
+        )
         try:
             self.target_namespace = root.attrib['targetNamespace']
         except KeyError:
@@ -1017,8 +1017,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 break
         else:
             if import_error is not None:
-                self.warnings.append("Namespace import failed: %s." % str(import_error))
-                warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=3)
+                msg = "Import of namespace {!r} from {!r} failed: {}."
+                self.warnings.append(msg.format(namespace, locations, str(import_error)))
+                warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=4)
             self.imports[namespace] = None
 
     def import_schema(self, namespace, location, base_url=None, force=False, build=False):
@@ -1221,13 +1222,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if not schema_path and path:
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
-        namespaces = {} if namespaces is None else namespaces.copy()
-        namespaces.update(source.get_namespaces())
-
         id_map = Counter()
-        inherited = {}
+        namespaces = source.get_namespaces(namespaces)
+        namespace = source.namespace or namespaces.get('', '')
 
-        namespace = source.namespace
         try:
             schema = self.maps.namespaces[namespace][0]
         except (KeyError, IndexError):
@@ -1237,11 +1235,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         kwargs = {
             'source': source,
-            'no_decode': None,
             'namespaces': namespaces,
+            'converter': None,
             'use_defaults': use_defaults,
             'id_map': id_map,
-            'inherited': inherited,
+            'inherited': {},
         }
 
         if source.is_lazy() and path is None:
@@ -1265,6 +1263,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             path = '*'
             if not schema_path:
                 schema_path = '/%s/*' % source.root.tag
+            kwargs['inherited'].clear()
 
         for elem in source.iterfind(path, namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -1338,29 +1337,35 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         if process_namespaces:
-            namespaces = {} if namespaces is None else namespaces.copy()
-            namespaces.update(source.get_namespaces())
+            namespaces = source.get_namespaces(namespaces)
+            namespace = source.namespace or namespaces.get('', '')
         else:
-            namespaces = {}
+            namespace = source.namespace
 
-        converter = self.get_converter(converter, namespaces, **kwargs)
-        id_map = Counter()
-        inherited = {}
-
-        if decimal_type is not None:
-            kwargs['decimal_type'] = decimal_type
-        if filler is not None:
-            kwargs['filler'] = filler
-        if max_depth is not None:
-            kwargs['max_depth'] = max_depth
-
-        namespace = source.namespace or namespaces.get('', '')
         try:
             schema = self.maps.namespaces[namespace][0]
         except (KeyError, IndexError):
             reason = 'the namespace {!r} is not loaded'.format(namespace)
             yield self.validation_error('lax', reason, source.root, source, namespaces)
             return
+
+        id_map = Counter()
+        kwargs.update(
+            converter=self.get_converter(converter, namespaces, **kwargs),
+            namespaces=namespaces,
+            source=source,
+            use_defaults=use_defaults,
+            datetime_types=datetime_types,
+            fill_missing=fill_missing,
+            id_map=id_map,
+            inherited={},
+        )
+        if decimal_type is not None:
+            kwargs['decimal_type'] = decimal_type
+        if filler is not None:
+            kwargs['filler'] = filler
+        if max_depth is not None:
+            kwargs['max_depth'] = max_depth
 
         for elem in source.iterfind(path, namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -1372,11 +1377,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     yield schema.validation_error('lax', reason, elem, source, namespaces)
                     return
 
-            for obj in xsd_element.iter_decode(
-                    elem, validation, converter=converter, source=source,
-                    namespaces=namespaces, use_defaults=use_defaults,
-                    datetime_types=datetime_types, fill_missing=fill_missing,
-                    id_map=id_map, inherited=inherited, **kwargs):
+            for obj in xsd_element.iter_decode(elem, validation, **kwargs):
                 yield obj
 
         for k, v in id_map.items():
