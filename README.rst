@@ -68,7 +68,7 @@ the file containing the schema as argument:
 .. code-block:: pycon
 
     >>> import xmlschema
-    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/cases/examples/vehicles/vehicles.xsd')
+    >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd')
 
 .. note::
     For XSD 1.1 schemas use the class `XMLSchema11`, because the default class
@@ -79,11 +79,11 @@ The schema can be used to validate XML documents:
 
 .. code-block:: pycon
 
-    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles.xml')
+    >>> my_schema.is_valid('xmlschema/tests/test_cases/examples/vehicles/vehicles.xml')
     True
-    >>> my_schema.is_valid('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema.is_valid('xmlschema/tests/test_cases/examples/vehicles/vehicles-1_error.xml')
     False
-    >>> my_schema.validate('xmlschema/tests/cases/examples/vehicles/vehicles-1_error.xml')
+    >>> my_schema.validate('xmlschema/tests/test_cases/examples/vehicles/vehicles-1_error.xml')
     Traceback (most recent call last):
       File "<stdin>", line 1, in <module>
       File "/home/brunato/Development/projects/xmlschema/xmlschema/validators/xsdbase.py", line 393, in validate
@@ -113,8 +113,8 @@ values that match to the data types declared by the schema:
 
     >>> import xmlschema
     >>> from pprint import pprint
-    >>> xs = xmlschema.XMLSchema('xmlschema/tests/cases/examples/collection/collection.xsd')
-    >>> pprint(xs.to_dict('xmlschema/tests/cases/examples/collection/collection.xml'))
+    >>> xs = xmlschema.XMLSchema('xmlschema/tests/test_cases/examples/collection/collection.xsd')
+    >>> pprint(xs.to_dict('xmlschema/tests/test_cases/examples/collection/collection.xml'))
     {'@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
      'object': [{'@available': True,
                  '@id': 'b0836217462',
