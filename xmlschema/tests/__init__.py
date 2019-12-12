@@ -138,8 +138,8 @@ class XsdValidatorTestCase(unittest.TestCase):
             else:
                 return SCHEMA_TEMPLATE.format(self.schema_class.XSD_VERSION, source)
 
-    def get_schema(self, source):
-        return self.schema_class(self.get_schema_source(source))
+    def get_schema(self, source, **kwargs):
+        return self.schema_class(self.get_schema_source(source), **kwargs)
 
     def get_element(self, name, **attrib):
         source = '<xs:element name="{}" {}/>'.format(
