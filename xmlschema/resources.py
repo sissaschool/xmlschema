@@ -682,6 +682,7 @@ class XMLResource(object):
             events = ('start', 'end')
             nsmap = None
         else:
+            # Track ad update namespaces
             events = ('start-ns', 'end-ns', 'start', 'end')
             nsmap = []
 
@@ -744,12 +745,14 @@ class XMLResource(object):
             if self.source is not resource:
                 resource.close()
 
-    def iter_location_hints(self):
+    def iter_location_hints(self, root_only=False):
         """
-        Yields schema location hints from the XML tree. If the resource is *lazy*
-        yields only schema location hints of the root element.
+        Yields schema location hints from the XML resource.
+
+        :param root_only: if `True` yields only the location hints declared in \
+        the root element.
         """
-        if self._lazy:
+        if root_only:
             for ns_url in etree_iter_location_hints(self._root):
                 yield ns_url
             return
@@ -777,7 +780,7 @@ class XMLResource(object):
             if self.source is not resource:
                 resource.close()
 
-    def get_namespaces(self, namespaces=None):
+    def get_namespaces(self, namespaces=None, root_only=False):
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
@@ -786,6 +789,7 @@ class XMLResource(object):
         names. In other cases uses 'default' prefix as substitute.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
+        :param root_only: if `True` extracts only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         def update_nsmap(prefix, uri):
@@ -821,20 +825,27 @@ class XMLResource(object):
         else:
             if hasattr(self._root, 'nsmap'):
                 # Can extract namespace mapping information only from lxml etree structures
-                for elem in self._root.iter():
-                    for k, v in elem.nsmap.items():
+                if root_only:
+                    for k, v in self._root.nsmap.items():
                         update_nsmap(k if k is not None else '', v)
+                else:
+                    for elem in self._root.iter():
+                        for k, v in elem.nsmap.items():
+                            update_nsmap(k if k is not None else '', v)
 
             if nsmap.get('') == '':
                 del nsmap['']
             return nsmap
 
+        events = ('start-ns', 'start') if root_only else ('start-ns', 'end')
         try:
-            for event, node in self.iterparse(resource, events=('start-ns', 'end')):
-                if event == 'end':
+            for event, node in self.iterparse(resource, events):
+                if event == 'start-ns':
+                    update_nsmap(*node)
+                elif event == 'end':
                     node.clear()
                 else:
-                    update_nsmap(*node)
+                    break
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
         finally:
@@ -848,12 +859,16 @@ class XMLResource(object):
             del nsmap['']
         return nsmap
 
-    def get_locations(self, locations=None):
+    def get_locations(self, locations=None, root_only=False):
         """
-        Returns a list of normalized schema location hints. The locations are normalized
-        using the base URL of the instance. The *locations* argument can be a dictionary
-        or a list of namespace resources, that are inserted before the schema location
-        hints extracted from the XML resource.
+        Extracts a list of normalized schema location hints from the XML resource.
+        The locations are normalized using the base URL of the instance.
+
+        :param locations: a dictionary or a list of namespace resources that is \
+        inserted before the schema location hints extracted from the XML resource.
+        :param root_only: if `True` extracts only the location hints declared in \
+        the root element.
+        :returns: a list of couples containing namespace location hints.
         """
         base_url = self.base_url
         location_hints = []
@@ -867,5 +882,7 @@ class XMLResource(object):
             except AttributeError:
                 location_hints.extend([(ns, normalize_url(url, base_url)) for ns, url in locations])
 
-        location_hints.extend([(ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints()])
+        location_hints.extend([
+            (ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints(root_only)
+        ])
         return location_hints

@@ -1223,7 +1223,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         id_map = Counter()
-        namespaces = source.get_namespaces(namespaces)
+        root_only = source.is_lazy() and not namespaces
+        namespaces = source.get_namespaces(namespaces, root_only)
         namespace = source.namespace or namespaces.get('', '')
 
         try:
@@ -1264,6 +1265,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if not schema_path:
                 schema_path = '/%s/*' % source.root.tag
             kwargs['inherited'].clear()
+
+            if root_only:
+                # Tell to iterfind to catch namespace events and update map
+                namespaces.clear()
 
         for elem in source.iterfind(path, namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -1337,9 +1342,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         if process_namespaces:
-            namespaces = source.get_namespaces(namespaces)
+            root_only = source.is_lazy() and not namespaces
+            namespaces = source.get_namespaces(namespaces, root_only)
             namespace = source.namespace or namespaces.get('', '')
         else:
+            root_only = namespaces = None
             namespace = source.namespace
 
         try:
@@ -1350,9 +1357,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             return
 
         id_map = Counter()
+        converter = self.get_converter(converter, namespaces, **kwargs)
         kwargs.update(
-            converter=self.get_converter(converter, namespaces, **kwargs),
-            namespaces=namespaces,
+            converter=converter,
+            namespaces=converter.namespaces,
             source=source,
             use_defaults=use_defaults,
             datetime_types=datetime_types,
@@ -1367,7 +1375,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
 
-        for elem in source.iterfind(path, namespaces):
+        if root_only:
+            converter.namespaces.clear()
+
+        for elem in source.iterfind(path, converter.namespaces):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
