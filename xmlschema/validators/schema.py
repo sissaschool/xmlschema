@@ -165,9 +165,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :type timeout: int
     :param build: defines whether build the schema maps. Default is `True`.
     :type build: bool
-    :param use_meta: if `True` the schema processor uses the package meta-schema, otherwise the \
-    meta-schema is added at the end. In the latter case the meta-schema is rebuilt if any base \
-    namespace has been overridden by an import. Ignored if the argument *global_maps* is provided.
+    :param use_meta: if `True` the schema processor uses the package meta-schema, \
+    otherwise a new meta-schema is added at the end. In the latter case the meta-schema \
+    is rebuilt if any base namespace has been overridden by an import. Ignored if the \
+    argument *global_maps* is provided.
     :type use_meta: bool
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
@@ -336,29 +337,31 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         self.converter = self.get_converter(converter)
         self.xpath_tokens = {}
 
-        # Create or set the XSD global maps instance
         if self.meta_schema is None:
+            # Meta-schema creation phase (MetaXMLSchema class)
             self.maps = global_maps or XsdGlobals(self)
             for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
-            return  # Meta-schemas don't need to be checked or built and don't process imports
-        elif global_maps is None:
-            if use_meta is False:
-                self.maps = XsdGlobals(self, validation)
-            elif self.target_namespace not in self.BASE_SCHEMAS:
-                if not self.meta_schema.maps.types:
-                    self.meta_schema.maps.build()
+            return  # Meta-schemas don't need to be checked and don't process imports
+        elif not self.meta_schema.maps.types:
+            self.meta_schema.maps.build()
+
+        # Validate the schema document (transforming validation errors to parse errors)
+        if validation != 'skip':
+            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
+                self.parse_error(e.reason, elem=e.elem)
+
+        # Create or set the XSD global maps instance
+        if global_maps is None:
+            if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
                 self.maps = self.meta_schema.maps.copy(self, validation=validation)
             else:
-                base_schemas = {k: v for k, v in self.BASE_SCHEMAS.items() if k != self.target_namespace}
-                meta_schema = self.create_meta_schema(base_schemas=base_schemas)
-                self.maps = meta_schema.maps
-                self.meta_schema = meta_schema
+                self.maps = XsdGlobals(self, validation)
 
         elif isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
         else:
-            raise XMLSchemaTypeError("'global_maps' argument must be a %r instance." % XsdGlobals)
+            raise XMLSchemaTypeError("'global_maps' argument must be an %r instance." % XsdGlobals)
 
         if self.XSD_VERSION > '1.0' and any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
@@ -368,16 +371,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for k in list(root.attrib):
                     if k not in {'targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION}:
                         del root.attrib[k]
-
-        # Validate the schema document (transforming validation errors to parse errors)
-        if validation == 'strict':
-            try:
-                self.check_schema(root, self.namespaces)
-            except XMLSchemaValidationError as e:
-                self.parse_error(e.reason, elem=e.elem)
-        elif validation == 'lax':
-            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
-                self.parse_error(e.reason, elem=e.elem)
 
         self._parse_inclusions()
         self._parse_imports()
@@ -760,6 +753,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         :raises: :exc:`XMLSchemaValidationError` if the schema is invalid.
         """
+        if not cls.meta_schema.maps.types:
+            cls.meta_schema.maps.build()
+
         for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
             raise error
 
