@@ -21,6 +21,8 @@ from abc import ABCMeta
 import logging
 import warnings
 import re
+import sys
+
 
 from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
@@ -56,7 +58,10 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .globals_ import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
-logging.basicConfig(format='[%(levelname)s] %(message)s')
+logging_formater = logging.Formatter('[%(levelname)s] %(message)s')
+logging_handler = logging.StreamHandler(sys.stderr)
+logging_handler.setFormatter(logging_formater)
+logger.addHandler(logging_handler)
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
 
