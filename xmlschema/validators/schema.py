@@ -19,6 +19,7 @@ import os
 from collections import namedtuple, Counter
 from abc import ABCMeta
 import logging
+import threading
 import warnings
 import re
 
@@ -90,6 +91,7 @@ class XMLSchemaMeta(ABCMeta):
             # Defining a subclass without a meta-schema (eg. XMLSchemaBase)
             return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
         dict_['meta_schema'] = None
+        dict_['lock'] = threading.Lock()  # Lock instance for shared meta-schemas
 
         xsd_version = dict_.get('XSD_VERSION') or get_attribute('XSD_VERSION', *bases)
         if xsd_version not in ('1.0', '1.1'):
@@ -118,10 +120,11 @@ class XMLSchemaMeta(ABCMeta):
         meta_schema_class.__qualname__ = meta_schema_class_name
         globals()[meta_schema_class_name] = meta_schema_class
 
-        # Build the new meta-schema instance
+        # Build the shared meta-schema instance
         schema_location = meta_schema.url if isinstance(meta_schema, XMLSchemaBase) else meta_schema
         meta_schema = meta_schema_class.create_meta_schema(schema_location)
         dict_['meta_schema'] = meta_schema
+        dict_.pop('lock')
 
         return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
 
@@ -200,6 +203,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     :vartype final_default: str
     :cvar default_attributes: the XSD 1.1 schema's *defaultAttributes* attribute, defaults to ``None``.
     :vartype default_attributes: XsdAttributeGroup
+    :cvar xpath_tokens: symbol table for schema bound XPath 2.0 parsers. Initially set to \
+    ``None`` it's redefined at instance level with a dictionary at first use of the XPath \
+    selector. The parser symbol table is extended with schema types constructors.
+    :vartype xpath_tokens: dict
 
     :ivar target_namespace: is the *targetNamespace* of the schema, the namespace to which \
     belong the declarations/definitions of the schema. If it's empty no namespace is associated \
@@ -258,11 +265,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     default_attributes = None
     default_open_content = None
     override = None
+    xpath_tokens = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, base_url=None, defuse='remote',
                  timeout=300, build=True, use_meta=True, loglevel=None):
         super(XMLSchemaBase, self).__init__(validation)
+        ElementPathMixin.__init__(self)
+
         if loglevel is not None:
             logger.setLevel(loglevel)
         elif build and global_maps is None:
@@ -335,7 +345,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
 
         self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
         self.converter = self.get_converter(converter)
-        self.xpath_tokens = {}
 
         if self.meta_schema is None:
             # Meta-schema creation phase (MetaXMLSchema class)
@@ -343,13 +352,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
-        elif not self.meta_schema.maps.types:
-            self.meta_schema.maps.build()
 
-        # Validate the schema document (transforming validation errors to parse errors)
-        if validation != 'skip':
-            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
-                self.parse_error(e.reason, elem=e.elem)
+        with self.meta_schema.lock:
+            if not self.meta_schema.maps.types:
+                self.meta_schema.maps.build()
 
         # Create or set the XSD global maps instance
         if global_maps is None:
@@ -371,6 +377,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                 for k in list(root.attrib):
                     if k not in {'targetNamespace', VC_MIN_VERSION, VC_MAX_VERSION}:
                         del root.attrib[k]
+
+        # Validate the schema document (transforming validation errors to parse errors)
+        if validation != 'skip':
+            for e in self.meta_schema.iter_errors(root, namespaces=self.namespaces):
+                self.parse_error(e.reason, elem=e.elem)
 
         self._parse_inclusions()
         self._parse_imports()
@@ -402,16 +413,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         finally:
             if loglevel is not None:
                 logger.setLevel(logging.WARNING)  # Restore default logging
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['xpath_tokens']
-        state.pop('_xpath_parser', None)
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.xpath_tokens = {}
 
     def __repr__(self):
         if self.url:
@@ -595,6 +596,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
         """
         Old reference to identity constraints, for backward compatibility. Will be removed in v1.1.0.
         """
+        warnings.warn("'constraints' property has been replaced by 'identities' "
+                      "and will be removed in 1.1 version.", DeprecationWarning)
         return self.identities
 
     @classmethod
@@ -641,6 +644,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
     @classmethod
     def create_schema(cls, *args, **kwargs):
         """Creates a new schema instance of the same class of the caller."""
+        warnings.warn("'create_schema()' method will be removed in 1.1 version.", DeprecationWarning)
         return cls(*args, **kwargs)
 
     def create_any_content_group(self, parent, any_element=None):
@@ -913,7 +917,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
             if schema_url == schema.url:
                 break
         else:
-            schema = self.create_schema(
+            schema = type(self)(
                 source=schema_url,
                 namespace=self.target_namespace,
                 validation=self.validation,
@@ -1045,7 +1049,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
                     self.imports[namespace] = schema
                     return schema
 
-        schema = self.create_schema(
+        schema = type(self)(
             source=schema_url,
             validation=self.validation,
             global_maps=self.maps,

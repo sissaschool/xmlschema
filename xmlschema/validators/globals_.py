@@ -449,7 +449,7 @@ class XsdGlobals(XsdValidator):
         :param only_unbuilt: removes only not built objects/schemas.
         """
         if only_unbuilt:
-            not_built_schemas = {schema for schema in self.iter_schemas() if not schema.built}
+            not_built_schemas = {s for s in self.iter_schemas() if not s.built}
             if not not_built_schemas:
                 return
 

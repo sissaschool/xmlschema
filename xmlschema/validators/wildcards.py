@@ -29,11 +29,6 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     not_qname = ()
     process_contents = 'strict'
 
-    def __init__(self, elem, schema, parent):
-        if parent is None:
-            raise XMLSchemaValueError("'parent' attribute is None but %r cannot be global!" % self)
-        super(XsdWildcard, self).__init__(elem, schema, parent)
-
     def __repr__(self):
         if self.not_namespace:
             return '%s(not_namespace=%r, process_contents=%r)' % (
@@ -367,6 +362,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     """
     _ADMITTED_TAGS = {XSD_ANY}
     precedences = ()
+
+    def __init__(self, elem, schema, parent):
+        super(XsdAnyElement, self).__init__(elem, schema, parent)
+        ElementPathMixin.__init__(self)
 
     def __repr__(self):
         if self.namespace:
