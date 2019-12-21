@@ -17,7 +17,7 @@ from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import XSI_NAMESPACE
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
-    XSD_DEFAULT_OPEN_CONTENT, get_namespace
+    XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE, get_namespace
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
 
@@ -28,11 +28,6 @@ class XsdWildcard(XsdComponent, ValidationMixin):
     not_namespace = ()
     not_qname = ()
     process_contents = 'strict'
-
-    def __init__(self, elem, schema, parent):
-        if parent is None:
-            raise XMLSchemaValueError("'parent' attribute is None but %r cannot be global!" % self)
-        super(XsdWildcard, self).__init__(elem, schema, parent)
 
     def __repr__(self):
         if self.not_namespace:
@@ -368,6 +363,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     _ADMITTED_TAGS = {XSD_ANY}
     precedences = ()
 
+    def __init__(self, elem, schema, parent):
+        super(XsdAnyElement, self).__init__(elem, schema, parent)
+        ElementPathMixin.__init__(self)
+
     def __repr__(self):
         if self.namespace:
             return '%s(namespace=%r, process_contents=%r, occurs=%r)' % (
@@ -427,7 +426,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
     def iter_decode(self, elem, validation='lax', **kwargs):
         if not self.is_matching(elem.tag):
             if validation != 'skip':
-                reason = "element %r not allowed here." % elem.tag
+                reason = "{!r} is not allowed here".format(elem)
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         elif self.process_contents == 'skip':
@@ -437,9 +436,14 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             try:
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
-                if validation == 'skip':
-                    yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
-                elif self.process_contents == 'strict':
+                if XSI_TYPE in elem.attrib:
+                    xsd_element = self.schema.create_element(name=elem.tag)
+                    for result in xsd_element.iter_decode(elem, validation, **kwargs):
+                        yield result
+                elif validation == 'skip' or self.process_contents == 'lax':
+                    for result in self.any_type.iter_decode(elem, validation, **kwargs):
+                        yield result
+                else:
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
@@ -459,7 +463,7 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
         if not self.is_namespace_allowed(namespace):
             if validation != 'skip':
-                reason = "element %r not allowed here." % name
+                reason = "element {!r} is not allowed here".format(name)
                 yield self.validation_error(validation, reason, value, **kwargs)
 
         elif self.process_contents == 'skip':
@@ -469,8 +473,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             try:
                 xsd_element = self.maps.lookup_element(name)
             except LookupError:
-                if validation == 'skip':
-                    yield self.any_type.encode(value)
+                if validation == 'skip' or self.process_contents == 'lax':
+                    for result in self.any_type.iter_encode(obj, validation, **kwargs):
+                        yield result
                 elif self.process_contents == 'strict':
                     reason = "element %r not found." % name
                     yield self.validation_error(validation, reason, **kwargs)
@@ -659,7 +664,7 @@ class Xsd11AnyElement(XsdAnyElement):
         elif not name or name[0] == '{':
             if not self.is_namespace_allowed(get_namespace(name)):
                 return False
-        elif default_namespace is not None:
+        elif default_namespace is None:
             if not self.is_namespace_allowed(''):
                 return False
         else:

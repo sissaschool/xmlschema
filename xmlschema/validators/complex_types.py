@@ -17,9 +17,10 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENC
     XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT, \
     get_qname, local_name
 from ..helpers import get_xsd_derivation_attribute
+from ..converters import ElementData
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
-from .xsdbase import XsdType, ValidationMixin
+from .xsdbase import XsdComponent, XsdType, ValidationMixin
 from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
@@ -575,89 +576,44 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
-        Decode an Element instance.
+        Decode an Element instance. A dummy element is created for the type and it's
+        used for decode data. Typically used for decoding with xs:anyType when an XSD
+        element is not available.
 
         :param elem: the Element that has to be decoded.
         :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
         :param kwargs: keyword arguments for the decoding process.
-        :return: yields a 3-tuple (simple content, complex content, attributes) containing \
-        the decoded parts, eventually preceded by a sequence of validation or decoding errors.
+        :return: yields a decoded object, eventually preceded by a sequence of \
+        validation or decoding errors.
         """
-        if self.is_empty() and elem.text:
-            reason = "character data between child elements not allowed because the type's content is empty"
-            yield self.validation_error(validation, reason, elem, **kwargs)
+        xsd_element = self.schema.create_element(name=elem.tag)
+        xsd_element.type = self
+        for result in xsd_element.iter_decode(elem, validation, **kwargs):
+            yield result
 
-        # XSD 1.1 assertions
-        for assertion in self.assertions:
-            for error in assertion(elem, **kwargs):
-                yield self.validation_error(validation, error, **kwargs)
-
-        for result in self.attributes.iter_decode(elem.attrib, validation, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-            else:
-                attributes = result
-                break
-        else:
-            attributes = None
-
-        if self.has_simple_content():
-            if len(elem) and validation != 'skip':
-                reason = "a simple content element can't has child elements."
-                yield self.validation_error(validation, reason, elem, **kwargs)
-
-            if elem.text is not None:
-                text = elem.text or kwargs.pop('default', '')
-                for result in self.content_type.iter_decode(text, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
-                    else:
-                        yield result, None, attributes
-            else:
-                yield None, None, attributes
-        else:
-            for result in self.content_type.iter_decode(elem, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    yield None, result, attributes
-
-    def iter_encode(self, element_data, validation='lax', **kwargs):
+    def iter_encode(self, obj, validation='lax', **kwargs):
         """
-        Encode an element data instance.
+        Encode XML data. A dummy element is created for the type and it's used for
+        encode data. Typically used for encoding with xs:anyType when an XSD element
+        is not available.
 
-        :param element_data: an ElementData instance with unencoded data.
+        :param obj: decoded XML data.
         :param validation: the validation mode: can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the encoding process.
-        :return: yields a 3-tuple (text, content, attributes) containing the encoded parts, \
-        eventually preceded by a sequence of validation or decoding errors.
+        :return: yields an Element, eventually preceded by a sequence of \
+        validation or encoding errors.
         """
-        for result in self.attributes.iter_encode(element_data.attributes, validation, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                yield result
-            else:
-                attributes = result
-                break
-        else:
-            attributes = ()
+        name, value = obj
+        xsd_element = self.schema.create_element(name=name)
+        xsd_element.type = self
 
-        if self.has_simple_content():
-            if element_data.text is None:
-                yield None, element_data.content, attributes
-            else:
-                for result in self.content_type.iter_encode(element_data.text, validation, **kwargs):
-                    if isinstance(result, XMLSchemaValidationError):
-                        yield result
-                    else:
-                        yield result, element_data.content, attributes
-        else:
-            for result in self.content_type.iter_encode(element_data, validation, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
+        if isinstance(value, list):
+            for item in value:
+                for result in xsd_element.iter_encode(item, validation, **kwargs):
                     yield result
-                elif result:
-                    yield result[0], result[1], attributes
-                else:
-                    yield None, None, attributes
+        else:
+            for result in xsd_element.iter_encode(value, validation, **kwargs):
+                yield result
 
 
 class Xsd11ComplexType(XsdComplexType):
@@ -742,12 +698,10 @@ class Xsd11ComplexType(XsdComplexType):
             self.default_attributes_apply = True
 
         # Add default attributes
-        if self.default_attributes_apply:
-            default_attributes = self.default_attributes
-            if default_attributes is not None:
-                if self.redefine is None and any(k in self.attributes for k in default_attributes):
-                    self.parse_error("at least a default attribute is already declared in the complex type")
-                self.attributes.update((k, v) for k, v in default_attributes.items())
+        if self.default_attributes_apply and isinstance(self.default_attributes, XsdComponent):
+            if self.redefine is None and any(k in self.attributes for k in self.default_attributes):
+                self.parse_error("at least a default attribute is already declared in the complex type")
+            self.attributes.update((k, v) for k, v in self.default_attributes.items())
 
     def _parse_complex_content_extension(self, elem, base_type):
         # Complex content extension with simple base is forbidden XSD 1.1.

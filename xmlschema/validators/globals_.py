@@ -449,7 +449,7 @@ class XsdGlobals(XsdValidator):
         :param only_unbuilt: removes only not built objects/schemas.
         """
         if only_unbuilt:
-            not_built_schemas = {schema for schema in self.iter_schemas() if not schema.built}
+            not_built_schemas = {s for s in self.iter_schemas() if not s.built}
             if not not_built_schemas:
                 return
 
@@ -530,6 +530,11 @@ class XsdGlobals(XsdValidator):
         if not meta_schema.built:
             xsd_builtin_types_factory(meta_schema, self.types)
 
+        if self is not meta_schema.maps:
+            # Rebuild xs:anyType for maps not owned by the meta-schema
+            # in order to do a correct namespace lookup for wildcards.
+            self.types[XSD_ANY_TYPE] = self.validator.create_any_type()
+
         for qname in self.notations:
             self.lookup_notation(qname)
         for qname in self.attributes:
@@ -603,12 +608,9 @@ class XsdGlobals(XsdValidator):
         # Checks substitution groups circularities
         for qname in self.substitution_groups:
             xsd_element = self.elements[qname]
-            for e in xsd_element.iter_substitutes():
-                if e is xsd_element:
-                    msg = "circularity found for substitution group with head element %r"
-                    e.parse_error(msg.format(e), validation=validation)
-                elif e.abstract and e.name not in self.substitution_groups and self.xsd_version > '1.0':
-                    self.parse_error("in XSD 1.1 an abstract element cannot be member of a substitution group")
+            if any(e is xsd_element for e in xsd_element.iter_substitutes()):
+                msg = "circularity found for substitution group with head element %r"
+                xsd_element.parse_error(msg.format(xsd_element), validation=validation)
 
         if validation == 'strict' and not self.built:
             raise XMLSchemaNotBuiltError(self, "global map has unbuilt components: %r" % self.unbuilt)
@@ -617,7 +619,7 @@ class XsdGlobals(XsdValidator):
         for group in filter(lambda x: x.schema in schemas and x.redefine is not None, self.groups.values()):
             if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
                     and not group.is_restriction(group.redefine):
-                msg = "The redefined group is an illegal restriction of the original group."
+                msg = "the redefined group is an illegal restriction of the original group"
                 group.parse_error(msg, validation=validation)
 
         # Check complex content types models restrictions
@@ -630,7 +632,7 @@ class XsdGlobals(XsdValidator):
                     base_type = xsd_type.base_type
                     if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
                         if not xsd_type.content_type.is_restriction(base_type.content_type):
-                            msg = "The derived group is an illegal restriction of the base type group."
+                            msg = "the derived group is an illegal restriction of the base type group"
                             xsd_type.parse_error(msg, validation=validation)
 
                     if base_type.is_complex() and not base_type.open_content and \
@@ -640,7 +642,8 @@ class XsdGlobals(XsdValidator):
                             any_element=xsd_type.open_content.any_element
                         )
                         if not group.is_restriction(base_type.content_type):
-                            self.parse_error("restriction has an open content but base type has not")
+                            msg = "restriction has an open content but base type has not"
+                            group.parse_error(msg, validation=validation)
 
                 try:
                     xsd_type.content_type.check_model()

@@ -3,7 +3,8 @@
 Chameleon schema for defining XSD 1.1 list type builtins and to override
 openContent/defaultOpenContent declarations for the xmlschema library.
 -->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.w3.org/2001/XMLSchema">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 
   <xs:override schemaLocation="XMLSchema.xsd">
     <xs:element name="openContent" id="openContent">

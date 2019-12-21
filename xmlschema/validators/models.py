@@ -431,8 +431,6 @@ class ModelVisitor(MutableSequence):
         """Returns an iterator for the current model group."""
         if self.group.model != 'all':
             return iter(self.group)
-        elif not self.occurs:
-            return self.group.iter_elements()
         else:
             return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))
 

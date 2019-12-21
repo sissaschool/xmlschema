@@ -37,7 +37,7 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_DATETIME, XSD_DATE_TIME_STAMP, XSD_ENTITY, XSD_ANY_URI, XSD_BOOLEAN, \
     XSD_DURATION, XSD_DAY_TIME_DURATION, XSD_YEAR_MONTH_DURATION, XSD_BASE64_BINARY, \
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
+    XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
 from ..etree import etree_element
 from ..helpers import is_etree_element
 from .exceptions import XMLSchemaValidationError
@@ -560,15 +560,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
     #
     # xs:anyType
     # Ref: https://www.w3.org/TR/xmlschema11-1/#builtin-ctd
-    any_type = meta_schema.BUILDERS.complex_type_class(
-        elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
-        schema=meta_schema,
-        parent=None,
-        mixed=True
-    )
-    any_type.content_type = meta_schema.create_any_content_group(any_type)
-    any_type.attributes = meta_schema.create_any_attribute_group(any_type)
-    xsd_types[XSD_ANY_TYPE] = any_type
+    xsd_types[XSD_ANY_TYPE] = meta_schema.create_any_type()
 
     # xs:anySimpleType
     # Ref: https://www.w3.org/TR/xmlschema11-2/#builtin-stds

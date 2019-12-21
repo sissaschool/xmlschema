@@ -38,6 +38,10 @@ ANY_ELEMENT = etree_element(
     })
 
 
+def not_whitespace(s):
+    return s and s.strip()
+
+
 class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     """
     Class for XSD 1.0 *model group* definitions.
@@ -529,7 +533,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     if xsd_type is not model_element.type and \
                             xsd_type.is_derived(model_element.type, derivation):
                         reason = "usage of %r with type %s is blocked by head element"
-                        raise XMLSchemaValidationError(self, reason % (xsd_element, derivation))
+                        raise XMLSchemaValidationError(self, elem, reason % (xsd_element, derivation))
 
             if XSI_TYPE not in elem.attrib:
                 return
@@ -567,9 +571,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         :return: yields a list of 3-tuples (key, decoded data, decoder), \
         eventually preceded by a sequence of validation or decoding errors.
         """
-        def not_whitespace(s):
-            return s is not None and s.strip()
-
         result_list = []
         cdata_index = 1  # keys for CDATA sections are positive integers
 
@@ -595,11 +596,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             self.validation_error('strict', reason, elem, **kwargs)
 
         try:
-            converter = kwargs['converter']
+            namespaces = kwargs['namespaces']
         except KeyError:
-            converter = kwargs['converter'] = self.get_converter(**kwargs)
+            namespaces = default_namespace = None
+        else:
+            try:
+                default_namespace = namespaces.get('')
+            except AttributeError:
+                default_namespace = None
 
-        default_namespace = converter.get('')
         model = ModelVisitor(self)
         errors = []
         model_broken = False
@@ -628,7 +633,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     break
 
                 try:
-                    self.check_dynamic_context(child, xsd_element, model.element, converter)
+                    self.check_dynamic_context(child, xsd_element, model.element, namespaces)
                 except XMLSchemaValidationError as err:
                     yield self.validation_error(validation, err, elem, **kwargs)
 
@@ -694,13 +699,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         (key, decoded data, decoder), eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        if not element_data.content:  # <tag/> or <tag></tag>
-            yield element_data.content
-            return
-
         level = kwargs['level'] = kwargs.get('level', 0) + 1
         errors = []
-        text = None
+        text = element_data.text
         children = []
         try:
             indent = kwargs['indent']
@@ -712,15 +713,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         try:
             converter = kwargs['converter']
         except KeyError:
-            converter = kwargs['converter'] = self.get_converter(**kwargs)
+            converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         default_namespace = converter.get('')
         model = ModelVisitor(self)
-        cdata_index = 0
+        index = cdata_index = 0
+        wrong_content_type = False
 
         if isinstance(element_data.content, dict) or kwargs.get('unordered'):
             content = model.iter_unordered_content(element_data.content)
         elif not isinstance(element_data.content, list):
+            if element_data.content is not None:
+                wrong_content_type = True
             content = []
         elif converter.losslessly:
             content = element_data.content
@@ -781,9 +785,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     children.append(result)
 
         if model.element is not None:
-            index = len(element_data.content) - cdata_index
             for particle, occurs, expected in model.stop():
-                errors.append((index, particle, occurs, expected))
+                errors.append((index - cdata_index, particle, occurs, expected))
 
         if children:
             if children[-1].tail is None:
@@ -791,7 +794,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 children[-1].tail = children[-1].tail.strip() + (padding[:-indent] or '\n')
 
-        if validation != 'skip' and (errors or not content):
+        cdata_not_allowed = not self.mixed and not_whitespace(text) and self and \
+            (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
+
+        if validation != 'skip' and (errors or cdata_not_allowed or wrong_content_type):
             attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
@@ -799,12 +805,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             else:
                 elem = converter.etree_element(element_data.tag, text, children, attrib)
 
-            if not content:
+            if wrong_content_type:
                 reason = "wrong content type {!r}".format(type(element_data.content))
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
+            if cdata_not_allowed:
+                reason = "character data between child elements not allowed"
+                yield self.validation_error(validation, reason, elem, **kwargs)
+
             for index, particle, occurs, expected in errors:
-                yield self.children_validation_error(validation, elem, index, particle, occurs, expected, **kwargs)
+                yield self.children_validation_error(
+                    validation, elem, index, particle, occurs, expected, **kwargs
+                )
 
         yield text, children
 

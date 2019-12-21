@@ -20,10 +20,10 @@ from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_PATTERN, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
-    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_LIST, \
-    XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, XSD_ASSERTION, \
-    XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, XSD_EXPLICIT_TIMEZONE, \
-    XSD_ERROR, XSD_ASSERT, get_qname, local_name
+    XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION,\
+    XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
+    XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, get_qname, local_name
 from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -108,6 +108,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     white_space = None
     patterns = None
     validators = ()
+    allow_empty = True
 
     def __init__(self, elem, schema, parent, name=None, facets=None):
         super(XsdSimpleType, self).__init__(elem, schema, parent, name)
@@ -120,6 +121,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
             if not isinstance(self, XsdAtomicBuiltin):
                 self._parse_facets(value)
 
+            if self.min_length:
+                self.allow_empty = False
+
             white_space = getattr(self.get_facet(XSD_WHITE_SPACE), 'value', None)
             if white_space is not None:
                 self.white_space = white_space
@@ -127,6 +131,12 @@ class XsdSimpleType(XsdType, ValidationMixin):
             patterns = self.get_facet(XSD_PATTERN)
             if patterns is not None:
                 self.patterns = patterns
+                if all(p.match('') is None for p in patterns.patterns):
+                    self.allow_empty = False
+
+            enumeration = self.get_facet(XSD_ENUMERATION)
+            if enumeration is not None and '' not in enumeration:
+                self.allow_empty = False
 
             if value:
                 if None in value:
@@ -301,7 +311,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         return self.max_length == 0
 
     def is_emptiable(self):
-        return self.min_length is None or self.min_length == 0
+        return self.allow_empty
 
     def has_simple_content(self):
         return True
@@ -335,7 +345,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return self.base_type.is_derived(other, derivation)
 
     def is_dynamic_consistent(self, other):
-        return other is self.any_type or other is self.any_simple_type or self.is_derived(other) or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or self.is_derived(other) or \
             hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def normalize(self, text):
@@ -706,6 +716,9 @@ class XsdList(XsdSimpleType):
         except XMLSchemaValueError as err:
             self.parse_error(str(err), elem)
             self.base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+        else:
+            if not base_type.allow_empty and self.min_length != 0:
+                self.allow_empty = False
 
     @property
     def admitted_facets(self):
@@ -859,6 +872,8 @@ class XsdUnion(XsdSimpleType):
             self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
         else:
             self.member_types = member_types
+            if all(not mt.allow_empty for mt in member_types):
+                self.allow_empty = False
 
     @property
     def admitted_facets(self):
@@ -871,7 +886,7 @@ class XsdUnion(XsdSimpleType):
         return all(mt.is_list() for mt in self.member_types)
 
     def is_dynamic_consistent(self, other):
-        return other is self.any_type or other is self.any_simple_type or \
+        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
             other.is_derived(self) or hasattr(other, 'member_types') and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 

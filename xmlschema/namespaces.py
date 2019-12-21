@@ -119,28 +119,32 @@ class NamespaceResourcesMap(MutableMapping):
 
 class NamespaceMapper(MutableMapping):
     """
-    A class to map/unmap namespace prefixes to URIs. The
+    A class to map/unmap namespace prefixes to URIs. The mapped namespaces are
+    automatically registered when set. Namespaces can be updated overwriting
+    the existing registration or inserted using an alternative prefix.
 
-    :param namespaces: Initial data with namespace prefixes and URIs.
+    :param namespaces: initial data with namespace prefixes and URIs.
+    :param register_namespace: a two-arguments function for registering namespaces \
+    on ElementTree module.
     """
     def __init__(self, namespaces=None, register_namespace=None):
         self._namespaces = {}
         self.register_namespace = register_namespace
         if namespaces is not None:
-            self.update(namespaces)
+            self._namespaces.update(namespaces)
 
-    def __getitem__(self, key):
-        return self._namespaces[key]
+    def __getitem__(self, prefix):
+        return self._namespaces[prefix]
 
-    def __setitem__(self, key, value):
-        self._namespaces[key] = value
+    def __setitem__(self, prefix, uri):
+        self._namespaces[prefix] = uri
         try:
-            self.register_namespace(key, value)
+            self.register_namespace(prefix, uri)
         except (TypeError, ValueError):
             pass
 
-    def __delitem__(self, key):
-        del self._namespaces[key]
+    def __delitem__(self, prefix):
+        del self._namespaces[prefix]
 
     def __iter__(self):
         return iter(self._namespaces)
@@ -149,11 +153,39 @@ class NamespaceMapper(MutableMapping):
         return len(self._namespaces)
 
     @property
+    def namespaces(self):
+        return self._namespaces
+
+    @property
     def default_namespace(self):
         return self._namespaces.get('')
 
     def clear(self):
         self._namespaces.clear()
+
+    def insert_item(self, prefix, uri):
+        """
+        A method for setting an item that checks the prefix before inserting.
+        In case of collision the prefix is changed adding a numerical suffix.
+        """
+        if not prefix:
+            if '' not in self._namespaces:
+                self._namespaces[prefix] = uri
+                return
+            elif self._namespaces[''] == uri:
+                return
+            prefix = 'default'
+
+        while prefix in self._namespaces:
+            if self._namespaces[prefix] == uri:
+                return
+            match = re.search(r'(\d+)$', prefix)
+            if match:
+                index = int(match.group()) + 1
+                prefix = prefix[:match.span()[0]] + str(index)
+            else:
+                prefix += '0'
+        self._namespaces[prefix] = uri
 
     def map_qname(self, qname):
         """
@@ -170,7 +202,7 @@ class NamespaceMapper(MutableMapping):
             return qname
 
         qname_uri = get_namespace(qname)
-        for prefix, uri in self.items():
+        for prefix, uri in self._namespaces.items():
             if uri != qname_uri:
                 continue
             if prefix:

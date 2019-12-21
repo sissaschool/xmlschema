@@ -15,6 +15,7 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
+import warnings
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -24,7 +25,7 @@ except ImportError:
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
-    load_xml_resource, XMLResource, XMLSchemaURLError, XMLSchema
+    load_xml_resource, XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
 )
 from xmlschema.tests import SKIP_REMOTE_TESTS, casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
@@ -32,6 +33,7 @@ from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.helpers import is_etree_element
+from xmlschema.documents import get_context
 
 
 def is_windows_path(path):
@@ -168,12 +170,52 @@ class TestResources(unittest.TestCase):
         self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
 
     def test_load_xml_resource(self):
-        self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
-        root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
+            root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
+
         self.assertTrue(is_etree_element(root))
         self.assertEqual(root.tag, '{http://example.com/vehicles}vehicles')
         self.assertTrue(text.startswith('<?xml version'))
         self.check_url(url, self.vh_xml_file)
+
+    def test_get_context(self):
+        source, schema = get_context(self.col_xml_file)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema)
+
+        source, schema = get_context(self.col_xml_file, self.col_xsd_file)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema)
+
+        source, schema = get_context(self.vh_xml_file, cls=XMLSchema10)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema10)
+
+        source, schema = get_context(self.col_xml_file, cls=XMLSchema11)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema11)
+
+        source, schema = get_context(XMLResource(self.vh_xml_file))
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema)
+
+        # Issue #145
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(f, schema=self.vh_xsd_file)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema)
+
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(XMLResource(f), schema=self.vh_xsd_file)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema)
+
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(f, base_url=self.vh_dir)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema)
 
     # Tests on XMLResource instances
     def test_xml_resource_from_url(self):
@@ -360,7 +402,7 @@ class TestResources(unittest.TestCase):
     def test_xml_resource_timeout(self):
         resource = XMLResource(self.vh_xml_file, timeout=30)
         self.assertEqual(resource.timeout, 30)
-        self.assertRaises(ValueError, XMLResource, self.vh_xml_file, timeout='100')
+        self.assertRaises(TypeError, XMLResource, self.vh_xml_file, timeout='100')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, timeout=0)
 
     def test_xml_resource_is_lazy(self):
@@ -537,6 +579,24 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.col_xsd_file)
         self.assertEqual(resource.url, normalize_url(self.col_xsd_file))
         self.assertEqual(set(resource.get_namespaces().keys()), {'', 'xs'})
+
+        resource = XMLResource("""<?xml version="1.0" ?>
+            <root xmlns="tns1">
+                <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+            </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'default'})
+
+        resource = XMLResource("""<?xml version="1.0" ?>
+            <root xmlns:tns="tns1">
+                <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
+            </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns'})
+
+        resource = XMLResource("""<?xml version="1.0" ?>
+            <root xmlns:tns="tns1">
+                <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
+            </root>""")
+        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns0'})
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)

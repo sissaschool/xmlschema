@@ -134,7 +134,7 @@ class XsdIdentity(XsdComponent):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
-                self.parse_error("element %r not allowed here:" % child.tag, elem)
+                self.parse_error("%r is not allowed here" % child, elem)
 
     def _parse_identity_reference(self):
         super(XsdIdentity, self)._parse()
@@ -181,7 +181,7 @@ class XsdIdentity(XsdComponent):
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
         return tuple(fields)
 
-    def iter_values(self, elem, namespaces):
+    def iter_values(self, elem, namespaces=None):
         """
         Iterate field values, excluding empty values (tuples with all `None` values).
 
@@ -216,7 +216,7 @@ class XsdIdentity(XsdComponent):
     def built(self):
         return self.selector is not None
 
-    def __call__(self, elem, namespaces):
+    def __call__(self, elem, namespaces=None):
         values = Counter()
         for v in self.iter_values(elem, namespaces):
             if isinstance(v, XMLSchemaValidationError):
@@ -301,7 +301,7 @@ class XsdKeyref(XsdIdentity):
     def built(self):
         return self.selector is not None and isinstance(self.refer, XsdIdentity)
 
-    def get_refer_values(self, elem, namespaces):
+    def get_refer_values(self, elem, namespaces=None):
         values = set()
         for e in elem.iterfind(self.refer_path):
             for v in self.refer.iter_values(e, namespaces):
@@ -309,7 +309,7 @@ class XsdKeyref(XsdIdentity):
                     values.add(v)
         return values
 
-    def __call__(self, elem, namespaces):
+    def __call__(self, elem, namespaces=None):
         if self.refer is None:
             return
 

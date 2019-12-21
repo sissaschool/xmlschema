@@ -14,6 +14,7 @@ This module defines a mixin class for enabling XPath on schemas.
 from __future__ import unicode_literals
 from abc import abstractmethod
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
+import threading
 
 from .compat import Sequence
 from .qnames import XSD_SCHEMA
@@ -97,14 +98,13 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         if parser.schema is not self:
             parser.schema = self
 
-        try:
-            parser.symbol_table = self._schema.xpath_tokens[parser.__class__]
-        except KeyError:
+        if self._schema.xpath_tokens is None:
             parser.symbol_table = parser.__class__.symbol_table.copy()
-            self._schema.xpath_tokens[parser.__class__] = parser.symbol_table
             for xsd_type in self.iter_atomic_types():
                 parser.schema_constructor(xsd_type.name)
-
+            self._schema.xpath_tokens = parser.symbol_table
+        else:
+            parser.symbol_table = self._schema.xpath_tokens
         parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
 
     def get_context(self):
@@ -183,10 +183,19 @@ class ElementPathMixin(Sequence):
 
     _xpath_parser = None  # Internal XPath 2.0 parser, instantiated at first use.
 
+    def __init__(self):
+        self._xpath_lock = threading.Lock()  # Lock for XPath operations
+
     def __getstate__(self):
         state = self.__dict__.copy()
+        state.pop('_xpath_lock', None)
         state.pop('_xpath_parser', None)
+        state.pop('xpath_tokens', None)  # For schema objects
         return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._xpath_lock = threading.Lock()
 
     @abstractmethod
     def __iter__(self):
@@ -223,11 +232,6 @@ class ElementPathMixin(Sequence):
         """Returns an XPath proxy instance bound with the schema."""
         raise NotImplementedError
 
-    def _rebind_xpath_parser(self):
-        """Rebind XPath 2 parser with schema component."""
-        if self._xpath_parser is not None:
-            self._xpath_parser.schema.bind_parser(self._xpath_parser)
-
     def _get_xpath_namespaces(self, namespaces=None):
         """
         Returns a dictionary with namespaces for XPath selection.
@@ -251,12 +255,14 @@ class ElementPathMixin(Sequence):
             path = ''.join(['/', XSD_SCHEMA, path])
 
         namespaces = self._get_xpath_namespaces(namespaces)
-        if self._xpath_parser is None:
-            self._xpath_parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
-        else:
-            self._xpath_parser.namespaces = namespaces
-
-        return self._xpath_parser.parse(path)
+        with self._xpath_lock:
+            parser = self._xpath_parser
+            if parser is None:
+                parser = XPath2Parser(namespaces, strict=False, schema=self.xpath_proxy)
+                self._xpath_parser = parser
+            else:
+                parser.namespaces = namespaces
+            return parser.parse(path)
 
     def find(self, path, namespaces=None):
         """

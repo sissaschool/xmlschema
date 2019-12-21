@@ -76,7 +76,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
             self.assertEqual(context[2].category, XMLSchemaImportWarning)
             self.assertTrue(str(context[0].message).startswith("Include"))
             self.assertTrue(str(context[1].message).startswith("Redefine"))
-            self.assertTrue(str(context[2].message).startswith("Namespace import"))
+            self.assertTrue(str(context[2].message).startswith("Import of namespace"))
 
     def test_wrong_references(self):
         # Wrong namespace for element type's reference

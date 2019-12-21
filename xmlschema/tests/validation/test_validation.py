@@ -68,6 +68,10 @@ class TestValidation(XsdValidatorTestCase):
         vh_2_xt = ElementTree.parse(vh_2_file)
         self.assertRaises(XMLSchemaValidationError, xmlschema.validate, vh_2_xt, self.vh_xsd_file)
 
+        # Issue #145
+        with open(self.vh_xml_file) as f:
+            self.assertIsNone(xmlschema.validate(f, schema=self.vh_xsd_file))
+
     def test_document_validate_api_lazy(self):
         source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
         namespaces = source.get_namespaces()
@@ -83,6 +87,23 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
 
+    def test_document_is_valid_api(self):
+        self.assertTrue(xmlschema.is_valid(self.vh_xml_file))
+        self.assertTrue(xmlschema.is_valid(self.vh_xml_file, use_defaults=False))
+
+        vh_2_file = self.casepath('examples/vehicles/vehicles-2_errors.xml')
+        self.assertFalse(xmlschema.is_valid(vh_2_file))
+
+    def test_document_iter_errors_api(self):
+        self.assertListEqual(list(xmlschema.iter_errors(self.vh_xml_file)), [])
+        self.assertListEqual(list(xmlschema.iter_errors(self.vh_xml_file, use_defaults=False)), [])
+
+        vh_2_file = self.casepath('examples/vehicles/vehicles-2_errors.xml')
+        errors = list(xmlschema.iter_errors(vh_2_file))
+        self.assertEqual(len(errors), 2)
+        self.assertIsInstance(errors[0], XMLSchemaValidationError)
+        self.assertIsInstance(errors[1], XMLSchemaValidationError)
+
     def test_max_depth_argument(self):
         schema = self.schema_class(self.col_xsd_file)
         self.assertEqual(
@@ -93,7 +114,7 @@ class TestValidation(XsdValidatorTestCase):
 
         xmlschema.limits.MAX_XML_DEPTH = 1
         with self.assertRaises(XMLSchemaValidationError):
-            self.assertEqual(schema.decode(self.col_xml_file))
+            schema.decode(self.col_xml_file)
         xmlschema.limits.MAX_XML_DEPTH = 9999
 
         self.assertEqual(
@@ -109,18 +130,14 @@ class TestValidation11(TestValidation):
     schema_class = XMLSchema11
 
     def test_default_attributes(self):
-        """<?xml version="1.0" encoding="UTF-8"?>
-                <ns:node xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                xsi:schemaLocation="ns ./default_attributes.xsd" colour="red">Root Node</ns:node>
-        """
         xs = self.schema_class(self.casepath('features/attributes/default_attributes.xsd'))
-        self.assertTrue(xs.is_valid("<tree xmlns='ns'>"
-                                    "   <node node-id='1'>alpha</node>"
-                                    "   <node node-id='2' colour='red'>beta</node>"
+        self.assertTrue(xs.is_valid("<tree xmlns='ns'>\n"
+                                    "   <node node-id='1'>alpha</node>\n"
+                                    "   <node node-id='2' colour='red'>beta</node>\n"
                                     "</tree>"))
-        self.assertFalse(xs.is_valid("<tree xmlns='ns'>"
-                                     "   <node>alpha</node>"  # Misses required attribute
-                                     "   <node node-id='2' colour='red'>beta</node>"
+        self.assertFalse(xs.is_valid("<tree xmlns='ns'>\n"
+                                     "   <node>alpha</node>\n"  # Misses required attribute
+                                     "   <node node-id='2' colour='red'>beta</node>\n"
                                      "</tree>"))
 
 

@@ -39,6 +39,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def __init__(self, elem, schema, parent, base_type):
         self.base_type = base_type
         super(XsdAssert, self).__init__(elem, schema, parent)
+        ElementPathMixin.__init__(self)
 
     def __repr__(self):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)

@@ -20,7 +20,7 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaV
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
-    get_namespace, get_qname
+    XSD_ASSERT, get_namespace, get_qname
 from ..helpers import get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
@@ -406,7 +406,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
-                else:
+                elif child.tag != XSD_ASSERT:
                     self.parse_error("another declaration after anyAttribute")
 
             elif child.tag == XSD_ANY_ATTRIBUTE:
@@ -632,7 +632,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             yield self.validation_error(validation, reason, attrs, **kwargs)
                         continue
             else:
-                if xsd_attribute.use == 'prohibited':
+                if xsd_attribute.use == 'prohibited' and \
+                        (None not in self or not self[None].is_matching(name)):
                     reason = "use of attribute %r is prohibited" % name
                     yield self.validation_error(validation, reason, attrs, **kwargs)
 
