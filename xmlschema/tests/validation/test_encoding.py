@@ -306,7 +306,7 @@ class TestEncoding(XsdValidatorTestCase):
     def test_encode_unordered_content(self):
         schema = self.get_schema("""
         <xs:element name="A" type="A_type" />
-        <xs:complexType name="A_type">
+        <xs:complexType name="A_type" mixed="true">
             <xs:sequence>
                 <xs:element name="B1" type="xs:string"/>
                 <xs:element name="B2" type="xs:integer"/>

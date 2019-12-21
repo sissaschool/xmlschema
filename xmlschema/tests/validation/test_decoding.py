@@ -480,9 +480,9 @@ class TestDecoding(XsdValidatorTestCase):
     def test_any_type(self):
         any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
         xml_data_1 = ElementTree.Element('dummy')
-        self.assertEqual(any_type.decode(xml_data_1), (None, [], []))
+        self.assertIsNone(any_type.decode(xml_data_1))
         xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
-        self.assertEqual(any_type.decode(xml_data_2), (None, [], []))  # Currently no decoding yet
+        self.assertIsNone(any_type.decode(xml_data_2))  # Currently no decoding yet
 
     def test_choice_model_decoding(self):
         schema = xmlschema.XMLSchema(self.casepath('issues/issue_041/issue_041.xsd'))

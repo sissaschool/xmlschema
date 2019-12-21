@@ -440,9 +440,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                     xsd_element = self.schema.create_element(name=elem.tag)
                     for result in xsd_element.iter_decode(elem, validation, **kwargs):
                         yield result
-                elif validation == 'skip':
-                    yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
-                elif self.process_contents == 'strict':
+                elif validation == 'skip' or self.process_contents == 'lax':
+                    for result in self.any_type.iter_decode(elem, validation, **kwargs):
+                        yield result
+                else:
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
@@ -472,8 +473,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             try:
                 xsd_element = self.maps.lookup_element(name)
             except LookupError:
-                if validation == 'skip':
-                    yield self.any_type.encode(value)
+                if validation == 'skip' or self.process_contents == 'lax':
+                    for result in self.any_type.iter_encode(obj, validation, **kwargs):
+                        yield result
                 elif self.process_contents == 'strict':
                     reason = "element %r not found." % name
                     yield self.validation_error(validation, reason, **kwargs)

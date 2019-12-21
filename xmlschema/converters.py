@@ -326,6 +326,8 @@ class XMLSchemaConverter(NamespaceMapper):
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
                 return ElementData(tag, obj, None, {})
+            elif xsd_element.type.mixed and not isinstance(obj, list):
+                return ElementData(tag, obj, None, {})
             else:
                 return ElementData(tag, None, obj, {})
 

@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.0.17`_ (2019-11-xx)
+`v1.0.17`_ (2019-11-21)
 =======================
 * Enhancement of validation-only speed (~15%)
 * Added *is_valid()* and *iter_errors()* to module API

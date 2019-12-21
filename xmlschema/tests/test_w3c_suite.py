@@ -97,8 +97,10 @@ SKIPPED_TESTS = {
 
     # Invalid XML tests
     '../sunData/combined/xsd005/xsd005.n05.xml',  # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
-    '../msData/additional/test93490_4.xml',     # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
-    '../msData/additional/test93490_8.xml',     # 4799: Idem
+    '../msData/additional/test93490_4.xml',  # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
+    '../msData/additional/test93490_8.xml',  # 4799: Idem
+    '../msData/datatypes/gMonth002.xml',  # 8017: gMonth bogus: conflicts with other invalid schema tests
+    '../msData/datatypes/gMonth004.xml',  # 8019: (http://www.w3.org/Bugs/Public/show_bug.cgi?id=6901)
 
     # Valid XML tests
     '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',  # defaultAttributeApply is true (false in comment)

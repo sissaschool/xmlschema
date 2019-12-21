@@ -125,6 +125,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) and not skip_strict:
                     if debug_mode:
                         pdb.set_trace()
+                    breakpoint()
                     raise AssertionError(str(err) + msg_tmpl % "encoded tree differs from original")
                 elif converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
                     return  # can't check encode equivalence if xsi:type is provided
