@@ -18,7 +18,7 @@ import warnings
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, \
-    BadgerFishConverter, AbderaConverter, JsonMLConverter
+    BadgerFishConverter, AbderaConverter, JsonMLConverter, UnorderedConverter
 
 from xmlschema.compat import unicode_type, ordered_dict_class
 from xmlschema.etree import etree_tostring, ElementTree, \
@@ -92,6 +92,8 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
 
         def check_etree_encode(self, root, converter=None, **kwargs):
             namespaces = kwargs.get('namespaces', {})
+            unordered = converter is UnorderedConverter or kwargs.get('unordered', False)
+
             data1 = self.schema.decode(root, converter=converter, **kwargs)
             if isinstance(data1, tuple):
                 data1 = data1[0]  # When validation='lax'
@@ -117,7 +119,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
 
             # Main check: compare original a re-encoded tree
             try:
-                etree_elements_assert_equal(root, elem1, strict=False)
+                etree_elements_assert_equal(root, elem1, strict=False, unordered=unordered)
             except AssertionError as err:
                 # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
                 # or if the XML case has defaults taken from the schema or some part of data
@@ -125,7 +127,6 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                 if converter not in (ParkerConverter, AbderaConverter, JsonMLConverter) and not skip_strict:
                     if debug_mode:
                         pdb.set_trace()
-                    breakpoint()
                     raise AssertionError(str(err) + msg_tmpl % "encoded tree differs from original")
                 elif converter is ParkerConverter and any(XSI_TYPE in e.attrib for e in root.iter()):
                     return  # can't check encode equivalence if xsi:type is provided
@@ -149,7 +150,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                         elem2 = elem2[0]
 
                     try:
-                        etree_elements_assert_equal(elem1, elem2, strict=False)
+                        etree_elements_assert_equal(elem1, elem2, strict=False, unordered=unordered)
                     except AssertionError as err:
                         if debug_mode:
                             pdb.set_trace()
@@ -176,8 +177,13 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                 elem2 = xmlschema.from_json(data2, schema=self.schema, path=root.tag, converter=converter, **kwargs)
                 if isinstance(elem2, tuple):
                     elem2 = elem2[0]
+
+                unordered = converter is UnorderedConverter or kwargs.get('unordered')
+
                 try:
-                    self.assertIsNone(etree_elements_assert_equal(elem1, elem2, strict=False, skip_comments=True))
+                    self.assertIsNone(etree_elements_assert_equal(
+                        elem1, elem2, strict=False, skip_comments=True, unordered=unordered
+                    ))
                 except AssertionError as err:
                     self.assertIsNone(err, None)
 
@@ -241,16 +247,17 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
             self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-            if narrow:
+            if not narrow:
                 self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
                 self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
                 self.check_etree_encode(root, BadgerFishConverter, **options)
                 self.check_etree_encode(root, AbderaConverter, **options)
                 self.check_etree_encode(root, JsonMLConverter, **options)
+                self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
             options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
-            if narrow:
+            if not narrow:
                 self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
                 self.check_json_serialization(root, BadgerFishConverter, **options)
@@ -284,7 +291,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                     'dict_class': ordered_dict_class,
                 }
                 self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-                if narrow:
+                if not narrow:
                     self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
                     self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
                     self.check_etree_encode(root, BadgerFishConverter, **options)
@@ -293,7 +300,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
 
                 options.pop('dict_class')
                 self.check_json_serialization(root, cdata_prefix='#', **options)
-                if narrow:
+                if not narrow:
                     self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
                     self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
                     self.check_json_serialization(root, BadgerFishConverter, **options)

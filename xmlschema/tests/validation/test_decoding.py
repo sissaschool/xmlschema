@@ -372,7 +372,7 @@ class TestDecoding(XsdValidatorTestCase):
             root = xmlschema.from_json(f, self.vh_schema)
 
         os.remove(self.vh_json_file)
-        self.check_etree_elements(vh_xml_tree, root)
+        self.check_etree_elements(vh_xml_tree.getroot(), root)
 
         with open(self.col_json_file, 'w') as f:
             xmlschema.to_json(self.col_xml_file, f)
@@ -381,7 +381,7 @@ class TestDecoding(XsdValidatorTestCase):
             root = xmlschema.from_json(f, self.col_schema)
 
         os.remove(self.col_json_file)
-        self.check_etree_elements(col_xml_tree, root)
+        self.check_etree_elements(col_xml_tree.getroot(), root)
 
     def test_path(self):
         xt = ElementTree.parse(self.vh_xml_file)

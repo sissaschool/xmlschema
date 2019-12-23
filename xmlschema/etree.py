@@ -275,34 +275,41 @@ def etree_iter_location_hints(elem):
             yield '', url
 
 
-def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
+def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, unordered=False):
     """
     Tests the equality of two XML Element trees.
 
     :param elem: the master Element tree, reference for namespace mapping.
     :param other: the other Element tree that has to be compared.
     :param strict: asserts strictly equality. `True` for default.
-    :param skip_comments: Skip comments for e
+    :param skip_comments: skip comments from comparison.
+    :param unordered: children may have different order.
     :raise: an AssertionError containing information about first difference encountered.
     """
     _REGEX_SPACES = re.compile(r'\s+')
 
-    other_elements = iter(other.iter())
+    if unordered:
+        children = sorted(elem, key=lambda x: x.tag is lxml_etree_comment or x.tag)
+        other_children = iter(sorted(other, key=lambda x: x.tag is lxml_etree_comment or x.tag))
+    else:
+        children = elem
+        other_children = iter(other)
+
     namespace = ''
-    for e1 in elem.iter():
+    for e1 in children:
         if skip_comments and e1.tag is lxml_etree_comment:
             continue
 
         try:
-            e2 = next(other_elements)
+            e2 = next(other_children)
         except StopIteration:
-            assert False, "Second tree ends before the first: %r." % e1
+            assert False, "Node %r has more children than %r." % (elem, other)
 
         if strict or e1 is elem:
             assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
         else:
             namespace = get_namespace(e1.tag) or namespace
-            assert get_qname(namespace, e1.tag) == get_qname(namespace, e1.tag), "%r != %r: tags differ." % (e1, e2)
+            assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), "%r != %r: tags differ." % (e1, e2)
 
         # Attributes
         if e1.attrib != e2.attrib:
@@ -357,12 +364,14 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True):
             else:
                 assert e1.tail.strip() == e2.tail.strip(), message
 
+        etree_elements_assert_equal(e1, e2, strict, skip_comments, unordered)
+
     try:
-        e2 = next(other_elements)
+        next(other_children)
     except StopIteration:
         pass
     else:
-        assert False, "First tree ends before the second: %r." % e2
+        assert False, "Node %r has lesser children than %r." % (elem, other)
 
 
 def prune_etree(root, selector):

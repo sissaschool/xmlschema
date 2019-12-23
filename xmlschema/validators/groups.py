@@ -720,11 +720,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         index = cdata_index = 0
         wrong_content_type = False
 
-        if isinstance(element_data.content, dict) or kwargs.get('unordered'):
-            content = model.iter_unordered_content(element_data.content)
+        if element_data.content is None:
+            content = []
+        elif isinstance(element_data.content, dict) or kwargs.get('unordered'):
+            content = ModelVisitor(self).iter_unordered_content(element_data.content)
         elif not isinstance(element_data.content, list):
-            if element_data.content is not None:
-                wrong_content_type = True
+            wrong_content_type = True
             content = []
         elif converter.losslessly:
             content = element_data.content

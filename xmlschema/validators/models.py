@@ -593,13 +593,12 @@ class ModelVisitor(MutableSequence):
         """
         if isinstance(content, dict):
             cdata_content = sorted(((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True)
-            consumable_content = {k: iter(v) for k, v in content.items() if not isinstance(k, int)}
+            consumable_content = {k: deque(v) for k, v in content.items() if not isinstance(k, int)}
         else:
             cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)
-            consumable_content = defaultdict(list)
+            consumable_content = defaultdict(deque)
             for k, v in filter(lambda x: not isinstance(x[0], int), content):
                 consumable_content[k].append(v)
-            consumable_content = {k: iter(v) for k, v in consumable_content.items()}
 
         if cdata_content:
             yield cdata_content.pop()
@@ -607,15 +606,13 @@ class ModelVisitor(MutableSequence):
         while self.element is not None and consumable_content:
             for name in consumable_content:
                 if self.element.is_matching(name):
-                    try:
-                        yield name, next(consumable_content[name])
-                    except StopIteration:
+                    yield name, consumable_content[name].popleft()
+                    if not consumable_content[name]:
                         del consumable_content[name]
-                        for _ in self.advance(False):
-                            pass
-                    else:
-                        if cdata_content:
-                            yield cdata_content.pop()
+                    for _ in self.advance(True):
+                        pass
+                    if cdata_content:
+                        yield cdata_content.pop()
                     break
             else:
                 # Consume the return of advance otherwise we get stuck in an infinite loop.
