@@ -787,7 +787,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         if model.element is not None:
             for particle, occurs, expected in model.stop():
-                errors.append((index - cdata_index, particle, occurs, expected))
+                errors.append((index - cdata_index + 1, particle, occurs, expected))
 
         if children:
             if children[-1].tail is None:

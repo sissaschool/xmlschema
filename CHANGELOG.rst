@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.0.18`_ (2019-12-24)
+=======================
+* Fix for *ModelVisitor.iter_unordered_content()*
+* Fixed default converter, AbderaConverter and JsonMLConverter for xs:anyType decode
+* Fixed validation tests with all converters
+* Added UnorderedConverter to validation tests
+
 `v1.0.17`_ (2019-12-22)
 =======================
 * Enhancement of validation-only speed (~15%)
@@ -278,3 +285,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.15: https://github.com/brunato/xmlschema/compare/v1.0.14...v1.0.15
 .. _v1.0.16: https://github.com/brunato/xmlschema/compare/v1.0.15...v1.0.16
 .. _v1.0.17: https://github.com/brunato/xmlschema/compare/v1.0.16...v1.0.17
+.. _v1.0.18: https://github.com/brunato/xmlschema/compare/v1.0.17...v1.0.18

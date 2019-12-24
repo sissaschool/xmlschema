@@ -31,7 +31,7 @@ from .validators import (
     XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 )
 
-__version__ = '1.0.17'
+__version__ = '1.0.18'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2019, SISSA"

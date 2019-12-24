@@ -101,6 +101,7 @@ SKIPPED_TESTS = {
     '../msData/additional/test93490_8.xml',  # 4799: Idem
     '../msData/datatypes/gMonth002.xml',  # 8017: gMonth bogus: conflicts with other invalid schema tests
     '../msData/datatypes/gMonth004.xml',  # 8019: (http://www.w3.org/Bugs/Public/show_bug.cgi?id=6901)
+    '../wgData/sg/e1.xml',                # 14896: wrong href for valid instanceTest name="e1bis.xml"
 
     # Valid XML tests
     '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',  # defaultAttributeApply is true (false in comment)

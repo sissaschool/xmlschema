@@ -283,21 +283,25 @@ class XMLSchemaConverter(NamespaceMapper):
 
             has_single_group = xsd_element.type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
-            for name, value, xsd_child in self.map_content(data.content):
-                try:
-                    result = result_dict[name]
-                except KeyError:
-                    if xsd_child is None or has_single_group and xsd_child.is_single():
-                        result_dict[name] = self.list([value]) if self.force_list else value
+            if data.content:
+                for name, value, xsd_child in self.map_content(data.content):
+                    try:
+                        result = result_dict[name]
+                    except KeyError:
+                        if xsd_child is None or has_single_group and xsd_child.is_single():
+                            result_dict[name] = self.list([value]) if self.force_list else value
+                        else:
+                            result_dict[name] = self.list([value])
                     else:
-                        result_dict[name] = self.list([value])
-                else:
-                    if not isinstance(result, list_types) or not result:
-                        result_dict[name] = self.list([result, value])
-                    elif isinstance(result[0], list_types) or not isinstance(value, list_types):
-                        result.append(value)
-                    else:
-                        result_dict[name] = self.list([result, value])
+                        if not isinstance(result, list_types) or not result:
+                            result_dict[name] = self.list([result, value])
+                        elif isinstance(result[0], list_types) or not isinstance(value, list_types):
+                            result.append(value)
+                        else:
+                            result_dict[name] = self.list([result, value])
+
+            elif data.text is not None and data.text != '':
+                result_dict[self.text_key] = data.text
 
             if level == 0 and self.preserve_root:
                 return self.dict([(self.map_qname(data.tag), result_dict if result_dict else None)])
@@ -771,7 +775,7 @@ class AbderaConverter(XMLSchemaConverter):
 
     @property
     def lossy(self):
-        return True
+        return True  # Loss cdata parts
 
     def element_decode(self, data, xsd_element, level=0):
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
@@ -792,7 +796,7 @@ class AbderaConverter(XMLSchemaConverter):
                 except AttributeError:
                     children[name] = self.list([children[name], value])
             if not children:
-                children = None
+                children = data.text if data.text is not None and data.text != '' else None
 
         if data.attributes:
             if children != []:
@@ -890,24 +894,25 @@ class JsonMLConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data, xsd_element, level=0):
-        result_list = self.list([self.map_qname(data.tag)])
-        attributes = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
+        result_list = self.list()
+        result_list.append(self.map_qname(data.tag))
+        if data.text is not None and data.text != '':
+            result_list.append(data.text)
 
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-            if data.text is not None and data.text != '':
-                result_list.append(data.text)
-        else:
+        if not xsd_element.type.has_simple_content():
             result_list.extend([
                 value if value is not None else self.list([name])
                 for name, value, _ in self.map_content(data.content)
             ])
 
+        attributes = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             attributes.update(
                 [('xmlns:%s' % k if k else 'xmlns', v) for k, v in self._namespaces.items()]
             )
         if attributes:
             result_list.insert(1, attributes)
+
         return result_list
 
     def element_encode(self, obj, xsd_element, level=0):
