@@ -224,31 +224,6 @@ def fetch_namespaces(source, base_url=None, defuse='remote', timeout=30):
     return resource.get_namespaces()
 
 
-def load_xml_resource(source, element_only=True, **resource_options):
-    """
-    Load XML data source into an Element tree, returning the root Element, the XML text and an
-    url, if available. Usable for XML data files of small or medium sizes, as XSD schemas.
-    This helper function is deprecated from v1.0.17, use :class:`XMLResource` instead.
-
-    :param source: an URL, a filename path or a file-like object.
-    :param element_only: if True the function returns only the root Element of the tree.
-    :param resource_options: keyword arguments for providing :class:`XMLResource` init options.
-    :return: a tuple with three items (root Element, XML text and XML URL) or \
-    only the root Element if 'element_only' argument is True.
-    """
-    import warnings
-    warnings.warn("load_xml_resource() function will be removed in 1.1 version",
-                  DeprecationWarning, stacklevel=2)
-
-    lazy = resource_options.pop('lazy', False)
-    source = XMLResource(source, lazy=lazy, **resource_options)
-    if element_only:
-        return source.root
-    else:
-        source.load()
-        return source.root, source.text, source.url
-
-
 class XMLResource(object):
     """
     XML resource reader based on ElementTree and urllib.

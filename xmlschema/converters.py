@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -14,7 +14,6 @@ from __future__ import unicode_literals
 from collections import namedtuple
 from types import MethodType
 import string
-import warnings
 
 from .compat import ordered_dict_class, unicode_type
 from .exceptions import XMLSchemaValueError
@@ -89,25 +88,6 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
-    # Deprecation from release v1.0.14
-    def _unmap_attribute_qname(self, name):
-        warnings.warn("the _unmap_attribute_qname method is deprecated and will "
-                      "be removed in 1.1 version. Use the unmap_qname() instead, "
-                      "providing the attribute group of the XSD element for the "
-                      "optional *name_table* argument.",
-                      DeprecationWarning, stacklevel=2)
-        if name[0] == '{' or ':' not in name:
-            return name
-        else:
-            return self.unmap_qname(name)
-
-    @property
-    def lossless(self):
-        """The negation of *lossy* property, preserved for backward compatibility."""
-        warnings.warn("the lossless property will be removed in 1.1 version, "
-                      "use 'not self.lossy' instead", DeprecationWarning, stacklevel=2)
-        return not self.lossy
-
     def __init__(self, namespaces=None, dict_class=None, list_class=None, etree_element_class=None,
                  text_key='$', attr_prefix='@', cdata_prefix=None, indent=4, strip_namespaces=False,
                  preserve_root=False, force_dict=False, force_list=False, **kwargs):

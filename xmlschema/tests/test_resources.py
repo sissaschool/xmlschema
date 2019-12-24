@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,7 +15,6 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
-import warnings
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -25,7 +24,7 @@ except ImportError:
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
-    load_xml_resource, XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
+    XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
 )
 from xmlschema.tests import SKIP_REMOTE_TESTS, casepath
 from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
@@ -168,17 +167,6 @@ class TestResources(unittest.TestCase):
         self.assertEqual(locations[1][0][0], 'http://example.com/ns/collection')
         self.check_url(locations[1][0][1], self.col_xsd_file)
         self.check_url(fetch_schema(self.vh_xml_file), self.vh_xsd_file)
-
-    def test_load_xml_resource(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            self.assertTrue(is_etree_element(load_xml_resource(self.vh_xml_file, element_only=True)))
-            root, text, url = load_xml_resource(self.vh_xml_file, element_only=False)
-
-        self.assertTrue(is_etree_element(root))
-        self.assertEqual(root.tag, '{http://example.com/vehicles}vehicles')
-        self.assertTrue(text.startswith('<?xml version'))
-        self.check_url(url, self.vh_xml_file)
 
     def test_get_context(self):
         source, schema = get_context(self.col_xml_file)
