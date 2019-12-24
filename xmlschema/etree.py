@@ -289,8 +289,8 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     _REGEX_SPACES = re.compile(r'\s+')
 
     if unordered:
-        children = sorted(elem, key=lambda x: x.tag is lxml_etree_comment or x.tag)
-        other_children = iter(sorted(other, key=lambda x: x.tag is lxml_etree_comment or x.tag))
+        children = sorted(elem, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag)
+        other_children = iter(sorted(other, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag))
     else:
         children = elem
         other_children = iter(other)
@@ -309,7 +309,8 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
         else:
             namespace = get_namespace(e1.tag) or namespace
-            assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), "%r != %r: tags differ." % (e1, e2)
+            assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), \
+                "%r != %r: tags differ." % (e1, e2)
 
         # Attributes
         if e1.attrib != e2.attrib:

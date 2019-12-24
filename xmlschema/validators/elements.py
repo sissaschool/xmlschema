@@ -589,6 +589,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
                     content = result
+
+            if len(content) == 1 and content[0][0] == 1:
+                value, content = content[0][1], None
+
         else:
             if len(elem) and validation != 'skip':
                 reason = "a simple content element can't has child elements."

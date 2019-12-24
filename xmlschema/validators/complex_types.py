@@ -17,9 +17,8 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENC
     XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT, \
     get_qname, local_name
 from ..helpers import get_xsd_derivation_attribute
-from ..converters import ElementData
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
+from .exceptions import XMLSchemaDecodeError
 from .xsdbase import XsdComponent, XsdType, ValidationMixin
 from .assertions import XsdAssert
 from .attributes import XsdAttributeGroup
@@ -608,12 +607,19 @@ class XsdComplexType(XsdType, ValidationMixin):
         xsd_element.type = self
 
         if isinstance(value, list):
-            for item in value:
-                for result in xsd_element.iter_encode(item, validation, **kwargs):
+            try:
+                results = [x for item in value for x in xsd_element.iter_encode(
+                    item, validation, **kwargs
+                )]
+            except XMLSchemaValueError:
+                pass
+            else:
+                for result in results:
                     yield result
-        else:
-            for result in xsd_element.iter_encode(value, validation, **kwargs):
-                yield result
+                return
+
+        for result in xsd_element.iter_encode(value, validation, **kwargs):
+            yield result
 
 
 class Xsd11ComplexType(XsdComplexType):
