@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,8 +11,6 @@
 """
 This module runs tests on various internal helper functions.
 """
-from __future__ import unicode_literals
-
 import unittest
 import decimal
 import xml.etree.ElementTree as ElementTree

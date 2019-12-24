@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -26,7 +25,6 @@ run only the tests associated with a progressive list of index.
 Also the unittest options are accepted (run with --help to show a summary
 of available options).
 """
-from __future__ import print_function, unicode_literals
 import unittest
 import argparse
 import os.path

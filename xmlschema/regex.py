@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,12 +10,11 @@
 """
 Parse and translate XML Schema regular expressions to Python regex syntax.
 """
-from __future__ import unicode_literals
 import re
 from itertools import chain
 from sys import maxunicode
+from collections.abc import MutableSet
 
-from .compat import PY3, unicode_type, string_base_type, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaRegexError
 from .codepoints import UnicodeSubset, UNICODE_CATEGORIES, unicode_subset
 
@@ -102,20 +100,14 @@ class XsdRegexCharGroup(MutableSet):
         return '<%s at %d>' % (self.__class__.__name__, id(self))
 
     def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         if not self.negative:
-            return '[%s]' % unicode_type(self.positive)
+            return '[%s]' % str(self.positive)
         elif not self.positive:
-            return '[^%s]' % unicode_type(self.negative)
+            return '[^%s]' % str(self.negative)
         else:
             return '[%s%s]' % (
-                unicode_type(UnicodeSubset(self.negative.complement())), unicode_type(self.positive)
+                str(UnicodeSubset(self.negative.complement())), str(self.positive)
             )
-
-    if PY3:
-        __str__ = __unicode__
 
     def __contains__(self, char):
         if self.negative:
@@ -148,7 +140,7 @@ class XsdRegexCharGroup(MutableSet):
         for part in self._re_char_group.split(s):
             if part in CHARACTER_ESCAPES:
                 value = CHARACTER_ESCAPES[part]
-                if isinstance(value, string_base_type):
+                if isinstance(value, str):
                     self.positive.update(value)
                 elif part[-1].islower():
                     self.positive |= value
@@ -169,7 +161,7 @@ class XsdRegexCharGroup(MutableSet):
         for part in self._re_char_group.split(s):
             if part in CHARACTER_ESCAPES:
                 value = CHARACTER_ESCAPES[part]
-                if isinstance(value, string_base_type):
+                if isinstance(value, str):
                     self.positive.difference_update(value)
                 elif part[-1].islower():
                     self.positive -= value
@@ -285,7 +277,7 @@ def get_python_regex(xml_regex, xsd_version='1.0'):
                     "unterminated character group at position %d: %r" % (pos, xml_regex)
                 )
             else:
-                char_group_repr = unicode_type(char_group)
+                char_group_repr = str(char_group)
                 if char_group_repr == '[^]':
                     regex.append(r'[\w\W]')
                 elif char_group_repr == '[]':

@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -15,10 +14,11 @@ import unittest
 import platform
 import re
 import os
+from urllib.request import urlopen
+from urllib.error import URLError
 
 import xmlschema
 from xmlschema import XMLSchema
-from xmlschema.compat import urlopen, URLError, unicode_type
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.qnames import XSD_SCHEMA
 from xmlschema.namespaces import XSD_NAMESPACE, get_namespace
@@ -188,7 +188,7 @@ class XsdValidatorTestCase(unittest.TestCase):
         :param expected: the number of expected errors.
         """
         for e in self.errors:
-            error_string = unicode_type(e)
+            error_string = str(e)
             self.assertTrue(e.path, "Missing path for: %s" % error_string)
             self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
             self.check_namespace_prefixes(error_string)
@@ -204,5 +204,5 @@ class XsdValidatorTestCase(unittest.TestCase):
             else:
                 msg = "{!r}: n.{} errors expected, found {}. First five errors follow:\n\n{}"
 
-            error_string = '\n++++++++++\n\n'.join([unicode_type(e) for e in self.errors[:5]])
+            error_string = '\n++++++++++\n\n'.join([str(e) for e in self.errors[:5]])
             raise ValueError(msg.format(path, expected, len(self.errors), error_string))

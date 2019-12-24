@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,9 @@
 """
 This module contains classes for XML Schema model groups.
 """
-from __future__ import unicode_literals
 import warnings
 
 from .. import limits
-from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
@@ -585,7 +582,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     cdata_index = 0  # Do not decode CDATA
 
         if cdata_index and elem.text is not None:
-            text = unicode_type(elem.text.strip())
+            text = str(elem.text.strip())
             if text:
                 result_list.append((cdata_index, text, None))
                 cdata_index += 1
@@ -668,7 +665,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     result_list.append((child.tag, result, xsd_element))
 
             if cdata_index and child.tail is not None:
-                tail = unicode_type(child.tail.strip())
+                tail = str(child.tail.strip())
                 if tail:
                     if result_list and isinstance(result_list[-1][0], int):
                         tail = result_list[-1][1] + ' ' + tail
@@ -799,7 +796,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
 
         if validation != 'skip' and (errors or cdata_not_allowed or wrong_content_type):
-            attrib = {k: unicode_type(v) for k, v in element_data.attributes.items()}
+            attrib = {k: str(v) for k, v in element_data.attributes.items()}
             if validation == 'lax' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
                 elem = converter.etree_element(element_data.tag, text, child_tags, attrib)

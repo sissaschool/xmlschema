@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,9 +10,6 @@
 """
 This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
 """
-from __future__ import unicode_literals
-
-from ..compat import PY3, string_base_type
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..qnames import qname_to_prefixed
 from ..etree import etree_tostring, etree_getpath
@@ -46,9 +42,6 @@ class XMLSchemaValidatorError(XMLSchemaException):
         self.elem = elem
 
     def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         if self.elem is None:
             return '%s.' % self.message
         else:
@@ -67,12 +60,9 @@ class XMLSchemaValidatorError(XMLSchemaException):
                     msg.append("Origin URL: %s\n" % self.origin_url)
             return '\n'.join(msg)
 
-    if PY3:
-        __str__ = __unicode__
-
     @property
     def msg(self):
-        return self.__unicode__()
+        return self.__str__()
 
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
@@ -199,7 +189,7 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
     :type namespaces: dict
     """
     def __init__(self, validator, obj, reason=None, source=None, namespaces=None):
-        if not isinstance(obj, string_base_type):
+        if not isinstance(obj, str):
             _obj = obj
         else:
             _obj = obj.encode('ascii', 'xmlcharrefreplace').decode('utf-8')
@@ -215,10 +205,6 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         self.reason = reason
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         msg = ['%s:\n' % self.message]
         if self.reason is not None:
             msg.append('Reason: %s\n' % self.reason)
@@ -237,9 +223,6 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if self.path is not None:
             msg.append("Path: %s\n" % self.path)
         return '\n'.join(msg)
-
-    if PY3:
-        __str__ = __unicode__
 
 
 class XMLSchemaDecodeError(XMLSchemaValidationError):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -20,7 +19,7 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
     AbderaConverter, JsonMLConverter
 
 from xmlschema.converters import UnorderedConverter
-from xmlschema.compat import unicode_type, ordered_dict_class
+from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.tests import XsdValidatorTestCase
 from xmlschema.validators import XMLSchema11
@@ -345,7 +344,7 @@ class TestDecoding(XsdValidatorTestCase):
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax')
         self.assertEqual(data, '1999-12-31')
         self.assertEqual(len(errors), 1)
-        self.assertIn('value has to be greater or equal than', unicode_type(errors[0]))
+        self.assertIn('value has to be greater or equal than', str(errors[0]))
 
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax', datetime_types=True)
         self.assertEqual(data, datatypes.Date10.fromstring('1999-12-31'))
@@ -677,7 +676,7 @@ class TestDecoding(XsdValidatorTestCase):
         try:
             schema.decode(rotation_data)
         except Exception as err:
-            message_lines = unicode_type(err).split('\n')
+            message_lines = str(err).split('\n')
 
         self.assertTrue(message_lines, msg="Empty error message!")
         self.assertEqual(message_lines[-6], 'Instance:')

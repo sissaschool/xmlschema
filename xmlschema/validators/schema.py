@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -25,7 +24,6 @@ import re
 import sys
 
 
-from ..compat import add_metaclass
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
@@ -137,8 +135,7 @@ class XMLSchemaMeta(ABCMeta):
         super(XMLSchemaMeta, cls).__init__(name, bases, dict_)
 
 
-@add_metaclass(XMLSchemaMeta)
-class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin):
+class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=XMLSchemaMeta):
     """
     Base class for an XML Schema instance.
 

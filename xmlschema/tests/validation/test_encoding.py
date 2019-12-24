@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -14,7 +13,7 @@ import unittest
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
-from xmlschema.compat import unicode_type, ordered_dict_class
+from xmlschema.compat import ordered_dict_class
 from xmlschema.qnames import local_name
 from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
@@ -256,7 +255,7 @@ class TestEncoding(XsdValidatorTestCase):
         try:
             schema.encode(rotation_data)
         except Exception as err:
-            message_lines = unicode_type(err).split('\n')
+            message_lines = str(err).split('\n')
 
         self.assertTrue(message_lines, msg="Empty error message!")
         self.assertEqual(message_lines[-4], 'Instance:')

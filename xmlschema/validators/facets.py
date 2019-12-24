@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,13 +10,12 @@
 """
 This module contains declarations and classes for XML Schema constraint facets.
 """
-from __future__ import unicode_literals
 import re
 import operator
+from collections.abc import MutableSequence
 from elementpath import XPath2Parser, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
-from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
     XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
@@ -47,7 +45,7 @@ class XsdFacet(XsdComponent):
             for error in self.validator(value):
                 yield error
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
     def _parse(self):
         super(XsdFacet, self)._parse()
@@ -60,7 +58,7 @@ class XsdFacet(XsdComponent):
             self._parse_value(self.elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
             self.value = None
-            self.parse_error(unicode_type(err))
+            self.parse_error(str(err))
         else:
             if base_facet is not None and base_facet.fixed and \
                     base_facet.value is not None and self.value != base_facet.value:
@@ -300,7 +298,7 @@ class XsdMinInclusiveFacet(XsdFacet):
                 reason = "value has to be greater or equal than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMinExclusiveFacet(XsdFacet):
@@ -342,7 +340,7 @@ class XsdMinExclusiveFacet(XsdFacet):
                 reason = "value has to be greater than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -384,7 +382,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
                 reason = "value has to be lesser or equal than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -426,7 +424,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
                 reason = "value has to be lesser than %r" % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -659,7 +657,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
                 msg = "value doesn't match any pattern of %r."
                 yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
         except TypeError as err:
-            yield XMLSchemaValidationError(self, text, unicode_type(err))
+            yield XMLSchemaValidationError(self, text, str(err))
 
     @property
     def regexps(self):

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -20,7 +19,7 @@ import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, \
     BadgerFishConverter, AbderaConverter, JsonMLConverter, UnorderedConverter
 
-from xmlschema.compat import unicode_type, ordered_dict_class
+from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import etree_tostring, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
 from xmlschema.resources import fetch_namespaces
@@ -113,7 +112,7 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                 # When validation='lax'
                 if converter is not ParkerConverter:
                     for e in elem1[1]:
-                        self.check_namespace_prefixes(unicode_type(e))
+                        self.check_namespace_prefixes(str(e))
                 elem1 = elem1[0]
 
             # Checks the encoded element to not contains reserved namespace prefixes

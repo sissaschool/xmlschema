@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
@@ -15,6 +14,9 @@ This module runs tests concerning resources.
 import unittest
 import os
 import platform
+from io import StringIO
+from urllib.request import urlopen
+from urllib.parse import urlsplit, uses_relative
 
 try:
     from pathlib import PureWindowsPath, PurePath
@@ -27,7 +29,6 @@ from xmlschema import (
     XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
 )
 from xmlschema.tests import SKIP_REMOTE_TESTS, casepath
-from xmlschema.compat import urlopen, urlsplit, uses_relative, StringIO
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE

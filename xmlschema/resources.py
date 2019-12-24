@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,13 +9,12 @@
 #
 import os.path
 import re
-import codecs
 from elementpath import iter_select, Selector, XPath1Parser
+from io import StringIO, BytesIO
+from urllib.request import urlopen, pathname2url
+from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
+from urllib.error import URLError
 
-from .compat import (
-    PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
-    pathname2url, URLError, uses_relative
-)
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
 from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, etree_iter_location_hints
@@ -41,7 +39,7 @@ XmlResourceXPathParser.build_tokenizer()
 
 
 def is_remote_url(url):
-    return isinstance(url, string_base_type) and urlsplit(url).scheme not in ('', 'file')
+    return isinstance(url, str) and urlsplit(url).scheme not in ('', 'file')
 
 
 def url_path_is_directory(url):
@@ -249,14 +247,7 @@ class XMLResource(object):
         self.source = source
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def __repr__(self):
         if self._root is None:
@@ -272,11 +263,11 @@ class XMLResource(object):
         if name == 'source':
             self._root, self._text, self._url = self._fromsource(value)
         elif name == '_base_url':
-            if value is not None and not isinstance(value, string_base_type):
+            if value is not None and not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'base_url'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
         elif name == 'defuse':
-            if value is not None and not isinstance(value, string_base_type):
+            if value is not None and not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'defuse'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
             elif value not in DEFUSE_MODES:
@@ -300,7 +291,7 @@ class XMLResource(object):
             self._lazy = False
             return source, None, None  # Source is already an Element --> nothing to load
 
-        elif isinstance(source, string_base_type):
+        elif isinstance(source, str):
             _url, self._url = self._url, None
             try:
                 if self._lazy:
@@ -544,14 +535,14 @@ class XMLResource(object):
         except AttributeError:
             pass
         else:
-            return value if PY3 else position
+            return value
 
         try:
             value = self.source.fp.seek(position)
         except AttributeError:
             pass
         else:
-            return value if PY3 else position
+            return value
 
     def close(self):
         """
@@ -585,13 +576,9 @@ class XMLResource(object):
 
         if isinstance(data, bytes):
             try:
-                text = data.decode('utf-8') if PY3 else data.encode('utf-8')
+                text = data.decode('utf-8')
             except UnicodeDecodeError:
-                if PY3:
-                    text = data.decode('iso-8859-1')
-                else:
-                    with codecs.open(urlsplit(self._url).path, mode='rb', encoding='iso-8859-1') as f:
-                        text = f.read().encode('iso-8859-1')
+                text = data.decode('iso-8859-1')
         else:
             text = data
 
@@ -734,7 +721,7 @@ class XMLResource(object):
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
-        elif isinstance(self._text, string_base_type):
+        elif isinstance(self._text, str):
             resource = StringIO(self._text)
         else:
             for elem in self._root.iter():
@@ -795,7 +782,7 @@ class XMLResource(object):
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
-        elif isinstance(self._text, string_base_type):
+        elif isinstance(self._text, str):
             resource = StringIO(self._text)
         else:
             if hasattr(self._root, 'nsmap'):

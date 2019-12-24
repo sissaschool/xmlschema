@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,7 +12,6 @@ This module contains various helper functions and classes.
 """
 from decimal import Decimal
 
-from .compat import string_base_type
 from .exceptions import XMLSchemaValueError
 from .qnames import XSD_ANNOTATION
 from .xpath import ElementPathMixin
@@ -91,7 +89,7 @@ def count_digits(number):
     :return: a couple with the number of digits of the integer part and \
     the number of digits of the decimal part.
     """
-    if isinstance(number, string_base_type):
+    if isinstance(number, str):
         number = str(Decimal(number)).lstrip('-+')
     else:
         number = str(number).lstrip('-+')

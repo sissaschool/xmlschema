@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,10 +10,8 @@
 """
 This module contains base functions and classes XML Schema components.
 """
-from __future__ import unicode_literals
 import re
 
-from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE, \
@@ -56,14 +53,7 @@ class XsdValidator(object):
         self.errors = []
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     @property
     def built(self):
@@ -155,11 +145,11 @@ class XsdValidator(object):
             error.elem = elem
             error.source = getattr(self, 'source', None)
         elif isinstance(error, Exception):
-            message = unicode_type(error).strip()
+            message = str(error).strip()
             if message[0] in '\'"' and message[0] == message[-1]:
                 message = message.strip('\'"')
             error = XMLSchemaParseError(self, message, elem)
-        elif isinstance(error, string_base_type):
+        elif isinstance(error, str):
             error = XMLSchemaParseError(self, error, elem)
         else:
             raise XMLSchemaValueError("'error' argument must be an exception or a string, not %r." % error)

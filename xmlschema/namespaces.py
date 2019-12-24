@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,9 @@
 """
 This module contains namespace definitions for W3C core standards and namespace related classes.
 """
-from __future__ import unicode_literals
 import os
 import re
-
-from .compat import MutableMapping, Mapping
+from collections.abc import MutableMapping, Mapping
 
 ###
 # Namespace URIs

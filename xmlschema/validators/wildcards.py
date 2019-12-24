@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,9 +10,6 @@
 """
 This module contains classes for XML Schema wildcards.
 """
-from __future__ import unicode_literals
-
-from ..compat import unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..namespaces import XSI_NAMESPACE
 from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
@@ -611,7 +607,7 @@ class XsdAnyAttribute(XsdWildcard):
                 xsd_attribute = self.maps.lookup_attribute(name)
             except LookupError:
                 if validation == 'skip':
-                    yield unicode_type(value)
+                    yield str(value)
                 elif self.process_contents == 'strict':
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
@@ -620,7 +616,7 @@ class XsdAnyAttribute(XsdWildcard):
                     yield result
 
         elif validation == 'skip':
-            yield unicode_type(value)
+            yield str(value)
 
         elif self.process_contents == 'strict':
             reason = "unavailable namespace {!r}".format(get_namespace(name))

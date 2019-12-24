@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,10 @@
 """
 This module contains functions and classes for namespaces XSD declarations/definitions.
 """
-from __future__ import unicode_literals
 import warnings
 from collections import Counter
+from functools import lru_cache
 
-from ..compat import string_base_type, lru_cache
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
@@ -543,7 +541,7 @@ class XsdGlobals(XsdValidator):
         for qname in self.attribute_groups:
             self.lookup_attribute_group(qname)
         for schema in filter(
-                lambda x: isinstance(x.default_attributes, string_base_type),
+                lambda x: isinstance(x.default_attributes, str),
                 not_built_schemas):
             try:
                 schema.default_attributes = schema.maps.attribute_groups[schema.default_attributes]

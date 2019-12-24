@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,7 +10,6 @@
 """
 This module contains classes for XML Schema elements, complex types and model groups.
 """
-from __future__ import unicode_literals
 import warnings
 from decimal import Decimal
 from elementpath import XPath2Parser, ElementPathError, XPathContext

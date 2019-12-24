@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,12 +10,11 @@
 """
 This module defines a mixin class for enabling XPath on schemas.
 """
-from __future__ import unicode_literals
 from abc import abstractmethod
+from collections.abc import Sequence
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
 import threading
 
-from .compat import Sequence
 from .qnames import XSD_SCHEMA
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError

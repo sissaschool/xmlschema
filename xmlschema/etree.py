@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,7 +10,6 @@
 """
 This module contains ElementTree setup and helpers for xmlschema package.
 """
-from __future__ import unicode_literals
 import sys
 import importlib
 import re
@@ -22,7 +20,6 @@ try:
 except ImportError:
     lxml_etree = None
 
-from .compat import PY3
 from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
@@ -34,11 +31,7 @@ from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_
 # so use a programmatic re-import to obtain the pure Python module, necessary for
 # defining a safer XMLParser.
 #
-if not PY3:
-    # Python 2.7: nothing have to be done because it's not overridden by C implementation
-    ElementTree = PyElementTree = importlib.import_module('xml.etree.ElementTree')
-
-elif '_elementtree' in sys.modules:
+if '_elementtree' in sys.modules:
     # Temporary remove the loaded modules
     ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
     _cmod = sys.modules.pop('_elementtree')
@@ -112,7 +105,7 @@ class SafeXMLParser(PyElementTree.XMLParser):
     """
     def __init__(self, target=None, encoding=None):
         super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
-        parser = self.parser if PY3 else self._parser
+        parser = self.parser
         parser.EntityDeclHandler = self.entity_declaration
         parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
         parser.ExternalEntityRefHandler = self.external_entity_reference
@@ -173,10 +166,7 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     else:
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
-    if PY3:
-        xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
-    else:
-        xml_text = unicode(tostring(elem)).replace('\t', ' ' * spaces_for_tab)
+    xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.splitlines())

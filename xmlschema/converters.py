@@ -10,12 +10,11 @@
 """
 This module contains converter classes and definitions.
 """
-from __future__ import unicode_literals
 from collections import namedtuple
 from types import MethodType
 import string
 
-from .compat import ordered_dict_class, unicode_type
+from .compat import ordered_dict_class
 from .exceptions import XMLSchemaValueError
 from .namespaces import XSI_NAMESPACE
 from .qnames import local_name
@@ -39,9 +38,9 @@ def raw_xml_encode(value):
     if isinstance(value, bool):
         return 'true' if value else 'false'
     elif isinstance(value, (list, tuple)):
-        return ' '.join(unicode_type(e) for e in value)
+        return ' '.join(str(e) for e in value)
     else:
-        return unicode_type(value)
+        return str(value)
 
 
 class XMLSchemaConverter(NamespaceMapper):

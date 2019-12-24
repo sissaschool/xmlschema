@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,10 @@
 """
 This module contains classes and functions for processing XSD content models.
 """
-from __future__ import unicode_literals
 from collections import defaultdict, deque, Counter
+from collections.abc import MutableSequence
 
 from .. import limits
-from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .xsdbase import ParticleMixin
@@ -344,14 +342,7 @@ class ModelVisitor(MutableSequence):
         self._start()
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self.root)

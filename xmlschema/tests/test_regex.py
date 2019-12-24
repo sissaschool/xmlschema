@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -12,7 +11,6 @@
 """
 This module runs tests on XML Schema regular expressions.
 """
-from __future__ import unicode_literals
 import unittest
 import sys
 import re
@@ -20,7 +18,6 @@ from itertools import chain
 from unicodedata import category
 
 from xmlschema.exceptions import XMLSchemaValueError, XMLSchemaRegexError
-from xmlschema.compat import unicode_chr
 from xmlschema.codepoints import code_point_repr, iterparse_character_group, iter_code_points, \
     UnicodeSubset, build_unicode_categories, UNICODE_CATEGORIES
 from xmlschema.regex import get_python_regex, XsdRegexCharGroup
@@ -159,7 +156,7 @@ class TestUnicodeCategories(unittest.TestCase):
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:
-                uc = category(unicode_chr(cp))
+                uc = category(chr(cp))
                 if key == uc or len(key) == 1 and key == uc[0]:
                     continue
                 self.assertTrue(

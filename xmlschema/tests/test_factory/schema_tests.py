@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,7 +8,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from __future__ import print_function, unicode_literals
 import pdb
 import os
 import pickle
@@ -18,7 +16,6 @@ import logging
 import warnings
 
 from xmlschema import XMLSchemaBase
-from xmlschema.compat import PY3, unicode_type
 from xmlschema.etree import lxml_etree, py_etree_element
 from xmlschema.xpath import XMLSchemaContext
 from xmlschema.validators import XsdValidator
@@ -77,7 +74,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, narrow,
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
             # Pickling test (only for Python 3, skip inspected schema classes test)
-            if not inspect and PY3:
+            if not inspect:
                 try:
                     obj = pickle.dumps(xs)
                     deserialized_schema = pickle.loads(obj)
@@ -110,13 +107,13 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, narrow,
             except lxml_etree.XMLSchemaParseError as err:
                 if not self.errors:
                     print("\nSchema error with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
-                        xsd_file, self.__class__.__name__, unicode_type(err)
+                        xsd_file, self.__class__.__name__, str(err)
                     ))
             else:
                 if self.errors:
                     print("\nUnrecognized errors with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
                         xsd_file, self.__class__.__name__,
-                        '\n++++++\n'.join([unicode_type(e) for e in self.errors])
+                        '\n++++++\n'.join([str(e) for e in self.errors])
                     ))
                 lxml_schema_time = time.time() - start_time
                 if lxml_schema_time >= xmlschema_time:

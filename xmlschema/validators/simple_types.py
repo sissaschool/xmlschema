@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,10 +10,8 @@
 """
 This module contains classes for XML Schema simple data types.
 """
-from __future__ import unicode_literals
 from decimal import DecimalException
 
-from ..compat import string_base_type, unicode_type
 from ..etree import etree_element
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
@@ -358,7 +355,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         """
         if isinstance(text, bytes):
             text = text.decode('utf-8')
-        elif not isinstance(text, string_base_type):
+        elif not isinstance(text, str):
             raise XMLSchemaValueError('argument is not a string: %r' % text)
 
         if self.white_space == 'replace':
@@ -372,7 +369,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         return self.decode(text, validation='skip')
 
     def iter_decode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
         if validation != 'skip' and obj is not None:
@@ -386,10 +383,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
         yield obj
 
     def iter_encode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif validation != 'skip':
-            yield self.encode_error(validation, obj, unicode_type)
+            yield self.encode_error(validation, obj, str)
 
         if validation != 'skip' and obj is not None:
             if self.patterns is not None:
@@ -505,7 +502,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         super(XsdAtomicBuiltin, self).__init__(elem, schema, None, name, facets, base_type)
         self.python_type = python_type
         self.to_python = to_python or python_type
-        self.from_python = from_python or unicode_type
+        self.from_python = from_python or str
 
     def __repr__(self):
         return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
@@ -521,7 +518,7 @@ class XsdAtomicBuiltin(XsdAtomic):
         return self.to_python.__name__ == 'fromstring'
 
     def iter_decode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
             yield self.decode_error(validation, obj, self.to_python,
@@ -551,7 +548,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             try:
                 yield self.to_python(obj)
             except (ValueError, DecimalException):
-                yield unicode_type(obj)
+                yield str(obj)
             return
 
         if self.patterns is not None:
@@ -577,14 +574,14 @@ class XsdAtomicBuiltin(XsdAtomic):
         yield result
 
     def iter_encode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
         if validation == 'skip':
             try:
                 yield self.from_python(obj)
             except ValueError:
-                yield unicode_type(obj)
+                yield str(obj)
             return
 
         elif isinstance(obj, bool):
@@ -756,7 +753,7 @@ class XsdList(XsdSimpleType):
                 yield obj
 
     def iter_decode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
         items = []
@@ -770,7 +767,7 @@ class XsdList(XsdSimpleType):
         yield items
 
     def iter_encode(self, obj, validation='lax', **kwargs):
-        if not hasattr(obj, '__iter__') or isinstance(obj, (str, unicode_type, bytes)):
+        if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
             obj = [obj]
 
         encoded_items = []
@@ -930,7 +927,7 @@ class XsdUnion(XsdSimpleType):
                 if validation != 'skip':
                     not_decodable.append(chunk)
                 else:
-                    items.append(unicode_type(chunk))
+                    items.append(str(chunk))
 
         if validation != 'skip':
             if not_decodable:
@@ -949,7 +946,7 @@ class XsdUnion(XsdSimpleType):
                     # In 'strict' mode avoid lax encoding by similar types (eg. float encoded by int)
                     break
 
-        if hasattr(obj, '__iter__') and not isinstance(obj, (str, unicode_type, bytes)):
+        if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):
             for member_type in self.member_types:
                 results = []
                 for item in obj:
@@ -969,7 +966,7 @@ class XsdUnion(XsdSimpleType):
             yield self.encode_error(validation, obj, self.member_types, reason)
             yield None
         else:
-            yield unicode_type(obj)
+            yield str(obj)
 
 
 class Xsd11Union(XsdUnion):
@@ -1133,7 +1130,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 yield obj
 
     def iter_decode(self, obj, validation='lax', **kwargs):
-        if isinstance(obj, (string_base_type, bytes)):
+        if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
         if self.base_type.is_simple():
@@ -1158,7 +1155,7 @@ class XsdAtomicRestriction(XsdAtomic):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
                 if isinstance(result, XMLSchemaDecodeError):
-                    yield unicode_type(obj) if validation == 'skip' else None
+                    yield str(obj) if validation == 'skip' else None
             else:
                 if validation != 'skip' and result is not None:
                     for validator in self.validators:
@@ -1170,11 +1167,11 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         if self.is_list():
-            if not hasattr(obj, '__iter__') or isinstance(obj, (str, unicode_type, bytes)):
+            if not hasattr(obj, '__iter__') or isinstance(obj, (str, bytes)):
                 obj = [] if obj is None or obj == '' else [obj]
             base_type = self.base_type
         else:
-            if isinstance(obj, (string_base_type, bytes)):
+            if isinstance(obj, (str, bytes)):
                 obj = self.normalize(obj)
 
             if self.base_type.is_simple():
@@ -1182,7 +1179,7 @@ class XsdAtomicRestriction(XsdAtomic):
             elif self.base_type.has_simple_content():
                 base_type = self.base_type.content_type
             elif self.base_type.mixed:
-                yield unicode_type(obj)
+                yield str(obj)
                 return
             else:
                 raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
@@ -1192,11 +1189,11 @@ class XsdAtomicRestriction(XsdAtomic):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
                 if isinstance(result, XMLSchemaEncodeError):
-                    yield unicode_type(obj) if validation == 'skip' else None
+                    yield str(obj) if validation == 'skip' else None
                     return
             else:
                 if validation != 'skip' and self.validators and obj is not None:
-                    if isinstance(obj, (string_base_type, bytes)):
+                    if isinstance(obj, (str, bytes)):
                         if self.primitive_type.is_datetime():
                             obj = self.primitive_type.to_python(obj)
 
