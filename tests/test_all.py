@@ -12,8 +12,8 @@ if __name__ == '__main__':
     import unittest
     import os
 
-    from tests import print_test_header
-    from tests import test_cases, test_etree, test_helpers, \
+    from xmlschema.testing import print_test_header
+    import test_cases, test_etree, test_helpers, \
         test_meta, test_models, test_regex, test_resources, test_xpath
     from tests.validation import test_validation, test_decoding, test_encoding
 

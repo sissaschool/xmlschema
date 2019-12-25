@@ -12,7 +12,7 @@ import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
-from tests import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
 
 class TestXsdWildcards(XsdValidatorTestCase):
@@ -722,7 +722,5 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
 
 if __name__ == '__main__':
-    from tests import print_test_header
-
     print_test_header()
     unittest.main()

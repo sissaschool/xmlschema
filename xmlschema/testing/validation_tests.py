@@ -24,8 +24,8 @@ from xmlschema.etree import etree_tostring, ElementTree, \
     etree_elements_assert_equal, lxml_etree, lxml_etree_element
 from xmlschema.resources import fetch_namespaces
 
-from tests import XsdValidatorTestCase
-from . import tests_factory
+from .test_case import  XsdValidatorTestCase
+from .factory import tests_factory
 
 
 def iter_nested_items(items, dict_class=dict, list_class=list):

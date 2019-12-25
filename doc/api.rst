@@ -105,7 +105,6 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 .. autoclass:: xmlschema.XMLSchemaConverter
 
     .. autoattribute:: lossy
-    .. autoattribute:: lossless
     .. autoattribute:: losslessly
 
     .. automethod:: copy
@@ -163,7 +162,6 @@ Resource access API
 .. autofunction:: xmlschema.fetch_resource
 .. autofunction:: xmlschema.fetch_schema
 .. autofunction:: xmlschema.fetch_schema_locations
-.. autofunction:: xmlschema.load_xml_resource
 .. autofunction:: xmlschema.normalize_url
 
 

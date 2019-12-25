@@ -22,7 +22,7 @@ from xmlschema.converters import UnorderedConverter
 from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
-from tests import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
 VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -254,6 +254,7 @@ DATA_DICT = {
 
 
 class TestDecoding(XsdValidatorTestCase):
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
     def check_decode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -731,7 +732,5 @@ class TestDecoding11(TestDecoding):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
-
     print_test_header()
     unittest.main()

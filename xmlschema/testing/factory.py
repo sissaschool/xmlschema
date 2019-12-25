@@ -22,7 +22,7 @@ logger = logging.getLogger(__file__)
 test_line_parser = create_test_line_args_parser()
 
 
-def tests_factory(test_class_builder, suffix='xml'):
+def tests_factory(test_class_builder, suffix='xml', test_dir='.'):
     """
     Factory function for file based schema/validation cases.
 
@@ -35,11 +35,10 @@ def tests_factory(test_class_builder, suffix='xml'):
     debug_mode = False
     line_buffer = []
 
-    test_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     testfiles = [os.path.join(test_dir, 'test_cases/testfiles')]
     narrow = TEST_FACTORY_OPTIONS['narrow']
     if TEST_FACTORY_OPTIONS['extra_cases']:
-        package_dir = os.path.dirname(os.path.dirname(test_dir))
+        package_dir = os.path.join(test_dir, '..')
         testfiles.extend(glob.glob(os.path.join(package_dir, 'test_cases/testfiles')))
 
     for line in fileinput.input(testfiles):

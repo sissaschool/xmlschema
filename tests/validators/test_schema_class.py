@@ -18,10 +18,11 @@ from xmlschema.etree import etree_element
 from xmlschema.namespaces import SCHEMAS_DIR
 from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
 from xmlschema.validators import XMLSchema11
-from tests import SKIP_REMOTE_TESTS, XsdValidatorTestCase
+from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase, print_test_header
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
     def test_schema_copy(self):
         schema = self.vh_schema.copy()
@@ -161,7 +162,5 @@ class TestXMLSchema11(TestXMLSchema10):
 
 
 if __name__ == '__main__':
-    from tests import print_test_header
-
     print_test_header()
     unittest.main()

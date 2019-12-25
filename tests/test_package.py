@@ -23,11 +23,8 @@ class TestPackaging(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.test_dir = os.path.dirname(os.path.abspath(__file__))
-        cls.source_dir = os.path.dirname(cls.test_dir)
-        cls.package_dir = os.path.dirname(cls.source_dir)
-        if not cls.package_dir.endswith('/xmlschema'):
-            cls.package_dir = None
-
+        cls.package_dir = os.path.dirname(cls.test_dir)
+        cls.source_dir = os.path.join(cls.package_dir, 'xmlschema')
         cls.missing_debug = re.compile(
             r"(\bimport\s+pdb\b|\bpdb\s*\.\s*set_trace\(\s*\)|\bprint\s*\()|\bbreakpoint\s*\("
         )
@@ -37,7 +34,7 @@ class TestPackaging(unittest.TestCase):
         # Exclude explicit debug statements written in the code
         exclude = {
             'regex.py': [240, 241],
-            'codepoints.py': [543],
+            'codepoints.py': [534],
         }
 
         message = "\nFound a debug missing statement at line %d or file %r: %r"

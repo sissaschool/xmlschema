@@ -15,8 +15,7 @@ if __name__ == '__main__':
     import unittest
     import os
 
-    from xmlschema.tests import print_test_header
-    from xmlschema.tests.test_factory import tests_factory, make_validator_test_class
+    from xmlschema.testing import tests_factory, make_validator_test_class, print_test_header
 
     def load_tests(loader, tests, pattern):
         validation_dir = os.path.join(os.path.dirname(__file__), 'validation')
@@ -25,7 +24,11 @@ if __name__ == '__main__':
         return tests
 
     # Creates schema tests from XML files
-    globals().update(tests_factory(make_validator_test_class, 'xml'))
+    globals().update(tests_factory(
+        test_class_builder=make_validator_test_class,
+        suffix='xml',
+        test_dir=os.path.dirname(os.path.abspath(__file__))
+    ))
 
     print_test_header()
     unittest.main()

@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import sys
+import os
 import unittest
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
@@ -19,10 +20,12 @@ from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.helpers import is_etree_element
 from xmlschema.validators import XMLSchema11
-from tests import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
 
 class TestEncoding(XsdValidatorTestCase):
+
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
     def check_encode(self, xsd_component, data, expected, **kwargs):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -420,7 +423,5 @@ class TestEncoding11(TestEncoding):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
-
     print_test_header()
     unittest.main()

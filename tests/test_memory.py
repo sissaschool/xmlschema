@@ -45,7 +45,8 @@ class TestMemoryUsage(unittest.TestCase):
     def test_element_tree_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
-            os.path.dirname(os.path.abspath(test_dir)), 'validators/schemas/XSD_1.0/XMLSchema.xsd'
+            os.path.dirname(os.path.abspath(test_dir)),
+            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '2', xsd10_schema_file]
@@ -67,7 +68,8 @@ class TestMemoryUsage(unittest.TestCase):
     def test_decode_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
-            os.path.dirname(os.path.abspath(test_dir)), 'validators/schemas/XSD_1.0/XMLSchema.xsd'
+            os.path.dirname(os.path.abspath(test_dir)),
+            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '5', xsd10_schema_file]
@@ -84,7 +86,8 @@ class TestMemoryUsage(unittest.TestCase):
     def test_validate_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
-            os.path.dirname(os.path.abspath(test_dir)), 'validators/schemas/XSD_1.0/XMLSchema.xsd'
+            os.path.dirname(os.path.abspath(test_dir)),
+            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '7', xsd10_schema_file]
@@ -100,7 +103,7 @@ class TestMemoryUsage(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    from xmlschema.testing import print_test_header
 
     print_test_header()
     unittest.main()

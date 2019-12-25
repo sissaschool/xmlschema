@@ -16,7 +16,7 @@ import os
 import argparse
 
 from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.tests.test_factory import xsd_version_number, \
+from xmlschema.testing import xsd_version_number, \
     make_schema_test_class, make_validator_test_class
 
 
@@ -56,12 +56,12 @@ if __name__ == '__main__':
             continue
         elif test_file.endswith('xsd'):
             test_class = make_schema_test_class(
-                test_file, test_args, test_num, schema_class, check_with_lxml
+                test_file, test_args, test_num, schema_class, False, check_with_lxml
             )
             test_num += 1
         elif test_file.endswith('xml'):
             test_class = make_validator_test_class(
-                test_file, test_args, test_num, schema_class, check_with_lxml
+                test_file, test_args, test_num, schema_class, False, check_with_lxml
             )
             test_num += 1
         else:

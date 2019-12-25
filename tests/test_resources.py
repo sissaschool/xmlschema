@@ -18,22 +18,25 @@ from io import StringIO
 from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
 
-try:
-    from pathlib import PureWindowsPath, PurePath
-except ImportError:
-    # noinspection PyPackageRequirements
-    from pathlib2 import PureWindowsPath, PurePath
+from pathlib import PureWindowsPath, PurePath
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
     XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
 )
-from tests import SKIP_REMOTE_TESTS, casepath
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.helpers import is_etree_element
 from xmlschema.documents import get_context
+from xmlschema.testing import SKIP_REMOTE_TESTS
+
+
+TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+
+
+def casepath(relative_path):
+    return os.path.join(TEST_CASES_DIR, relative_path)
 
 
 def is_windows_path(path):
@@ -58,7 +61,7 @@ class TestResources(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.schema_class = XMLSchema
+        cls.schema_class = XMLSchema10
         cls.vh_dir = casepath('examples/vehicles')
         cls.vh_xsd_file = casepath('examples/vehicles/vehicles.xsd')
         cls.vh_xml_file = casepath('examples/vehicles/vehicles.xml')
@@ -71,6 +74,7 @@ class TestResources(unittest.TestCase):
         url_parts = urlsplit(url)
         if urlsplit(expected).scheme not in uses_relative:
             expected = add_leading_slash(expected)
+
         expected_parts = urlsplit(expected, scheme='file')
 
         self.assertEqual(url_parts.scheme, expected_parts.scheme, "%r: Schemes differ." % url)
@@ -99,7 +103,7 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('other.xsd', 'file:///home/'), 'file:///home/other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'file:///home'), 'file:///home/other.xsd')
 
-        cwd_url = 'file://{}/'.format(add_leading_slash(os.getcwd()))
+        cwd_url = 'file://{}/'.format(os.getcwd())
         self.check_url(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd'), cwd_url + 'other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
@@ -637,7 +641,9 @@ class TestResources(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    header = "XML resource tests with Python {} on platform {}".format(
+        platform.python_version(), platform.platform()
+    )
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     unittest.main()

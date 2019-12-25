@@ -342,7 +342,7 @@ class TestGlobalMaps(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    from xmlschema.testing import print_test_header
 
     print_test_header()
     unittest.main()

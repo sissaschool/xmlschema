@@ -20,7 +20,7 @@ from xmlschema.etree import lxml_etree, py_etree_element
 from xmlschema.xpath import XMLSchemaContext
 from xmlschema.validators import XsdValidator
 
-from tests import XsdValidatorTestCase
+from .test_case import XsdValidatorTestCase
 from .observers import SchemaObserver
 
 

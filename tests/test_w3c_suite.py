@@ -33,7 +33,6 @@ import sys
 import warnings
 
 from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
-from xmlschema.tests import print_test_header
 
 TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
@@ -168,7 +167,7 @@ args = extract_additional_arguments()
 def fetch_xsd_test_suite():
     parent = os.path.dirname
     xmlschema_test_dir = parent(os.path.abspath(__file__))
-    xmlschema_base_dir = parent(parent(xmlschema_test_dir))
+    xmlschema_base_dir = parent(xmlschema_test_dir)
 
     suite_file = os.path.join(parent(xmlschema_base_dir), 'xsdtests/suite.xml')
     if os.path.isfile(suite_file):
@@ -395,14 +394,16 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
 
 
 if __name__ == '__main__':
+    from xmlschema.testing import print_test_header
+
+    print_test_header()
+
     index_path = fetch_xsd_test_suite()
     index_dir = os.path.dirname(index_path)
 
     suite_xml = ElementTree.parse(index_path)
     test_classes = {}
     testgroup_num = 0
-
-    print_test_header()
 
     if args.verbose:
         print("\n>>>>> ADD TEST GROUPS FROM TESTSET FILES <<<<<\n")

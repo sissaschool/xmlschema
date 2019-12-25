@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import os
 import sys
 
 import xmlschema
@@ -16,10 +17,11 @@ from xmlschema import XMLSchemaValidationError
 
 from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
-from tests import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
 
 class TestValidation(XsdValidatorTestCase):
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
     def check_validity(self, xsd_component, data, expected, use_defaults=True):
         if isinstance(expected, type) and issubclass(expected, Exception):
@@ -80,9 +82,9 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root, namespaces=namespaces)
 
-        for result in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
-                                              source=source, max_depth=1):
-            del result
+        for _ in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
+                source=source, max_depth=1):
+            del _
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))
 
@@ -141,7 +143,5 @@ class TestValidation11(TestValidation):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
-
     print_test_header()
     unittest.main()

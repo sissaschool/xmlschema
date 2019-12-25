@@ -12,15 +12,17 @@
 This module runs tests concerning model groups validation.
 """
 import unittest
+import os.path
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import XsdElement, ModelVisitor
 from xmlschema.compat import ordered_dict_class
-from tests import casepath, XsdValidatorTestCase
+from xmlschema.testing import print_test_header, XsdValidatorTestCase
 
 
 class TestModelValidation(XsdValidatorTestCase):
 
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
     schema_class = XMLSchema10
 
     # --- Test helper functions ---
@@ -658,7 +660,7 @@ class TestModelValidation(XsdValidatorTestCase):
     #
     # Tests on issues
     def test_issue_086(self):
-        issue_086_xsd = casepath('issues/issue_086/issue_086.xsd')
+        issue_086_xsd = self.casepath('issues/issue_086/issue_086.xsd')
         schema = self.schema_class(issue_086_xsd)
         group = schema.types['Foo'].content_type
 
@@ -811,6 +813,7 @@ class TestModelValidation11(TestModelValidation):
 
 
 class TestModelBasedSorting(XsdValidatorTestCase):
+    TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases')
 
     def test_sort_content(self):
         # test of ModelVisitor's sort_content/iter_unordered_content
@@ -1032,7 +1035,5 @@ class TestModelBasedSorting(XsdValidatorTestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
-
     print_test_header()
     unittest.main()

@@ -16,16 +16,18 @@ import os
 import xml.etree.ElementTree as ElementTree
 from elementpath import XPath1Parser, Selector, ElementPathSyntaxError
 
-from xmlschema import XMLSchema
-from tests import casepath
+from xmlschema import XMLSchema10
 
 
 class XsdXPathTest(unittest.TestCase):
 
+    schema_class = XMLSchema10
+
     @classmethod
     def setUpClass(cls):
-        cls.xs1 = XMLSchema(casepath("examples/vehicles/vehicles.xsd"))
-        cls.xs2 = XMLSchema(casepath("examples/collection/collection.xsd"))
+        cases_dir = os.path.join(os.path.dirname(__file__), 'test_cases/')
+        cls.xs1 = cls.schema_class(os.path.join(cases_dir, "examples/vehicles/vehicles.xsd"))
+        cls.xs2 = cls.schema_class(os.path.join(cases_dir, "examples/collection/collection.xsd"))
         cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
         cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
 
@@ -42,7 +44,7 @@ class XsdXPathTest(unittest.TestCase):
     def test_xpath_location_path(self):
         elements = sorted(self.xs1.elements.values(), key=lambda x: x.name)
         self.assertTrue(self.xs1.findall('.'))
-        self.assertTrue(isinstance(self.xs1.find('.'), XMLSchema))
+        self.assertTrue(isinstance(self.xs1.find('.'), self.schema_class))
         self.assertTrue(sorted(self.xs1.findall("*"), key=lambda x: x.name) == elements)
         self.assertListEqual(self.xs1.findall("*"), self.xs1.findall("./*"))
         self.assertEqual(self.xs1.find("./vh:bikes"), self.xs1.elements['bikes'])
@@ -103,7 +105,7 @@ class ElementTreeXPathTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
+    from xmlschema.testing import print_test_header
 
     print_test_header()
     unittest.main()
