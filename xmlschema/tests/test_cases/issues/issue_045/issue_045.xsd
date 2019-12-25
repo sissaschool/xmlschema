@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-    <xs:simpleType name="PrintableString">
-	    <xs:restriction base="xs:string">
-	        <xs:pattern value="[ &apos;\(\)\+-:=\?A-Za-z]*"/>
-	    </xs:restriction>
-    </xs:simpleType>
-</xs:schema>
