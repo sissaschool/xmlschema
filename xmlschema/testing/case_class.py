@@ -32,22 +32,13 @@ SCHEMA_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 
 class XsdValidatorTestCase(unittest.TestCase):
     """
-    TestCase class for XSD validators.
+    Base class for testing XSD validators.
     """
-
     TEST_CASES_DIR = None
-
-    @classmethod
-    def casepath(cls, relative_path):
-        """
-        Returns the absolute path from a relative path specified from the referenced TEST_CASES_DIR.
-        """
-        return os.path.join(cls.TEST_CASES_DIR or '', relative_path)
+    schema_class = XMLSchema10
 
     etree_register_namespace(prefix='xs', uri=XSD_NAMESPACE)
     etree_register_namespace(prefix='ns', uri="ns")
-
-    schema_class = XMLSchema10
 
     @classmethod
     def setUpClass(cls):
@@ -81,6 +72,13 @@ class XsdValidatorTestCase(unittest.TestCase):
 
             cls.models_xsd_file = cls.casepath('features/models/models.xsd')
             cls.models_schema = cls.schema_class(cls.models_xsd_file)
+
+    @classmethod
+    def casepath(cls, relative_path):
+        """
+        Returns the absolute path from a relative path specified from the referenced TEST_CASES_DIR.
+        """
+        return os.path.join(cls.TEST_CASES_DIR or '', relative_path)
 
     def get_schema_source(self, source):
         """

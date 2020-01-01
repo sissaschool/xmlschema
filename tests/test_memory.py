@@ -13,7 +13,13 @@ import os
 import decimal
 import subprocess
 
+try:
+    import memory_profiler
+except ImportError:
+    memory_profiler = None
 
+
+@unittest.skipIf(memory_profiler is None, "Memory profiler is not installed!")
 class TestMemoryUsage(unittest.TestCase):
 
     @staticmethod

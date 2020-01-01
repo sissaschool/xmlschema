@@ -8,52 +8,159 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import unittest
 import pdb
 import os
-import sys
 import pickle
+import time
+import logging
+import sys
 import warnings
 
 import xmlschema
-from xmlschema import XMLSchemaValidationError, ParkerConverter, \
+from xmlschema import XMLSchemaBase, XMLSchemaValidationError, ParkerConverter, \
     BadgerFishConverter, AbderaConverter, JsonMLConverter, UnorderedConverter
-
 from xmlschema.compat import ordered_dict_class
-from xmlschema.etree import etree_tostring, ElementTree, \
-    etree_elements_assert_equal, lxml_etree, lxml_etree_element
+from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
+    etree_elements_assert_equal, py_etree_element, lxml_etree_element
+from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
+from xmlschema.xpath import XMLSchemaContext
+from xmlschema.validators import XsdValidator
 
-from .test_case import  XsdValidatorTestCase
-from .factory import tests_factory
-
-
-def iter_nested_items(items, dict_class=dict, list_class=list):
-    if isinstance(items, dict_class):
-        for k, v in items.items():
-            for value in iter_nested_items(v, dict_class, list_class):
-                yield value
-    elif isinstance(items, list_class):
-        for item in items:
-            for value in iter_nested_items(item, dict_class, list_class):
-                yield value
-    elif isinstance(items, dict):
-        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
-    elif isinstance(items, list):
-        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
-    else:
-        yield items
+from .case_class import XsdValidatorTestCase
+from .observers import SchemaObserver
 
 
-def make_validator_test_class(test_file, test_args, test_num, schema_class, narrow, check_with_lxml):
+def make_schema_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
     """
-    Creates a validator test class.
+    Creates a schema test class.
+
+    :param test_file: the schema test file path.
+    :param test_args: line arguments for test case.
+    :param test_num: a positive integer number associated with the test case.
+    :param schema_class: the schema class to use.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
+    Works only for XSD 1.0 tests.
+    """
+    xsd_file = os.path.relpath(test_file)
+
+    # Extract schema test arguments
+    expected_errors = test_args.errors
+    expected_warnings = test_args.warnings
+    inspect = test_args.inspect
+    locations = test_args.locations
+    defuse = test_args.defuse
+    debug_mode = test_args.debug
+    loglevel = logging.DEBUG if debug_mode else None
+
+    class TestSchema(XsdValidatorTestCase):
+
+        @classmethod
+        def setUpClass(cls):
+            cls.schema_class = schema_class
+            cls.errors = []
+            cls.longMessage = True
+
+            if debug_mode:
+                print("\n##\n## Testing %r schema in debug mode.\n##" % xsd_file)
+                pdb.set_trace()
+
+        def check_xsd_file(self):
+            if expected_errors > 0:
+                xs = schema_class(xsd_file, validation='lax', locations=locations,
+                                  defuse=defuse, loglevel=loglevel)
+            else:
+                xs = schema_class(xsd_file, locations=locations, defuse=defuse, loglevel=loglevel)
+            self.errors.extend(xs.maps.all_errors)
+
+            if inspect:
+                components_ids = set([id(c) for c in xs.maps.iter_components()])
+                components_ids.update(id(c) for c in xs.meta_schema.iter_components())
+                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                if missing:
+                    raise ValueError("schema missing %d components: %r" % (len(missing), missing))
+
+            # Pickling test (only for Python 3, skip inspected schema classes test)
+            if not inspect:
+                try:
+                    obj = pickle.dumps(xs)
+                    deserialized_schema = pickle.loads(obj)
+                except pickle.PicklingError:
+                    # Don't raise if some schema parts (eg. a schema loaded from remote)
+                    # are built with the SafeXMLParser that uses pure Python elements.
+                    for e in xs.maps.iter_components():
+                        elem = getattr(e, 'elem', getattr(e, 'root', None))
+                        if isinstance(elem, py_etree_element):
+                            break
+                    else:
+                        raise
+                else:
+                    self.assertTrue(isinstance(deserialized_schema, XMLSchemaBase))
+                    self.assertEqual(xs.built, deserialized_schema.built)
+
+            # XPath API tests
+            if not inspect and not self.errors:
+                context = XMLSchemaContext(xs)
+                elements = [x for x in xs.iter()]
+                context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
+                self.assertEqual(context_elements, [x for x in context.iter_descendants()])
+                self.assertEqual(context_elements, elements)
+
+        def check_xsd_file_with_lxml(self, xmlschema_time):
+            start_time = time.time()
+            lxs = lxml_etree.parse(xsd_file)
+            try:
+                lxml_etree.XMLSchema(lxs.getroot())
+            except lxml_etree.XMLSchemaParseError as err:
+                if not self.errors:
+                    print("\nSchema error with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        xsd_file, self.__class__.__name__, str(err)
+                    ))
+            else:
+                if self.errors:
+                    print("\nUnrecognized errors with lxml.etree.XMLSchema for file {!r} ({}): {}".format(
+                        xsd_file, self.__class__.__name__,
+                        '\n++++++\n'.join([str(e) for e in self.errors])
+                    ))
+                lxml_schema_time = time.time() - start_time
+                if lxml_schema_time >= xmlschema_time:
+                    print(
+                        "\nSlower lxml.etree.XMLSchema ({:.3f}s VS {:.3f}s) with file {!r} ({})".format(
+                            lxml_schema_time, xmlschema_time, xsd_file, self.__class__.__name__
+                        ))
+
+        def test_xsd_file(self):
+            if inspect:
+                SchemaObserver.clear()
+            del self.errors[:]
+
+            start_time = time.time()
+            if expected_warnings > 0:
+                with warnings.catch_warnings(record=True) as ctx:
+                    warnings.simplefilter("always")
+                    self.check_xsd_file()
+                    self.assertEqual(len(ctx), expected_warnings,
+                                     "%r: Wrong number of include/import warnings" % xsd_file)
+            else:
+                self.check_xsd_file()
+
+                # Check with lxml.etree.XMLSchema class
+            if check_with_lxml and lxml_etree is not None:
+                self.check_xsd_file_with_lxml(xmlschema_time=time.time() - start_time)
+            self.check_errors(xsd_file, expected_errors)
+
+    TestSchema.__name__ = TestSchema.__qualname__ = str('TestSchema{0:03}'.format(test_num))
+    return TestSchema
+
+
+def make_validation_test_class(test_file, test_args, test_num, schema_class, check_with_lxml):
+    """
+    Creates a test class for checking xml instance validation.
 
     :param test_file: the XML test file path.
     :param test_args: line arguments for test case.
     :param test_num: a positive integer number associated with the test case.
     :param schema_class: the schema class to use.
-    :param narrow: skip other converters checks.
     :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting anomalies. \
     Works only for XSD 1.0 tests.
     """
@@ -260,23 +367,21 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
             self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-            if not narrow:
-                self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-                self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-                self.check_etree_encode(root, BadgerFishConverter, **options)
-                self.check_etree_encode(root, AbderaConverter, **options)
-                self.check_etree_encode(root, JsonMLConverter, **options)
-                self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+            self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
+            self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
+            self.check_etree_encode(root, BadgerFishConverter, **options)
+            self.check_etree_encode(root, AbderaConverter, **options)
+            self.check_etree_encode(root, JsonMLConverter, **options)
+            self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
             options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
-            if not narrow:
-                self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-                self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-                self.check_json_serialization(root, BadgerFishConverter, **options)
-                self.check_json_serialization(root, AbderaConverter, **options)
-                self.check_json_serialization(root, JsonMLConverter, **options)
-                self.check_json_serialization(root, UnorderedConverter, **options)
+            self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+            self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+            self.check_json_serialization(root, BadgerFishConverter, **options)
+            self.check_json_serialization(root, AbderaConverter, **options)
+            self.check_json_serialization(root, JsonMLConverter, **options)
+            self.check_json_serialization(root, UnorderedConverter, **options)
 
         def check_decoding_and_encoding_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
@@ -305,23 +410,21 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
                     'dict_class': ordered_dict_class,
                 }
                 self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-                if not narrow:
-                    self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-                    self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-                    self.check_etree_encode(root, BadgerFishConverter, **options)
-                    self.check_etree_encode(root, AbderaConverter, **options)
-                    self.check_etree_encode(root, JsonMLConverter, **options)
-                    self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+                self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
+                self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
+                self.check_etree_encode(root, BadgerFishConverter, **options)
+                self.check_etree_encode(root, AbderaConverter, **options)
+                self.check_etree_encode(root, JsonMLConverter, **options)
+                self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
                 options.pop('dict_class')
                 self.check_json_serialization(root, cdata_prefix='#', **options)
-                if not narrow:
-                    self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
-                    self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
-                    self.check_json_serialization(root, BadgerFishConverter, **options)
-                    self.check_json_serialization(root, AbderaConverter, **options)
-                    self.check_json_serialization(root, JsonMLConverter, **options)
-                    self.check_json_serialization(root, UnorderedConverter, **options)
+                self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
+                self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
+                self.check_json_serialization(root, BadgerFishConverter, **options)
+                self.check_json_serialization(root, AbderaConverter, **options)
+                self.check_json_serialization(root, JsonMLConverter, **options)
+                self.check_json_serialization(root, UnorderedConverter, **options)
 
         def check_validate_and_is_valid_api(self):
             if expected_errors:
@@ -368,13 +471,3 @@ def make_validator_test_class(test_file, test_args, test_num, schema_class, narr
 
     TestValidator.__name__ = TestValidator.__qualname__ = 'TestValidator{0:03}'.format(test_num)
     return TestValidator
-
-
-if __name__ == '__main__':
-    from xmlschema.tests import print_test_header
-
-    # Creates decoding/encoding tests classes from XML files
-    globals().update(tests_factory(make_validator_test_class, 'xml'))
-
-    print_test_header()
-    unittest.main()

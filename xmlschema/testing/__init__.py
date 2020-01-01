@@ -23,12 +23,11 @@ from urllib.error import URLError
 
 import xmlschema
 
-from .test_case import XsdValidatorTestCase
-from .arguments import TEST_FACTORY_OPTIONS, xsd_version_number, create_test_line_args_parser
-from .factory import tests_factory
+from .case_class import XsdValidatorTestCase
+from .builders import make_schema_test_class, make_validation_test_class
+from .factory import get_test_args, xsd_version_number, defuse_data, \
+    get_test_program_args_parser, get_test_line_args_parser, tests_factory
 from .observers import SchemaObserver, ObservedXMLSchema10, ObservedXMLSchema11
-from .schema_tests import make_schema_test_class
-from .validation_tests import make_validator_test_class
 
 
 def has_network_access(*locations):

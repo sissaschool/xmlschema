@@ -119,6 +119,24 @@ def strictly_equal(obj1, obj2):
     return obj1 == obj2 and type(obj1) is type(obj2)
 
 
+def iter_nested_items(items, dict_class=dict, list_class=list):
+    """Iterates a nested object composed by lists and dictionaries."""
+    if isinstance(items, dict_class):
+        for k, v in items.items():
+            for value in iter_nested_items(v, dict_class, list_class):
+                yield value
+    elif isinstance(items, list_class):
+        for item in items:
+            for value in iter_nested_items(item, dict_class, list_class):
+                yield value
+    elif isinstance(items, dict):
+        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
+    elif isinstance(items, list):
+        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
+    else:
+        yield items
+
+
 class ParticleCounter(object):
     """
     An helper class for counting total min/max occurrences of XSD particles.

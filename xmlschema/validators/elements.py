@@ -430,6 +430,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if isinstance(obj, xsd_classes):
                     yield obj
 
+        if not hasattr(self.type, 'attributes'):
+            for obj in self.attributes.iter_components(xsd_classes):
+                yield obj
+
         if self.ref is None and self.type.parent is not None:
             for obj in self.type.iter_components(xsd_classes):
                 yield obj

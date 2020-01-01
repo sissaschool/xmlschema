@@ -9,12 +9,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Loads and runs tests concerning the building of XSD schemas with the 'xmlschema' package.
+Loads and runs tests concerning the validation/decoding/encoding of XML files.
 """
 import os
 
 from xmlschema.testing import get_test_program_args_parser, print_test_header, \
-    tests_factory, make_schema_test_class
+    tests_factory, make_validation_test_class
 
 DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
 
@@ -24,13 +24,13 @@ if __name__ == '__main__':
 
     args = get_test_program_args_parser(DEFAULT_TESTFILES).parse_args()
 
-    schema_tests = tests_factory(
-        test_class_builder=make_schema_test_class,
+    validation_tests = tests_factory(
+        test_class_builder=make_validation_test_class,
         testfiles=args.testfiles,
-        suffix='xsd',
+        suffix='xml',
         check_with_lxml=args.lxml,
     )
-    globals().update(schema_tests)
+    globals().update(validation_tests)
 
     argv = [__file__]
     if args.tb_locals:
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 else:
     # Creates schema tests from XSD files
     globals().update(tests_factory(
-        test_class_builder=make_schema_test_class,
-        suffix='xsd',
+        test_class_builder=make_validation_test_class,
+        suffix='xml',
         testfiles=DEFAULT_TESTFILES
     ))

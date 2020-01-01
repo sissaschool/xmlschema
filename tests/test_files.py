@@ -11,23 +11,27 @@
 """
 This module runs tests on XSD or XML files provided by arguments.
 """
-import unittest
-import os
-import argparse
-
-from xmlschema import XMLSchema10, XMLSchema11
-from xmlschema.testing import xsd_version_number, \
-    make_schema_test_class, make_validator_test_class
-
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(add_help=True)
-    parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."
+    import unittest
+    import os
+    import argparse
 
-    parser.add_argument(
-        '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
-        help="XSD schema version to use for testing (default is 1.0)."
-    )
+    from xmlschema import XMLSchema10, XMLSchema11
+    from xmlschema.testing import xsd_version_number, defuse_data, \
+        make_schema_test_class, make_validation_test_class
+
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument('--version', dest='version', metavar='VERSION',
+                        type=xsd_version_number, default='1.0',
+                        help="XSD schema version to use for testing (default is 1.0).")
+    parser.add_argument('--inspect', action="store_true", default=False,
+                        help="Inspect using an observed custom schema class.")
+    parser.add_argument('--defuse', metavar='(always, remote, never)',
+                        type=defuse_data, default='remote',
+                        help="Define when to use the defused XML data loaders. "
+                             "Defuse remote data for default.")
+    parser.add_argument('--lxml', dest='lxml', action='store_true', default=False,
+                        help='Check also with lxml.etree.XMLSchema (for XSD 1.0)')
     parser.add_argument(
         'files', metavar='[FILE ...]', nargs='*',
         help='Input files. Each argument can be a file path or a glob pathname. '
@@ -38,14 +42,15 @@ if __name__ == '__main__':
 
     if args.version == '1.0':
         schema_class = XMLSchema10
-        check_with_lxml = True
+        check_with_lxml = args.lxml
     else:
         schema_class = XMLSchema11
         check_with_lxml = False
 
     test_num = 1
     test_args = argparse.Namespace(
-        errors=0, warnings=0, inspect=False, locations=(), defuse='never', skip=False, debug=False
+        errors=0, warnings=0, inspect=args.inspect, locations=(),
+        defuse=args.defuse, skip=False, debug=False
     )
 
     test_loader = unittest.TestLoader()
@@ -56,12 +61,12 @@ if __name__ == '__main__':
             continue
         elif test_file.endswith('xsd'):
             test_class = make_schema_test_class(
-                test_file, test_args, test_num, schema_class, False, check_with_lxml
+                test_file, test_args, test_num, schema_class, check_with_lxml
             )
             test_num += 1
         elif test_file.endswith('xml'):
-            test_class = make_validator_test_class(
-                test_file, test_args, test_num, schema_class, False, check_with_lxml
+            test_class = make_validation_test_class(
+                test_file, test_args, test_num, schema_class, check_with_lxml
             )
             test_num += 1
         else:

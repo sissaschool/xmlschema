@@ -7,39 +7,143 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+Test factory for creating test cases from lists of paths to XSD or XML files.
+
+The list of cases can be defined within files named "testfiles". These are text files
+that contain a list of relative paths to XSD or XML files, that are used to dinamically
+build a set of test classes. Each path is followed by a list of options that defines a
+custom setting for each test.
+"""
+import re
+import argparse
 import os
-import glob
 import fileinput
 import logging
 
 from xmlschema.validators import XMLSchema10, XMLSchema11
-from .arguments import TEST_FACTORY_OPTIONS, get_test_args, create_test_line_args_parser
 from .observers import ObservedXMLSchema10, ObservedXMLSchema11
 
 logger = logging.getLogger(__file__)
 
 
-test_line_parser = create_test_line_args_parser()
+def get_test_args(args_line):
+    """Returns the list of arguments from provided text line."""
+    try:
+        args_line, _ = args_line.split('#', 1)  # Strip optional ending comment
+    except ValueError:
+        pass
+    return re.split(r'(?<!\\) ', args_line.strip())
 
 
-def tests_factory(test_class_builder, suffix='xml', test_dir='.'):
+def xsd_version_number(value):
+    if value not in ('1.0', '1.1'):
+        msg = "%r is not an XSD version." % value
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
+def defuse_data(value):
+    if value not in ('always', 'remote', 'never'):
+        msg = "%r is not a valid value." % value
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
+def get_test_program_args_parser(default_testfiles):
+    """
+    Gets an argument parser for building test scripts for schemas and xml files.
+    The returned parser has many arguments of unittest's TestProgram plus some
+    arguments for selecting testfiles and XML schema options.
+    """
+    parser = argparse.ArgumentParser(add_help=True)
+
+    # unittest's arguments
+    parser.add_argument('-v', '--verbose', dest='verbosity', default=1,
+                        action='store_const', const=2, help='Verbose output')
+    parser.add_argument('-q', '--quiet', dest='verbosity',
+                        action='store_const', const=0, help='Quiet output')
+    parser.add_argument('--locals', dest='tb_locals', action='store_true',
+                        help='Show local variables in tracebacks')
+    parser.add_argument('-f', '--failfast', dest='failfast',
+                        action='store_true', help='Stop on first fail or error')
+    parser.add_argument('-c', '--catch', dest='catchbreak',
+                        action='store_true', help='Catch Ctrl-C and display results so far')
+    parser.add_argument('-b', '--buffer', dest='buffer', action='store_true',
+                        help='Buffer stdout and stderr during tests')
+    parser.add_argument('-k', dest='patterns', action='append', default=list(),
+                        help='Only run tests which match the given substring')
+
+    # xmlschema's arguments
+    parser.add_argument('--lxml', dest='lxml', action='store_true', default=False,
+                        help='Check also with lxml.etree.XMLSchema (for XSD 1.0)')
+    parser.add_argument('testfiles', type=str, nargs='*', default=default_testfiles,
+                        help="Test cases directory.")
+    return parser
+
+
+def get_test_line_args_parser():
+    """Gets an arguments parser for uncommented on not blank "testfiles" lines."""
+
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."
+    parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
+    parser.add_argument(
+        '-L', dest='locations', nargs=2, type=str, default=None, action='append',
+        metavar="URI-URL", help="Schema location hint overrides."
+    )
+    parser.add_argument(
+        '--version', dest='version', metavar='VERSION', type=xsd_version_number, default='1.0',
+        help="XSD schema version to use for the test case (default is 1.0)."
+    )
+    parser.add_argument(
+        '--errors', type=int, default=0, metavar='NUM', help="Number of errors expected (default=0)."
+    )
+    parser.add_argument(
+        '--warnings', type=int, default=0, metavar='NUM', help="Number of warnings expected (default=0)."
+    )
+    parser.add_argument(
+        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
+    )
+    parser.add_argument(
+        '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
+        help="Define when to use the defused XML data loaders."
+    )
+    parser.add_argument(
+        '--timeout', type=int, default=300, metavar='SEC', help="Timeout for fetching resources (default=300)."
+    )
+    parser.add_argument(
+        '--defaults', action="store_true", default=False,
+        help="Test data uses default or fixed values (skip strict encoding checks).",
+    )
+    parser.add_argument(
+        '--skip', action="store_true", default=False,
+        help="Skip strict encoding checks (for cases where test data uses default or "
+             "fixed values or some test data are skipped by wildcards processContents)."
+    )
+    parser.add_argument(
+        '--debug', action="store_true", default=False,
+        help="Activate the debug mode (only the cases with --debug are executed).",
+    )
+    return parser
+
+
+def tests_factory(test_class_builder, testfiles, suffix, check_with_lxml=False):
     """
     Factory function for file based schema/validation cases.
 
     :param test_class_builder: the test class builder function.
+    :param testfiles: a single or a list of testfiles indexes.
     :param suffix: the suffix ('xml' or 'xsd') to consider for cases.
+    :param check_with_lxml: if `True` compare with lxml XMLSchema class, reporting \
+    anomalies. Works only for XSD 1.0 tests.
     :return: a list of test classes.
     """
     test_classes = {}
     test_num = 0
     debug_mode = False
     line_buffer = []
-
-    testfiles = [os.path.join(test_dir, 'test_cases/testfiles')]
-    narrow = TEST_FACTORY_OPTIONS['narrow']
-    if TEST_FACTORY_OPTIONS['extra_cases']:
-        package_dir = os.path.join(test_dir, '..')
-        testfiles.extend(glob.glob(os.path.join(package_dir, 'test_cases/testfiles')))
+    test_line_parser = get_test_line_args_parser()
 
     for line in fileinput.input(testfiles):
         line = line.strip()
@@ -83,19 +187,21 @@ def tests_factory(test_class_builder, suffix='xml', test_dir='.'):
                 continue
         elif test_args.debug:
             debug_mode = True
-            logger.debug("Debug mode activated: discard previous %r test classes.", len(test_classes))
+            msg = "Debug mode activated: discard previous %r test classes."
+            logger.debug(msg, len(test_classes))
             test_classes.clear()
 
         if test_args.version == '1.0':
             schema_class = ObservedXMLSchema10 if test_args.inspect else XMLSchema10
-            check_with_lxml = TEST_FACTORY_OPTIONS['check_with_lxml']
+            test_class = test_class_builder(
+                test_file, test_args, test_num, schema_class, check_with_lxml
+            )
         else:
             schema_class = ObservedXMLSchema11 if test_args.inspect else XMLSchema11
-            check_with_lxml = False
+            test_class = test_class_builder(
+                test_file, test_args, test_num, schema_class, check_with_lxml=False
+            )
 
-        test_class = test_class_builder(
-            test_file, test_args, test_num, schema_class, narrow, check_with_lxml
-        )
         test_classes[test_class.__name__] = test_class
         logger.debug("Add XSD %s test class %r.", test_args.version, test_class.__name__)
 

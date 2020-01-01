@@ -716,8 +716,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             parent=None,
             mixed=True
         )
-        any_type.content_type = self.create_any_content_group(any_type)
-        any_type.attributes = self.create_any_attribute_group(any_type)
+        any_type.content_type.append(self.BUILDERS.any_element_class(
+            ANY_ELEMENT, self, any_type.content_type
+        ))
+        any_type.attributes[None] = self.BUILDERS.any_attribute_class(
+            ANY_ATTRIBUTE_ELEMENT, self, any_type.attributes
+        )
         return any_type
 
     def create_element(self, name):
