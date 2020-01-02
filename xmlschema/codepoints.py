@@ -176,8 +176,7 @@ def iterparse_character_group(s, expand_ranges=False):
                     msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k - 2, s)
                     raise XMLSchemaRegexError(msg)
                 elif expand_ranges:
-                    for cp in range(ord(char) + 1, ord(end_char) + 1):
-                        yield cp
+                    yield from range(ord(char) + 1, ord(end_char) + 1)
                 else:
                     yield ord(char), ord(end_char) + 1
         elif s[k] in r'|.^?*+{}()':
@@ -264,8 +263,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(item, int):
                 yield item
             else:
-                for cp in reversed(range(item[0], item[1])):
-                    yield cp
+                yield from reversed(range(item[0], item[1]))
 
     def complement(self):
         last_cp = 0
@@ -323,8 +321,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(cp, int):
                 yield cp
             else:
-                for k in range(*cp):
-                    yield k
+                yield from range(*cp)
 
     def __len__(self):
         k = 0

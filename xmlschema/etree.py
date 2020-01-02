@@ -226,8 +226,7 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
             child_path += '[%d]' % positions[child.tag]
             positions[child.tag] += 1
 
-        for _child, _child_path in etree_iterpath(child, tag, child_path, namespaces):
-            yield _child, _child_path
+        yield from etree_iterpath(child, tag, child_path, namespaces)
 
 
 def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False):

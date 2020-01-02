@@ -595,8 +595,7 @@ class XMLResource(object):
     def iter(self, tag=None):
         """XML resource tree iterator."""
         if not self._lazy:
-            for elem in self._root.iter(tag):
-                yield elem
+            yield from self._root.iter(tag)
             return
         elif self.seek(0) == 0:
             resource = self.source
@@ -629,8 +628,7 @@ class XMLResource(object):
             if path is None:
                 yield self._root
             else:
-                for e in iter_select(self._root, path, namespaces, strict=False):
-                    yield e
+                yield from iter_select(self._root, path, namespaces, strict=False)
             return
         elif self.seek(0) == 0:
             resource = self.source
@@ -715,8 +713,7 @@ class XMLResource(object):
         the root element.
         """
         if root_only:
-            for ns_url in etree_iter_location_hints(self._root):
-                yield ns_url
+            yield from etree_iter_location_hints(self._root)
             return
 
         if self._url is not None or hasattr(self.source, 'read'):
@@ -725,8 +722,7 @@ class XMLResource(object):
             resource = StringIO(self._text)
         else:
             for elem in self._root.iter():
-                for ns_url in etree_iter_location_hints(elem):
-                    yield ns_url
+                yield from etree_iter_location_hints(elem)
             return
 
         try:
@@ -734,8 +730,7 @@ class XMLResource(object):
                 if event == 'end':
                     node.clear()
                 else:
-                    for ns_url in etree_iter_location_hints(node):
-                        yield ns_url
+                    yield from etree_iter_location_hints(node)
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
         finally:

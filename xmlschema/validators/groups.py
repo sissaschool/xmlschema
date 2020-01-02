@@ -297,12 +297,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 continue
             elif item.parent is not self.parent and isinstance(item.parent, XsdType) and item.parent.parent is None:
                 continue
-            for obj in item.iter_components(xsd_classes):
-                yield obj
+            yield from item.iter_components(xsd_classes)
 
         if self.redefine is not None and self.redefine not in self:
-            for obj in self.redefine.iter_components(xsd_classes):
-                yield obj
+            yield from self.redefine.iter_components(xsd_classes)
 
     def admits_restriction(self, model):
         if self.model == model:

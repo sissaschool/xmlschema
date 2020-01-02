@@ -527,14 +527,11 @@ class XsdComplexType(XsdType, ValidationMixin):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.attributes.parent is not None:
-            for obj in self.attributes.iter_components(xsd_classes):
-                yield obj
+            yield from self.attributes.iter_components(xsd_classes)
         if self.content_type.parent is not None:
-            for obj in self.content_type.iter_components(xsd_classes):
-                yield obj
+            yield from self.content_type.iter_components(xsd_classes)
         if getattr(self.base_type, 'parent', None) is not None:
-            for obj in self.base_type.iter_components(xsd_classes):
-                yield obj
+            yield from self.base_type.iter_components(xsd_classes)
 
         for obj in filter(lambda x: x.base_type is self, self.assertions):
             if xsd_classes is None or isinstance(obj, xsd_classes):
@@ -584,8 +581,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         """
         xsd_element = self.schema.create_element(name=elem.tag)
         xsd_element.type = self
-        for result in xsd_element.iter_decode(elem, validation, **kwargs):
-            yield result
+        yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
@@ -611,12 +607,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             except XMLSchemaValueError:
                 pass
             else:
-                for result in results:
-                    yield result
+                yield from results
                 return
 
-        for result in xsd_element.iter_encode(value, validation, **kwargs):
-            yield result
+        yield from xsd_element.iter_encode(value, validation, **kwargs)
 
 
 class Xsd11ComplexType(XsdComplexType):

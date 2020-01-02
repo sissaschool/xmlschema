@@ -123,12 +123,10 @@ def iter_nested_items(items, dict_class=dict, list_class=list):
     """Iterates a nested object composed by lists and dictionaries."""
     if isinstance(items, dict_class):
         for k, v in items.items():
-            for value in iter_nested_items(v, dict_class, list_class):
-                yield value
+            yield from iter_nested_items(v, dict_class, list_class)
     elif isinstance(items, list_class):
         for item in items:
-            for value in iter_nested_items(item, dict_class, list_class):
-                yield value
+            yield from iter_nested_items(item, dict_class, list_class)
     elif isinstance(items, dict):
         raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
     elif isinstance(items, list):

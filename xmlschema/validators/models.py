@@ -170,8 +170,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             elif not item.is_pointless(parent=self):
                 yield item
             else:
-                for obj in item.iter_model(depth + 1):
-                    yield obj
+                yield from item.iter_model(depth + 1)
 
     def iter_elements(self, depth=0):
         """
@@ -184,8 +183,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if isinstance(item, ModelGroup):
-                for e in item.iter_elements(depth + 1):
-                    yield e
+                yield from item.iter_elements(depth + 1)
             else:
                 yield item
 
@@ -201,8 +199,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             for item in group:
                 if isinstance(item, ModelGroup):
                     current_path.append(item)
-                    for _item in safe_iter_path(item, depth - 1):
-                        yield _item
+                    yield from safe_iter_path(item, depth - 1)
                     current_path.pop()
                 else:
                     yield item

@@ -215,8 +215,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.ref is None and self.type.parent is not None:
-            for obj in self.type.iter_components(xsd_classes):
-                yield obj
+            yield from self.type.iter_components(xsd_classes)
 
     def data_value(self, text):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
@@ -585,8 +584,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if self.ref is None:
             for attr in self.values():
                 if attr.parent is not None:
-                    for obj in attr.iter_components(xsd_classes):
-                        yield obj
+                    yield from attr.iter_components(xsd_classes)
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
         if not attrs and not self:

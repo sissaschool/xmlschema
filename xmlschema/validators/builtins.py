@@ -75,7 +75,8 @@ DATETIME_FACETS = (
 def finite_number_validator(x):
     try:
         if isinf(x) or isnan(x):
-            yield XMLSchemaValidationError(finite_number_validator, x, "value {!r} is not an xs:decimal".format(x))
+            yield XMLSchemaValidationError(finite_number_validator, x,
+                                           "value {!r} is not an xs:decimal".format(x))
     except TypeError:
         pass
 

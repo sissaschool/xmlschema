@@ -101,8 +101,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __iter__(self):
         if not self.type.has_simple_content():
-            for e in self.type.content_type.iter_elements():
-                yield e
+            yield from self.type.content_type.iter_elements()
 
     @property
     def xpath_proxy(self):
@@ -421,8 +420,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self
-            for obj in self.identities.values():
-                yield obj
+            yield from self.identities.values()
         else:
             if isinstance(self, xsd_classes):
                 yield self
@@ -431,12 +429,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     yield obj
 
         if not hasattr(self.type, 'attributes'):
-            for obj in self.attributes.iter_components(xsd_classes):
-                yield obj
+            yield from self.attributes.iter_components(xsd_classes)
 
         if self.ref is None and self.type.parent is not None:
-            for obj in self.type.iter_components(xsd_classes):
-                yield obj
+            yield from self.type.iter_components(xsd_classes)
 
     def iter_substitutes(self):
         for xsd_element in self.maps.substitution_groups.get(self.name, ()):
@@ -971,8 +967,7 @@ class Xsd11Element(XsdElement):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None:
             yield self
-            for obj in self.identities.values():
-                yield obj
+            yield from self.identities.values()
         else:
             if isinstance(self, xsd_classes):
                 yield self
@@ -981,18 +976,15 @@ class Xsd11Element(XsdElement):
                     yield obj
 
         for alt in self.alternatives:
-            for obj in alt.iter_components(xsd_classes):
-                yield obj
+            yield from alt.iter_components(xsd_classes)
 
         if self.ref is None and self.type.parent is not None:
-            for obj in self.type.iter_components(xsd_classes):
-                yield obj
+            yield from self.type.iter_components(xsd_classes)
 
     def iter_substitutes(self):
         for xsd_element in self.maps.substitution_groups.get(self.name, ()):
             yield xsd_element
-            for e in xsd_element.iter_substitutes():
-                yield e
+            yield from xsd_element.iter_substitutes()
 
     def get_type(self, elem, inherited=None):
         if not self.alternatives:
@@ -1167,8 +1159,7 @@ class XsdAlternative(XsdComponent):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.type is not None and self.type.parent is not None:
-            for obj in self.type.iter_components(xsd_classes):
-                yield obj
+            yield from self.type.iter_components(xsd_classes)
 
     def test(self, elem):
         try:

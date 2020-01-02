@@ -352,22 +352,19 @@ class XsdGlobals(XsdValidator):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals():
-            for obj in xsd_global.iter_components(xsd_classes):
-                yield obj
+            yield from xsd_global.iter_components(xsd_classes)
 
     def iter_schemas(self):
         """Creates an iterator for the schemas registered in the instance."""
-        for ns_schemas in self.namespaces.values():
-            for schema in ns_schemas:
-                yield schema
+        for schemas in self.namespaces.values():
+            yield from schemas
 
     def iter_globals(self):
         """
         Creates an iterator for XSD global definitions/declarations.
         """
         for global_map in self.global_maps:
-            for obj in global_map.values():
-                yield obj
+            yield from global_map.values()
 
     def register(self, schema):
         """

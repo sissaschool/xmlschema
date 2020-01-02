@@ -447,12 +447,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             super(XMLSchemaBase, self).__setattr__(name, value)
 
     def __iter__(self):
-        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name):
-            yield xsd_element
+        yield from sorted(self.elements.values(), key=lambda x: x.name)
 
     def __reversed__(self):
-        for xsd_element in sorted(self.elements.values(), key=lambda x: x.name, reverse=True):
-            yield xsd_element
+        yield from sorted(self.elements.values(), key=lambda x: x.name, reverse=True)
 
     def __len__(self):
         return len(self.elements)
@@ -825,8 +823,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         if schema is None:
             for global_map in self.global_maps:
-                for obj in global_map.values():
-                    yield obj
+                yield from global_map.values()
         else:
             for global_map in self.global_maps:
                 for obj in global_map.values():
@@ -840,8 +837,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals(self):
-            for obj in xsd_global.iter_components(xsd_classes):
-                yield obj
+            yield from xsd_global.iter_components(xsd_classes)
 
     def get_converter(self, converter=None, namespaces=None, **kwargs):
         """
@@ -1415,8 +1411,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     yield schema.validation_error('lax', reason, elem, source, namespaces)
                     return
 
-            for obj in xsd_element.iter_decode(elem, validation, **kwargs):
-                yield obj
+            yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         for k, v in id_map.items():
             if isinstance(v, XMLSchemaValidationError):
@@ -1503,9 +1498,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 reason = "unable to select an element for decoding data, provide a valid 'path' argument."
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
-            for result in xsd_element.iter_encode(obj, validation, converter=converter,
-                                                  unordered=unordered, **kwargs):
-                yield result
+            yield from xsd_element.iter_encode(obj, validation, converter=converter,
+                                               unordered=unordered, **kwargs)
 
     def encode(self, obj, path=None, validation='strict', *args, **kwargs):
         """

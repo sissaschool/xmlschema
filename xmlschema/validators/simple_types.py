@@ -374,12 +374,11 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         if validation != 'skip' and obj is not None:
             if self.patterns is not None:
-                for error in self.patterns(obj):
-                    yield error
+                yield from self.patterns(obj)
 
             for validator in self.validators:
-                for error in validator(obj):
-                    yield error
+                yield from validator(obj)
+
         yield obj
 
     def iter_encode(self, obj, validation='lax', **kwargs):
@@ -390,12 +389,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         if validation != 'skip' and obj is not None:
             if self.patterns is not None:
-                for error in self.patterns(obj):
-                    yield error
+                yield from self.patterns(obj)
 
             for validator in self.validators:
-                for error in validator(obj):
-                    yield error
+                yield from validator(obj)
 
         yield obj
 
@@ -552,8 +549,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             return
 
         if self.patterns is not None:
-            for error in self.patterns(obj):
-                yield error
+            yield from self.patterns(obj)
 
         try:
             result = self.to_python(obj)
@@ -568,8 +564,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             return
 
         for validator in self.validators:
-            for error in validator(result):
-                yield error
+            yield from validator(result)
 
         yield result
 
@@ -610,8 +605,7 @@ class XsdAtomicBuiltin(XsdAtomic):
                 return
 
         for validator in self.validators:
-            for error in validator(obj):
-                yield error
+            yield from validator(obj)
 
         try:
             text = self.from_python(obj)
@@ -620,8 +614,7 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield None
         else:
             if self.patterns is not None:
-                for error in self.patterns(text):
-                    yield error
+                yield from self.patterns(text)
             yield text
 
 
@@ -749,8 +742,7 @@ class XsdList(XsdSimpleType):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.base_type.parent is not None:
-            for obj in self.base_type.iter_components(xsd_classes):
-                yield obj
+            yield from self.base_type.iter_components(xsd_classes)
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
@@ -891,8 +883,7 @@ class XsdUnion(XsdSimpleType):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for mt in filter(lambda x: x.parent is not None, self.member_types):
-            for obj in mt.iter_components(xsd_classes):
-                yield obj
+            yield from mt.iter_components(xsd_classes)
 
     def iter_decode(self, obj, validation='lax', patterns=None, **kwargs):
         # Try decoding the whole text
@@ -901,8 +892,7 @@ class XsdUnion(XsdSimpleType):
                 if not isinstance(result, XMLSchemaValidationError):
                     if validation != 'skip' and patterns:
                         obj = member_type.normalize(obj)
-                        for error in patterns(obj):
-                            yield error
+                        yield from patterns(obj)
 
                     yield result
                     return
@@ -1126,8 +1116,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.base_type.parent is not None:
-            for obj in self.base_type.iter_components(xsd_classes):
-                yield obj
+            yield from self.base_type.iter_components(xsd_classes)
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
@@ -1146,8 +1135,7 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if validation != 'skip' and self.patterns:
             if not isinstance(self.primitive_type, XsdUnion):
-                for error in self.patterns(obj):
-                    yield error
+                yield from self.patterns(obj)
             elif 'patterns' not in kwargs:
                 kwargs['patterns'] = self.patterns
 
@@ -1159,8 +1147,7 @@ class XsdAtomicRestriction(XsdAtomic):
             else:
                 if validation != 'skip' and result is not None:
                     for validator in self.validators:
-                        for error in validator(result):
-                            yield error
+                        yield from validator(result)
 
                 yield result
                 return
@@ -1198,8 +1185,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             obj = self.primitive_type.to_python(obj)
 
                     for validator in self.validators:
-                        for error in validator(obj):
-                            yield error
+                        yield from validator(obj)
 
                 yield result
                 return

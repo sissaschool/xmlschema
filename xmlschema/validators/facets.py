@@ -42,8 +42,7 @@ class XsdFacet(XsdComponent):
 
     def __call__(self, value):
         try:
-            for error in self.validator(value):
-                yield error
+            yield from self.validator(value)
         except (TypeError, ValueError) as err:
             yield XMLSchemaValidationError(self, value, str(err))
 

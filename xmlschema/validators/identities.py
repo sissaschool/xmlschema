@@ -143,8 +143,7 @@ class XsdIdentity(XsdComponent):
             self.parse_error("a reference cannot has child definitions")
 
     def iter_elements(self):
-        for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
-            yield xsd_element
+        yield from self.selector.xpath_selector.iter_select(self.parent)
 
     def get_fields(self, context, namespaces=None, decoders=None):
         """

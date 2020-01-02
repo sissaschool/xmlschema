@@ -434,17 +434,14 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             except LookupError:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.schema.create_element(name=elem.tag)
-                    for result in xsd_element.iter_decode(elem, validation, **kwargs):
-                        yield result
+                    yield from xsd_element.iter_decode(elem, validation, **kwargs)
                 elif validation == 'skip' or self.process_contents == 'lax':
-                    for result in self.any_type.iter_decode(elem, validation, **kwargs):
-                        yield result
+                    yield from self.any_type.iter_decode(elem, validation, **kwargs)
                 else:
                     reason = "element %r not found." % elem.tag
                     yield self.validation_error(validation, reason, elem, **kwargs)
             else:
-                for result in xsd_element.iter_decode(elem, validation, **kwargs):
-                    yield result
+                yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         elif validation == 'skip':
             yield self.any_type.decode(elem) if len(elem) > 0 else elem.text
@@ -470,14 +467,12 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 xsd_element = self.maps.lookup_element(name)
             except LookupError:
                 if validation == 'skip' or self.process_contents == 'lax':
-                    for result in self.any_type.iter_encode(obj, validation, **kwargs):
-                        yield result
+                    yield from self.any_type.iter_encode(obj, validation, **kwargs)
                 elif self.process_contents == 'strict':
                     reason = "element %r not found." % name
                     yield self.validation_error(validation, reason, **kwargs)
             else:
-                for result in xsd_element.iter_encode(value, validation, **kwargs):
-                    yield result
+                yield from xsd_element.iter_encode(value, validation, **kwargs)
 
         elif validation == 'skip':
             yield self.any_type.encode(value)
@@ -580,8 +575,7 @@ class XsdAnyAttribute(XsdWildcard):
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
-                for result in xsd_attribute.iter_decode(value, validation, **kwargs):
-                    yield result
+                yield from xsd_attribute.iter_decode(value, validation, **kwargs)
 
         elif validation == 'skip':
             yield value
@@ -612,8 +606,7 @@ class XsdAnyAttribute(XsdWildcard):
                     reason = "attribute %r not found." % name
                     yield self.validation_error(validation, reason, attribute, **kwargs)
             else:
-                for result in xsd_attribute.iter_encode(value, validation, **kwargs):
-                    yield result
+                yield from xsd_attribute.iter_encode(value, validation, **kwargs)
 
         elif validation == 'skip':
             yield str(value)

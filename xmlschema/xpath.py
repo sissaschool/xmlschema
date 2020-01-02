@@ -64,14 +64,12 @@ class XMLSchemaContext(XPathSchemaContext):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
                     if context.item.parent is None:
-                        for item in safe_iter_context(context):
-                            yield item
+                        yield from safe_iter_context(context)
                     elif getattr(context.item, 'ref', None) is not None:
                         yield context.item
                     elif context.item not in local_items:
                         local_items.append(context.item)
-                        for item in safe_iter_context(context):
-                            yield item
+                        yield from safe_iter_context(context)
 
         local_items = []
         return safe_iter_context(self)
@@ -308,15 +306,13 @@ class ElementPathMixin(Sequence):
                 yield elem
             for child in elem:
                 if child.parent is None:
-                    for e in safe_iter(child):
-                        yield e
+                    yield from safe_iter(child)
                 elif getattr(child, 'ref', None) is not None:
                     if tag is None or elem.is_matching(tag):
                         yield child
                 elif child not in local_elements:
                     local_elements.append(child)
-                    for e in safe_iter(child):
-                        yield e
+                    yield from safe_iter(child)
 
         if tag == '*':
             tag = None
