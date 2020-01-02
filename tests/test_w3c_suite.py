@@ -29,7 +29,6 @@ import unittest
 import argparse
 import os.path
 import xml.etree.ElementTree as ElementTree
-import sys
 import warnings
 
 from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
@@ -136,34 +135,6 @@ total_xsd_files = 0
 total_xml_files = 0
 
 
-def extract_additional_arguments():
-    """
-    Get and expunge additional simple arguments from sys.argv. These arguments
-    are not parsed with argparse but are checked and removed from sys.argv in
-    order to avoid errors from argument parsing at unittest level.
-    """
-    try:
-        return argparse.Namespace(
-            xml='--xml' in sys.argv,
-            version='1.0' if '--xsd10' in sys.argv else '1.1' if '--xsd11' in sys.argv else '1.0 1.1',
-            expected=('valid',) if '--valid' in sys.argv else ('invalid',) if '--invalid' in sys.argv
-            else ('indeterminate',) if '--unknown' in sys.argv else ADMITTED_VALIDITY,
-            verbose='-v' in sys.argv or '--verbose' in sys.argv,
-            numbers=[int(sys.argv[k]) for k in range(len(sys.argv))
-                     if sys.argv[k].isdigit() and sys.argv[k] != '0' and k and sys.argv[k - 1] != '-k']
-        )
-    finally:
-        sys.argv = [
-            sys.argv[k] for k in range(len(sys.argv))
-            if sys.argv[k] not in {
-                '--xml', '--xsd10', '--xsd11', '--valid', '--invalid', '--unknown'
-            } and (not sys.argv[k].isdigit() or sys.argv[k] == '0' or not k or sys.argv[k - 1] == '-k')
-        ]
-
-
-args = extract_additional_arguments()
-
-
 def fetch_xsd_test_suite():
     parent = os.path.dirname
     xmlschema_test_dir = parent(os.path.abspath(__file__))
@@ -176,10 +147,12 @@ def fetch_xsd_test_suite():
         raise FileNotFoundError("can't find the XSD suite index file suite.xml ...")
 
 
-def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0'):
+def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_version='1.0'):
     """
     Creates a test class for a W3C test group.
 
+    :param args: parsed command line arguments.
+    :type args: argparse.Namespace.
     :param filename: the filename of the testSet that owns the testGroup.
     :param group_elem: the Element instance of the test group.
     :param group_num: a positive integer to distinguish and order test groups.
@@ -202,9 +175,9 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
             if source_href in SKIPPED_TESTS:
                 if args.numbers:
                     if source_href.endswith('.xsd'):
-                        print("Skip test number %d ..." % testgroup_num)
+                        print("Skip test number %d ..." % group_num)
                     else:
-                        print("Skip file %r for test number %d ..." % (source_href, testgroup_num))
+                        print("Skip file %r for test number %d ..." % (source_href, group_num))
                 return
 
         # Normalize and check file path
@@ -393,11 +366,38 @@ def create_w3c_test_group_case(filename, group_elem, group_num, xsd_version='1.0
     return TestGroupCase
 
 
-if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+def w3c_tests_factory(argv=None):
+    import sys
 
-    print_test_header()
+    if argv is None:
+        argv = sys.argv[1:]
 
+    def xsd_versions(value):
+        if value not in ('1.0', '1.1', '1.0 1.1', '1.1 1.0'):
+            raise argparse.ArgumentTypeError("%r is not an XSD version string" % value)
+        return value
+
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument('-v', '--verbose', default=False, action='store_true')
+    parser.add_argument('--version', dest='version', type=xsd_versions,
+                        default='1.0 1.1',
+                        help="Run only tests related to a specific XSD version.")
+    parser.add_argument('--xml', default=False, action='store_true',
+                        help="Include XML validation tests.")
+    parser.add_argument('--valid', dest='expected', default=ADMITTED_VALIDITY,
+                        const='valid', action='store_const',
+                        help="Run only expected 'valid' tests.")
+    parser.add_argument('--invalid', dest='expected',
+                        const='invalid', action='store_const',
+                        help="Run only expected 'invalid' tests.")
+    parser.add_argument('--unknown', dest='expected',
+                        const='indeterminate', action='store_const',
+                        help="Run only expected 'indeterminate' tests.")
+    parser.add_argument('numbers', metavar='TEST_NUMBER', type=int, nargs='*',
+                        help='Runs only specific tests, selected by numbers.')
+    args = parser.parse_args(args=argv)
+
+    quiet = __name__ == '__main__'
     index_path = fetch_xsd_test_suite()
     index_dir = os.path.dirname(index_path)
 
@@ -405,7 +405,7 @@ if __name__ == '__main__':
     test_classes = {}
     testgroup_num = 0
 
-    if args.verbose:
+    if args.verbose and not quiet:
         print("\n>>>>> ADD TEST GROUPS FROM TESTSET FILES <<<<<\n")
 
     for testset_elem in suite_xml.iter("{%s}testSetRef" % TEST_SUITE_NAMESPACE):
@@ -416,7 +416,9 @@ if __name__ == '__main__':
         testset = ElementTree.parse(testset_file)
         testset_version = testset.getroot().get('version', '1.0 1.1')
         if testset_version not in XSD_VERSION_VALUES:
-            print("Testset file %r has an invalid version=%r, skip ..." % (href_attr, testset_version))
+            if not quiet:
+                msg = "Testset file %r has an invalid version=%r, skip ..."
+                print(msg % (href_attr, testset_version))
             continue
 
         for testgroup_elem in testset.iter("{%s}testGroup" % TEST_SUITE_NAMESPACE):
@@ -425,19 +427,21 @@ if __name__ == '__main__':
             testgroup_version = testgroup_elem.get('version', testset_version)
             if testgroup_version == 'full-xpath-in-CTA':
                 # skip full XPath test for the moment ...
-                if args.verbose:
+                if args.verbose and not quiet:
                     print("Skip full XPath test %r ..." % testgroup_elem.get('name'))
                 continue
             elif testgroup_version not in XSD_VERSION_VALUES:
-                _msg = "Test group %r has an invalid version=%r, skip ..."
-                print(_msg % (testgroup_elem.get('name'), testgroup_version))
+                if not quiet:
+                    _msg = "Test group %r has an invalid version=%r, skip ..."
+                    print(_msg % (testgroup_elem.get('name'), testgroup_version))
                 continue
             elif testgroup_version not in testset_version:
-                if args.verbose:
+                if args.verbose and not quiet:
                     _msg = "Warning: Test group %r version=%r is not included in test set version=%r"
                     print(_msg % (testgroup_elem.get('name'), testgroup_version, testset_version))
 
             cls = create_w3c_test_group_case(
+                args=args,
                 filename=testset_file,
                 group_elem=testgroup_elem,
                 group_num=testgroup_num,
@@ -447,19 +451,25 @@ if __name__ == '__main__':
                 test_classes[cls.__name__] = cls
                 testset_groups += 1
 
-        if args.verbose and testset_groups:
+        if args.verbose and testset_groups and not quiet:
             print("Added {} test groups from {}".format(testset_groups, href_attr))
 
-    globals().update(test_classes)
-
-    if test_classes:
+    if test_classes and not quiet:
         print("\n+++ Number of classes under test: %d +++" % len(test_classes))
         if total_xml_files:
             print("+++ Number of XSD schemas under test: %d +++" % total_xsd_files)
             print("+++ Number of XML files under test: %d +++" % total_xml_files)
         print()
 
-    if args.verbose:
+    if args.verbose and not quiet:
         print("\n>>>>> RUN TEST GROUPS <<<<<\n")
 
-    unittest.main()
+    return test_classes
+
+
+if __name__ == '__main__':
+    from xmlschema.testing import print_test_header
+
+    print_test_header()
+    globals().update(w3c_tests_factory())
+    unittest.main(argv=[__name__])
