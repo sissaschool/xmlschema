@@ -383,6 +383,75 @@ class TestDecoding(XsdValidatorTestCase):
         os.remove(self.col_json_file)
         self.check_etree_elements(col_xml_tree.getroot(), root)
 
+    def test_json_path_decoding(self):
+        xml_file = self.col_xml_file
+        schema = self.col_schema
+
+        json_data = xmlschema.to_json(xml_file, schema=schema, path='*')
+        self.assertIsInstance(json_data, str)
+        self.assertEqual(len(json_data), 493)
+        self.assertEqual(json_data[:7], '[{"@id"')
+        self.assertEqual(json_data[-1], ']')
+
+        self.assertEqual(
+            json_data, xmlschema.to_json(xml_file, schema=schema, path='object')
+        )
+        self.assertEqual(
+            json_data, xmlschema.to_json(xml_file, schema=schema, path='//object')
+        )
+        self.assertEqual(
+            json_data, xmlschema.to_json(xml_file, schema=schema, path='/col:collection/object')
+        )
+
+    def test_json_lazy_decoding(self):
+        kwargs = {'xml_document': self.col_xml_file, 'schema': self.col_schema}
+
+        col_json = xmlschema.to_json(**kwargs)
+        self.assertIsInstance(col_json, str)
+        self.assertEqual(len(col_json), 688)
+        self.assertEqual(col_json[:14], '{"@xmlns:col":')
+        self.assertEqual(col_json[-1], '}')
+
+        self.assertEqual(
+            col_json, xmlschema.to_json(lazy=True, **kwargs)
+        )
+
+        json_data = xmlschema.to_json(path='object', **kwargs)
+        self.assertIn(json_data, col_json)
+        self.assertEqual(
+            json_data, xmlschema.to_json(path='object', lazy=True, **kwargs)
+        )
+        self.assertEqual(
+            json_data, xmlschema.to_json(validation='skip', path='object', lazy=True, **kwargs)
+        )
+
+        json_data = xmlschema.to_json(path='object/author', **kwargs)
+        self.assertIsInstance(json_data, str)
+        self.assertEqual(len(json_data), 259)
+        self.assertEqual(json_data[:7], '[{"@id"')
+        self.assertEqual(json_data[-1], ']')
+
+        self.assertEqual(
+            json_data, xmlschema.to_json(path='object/author', lazy=True, **kwargs)
+        )
+        self.assertEqual(json_data, xmlschema.to_json(
+            validation='skip', path='object/author', lazy=True, **kwargs
+        ))
+
+        # lazy mode doesn't scan namespace declarations before start
+        with self.assertRaises(KeyError):
+            xmlschema.to_json(path='/col:collection/object/author', lazy=True, **kwargs)
+
+        kwargs['namespaces'] = {'col': 'http://example.com/ns/collection'}
+
+        # Tests for issue #159
+        self.assertEqual(json_data, xmlschema.to_json(
+            path='/col:collection/object/author', lazy=True, **kwargs
+        ))
+        self.assertEqual(json_data, xmlschema.to_json(
+            validation='skip', path='/col:collection/object/author', lazy=True, **kwargs
+        ))
+
     def test_path(self):
         xt = ElementTree.parse(self.vh_xml_file)
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:cars', namespaces=self.vh_namespaces)

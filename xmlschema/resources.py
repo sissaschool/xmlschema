@@ -673,13 +673,20 @@ class XMLResource(object):
             else:
                 selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
                 path = path.replace(' ', '').replace('./', '')
-                path_level = path.count('/') + 1 if path != '.' else 0
+
+                if path == '.':
+                    path_level = 0
+                elif path.startswith('/'):
+                    path_level = path.count('/') - 1
+                else:
+                    path_level = path.count('/') + 1
+
                 select_all = '*' in path and set(path).issubset({'*', '/'})
 
                 level = 0
                 for event, node in self.iterparse(resource, events):
                     if event == "start":
-                        if level == 0:
+                        if not level:
                             self._root.clear()
                             self._root = node
                         level += 1
@@ -689,7 +696,7 @@ class XMLResource(object):
                                 (select_all or node in selector.select(self._root)):
                             yield node
                             node.clear()
-                        elif level == 0:
+                        elif not level:
                             node.clear()
                     elif event == 'start-ns':
                         nsmap.append(node)
