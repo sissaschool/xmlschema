@@ -1253,9 +1253,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         try:
             schema = self.maps.namespaces[namespace][0]
         except (KeyError, IndexError):
-            reason = 'the namespace {!r} is not loaded'.format(namespace)
-            yield self.validation_error('lax', reason, source.root, source, namespaces)
-            return
+            if namespace or not schema_path:
+                reason = 'the namespace {!r} is not loaded'.format(namespace)
+                yield self.validation_error('lax', reason, source.root, source, namespaces)
+                return
+            schema = self
 
         kwargs = {
             'source': source,
@@ -1375,9 +1377,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         try:
             schema = self.maps.namespaces[namespace][0]
         except (KeyError, IndexError):
-            reason = 'the namespace {!r} is not loaded'.format(namespace)
-            yield self.validation_error('lax', reason, source.root, source, namespaces)
-            return
+            if namespace or not schema_path:
+                reason = 'the namespace {!r} is not loaded'.format(namespace)
+                yield self.validation_error('lax', reason, source.root, source, namespaces)
+                return
+            schema = self
 
         id_map = Counter()
         converter = self.get_converter(converter, namespaces, **kwargs)

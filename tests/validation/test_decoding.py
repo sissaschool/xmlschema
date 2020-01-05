@@ -390,7 +390,7 @@ class TestDecoding(XsdValidatorTestCase):
         json_data = xmlschema.to_json(xml_file, schema=schema, path='*')
         self.assertIsInstance(json_data, str)
         self.assertEqual(len(json_data), 493)
-        self.assertEqual(json_data[:7], '[{"@id"')
+        self.assertEqual(json_data[:4], '[{"@')
         self.assertEqual(json_data[-1], ']')
 
         self.assertEqual(
@@ -409,7 +409,7 @@ class TestDecoding(XsdValidatorTestCase):
         col_json = xmlschema.to_json(**kwargs)
         self.assertIsInstance(col_json, str)
         self.assertEqual(len(col_json), 688)
-        self.assertEqual(col_json[:14], '{"@xmlns:col":')
+        self.assertTrue(col_json.startswith('{"@xmlns:'))
         self.assertEqual(col_json[-1], '}')
 
         self.assertEqual(
@@ -428,7 +428,7 @@ class TestDecoding(XsdValidatorTestCase):
         json_data = xmlschema.to_json(path='object/author', **kwargs)
         self.assertIsInstance(json_data, str)
         self.assertEqual(len(json_data), 259)
-        self.assertEqual(json_data[:7], '[{"@id"')
+        self.assertEqual(json_data[:4], '[{"@')
         self.assertEqual(json_data[-1], ']')
 
         self.assertEqual(
@@ -458,6 +458,42 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(xd['vh:car'], VEHICLES_DICT['vh:cars']['vh:car'])
         xd = self.vh_schema.to_dict(xt, '/vh:vehicles/vh:bikes', namespaces=self.vh_namespaces)
         self.assertEqual(xd['vh:bike'], VEHICLES_DICT['vh:bikes']['vh:bike'])
+
+    def test_non_global_schema_path(self):
+        # Issue #157
+        xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                xmlns:foo="http://example.com/foo" 
+                targetNamespace="http://example.com/foo">
+            <xs:complexType name="type1">
+                <xs:sequence>
+                    <xs:element name="sub_part1" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="type2">
+                <xs:sequence>
+                    <xs:element name="sub_part2" type="xs:string" />
+                </xs:sequence>
+            </xs:complexType>
+            <xs:element name="foo">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="part1" type="foo:type1" />
+                        <xs:element name="part2" type="foo:type2" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>""")
+
+        self.assertEqual(
+            xs.to_dict(
+                """<part1 xmlns:foo="http://example.com/foo">
+                    <sub_part1>test</sub_part1>
+                </part1>""",
+                schema_path='.//part1',
+            ),
+            {"sub_part1": "test"}
+        )
 
     def test_validation_strict(self):
         self.assertRaises(

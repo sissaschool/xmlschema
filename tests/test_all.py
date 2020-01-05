@@ -60,7 +60,6 @@ if __name__ == '__main__':
     for pattern_ in args.patterns:
         argv.append('-k')
         argv.append(pattern_)
-
     print_test_header()
     unittest.main(argv=argv, verbosity=args.verbosity, failfast=args.failfast,
                   catchbreak=args.catchbreak, buffer=args.buffer)
