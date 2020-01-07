@@ -8,9 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module runs tests concerning model groups validation.
-"""
+"""Tests concerning model groups validation"""
 import unittest
 import os.path
 

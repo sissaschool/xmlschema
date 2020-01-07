@@ -8,6 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""Tests about the packaging of the code"""
+
 import unittest
 import glob
 import fileinput

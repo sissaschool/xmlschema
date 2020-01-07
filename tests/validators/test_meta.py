@@ -8,9 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module runs tests on XSD meta schema and builtins of the 'xmlschema' package.
-"""
+"""Tests on XSD meta schema and XSD builtins"""
 import unittest
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError, \

@@ -8,9 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module runs tests concerning resources.
-"""
+"""Tests concerning XML resources"""
+
 import unittest
 import os
 import platform

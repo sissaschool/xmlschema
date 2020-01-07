@@ -8,9 +8,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module runs tests on various internal helper functions.
-"""
+"""Tests on internal helper functions"""
 import unittest
 import decimal
 import xml.etree.ElementTree as ElementTree

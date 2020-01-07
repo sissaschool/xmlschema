@@ -8,9 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module runs tests on XPath selector and find functions.
-"""
+"""Tests for XPath parsing and selectors"""
+
 import unittest
 import os
 import xml.etree.ElementTree as ElementTree

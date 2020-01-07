@@ -36,10 +36,6 @@ This library includes the following features:
 * Support of XSD validation modes *strict*/*lax*/*skip*
 * Remote attacks protection by default using an XMLParser that forbids entities
 
-.. note::
-    The default `XMLSchema` class is an alias of the XSD 1.1 validator, the class
-    `XMLSchema11`. he XSD 1.0 validator is provided by class `XMLSchema10`.
-
 
 Installation
 ============
@@ -68,8 +64,8 @@ the file containing the schema as argument:
     >>> my_schema = xmlschema.XMLSchema('xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd')
 
 .. note::
-    For XSD 1.0 schemas use the class `XMLSchema10`, because the default class
-    `XMLSchema` is an alias of the XSD 1.1 validator class `XMLSchema11`.
+    For XSD 1.1 schemas use the class `XMLSchema11`, because the default class
+    `XMLSchema` is an alias of the XSD 1.0 validator class `XMLSchema10`.
 
 The schema can be used to validate XML documents:
 

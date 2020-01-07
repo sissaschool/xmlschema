@@ -1,66 +1,57 @@
 Testing
 =======
 
+The tests of the *xmlschema* library are implemented using the Python's *unitest*
+library. From version v1.1.0 the test scripts have been moved into the directory
+``tests/`` of the source distribution. Only a small subpackage *testing/*,
+containing a specialized UnitTest subclass, a factory and builders for creating test
+classes for XSD and XML file, has been left into the package's code.
+
+
 Test scripts
 ------------
 
-The tests of the *xmlschema* library are implemented using the Python's *unitest*
-library. The test scripts are located under the installation base into ``tests/``
-subdirectory. There are several test scripts, each one for a different topic:
+There are several test scripts, each one for a different target. These scripts can
+be run individually or by the unittest module. For example to run XPath tests through
+the *unittest* module use the command:
 
-**test_helpers.py**
-    Tests for helper functions and classes
+.. code-block:: bash
 
-**test_meta.py**
-    Tests for the XSD meta-schema and XSD builtins
+    $ python -m unittest -k tests.test_xpath
+    ..........
+    ----------------------------------------------------------------------
+    Ran 10 tests in 0.133s
 
-**test_models.py**
-    Tests concerning model groups validation
+    OK
 
-**test_package.py**
-    Tests regarding ElementTree import and code packaging
+The same run can be launched with the command `$ python tests/test_xpath.py` but an
+additional header, containing info about the package location, the Python version and
+the machine platform, is displayed before running the tests.
 
-**test_regex.py**
-    Tests about XSD regular expressions
+Under the base directory *tests/* there are the test scripts for the base modules
+of the package. The subdirectory *tests/validators* includes tests for XSD validators
+building (schemas and their components) and the subdirectory *tests/validation* contains
+tests validation of XSD/XML and decoding/encoding of XML files.
 
-**test_resources.py**
-    Tests about XML/XSD resources access
-
-**test_schemas.py**
-    Tests about parsing of XSD schemas and components
-
-**test_validators.py**
-    Tests regarding XML data validation/decoding/encoding
-
-**test_xpath.py**
-    Tests for XPath parsing and selectors
-
-You can run all above tests with the script *test_all.py*. From the project source base, if you have
-the *tox automation tool* installed, you can run all tests with all supported Python's versions
-using the command ``tox``.
+To run all tests use the command `python -m unittest `. Also, the script *test_all.py* can
+launched during development to run all the tests except memory and packaging tests.
+From the project source base, if you have the *tox automation tool* installed, you can run
+all tests with all supported Python's versions using the command ``tox``.
 
 
 Test cases based on files
 -------------------------
 
-Two scripts (*test_schemas.py*, *test_validators.py*) create the most tests dinamically,
-loading a set of XSD or XML files.
-Only a small set of test files is published in the repository for copyright
-reasons. You can found the published test files into ``xmlschema/tests/test_cases/``
-subdirectory.
+Three scripts (*test_all.py*, *test_schemas.py*, *test_validation.py*) create many tests
+dinamically, building test classes from a set of XSD/XML files. Only a small set of test
+files is published in the repository for copyright reasons. You can find the repository
+test files into ``tests/test_cases/`` subdirectory.
 
-You can locally extend the test with your set of files. For doing this create a
-``test_cases/`` directory at repository level and then copy your XSD/XML files
-into it. Finally you have to create a file called *testfiles* in your
-``test_cases/`` directory:
-
-.. code-block:: bash
-
-    cd test_cases/
-    touch testfiles
-
-Fill this file with the list of paths of files you want to be tested, one per line,
-as in the following example:
+You can locally extend the test with your set of files. For doing this create a submodule
+or a directory outside the repository directory and then copy your XSD/XML files into it.
+Create an index file called testfiles into the base directory were you put your cases and
+fill it with the list of paths of files you want to be tested, one per line, as in the
+following example:
 
 .. code-block:: text
 
@@ -79,9 +70,8 @@ as in the following example:
     qe/SrTiO_3-2_errors.xml --errors 2
 
 The test scripts create a test for each listed file, dependant from the context.
-For example the script that test the schemas uses only *.xsd* files, where instead
-the script that tests the validation uses both types, validating each XML file
-against its schema and each XSD against the meta-schema.
+For example the script *test_schemas.py* uses only *.xsd* files, where instead
+the script *tests_validation.py* uses only *.xml* files.
 
 If a file has errors insert an integer number after the path. This is the number of errors
 that the XML Schema validator have to found to pass the test.
@@ -118,24 +108,12 @@ From version 1.0.0 each test-case line is parsed for those additional arguments:
 
 If you put a ``--help`` on the first case line the argument parser show you all the options available.
 
-.. note::
-
-    Test case line options are changed from version 1.0.0, with the choice of using almost only double
-    dash prefixed options, in order to simplify text search in long *testfiles*, and add or remove
-    options without the risk to change also parts of filepaths.
-
-To run tests with also your personal set of files you have to add a ``-x/--extra`` option to the
-command, for example:
+To run tests with also your personal set of files you have provide the path to your custom *testfile*,
+index, for example:
 
 .. code-block:: text
 
-   python xmlschema/tests/test_all.py -x
-
-or:
-
-.. code-block:: text
-
-    tox -- -x
+   python xmlschema/tests/test_all.py ../extra-schemas/testfiles
 
 
 Testing with the W3C XML Schema 1.1 test suite
@@ -150,37 +128,18 @@ W3C repo on the project's parent directory and than run the script:
    git clone https://github.com/w3c/xsdtests.git
    python xmlschema/xmlschema/tests/test_w3c_suite.py
 
-You can also provides additional options for select a different set of tests:
+You can also provides additional options for select a subset of W3C tests, run
+``test_w3_suite.py --help`` to show available options.
 
-**--xml**
-    Add tests for instances, skipped for default.
-
-**--xsd10**
-    Run only XSD 1.0 tests.
-
-**--xsd11**
-    Run only XSD 1.1 tests.
-
-**--valid**
-    Run only tests signed as *valid*.
-
-**--invalid**
-    Run only tests signed as *invalid*.
-
-**[NUM [NUM ...]]**
-    Run only the cases that match a list of progressive numbers, associated
-    to the test classes by the script.
-
-
-Testing other schemas and instances
------------------------------------
+Direct testing of schemas and instances
+---------------------------------------
 
 From release v1.0.12, using the script *test_files.py*, you can test schemas or XML instances
 passing them as arguments:
 
 .. code-block:: text
 
-   $ cd xmlschema/tests/
+   $ cd tests/
    $ python test_files.py test_cases/examples/vehicles/*.xsd
    Add test 'TestSchema001' for file 'test_cases/examples/vehicles/bikes.xsd' ...
    Add test 'TestSchema002' for file 'test_cases/examples/vehicles/cars.xsd' ...

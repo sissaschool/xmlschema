@@ -8,9 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-Loads and runs tests concerning the validation/decoding/encoding of XML files.
-"""
+"""Tests concerning the validation/decoding/encoding of XML files"""
+
 import os
 
 from xmlschema.testing import get_test_program_args_parser, print_test_header, \

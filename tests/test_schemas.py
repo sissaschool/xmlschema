@@ -8,9 +8,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-Loads and runs tests concerning the building of XSD schemas with the 'xmlschema' package.
-"""
+"""Tests concerning the parsing and the building of XSD schemas"""
+
 import os
 
 from xmlschema.testing import get_test_program_args_parser, print_test_header, \
