@@ -15,7 +15,7 @@ from decimal import Decimal
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..exceptions import XMLSchemaAttributeError
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
@@ -508,6 +508,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             level = kwargs['level'] = 0
 
         try:
+            identities = kwargs['identities']
+        except KeyError:
+            identities = kwargs['identities'] = {}
+
+        for constraint in self.identities.values():
+            try:
+                identities[constraint].clear()
+            except KeyError:
+                identities[constraint] = constraint.get_counter()
+
+        try:
             converter = kwargs['converter']
         except KeyError:
             converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
@@ -654,16 +665,39 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if content is not None:
             del content
 
-        if validation != 'skip':
-            if 'max_depth' in kwargs:
-                # Don't check key references with lazy or shallow validation
-                for constraint in filter(lambda x: not isinstance(x, XsdKeyref), self.identities.values()):
-                    for error in constraint(elem, namespaces):
-                        yield self.validation_error(validation, error, elem, **kwargs)
+        if validation == 'skip':
+            return
+
+        # Collects fields values for identities that refer to this element.
+        for constraint, counter in identities.items():
+            if not counter.enabled or self not in constraint.elements:
+                continue
+
+            try:
+                xsd_fields = constraint.get_fields(self)
+                if not any(fld is not None for fld in xsd_fields):
+                    continue
+                fields = constraint.get_fields(elem, namespaces, decoders=xsd_fields)
+            except XMLSchemaValueError as err:
+                yield self.validation_error(validation, err, elem, **kwargs)
             else:
-                for constraint in self.identities.values():
-                    for error in constraint(elem, namespaces):
-                        yield self.validation_error(validation, error, elem, **kwargs)
+                if any(fld is not None for fld in fields):
+                    try:
+                        counter.increase(fields)
+                    except ValueError as err:
+                        yield self.validation_error(validation, err, elem, **kwargs)
+
+        # Disable collect for out of scope identities and check key references
+        if 'max_depth' not in kwargs:
+            for constraint in self.identities.values():
+                counter = identities[constraint]
+                counter.enabled = False
+                if isinstance(constraint, XsdKeyref):
+                    for err in counter.iter_errors(identities):
+                        yield self.validation_error(validation, err, elem, **kwargs)
+        elif level:
+            for constraint in self.identities.values():
+                identities[constraint].enabled = False
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """

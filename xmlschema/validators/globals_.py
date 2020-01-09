@@ -14,15 +14,17 @@ import warnings
 from collections import Counter
 from functools import lru_cache
 
-from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaWarning
+from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
 from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
     XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
     XSD_ELEMENT, XSI_TYPE, get_qname, local_name, qname_to_extended
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
-    XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, XsdElement, \
-    XsdAttributeGroup, XsdGroup, XsdNotation, Xsd11Element, XsdKeyref, XsdAssert
+    XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
+    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, Xsd11Element, \
+    XsdIdentity, XsdKeyref, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -587,6 +589,14 @@ class XsdGlobals(XsdValidator):
 
                 for assertion in schema.iter_components(XsdAssert):
                     assertion.parse_xpath_test()
+
+        # Builds _identities list on selected elements for speed-up
+        # instance validation and for a full lazy validation.
+        for schema in not_built_schemas:
+            for constraint in schema.iter_components(XsdIdentity):
+                constraint.elements = {
+                    e for e in constraint.iter_elements() if isinstance(e, XsdElement)
+                }
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 

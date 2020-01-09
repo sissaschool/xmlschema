@@ -204,6 +204,9 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         self.obj = obj
         self.reason = reason
 
+    def __repr__(self):
+        return '%s(reason=%r)' % (self.__class__.__name__, self.reason)
+
     def __str__(self):
         msg = ['%s:\n' % self.message]
         if self.reason is not None:

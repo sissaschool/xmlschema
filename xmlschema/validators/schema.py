@@ -1246,6 +1246,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
 
         id_map = Counter()
+        identities = {}
         root_only = source.is_lazy() and not namespaces
         namespaces = source.get_namespaces(namespaces, root_only)
         namespace = source.namespace or namespaces.get('', '')
@@ -1260,11 +1261,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             schema = self
 
         kwargs = {
+            'level': 0,
             'source': source,
             'namespaces': namespaces,
             'converter': None,
             'use_defaults': use_defaults,
             'id_map': id_map,
+            'identities': identities,
             'inherited': {},
         }
 
@@ -1289,7 +1292,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             path = '*'
             if not schema_path:
                 schema_path = '/%s/*' % source.root.tag
-            kwargs['inherited'].clear()
 
             if root_only:
                 # Tell to iterfind to catch namespace events and update map
@@ -1317,6 +1319,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 yield v
             elif v == 0:
                 yield self.validation_error('lax', "IDREF %r not found in XML document" % k, source.root)
+
+        # Check still enabled key references (lazy validation)
+        for constraint, counter in \
+                filter(lambda x: x[1].enabled and isinstance(x[0], XsdKeyref), identities.items()):
+            for error in counter.iter_errors(identities):
+                yield self.validation_error('lax', error, source.root, **kwargs)
 
     def iter_decode(self, source, path=None, schema_path=None, validation='lax', process_namespaces=True,
                     namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
