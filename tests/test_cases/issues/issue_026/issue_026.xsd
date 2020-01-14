@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+    <xs:element name="foo" type="Foo" />
+
+    <xs:complexType name="Foo">
+        <xs:sequence minOccurs="1" maxOccurs="unbounded">
+            <xs:element name="bar" type="Bar" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="Bar">
+        <xs:sequence minOccurs="1" maxOccurs="1">
+            <xs:element name="subject_name" type="xs:string" />
+        </xs:sequence>
+        <xs:attribute name="name" fixed="BAR" use="required" />
+    </xs:complexType>
+</xs:schema>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root" type="root"/>
+  <xs:complexType name="root">
+    <xs:choice>
+      <xs:sequence>
+        <xs:element name="empno" type="xs:string"/>
+        <xs:element name="designation" type="xs:string" />
+      </xs:sequence>
+      <xs:sequence>
+        <xs:element name="name" type="xs:string" />
+        <xs:element name="age" type="xs:unsignedByte" />
+      </xs:sequence>
+    </xs:choice>
+  </xs:complexType>
+</xs:schema>

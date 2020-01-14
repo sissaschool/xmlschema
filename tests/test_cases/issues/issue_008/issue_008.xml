@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="issue_008.xsd">
+    <empno>a</empno>
+    <designation>b</designation>
+    <name>c</name>
+    <age>1</age>
+</root>

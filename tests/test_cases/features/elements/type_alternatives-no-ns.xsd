@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XSD 1.1 schema example with defaultAttributes -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="value" type="node-type">
+        <xs:alternative test="@choice='int'" type="int-node"/>
+        <xs:alternative test="@choice='float'" type="float-node"/>
+        <xs:alternative test="@choice='bool'" type="bool-node"/>
+    </xs:element>
+
+    <xs:complexType name="node-type" mixed="true">
+        <xs:attribute name="choice" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:complexType name="int-node">
+        <xs:simpleContent>
+            <xs:restriction base="node-type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:int"/>
+                </xs:simpleType>
+            </xs:restriction>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="float-node">
+        <xs:simpleContent>
+            <xs:restriction base="node-type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:float"/>
+                </xs:simpleType>
+            </xs:restriction>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="bool-node">
+        <xs:simpleContent>
+            <xs:restriction base="node-type">
+                <xs:simpleType>
+                    <xs:restriction base="xs:boolean"/>
+                </xs:simpleType>
+            </xs:restriction>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>

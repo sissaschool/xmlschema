@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="decimal_value" type="Decimal_9_5" maxOccurs="unbounded"/>
+                <xs:element name="celsiusBodyTemp" type="celsiusBodyTemp" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="certification" type="year_attr_string_75" maxOccurs="unbounded"/>
+                <xs:element name="menù" type="xs:string"/>
+                <xs:element name="complex_boolean" type="TYPE_ATTR_BOOLEAN" minOccurs="0" maxOccurs="4"/>
+                <xs:element name="simple_boolean" type="xs:boolean" minOccurs="0" maxOccurs="4"/>
+                <xs:element name="date_and_time" type="xs:dateTime" minOccurs="0"/>
+                <xs:element name="name" type="none_empty_string" minOccurs="0"/>
+                <xs:element name="config" type="config" minOccurs="0"/>
+                <xs:element name="dateTimeWithTZOffset" type="xs:dateTime" minOccurs="0"/>
+                <xs:element name="duration" type="xs:duration" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:simpleType name="Decimal_9_5">
+        <xs:restriction base="xs:decimal">
+            <xs:totalDigits value="9"/>
+            <xs:fractionDigits value="5"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='celsiusBodyTemp'>
+        <xs:restriction base='xs:decimal'>
+            <xs:totalDigits value='4'/>
+            <xs:fractionDigits value='1'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="string_75">
+        <xs:restriction base="xs:string">
+            <xs:maxLength value="75"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="year_attr_string_75">
+        <xs:simpleContent>
+            <xs:extension base="string_75">
+                <xs:attribute name="Year" type="xs:integer" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="TYPE_ATTR_BOOLEAN">
+        <xs:simpleContent>
+            <xs:extension base="xs:boolean">
+                <xs:attribute name="Type" type="xs:integer" use="optional"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <!-- List types -->
+    <xs:simpleType name="list_of_strings">
+        <xs:list itemType="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_integers">
+        <xs:list itemType="xs:integer"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_floats">
+        <xs:list itemType="xs:float"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="list_of_booleans">
+        <xs:list itemType="xs:boolean"/>
+    </xs:simpleType>
+
+    <!-- Union types -->
+    <xs:simpleType name="integer_or_float">
+        <xs:union memberTypes="xs:integer xs:float"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="integer_or_string">
+        <xs:union memberTypes="xs:integer xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="boolean_or_integer_or_string">
+        <xs:union memberTypes="xs:boolean xs:integer xs:string"/>
+    </xs:simpleType>
+
+    <!-- For testing issue #63 -->
+    <xs:simpleType name='hexCode'>
+        <xs:restriction base='xs:hexBinary'>
+            <xs:length value='4'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='base64Code'>
+        <xs:restriction base='xs:base64Binary'>
+            <xs:minLength value='3'/>
+            <xs:maxLength value='8'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='base64Length4'>
+        <xs:restriction base='xs:base64Binary'>
+            <xs:length value='4'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='base64Length5'>
+        <xs:restriction base='xs:base64Binary'>
+            <xs:length value='5'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- For testing issue #64 -->
+    <xs:simpleType name="none_empty_string">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NameType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="255"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- For testing issue #83 -->
+    <xs:simpleType name="config">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:pattern value="(word|other)|(alternative)"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Issue #103 -->
+    <xs:simpleType name="myType">
+        <xs:union memberTypes="typeA typeB"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="typeA">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0.0"/>
+            <xs:maxInclusive value="100.0"/>
+            <xs:fractionDigits value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="typeB">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="NaN"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+
+    <xs:element name="patterns">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="ISBN" type="ISBNType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="ZipCode" type="better-us-zipcode" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="BasicString" type="basic-latin-string" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="LatinString" type="latin-1-string" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Prefix" type="prefix-name" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Timestamp" type="TimestampType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Digits" type="DigitsType" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="Word" type="Word5Type" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="NoWord" type="NotWord5Type" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:simpleType name="ISBNType">
+        <xs:restriction base="xs:ID">
+            <xs:pattern value="b\d{13}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name='better-us-zipcode'>
+        <xs:restriction base='xs:string'>
+            <xs:pattern value='[0-9]{5}(-[0-9]{4})?'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="basic-latin-string">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\p{IsBasicLatin}*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="latin-1-string">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[\p{IsBasicLatin}\p{IsLatin-1Supplement}]*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="prefix-name">
+        <xs:restriction base="xs:Name">
+            <xs:pattern value="[\i-[:]][\c-[:]]*: [\i-[:]][\c-[:]]+:.+" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="TOKEN">
+        <xs:restriction base="xs:token">
+            <xs:pattern value="(\p{L}|\p{N}|\p{P}|\p{S})+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="TimestampType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value=".+T.+(Z|[+-].+)"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="DigitsType">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[\S' ']{1,50}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Issue 079 -->
+    <xs:simpleType name="issue079Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[^\n\t]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Pull Request 114 -->
+    <xs:simpleType name="Word5Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value='[\w]{0,5}'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="NotWord5Type">
+        <xs:restriction base="xs:string">
+            <xs:pattern value='[\W]{0,5}'/>
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<!--file structure>
+		<string></string>
+		<day1/>
+		<day2/>
+		<month1/>
+		<month2/>
+		<year1/>
+		<year2/>
+		<periodicity/>
+		<interim_number/>
+-->
+
+<dates xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="dates.xsd">
+  <row>
+    <string>2017-01-01</string>
+    <day1>01</day1>
+    <month1>01</month1>
+    <year1>2017</year1>
+  </row>
+  <row>
+    <string>2017-01-01 2017-12-31</string>
+    <day1>01</day1>
+    <day2>31</day2>
+    <month1>01</month1>
+    <month2>12</month2>
+    <year1>2017</year1>
+    <year2>2017</year2>
+  </row>
+  <row>
+    <string>Q4 2017</string>
+    <year1>2017</year1>
+    <periodicity>Q</periodicity>
+    <interim_number>4</interim_number>
+  </row>
+  <row>
+    <string>abrakadabra costam costam 17</string>
+    <abc></abc>
+  </row>
+</dates>

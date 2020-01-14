@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://www.example.org/Rotation/"
+        targetNamespace="http://www.example.org/Rotation/">
+    <element name="rotation">
+      <complexType>
+        <attribute name="roll" type="tns:degree" />
+        <attribute name="pitch" type="tns:degree" />
+        <attribute name="yaw" type="tns:degree" />
+      </complexType>
+    </element>
+
+    <simpleType name="degree">
+      <restriction base="float">
+        <minInclusive value="0" />
+        <maxInclusive value="360" />
+      </restriction>
+    </simpleType>
+</schema>

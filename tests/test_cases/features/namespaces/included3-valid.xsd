@@ -1,0 +1,10 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://example.com/xmlschema/namespaces"
+  targetNamespace="http://example.com/xmlschema/namespaces"
+  elementFormDefault="qualified">
+
+  <xs:element name="root" type="rootType"/>
+
+</xs:schema>
+

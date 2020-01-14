@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  An valid include from a schema with a targetNamespace, with the default namespace explicitly mapped.
+  -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://example.com/xmlschema/namespaces"
+  targetNamespace="http://example.com/xmlschema/namespaces"
+  elementFormDefault="qualified">
+
+  <xs:include schemaLocation="included3-valid.xsd"/>
+
+  <xs:simpleType name="rootType">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+
+</xs:schema>
+

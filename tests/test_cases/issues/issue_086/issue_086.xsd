@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+    <xs:element name="foo" type="Foo" />
+
+    <xs:complexType name="Foo">
+        <xs:sequence minOccurs="1" maxOccurs="1">
+            <xs:element name="header" type="Header" />
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="a" type="Bar" />
+                </xs:sequence>
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="b" type="Bar" />
+                </xs:sequence>
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="c" type="Bar" />
+                </xs:sequence>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:simpleType name="Header">
+        <xs:restriction base="xs:nonNegativeInteger" />
+    </xs:simpleType>
+
+    <xs:complexType name="Bar">
+        <xs:all minOccurs="1">
+            <xs:element name="spam" minOccurs="0" type="Spam" />
+        </xs:all>
+    </xs:complexType>
+
+    <xs:simpleType name="Spam">
+        <xs:restriction base="xs:string" />
+    </xs:simpleType>
+
+</xs:schema>

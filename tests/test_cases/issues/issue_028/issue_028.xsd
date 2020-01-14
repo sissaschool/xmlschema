@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="root" type="Root" />
+
+    <xs:complexType name="Root">
+        <xs:all>
+            <xs:element name="foo" type="xs:string" />
+            <xs:element name="bar" type="xs:string" />
+        </xs:all>
+    </xs:complexType>
+
+</xs:schema>

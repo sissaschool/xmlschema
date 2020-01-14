@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns:patterns xmlns:ns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="ns ./patterns.xsd">
+    <ISBN>b0123456789012</ISBN>
+    <ISBN>b01234567890123</ISBN> <!--Error-->
+    <ISBN>b0123456789012</ISBN> <!--Error: duplicated key -->
+    <ZipCode>55555</ZipCode>
+    <ZipCode>I-55555</ZipCode> <!--Error-->
+    <ZipCode>55555-5555</ZipCode>
+    <BasicString>facade</BasicString>
+    <BasicString>façade</BasicString> <!--Error-->
+    <LatinString>façade</LatinString>
+    <Prefix>cc</Prefix> <!--Error-->
+    <Prefix>cc: dd:@#!%</Prefix> <!--Error-->
+    <Timestamp>2015-12-31T13:32:26-02:00</Timestamp>
+    <Timestamp>2015-12-31T13:32:26+02:00</Timestamp>
+    <Digits>5067746900909</Digits>
+    <Word>abc</Word>
+    <NoWord>.</NoWord>
+</ns:patterns>

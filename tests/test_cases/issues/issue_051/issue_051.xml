@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<KeyValuePairs xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="issue_051.xsd">
+	<test>root</test>
+	<test2>root</test2>
+	<test3>root</test3>
+	<test4>root</test4>
+	<test5>root</test5>
+	<test6>root</test6>
+	<test7>root</test7>
+</KeyValuePairs>

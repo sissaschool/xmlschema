@@ -1,0 +1,44 @@
+<!--Note: this is an XSD 1.1 schema -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="root" type="rootType"/>
+    <xs:element name="node" type="nodeType">
+        <xs:alternative test="@mode='A'" type="nodeA"/>
+        <xs:alternative test="@mode='B'" type="nodeB"/>
+    </xs:element>
+
+    <xs:complexType name="rootType">
+        <xs:sequence>
+            <xs:element ref="node" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="nodeType">
+        <xs:attribute name="mode" type="allowed-node-types"/>
+    </xs:complexType>
+
+    <xs:simpleType name="allowed-node-types">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="A"/>
+            <xs:enumeration value="B"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="nodeA">
+        <xs:complexContent>
+            <xs:extension base="nodeType">
+                <xs:attribute name="value" type="xs:string" use="required"/>
+                <xs:anyAttribute />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="nodeB">
+        <xs:complexContent>
+            <xs:extension base="nodeType">
+                <xs:attribute name="name" type="xs:string" use="required"/>
+                <xs:anyAttribute processContents="skip"/>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+</xs:schema>

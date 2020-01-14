@@ -5,7 +5,6 @@ coverage
 elementpath~=1.4.0
 lxml
 memory_profiler
-matplotlib
 Sphinx
 sphinx_rtd_theme
 -e .

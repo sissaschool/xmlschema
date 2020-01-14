@@ -1,0 +1,2 @@
+<value xmlns="ns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="ns ./type_alternatives.xsd" choice="bool">true</value>

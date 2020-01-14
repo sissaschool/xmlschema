@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A sample schema for testing model validation -->
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+
+    <xs:anyattribute notNamespace="#all"> <!-- Illegal declaration -->
+    </xs:anyattribute>
+
+    <!-- Unexpected attribute declarations (should be inside extension tag) -->
+    <xs:complexType name="A" mixed="true">
+        <xs:simpleContent>
+            <xs:extension base="xs:string"/>
+        </xs:simpleContent>
+        <xs:attribute name="a1" type="xs:short"/>
+        <xs:attribute name="a2" type="xs:negativeInteger"/>
+    </xs:complexType>
+
+</xs:schema>

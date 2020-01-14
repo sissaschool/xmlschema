@@ -1,0 +1,24 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:simpleType name="ID_TYPE">
+        <xs:restriction base="xs:token">
+            <xs:maxLength value="10"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="STRING_30">
+        <xs:restriction base="xs:string">
+            <xs:maxLength value="30"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="TYPE_ATTR_STRING_30">
+        <xs:simpleContent>
+            <xs:extension base="STRING_30">
+                <xs:attribute name="_Id" type="ID_TYPE" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:element name="LegalType" type="TYPE_ATTR_STRING_30"/>
+
+</xs:schema>

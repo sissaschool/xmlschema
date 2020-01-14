@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ns:data xmlns:ns="ns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="ns ./builtins.xsd">
+    <birthdayDate>2005-05-25</birthdayDate>
+    <birthdayDate>2001-01-01Z</birthdayDate>
+    <birthdayDate>-0100-07-13</birthdayDate>
+    <eventTime>00:00:00</eventTime>
+    <eventTime>12:30:20.5555</eventTime>
+    <eventTime>12:30:20-04:00</eventTime>
+    <lastTicketDateTime>2017-09-06T23:59:00.000+03:00</lastTicketDateTime>
+    <lastTicketDateTime>2017-09-06T23:59:00+03:00</lastTicketDateTime>
+</ns:data>

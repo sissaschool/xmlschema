@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="ns" targetNamespace="ns">
+
+	<!-- Case 1: Legal complexContent extension (base complex content type is empty) -->
+	<xs:complexType name="word">
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attribute name="language" type="xs:string"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<xs:complexType name="external-word">
+		<xs:complexContent>
+			<xs:extension base="word">
+				<xs:attribute name="other-language" default="italian"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Case 2: Illegal complexContent extension with different content type -->
+	<xs:complexType name="personType" mixed="true">
+		<xs:sequence>
+			<xs:element name="firstName" type="xs:string"/>
+			<xs:element name="lastName" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="extPersonType">
+		<xs:complexContent>
+			<xs:extension base="personType">
+				<xs:sequence>
+					<xs:element name="birthDate" type="xs:date"/>
+					<xs:element name="age" type="xs:short"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<!-- Case 3: admitted complexContent extension from a simpleContent base -->
+	<xs:complexType name="derivedComplexContentType">
+		<xs:complexContent>
+			<xs:extension base="complexBaseExpression">
+				<xs:attribute name="resetTypeRef" type="xs:Name"/>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="unsignedBitExpression">
+        <xs:simpleContent>
+          <xs:extension base="complexBaseExpression"/>
+        </xs:simpleContent>
+    </xs:complexType>
+
+	<xs:complexType name="complexBaseExpression">
+        <xs:simpleContent>
+			<xs:extension base="xs:string">
+            	<xs:attribute name="dummy" type="xs:string"/>
+          	</xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+</xs:schema>

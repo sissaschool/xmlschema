@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for list types derivations. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name='listOfIntegers'>
+    <xs:list itemType='xs:integer'/>
+  </xs:simpleType>
+
+  <!-- Not allowed derivation: itemType can be only atomic or atomic unions. -->
+  <xs:simpleType name='listOfListOfIntegers'>
+    <xs:list itemType='listOfIntegers'/>
+  </xs:simpleType>
+
+  <xs:element name="values">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="list_of_integers" type="listOfIntegers" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

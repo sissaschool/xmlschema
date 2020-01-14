@@ -1,0 +1,18 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:vh="http://example.com/vehicles"
+  targetNamespace="http://example.com/vehicles"
+  elementFormDefault="qualified">
+
+  <xs:include schemaLocation="types.xsd" />
+
+  <xs:element name="bikes">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="bike" type="vh:vehicleType"
+          minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+

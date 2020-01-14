@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for invalid restricted models: UPA violation restricting a substitution group head. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element type="xs:string" name="elem1"/>
+    <xs:element type="xs:string" name="elem2" substitutionGroup="elem1" />
+
+    <xs:complexType name="basicType1">
+        <xs:sequence>
+            <xs:element ref="elem1" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- UPA violation minOccurs < maxOccurs -->
+    <xs:complexType name="restrictedType1">
+        <xs:complexContent>
+            <xs:restriction base="basicType1">
+                <xs:sequence>
+                    <xs:element ref="elem2" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- No UPA violation if the restricted element is empty -->
+    <xs:complexType name="restrictedType2">
+        <xs:complexContent>
+            <xs:restriction base="basicType1">
+                <xs:sequence>
+                    <xs:element ref="elem2" minOccurs="0" maxOccurs="0"/>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:element type="xs:string" name="elem3" abstract="true"/>
+    <xs:element type="xs:string" name="elem4" substitutionGroup="elem3" />
+
+    <xs:complexType name="basicType3">
+        <xs:sequence>
+            <xs:element ref="elem3" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- No UPA violation if the head element is abstract (it cannot be used in an instance). -->
+    <xs:complexType name="restrictedType3">
+        <xs:complexContent>
+            <xs:restriction base="basicType3">
+                <xs:sequence>
+                    <xs:element ref="elem4" maxOccurs="unbounded"/>
+                </xs:sequence>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+</xs:schema>

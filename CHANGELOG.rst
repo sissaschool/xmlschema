@@ -6,6 +6,7 @@ CHANGELOG
 =======================
 * Remove Python 2 compatibility code
 * Remove tests code from binary package
+* Improve identity constraints validation
 
 `v1.0.18`_ (2019-12-24)
 =======================

@@ -1,0 +1,13 @@
+<vh:vehicles xmlns:vh="http://example.com/vehicles"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://example.com/vehicles vehicles.xsd">
+  <vh:cars>
+    NOT ALLOWED CHARACTER DATA
+    <vh:car make="Porsche" model="911" />
+    <vh:car make="Porsche" model="911" />
+  </vh:cars>
+  <vh:bikes>
+    <vh:bike make="Harley-Davidson" model="WL" />
+    <vh:bike make="Yamaha" model="XS650" />
+  </vh:bikes>
+</vh:vehicles>

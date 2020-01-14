@@ -1,0 +1,12 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://example.com/vehicles"
+  targetNamespace="http://example.com/vehicles">
+
+  <xs:include schemaLocation="cars.xsd" />
+
+  <xs:complexType name="vehicleType">
+    <xs:attribute name="make" type="xs:string" />
+    <xs:attribute name="model" type="xs:string" />
+  </xs:complexType>
+</xs:schema>

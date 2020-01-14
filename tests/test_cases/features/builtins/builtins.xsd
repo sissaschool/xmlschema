@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+    <xs:element name="data">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="birthdayDate" type="xs:date" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="eventTime" type="xs:time" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="lastTicketDateTime" type="xs:dateTime" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

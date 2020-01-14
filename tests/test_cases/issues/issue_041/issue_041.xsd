@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="Detail" type="my_detail"/>
+    <xs:complexType name="my_detail">
+      <xs:sequence>
+        <xs:element name="Name" type="xs:string"></xs:element>
+        <xs:element name="Value">
+          <xs:complexType>
+            <xs:choice>
+              <xs:element name="Boolean" type="xs:boolean" />
+              <xs:element name="Integer" type="xs:int"     />
+              <xs:element name="Decimal" type="xs:decimal" />
+              <xs:element name="Code"    type="xs:string"  />
+            </xs:choice>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+</xs:schema>

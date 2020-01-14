@@ -1,0 +1,107 @@
+#
+# Test-files for xmlschema
+#
+# Each uncommented and not empty line creates a test.
+#
+# Uncomment the following line and run test_all.py to show an help:
+# filename --help
+#
+
+# Cases with schema examples
+examples/collection/collection.xsd --inspect
+examples/collection/collection.xml
+examples/collection/collection2.xsd --inspect   # key constraint
+examples/collection/collection2.xml --errors 1
+examples/collection/collection3.xsd      # key and keyref constraints
+examples/collection/collection3.xml --errors 1
+examples/collection/collection3bis.xsd
+examples/collection/collection3bis.xml --errors 1
+examples/collection/collection4.xml      # Many XML comments inserted
+examples/vehicles/vehicles.xsd --inspect
+examples/vehicles/vehicles.xml
+examples/vehicles/vehicles-1_error.xml --errors=1
+examples/vehicles/vehicles-2_errors.xml --errors=2
+examples/vehicles/vehicles-3_errors.xml --errors=3
+
+# Cases on specific XSD or package features
+features/attributes/default_attributes.xsd --errors=2
+features/attributes/default_attributes.xsd --version=1.1
+features/attributes/default_attributes-missing_group.xsd --version=1.1 --errors=1
+
+features/builtins/builtins.xsd
+features/builtins/builtins.xml
+features/decoder/simple-types.xsd
+features/decoder/data2.xml --errors=2
+features/derivations/complex-extensions.xsd --errors=1
+features/derivations/complex-with-simple-content-restriction.xsd
+features/derivations/list_types.xsd --errors=1
+features/derivations/list_types.xml --errors=2
+features/derivations/invalid_restrictions1.xsd --errors=1  # UPA violations with substitution group head element
+
+features/elements/type_alternatives.xsd --errors=3
+features/elements/type_alternatives.xsd --version=1.1
+features/elements/type_alternatives-no-ns.xsd --version=1.1
+# features/elements/test_alternatives-1.xml --version=1.1  # TODO Fix encoding for type alternatives ...
+
+features/models/billion_laughs_model.xsd
+features/models/circular_model.xsd --errors=1
+features/models/illegal-attributes.xsd --errors=1
+features/models/illegal-declarations.xsd --errors=3
+features/models/illegal-occurs.xsd --errors=2
+features/models/invalid_models1.xsd --errors=4
+features/models/invalid_models2.xsd --errors=3
+features/models/model1.xml --errors=1
+features/models/models.xsd
+features/models/recursive-groups.xsd --errors=2 # Two circular definitions
+
+features/namespaces/default_ns_invalid.xsd --errors=1
+features/namespaces/default_ns_valid1.xsd
+features/namespaces/default_ns_valid2.xsd
+features/namespaces/import-case1.xsd --errors=1  # Unknown type
+features/namespaces/import-case2.xsd --errors=1  # Missing namespace import in imported chameleon schema
+features/namespaces/import-case3.xsd
+features/namespaces/import-case4a.xsd
+features/namespaces/import-case4b.xsd
+features/namespaces/import-case4-1.xml  # This and the next are also regression tests for issue #140
+features/namespaces/import-case4-2.xml
+features/namespaces/include-case1.xsd
+features/namespaces/include-case1bis.xsd
+features/namespaces/include-case2.xsd
+features/namespaces/include-case2bis.xsd
+features/namespaces/include-case3.xsd
+features/namespaces/include-case4.xsd --errors=2
+features/namespaces/include-case5.xsd
+features/namespaces/include-case6.xsd --errors=1
+
+features/patterns/patterns.xsd
+features/patterns/patterns.xml --errors=6
+
+# Cases from resolved issues
+issues/issue_008/issue_008.xsd
+issues/issue_008/issue_008.xml --errors=1
+issues/issue_009/issue_009.xsd --errors=2
+issues/issue_013/issue_013.xml
+issues/issue_013/issue_013-1.xml
+issues/issue_013/issue_013-2.xml --errors=1  # String too long
+issues/issue_018/issue_018.xsd --errors=2    # It's an XSD 1.1 schema
+issues/issue_018/issue_018.xsd --version=1.1
+issues/issue_018/issue_018-1.xml --version=1.1
+issues/issue_026/issue_026-1.xml
+issues/issue_026/issue_026-2.xml --errors=1
+issues/issue_026/issue_026-3.xml --errors=1
+issues/issue_028/issue_028-1.xml
+issues/issue_028/issue_028-2.xml --errors=1
+issues/issue_029/issue_029-1.xml
+issues/issue_029/issue_029-2.xml --errors=2
+issues/issue_029/issue_029-3.xml --errors=1
+issues/issue_035/dates.xsd
+issues/issue_035/dates.xml --errors=1
+issues/issue_041/issue_041.xsd
+issues/issue_041/issue_041.xml
+issues/issue_045/issue_045.xsd
+issues/issue_051/issue_051.xml
+issues/issue_073/issue_073-1.xml
+issues/issue_073/issue_073-2.xml --errors=1
+issues/issue_086/issue_086-1.xml
+issues/issue_086/issue_086-2.xml
+issues/issue_105/issue_105.xsd

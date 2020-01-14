@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Schema test for invalid XSD 1.0 models: UPA violations that involve wildcards and elements. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://xmlschema.test/ns"
+           xmlns="http://xmlschema.test/ns"
+           xmlns:other-ns="http://xmlschema.test/other-ns">
+
+    <xs:import namespace='http://xmlschema.test/other-ns' schemaLocation='other-ns.xsd'/>
+
+    <xs:element name="elem0" type="xs:string"/>
+
+    <!-- UPA violation (any with minOccurs < maxOccurs and ambiguity with elem0 validation) -->
+    <xs:element name='elem1'>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any namespace='##targetNamespace' minOccurs='0'/>
+                <xs:element ref='elem0'/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- UPA violation (any and elem0 overlap and choice model) -->
+    <xs:element name='elem2'>
+        <xs:complexType>
+            <xs:choice>
+                <xs:any namespace='##targetNamespace'/>
+                <xs:element ref='elem0'/>
+            </xs:choice>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- UPA violation (any with minOccurs < maxOccurs and ambiguity with other-ns:elem0) -->
+    <xs:element name='elem3'>
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any namespace='##other' minOccurs='0'/>
+                <xs:element ref='other-ns:elem0'/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+</xs:schema>

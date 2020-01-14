@@ -1,0 +1,20 @@
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:vh="http://example.com/vehicles"
+  targetNamespace="http://example.com/vehicles"
+  elementFormDefault="qualified">
+
+  <xs:include schemaLocation="cars.xsd"/>
+  <xs:include schemaLocation="bikes.xsd"/>
+
+  <xs:element name="vehicles">
+    <xs:complexType>
+      <xs:sequence maxOccurs="5">
+        <xs:element ref="vh:cars" />
+        <xs:element ref="vh:bikes" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:attribute type="xs:positiveInteger" name="step"/>
+</xs:schema>
+
