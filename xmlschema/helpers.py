@@ -74,11 +74,20 @@ def get_xsd_form_attribute(elem, attribute):
     value = elem.get(attribute)
     if value is None:
         return
-    elif value not in ('qualified', 'unqualified'):
-        raise XMLSchemaValueError(
-            "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
-        )
+    elif value != 'qualified' and value != 'unqualified':
+        msg = "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'."
+        raise XMLSchemaValueError(msg % (value, attribute))
     return value
+
+
+def raw_xml_encode(value):
+    """Encodes a simple value to XML."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    elif isinstance(value, (list, tuple)):
+        return ' '.join(str(e) for e in value)
+    else:
+        return str(value)
 
 
 def count_digits(number):
@@ -91,6 +100,8 @@ def count_digits(number):
     """
     if isinstance(number, str):
         number = str(Decimal(number)).lstrip('-+')
+    elif isinstance(number, bytes):
+        number = str(Decimal(number.decode())).lstrip('-+')
     else:
         number = str(number).lstrip('-+')
 

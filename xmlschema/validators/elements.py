@@ -22,9 +22,9 @@ from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
     XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
 from ..etree import etree_element, etree_iter_location_hints
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    ParticleCounter, strictly_equal
+    raw_xml_encode, ParticleCounter, strictly_equal
 from ..namespaces import get_namespace
-from ..converters import ElementData, raw_xml_encode, XMLSchemaConverter
+from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning

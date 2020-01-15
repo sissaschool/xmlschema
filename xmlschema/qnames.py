@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains qualified names constants and helpers.
+This module contains qualified names constants and helper functions for QNames.
 """
-from __future__ import unicode_literals
+import re
+
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .namespaces import get_namespace
 
 VC_TEMPLATE = '{http://www.w3.org/2007/XMLSchema-versioning}%s'
 XML_TEMPLATE = '{http://www.w3.org/XML/1998/namespace}%s'
@@ -182,6 +182,22 @@ XSD_DATE_TIME_STAMP = XSD_TEMPLATE % 'dateTimeStamp'
 XSD_DAY_TIME_DURATION = XSD_TEMPLATE % 'dayTimeDuration'
 XSD_YEAR_MONTH_DURATION = XSD_TEMPLATE % 'yearMonthDuration'
 XSD_ERROR = XSD_TEMPLATE % 'error'
+
+
+###
+# Helper functions for QNames
+
+NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+
+
+def get_namespace(qname):
+    if not qname or qname[0] != '{':
+        return ''
+
+    try:
+        return NAMESPACE_PATTERN.match(qname).group(1)
+    except (AttributeError, TypeError):
+        return ''
 
 
 def get_qname(uri, name):

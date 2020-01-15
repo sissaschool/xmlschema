@@ -11,13 +11,11 @@
 This module contains converter classes and definitions.
 """
 from collections import namedtuple
-from types import MethodType
 import string
 
 from .compat import ordered_dict_class
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .namespaces import XSI_NAMESPACE
-from .qnames import local_name
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, lxml_etree_register_namespace
 from xmlschema.namespaces import NamespaceMapper
 
@@ -31,16 +29,6 @@ list of element contents for the Element's children (used for unordered input
 data), *attributes* can be `None` or a dictionary containing the Element's
 attributes.
 """
-
-
-def raw_xml_encode(value):
-    """Encodes a simple value to XML."""
-    if isinstance(value, bool):
-        return 'true' if value else 'false'
-    elif isinstance(value, (list, tuple)):
-        return ' '.join(str(e) for e in value)
-    else:
-        return str(value)
 
 
 class XMLSchemaConverter(NamespaceMapper):
@@ -82,7 +70,6 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar attr_prefix: prefix for attribute names
     :ivar cdata_prefix: prefix for character data parts
     :ivar indent: indentation to use for rebuilding XML trees
-    :ivar strip_namespaces: remove namespace information
     :ivar preserve_root: preserve the root element on decoding
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
@@ -90,8 +77,15 @@ class XMLSchemaConverter(NamespaceMapper):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, etree_element_class=None,
                  text_key='$', attr_prefix='@', cdata_prefix=None, indent=4, strip_namespaces=False,
                  preserve_root=False, force_dict=False, force_list=False, **kwargs):
-        if etree_element_class is not None and etree_element_class not in (etree_element, lxml_etree_element):
-            raise XMLSchemaValueError("%r: unsupported element.")
+
+        if etree_element_class is None or etree_element_class is etree_element:
+            register_namespace = etree_register_namespace
+        elif etree_element_class is lxml_etree_element:
+            register_namespace = lxml_etree_register_namespace
+        else:
+            raise XMLSchemaTypeError("unsupported element class {!r}".format(etree_element_class))
+
+        super(XMLSchemaConverter, self).__init__(namespaces, register_namespace, strip_namespaces)
 
         self.dict = dict_class or dict
         self.list = list_class or list
@@ -100,15 +94,9 @@ class XMLSchemaConverter(NamespaceMapper):
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
         self.indent = indent
-        self.strip_namespaces = strip_namespaces
         self.preserve_root = preserve_root
         self.force_dict = force_dict
         self.force_list = force_list
-
-        if self.etree_element_class is etree_element:
-            super(XMLSchemaConverter, self).__init__(namespaces, etree_register_namespace)
-        else:
-            super(XMLSchemaConverter, self).__init__(namespaces, lxml_etree_register_namespace)
 
     def __setattr__(self, name, value):
         if name in ('attr_prefix', 'text_key', 'cdata_prefix'):
@@ -116,14 +104,6 @@ class XMLSchemaConverter(NamespaceMapper):
                 raise XMLSchemaValueError('%r cannot includes letters or underscores: %r' % (name, value))
             elif name == 'attr_prefix':
                 self.ns_prefix = (value or '') + 'xmlns'
-        elif name == 'strip_namespaces':
-            if value:
-                self.map_qname = MethodType(local_name, self)
-                self.unmap_qname = MethodType(lambda x, y=None: local_name(x), self)
-            elif getattr(self, 'strip_namespaces', False):
-                # Rebuild instance methods only if necessary
-                self.map_qname = MethodType(XMLSchemaConverter.map_qname, self)
-                self.unmap_qname = MethodType(XMLSchemaConverter.unmap_qname, self)
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
