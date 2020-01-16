@@ -75,6 +75,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def is_empty(self):
         return not self._group or self.max_occurs == 0
 
+    def is_single(self):
+        if self.max_occurs != 1 or not self:
+            return False
+        elif len(self) > 1:
+            return True
+        else:
+            return self[0].is_single()
+
     def is_pointless(self, parent):
         """
         Returns `True` if the group may be eliminated without affecting the model, `False` otherwise.
