@@ -33,9 +33,10 @@ class TestConverters(unittest.TestCase):
         self.assertIs(converter.etree_element_class, etree_element)
         self.assertIs(converter.register_namespace, etree_register_namespace)
 
-        converter = XMLSchemaConverter(etree_element_class=lxml_etree_element)
-        self.assertIs(converter.etree_element_class, lxml_etree_element)
-        self.assertIs(converter.register_namespace, lxml_etree_register_namespace)
+        if lxml_etree_element is not None:
+            converter = XMLSchemaConverter(etree_element_class=lxml_etree_element)
+            self.assertIs(converter.etree_element_class, lxml_etree_element)
+            self.assertIs(converter.register_namespace, lxml_etree_register_namespace)
 
         with self.assertRaises(TypeError):
             XMLSchemaConverter(etree_element_class=ElementData)

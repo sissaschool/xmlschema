@@ -17,7 +17,8 @@ import subprocess
 import platform
 
 
-@unittest.skipIf(sys.version_info < (3,), "In Python 2 ElementTree is not overwritten by cElementTree")
+@unittest.skipIf(platform.python_implementation() != 'CPython' or sys.version_info < (3,),
+                 "In Python 2 ElementTree is not overwritten by cElementTree")
 class TestElementTree(unittest.TestCase):
 
     def test_element_string_serialization(self):

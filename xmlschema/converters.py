@@ -167,11 +167,10 @@ class XMLSchemaConverter(NamespaceMapper):
         if not content:
             return
 
-        map_qname = self.map_qname
         for name, value, xsd_child in content:
             try:
                 if name[0] == '{':
-                    yield map_qname(name), value, xsd_child
+                    yield self.map_qname(name), value, xsd_child
                 else:
                     yield name, value, xsd_child
             except TypeError:
@@ -294,28 +293,24 @@ class XMLSchemaConverter(NamespaceMapper):
             else:
                 return ElementData(tag, None, obj, {})
 
-        text_key = self.text_key
-        attr_prefix = self.attr_prefix
-        ns_prefix = self.ns_prefix
-        cdata_prefix = self.cdata_prefix
-
         text = None
         content = []
         attributes = {}
+
         for name, value in obj.items():
-            if text_key and name == self.text_key:
-                text = obj[text_key]
-            elif (cdata_prefix and name.startswith(cdata_prefix)) or \
-                    name[0].isdigit() and cdata_prefix == '':
-                index = int(name[len(cdata_prefix):])
+            if name == self.text_key and self.text_key:
+                text = obj[self.text_key]
+            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
+                    name[0].isdigit() and self.cdata_prefix == '':
+                index = int(name[len(self.cdata_prefix):])
                 content.append((index, value))
-            elif name == ns_prefix:
+            elif name == self.ns_prefix:
                 self[''] = value
-            elif name.startswith('%s:' % ns_prefix):
+            elif name.startswith('%s:' % self.ns_prefix):
                 if not self.strip_namespaces:
-                    self[name[len(ns_prefix) + 1:]] = value
-            elif attr_prefix and name.startswith(attr_prefix):
-                attr_name = name[len(attr_prefix):]
+                    self[name[len(self.ns_prefix) + 1:]] = value
+            elif self.attr_prefix and name.startswith(self.attr_prefix):
+                attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
@@ -334,7 +329,7 @@ class XMLSchemaConverter(NamespaceMapper):
                             content.extend((ns_name, item) for item in value)
                         break
                 else:
-                    if attr_prefix == '' and ns_name not in attributes:
+                    if self.attr_prefix == '' and ns_name not in attributes:
                         for key, xsd_attribute in xsd_element.attributes.items():
                             if xsd_attribute.is_matching(ns_name):
                                 attributes[key] = value
@@ -383,11 +378,6 @@ class UnorderedConverter(XMLSchemaConverter):
             else:
                 return ElementData(tag, None, obj, {})
 
-        text_key = self.text_key
-        attr_prefix = self.attr_prefix
-        ns_prefix = self.ns_prefix
-        cdata_prefix = self.cdata_prefix
-
         text = None
         attributes = {}
 
@@ -401,18 +391,18 @@ class UnorderedConverter(XMLSchemaConverter):
         content_lu = {}
 
         for name, value in obj.items():
-            if text_key and name == text_key:
-                text = obj[text_key]
-            elif (cdata_prefix and name.startswith(cdata_prefix)) or \
-                    name[0].isdigit() and cdata_prefix == '':
-                index = int(name[len(cdata_prefix):])
+            if name == self.text_key and self.text_key:
+                text = obj[self.text_key]
+            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
+                    name[0].isdigit() and self.cdata_prefix == '':
+                index = int(name[len(self.cdata_prefix):])
                 content_lu[index] = value
-            elif name == ns_prefix:
+            elif name == self.ns_prefix:
                 self[''] = value
-            elif name.startswith('%s:' % ns_prefix):
-                self[name[len(ns_prefix) + 1:]] = value
-            elif attr_prefix and name.startswith(attr_prefix):
-                attr_name = name[len(attr_prefix):]
+            elif name.startswith('%s:' % self.ns_prefix):
+                self[name[len(self.ns_prefix) + 1:]] = value
+            elif self.attr_prefix and name.startswith(self.attr_prefix):
+                attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
@@ -431,7 +421,7 @@ class UnorderedConverter(XMLSchemaConverter):
                             content_lu[self.unmap_qname(name)] = value
                         break
                 else:
-                    if attr_prefix == '' and ns_name not in attributes:
+                    if self.attr_prefix == '' and ns_name not in attributes:
                         for xsd_attribute in xsd_element.attributes.values():
                             if xsd_attribute.is_matching(ns_name):
                                 attributes[ns_name] = value
@@ -474,11 +464,10 @@ class ParkerConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data, xsd_element, level=0):
-        map_qname = self.map_qname
         preserve_root = self.preserve_root
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
             if preserve_root:
-                return self.dict([(map_qname(data.tag), data.text)])
+                return self.dict([(self.map_qname(data.tag), data.text)])
             else:
                 return data.text if data.text != '' else None
         else:
@@ -508,7 +497,7 @@ class ParkerConverter(XMLSchemaConverter):
                     v.extend(value)
 
             if preserve_root:
-                return self.dict([(map_qname(data.tag), result_dict)])
+                return self.dict([(self.map_qname(data.tag), result_dict)])
             else:
                 return result_dict if result_dict else None
 
@@ -521,7 +510,6 @@ class ParkerConverter(XMLSchemaConverter):
             else:
                 return ElementData(xsd_element.name, None, obj, {})
         else:
-            unmap_qname = self.unmap_qname
             if not obj:
                 return ElementData(xsd_element.name, None, None, {})
             elif self.preserve_root:
@@ -535,7 +523,7 @@ class ParkerConverter(XMLSchemaConverter):
             try:
                 content = []
                 for name, value in obj.items():
-                    ns_name = unmap_qname(name)
+                    ns_name = self.unmap_qname(name)
                     if not isinstance(value, (self.list, list)) or not value:
                         content.append((ns_name, value))
                     elif any(isinstance(v, (self.list, list)) for v in value):
@@ -645,8 +633,6 @@ class BadgerFishConverter(XMLSchemaConverter):
             return dict_class([('@xmlns', dict_class(self)), (tag, result_dict)])
 
     def element_encode(self, obj, xsd_element, level=0):
-        map_qname = self.map_qname
-        unmap_qname = self.unmap_qname
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
         if not self.strip_namespaces:
@@ -656,37 +642,35 @@ class BadgerFishConverter(XMLSchemaConverter):
                 pass
 
         try:
-            element_data = obj[map_qname(xsd_element.name)]
+            element_data = obj[self.map_qname(xsd_element.name)]
         except KeyError:
             element_data = obj
 
-        text_key = self.text_key
-        attr_prefix = self.attr_prefix
-        cdata_prefix = self.cdata_prefix
         text = None
         content = []
         attributes = {}
+
         for name, value in element_data.items():
             if name == '@xmlns':
                 continue
-            elif text_key and name == text_key:
-                text = element_data[text_key]
-            elif (cdata_prefix and name.startswith(cdata_prefix)) or \
-                    name[0].isdigit() and cdata_prefix == '':
-                index = int(name[len(cdata_prefix):])
+            elif name == self.text_key and self.text_key:
+                text = element_data[self.text_key]
+            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
+                    name[0].isdigit() and self.cdata_prefix == '':
+                index = int(name[len(self.cdata_prefix):])
                 content.append((index, value))
-            elif attr_prefix and name.startswith(attr_prefix):
-                attr_name = name[len(attr_prefix):]
+            elif self.attr_prefix and name.startswith(self.attr_prefix):
+                attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
-                content.append((unmap_qname(name), value))
+                content.append((self.unmap_qname(name), value))
             elif isinstance(value[0], (self.dict, dict, self.list, list)):
-                ns_name = unmap_qname(name)
+                ns_name = self.unmap_qname(name)
                 for item in value:
                     content.append((ns_name, item))
             else:
-                ns_name = unmap_qname(name)
+                ns_name = self.unmap_qname(name)
                 for xsd_child in xsd_element.type.content_type.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
@@ -696,7 +680,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                             content.extend((ns_name, item) for item in value)
                         break
                 else:
-                    if attr_prefix == '' and ns_name not in attributes:
+                    if self.attr_prefix == '' and ns_name not in attributes:
                         for xsd_attribute in xsd_element.attributes.values():
                             if xsd_attribute.is_matching(ns_name):
                                 attributes[ns_name] = value
@@ -778,7 +762,6 @@ class AbderaConverter(XMLSchemaConverter):
                 obj = None
             return ElementData(tag, obj, None, {})
         else:
-            unmap_qname = self.unmap_qname
             attributes = {}
             try:
                 attributes.update([(self.unmap_qname(k, xsd_element.attributes), v)
@@ -800,13 +783,13 @@ class AbderaConverter(XMLSchemaConverter):
             for child in children:
                 for name, value in child.items():
                     if not isinstance(value, (self.list, list)) or not value:
-                        content.append((unmap_qname(name), value))
+                        content.append((self.unmap_qname(name), value))
                     elif isinstance(value[0], (self.dict, dict, self.list, list)):
-                        ns_name = unmap_qname(name)
+                        ns_name = self.unmap_qname(name)
                         for item in value:
                             content.append((ns_name, item))
                     else:
-                        ns_name = unmap_qname(name)
+                        ns_name = self.unmap_qname(name)
                         for xsd_child in xsd_element.type.content_type.iter_elements():
                             matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
@@ -875,14 +858,13 @@ class JsonMLConverter(XMLSchemaConverter):
         return result_list
 
     def element_encode(self, obj, xsd_element, level=0):
-        unmap_qname = self.unmap_qname
         attributes = {}
         if not isinstance(obj, (self.list, list)) or not obj:
             raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
 
         data_len = len(obj)
         if data_len == 1:
-            if not xsd_element.is_matching(unmap_qname(obj[0]), self._namespaces.get('')):
+            if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
                 raise XMLSchemaValueError("Unmatched tag")
             return ElementData(xsd_element.name, None, None, attributes)
 
@@ -899,7 +881,7 @@ class JsonMLConverter(XMLSchemaConverter):
         else:
             content_index = 2
 
-        if not xsd_element.is_matching(unmap_qname(obj[0]), self._namespaces.get('')):
+        if not xsd_element.is_matching(self.unmap_qname(obj[0]), self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
 
         if data_len <= content_index:
@@ -911,7 +893,7 @@ class JsonMLConverter(XMLSchemaConverter):
             cdata_num = iter(range(1, data_len))
             list_types = list if self.list is list else (self.list, list)
             content = [
-                (unmap_qname(e[0]), e) if isinstance(e, list_types) else (next(cdata_num), e)
+                (self.unmap_qname(e[0]), e) if isinstance(e, list_types) else (next(cdata_num), e)
                 for e in obj[content_index:]
             ]
             return ElementData(xsd_element.name, None, content, attributes)
