@@ -51,3 +51,11 @@ def print_test_header():
     header1 = "Test %r" % xmlschema
     header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
+
+
+__all__ = [
+    'XsdValidatorTestCase', 'make_schema_test_class', 'make_validation_test_class',
+    'get_test_args', 'xsd_version_number', 'defuse_data', 'get_test_program_args_parser',
+    'get_test_line_args_parser', 'tests_factory', 'SchemaObserver', 'ObservedXMLSchema10',
+    'ObservedXMLSchema11', 'has_network_access', 'SKIP_REMOTE_TESTS', 'print_test_header',
+]

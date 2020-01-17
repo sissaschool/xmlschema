@@ -37,3 +37,18 @@ __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2020, SISSA"
 __license__ = "MIT"
 __status__ = "Production/Stable"
+
+
+__all__ = [
+    'limits', 'XMLSchemaException', 'XMLSchemaRegexError', 'XMLSchemaURLError',
+    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'fetch_resource',
+    'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema', 'XMLResource',
+    'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
+    'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
+    'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json', 'from_json',
+    'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
+    'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
+    'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',
+    'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
+    'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
+]

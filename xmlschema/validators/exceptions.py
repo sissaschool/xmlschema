@@ -7,14 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains exception and warning classes for the 'xmlschema.validators' subpackage.
-"""
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..qnames import qname_to_prefixed
 from ..etree import etree_tostring, etree_getpath
 from ..helpers import is_etree_element
-from ..resources import XMLResource
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
