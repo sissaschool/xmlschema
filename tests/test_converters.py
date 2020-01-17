@@ -15,6 +15,8 @@ from xmlschema import XMLSchema, XMLSchemaConverter, ElementData
 from xmlschema.etree import etree_element, etree_register_namespace, \
     lxml_etree_element, lxml_etree_register_namespace, etree_elements_assert_equal
 
+from xmlschema.converters import ParquetConverter
+
 
 class TestConverters(unittest.TestCase):
 
@@ -93,6 +95,34 @@ class TestConverters(unittest.TestCase):
 
         elem = converter.etree_element('A', attrib={})
         self.assertIsNone(etree_elements_assert_equal(elem, etree_element('A')))
+
+    def test_parquet_converter(self):
+        col_xsd_filename = self.casepath('examples/collection/collection.xsd')
+        col_xml_filename = self.casepath('examples/collection/collection.xml')
+
+        col_schema = XMLSchema(col_xsd_filename, converter=ParquetConverter)
+
+        obj = col_schema.decode(col_xml_filename)
+        self.assertIn("'authorid'", str(obj))
+        self.assertNotIn("'author_id'", str(obj))
+        self.assertNotIn("'author__id'", str(obj))
+
+        obj = col_schema.decode(col_xml_filename, attr_prefix='_')
+        self.assertNotIn("'authorid'", str(obj))
+        self.assertIn("'author_id'", str(obj))
+        self.assertNotIn("'author__id'", str(obj))
+
+        obj = col_schema.decode(col_xml_filename, attr_prefix='__')
+        self.assertNotIn("'authorid'", str(obj))
+        self.assertNotIn("'author_id'", str(obj))
+        self.assertIn("'author__id'", str(obj))
+
+        col_schema = XMLSchema(col_xsd_filename)
+
+        obj = col_schema.decode(col_xml_filename, converter=ParquetConverter, attr_prefix='__')
+        self.assertNotIn("'authorid'", str(obj))
+        self.assertNotIn("'author_id'", str(obj))
+        self.assertIn("'author__id'", str(obj))
 
 
 if __name__ == '__main__':
