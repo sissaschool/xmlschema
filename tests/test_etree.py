@@ -36,7 +36,8 @@ class TestElementTree(unittest.TestCase):
         ElementTree = importlib.import_module('xml.etree.ElementTree')
         xmlschema_etree = importlib.import_module('xmlschema.etree')
 
-        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
+        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py,
+                         msg="cElementTree not available!")
         elem = xmlschema_etree.PyElementTree.Element('element')
         self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
@@ -46,7 +47,8 @@ class TestElementTree(unittest.TestCase):
         xmlschema_etree = importlib.import_module('xmlschema.etree')
         ElementTree = importlib.import_module('xml.etree.ElementTree')
 
-        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py, msg="cElementTree not available!")
+        self.assertIsNot(ElementTree.Element, ElementTree._Element_Py,
+                         msg="cElementTree not available!")
         elem = xmlschema_etree.PyElementTree.Element('element')
         self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)

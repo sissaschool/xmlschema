@@ -34,7 +34,9 @@ XSD_IDENTITY_XPATH_SYMBOLS = {
 
 
 class XsdIdentityXPathParser(XPath1Parser):
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS}
+    symbol_table = {
+        k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
+    }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
@@ -45,8 +47,9 @@ class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     pattern = re.compile(get_python_regex(
-        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
-        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
+        r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
+        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
     ))
 
     def __init__(self, elem, schema, parent):
@@ -64,10 +67,10 @@ class XsdSelector(XsdComponent):
                 self.parse_error("Wrong XPath expression for an xs:selector")
 
         try:
-            self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
+            self.xpath_selector = Selector(self.path, self.namespaces, XsdIdentityXPathParser)
         except ElementPathError as err:
             self.parse_error(err)
-            self.xpath_selector = Selector('*', self.namespaces, parser=XsdIdentityXPathParser)
+            self.xpath_selector = Selector('*', self.namespaces, XsdIdentityXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -88,9 +91,11 @@ class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
     pattern = re.compile(get_python_regex(
-        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
-        r"((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
-        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
+        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
+        r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
+        r"(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
+        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
     ))
 
 
@@ -196,7 +201,9 @@ class XsdIdentity(XsdComponent):
                 current_path = path
                 xsd_element = self.parent.find(path)
                 if not hasattr(xsd_element, 'tag'):
-                    yield XMLSchemaValidationError(self, e, "{!r} is not an element".format(xsd_element))
+                    yield XMLSchemaValidationError(
+                        self, e, "{!r} is not an element".format(xsd_element)
+                    )
                 xsd_fields = self.get_fields(xsd_element)
 
             if not xsd_fields or all(fld is None for fld in xsd_fields):
@@ -270,14 +277,16 @@ class XsdKeyref(XsdIdentity):
         elif self.parent is not self.refer.parent:
             refer_path = self.refer.parent.get_path(ancestor=self.parent)
             if refer_path is None:
-                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref identity-constraints may be
-                # defined on domains distinct from the embedded domain of the identity-constraint they
-                # reference, or the domains may be the same but self-embedding at some depth. In either
-                # case the node table for the referenced identity-constraint needs to propagate upwards,
-                # with conflict resolution."
+                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref
+                # identity-constraints may be defined on domains distinct from
+                # the embedded domain of the identity-constraint they reference,
+                # or the domains may be the same but self-embedding at some depth.
+                # In either case the node table for the referenced identity-constraint
+                # needs to propagate upwards, with conflict resolution."
                 refer_path = self.parent.get_path(ancestor=self.refer.parent, reverse=True)
                 if refer_path is None:
-                    refer_path = self.parent.get_path(reverse=True) + '/' + self.refer.parent.get_path()
+                    refer_path = self.parent.get_path(reverse=True) + '/' + \
+                        self.refer.parent.get_path()
 
             self.refer_path = refer_path
 

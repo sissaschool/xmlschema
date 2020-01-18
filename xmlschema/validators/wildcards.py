@@ -66,7 +66,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         if process_contents == 'strict':
             pass
         elif process_contents not in ('lax', 'skip'):
-            self.parse_error("wrong value %r for 'processContents' attribute" % self.process_contents)
+            self.parse_error("wrong value %r for 'processContents' "
+                             "attribute" % self.process_contents)
         else:
             self.process_contents = process_contents
 
@@ -95,8 +96,10 @@ class XsdWildcard(XsdComponent, ValidationMixin):
         not_qname = self.elem.attrib['notQName'].strip().split()
 
         if isinstance(self, XsdAnyAttribute) and \
-                not all(not s.startswith('##') or s == '##defined' for s in not_qname) or \
-                not all(not s.startswith('##') or s in {'##defined', '##definedSibling'} for s in not_qname):
+                not all(not s.startswith('##') or s == '##defined'
+                        for s in not_qname) or \
+                not all(not s.startswith('##') or s in {'##defined', '##definedSibling'}
+                        for s in not_qname):
             self.parse_error("wrong value for 'notQName' attribute")
             return
 
@@ -112,9 +115,12 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
         if self.not_namespace:
             if any(not x.startswith('##') for x in names) and \
-                    all(get_namespace(x) in self.not_namespace for x in names if not x.startswith('##')):
-                self.parse_error("the namespace of each QName in notQName is allowed by notNamespace")
-        elif any(not self.is_namespace_allowed(get_namespace(x)) for x in names if not x.startswith('##')):
+                    all(get_namespace(x) in self.not_namespace
+                        for x in names if not x.startswith('##')):
+                self.parse_error("the namespace of each QName in notQName "
+                                 "is allowed by notNamespace")
+        elif any(not self.is_namespace_allowed(get_namespace(x))
+                 for x in names if not x.startswith('##')):
             self.parse_error("names in notQName must be in namespaces that are allowed")
 
         self.not_qname = names
@@ -156,16 +162,20 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
     def deny_qnames(self, names):
         if self.not_namespace:
-            return all(x in self.not_qname or get_namespace(x) in self.not_namespace for x in names)
+            return all(x in self.not_qname or get_namespace(x) in self.not_namespace
+                       for x in names)
         elif '##any' in self.namespace:
             return all(x in self.not_qname for x in names)
         elif '##other' in self.namespace:
-            return all(x in self.not_qname or get_namespace(x) == self.target_namespace for x in names)
+            return all(x in self.not_qname or get_namespace(x) == self.target_namespace
+                       for x in names)
         else:
-            return all(x in self.not_qname or get_namespace(x) not in self.namespace for x in names)
+            return all(x in self.not_qname or get_namespace(x) not in self.namespace
+                       for x in names)
 
     def is_restriction(self, other, check_occurs=True):
-        if check_occurs and isinstance(self, ParticleMixin) and not self.has_occurs_restriction(other):
+        if check_occurs and isinstance(self, ParticleMixin) \
+                and not self.has_occurs_restriction(other):
             return False
         elif not isinstance(other, type(self)):
             return False
@@ -291,7 +301,8 @@ class XsdWildcard(XsdComponent, ValidationMixin):
 
         if self.not_namespace:
             if other.not_namespace:
-                self.not_namespace.extend(ns for ns in other.not_namespace if ns not in self.not_namespace)
+                self.not_namespace.extend(ns for ns in other.not_namespace
+                                          if ns not in self.not_namespace)
             elif '##any' in other.namespace:
                 pass
             elif '##other' not in other.namespace:
@@ -348,9 +359,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     ..  <any
           id = ID
-          maxOccurs = (nonNegativeInteger | unbounded)  : 1
+          maxOccurs = (nonNegativeInteger | unbounded) : 1
           minOccurs = nonNegativeInteger : 1
-          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace | ##local)) )  : ##any
+          namespace = ((##any | ##other) | List of (anyURI | (##targetNamespace|##local)) ) : ##any
           processContents = (lax | skip | strict) : strict
           {any attributes with non-schema namespace . . .}>
           Content: (annotation?)
@@ -658,14 +669,16 @@ class Xsd11AnyElement(XsdAnyElement):
                 return False
         else:
             name = '{%s}%s' % (default_namespace, name)
-            if not self.is_namespace_allowed('') and not self.is_namespace_allowed(default_namespace):
+            if not self.is_namespace_allowed('') \
+                    and not self.is_namespace_allowed(default_namespace):
                 return False
 
         if group in self.precedences:
             if occurs is None:
                 if any(e.is_matching(name) for e in self.precedences[group]):
                     return False
-            elif any(e.is_matching(name) and not e.is_over(occurs[e]) for e in self.precedences[group]):
+            elif any(e.is_matching(name) and not e.is_over(occurs[e])
+                     for e in self.precedences[group]):
                 return False
 
         if '##defined' in self.not_qname and name in self.maps.elements:
@@ -762,7 +775,8 @@ class XsdOpenContent(XsdComponent):
         child = self._parse_child_component(self.elem)
         if self.mode == 'none':
             if child is not None and child.tag == XSD_ANY:
-                self.parse_error("an openContent with mode='none' must not has an <xs:any> child declaration")
+                self.parse_error("an openContent with mode='none' must not "
+                                 "have an <xs:any> child declaration")
         elif child is None or child.tag != XSD_ANY:
             self.parse_error("an <xs:any> child declaration is required")
         else:

@@ -13,7 +13,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, \
     XMLSchemaImportWarning, XMLSchemaTypeTableWarning
 
-from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ValidationMixin, ParticleMixin
+from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, \
+    ValidationMixin, ParticleMixin
 
 from .assertions import XsdAssert
 from .notations import XsdNotation

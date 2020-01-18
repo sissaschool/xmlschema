@@ -96,7 +96,8 @@ def code_point_repr(cp):
     """
     Returns the string representation of a code point.
 
-    :param cp: an integer or a tuple with at least two integers. Values must be in interval [0, sys.maxunicode].
+    :param cp: an integer or a tuple with at least two integers. \
+    Values must be in interval [0, sys.maxunicode].
     """
     if isinstance(cp, int):
         if cp in CHARACTER_GROUP_ESCAPED:
@@ -166,15 +167,15 @@ def iterparse_character_group(s, expand_ranges=False):
                             k = next(string_iter)
                             end_char = s[k]
                         elif s[k + 1] in r'sSdDiIcCwWpP':
-                            msg = "bad character range '%s-\\%s' at position %d: %r" % (char, s[k + 1], k - 2, s)
-                            raise XMLSchemaRegexError(msg)
+                            msg = "bad character range '%s-\\%s' at position %d: %r"
+                            raise XMLSchemaRegexError(msg % (char, s[k + 1], k - 2, s))
                 except StopIteration:
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, s[-1], k - 2, s)
-                    raise XMLSchemaRegexError(msg)
+                    msg = "bad character range '%s-%s' at position %d: %r"
+                    raise XMLSchemaRegexError(msg % (char, s[-1], k - 2, s))
 
                 if ord(char) > ord(end_char):
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k - 2, s)
-                    raise XMLSchemaRegexError(msg)
+                    msg = "bad character range '%s-%s' at position %d: %r"
+                    raise XMLSchemaRegexError(msg % (char, end_char, k - 2, s))
                 elif expand_ranges:
                     yield from range(ord(char) + 1, ord(end_char) + 1)
                 else:
@@ -300,7 +301,9 @@ class UnicodeSubset(MutableSet):
             try:
                 value = ord(value)
             except TypeError:
-                raise XMLSchemaTypeError("%r: argument must be a code point or a character." % value)
+                raise XMLSchemaTypeError(
+                    "%r: argument must be a code point or a character." % value
+                )
 
         for cp in self._code_points:
             if not isinstance(cp, int):

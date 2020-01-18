@@ -198,7 +198,8 @@ def parse_character_class(xml_regex, class_pos, xsd_version='1.0'):
     :return: an `XsdRegexCharGroup` instance and the first position after the character class.
     """
     if xml_regex[class_pos] != '[':
-        raise XMLSchemaRegexError('not a character class at position %d: %r' % (class_pos, xml_regex))
+        raise XMLSchemaRegexError('not a character class at position '
+                                  '%d: %r' % (class_pos, xml_regex))
 
     pos = class_pos + 1
     if xml_regex[pos] == '^':
@@ -259,9 +260,8 @@ def get_python_regex(xml_regex, xsd_version='1.0'):
 
     match = _RE_FORBIDDEN_ESCAPES.search(xml_regex)
     if match:
-        raise XMLSchemaRegexError(
-            "not allowed escape sequence %r at position %d: %r" % (match.group(), match.span()[0], xml_regex)
-        )
+        raise XMLSchemaRegexError("not allowed escape sequence %r at position "
+                                  "%d: %r" % (match.group(), match.span()[0], xml_regex))
 
     while pos < xml_regex_len:
         ch = xml_regex[pos]
@@ -287,37 +287,42 @@ def get_python_regex(xml_regex, xsd_version='1.0'):
 
         elif ch == '{':
             if pos == 0:
-                raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+                raise XMLSchemaRegexError("unexpected quantifier %r at position "
+                                          "%d: %r" % (ch, pos, xml_regex))
             match = _RE_QUANTIFIER.match(xml_regex[pos:])
             if match is None:
-                raise XMLSchemaRegexError("invalid quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+                raise XMLSchemaRegexError("invalid quantifier %r at position "
+                                          "%d: %r" % (ch, pos, xml_regex))
             regex.append(match.group())
             pos += len(match.group())
             if pos < xml_regex_len and xml_regex[pos] in ('?', '+', '*'):
-                raise XMLSchemaRegexError(
-                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos], pos, xml_regex)
-                )
+                raise XMLSchemaRegexError("unexpected meta character %r at position "
+                                          "%d: %r" % (xml_regex[pos], pos, xml_regex))
             continue
 
         elif ch == '(':
             if xml_regex[pos:pos + 2] == '(?':
-                raise XMLSchemaRegexError("'(?...)' extension notation is not allowed: %r" % xml_regex)
+                raise XMLSchemaRegexError(
+                    "'(?...)' extension notation is not allowed: %r" % xml_regex
+                )
             nested_groups += 1
             regex.append(ch)
         elif ch == ']':
-            raise XMLSchemaRegexError("unexpected meta character %r at position %d: %r" % (ch, pos, xml_regex))
+            raise XMLSchemaRegexError("unexpected meta character %r at position "
+                                      "%d: %r" % (ch, pos, xml_regex))
         elif ch == ')':
             if nested_groups == 0:
-                raise XMLSchemaRegexError("unbalanced parenthesis ')' at position %d: %r" % (pos, xml_regex))
+                raise XMLSchemaRegexError("unbalanced parenthesis ')' at position "
+                                          "%d: %r" % (pos, xml_regex))
             nested_groups -= 1
             regex.append(ch)
         elif ch in ('?', '+', '*'):
             if pos == 0:
-                raise XMLSchemaRegexError("unexpected quantifier %r at position %d: %r" % (ch, pos, xml_regex))
+                raise XMLSchemaRegexError("unexpected quantifier %r at position "
+                                          "%d: %r" % (ch, pos, xml_regex))
             elif pos < xml_regex_len - 1 and xml_regex[pos + 1] in ('?', '+', '*', '{'):
-                raise XMLSchemaRegexError(
-                    "unexpected meta character %r at position %d: %r" % (xml_regex[pos + 1], pos + 1, xml_regex)
-                )
+                raise XMLSchemaRegexError("unexpected meta character %r at position "
+                                          "%d: %r" % (xml_regex[pos + 1], pos + 1, xml_regex))
             regex.append(ch)
         elif ch == '\\':
             pos += 1
@@ -339,8 +344,8 @@ def get_python_regex(xml_regex, xsd_version='1.0'):
                     while xml_regex[pos] != '}':
                         pos += 1
                 except (IndexError, ValueError):
-                    raise XMLSchemaRegexError(
-                        "truncated unicode block escape at position %d: %r" % (block_pos, xml_regex))
+                    raise XMLSchemaRegexError("truncated unicode block escape at position "
+                                              "%d: %r" % (block_pos, xml_regex))
 
                 p_shortcut_set = unicode_subset(xml_regex[block_pos + 3:pos], xsd_version > '1.0')
                 if xml_regex[block_pos + 1] == 'p':

@@ -98,7 +98,9 @@ class XMLSchemaMeta(ABCMeta):
 
         xsd_version = dict_.get('XSD_VERSION') or get_attribute('XSD_VERSION', *bases)
         if xsd_version not in ('1.0', '1.1'):
-            raise XMLSchemaValueError("Validator class XSD version must be '1.0' or '1.1', not %r." % xsd_version)
+            raise XMLSchemaValueError(
+                "Validator class XSD version must be '1.0' or '1.1', not %r." % xsd_version
+            )
 
         builders = dict_.get('BUILDERS') or get_attribute('BUILDERS', *bases)
         if isinstance(builders, dict):
@@ -119,7 +121,8 @@ class XMLSchemaMeta(ABCMeta):
 
         # Build the new meta-schema class
         meta_schema_class_name = 'Meta' + name
-        meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, meta_schema_class_name, bases, dict_)
+        meta_schema_class = super(XMLSchemaMeta, mcs).__new__(mcs, meta_schema_class_name,
+                                                              bases, dict_)
         meta_schema_class.__qualname__ = meta_schema_class_name
         globals()[meta_schema_class_name] = meta_schema_class
 
@@ -195,15 +198,18 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype FALLBACK_LOCATIONS: dict
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
-    :cvar attribute_form_default: the schema's *attributeFormDefault* attribute, defaults to 'unqualified'.
+    :cvar attribute_form_default: the schema's *attributeFormDefault* attribute. \
+    Default is 'unqualified'.
     :vartype attribute_form_default: str
-    :cvar element_form_default: the schema's *elementFormDefault* attribute, defaults to 'unqualified'
+    :cvar element_form_default: the schema's *elementFormDefault* attribute. \
+    Default is 'unqualified'.
     :vartype element_form_default: str
-    :cvar block_default: the schema's *blockDefault* attribute, defaults to ''.
+    :cvar block_default: the schema's *blockDefault* attribute. Default is ''.
     :vartype block_default: str
-    :cvar final_default: the schema's *finalDefault* attribute, defaults to ''.
+    :cvar final_default: the schema's *finalDefault* attribute. Default is ''.
     :vartype final_default: str
-    :cvar default_attributes: the XSD 1.1 schema's *defaultAttributes* attribute, defaults to ``None``.
+    :cvar default_attributes: the XSD 1.1 schema's *defaultAttributes* attribute. \
+    Default is ``None``.
     :vartype default_attributes: XsdAttributeGroup
     :cvar xpath_tokens: symbol table for schema bound XPath 2.0 parsers. Initially set to \
     ``None`` it's redefined at instance level with a dictionary at first use of the XPath \
@@ -217,20 +223,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype target_namespace: str
     :ivar validation: validation mode, can be 'strict', 'lax' or 'skip'.
     :vartype validation: str
-    :ivar maps: XSD global declarations/definitions maps. This is an instance of :class:`XsdGlobal`, \
-    that store the global_maps argument or a new object when this argument is not provided.
+    :ivar maps: XSD global declarations/definitions maps. This is an instance of \
+    :class:`XsdGlobal`, that store the global_maps argument or a new object when \
+    this argument is not provided.
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
     :ivar locations: schemas location hints.
     :vartype locations: NamespaceResourcesMap
-    :ivar namespaces: a dictionary that maps from the prefixes used by the schema into namespace URI.
+    :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
+    into namespace URI.
     :vartype namespaces: dict
-    :ivar imports: a dictionary of namespace imports of the schema, that maps namespace URI to imported schema \
-    object, or `None` in case of unsuccessful import.
+    :ivar imports: a dictionary of namespace imports of the schema, that maps namespace \
+    URI to imported schema object, or `None` in case of unsuccessful import.
     :vartype imports: dict
-    :ivar includes: a dictionary of included schemas, that maps a schema location to an included schema. \
-    It also comprehend schemas included by "xs:redefine" or "xs:override" statements.
+    :ivar includes: a dictionary of included schemas, that maps a schema location to an \
+    included schema. It also comprehend schemas included by "xs:redefine" or \
+    "xs:override" statements.
     :vartype warnings: dict
     :ivar warnings: warning messages about failure of import and include elements.
     :vartype warnings: list
@@ -299,7 +308,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             pass
         else:
             if self.target_namespace == '':
-                # Ref: https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
+                # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
                 self.parse_error("The attribute 'targetNamespace' cannot be an empty string.", root)
 
         if namespace is not None and self.target_namespace != namespace:
@@ -396,7 +405,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
 
-        # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent, xpathDefaultNamespace)
+        # XSD 1.1 default declarations (defaultAttributes, defaultOpenContent,
+        # xpathDefaultNamespace)
         if self.XSD_VERSION > '1.0':
             self.xpath_default_namespace = self._parse_xpath_default_namespace(root)
             if 'defaultAttributes' in root.attrib:
@@ -419,7 +429,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     def __repr__(self):
         if self.url:
             basename = os.path.basename(self.url)
-            return u'%s(basename=%r, namespace=%r)' % (self.__class__.__name__, basename, self.target_namespace)
+            return u'%s(basename=%r, namespace=%r)' % (
+                self.__class__.__name__, basename, self.target_namespace
+            )
         else:
             return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
@@ -436,7 +448,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.attribute_groups = NamespaceView(value.attribute_groups, self.target_namespace)
             self.groups = NamespaceView(value.groups, self.target_namespace)
             self.elements = NamespaceView(value.elements, self.target_namespace)
-            self.substitution_groups = NamespaceView(value.substitution_groups, self.target_namespace)
+            self.substitution_groups = NamespaceView(value.substitution_groups,
+                                                     self.target_namespace)
             self.identities = NamespaceView(value.identities, self.target_namespace)
             self.global_maps = (self.notations, self.types, self.attributes,
                                 self.attribute_groups, self.groups, self.elements)
@@ -528,12 +541,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     @property
     def schema_location(self):
-        """A list of location hints extracted from the *xsi:schemaLocation* attribute of the schema."""
+        """
+        A list of location hints extracted from the *xsi:schemaLocation* attribute of the schema.
+        """
         return [(k, v) for k, v in self.source.iter_location_hints() if k]
 
     @property
     def no_namespace_schema_location(self):
-        """A location hint extracted from the *xsi:noNamespaceSchemaLocation* attribute of the schema."""
+        """
+        A location hint extracted from the *xsi:noNamespaceSchemaLocation* attribute of the schema.
+        """
         for k, v in self.source.iter_location_hints():
             if not k:
                 return v
@@ -591,15 +608,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         return [e for e in self.elements.values() if e.name in self._root_elements]
 
-    @property
-    def constraints(self):
-        """
-        Old reference to identity constraints, for backward compatibility. Will be removed in v1.1.0.
-        """
-        warnings.warn("'constraints' property has been replaced by 'identities' "
-                      "and will be removed in 1.1 version.", DeprecationWarning)
-        return self.identities
-
     @classmethod
     def create_meta_schema(cls, source=None, base_schemas=None, global_maps=None):
         """
@@ -618,9 +626,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             try:
                 source = cls.meta_schema.url
             except AttributeError:
-                raise XMLSchemaValueError(
-                    "The argument 'source' is required when the class doesn't already have a meta-schema"
-                )
+                raise XMLSchemaValueError("The argument 'source' is required when "
+                                          "the class doesn't already have a meta-schema")
 
         if base_schemas is None:
             base_schemas = cls.BASE_SCHEMAS.items()
@@ -630,22 +637,19 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             try:
                 base_schemas = [(n, l) for n, l in base_schemas]
             except ValueError:
-                raise ValueError("The argument 'base_schemas' is not a dictionary nor a sequence of items")
+                raise ValueError(
+                    "The argument 'base_schemas' is not a dictionary nor a sequence of items"
+                )
 
         meta_schema_class = cls if cls.meta_schema is None else cls.meta_schema.__class__
-        meta_schema = meta_schema_class(source, XSD_NAMESPACE, global_maps=global_maps, defuse='never', build=False)
+        meta_schema = meta_schema_class(source, XSD_NAMESPACE, global_maps=global_maps,
+                                        defuse='never', build=False)
         for ns, location in base_schemas:
             if ns == XSD_NAMESPACE:
                 meta_schema.include_schema(location=location)
             else:
                 meta_schema.import_schema(namespace=ns, location=location)
         return meta_schema
-
-    @classmethod
-    def create_schema(cls, *args, **kwargs):
-        """Creates a new schema instance of the same class of the caller."""
-        warnings.warn("'create_schema()' method will be removed in 1.1 version.", DeprecationWarning)
-        return cls(*args, **kwargs)
 
     def create_any_content_group(self, parent, any_element=None):
         """
@@ -976,11 +980,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if namespace is None:
                 namespace = ''
                 if namespace == self.target_namespace:
-                    self.parse_error("if the 'namespace' attribute is not present on the import statement "
-                                     "then the importing schema must has a 'targetNamespace'")
+                    self.parse_error("if the 'namespace' attribute is not present on "
+                                     "the import statement then the importing schema "
+                                     "must have a 'targetNamespace'")
                     continue
             elif namespace == self.target_namespace:
-                self.parse_error("the attribute 'namespace' must be different from schema's 'targetNamespace'")
+                self.parse_error("the attribute 'namespace' must be different from "
+                                 "schema's 'targetNamespace'")
                 continue
 
             # Skip import of already imported namespaces
@@ -1001,7 +1007,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 # This is not the standard processing for XSD imports, but resolve the problem
                 # of local processing of schemas tested to work from a http server, providing
                 # explicit local hints.
-                local_hints = [url for url in self.get_locations(namespace) if url and url_path_is_file(url)]
+                local_hints = [url for url in self.get_locations(namespace)
+                               if url and url_path_is_file(url)]
                 if local_hints:
                     locations = local_hints + locations
 
@@ -1083,7 +1090,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             build=build,
         )
         if schema.target_namespace != namespace:
-            raise XMLSchemaValueError('imported schema %r has an unmatched namespace %r' % (location, namespace))
+            raise XMLSchemaValueError(
+                'imported schema %r has an unmatched namespace %r' % (location, namespace)
+            )
         self.imports[namespace] = schema
         return schema
 
@@ -1230,8 +1239,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
         data that have to be decoded. If not provided the XML root element is selected.
-        :param schema_path: an alternative XPath expression to select the XSD element to use for \
-        decoding. Useful if the root of the XML data doesn't match an XSD global element of the schema.
+        :param schema_path: an alternative XPath expression to select the XSD element \
+        to use for decoding. Useful if the root of the XML data doesn't match an XSD \
+        global element of the schema.
         :param use_defaults: Use schema's default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
@@ -1318,7 +1328,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if isinstance(v, XMLSchemaValidationError):
                 yield v
             elif v == 0:
-                yield self.validation_error('lax', "IDREF %r not found in XML document" % k, source.root)
+                yield self.validation_error(
+                    'lax', "IDREF %r not found in XML document" % k, source.root
+                )
 
         # Check still enabled key references (lazy validation)
         for constraint, counter in \
@@ -1326,9 +1338,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             for error in counter.iter_errors(identities):
                 yield self.validation_error('lax', error, source.root, **kwargs)
 
-    def iter_decode(self, source, path=None, schema_path=None, validation='lax', process_namespaces=True,
-                    namespaces=None, use_defaults=True, decimal_type=None, datetime_types=False,
-                    converter=None, filler=None, fill_missing=False, max_depth=None, **kwargs):
+    def iter_decode(self, source, path=None, schema_path=None, validation='lax',
+                    process_namespaces=True, namespaces=None, use_defaults=True,
+                    decimal_type=None, datetime_types=False, converter=None,
+                    filler=None, fill_missing=False, max_depth=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1337,23 +1350,27 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         instance or an ElementTree instance or a string containing the XML data.
         :param path: is an optional XPath expression that matches the elements of the XML \
         data that have to be decoded. If not provided the XML root element is selected.
-        :param schema_path: an alternative XPath expression to select the XSD element to use for \
-        decoding. Useful if the root of the XML data doesn't match an XSD global element of the schema.
-        :param validation: defines the XSD validation mode to use for decode, can be 'strict', \
-        'lax' or 'skip'.
-        :param process_namespaces: indicates whether to use namespace information in the decoding \
-        process, using the map provided with the argument *namespaces* and the map extracted from \
-        the XML document.
+        :param schema_path: an alternative XPath expression to select the XSD element \
+        to use for decoding. Useful if the root of the XML data doesn't match an XSD \
+        global element of the schema.
+        :param validation: defines the XSD validation mode to use for decode, can be \
+        'strict', 'lax' or 'skip'.
+        :param process_namespaces: indicates whether to use namespace information in \
+        the decoding process, using the map provided with the argument *namespaces* \
+        and the map extracted from the XML document.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param use_defaults: indicates whether to use default values for filling missing data.
-        :param decimal_type: conversion type for `Decimal` objects (generated by XSD `decimal` \
-        built-in and derived types), useful if you want to generate a JSON-compatible data structure.
-        :param datetime_types: if set to `True` the datetime and duration XSD types are decoded, \
-        otherwise their origin XML string is returned.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the decoding.
-        :param filler: an optional callback function to fill undecodable data with a typed value. \
-        The callback function must accepts one positional argument, that can be an XSD Element or \
-        an attribute declaration. If not provided undecodable data is replaced by `None`.
+        :param decimal_type: conversion type for `Decimal` objects (generated by \
+        `xs:decimal` built-in and derived types), useful if you want to generate a \
+        JSON-compatible data structure.
+        :param datetime_types: if set to `True` the datetime and duration XSD types \
+        are decoded, otherwise their origin XML string is returned.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
+        for decoding.
+        :param filler: an optional callback function to fill undecodable data with a \
+        typed value. The callback function must accepts one positional argument, that \
+        can be an XSD Element or an attribute declaration. If not provided undecodable \
+        data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
         :param max_depth: maximum level of decoding, for default there is no limit.
@@ -1367,7 +1384,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.build()
 
         if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
         elif not isinstance(source, XMLResource):
             source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
 
@@ -1429,7 +1447,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if isinstance(v, XMLSchemaValidationError):
                 yield v
             elif v == 0:
-                yield self.validation_error('lax', "IDREF %r not found in XML document" % k, source.root)
+                yield self.validation_error(
+                    'lax', "IDREF %r not found in XML document" % k, source.root
+                )
 
     def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):
         """
@@ -1460,14 +1480,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         Creates an iterator for encoding a data structure to an ElementTree's Element.
 
         :param obj: the data that has to be encoded to XML data.
-        :param path: is an optional XPath expression for selecting the element of the schema \
-        that matches the data that has to be encoded. For default the first global element of \
-        the schema is used.
+        :param path: is an optional XPath expression for selecting the element of \
+        the schema that matches the data that has to be encoded. For default the first \
+        global element of the schema is used.
         :param validation: the XSD validation mode. Can be 'strict', 'lax' or 'skip'.
         :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for the encoding.
-        :param unordered: a flag for explicitly activating unordered encoding mode for content model \
-        data. This mode uses content models for a reordered-by-model iteration of the child elements.
+        :param converter: an :class:`XMLSchemaConverter` subclass or instance to use for \
+        the encoding.
+        :param unordered: a flag for explicitly activating unordered encoding mode for \
+        content model data. This mode uses content models for a reordered-by-model \
+        iteration of the child elements.
         :param kwargs: Keyword arguments containing options for converter and encoding.
         :return: yields an Element instance/s or validation/encoding errors.
         """
@@ -1477,7 +1499,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.build()
 
         if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
         elif not self.elements:
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
@@ -1507,7 +1530,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if path is not None:
                 reason = "the path %r doesn't match any element of the schema!" % path
             else:
-                reason = "unable to select an element for decoding data, provide a valid 'path' argument."
+                reason = "unable to select an element for decoding data, " \
+                         "provide a valid 'path' argument."
             raise XMLSchemaEncodeError(self, obj, self.elements, reason, namespaces=namespaces)
         else:
             yield from xsd_element.iter_encode(obj, validation, converter=converter,
@@ -1591,9 +1615,9 @@ class XMLSchema11(XMLSchemaBase):
 
     <schema
       attributeFormDefault = (qualified | unqualified) : unqualified
-      blockDefault = (#all | List of (extension | restriction | substitution))  : ''
+      blockDefault = (#all | List of (extension | restriction | substitution)) : ''
       defaultAttributes = QName
-      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace | ##local))  : ##local
+      xpathDefaultNamespace = (anyURI | (##defaultNamespace | ##targetNamespace| ##local)) : ##local
       elementFormDefault = (qualified | unqualified) : unqualified
       finalDefault = (#all | List of (extension | restriction | list | union))  : ''
       id = ID
@@ -1601,8 +1625,9 @@ class XMLSchema11(XMLSchemaBase):
       version = token
       xml:lang = language
       {any attributes with non-schema namespace . . .}>
-      Content: ((include | import | redefine | override | annotation)*, (defaultOpenContent, annotation*)?,
-      ((simpleType | complexType | group | attributeGroup | element | attribute | notation), annotation*)*)
+      Content: ((include | import | redefine | override | annotation)*,
+      (defaultOpenContent, annotation*)?, ((simpleType | complexType |
+      group | attributeGroup | element | attribute | notation), annotation*)*)
     </schema>
 
     <schema

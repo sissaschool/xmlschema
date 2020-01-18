@@ -87,7 +87,8 @@ def get_test_line_args_parser():
 
     parser = argparse.ArgumentParser(add_help=True)
     parser.usage = "TEST_FILE [OPTIONS]\nTry 'TEST_FILE --help' for more information."
-    parser.add_argument('filename', metavar='TEST_FILE', type=str, help="Test filename (relative path).")
+    parser.add_argument('filename', metavar='TEST_FILE', type=str,
+                        help="Test filename (relative path).")
     parser.add_argument(
         '-L', dest='locations', nargs=2, type=str, default=None, action='append',
         metavar="URI-URL", help="Schema location hint overrides."
@@ -97,20 +98,24 @@ def get_test_line_args_parser():
         help="XSD schema version to use for the test case (default is 1.0)."
     )
     parser.add_argument(
-        '--errors', type=int, default=0, metavar='NUM', help="Number of errors expected (default=0)."
+        '--errors', type=int, default=0, metavar='NUM',
+        help="Number of errors expected (default=0)."
     )
     parser.add_argument(
-        '--warnings', type=int, default=0, metavar='NUM', help="Number of warnings expected (default=0)."
+        '--warnings', type=int, default=0, metavar='NUM',
+        help="Number of warnings expected (default=0)."
     )
     parser.add_argument(
-        '--inspect', action="store_true", default=False, help="Inspect using an observed custom schema class."
+        '--inspect', action="store_true", default=False,
+        help="Inspect using an observed custom schema class."
     )
     parser.add_argument(
         '--defuse', metavar='(always, remote, never)', type=defuse_data, default='remote',
         help="Define when to use the defused XML data loaders."
     )
     parser.add_argument(
-        '--timeout', type=int, default=300, metavar='SEC', help="Timeout for fetching resources (default=300)."
+        '--timeout', type=int, default=300, metavar='SEC',
+        help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
         '--defaults', action="store_true", default=False,

@@ -27,7 +27,8 @@ class XMLSchemaValidatorError(XMLSchemaException):
     :type source: XMLResource
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
-    :ivar path: the XPath of the element, calculated when the element is set or the XML resource is set.
+    :ivar path: the XPath of the element, calculated when the element is set \
+    or the XML resource is set.
     """
     def __init__(self, validator, message, elem=None, source=None, namespaces=None):
         self.path = None
@@ -63,13 +64,17 @@ class XMLSchemaValidatorError(XMLSchemaException):
     def __setattr__(self, name, value):
         if name == 'elem' and value is not None:
             if not is_etree_element(value):
-                raise XMLSchemaValueError("'elem' attribute requires an Element, not %r." % type(value))
+                raise XMLSchemaValueError(
+                    "'elem' attribute requires an Element, not %r." % type(value)
+                )
             if self.source is not None:
-                self.path = etree_getpath(value, self.root, self.namespaces, relative=False, add_position=True)
+                self.path = etree_getpath(value, self.root, self.namespaces,
+                                          relative=False, add_position=True)
                 if self.source.is_lazy():
                     value = None  # Don't save the element of a lazy resource
         if name == 'source' and value is not None and getattr(self, 'elem', None) is not None:
-            self.path = etree_getpath(self.elem, value.root, self.namespaces, relative=False, add_position=True)
+            self.path = etree_getpath(self.elem, value.root, self.namespaces,
+                                      relative=False, add_position=True)
             if value.is_lazy():
                 self.elem = None
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
@@ -293,7 +298,8 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :type namespaces: dict
     """
-    def __init__(self, validator, elem, index, particle, occurs=0, expected=None, source=None, namespaces=None):
+    def __init__(self, validator, elem, index, particle, occurs=0,
+                 expected=None, source=None, namespaces=None):
         self.index = index
         self.particle = particle
         self.occurs = occurs
@@ -326,13 +332,14 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
                     expected_tags.append('from %r namespace/s' % xsd_element.namespace)
 
             if not expected_tags:
-                pass  # reason += " No child element is expected at this point." <-- this can be misleading
+                pass
             elif len(expected_tags) == 1:
                 reason += " Tag %r expected." % expected_tags[0]
             else:
                 reason += " Tag (%s) expected." % ' | '.join(expected_tags)
 
-        super(XMLSchemaChildrenValidationError, self).__init__(validator, elem, reason, source, namespaces)
+        super(XMLSchemaChildrenValidationError, self).\
+            __init__(validator, elem, reason, source, namespaces)
 
 
 class XMLSchemaIncludeWarning(XMLSchemaWarning):

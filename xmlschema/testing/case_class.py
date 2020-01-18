@@ -125,7 +125,9 @@ class XsdValidatorTestCase(unittest.TestCase):
     def check_etree_elements(self, elem, other):
         """Checks if two ElementTree elements are equal."""
         try:
-            self.assertIsNone(etree_elements_assert_equal(elem, other, strict=False, skip_comments=True))
+            self.assertIsNone(
+                etree_elements_assert_equal(elem, other, strict=False, skip_comments=True)
+            )
         except AssertionError as err:
             self.assertIsNone(err, None)
 

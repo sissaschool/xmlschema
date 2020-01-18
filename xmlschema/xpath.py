@@ -168,8 +168,8 @@ class ElementPathMixin(Sequence):
     """
     Mixin abstract class for enabling ElementTree and XPath API on XSD components.
 
-    :cvar text: The Element text. Its value is always `None`. For compatibility with the ElementTree API.
-    :cvar tail: The Element tail. Its value is always `None`. For compatibility with the ElementTree API.
+    :cvar text: the Element text, for compatibility with the ElementTree API.
+    :cvar tail: the Element tail, for compatibility with the ElementTree API.
     """
     text = None
     tail = None

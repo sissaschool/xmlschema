@@ -154,10 +154,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if facets and self.base_type is not None:
             if self.base_type.is_simple():
                 if self.base_type.name == XSD_ANY_SIMPLE_TYPE:
-                    self.parse_error("facets not allowed for a direct derivation of xs:anySimpleType")
+                    self.parse_error(
+                        "facets not allowed for a direct derivation of xs:anySimpleType"
+                    )
             elif self.base_type.has_simple_content():
                 if self.base_type.content_type.name == XSD_ANY_SIMPLE_TYPE:
-                    self.parse_error("facets not allowed for a direct content derivation of xs:anySimpleType")
+                    self.parse_error(
+                        "facets not allowed for a direct content derivation of xs:anySimpleType"
+                    )
 
         # Checks the applicability of the facets
         if any(k not in self.admitted_facets for k in facets if k is not None):
@@ -182,16 +186,18 @@ class XsdSimpleType(XsdType, ValidationMixin):
                     self.parse_error("'minLength' value must be less or equal to 'length'")
                 min_length_facet = base_type.get_facet(XSD_MIN_LENGTH)
                 length_facet = base_type.get_facet(XSD_LENGTH)
-                if min_length_facet is None or \
-                        (length_facet is not None and length_facet.base_type == min_length_facet.base_type):
+                if (min_length_facet is None
+                        or (length_facet is not None
+                            and length_facet.base_type == min_length_facet.base_type)):
                     self.parse_error("cannot specify both 'length' and 'minLength'")
             if max_length is not None:
                 if max_length < length:
                     self.parse_error("'maxLength' value must be greater or equal to 'length'")
                 max_length_facet = base_type.get_facet(XSD_MAX_LENGTH)
                 length_facet = base_type.get_facet(XSD_LENGTH)
-                if max_length_facet is None or \
-                        (length_facet is not None and length_facet.base_type == max_length_facet.base_type):
+                if max_length_facet is None \
+                        or (length_facet is not None
+                            and length_facet.base_type == max_length_facet.base_type):
                     self.parse_error("cannot specify both 'length' and 'maxLength'")
             min_length = max_length = length
         elif min_length is not None or max_length is not None:
@@ -421,7 +427,9 @@ class XsdAtomic(XsdSimpleType):
 
     def __repr__(self):
         if self.name is None:
-            return '%s(primitive_type=%r)' % (self.__class__.__name__, self.primitive_type.local_name)
+            return '%s(primitive_type=%r)' % (
+                self.__class__.__name__, self.primitive_type.local_name
+            )
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
@@ -493,7 +501,8 @@ class XsdAtomicBuiltin(XsdAtomic):
             raise XMLSchemaTypeError("%r object is not callable" % python_type.__class__)
 
         if base_type is None and not admitted_facets and name != XSD_ERROR:
-            raise XMLSchemaValueError("argument 'admitted_facets' must be a not empty set of a primitive type")
+            raise XMLSchemaValueError("argument 'admitted_facets' must be "
+                                      "a not empty set of a primitive type")
         self._admitted_facets = admitted_facets
 
         super(XsdAtomicBuiltin, self).__init__(elem, schema, None, name, facets, base_type)
@@ -518,8 +527,10 @@ class XsdAtomicBuiltin(XsdAtomic):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
         elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
-            yield self.decode_error(validation, obj, self.to_python,
-                                    reason="value is not an instance of {!r}".format(self.instance_types))
+            yield self.decode_error(
+                validation, obj, self.to_python,
+                reason="value is not an instance of {!r}".format(self.instance_types)
+            )
 
         if self.name == XSD_IDREF:
             try:
@@ -539,7 +550,9 @@ class XsdAtomicBuiltin(XsdAtomic):
                 if not id_map[obj]:
                     id_map[obj] = 1
                 else:
-                    yield self.validation_error(validation, "Duplicated xsd:ID value {!r}".format(obj))
+                    yield self.validation_error(
+                        validation, "Duplicated xsd:ID value {!r}".format(obj)
+                    )
 
         if validation == 'skip':
             try:
@@ -631,7 +644,9 @@ class XsdList(XsdSimpleType):
         </list>
     """
     _ADMITTED_TAGS = {XSD_LIST}
-    _white_space_elem = etree_element(XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'})
+    _white_space_elem = etree_element(
+        XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
+    )
 
     def __init__(self, elem, schema, parent, name=None):
         facets = {XSD_WHITE_SPACE: XsdWhiteSpaceFacet(self._white_space_elem, schema, self, self)}
@@ -692,11 +707,15 @@ class XsdList(XsdSimpleType):
                     base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                 else:
                     if isinstance(base_type, tuple):
-                        self.parse_error("circular definition found for type {!r}".format(item_qname))
+                        self.parse_error(
+                            "circular definition found for type {!r}".format(item_qname)
+                        )
                         base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
         if base_type.final == '#all' or 'list' in base_type.final:
-            self.parse_error("'final' value of the itemType %r forbids derivation by list" % base_type)
+            self.parse_error(
+                "'final' value of the itemType %r forbids derivation by list" % base_type
+            )
 
         if base_type is self.any_atomic_type:
             self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
@@ -844,13 +863,16 @@ class XsdUnion(XsdSimpleType):
                     mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
                 if isinstance(mt, tuple):
-                    self.parse_error("circular definition found on xs:union type {!r}".format(self.name))
+                    self.parse_error(
+                        "circular definition found on xs:union type {!r}".format(self.name)
+                    )
                     continue
                 elif not isinstance(mt, self._ADMITTED_TYPES):
                     self.parse_error("a {!r} required, not {!r}".format(self._ADMITTED_TYPES, mt))
                     continue
                 elif mt.final == '#all' or 'union' in mt.final:
-                    self.parse_error("'final' value of the memberTypes %r forbids derivation by union" % member_types)
+                    self.parse_error("'final' value of the memberTypes %r "
+                                     "forbids derivation by union" % member_types)
 
                 member_types.append(mt)
 
@@ -933,7 +955,8 @@ class XsdUnion(XsdSimpleType):
                     yield result
                     return
                 elif validation == 'strict':
-                    # In 'strict' mode avoid lax encoding by similar types (eg. float encoded by int)
+                    # In 'strict' mode avoid lax encoding by similar types
+                    # (eg. float encoded by int)
                     break
 
         if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):
@@ -984,7 +1007,9 @@ class XsdAtomicRestriction(XsdAtomic):
         if name == 'elem' and value is not None:
             if self.name != XSD_ANY_ATOMIC_TYPE and value.tag != XSD_RESTRICTION:
                 if not (value.tag == XSD_SIMPLE_TYPE and value.get('name') is not None):
-                    raise XMLSchemaValueError("an xs:restriction definition required for %r." % self)
+                    raise XMLSchemaValueError(
+                        "an xs:restriction definition required for %r." % self
+                    )
         super(XsdAtomicRestriction, self).__setattr__(name, value)
 
     def _parse(self):
@@ -1030,7 +1055,8 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
                     else:
                         if isinstance(base_type, tuple):
-                            self.parse_error("circularity definition between %r and %r" % (self, base_qname), elem)
+                            msg = "circularity definition between %r and %r"
+                            self.parse_error(msg % (self, base_qname), elem)
                             base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
             if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
@@ -1048,7 +1074,9 @@ class XsdAtomicRestriction(XsdAtomic):
                             "declaration is required.", elem
                         )
                 elif self.parent is None or self.parent.is_simple():
-                    self.parse_error("simpleType restriction of %r is not allowed" % base_type, elem)
+                    self.parse_error(
+                        "simpleType restriction of %r is not allowed" % base_type, elem
+                    )
 
         for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
             if child.tag in self._CONTENT_TAIL_TAGS:
@@ -1079,7 +1107,9 @@ class XsdAtomicRestriction(XsdAtomic):
                             final=base_type.final,
                         )
                 elif 'base' in elem.attrib:
-                    self.parse_error("restriction with 'base' attribute and simpleType declaration", child)
+                    self.parse_error(
+                        "restriction with 'base' attribute and simpleType declaration", child
+                    )
 
                 has_simple_type_child = True
             else:
@@ -1105,7 +1135,8 @@ class XsdAtomicRestriction(XsdAtomic):
         if base_type is None:
             self.parse_error("missing base type in restriction:", self)
         elif base_type.final == '#all' or 'restriction' in base_type.final:
-            self.parse_error("'final' value of the baseType %r forbids derivation by restriction" % base_type)
+            self.parse_error("'final' value of the baseType %r forbids "
+                             "derivation by restriction" % base_type)
         if base_type is self.any_atomic_type:
             self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
 

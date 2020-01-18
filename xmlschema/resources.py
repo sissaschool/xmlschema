@@ -15,9 +15,11 @@ from urllib.request import urlopen, pathname2url
 from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
 from urllib.error import URLError
 
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
-from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, etree_iter_location_hints
+from .etree import ElementTree, PyElementTree, SafeXMLParser, \
+    etree_tostring, etree_iter_location_hints
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')
@@ -31,7 +33,9 @@ XML_RESOURCE_XPATH_SYMBOLS = {
 
 
 class XmlResourceXPathParser(XPath1Parser):
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XML_RESOURCE_XPATH_SYMBOLS}
+    symbol_table = {
+        k: v for k, v in XPath1Parser.symbol_table.items() if k in XML_RESOURCE_XPATH_SYMBOLS
+    }
     SYMBOLS = XML_RESOURCE_XPATH_SYMBOLS
 
 
@@ -57,14 +61,17 @@ def normalize_url(url, base_url=None, keep_relative=False):
     urljoin.
 
     :param url: a relative or absolute URL.
-    :param base_url: the reference base URL for construct the normalized URL from the argument. \
-    For compatibility between "os.path.join" and "urljoin" a trailing '/' is added to not empty paths.
-    :param keep_relative: if set to `True` keeps relative file paths, which would not strictly \
-    conformant to URL format specification.
+    :param base_url: the reference base URL for construct the normalized URL from \
+    the argument. For compatibility between "os.path.join" and "urljoin" a trailing \
+    '/' is added to not empty paths.
+    :param keep_relative: if set to `True` keeps relative file paths, which would \
+    not strictly conformant to URL format specification.
     :return: A normalized URL.
     """
     def add_trailing_slash(x):
-        return urlunsplit((x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4]))
+        return urlunsplit(
+            (x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4])
+        )
 
     def filter_url(x):
         x = x.strip().replace('\\', '/')
@@ -105,7 +112,8 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 ))
 
                 # Add 'file' scheme if '//' prefix is added
-                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) and url.startswith('//'):
+                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) \
+                        and url.startswith('//'):
                     url = 'file:' + url
 
     url_parts = urlsplit(url, scheme='file')
@@ -350,8 +358,9 @@ class XMLResource(object):
 
         if url is None:
             raise XMLSchemaTypeError(
-                "wrong type %r for 'source' attribute: an ElementTree object or an Element instance or a "
-                "string containing XML data or an URL or a file-like object is required." % type(source)
+                "wrong type %r for 'source' attribute: an ElementTree object or "
+                "an Element instance or a string containing XML data or an URL "
+                "or a file-like object is required." % type(source)
             )
         else:
             resource = urlopen(url, timeout=self.timeout)
@@ -378,7 +387,9 @@ class XMLResource(object):
 
     @property
     def url(self):
-        """The source URL, `None` if the instance is created from an Element tree or from a string."""
+        """
+        The source URL, `None` if the instance is created from an Element tree or from a string.
+        """
         return self._url
 
     @property

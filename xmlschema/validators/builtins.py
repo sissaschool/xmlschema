@@ -83,7 +83,8 @@ def finite_number_validator(x):
 
 def qname_validator(x):
     if datatypes.QNAME_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(qname_validator, x, "value {!r} is not an xs:QName".format(x))
+        yield XMLSchemaValidationError(qname_validator, x,
+                                       "value {!r} is not an xs:QName".format(x))
 
 
 def byte_validator(x):
@@ -156,17 +157,20 @@ def base64_binary_validator(x):
         return
     match = NOT_BASE64_BINARY_PATTERN.search(x)
     if match is not None:
-        reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
+        reason = "not a base64 encoding: illegal character %r " \
+                 "at position %d." % (match.group(0), match.span()[0])
         yield XMLSchemaValidationError(base64_binary_validator, x, reason)
     else:
         try:
             base64.standard_b64decode(x)
         except (ValueError, TypeError) as err:
-            yield XMLSchemaValidationError(base64_binary_validator, x, "not a base64 encoding: %s." % err)
+            yield XMLSchemaValidationError(base64_binary_validator, x,
+                                           "not a base64 encoding: %s." % err)
 
 
 def error_type_validator(x):
-    yield XMLSchemaValidationError(error_type_validator, x, "not value is allowed for xs:error type.")
+    yield XMLSchemaValidationError(error_type_validator, x,
+                                   "not value is allowed for xs:error type.")
 
 
 #
@@ -414,7 +418,8 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_UNSIGNED_LONG,
         'python_type': int,
         'base_type': XSD_NON_NEGATIVE_INTEGER,
-        'facets': [unsigned_long_validator, etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
+        'facets': [unsigned_long_validator,
+                   etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
     },  # unsigned 128 bit value
     {
         'name': XSD_UNSIGNED_INT,

@@ -105,7 +105,7 @@ XSD_FRACTION_DIGITS = XSD_TEMPLATE % 'fractionDigits'
 
 # XSD 1.1 elements
 XSD_OPEN_CONTENT = XSD_TEMPLATE % 'openContent'                 # open content model
-XSD_DEFAULT_OPEN_CONTENT = XSD_TEMPLATE % 'defaultOpenContent'  # default open content model (schema level)
+XSD_DEFAULT_OPEN_CONTENT = XSD_TEMPLATE % 'defaultOpenContent'  # default open content model
 XSD_ALTERNATIVE = XSD_TEMPLATE % 'alternative'                  # conditional type assignment
 XSD_ASSERT = XSD_TEMPLATE % 'assert'                            # complex type assertions
 XSD_ASSERTION = XSD_TEMPLATE % 'assertion'                      # facets

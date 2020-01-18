@@ -28,7 +28,8 @@ from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
-from .xsdbase import XsdComponent, XsdType, ValidationMixin, ParticleMixin
+from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
+    XsdComponent, XsdType, ValidationMixin, ParticleMixin
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -86,9 +87,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
     def __repr__(self):
         if self.ref is None:
-            return '%s(name=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(name=%r, occurs=%r)' % (
+                self.__class__.__name__, self.prefixed_name, self.occurs
+            )
         else:
-            return '%s(ref=%r, occurs=%r)' % (self.__class__.__name__, self.prefixed_name, self.occurs)
+            return '%s(ref=%r, occurs=%r)' % (
+                self.__class__.__name__, self.prefixed_name, self.occurs
+            )
 
     def __setattr__(self, name, value):
         if name == "type":
@@ -133,7 +138,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
                 if attr_name in attrib:
-                    self.parse_error("attribute %r is not allowed when element reference is used." % attr_name)
+                    self.parse_error("attribute %r is not allowed when "
+                                     "element reference is used." % attr_name)
             return
 
         if 'form' in attrib:
@@ -165,7 +171,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if 'block' in attrib:
             try:
                 self._block = get_xsd_derivation_attribute(
-                    self.elem, 'block', ('extension', 'restriction', 'substitution')
+                    self.elem, 'block', XSD_ELEMENT_DERIVATIONS
                 )
             except ValueError as err:
                 self.parse_error(err)
@@ -176,17 +182,23 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if self.parent is None:
             if 'final' in attrib:
                 try:
-                    self._final = get_xsd_derivation_attribute(self.elem, 'final', ('extension', 'restriction'))
+                    self._final = get_xsd_derivation_attribute(
+                        self.elem, 'final', XSD_TYPE_DERIVATIONS
+                    )
                 except ValueError as err:
                     self.parse_error(err)
 
-            for attr_name in ('ref', 'form', 'minOccurs', 'maxOccurs'):
+            for attr_name in {'ref', 'form', 'minOccurs', 'maxOccurs'}:
                 if attr_name in attrib:
-                    self.parse_error("attribute %r not allowed in a global element declaration" % attr_name)
+                    self.parse_error(
+                        "attribute %r not allowed in a global element declaration" % attr_name
+                    )
         else:
-            for attr_name in ('final', 'substitutionGroup'):
+            for attr_name in {'final', 'substitutionGroup'}:
                 if attr_name in attrib:
-                    self.parse_error("attribute %r not allowed in a local element declaration" % attr_name)
+                    self.parse_error(
+                        "attribute %r not allowed in a local element declaration" % attr_name
+                    )
 
     def _parse_type(self):
         attrib = self.elem.attrib
@@ -208,8 +220,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
-                    msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
-                    self.parse_error(msg % child.tag.split('}')[-1])
+                    self.parse_error("the attribute 'type' and the <%s> local declaration "
+                                     "are mutually exclusive" % child.tag.split('}')[-1])
         else:
             child = self._parse_child_component(self.elem, strict=False)
             if child is not None:
@@ -288,7 +300,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
         else:
             if substitution_group_qname[0] != '{':
-                substitution_group_qname = get_qname(self.target_namespace, substitution_group_qname)
+                substitution_group_qname = get_qname(
+                    self.target_namespace, substitution_group_qname
+                )
 
         try:
             head_element = self.maps.lookup_element(substitution_group_qname)
@@ -306,17 +320,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
             pass
         elif not self.type.is_derived(head_element.type):
-            msg = "%r type is not of the same or a derivation of the head element %r type."
-            self.parse_error(msg % (self, head_element))
+            self.parse_error("%r type is not of the same or a derivation "
+                             "of the head element %r type." % (self, head_element))
         elif final == '#all' or 'extension' in final and 'restriction' in final:
-            msg = "head element %r can't be substituted by an element that has a derivation of its type"
-            self.parse_error(msg % head_element)
+            self.parse_error("head element %r can't be substituted by an element "
+                             "that has a derivation of its type" % head_element)
         elif 'extension' in final and self.type.is_derived(head_element.type, 'extension'):
-            msg = "head element %r can't be substituted by an element that has an extension of its type"
-            self.parse_error(msg % head_element)
+            self.parse_error("head element %r can't be substituted by an element "
+                             "that has an extension of its type" % head_element)
         elif 'restriction' in final and self.type.is_derived(head_element.type, 'restriction'):
-            msg = "head element %r can't be substituted by an element that has a restriction of its type"
-            self.parse_error(msg % head_element)
+            self.parse_error("head element %r can't be substituted by an element "
+                             "that has a restriction of its type" % head_element)
 
         try:
             self.maps.substitution_groups[substitution_group_qname].add(self)
@@ -402,7 +416,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         in which the element is contained or is relative to a specific ancestor passed as argument.
         In the latter case returns `None` if the argument is not an ancestor.
 
-        :param ancestor: optional XSD component of the same schema, that may be an ancestor of the element.
+        :param ancestor: optional XSD component of the same schema, that maybe \
+        an ancestor of the element.
         :param reverse: if set to `True` returns the reverse path, from the element to ancestor.
         """
         path = []
@@ -544,7 +559,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, err, elem, **kwargs)
 
             if xsd_type.is_blocked(self):
-                yield self.validation_error(validation, "usage of %r is blocked" % xsd_type, elem, **kwargs)
+                yield self.validation_error(
+                    validation, "usage of %r is blocked" % xsd_type, elem, **kwargs
+                )
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
@@ -613,7 +630,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     text = self.fixed
                 elif text == self.fixed or validation == 'skip':
                     pass
-                elif not strictly_equal(xsd_type.text_decode(text), xsd_type.text_decode(self.fixed)):
+                elif not strictly_equal(xsd_type.text_decode(text),
+                                        xsd_type.text_decode(self.fixed)):
                     reason = "must has the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
 
@@ -778,7 +796,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         elif xsd_type.has_simple_content():
             if element_data.text is not None:
-                for result in xsd_type.content_type.iter_encode(element_data.text, validation, **kwargs):
+                for result in xsd_type.content_type.iter_encode(
+                        element_data.text, validation, **kwargs
+                ):
                     if isinstance(result, XMLSchemaValidationError):
                         errors.append(result)
                     else:
@@ -857,7 +877,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
-            elif self.fixed != other.fixed and self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
+            elif self.fixed != other.fixed and \
+                    self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
                 return False
             elif other.nillable is False and self.nillable:
                 return False
@@ -942,7 +963,8 @@ class Xsd11Element(XsdElement):
           targetNamespace = anyURI
           type = QName
           {any attributes with non-schema namespace . . .}>
-          Content: (annotation?, ((simpleType | complexType)?, alternative*, (unique | key | keyref)*))
+          Content: (annotation?, ((simpleType | complexType)?, alternative*,
+          (unique | key | keyref)*))
         </element>
     """
     _target_namespace = None
@@ -1117,7 +1139,9 @@ class XsdAlternative(XsdComponent):
         super(XsdAlternative, self).__init__(elem, schema, parent)
 
     def __repr__(self):
-        return '%s(type=%r, test=%r)' % (self.__class__.__name__, self.elem.get('type'), self.elem.get('test'))
+        return '%s(type=%r, test=%r)' % (
+            self.__class__.__name__, self.elem.get('type'), self.elem.get('test')
+        )
 
     def __eq__(self, other):
         return self.path == other.path and self.type is other.type and \
@@ -1178,8 +1202,8 @@ class XsdAlternative(XsdComponent):
 
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
-                    msg = "the attribute 'type' and the <%s> local declaration are mutually exclusive"
-                    self.parse_error(msg % child.tag.split('}')[-1])
+                    self.parse_error("the attribute 'type' and the <%s> local declaration "
+                                     "are mutually exclusive" % child.tag.split('}')[-1])
 
     @property
     def built(self):

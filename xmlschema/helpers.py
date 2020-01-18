@@ -21,7 +21,8 @@ XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 
 def is_etree_element(elem):
     """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and \
+        not isinstance(elem, ElementPathMixin)
 
 
 def get_xsd_annotation(elem):
@@ -68,7 +69,8 @@ def get_xsd_form_attribute(elem, attribute):
     Get an XSD form attribute, checking the value. If the attribute is missing returns `None`
 
     :param elem: the Element instance.
-    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' or 'attributeFormDefault').
+    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' \
+    or 'attributeFormDefault').
     :return: a string.
     """
     value = elem.get(attribute)
