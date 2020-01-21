@@ -484,7 +484,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
-    def check_dynamic_context(self, elem, xsd_element, model_element, converter):
+    def check_dynamic_context(self, elem, xsd_element, model_element, namespaces):
         if model_element is not xsd_element:
             if 'substitution' in model_element.block \
                     or xsd_element.type.is_blocked(model_element):
@@ -505,7 +505,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 except KeyError:
                     return
                 else:
-                    xsd_type = self.maps.get_instance_type(type_name, self.any_type, converter)
+                    xsd_type = self.maps.get_instance_type(type_name, self.any_type, namespaces)
             else:
                 alternatives = xsd_element.alternatives
                 try:
@@ -513,7 +513,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
-                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, namespaces)
 
         else:
             if XSI_TYPE not in elem.attrib:
@@ -525,7 +525,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 except KeyError:
                     xsd_type = xsd_element.type
                 else:
-                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, converter)
+                    xsd_type = self.maps.get_instance_type(type_name, xsd_element.type, namespaces)
 
             if model_element is not xsd_element and model_element.block:
                 for derivation in model_element.block.split():

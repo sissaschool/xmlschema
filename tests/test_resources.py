@@ -76,10 +76,14 @@ class TestResources(unittest.TestCase):
 
         expected_parts = urlsplit(expected, scheme='file')
 
-        self.assertEqual(url_parts.scheme, expected_parts.scheme, "%r: Schemes differ." % url)
-        self.assertEqual(url_parts.netloc, expected_parts.netloc, "%r: Netloc parts differ." % url)
-        self.assertEqual(url_parts.query, expected_parts.query, "%r: Query parts differ." % url)
-        self.assertEqual(url_parts.fragment, expected_parts.fragment, "%r: Fragment parts differ." % url)
+        self.assertEqual(url_parts.scheme, expected_parts.scheme,
+                         "%r: Schemes differ." % url)
+        self.assertEqual(url_parts.netloc, expected_parts.netloc,
+                         "%r: Netloc parts differ." % url)
+        self.assertEqual(url_parts.query, expected_parts.query,
+                         "%r: Query parts differ." % url)
+        self.assertEqual(url_parts.fragment, expected_parts.fragment,
+                         "%r: Fragment parts differ." % url)
 
         if is_windows_path(url_parts.path) or is_windows_path(expected_parts.path):
             path = PureWindowsPath(filter_windows_path(url_parts.path))
@@ -95,7 +99,8 @@ class TestResources(unittest.TestCase):
 
         parent_dir = os.path.dirname(os.getcwd())
         self.check_url(normalize_url('../dir1/./dir2'), os.path.join(parent_dir, 'dir1/dir2'))
-        self.check_url(normalize_url('../dir1/./dir2', '/home', keep_relative=True), 'file:///dir1/dir2')
+        self.check_url(normalize_url('../dir1/./dir2', '/home', keep_relative=True),
+                       'file:///dir1/dir2')
         self.check_url(normalize_url('../dir1/./dir2', 'file:///home'), 'file:///dir1/dir2')
 
         self.check_url(normalize_url('other.xsd', 'file:///home'), 'file:///home/other.xsd')
@@ -109,35 +114,45 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('file:other.xsd', 'http://site/base'), cwd_url + 'other.xsd')
 
         self.check_url(normalize_url('dummy path.xsd'), cwd_url + 'dummy path.xsd')
-        self.check_url(normalize_url('dummy path.xsd', 'http://site/base'), 'http://site/base/dummy%20path.xsd')
-        self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'), 'file://host/home/dummy path.xsd')
+        self.check_url(normalize_url('dummy path.xsd', 'http://site/base'),
+                       'http://site/base/dummy%20path.xsd')
+        self.check_url(normalize_url('dummy path.xsd', 'file://host/home/'),
+                       'file://host/home/dummy path.xsd')
 
     def test_normalize_url_windows(self):
         win_abs_path1 = 'z:\\Dir_1_0\\Dir2-0\\schemas/XSD_1.0/XMLSchema.xsd'
         win_abs_path2 = 'z:\\Dir-1.0\\Dir-2_0\\'
         self.check_url(normalize_url(win_abs_path1), win_abs_path1)
 
-        self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path1), 'file:///k:\\Dir3\\schema.xsd')
-        self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path2), 'file:///k:\\Dir3\\schema.xsd')
-        self.check_url(normalize_url('schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/schema.xsd')
-        self.check_url(
-            normalize_url('xsd1.0/schema.xsd', win_abs_path2), 'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd'
-        )
-        self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'), 'file:///k:\\Dir A\\schema.xsd')
+        self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path1),
+                       'file:///k:\\Dir3\\schema.xsd')
+        self.check_url(normalize_url('k:\\Dir3\\schema.xsd', win_abs_path2),
+                       'file:///k:\\Dir3\\schema.xsd')
+        self.check_url(normalize_url('schema.xsd', win_abs_path2),
+                       'file:///z:\\Dir-1.0\\Dir-2_0/schema.xsd')
+        self.check_url(normalize_url('xsd1.0/schema.xsd', win_abs_path2),
+                       'file:///z:\\Dir-1.0\\Dir-2_0/xsd1.0/schema.xsd')
+        self.check_url(normalize_url('file:///\\k:\\Dir A\\schema.xsd'),
+                       'file:///k:\\Dir A\\schema.xsd')
 
     def test_normalize_url_slashes(self):
         # Issue #116
         self.assertEqual(
-            normalize_url('//anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'),
-            'file:///anaconda/envs/testenv/lib/python3.6/site-packages/xmlschema/validators/schemas/'
+            normalize_url('//anaconda/envs/testenv/lib/python3.6/'
+                          'site-packages/xmlschema/validators/schemas/'),
+            'file:///anaconda/envs/testenv/lib/python3.6/'
+            'site-packages/xmlschema/validators/schemas/'
         )
         self.assertEqual(normalize_url('/root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
         self.assertEqual(normalize_url('//root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
         self.assertEqual(normalize_url('////root/dir1/schema.xsd'), 'file:///root/dir1/schema.xsd')
 
-        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'), 'file:///root/dir1/dir2/schema.xsd')
-        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
-        self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'), 'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1/'),
+                         'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '//root/dir1'),
+                         'file:///root/dir1/dir2/schema.xsd')
+        self.assertEqual(normalize_url('dir2/schema.xsd', '////root/dir1'),
+                         'file:///root/dir1/dir2/schema.xsd')
 
     def test_normalize_url_hash_character(self):
         self.check_url(normalize_url('issue #000.xml', 'file:///dir1/dir2/'),
@@ -306,7 +321,7 @@ class TestResources(unittest.TestCase):
             for _ in resource.iter():
                 pass
             self.assertFalse(schema_file.closed)
-            for _ in resource.iterfind():
+            for _ in resource.iter_subtrees():
                 pass
             self.assertFalse(schema_file.closed)
 
@@ -323,7 +338,7 @@ class TestResources(unittest.TestCase):
             for _ in resource.iter():
                 pass
             self.assertFalse(schema_file.closed)
-            for _ in resource.iterfind():
+            for _ in resource.iter_subtrees():
                 pass
             self.assertFalse(schema_file.closed)
 
@@ -515,9 +530,11 @@ class TestResources(unittest.TestCase):
         tags = [x.tag for x in resource.iter('{%s}complexType' % XSD_NAMESPACE)]
         self.assertEqual(len(tags), 56)
         self.assertEqual(tags[0], '{%s}complexType' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iter('{%s}complexType' % XSD_NAMESPACE)])
+        self.assertListEqual(
+            tags, [x.tag for x in lazy_resource.iter('{%s}complexType' % XSD_NAMESPACE)]
+        )
 
-    def test_xml_resource_iterfind(self):
+    def test_xml_resource_iter_subtrees(self):
         namespaces = {'xs': XSD_NAMESPACE}
         resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=False)
         self.assertFalse(resource.is_lazy())
@@ -526,30 +543,35 @@ class TestResources(unittest.TestCase):
 
         # Note: Element change with lazy resource so compare only tags
 
-        tags = [x.tag for x in resource.iterfind()]
+        tags = [x.tag for x in resource.iter_subtrees()]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iterfind()])
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees()]
+        self.assertEqual(len(lazy_tags), 157)
+        self.assertListEqual(tags, lazy_tags[-1:])
 
-        tags = [x.tag for x in resource.iterfind(path='.')]
+        tags = [x.tag for x in resource.iter_subtrees(path='.')]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iterfind(path='.')])
+        self.assertListEqual(tags, [x.tag for x in lazy_resource.iter_subtrees(path='.')])
 
-        tags = [x.tag for x in resource.iterfind(path='*')]
+        tags = [x.tag for x in resource.iter_subtrees(path='*')]
         self.assertEqual(len(tags), 156)
         self.assertEqual(tags[0], '{%s}annotation' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iterfind(path='*')])
+        self.assertListEqual(tags, [x.tag for x in lazy_resource.iter_subtrees(path='*')])
 
-        tags = [x.tag for x in resource.iterfind('xs:complexType', namespaces)]
+        tags = [x.tag for x in resource.iter_subtrees('xs:complexType', namespaces)]
         self.assertEqual(len(tags), 35)
         self.assertTrue(all(t == '{%s}complexType' % XSD_NAMESPACE for t in tags))
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iterfind('xs:complexType', namespaces)])
+        self.assertListEqual(
+            tags, [x.tag for x in lazy_resource.iter_subtrees('xs:complexType', namespaces)])
 
-        tags = [x.tag for x in resource.iterfind('. /. / xs:complexType', namespaces)]
+        tags = [x.tag for x in resource.iter_subtrees('. /. / xs:complexType', namespaces)]
         self.assertEqual(len(tags), 35)
         self.assertTrue(all(t == '{%s}complexType' % XSD_NAMESPACE for t in tags))
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iterfind('. /. / xs:complexType', namespaces)])
+        self.assertListEqual(
+            tags, [x.tag for x in lazy_resource.iter_subtrees('. /. / xs:complexType', namespaces)]
+        )
 
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
@@ -598,10 +620,13 @@ class TestResources(unittest.TestCase):
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
 
     @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
-                     "Remote networks are not accessible or avoid SSL verification error on Windows.")
+                     "Remote networks are not accessible or avoid SSL "
+                     "verification error on Windows.")
     def test_remote_schemas_loading(self):
-        col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
-                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd")
+        col_schema = self.schema_class(
+            "https://raw.githubusercontent.com/brunato/xmlschema/master/"
+            "xmlschema/tests/test_cases/examples/collection/collection.xsd"
+        )
         self.assertTrue(isinstance(col_schema, self.schema_class))
         vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
                                       "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd")

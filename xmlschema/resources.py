@@ -54,6 +54,31 @@ def url_path_is_file(url):
     return os.path.isfile(urlsplit(url).path)
 
 
+def update_prefix(namespaces, prefix, uri):
+    """Update namespace registration without overwrite an existing one."""
+    if not prefix:
+        if '' not in namespaces:
+            namespaces[prefix] = uri
+            return
+        elif namespaces[''] == uri:
+            return
+        prefix = 'default'
+
+    while prefix in namespaces:
+        if namespaces[prefix] == uri:
+            return
+        match = re.search(r'(\d+)$', prefix)
+        if match:
+            index = int(match.group()) + 1
+            prefix = prefix[:match.span()[0]] + str(index)
+        else:
+            prefix += '0'
+    namespaces[prefix] = uri
+
+
+###
+# API for XML resources
+
 def normalize_url(url, base_url=None, keep_relative=False):
     """
     Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file' and
@@ -241,9 +266,11 @@ class XMLResource(object):
     :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' \
     or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :param lazy: if a value `False` is provided the XML data is fully loaded into and \
+    :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
     processed from memory. For default only the root element of the source is loaded, \
-    except in case the *source* argument is an Element or an ElementTree instance.
+    except in case the *source* argument is an Element or an ElementTree instance. A \
+    positive integer also defines the depth at which the lazy resource can be better \
+    iterated (`True` means 1).
     """
     _root = _text = _url = None
 
@@ -288,9 +315,15 @@ class XMLResource(object):
             elif value <= 0:
                 raise XMLSchemaValueError("the attribute 'timeout' must be a positive integer")
         elif name == '_lazy':
-            if not isinstance(value, bool):
+            if isinstance(value, bool):
+                pass
+            elif not isinstance(value, int):
                 msg = "invalid type {!r} for the attribute 'lazy'"
-                raise XMLSchemaValueError(msg.format(type(value)))
+                raise XMLSchemaTypeError(msg.format(type(value)))
+            elif value < 0:
+                msg = "invalid value {!r} for the attribute 'lazy'"
+                raise XMLSchemaValueError(msg.format(value))
+
         super(XMLResource, self).__setattr__(name, value)
 
     def _fromsource(self, source):
@@ -597,7 +630,12 @@ class XMLResource(object):
 
     def is_lazy(self):
         """Returns `True` if the XML resource is lazy."""
-        return self._lazy
+        return bool(self._lazy)
+
+    @property
+    def lazy_depth(self):
+        """The optimal depth for validate this resource in lazy mode."""
+        return int(self._lazy)
 
     def is_loaded(self):
         """Returns `True` if the XML text of the data source is loaded."""
@@ -625,15 +663,22 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iterfind(self, path=None, namespaces=None):
+    def iter_subtrees(self, path=None, namespaces=None, lazy=True):
         """
-        XML resource tree iterfind selector.
+        XML resource subtree iterator, that yields fully loaded elements. If a
+        path is provided the elements selected by the XPath expression are yielded.
+        If no path is provided and the resource is not lazy or the *lazy* argument
+        is False only the root element is yielded. If the resource is lazy and the
+        argument *lazy* is `True` all the elements at *lazy_level* of the tree are
+        yielded before the root.
 
-        :param path: an XPath expression to select nodes. If not provided the \
-        iteration returns only the root node.
-        :param namespaces: optional mapping from namespace prefixes to URIs. If the \
-        resource is lazy and an empty dictionary is provided, the namespace map is \
-        updated during the iteration.
+        :param path: an optional XPath expression to select element nodes.
+        :param namespaces: an optional mapping from namespace prefixes to URIs. \
+        Used to provide namespace mapping for the XPath expression. If the resource \
+        is lazy the namespace map is updated during the iteration.
+        :param lazy: defines how iterate a lazy resource when a path is not provided. \
+        If set to `True` all the elements at *lazy_level* of the tree are yielded \
+        before the root, if set to `False` only the root element is yielded.
         """
         if not self._lazy:
             if path is None:
@@ -641,7 +686,8 @@ class XMLResource(object):
             else:
                 yield from iter_select(self._root, path, namespaces, strict=False)
             return
-        elif self.seek(0) == 0:
+
+        if self.seek(0) == 0:
             resource = self.source
         elif self._url is not None:
             resource = urlopen(self._url, timeout=self.timeout)
@@ -649,76 +695,61 @@ class XMLResource(object):
             self.load()
             resource = StringIO(self._text)
 
-        if namespaces or namespaces is None:
-            events = ('start', 'end')
-            nsmap = None
+        nsmap = []
+        level = 0
+        changed = False
+        if namespaces is None:
+            events = 'start', 'end'
         else:
             # Track ad update namespaces
-            events = ('start-ns', 'end-ns', 'start', 'end')
-            nsmap = []
+            events = 'start-ns', 'end-ns', 'start', 'end'
+
+        if path is None:
+            subtree_level = int(self._lazy) if lazy else 0
+            select_all = True
+            selector = None
+        else:
+            selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
+            path = path.replace(' ', '').replace('./', '')
+
+            if path == '.':
+                subtree_level = 0
+            elif path.startswith('/'):
+                subtree_level = path.count('/') - 1
+            else:
+                subtree_level = path.count('/') + 1
+
+            select_all = '*' in path and set(path).issubset({'*', '/'})
 
         try:
-            if path is None:
-                level = 0
-                for event, node in self.iterparse(resource, events):
-                    if event == "start":
-                        if level == 0:
-                            self._root.clear()
-                            self._root = node
-                        level += 1
-                    elif event == 'end':
-                        level -= 1
-                        if level == 0:
+            for event, node in self.iterparse(resource, events):
+                if event == "start":
+                    if not level:
+                        self._root.clear()
+                        self._root = node
+                    level += 1
+                elif event == 'end':
+                    level -= 1
+                    if level == subtree_level:
+                        if select_all or node in selector.select(self._root):
                             yield node
-                            node.clear()
-                    elif event == 'start-ns':
-                        nsmap.append(node)
-                        namespaces[node[0]] = node[1]
-                    else:
-                        try:
-                            del namespaces[nsmap.pop()[0]]
-                        except KeyError:
-                            pass
+                    elif level:
+                        continue
+                    elif not path:
+                        yield node
+
+                    node.clear()
+                    if changed:
+                        namespaces.clear()
                         namespaces.update(nsmap)
+                        changed = False
 
-            else:
-                selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
-                path = path.replace(' ', '').replace('./', '')
-
-                if path == '.':
-                    path_level = 0
-                elif path.startswith('/'):
-                    path_level = path.count('/') - 1
+                elif event == 'start-ns':
+                    nsmap.append(node)
+                    update_prefix(namespaces, *node)
                 else:
-                    path_level = path.count('/') + 1
-
-                select_all = '*' in path and set(path).issubset({'*', '/'})
-
-                level = 0
-                for event, node in self.iterparse(resource, events):
-                    if event == "start":
-                        if not level:
-                            self._root.clear()
-                            self._root = node
-                        level += 1
-                    elif event == 'end':
-                        level -= 1
-                        if level == path_level and \
-                                (select_all or node in selector.select(self._root)):
-                            yield node
-                            node.clear()
-                        elif not level:
-                            node.clear()
-                    elif event == 'start-ns':
-                        nsmap.append(node)
-                        namespaces[node[0]] = node[1]
-                    else:
-                        try:
-                            del namespaces[nsmap.pop()[0]]
-                        except KeyError:
-                            pass
-                        namespaces.update(nsmap)
-
+                    nsmap.pop()
+                    changed = True
         finally:
             if self.source is not resource:
                 resource.close()
@@ -767,26 +798,6 @@ class XMLResource(object):
         :param root_only: if `True` extracts only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        def update_nsmap(prefix, uri):
-            if not prefix:
-                if '' not in nsmap:
-                    nsmap[prefix] = uri
-                    return
-                elif nsmap[''] == uri:
-                    return
-                prefix = 'default'
-
-            while prefix in nsmap:
-                if nsmap[prefix] == uri:
-                    return
-                match = re.search(r'(\d+)$', prefix)
-                if match:
-                    index = int(match.group()) + 1
-                    prefix = prefix[:match.span()[0]] + str(index)
-                else:
-                    prefix += '0'
-            nsmap[prefix] = uri
-
         nsmap = {}
         if not self.namespace:
             nsmap[''] = ''
@@ -802,11 +813,11 @@ class XMLResource(object):
                 # Can extract namespace mapping information only from lxml etree structures
                 if root_only:
                     for k, v in self._root.nsmap.items():
-                        update_nsmap(k if k is not None else '', v)
+                        update_prefix(nsmap, k if k is not None else '', v)
                 else:
                     for elem in self._root.iter():
                         for k, v in elem.nsmap.items():
-                            update_nsmap(k if k is not None else '', v)
+                            update_prefix(nsmap, k if k is not None else '', v)
 
             if nsmap.get('') == '':
                 del nsmap['']
@@ -816,7 +827,7 @@ class XMLResource(object):
         try:
             for event, node in self.iterparse(resource, events):
                 if event == 'start-ns':
-                    update_nsmap(*node)
+                    update_prefix(nsmap, *node)
                 elif event == 'end':
                     node.clear()
                 else:

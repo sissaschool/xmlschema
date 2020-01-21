@@ -680,6 +680,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)
             yield converter.element_decode(element_data, self, level)
+        elif not level:
+            yield ElementData(elem.tag, value, None, attributes)
+
         if content is not None:
             del content
 

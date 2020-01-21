@@ -24,6 +24,7 @@ import re
 import sys
 
 
+from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
@@ -877,7 +878,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if not path:
             return self.find(tag)
         elif path[-1] == '*':
-            return self.find(path[:-1] + tag, namespaces)
+            return self.find(path[:-1] + tag, namespaces) or self.maps.elements.get(tag)
         else:
             return self.find(path, namespaces)
 
@@ -1257,8 +1258,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         id_map = Counter()
         identities = {}
-        root_only = source.is_lazy() and not namespaces
-        namespaces = source.get_namespaces(namespaces, root_only)
+        namespaces = source.get_namespaces(namespaces, root_only=source.is_lazy())
         namespace = source.namespace or namespaces.get('', '')
 
         try:
@@ -1281,34 +1281,28 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             'inherited': {},
         }
 
-        if source.is_lazy() and path is None:
-            kwargs['locations'] = {}  # Lazy schema load
+        # TODO: kwargs['locations'] = {}  # Lazy schemas load
 
-            xsd_element = schema.get_element(source.root.tag, schema_path, namespaces)
-            if xsd_element is None:
-                if XSI_TYPE in source.root.attrib:
-                    xsd_element = self.create_element(name=source.root.tag)
-                else:
-                    reason = "{!r} is not an element of the schema".format(source.root)
-                    yield schema.validation_error('lax', reason, source.root, source, namespaces)
-                    return
+        tot_elements = 0
+        lazy_depth = source.lazy_depth
+        if not lazy_depth or path:
+            schema_root_path = schema_path
+        elif not schema_path:
+            schema_root_path = None
+            schema_path = '/%s/%s' % (source.root.tag, '/'.join('*' * lazy_depth))
+        else:
+            schema_root_path = None
+            schema_path = '/%s/%s' % (schema_path, '/'.join('*' * lazy_depth))
 
-            for result in xsd_element.iter_decode(source.root, max_depth=1, **kwargs):
-                if isinstance(result, XMLSchemaValidationError):
-                    yield result
-                else:
-                    del result
+        for elem in source.iter_subtrees(path, namespaces):
+            tot_elements += 1
+            if elem is source.root:
+                xsd_element = schema.get_element(elem.tag, schema_root_path, namespaces)
+                if lazy_depth:
+                    kwargs['max_depth'] = source.lazy_depth
+            else:
+                xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
 
-            path = '*'
-            if not schema_path:
-                schema_path = '/%s/*' % source.root.tag
-
-            if root_only:
-                # Tell to iterfind to catch namespace events and update map
-                namespaces.clear()
-
-        for elem in source.iterfind(path, namespaces):
-            xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
@@ -1431,7 +1425,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if root_only:
             converter.namespaces.clear()
 
-        for elem in source.iterfind(path, converter.namespaces):
+        for elem in source.iter_subtrees(path, converter.namespaces, lazy=False):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
@@ -1473,6 +1467,35 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             return (data, errors) if validation == 'lax' else data
 
     to_dict = decode
+
+    def to_json(self, source, fp=None, json_options=None, path=None,
+                schema_path=None, validation='strict', *args, **kwargs):
+        """
+        Serialize XML data to JSON.
+        """
+        if json_options is None:
+            json_options = {}
+        if 'decimal_type' not in kwargs:
+            kwargs['decimal_type'] = float
+        if 'dict_class' not in kwargs:
+            kwargs['dict_class'] = ordered_dict_class
+
+        data, errors = [], []
+        for result in self.iter_decode(source, path, schema_path, validation, *args, **kwargs):
+            if not isinstance(result, XMLSchemaValidationError):
+                data.append(result)
+            elif validation == 'lax':
+                errors.append(result)
+            else:
+                raise result
+
+        if not data:
+            return (None, errors) if validation == 'lax' else None
+        elif len(data) == 1:
+            return (data[0], errors) if validation == 'lax' else data[0]
+        else:
+            return (data, errors) if validation == 'lax' else data
+
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None,
                     unordered=False, **kwargs):
