@@ -25,9 +25,11 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
         cls = XMLSchema
     if not isinstance(source, XMLResource):
         source = XMLResource(source, base_url, defuse=defuse, timeout=timeout, lazy=lazy)
+    if isinstance(schema, XMLSchemaBase) and source.namespace in schema.maps.namespaces:
+        return source, schema
 
     try:
-        schema, locations = fetch_schema_locations(source, locations, base_url=base_url)
+        schema_location, locations = fetch_schema_locations(source, locations, base_url=base_url)
     except ValueError:
         if schema is None:
             raise
@@ -35,7 +37,7 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
             schema = cls(schema, validation='strict', locations=locations,
                          base_url=base_url, defuse=defuse, timeout=timeout)
     else:
-        schema = cls(schema, validation='strict', locations=locations,
+        schema = cls(schema or schema_location, validation='strict', locations=locations,
                      defuse=defuse, timeout=timeout)
 
     return source, schema
@@ -147,7 +149,7 @@ def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=T
     source, schema = get_context(
         xml_document, schema, cls, locations, base_url, defuse, timeout, lazy
     )
-    return schema.to_dict(source, path=path, process_namespaces=process_namespaces, **kwargs)
+    return schema.decode(source, path=path, process_namespaces=process_namespaces, **kwargs)
 
 
 def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=None,
