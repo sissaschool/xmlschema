@@ -448,6 +448,16 @@ class XMLResource(object):
         """The namespace of the XML resource."""
         return get_namespace(self._root.tag)
 
+    def get_absolute_path(self, path=None):
+        if path is None:
+            if self._lazy:
+                return '/%s/%s' % (self._root.tag, '/'.join('*' * int(self._lazy)))
+            return '/%s' % self._root.tag
+        elif path.startswith('/'):
+            return path
+        else:
+            return '/%s/%s' % (self._root.tag, path)
+
     @staticmethod
     def defusing(source):
         """
@@ -663,7 +673,7 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iter_subtrees(self, path=None, namespaces=None, lazy=True):
+    def iter_subtrees(self, path=None, namespaces=None, lazy=True, lazy_root=True):
         """
         XML resource subtree iterator, that yields fully loaded elements. If a
         path is provided the elements selected by the XPath expression are yielded.
@@ -679,6 +689,9 @@ class XMLResource(object):
         :param lazy: defines how iterate a lazy resource when a path is not provided. \
         If set to `True` all the elements at *lazy_level* of the tree are yielded \
         before the root, if set to `False` only the root element is yielded.
+        :param lazy_root: if set to `False` and if the *lazy* argument the root \
+        element is not yielded at the end in case of lazy resource without a path. \
+        Default is `True`.
         """
         if not self._lazy:
             if path is None:
@@ -735,7 +748,7 @@ class XMLResource(object):
                             yield node
                     elif level:
                         continue
-                    elif not path:
+                    elif not path and (not lazy or lazy_root):
                         yield node
 
                     node.clear()
@@ -754,14 +767,14 @@ class XMLResource(object):
             if self.source is not resource:
                 resource.close()
 
-    def iter_location_hints(self, root_only=False):
+    def iter_location_hints(self, root_only=None):
         """
         Yields schema location hints from the XML resource.
 
-        :param root_only: if `True` yields only the location hints declared in \
-        the root element.
+        :param root_only: if `True` or `None` and the resource is lazy \
+        yields only the location hints declared in the root element.
         """
-        if root_only:
+        if root_only or root_only is None and self._lazy:
             yield from etree_iter_location_hints(self._root)
             return
 
@@ -786,7 +799,7 @@ class XMLResource(object):
             if self.source is not resource:
                 resource.close()
 
-    def get_namespaces(self, namespaces=None, root_only=False):
+    def get_namespaces(self, namespaces=None, root_only=None):
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
@@ -795,7 +808,8 @@ class XMLResource(object):
         names. In other cases uses 'default' prefix as substitute.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
-        :param root_only: if `True` extracts only the namespaces declared in the root element.
+        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
+        only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
         nsmap = {}
@@ -803,6 +817,8 @@ class XMLResource(object):
             nsmap[''] = ''
         if namespaces:
             nsmap.update(namespaces)
+        if root_only is None:
+            root_only = self._lazy
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
@@ -845,19 +861,22 @@ class XMLResource(object):
             del nsmap['']
         return nsmap
 
-    def get_locations(self, locations=None, root_only=False):
+    def get_locations(self, locations=None, root_only=None):
         """
         Extracts a list of normalized schema location hints from the XML resource.
         The locations are normalized using the base URL of the instance.
 
         :param locations: a dictionary or a list of namespace resources that is \
         inserted before the schema location hints extracted from the XML resource.
-        :param root_only: if `True` extracts only the location hints declared in \
-        the root element.
+        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
+        only the location hints declared in the root element.
         :returns: a list of couples containing namespace location hints.
         """
         base_url = self.base_url
         location_hints = []
+        if root_only is None:
+            root_only = self._lazy
+
         if locations is not None:
             try:
                 for ns, value in locations.items():
