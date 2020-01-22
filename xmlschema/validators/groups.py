@@ -592,6 +592,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 cdata_index += 1
 
         level = kwargs['level'] = kwargs.pop('level', 0) + 1
+        over_max_depth = 'max_depth' in kwargs and kwargs['max_depth'] <= level
         if level > limits.MAX_XML_DEPTH:
             reason = "XML data depth exceeded (MAX_XML_DEPTH=%r)" % limits.MAX_XML_DEPTH
             self.validation_error('strict', reason, elem, **kwargs)
@@ -657,10 +658,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         xsd_element = None
                         model_broken = True
 
-            if 'max_depth' in kwargs and kwargs['max_depth'] <= level:
-                continue
-            elif xsd_element is None:
+            if xsd_element is None:
                 # TODO: apply a default decoder str-->str??
+                continue
+            elif over_max_depth:
+                if 'depth_filler' in kwargs:
+                    obj = kwargs['depth_filler']
+                    result_list.append((child.tag, obj(xsd_element), xsd_element))
                 continue
 
             for result in xsd_element.iter_decode(child, validation, **kwargs):
@@ -777,8 +781,13 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                             break
                         else:
                             if validation != 'skip':
-                                reason = '%r does not match any declared element ' \
-                                         'of the model group.' % name
+                                if name.startswith('{') or ':' not in name:
+                                    reason = '{!r} does not match any declared element ' \
+                                             'of the model group.'.format(name)
+                                else:
+                                    reason = '{} has an unknown prefix {!r}'.format(
+                                        name, name.split(':')[0]
+                                    )
                                 yield self.validation_error(validation, reason, value, **kwargs)
                             continue
 

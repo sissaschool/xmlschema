@@ -8,10 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import json
+from collections.abc import Iterator
 
 from .compat import ordered_dict_class
 from .resources import fetch_schema_locations, XMLResource
-from .validators import XMLSchema, XMLSchemaBase
+from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
 
 
 def get_context(source, schema=None, cls=None, locations=None, base_url=None,
@@ -205,18 +206,41 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
     kwargs['converter'] = converter
     kwargs['process_namespaces'] = process_namespaces
 
-    obj = schema.to_dict(source, path=path, **kwargs)
+    errors = []
+
+    if path is None and source.is_lazy() and 'cls' not in json_options:
+
+        class JSONLazyEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, Iterator):
+                    while True:
+                        result = next(obj, None)
+                        if isinstance(result, XMLSchemaValidationError):
+                            errors.append(result)
+                        else:
+                            return result
+                return json.JSONEncoder.default(self, obj)
+
+        json_options['cls'] = JSONLazyEncoder
+        kwargs['lazy_decode'] = True
+
+    obj = schema.decode(source, path=path, **kwargs)
 
     if isinstance(obj, tuple):
         if fp is not None:
             json.dump(obj[0], fp, **kwargs)
+            obj[1].extend(errors)
             return tuple(obj[1])
         else:
-            return json.dumps(obj[0], **json_options), tuple(obj[1])
+            result = json.dumps(obj[0], **json_options)
+            obj[1].extend(errors)
+            return result, tuple(obj[1])
     elif fp is not None:
         json.dump(obj, fp, **json_options)
+        return None if not errors else tuple(errors)
     else:
-        return json.dumps(obj, **json_options)
+        result = json.dumps(obj, **json_options)
+        return result if not errors else (result, tuple(errors))
 
 
 def from_json(source, schema, path=None, converter=None, json_options=None, **kwargs):

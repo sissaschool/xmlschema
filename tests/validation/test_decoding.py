@@ -438,12 +438,6 @@ class TestDecoding(XsdValidatorTestCase):
             validation='skip', path='object/author', lazy=True, **kwargs
         ))
 
-        # lazy mode doesn't scan namespace declarations before start
-        with self.assertRaises(KeyError):
-            xmlschema.to_json(path='/col:collection/object/author', lazy=True, **kwargs)
-
-        kwargs['namespaces'] = {'col': 'http://example.com/ns/collection'}
-
         # Tests for issue #159
         self.assertEqual(json_data, xmlschema.to_json(
             path='/col:collection/object/author', lazy=True, **kwargs

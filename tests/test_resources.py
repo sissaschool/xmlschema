@@ -546,32 +546,50 @@ class TestResources(unittest.TestCase):
         tags = [x.tag for x in resource.iter_subtrees()]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
+
         lazy_tags = [x.tag for x in lazy_resource.iter_subtrees()]
+        self.assertListEqual(tags, lazy_tags)
+
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(lazy_mode=2)]
+        self.assertListEqual(tags, lazy_tags)
+
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(lazy_mode=3)]
+        self.assertEqual(len(lazy_tags), 156)
+
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(lazy_mode=4)]
         self.assertEqual(len(lazy_tags), 157)
-        self.assertListEqual(tags, lazy_tags[-1:])
+        self.assertEqual(tags[0], lazy_tags[-1])
+
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(lazy_mode=5)]
+        self.assertEqual(len(lazy_tags), 158)
+        self.assertEqual(tags[0], lazy_tags[0])
+        self.assertEqual(tags[0], lazy_tags[-1])
 
         tags = [x.tag for x in resource.iter_subtrees(path='.')]
         self.assertEqual(len(tags), 1)
         self.assertEqual(tags[0], '{%s}schema' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iter_subtrees(path='.')])
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(path='.')]
+        self.assertListEqual(tags, lazy_tags)
 
         tags = [x.tag for x in resource.iter_subtrees(path='*')]
         self.assertEqual(len(tags), 156)
         self.assertEqual(tags[0], '{%s}annotation' % XSD_NAMESPACE)
-        self.assertListEqual(tags, [x.tag for x in lazy_resource.iter_subtrees(path='*')])
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees(path='*')]
+        self.assertListEqual(tags, lazy_tags)
 
         tags = [x.tag for x in resource.iter_subtrees('xs:complexType', namespaces)]
         self.assertEqual(len(tags), 35)
         self.assertTrue(all(t == '{%s}complexType' % XSD_NAMESPACE for t in tags))
-        self.assertListEqual(
-            tags, [x.tag for x in lazy_resource.iter_subtrees('xs:complexType', namespaces)])
+        lazy_tags = [x.tag for x in lazy_resource.iter_subtrees('xs:complexType', namespaces)]
+        self.assertListEqual(tags, lazy_tags)
 
         tags = [x.tag for x in resource.iter_subtrees('. /. / xs:complexType', namespaces)]
         self.assertEqual(len(tags), 35)
         self.assertTrue(all(t == '{%s}complexType' % XSD_NAMESPACE for t in tags))
-        self.assertListEqual(
-            tags, [x.tag for x in lazy_resource.iter_subtrees('. /. / xs:complexType', namespaces)]
-        )
+        lazy_tags = [
+            x.tag for x in lazy_resource.iter_subtrees('. /. / xs:complexType', namespaces)
+        ]
+        self.assertListEqual(tags, lazy_tags)
 
     def test_xml_resource_get_namespaces(self):
         with open(self.vh_xml_file) as schema_file:
@@ -597,20 +615,27 @@ class TestResources(unittest.TestCase):
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns="tns1">
                 <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
-            </root>""")
+            </root>""", lazy=False)
         self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'default'})
+        resource._lazy = True
+        self.assertEqual(resource.get_namespaces().keys(), {''})
 
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns:tns="tns1">
                 <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
-            </root>""")
+            </root>""", lazy=False)
         self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns'})
+        self.assertEqual(resource.get_namespaces(root_only=True).keys(), {'tns'})
+        resource._lazy = True
+        self.assertEqual(resource.get_namespaces().keys(), {'tns'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns:tns="tns1">
                 <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
-            </root>""")
+            </root>""", lazy=False)
         self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns0'})
+        resource._lazy = True
+        self.assertEqual(resource.get_namespaces().keys(), {'tns'})
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)

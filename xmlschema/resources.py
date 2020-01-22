@@ -222,7 +222,7 @@ def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote
 
     base_url = resource.base_url
     namespace = resource.namespace
-    locations = resource.get_locations(locations)
+    locations = resource.get_locations(locations, root_only=False)
     if not locations:
         msg = "the XML data resource {!r} does not contain any schema location hint."
         raise XMLSchemaValueError(msg.format(source))
@@ -252,7 +252,7 @@ def fetch_namespaces(source, base_url=None, defuse='remote', timeout=30):
     namespace mappings is returned.
     """
     resource = XMLResource(source, base_url, defuse, timeout)
-    return resource.get_namespaces()
+    return resource.get_namespaces(root_only=False)
 
 
 class XMLResource(object):
@@ -536,7 +536,7 @@ class XMLResource(object):
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
         elem = self._root
-        namespaces = self.get_namespaces()
+        namespaces = self.get_namespaces(root_only=False)
         return etree_tostring(elem, namespaces, indent, max_lines, spaces_for_tab, xml_declaration)
 
     def copy(self, **kwargs):
@@ -673,26 +673,29 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iter_subtrees(self, path=None, namespaces=None, lazy=True, lazy_root=True):
+    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1):
         """
         XML resource subtree iterator, that yields fully loaded elements. If a
         path is provided the elements selected by the XPath expression are yielded.
-        If no path is provided and the resource is not lazy or the *lazy* argument
-        is False only the root element is yielded. If the resource is lazy and the
-        argument *lazy* is `True` all the elements at *lazy_level* of the tree are
-        yielded before the root.
+        If no path is provided only the root element is yielded. For lazy resources
+        the argument *lazy_mode* can change the sequence of elements yielded.
 
         :param path: an optional XPath expression to select element nodes.
         :param namespaces: an optional mapping from namespace prefixes to URIs. \
         Used to provide namespace mapping for the XPath expression. If the resource \
         is lazy the namespace map is updated during the iteration.
-        :param lazy: defines how iterate a lazy resource when a path is not provided. \
-        If set to `True` all the elements at *lazy_level* of the tree are yielded \
-        before the root, if set to `False` only the root element is yielded.
-        :param lazy_root: if set to `False` and if the *lazy* argument the root \
-        element is not yielded at the end in case of lazy resource without a path. \
-        Default is `True`.
+        :param lazy_mode: defines how a lazy resource is iterated when a path \
+        is not provided. There are five possible modes, that generate different \
+        sequences of elements:\n \
+          - Only a full root element (the default mode)\n\
+          - Only a root element pruned at *depth_level*\n\
+          - Only the elements at *depth_level* level of the tree\n\
+          - The elements at *depth_level* and then a pruned root\n\
+          - An incomplete root at start, the elements at *depth_level* and a pruned root\n\
         """
+        if not (1 <= lazy_mode <= 5):
+            raise XMLSchemaValueError("invalid argument lazy_mode={!r}".format(lazy_mode))
+
         if not self._lazy:
             if path is None:
                 yield self._root
@@ -718,9 +721,10 @@ class XMLResource(object):
             events = 'start-ns', 'end-ns', 'start', 'end'
 
         if path is None:
-            subtree_level = int(self._lazy) if lazy else 0
+            subtree_level = int(self._lazy) if lazy_mode > 1 else 0
             select_all = True
             selector = None
+            skip_depth_elements = lazy_mode < 3
         else:
             selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
             path = path.replace(' ', '').replace('./', '')
@@ -733,6 +737,7 @@ class XMLResource(object):
                 subtree_level = path.count('/') + 1
 
             select_all = '*' in path and set(path).issubset({'*', '/'})
+            skip_depth_elements = False
 
         try:
             for event, node in self.iterparse(resource, events):
@@ -740,15 +745,24 @@ class XMLResource(object):
                     if not level:
                         self._root.clear()
                         self._root = node
+                        if not path and lazy_mode == 5:
+                            yield node
                     level += 1
                 elif event == 'end':
                     level -= 1
-                    if level == subtree_level:
-                        if select_all or node in selector.select(self._root):
+                    if not level:
+                        if not path:
+                            if lazy_mode != 3:
+                                yield node
+                        elif subtree_level:
+                            pass
+                        elif select_all or node in selector.select(self._root):
                             yield node
-                    elif level:
+                    elif level != subtree_level:
                         continue
-                    elif not path and (not lazy or lazy_root):
+                    elif skip_depth_elements:
+                        pass
+                    elif select_all or node in selector.select(self._root):
                         yield node
 
                     node.clear()

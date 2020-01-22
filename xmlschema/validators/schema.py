@@ -15,16 +15,14 @@ XMLSchema11 for XSD 1.1. The latter class parses also XSD 1.0 schemas, as prescr
 the standard.
 """
 import os
-from collections import namedtuple, Counter
-from abc import ABCMeta
 import logging
 import threading
 import warnings
 import re
 import sys
+from abc import ABCMeta
+from collections import namedtuple, Counter
 
-
-from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
@@ -772,6 +770,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         for error in cls.meta_schema.iter_errors(schema, namespaces=namespaces):
             raise error
 
+    def check_validator(self, validation='strict'):
+        """Checks the status of a schema validator against a validation mode."""
+        if validation not in XSD_VALIDATION_MODES:
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
+
+        if not self.built:
+            if self.meta_schema is not None:
+                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
+            self.build()  # Meta-schema lazy build
+
     def build(self):
         """Builds the schema's XSD global maps."""
         self.maps.build()
@@ -843,6 +852,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             yield self
         for xsd_global in self.iter_globals(self):
             yield from xsd_global.iter_components(xsd_classes)
+
+    def get_resource(self, source, **kwargs):
+        return XMLResource(
+            source=source,
+            base_url=kwargs.get('base_url'),
+            defuse=kwargs.get('defuse', self.defuse),
+            timeout=kwargs.get('timeout', self.timeout),
+            lazy=kwargs.get('lazy', False)
+        )
+
+    def get_schema(self, namespace):
+        try:
+            return self.maps.namespaces[namespace][0]
+        except KeyError:
+            if not namespace:
+                return self
+            raise XMLSchemaKeyError('the namespace {!r} is not loaded'.format(namespace)) from None
 
     def get_converter(self, converter=None, namespaces=None, **kwargs):
         """
@@ -1246,29 +1272,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param use_defaults: Use schema's default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        if not self.built:
-            if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
-            self.build()
-
+        self.check_validator(validation='lax')
         if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
-        if not schema_path and path:
-            schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
+            source = self.get_resource(source)
+        if not schema_path:
+            schema_path = source.get_absolute_path(path)
 
         id_map = Counter()
         identities = {}
-        namespaces = source.get_namespaces(namespaces, root_only=source.is_lazy())
+        namespaces = source.get_namespaces(namespaces)
         namespace = source.namespace or namespaces.get('', '')
-
-        try:
-            schema = self.maps.namespaces[namespace][0]
-        except (KeyError, IndexError):
-            if namespace or not schema_path:
-                reason = 'the namespace {!r} is not loaded'.format(namespace)
-                yield self.validation_error('lax', reason, source.root, source, namespaces)
-                return
-            schema = self
+        schema = self.get_schema(namespace)
 
         kwargs = {
             'level': 0,
@@ -1283,22 +1297,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         # TODO: kwargs['locations'] = {}  # Lazy schemas load
 
-        tot_elements = 0
-        lazy_depth = source.lazy_depth
-        if not lazy_depth or path:
-            schema_root_path = schema_path
-        elif not schema_path:
-            schema_root_path = None
-            schema_path = '/%s/%s' % (source.root.tag, '/'.join('*' * lazy_depth))
-        else:
-            schema_root_path = None
-            schema_path = '/%s/%s' % (schema_path, '/'.join('*' * lazy_depth))
-
-        for elem in source.iter_subtrees(path, namespaces):
-            tot_elements += 1
+        for elem in source.iter_subtrees(path, namespaces, lazy_mode=4):
             if elem is source.root:
-                xsd_element = schema.get_element(elem.tag, schema_root_path, namespaces)
-                if lazy_depth:
+                xsd_element = schema.get_element(elem.tag, namespaces=namespaces)
+                if source.lazy_depth:
                     kwargs['max_depth'] = source.lazy_depth
             else:
                 xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
@@ -1320,6 +1322,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         # Check unresolved IDREF values
         for k, v in id_map.items():
             if isinstance(v, XMLSchemaValidationError):
+                print(v)
                 yield v
             elif v == 0:
                 yield self.validation_error(
@@ -1332,10 +1335,35 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             for error in counter.iter_errors(identities):
                 yield self.validation_error('lax', error, source.root, **kwargs)
 
+    def raw_decoder(self, source, path=None, schema_path=None, validation='lax',
+                         namespaces=None, lazy_mode=1, **kwargs):
+        """Returns a generator for decoding a resource."""
+        for elem in source.iter_subtrees(path, namespaces, lazy_mode):
+            xsd_element = self.get_element(elem.tag, schema_path, namespaces)
+            if xsd_element is None:
+                if XSI_TYPE in elem.attrib:
+                    xsd_element = self.create_element(name=elem.tag)
+                else:
+                    reason = "{!r} is not an element of the schema".format(elem)
+                    yield self.validation_error(validation, reason, elem, source, namespaces)
+                    continue
+
+            yield from xsd_element.iter_decode(elem, validation, **kwargs)
+
+        if 'max_depth' not in kwargs:
+            try:
+                for k, v in kwargs['id_map'].items():
+                    if v == 0:
+                        msg = "IDREF %r not found in XML document" % k
+                        yield self.validation_error(validation, msg, source.root)
+            except KeyError:
+                pass
+
     def iter_decode(self, source, path=None, schema_path=None, validation='lax',
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, converter=None,
-                    filler=None, fill_missing=False, max_depth=None, **kwargs):
+                    filler=None, fill_missing=False, max_depth=None, depth_filler=None,
+                    lazy_decode=False, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1362,47 +1390,34 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
         for decoding.
         :param filler: an optional callback function to fill undecodable data with a \
-        typed value. The callback function must accepts one positional argument, that \
+        typed value. The callback function must accept one positional argument, that \
         can be an XSD Element or an attribute declaration. If not provided undecodable \
         data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
         :param max_depth: maximum level of decoding, for default there is no limit.
+        :param depth_filler: an optional callback function to replace data over the \
+        *max_depth* level. The callback function must accept one positional argument, that \
+        can be an XSD Element. If not provided deeper data are replaced with `None` values.
+        :param lazy_decode: if set to `True`, the resource is lazy and no path is \
+        provided a full lazy decoder is generated.
         :param kwargs: keyword arguments with other options for converter and decoder.
-        :return: yields a decoded data object, eventually preceded by a sequence of validation \
-        or decoding errors.
+        :return: yields a decoded data object, eventually preceded by a sequence of \
+        validation or decoding errors.
         """
-        if not self.built:
-            if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
-            self.build()
-
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
-        elif not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
-
+        self.check_validator(validation)
+        if not isinstance(source, XMLResource):
+            source = self.get_resource(source, **kwargs)
         if not schema_path and path:
-            schema_path = path if path.startswith('/') else '/%s/%s' % (source.root.tag, path)
+            schema_path = source.get_absolute_path(path)
 
         if process_namespaces:
-            root_only = source.is_lazy() and not namespaces
-            namespaces = source.get_namespaces(namespaces, root_only)
+            namespaces = source.get_namespaces(namespaces)
             namespace = source.namespace or namespaces.get('', '')
         else:
-            root_only = namespaces = None
             namespace = source.namespace
 
-        try:
-            schema = self.maps.namespaces[namespace][0]
-        except (KeyError, IndexError):
-            if namespace or not schema_path:
-                reason = 'the namespace {!r} is not loaded'.format(namespace)
-                yield self.validation_error('lax', reason, source.root, source, namespaces)
-                return
-            schema = self
-
+        schema = self.get_schema(namespace)
         id_map = Counter()
         converter = self.get_converter(converter, namespaces, **kwargs)
         kwargs.update(
@@ -1415,40 +1430,50 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             id_map=id_map,
             inherited={},
         )
+
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
             kwargs['filler'] = filler
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
+        if depth_filler is not None:
+            kwargs['depth_filler'] = depth_filler
 
-        if root_only:
-            converter.namespaces.clear()
+        if lazy_decode and path is None and source.is_lazy():
+            decoder = self.raw_decoder(
+                schema_path=source.get_absolute_path(),
+                validation=validation,
+                lazy_mode=3,
+                **kwargs
+            )
+            kwargs['depth_filler'] = lambda x: decoder
+            kwargs['max_depth'] = source.lazy_depth
+            lazy_mode = 2
+        else:
+            lazy_mode = 1
 
-        for elem in source.iter_subtrees(path, converter.namespaces, lazy=False):
+        for elem in source.iter_subtrees(path, converter.namespaces, lazy_mode=lazy_mode):
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
                 else:
                     reason = "{!r} is not an element of the schema".format(elem)
-                    yield schema.validation_error('lax', reason, elem, source, namespaces)
+                    yield schema.validation_error(validation, reason, elem, source, namespaces)
                     return
 
             yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
-        for k, v in id_map.items():
-            if isinstance(v, XMLSchemaValidationError):
-                yield v
-            elif v == 0:
-                yield self.validation_error(
-                    'lax', "IDREF %r not found in XML document" % k, source.root
-                )
+        if 'max_depth' not in kwargs:
+            for k, v in id_map.items():
+                if v == 0:
+                    msg = "IDREF %r not found in XML document" % k
+                    yield self.validation_error(validation, msg, source.root)
 
     def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):
         """
         Decodes XML data. Takes the same arguments of the method :func:`XMLSchema.iter_decode`.
-
         """
         data, errors = [], []
         for result in self.iter_decode(source, path, schema_path, validation, *args, **kwargs):
@@ -1467,35 +1492,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             return (data, errors) if validation == 'lax' else data
 
     to_dict = decode
-
-    def to_json(self, source, fp=None, json_options=None, path=None,
-                schema_path=None, validation='strict', *args, **kwargs):
-        """
-        Serialize XML data to JSON.
-        """
-        if json_options is None:
-            json_options = {}
-        if 'decimal_type' not in kwargs:
-            kwargs['decimal_type'] = float
-        if 'dict_class' not in kwargs:
-            kwargs['dict_class'] = ordered_dict_class
-
-        data, errors = [], []
-        for result in self.iter_decode(source, path, schema_path, validation, *args, **kwargs):
-            if not isinstance(result, XMLSchemaValidationError):
-                data.append(result)
-            elif validation == 'lax':
-                errors.append(result)
-            else:
-                raise result
-
-        if not data:
-            return (None, errors) if validation == 'lax' else None
-        elif len(data) == 1:
-            return (data[0], errors) if validation == 'lax' else data[0]
-        else:
-            return (data, errors) if validation == 'lax' else data
-
 
     def iter_encode(self, obj, path=None, validation='lax', namespaces=None, converter=None,
                     unordered=False, **kwargs):
@@ -1516,15 +1512,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param kwargs: Keyword arguments containing options for converter and encoding.
         :return: yields an Element instance/s or validation/encoding errors.
         """
-        if not self.built:
-            if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
-            self.build()
-
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
-        elif not self.elements:
+        self.check_validator(validation)
+        if not self.elements:
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
         namespaces = {} if namespaces is None else namespaces.copy()
