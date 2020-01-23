@@ -46,7 +46,6 @@ Schema level API
     .. autoattribute:: root_elements
 
     .. automethod:: create_meta_schema
-    .. automethod:: create_schema
     .. automethod:: create_any_content_group
     .. automethod:: create_any_attribute_group
     .. automethod:: create_any_type
@@ -147,8 +146,10 @@ Resource access API
     .. automethod:: open
     .. automethod:: load
     .. automethod:: is_lazy
+    .. autoattribute:: lazy_depth
     .. automethod:: is_loaded
     .. automethod:: iter
+    .. automethod:: iter_subtrees
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations

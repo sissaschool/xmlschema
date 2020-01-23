@@ -2,11 +2,12 @@
 CHANGELOG
 *********
 
-`v1.1.0`_ (2020-01-xx)
+`v1.1.0`_ (2020-01-23)
 =======================
-* Remove Python 2 compatibility code
-* Remove tests code from binary package
-* Improve identity constraints validation
+* Removed Python 2 compatibility code
+* Removed tests code from binary package
+* Improved identity constraints validation
+* Added JSON lazy decoding as experimental feature
 
 `v1.0.18`_ (2019-12-24)
 =======================

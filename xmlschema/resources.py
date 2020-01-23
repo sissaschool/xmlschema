@@ -678,20 +678,20 @@ class XMLResource(object):
         XML resource subtree iterator, that yields fully loaded elements. If a
         path is provided the elements selected by the XPath expression are yielded.
         If no path is provided only the root element is yielded. For lazy resources
-        the argument *lazy_mode* can change the sequence of elements yielded.
+        the argument *lazy_mode* can change the sequence of elements yielded. There
+        are five possible modes, that generate different sequences of elements:\n
+          1. Only a full root element (the default mode)\n
+          2. Only a root element pruned at *depth_level*\n
+          3. Only the elements at *depth_level* level of the tree\n
+          4. The elements at *depth_level* and then a pruned root\n
+          5. An incomplete root at start, the elements at *depth_level* and a pruned root
 
         :param path: an optional XPath expression to select element nodes.
         :param namespaces: an optional mapping from namespace prefixes to URIs. \
         Used to provide namespace mapping for the XPath expression. If the resource \
         is lazy the namespace map is updated during the iteration.
         :param lazy_mode: defines how a lazy resource is iterated when a path \
-        is not provided. There are five possible modes, that generate different \
-        sequences of elements:\n \
-          - Only a full root element (the default mode)\n\
-          - Only a root element pruned at *depth_level*\n\
-          - Only the elements at *depth_level* level of the tree\n\
-          - The elements at *depth_level* and then a pruned root\n\
-          - An incomplete root at start, the elements at *depth_level* and a pruned root\n\
+        is not provided.
         """
         if not (1 <= lazy_mode <= 5):
             raise XMLSchemaValueError("invalid argument lazy_mode={!r}".format(lazy_mode))
