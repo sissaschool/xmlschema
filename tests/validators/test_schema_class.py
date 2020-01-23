@@ -141,11 +141,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
                      "Remote networks are not accessible or avoid SSL verification error on Windows.")
     def test_remote_schemas_loading(self):
         col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
-                                       "xmlschema/tests/test_cases/examples/collection/collection.xsd",
+                                       "tests/test_cases/examples/collection/collection.xsd",
                                        timeout=300)
         self.assertTrue(isinstance(col_schema, self.schema_class))
         vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
-                                      "xmlschema/tests/test_cases/examples/vehicles/vehicles.xsd",
+                                      "tests/test_cases/examples/vehicles/vehicles.xsd",
                                       timeout=300)
         self.assertTrue(isinstance(vh_schema, self.schema_class))
 
