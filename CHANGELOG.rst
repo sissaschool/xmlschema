@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.1.0`_ (2020-01-23)
+=======================
+* Removed Python 2 compatibility code
+* Removed tests code from binary package
+* Improved identity constraints validation
+* Added JSON lazy decoding as experimental feature
+
 `v1.0.18`_ (2019-12-24)
 =======================
 * Fix for *ModelVisitor.iter_unordered_content()*
@@ -286,3 +293,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.16: https://github.com/brunato/xmlschema/compare/v1.0.15...v1.0.16
 .. _v1.0.17: https://github.com/brunato/xmlschema/compare/v1.0.16...v1.0.17
 .. _v1.0.18: https://github.com/brunato/xmlschema/compare/v1.0.17...v1.0.18
+.. _v1.1.0: https://github.com/brunato/xmlschema/compare/v1.0.18...v1.1.0

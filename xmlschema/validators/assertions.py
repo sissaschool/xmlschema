@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,7 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from __future__ import unicode_literals
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
@@ -115,8 +113,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     # For implementing ElementPathMixin
     def __iter__(self):
         if not self.parent.has_simple_content():
-            for e in self.parent.content_type.iter_elements():
-                yield e
+            yield from self.parent.content_type.iter_elements()
 
     @property
     def attrib(self):

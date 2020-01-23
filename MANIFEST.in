@@ -9,5 +9,6 @@ include tox.ini
 include doc/*
 
 recursive-include xmlschema *
+recursive-include tests *
 
 global-exclude *.py[cod]

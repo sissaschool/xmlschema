@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,12 +10,11 @@
 """
 This module defines a mixin class for enabling XPath on schemas.
 """
-from __future__ import unicode_literals
 from abc import abstractmethod
+from collections.abc import Sequence
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
 import threading
 
-from .compat import Sequence
 from .qnames import XSD_SCHEMA
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
@@ -66,14 +64,12 @@ class XMLSchemaContext(XPathSchemaContext):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
                     if context.item.parent is None:
-                        for item in safe_iter_context(context):
-                            yield item
+                        yield from safe_iter_context(context)
                     elif getattr(context.item, 'ref', None) is not None:
                         yield context.item
                     elif context.item not in local_items:
                         local_items.append(context.item)
-                        for item in safe_iter_context(context):
-                            yield item
+                        yield from safe_iter_context(context)
 
         local_items = []
         return safe_iter_context(self)
@@ -172,8 +168,8 @@ class ElementPathMixin(Sequence):
     """
     Mixin abstract class for enabling ElementTree and XPath API on XSD components.
 
-    :cvar text: The Element text. Its value is always `None`. For compatibility with the ElementTree API.
-    :cvar tail: The Element tail. Its value is always `None`. For compatibility with the ElementTree API.
+    :cvar text: the Element text, for compatibility with the ElementTree API.
+    :cvar tail: the Element tail, for compatibility with the ElementTree API.
     """
     text = None
     tail = None
@@ -310,15 +306,13 @@ class ElementPathMixin(Sequence):
                 yield elem
             for child in elem:
                 if child.parent is None:
-                    for e in safe_iter(child):
-                        yield e
+                    yield from safe_iter(child)
                 elif getattr(child, 'ref', None) is not None:
                     if tag is None or elem.is_matching(tag):
                         yield child
                 elif child not in local_elements:
                     local_elements.append(child)
-                    for e in safe_iter(child):
-                        yield e
+                    yield from safe_iter(child)
 
         if tag == '*':
             tag = None

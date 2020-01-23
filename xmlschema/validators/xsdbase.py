@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,10 +10,8 @@
 """
 This module contains base functions and classes XML Schema components.
 """
-from __future__ import unicode_literals
 import re
 
-from ..compat import PY3, string_base_type, unicode_type
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE, \
@@ -30,6 +27,9 @@ XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 XML Schema validation modes
 Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 """
+
+XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
+XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
 
 
 class XsdValidator(object):
@@ -51,19 +51,13 @@ class XsdValidator(object):
 
     def __init__(self, validation='strict'):
         if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
         self.validation = validation
         self.errors = []
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     @property
     def built(self):
@@ -77,7 +71,8 @@ class XsdValidator(object):
     @property
     def validation_attempted(self):
         """
-        Property that returns the *validation status* of the XSD validator. It can be 'full', 'partial' or 'none'.
+        Property that returns the *validation status* of the XSD validator.
+        It can be 'full', 'partial' or 'none'.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
@@ -87,7 +82,8 @@ class XsdValidator(object):
     @property
     def validity(self):
         """
-        Property that returns the XSD validator's validity. It can be ‘valid’, ‘invalid’ or ‘notKnown’.
+        Property that returns the XSD validator's validity.
+        It can be ‘valid’, ‘invalid’ or ‘notKnown’.
 
         | https://www.w3.org/TR/xmlschema-1/#e-validity
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
@@ -147,7 +143,8 @@ class XsdValidator(object):
         elif elem is None:
             elem = getattr(self, 'elem', None)
         else:
-            raise XMLSchemaValueError("'elem' argument must be an Element instance, not %r." % elem)
+            raise XMLSchemaValueError("'elem' argument must be an Element instance, "
+                                      "not %r." % elem)
 
         if isinstance(error, XMLSchemaParseError):
             error.validator = self
@@ -155,14 +152,15 @@ class XsdValidator(object):
             error.elem = elem
             error.source = getattr(self, 'source', None)
         elif isinstance(error, Exception):
-            message = unicode_type(error).strip()
+            message = str(error).strip()
             if message[0] in '\'"' and message[0] == message[-1]:
                 message = message.strip('\'"')
             error = XMLSchemaParseError(self, message, elem)
-        elif isinstance(error, string_base_type):
+        elif isinstance(error, str):
             error = XMLSchemaParseError(self, error, elem)
         else:
-            raise XMLSchemaValueError("'error' argument must be an exception or a string, not %r." % error)
+            raise XMLSchemaValueError("'error' argument must be an exception or a string, "
+                                      "not %r." % error)
 
         if validation == 'lax':
             self.errors.append(error)
@@ -202,10 +200,12 @@ class XsdComponent(XsdValidator):
 
     :param elem: ElementTree's node containing the definition.
     :param schema: the XMLSchema object that owns the definition.
-    :param parent: the XSD parent, `None` means that is a global component that has the schema as parent.
+    :param parent: the XSD parent, `None` means that is a global component that \
+    has the schema as parent.
     :param name: name of the component, maybe overwritten by the parse of the `elem` argument.
 
-    :cvar qualified: for name matching, unqualified matching may be admitted only for elements and attributes.
+    :cvar qualified: for name matching, unqualified matching may be admitted only \
+    for elements and attributes.
     :vartype qualified: bool
     """
     _REGEX_SPACE = re.compile(r'\s')
@@ -231,7 +231,9 @@ class XsdComponent(XsdValidator):
     def __setattr__(self, name, value):
         if name == "elem":
             if not is_etree_element(value):
-                raise XMLSchemaTypeError("%r attribute must be an Etree Element: %r" % (name, value))
+                raise XMLSchemaTypeError(
+                    "%r attribute must be an Etree Element: %r" % (name, value)
+                )
             elif value.tag not in self._ADMITTED_TAGS:
                 raise XMLSchemaValueError(
                     "wrong XSD element %r for %r, must be one of %r." % (
@@ -341,7 +343,8 @@ class XsdComponent(XsdValidator):
             elif self.parent is None:
                 self.parse_error("missing attribute 'name' in a global %r" % type(self))
             else:
-                self.parse_error("missing both attributes 'name' and 'ref' in local %r" % type(self))
+                self.parse_error("missing both attributes 'name' and 'ref' "
+                                 "in local %r" % type(self))
             self.name = 'nameless_%s' % str(id(self))
         elif self.parent is None:
             self.parse_error("attribute 'ref' not allowed in a global %r" % type(self))
@@ -354,7 +357,8 @@ class XsdComponent(XsdValidator):
                 self.parse_error(err)
             else:
                 if self._parse_child_component(self.elem) is not None:
-                    self.parse_error("a reference component cannot has child definitions/declarations")
+                    self.parse_error("a reference component cannot have "
+                                     "child definitions/declarations")
                 return True
 
     def _parse_boolean_attribute(self, name):
@@ -389,18 +393,22 @@ class XsdComponent(XsdValidator):
 
         self._target_namespace = self.elem.attrib['targetNamespace'].strip()
         if 'name' not in self.elem.attrib:
-            self.parse_error("attribute 'name' must be present when 'targetNamespace' attribute is provided")
+            self.parse_error("attribute 'name' must be present when "
+                             "'targetNamespace' attribute is provided")
         if 'form' in self.elem.attrib:
-            self.parse_error("attribute 'form' must be absent when 'targetNamespace' attribute is provided")
+            self.parse_error("attribute 'form' must be absent when "
+                             "'targetNamespace' attribute is provided")
         if self._target_namespace != self.schema.target_namespace:
             if self.parent is None:
-                self.parse_error("a global attribute must has the same namespace as its parent schema")
+                self.parse_error("a global attribute must have the same "
+                                 "namespace as its parent schema")
 
             xsd_type = self.get_parent_type()
-            if xsd_type and xsd_type.parent is None and \
-                    (xsd_type.derivation != 'restriction' or xsd_type.base_type.name == XSD_ANY_TYPE):
+            if not xsd_type or xsd_type.parent is not None:
+                pass
+            elif xsd_type.derivation != 'restriction' or xsd_type.base_type.name == XSD_ANY_TYPE:
                 self.parse_error("a declaration contained in a global complexType "
-                                 "must has the same namespace as its parent schema")
+                                 "must have the same namespace as its parent schema")
 
         if not self._target_namespace and self.name[0] == '{':
             self.name = local_name(self.name)
@@ -455,7 +463,10 @@ class XsdComponent(XsdValidator):
             return self.qualified_name == qname or not self.qualified and self.local_name == name
 
     def match(self, name, default_namespace=None, **kwargs):
-        """Returns the component if its name is matching the name provided as argument, `None` otherwise."""
+        """
+        Returns the component if its name is matching the name provided as argument,
+        `None` otherwise.
+        """
         return self if self.is_matching(name, default_namespace, **kwargs) else None
 
     def get_global(self):
@@ -656,7 +667,8 @@ class XsdType(XsdComponent):
 
     def is_element_only(self):
         """
-        Returns `True` if the instance is a complexType with element-only content, `False` otherwise.
+        Returns `True` if the instance is a complexType with element-only content,
+        `False` otherwise.
         """
         raise NotImplementedError
 
@@ -721,8 +733,9 @@ class ValidationMixin(object):
         :param use_defaults: indicates whether to use default values for filling missing data.
         :param namespaces: is an optional mapping from namespace prefix to URI.
         """
-        error = next(self.iter_errors(source, use_defaults=use_defaults, namespaces=namespaces), None)
-        return error is None
+        return next(
+            self.iter_errors(source, use_defaults=use_defaults, namespaces=namespaces), None
+        ) is None
 
     def iter_errors(self, source, use_defaults=True, namespaces=None):
         """
@@ -760,7 +773,8 @@ class ValidationMixin(object):
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
 
         errors = []
         for result in self.iter_decode(source, validation, **kwargs):
@@ -786,7 +800,8 @@ class ValidationMixin(object):
         component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', 'lax' or 'skip': %r" % validation)
+            raise XMLSchemaValueError("validation argument can be 'strict', "
+                                      "'lax' or 'skip': %r" % validation)
 
         errors = []
         for result in self.iter_encode(obj, validation=validation, **kwargs):
@@ -821,7 +836,8 @@ class ValidationMixin(object):
         """
         raise NotImplementedError
 
-    def validation_error(self, validation, error, obj=None, source=None, namespaces=None, **_kwargs):
+    def validation_error(self, validation, error, obj=None,
+                         source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating and updating validation errors. Incompatible with 'skip'
         validation mode. Il validation mode is 'lax' returns the error, otherwise raises the error.
@@ -854,7 +870,8 @@ class ValidationMixin(object):
         else:
             raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
-    def decode_error(self, validation, obj, decoder, reason=None, source=None, namespaces=None, **_kwargs):
+    def decode_error(self, validation, obj, decoder, reason=None,
+                     source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating decode errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raises the error.
@@ -877,7 +894,8 @@ class ValidationMixin(object):
         else:
             raise XMLSchemaValueError("unknown validation mode %r" % validation)
 
-    def encode_error(self, validation, obj, encoder, reason=None, source=None, namespaces=None, **_kwargs):
+    def encode_error(self, validation, obj, encoder, reason=None,
+                     source=None, namespaces=None, **_kwargs):
         """
         Helper method for generating encode errors. Incompatible with 'skip' validation mode.
         Il validation mode is 'lax' returns the error, otherwise raises the error.

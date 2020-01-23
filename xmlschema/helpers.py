@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -13,7 +12,6 @@ This module contains various helper functions and classes.
 """
 from decimal import Decimal
 
-from .compat import string_base_type
 from .exceptions import XMLSchemaValueError
 from .qnames import XSD_ANNOTATION
 from .xpath import ElementPathMixin
@@ -23,7 +21,8 @@ XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
 
 def is_etree_element(elem):
     """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and not isinstance(elem, ElementPathMixin)
+    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and \
+        not isinstance(elem, ElementPathMixin)
 
 
 def get_xsd_annotation(elem):
@@ -70,17 +69,27 @@ def get_xsd_form_attribute(elem, attribute):
     Get an XSD form attribute, checking the value. If the attribute is missing returns `None`
 
     :param elem: the Element instance.
-    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' or 'attributeFormDefault').
+    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' \
+    or 'attributeFormDefault').
     :return: a string.
     """
     value = elem.get(attribute)
     if value is None:
         return
-    elif value not in ('qualified', 'unqualified'):
-        raise XMLSchemaValueError(
-            "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'." % (value, attribute)
-        )
+    elif value != 'qualified' and value != 'unqualified':
+        msg = "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'."
+        raise XMLSchemaValueError(msg % (value, attribute))
     return value
+
+
+def raw_xml_encode(value):
+    """Encodes a simple value to XML."""
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    elif isinstance(value, (list, tuple)):
+        return ' '.join(str(e) for e in value)
+    else:
+        return str(value)
 
 
 def count_digits(number):
@@ -91,8 +100,10 @@ def count_digits(number):
     :return: a couple with the number of digits of the integer part and \
     the number of digits of the decimal part.
     """
-    if isinstance(number, string_base_type):
+    if isinstance(number, str):
         number = str(Decimal(number)).lstrip('-+')
+    elif isinstance(number, bytes):
+        number = str(Decimal(number.decode())).lstrip('-+')
     else:
         number = str(number).lstrip('-+')
 
@@ -119,6 +130,22 @@ def count_digits(number):
 def strictly_equal(obj1, obj2):
     """Checks if the objects are equal and are of the same type."""
     return obj1 == obj2 and type(obj1) is type(obj2)
+
+
+def iter_nested_items(items, dict_class=dict, list_class=list):
+    """Iterates a nested object composed by lists and dictionaries."""
+    if isinstance(items, dict_class):
+        for k, v in items.items():
+            yield from iter_nested_items(v, dict_class, list_class)
+    elif isinstance(items, list_class):
+        for item in items:
+            yield from iter_nested_items(item, dict_class, list_class)
+    elif isinstance(items, dict):
+        raise TypeError("%r: is a dict() instead of %r." % (items, dict_class))
+    elif isinstance(items, list):
+        raise TypeError("%r: is a list() instead of %r." % (items, list_class))
+    else:
+        yield items
 
 
 class ParticleCounter(object):

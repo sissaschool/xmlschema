@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,7 +10,6 @@
 """
 This module contains ElementTree setup and helpers for xmlschema package.
 """
-from __future__ import unicode_literals
 import sys
 import importlib
 import re
@@ -22,7 +20,6 @@ try:
 except ImportError:
     lxml_etree = None
 
-from .compat import PY3
 from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
@@ -34,11 +31,7 @@ from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_
 # so use a programmatic re-import to obtain the pure Python module, necessary for
 # defining a safer XMLParser.
 #
-if not PY3:
-    # Python 2.7: nothing have to be done because it's not overridden by C implementation
-    ElementTree = PyElementTree = importlib.import_module('xml.etree.ElementTree')
-
-elif '_elementtree' in sys.modules:
+if '_elementtree' in sys.modules:
     # Temporary remove the loaded modules
     ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
     _cmod = sys.modules.pop('_elementtree')
@@ -112,30 +105,33 @@ class SafeXMLParser(PyElementTree.XMLParser):
     """
     def __init__(self, target=None, encoding=None):
         super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
-        parser = self.parser if PY3 else self._parser
+        parser = self.parser
         parser.EntityDeclHandler = self.entity_declaration
         parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
         parser.ExternalEntityRefHandler = self.external_entity_reference
 
-    def entity_declaration(self, entity_name, is_parameter_entity, value, base, system_id, public_id, notation_name):
-        raise PyElementTree.ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+    def entity_declaration(self, entity_name, is_parameter_entity, value, base,
+                           system_id, public_id, notation_name):
+        raise PyElementTree.ParseError("Entities are forbidden "
+                                       "(entity_name={!r})".format(entity_name))
 
     def unparsed_entity_declaration(self, entity_name, base, system_id, public_id, notation_name):
-        raise PyElementTree.ParseError("Entities are forbidden (entity_name={!r})".format(entity_name))
+        raise PyElementTree.ParseError("Entities are forbidden "
+                                       "(entity_name={!r})".format(entity_name))
 
     def external_entity_reference(self, context, base, system_id, public_id):
-        raise PyElementTree.ParseError(
-            "External references are forbidden (system_id={!r}, public_id={!r})".format(system_id, public_id)
-        )
+        raise PyElementTree.ParseError("External references are forbidden (system_id={!r}, "
+                                       "public_id={!r})".format(system_id, public_id))
 
 
-def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
+def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
+                   spaces_for_tab=4, xml_declaration=False):
     """
     Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
 
     :param elem: the Element instance.
-    :param namespaces: is an optional mapping from namespace prefix to URI. Provided namespaces are \
-    registered before serialization.
+    :param namespaces: is an optional mapping from namespace prefix to URI. \
+    Provided namespaces are registered before serialization.
     :param indent: the base line indentation.
     :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
     :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
@@ -173,10 +169,7 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     else:
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
-    if PY3:
-        xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
-    else:
-        xml_text = unicode(tostring(elem)).replace('\t', ' ' * spaces_for_tab)
+    xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.splitlines())
@@ -185,7 +178,9 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
 
     last_indent = ' ' * min(k for k in range(len(lines[-1])) if lines[-1][k] != ' ')
     if len(lines) > 2:
-        child_indent = ' ' * min(k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' ')
+        child_indent = ' ' * min(
+            k for line in lines[1:-1] for k in range(len(line)) if line[k] != ' '
+        )
         min_indent = min(child_indent, last_indent)
     else:
         min_indent = child_indent = last_indent
@@ -236,8 +231,7 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
             child_path += '[%d]' % positions[child.tag]
             positions[child.tag] += 1
 
-        for _child, _child_path in etree_iterpath(child, tag, child_path, namespaces):
-            yield _child, _child_path
+        yield from etree_iterpath(child, tag, child_path, namespaces)
 
 
 def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False):
@@ -290,7 +284,9 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
 
     if unordered:
         children = sorted(elem, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag)
-        other_children = iter(sorted(other, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag))
+        other_children = iter(sorted(
+            other, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag
+        ))
     else:
         children = elem
         other_children = iter(other)
@@ -315,19 +311,20 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
         # Attributes
         if e1.attrib != e2.attrib:
             if strict:
-                raise AssertionError("%r != %r: attribute differ: %r != %r." % (e1, e2, e1.attrib, e2.attrib))
+                msg = "{!r} != {!r}: attribute differ: {!r} != {!r}."
+                raise AssertionError(msg % (e1, e2, e1.attrib, e2.attrib))
             else:
+                msg = "%r != %r: attribute keys differ: %r != %r."
                 assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
-                    "%r != %r: attribute keys differ: %r != %r." % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
+                    msg % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
                     a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()
                     if a1 != a2:
                         try:
                             assert float(a1) == float(a2)
                         except (AssertionError, ValueError, TypeError):
-                            raise AssertionError(
-                                "%r != %r: attribute %r differ: %r != %r." % (e1, e2, k, a1, a2)
-                            )
+                            msg = "%r != %r: attribute %r differ: %r != %r."
+                            raise AssertionError(msg % (e1, e2, k, a1, a2))
 
         # Number of children
         if skip_comments:

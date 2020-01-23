@@ -46,7 +46,6 @@ Schema level API
     .. autoattribute:: root_elements
 
     .. automethod:: create_meta_schema
-    .. automethod:: create_schema
     .. automethod:: create_any_content_group
     .. automethod:: create_any_attribute_group
     .. automethod:: create_any_type
@@ -105,7 +104,6 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 .. autoclass:: xmlschema.XMLSchemaConverter
 
     .. autoattribute:: lossy
-    .. autoattribute:: lossless
     .. autoattribute:: losslessly
 
     .. automethod:: copy
@@ -148,8 +146,10 @@ Resource access API
     .. automethod:: open
     .. automethod:: load
     .. automethod:: is_lazy
+    .. autoattribute:: lazy_depth
     .. automethod:: is_loaded
     .. automethod:: iter
+    .. automethod:: iter_subtrees
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations
@@ -163,7 +163,6 @@ Resource access API
 .. autofunction:: xmlschema.fetch_resource
 .. autofunction:: xmlschema.fetch_schema
 .. autofunction:: xmlschema.fetch_schema_locations
-.. autofunction:: xmlschema.load_xml_resource
 .. autofunction:: xmlschema.normalize_url
 
 

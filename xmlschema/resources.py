@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -10,16 +9,17 @@
 #
 import os.path
 import re
-import codecs
 from elementpath import iter_select, Selector, XPath1Parser
+from io import StringIO, BytesIO
+from urllib.request import urlopen, pathname2url
+from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
+from urllib.error import URLError
 
-from .compat import (
-    PY3, StringIO, BytesIO, string_base_type, urlopen, urlsplit, urljoin, urlunsplit,
-    pathname2url, URLError, uses_relative
-)
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaURLError, XMLSchemaOSError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
+    XMLSchemaURLError, XMLSchemaOSError
 from .namespaces import get_namespace
-from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, etree_iter_location_hints
+from .etree import ElementTree, PyElementTree, SafeXMLParser, \
+    etree_tostring, etree_iter_location_hints
 
 
 DEFUSE_MODES = ('always', 'remote', 'never')
@@ -33,7 +33,9 @@ XML_RESOURCE_XPATH_SYMBOLS = {
 
 
 class XmlResourceXPathParser(XPath1Parser):
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XML_RESOURCE_XPATH_SYMBOLS}
+    symbol_table = {
+        k: v for k, v in XPath1Parser.symbol_table.items() if k in XML_RESOURCE_XPATH_SYMBOLS
+    }
     SYMBOLS = XML_RESOURCE_XPATH_SYMBOLS
 
 
@@ -41,7 +43,7 @@ XmlResourceXPathParser.build_tokenizer()
 
 
 def is_remote_url(url):
-    return isinstance(url, string_base_type) and urlsplit(url).scheme not in ('', 'file')
+    return isinstance(url, str) and urlsplit(url).scheme not in ('', 'file')
 
 
 def url_path_is_directory(url):
@@ -52,6 +54,31 @@ def url_path_is_file(url):
     return os.path.isfile(urlsplit(url).path)
 
 
+def update_prefix(namespaces, prefix, uri):
+    """Update namespace registration without overwrite an existing one."""
+    if not prefix:
+        if '' not in namespaces:
+            namespaces[prefix] = uri
+            return
+        elif namespaces[''] == uri:
+            return
+        prefix = 'default'
+
+    while prefix in namespaces:
+        if namespaces[prefix] == uri:
+            return
+        match = re.search(r'(\d+)$', prefix)
+        if match:
+            index = int(match.group()) + 1
+            prefix = prefix[:match.span()[0]] + str(index)
+        else:
+            prefix += '0'
+    namespaces[prefix] = uri
+
+
+###
+# API for XML resources
+
 def normalize_url(url, base_url=None, keep_relative=False):
     """
     Returns a normalized URL doing a join with a base URL. URL scheme defaults to 'file' and
@@ -59,14 +86,17 @@ def normalize_url(url, base_url=None, keep_relative=False):
     urljoin.
 
     :param url: a relative or absolute URL.
-    :param base_url: the reference base URL for construct the normalized URL from the argument. \
-    For compatibility between "os.path.join" and "urljoin" a trailing '/' is added to not empty paths.
-    :param keep_relative: if set to `True` keeps relative file paths, which would not strictly \
-    conformant to URL format specification.
+    :param base_url: the reference base URL for construct the normalized URL from \
+    the argument. For compatibility between "os.path.join" and "urljoin" a trailing \
+    '/' is added to not empty paths.
+    :param keep_relative: if set to `True` keeps relative file paths, which would \
+    not strictly conformant to URL format specification.
     :return: A normalized URL.
     """
     def add_trailing_slash(x):
-        return urlunsplit((x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4]))
+        return urlunsplit(
+            (x[0], x[1], x[2] + '/' if x[2] and x[2][-1] != '/' else x[2], x[3], x[4])
+        )
 
     def filter_url(x):
         x = x.strip().replace('\\', '/')
@@ -107,7 +137,8 @@ def normalize_url(url, base_url=None, keep_relative=False):
                 ))
 
                 # Add 'file' scheme if '//' prefix is added
-                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) and url.startswith('//'):
+                if base_url_parts.netloc and not url.startswith(base_url_parts.netloc) \
+                        and url.startswith('//'):
                     url = 'file:' + url
 
     url_parts = urlsplit(url, scheme='file')
@@ -191,7 +222,7 @@ def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote
 
     base_url = resource.base_url
     namespace = resource.namespace
-    locations = resource.get_locations(locations)
+    locations = resource.get_locations(locations, root_only=False)
     if not locations:
         msg = "the XML data resource {!r} does not contain any schema location hint."
         raise XMLSchemaValueError(msg.format(source))
@@ -221,32 +252,7 @@ def fetch_namespaces(source, base_url=None, defuse='remote', timeout=30):
     namespace mappings is returned.
     """
     resource = XMLResource(source, base_url, defuse, timeout)
-    return resource.get_namespaces()
-
-
-def load_xml_resource(source, element_only=True, **resource_options):
-    """
-    Load XML data source into an Element tree, returning the root Element, the XML text and an
-    url, if available. Usable for XML data files of small or medium sizes, as XSD schemas.
-    This helper function is deprecated from v1.0.17, use :class:`XMLResource` instead.
-
-    :param source: an URL, a filename path or a file-like object.
-    :param element_only: if True the function returns only the root Element of the tree.
-    :param resource_options: keyword arguments for providing :class:`XMLResource` init options.
-    :return: a tuple with three items (root Element, XML text and XML URL) or \
-    only the root Element if 'element_only' argument is True.
-    """
-    import warnings
-    warnings.warn("load_xml_resource() function will be removed in 1.1 version",
-                  DeprecationWarning, stacklevel=2)
-
-    lazy = resource_options.pop('lazy', False)
-    source = XMLResource(source, lazy=lazy, **resource_options)
-    if element_only:
-        return source.root
-    else:
-        source.load()
-        return source.root, source.text, source.url
+    return resource.get_namespaces(root_only=False)
 
 
 class XMLResource(object):
@@ -260,9 +266,11 @@ class XMLResource(object):
     :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' \
     or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
-    :param lazy: if a value `False` is provided the XML data is fully loaded into and \
+    :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
     processed from memory. For default only the root element of the source is loaded, \
-    except in case the *source* argument is an Element or an ElementTree instance.
+    except in case the *source* argument is an Element or an ElementTree instance. A \
+    positive integer also defines the depth at which the lazy resource can be better \
+    iterated (`True` means 1).
     """
     _root = _text = _url = None
 
@@ -274,14 +282,7 @@ class XMLResource(object):
         self.source = source
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def __repr__(self):
         if self._root is None:
@@ -297,11 +298,11 @@ class XMLResource(object):
         if name == 'source':
             self._root, self._text, self._url = self._fromsource(value)
         elif name == '_base_url':
-            if value is not None and not isinstance(value, string_base_type):
+            if value is not None and not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'base_url'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
         elif name == 'defuse':
-            if value is not None and not isinstance(value, string_base_type):
+            if value is not None and not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'defuse'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
             elif value not in DEFUSE_MODES:
@@ -314,9 +315,15 @@ class XMLResource(object):
             elif value <= 0:
                 raise XMLSchemaValueError("the attribute 'timeout' must be a positive integer")
         elif name == '_lazy':
-            if not isinstance(value, bool):
+            if isinstance(value, bool):
+                pass
+            elif not isinstance(value, int):
                 msg = "invalid type {!r} for the attribute 'lazy'"
-                raise XMLSchemaValueError(msg.format(type(value)))
+                raise XMLSchemaTypeError(msg.format(type(value)))
+            elif value < 0:
+                msg = "invalid value {!r} for the attribute 'lazy'"
+                raise XMLSchemaValueError(msg.format(value))
+
         super(XMLResource, self).__setattr__(name, value)
 
     def _fromsource(self, source):
@@ -325,7 +332,7 @@ class XMLResource(object):
             self._lazy = False
             return source, None, None  # Source is already an Element --> nothing to load
 
-        elif isinstance(source, string_base_type):
+        elif isinstance(source, str):
             _url, self._url = self._url, None
             try:
                 if self._lazy:
@@ -384,8 +391,9 @@ class XMLResource(object):
 
         if url is None:
             raise XMLSchemaTypeError(
-                "wrong type %r for 'source' attribute: an ElementTree object or an Element instance or a "
-                "string containing XML data or an URL or a file-like object is required." % type(source)
+                "wrong type %r for 'source' attribute: an ElementTree object or "
+                "an Element instance or a string containing XML data or an URL "
+                "or a file-like object is required." % type(source)
             )
         else:
             resource = urlopen(url, timeout=self.timeout)
@@ -412,7 +420,9 @@ class XMLResource(object):
 
     @property
     def url(self):
-        """The source URL, `None` if the instance is created from an Element tree or from a string."""
+        """
+        The source URL, `None` if the instance is created from an Element tree or from a string.
+        """
         return self._url
 
     @property
@@ -437,6 +447,16 @@ class XMLResource(object):
     def namespace(self):
         """The namespace of the XML resource."""
         return get_namespace(self._root.tag)
+
+    def get_absolute_path(self, path=None):
+        if path is None:
+            if self._lazy:
+                return '/%s/%s' % (self._root.tag, '/'.join('*' * int(self._lazy)))
+            return '/%s' % self._root.tag
+        elif path.startswith('/'):
+            return path
+        else:
+            return '/%s/%s' % (self._root.tag, path)
 
     @staticmethod
     def defusing(source):
@@ -516,7 +536,7 @@ class XMLResource(object):
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4, xml_declaration=False):
         """Generates a string representation of the XML resource."""
         elem = self._root
-        namespaces = self.get_namespaces()
+        namespaces = self.get_namespaces(root_only=False)
         return etree_tostring(elem, namespaces, indent, max_lines, spaces_for_tab, xml_declaration)
 
     def copy(self, **kwargs):
@@ -569,14 +589,14 @@ class XMLResource(object):
         except AttributeError:
             pass
         else:
-            return value if PY3 else position
+            return value
 
         try:
             value = self.source.fp.seek(position)
         except AttributeError:
             pass
         else:
-            return value if PY3 else position
+            return value
 
     def close(self):
         """
@@ -610,13 +630,9 @@ class XMLResource(object):
 
         if isinstance(data, bytes):
             try:
-                text = data.decode('utf-8') if PY3 else data.encode('utf-8')
+                text = data.decode('utf-8')
             except UnicodeDecodeError:
-                if PY3:
-                    text = data.decode('iso-8859-1')
-                else:
-                    with codecs.open(urlsplit(self._url).path, mode='rb', encoding='iso-8859-1') as f:
-                        text = f.read().encode('iso-8859-1')
+                text = data.decode('iso-8859-1')
         else:
             text = data
 
@@ -624,7 +640,12 @@ class XMLResource(object):
 
     def is_lazy(self):
         """Returns `True` if the XML resource is lazy."""
-        return self._lazy
+        return bool(self._lazy)
+
+    @property
+    def lazy_depth(self):
+        """The optimal depth for validate this resource in lazy mode."""
+        return int(self._lazy)
 
     def is_loaded(self):
         """Returns `True` if the XML text of the data source is loaded."""
@@ -633,8 +654,7 @@ class XMLResource(object):
     def iter(self, tag=None):
         """XML resource tree iterator."""
         if not self._lazy:
-            for elem in self._root.iter(tag):
-                yield elem
+            yield from self._root.iter(tag)
             return
         elif self.seek(0) == 0:
             resource = self.source
@@ -653,24 +673,37 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iterfind(self, path=None, namespaces=None):
+    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1):
         """
-        XML resource tree iterfind selector.
+        XML resource subtree iterator, that yields fully loaded elements. If a
+        path is provided the elements selected by the XPath expression are yielded.
+        If no path is provided only the root element is yielded. For lazy resources
+        the argument *lazy_mode* can change the sequence of elements yielded. There
+        are five possible modes, that generate different sequences of elements:\n
+          1. Only a full root element (the default mode)\n
+          2. Only a root element pruned at *depth_level*\n
+          3. Only the elements at *depth_level* level of the tree\n
+          4. The elements at *depth_level* and then a pruned root\n
+          5. An incomplete root at start, the elements at *depth_level* and a pruned root
 
-        :param path: an XPath expression to select nodes. If not provided the \
-        iteration returns only the root node.
-        :param namespaces: optional mapping from namespace prefixes to URIs. If the \
-        resource is lazy and an empty dictionary is provided, the namespace map is \
-        updated during the iteration.
+        :param path: an optional XPath expression to select element nodes.
+        :param namespaces: an optional mapping from namespace prefixes to URIs. \
+        Used to provide namespace mapping for the XPath expression. If the resource \
+        is lazy the namespace map is updated during the iteration.
+        :param lazy_mode: defines how a lazy resource is iterated when a path \
+        is not provided.
         """
+        if not (1 <= lazy_mode <= 5):
+            raise XMLSchemaValueError("invalid argument lazy_mode={!r}".format(lazy_mode))
+
         if not self._lazy:
             if path is None:
                 yield self._root
             else:
-                for e in iter_select(self._root, path, namespaces, strict=False):
-                    yield e
+                yield from iter_select(self._root, path, namespaces, strict=False)
             return
-        elif self.seek(0) == 0:
+
+        if self.seek(0) == 0:
             resource = self.source
         elif self._url is not None:
             resource = urlopen(self._url, timeout=self.timeout)
@@ -678,93 +711,94 @@ class XMLResource(object):
             self.load()
             resource = StringIO(self._text)
 
-        if namespaces or namespaces is None:
-            events = ('start', 'end')
-            nsmap = None
+        nsmap = []
+        level = 0
+        changed = False
+        if namespaces is None:
+            events = 'start', 'end'
         else:
             # Track ad update namespaces
-            events = ('start-ns', 'end-ns', 'start', 'end')
-            nsmap = []
+            events = 'start-ns', 'end-ns', 'start', 'end'
+
+        if path is None:
+            subtree_level = int(self._lazy) if lazy_mode > 1 else 0
+            select_all = True
+            selector = None
+            skip_depth_elements = lazy_mode < 3
+        else:
+            selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
+            path = path.replace(' ', '').replace('./', '')
+
+            if path == '.':
+                subtree_level = 0
+            elif path.startswith('/'):
+                subtree_level = path.count('/') - 1
+            else:
+                subtree_level = path.count('/') + 1
+
+            select_all = '*' in path and set(path).issubset({'*', '/'})
+            skip_depth_elements = False
 
         try:
-            if path is None:
-                level = 0
-                for event, node in self.iterparse(resource, events):
-                    if event == "start":
-                        if level == 0:
-                            self._root.clear()
-                            self._root = node
-                        level += 1
-                    elif event == 'end':
-                        level -= 1
-                        if level == 0:
+            for event, node in self.iterparse(resource, events):
+                if event == "start":
+                    if not level:
+                        self._root.clear()
+                        self._root = node
+                        if not path and lazy_mode == 5:
                             yield node
-                            node.clear()
-                    elif event == 'start-ns':
-                        nsmap.append(node)
-                        namespaces[node[0]] = node[1]
-                    else:
-                        try:
-                            del namespaces[nsmap.pop()[0]]
-                        except KeyError:
+                    level += 1
+                elif event == 'end':
+                    level -= 1
+                    if not level:
+                        if not path:
+                            if lazy_mode != 3:
+                                yield node
+                        elif subtree_level:
                             pass
-                        namespaces.update(nsmap)
-
-            else:
-                selector = Selector(path, namespaces, strict=False, parser=XmlResourceXPathParser)
-                path = path.replace(' ', '').replace('./', '')
-                path_level = path.count('/') + 1 if path != '.' else 0
-                select_all = '*' in path and set(path).issubset({'*', '/'})
-
-                level = 0
-                for event, node in self.iterparse(resource, events):
-                    if event == "start":
-                        if level == 0:
-                            self._root.clear()
-                            self._root = node
-                        level += 1
-                    elif event == 'end':
-                        level -= 1
-                        if level == path_level and \
-                                (select_all or node in selector.select(self._root)):
+                        elif select_all or node in selector.select(self._root):
                             yield node
-                            node.clear()
-                        elif level == 0:
-                            node.clear()
-                    elif event == 'start-ns':
-                        nsmap.append(node)
-                        namespaces[node[0]] = node[1]
-                    else:
-                        try:
-                            del namespaces[nsmap.pop()[0]]
-                        except KeyError:
-                            pass
-                        namespaces.update(nsmap)
+                    elif level != subtree_level:
+                        continue
+                    elif skip_depth_elements:
+                        pass
+                    elif select_all or node in selector.select(self._root):
+                        yield node
 
+                    node.clear()
+                    if changed:
+                        namespaces.clear()
+                        namespaces.update(nsmap)
+                        changed = False
+
+                elif event == 'start-ns':
+                    nsmap.append(node)
+                    update_prefix(namespaces, *node)
+                else:
+                    nsmap.pop()
+                    changed = True
         finally:
             if self.source is not resource:
                 resource.close()
 
-    def iter_location_hints(self, root_only=False):
+    def iter_location_hints(self, root_only=None):
         """
         Yields schema location hints from the XML resource.
 
-        :param root_only: if `True` yields only the location hints declared in \
-        the root element.
+        :param root_only: if `True` or `None` and the resource is lazy \
+        yields only the location hints declared in the root element.
         """
-        if root_only:
-            for ns_url in etree_iter_location_hints(self._root):
-                yield ns_url
+        if root_only or root_only is None and self._lazy:
+            yield from etree_iter_location_hints(self._root)
             return
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
-        elif isinstance(self._text, string_base_type):
+        elif isinstance(self._text, str):
             resource = StringIO(self._text)
         else:
             for elem in self._root.iter():
-                for ns_url in etree_iter_location_hints(elem):
-                    yield ns_url
+                yield from etree_iter_location_hints(elem)
             return
 
         try:
@@ -772,15 +806,14 @@ class XMLResource(object):
                 if event == 'end':
                     node.clear()
                 else:
-                    for ns_url in etree_iter_location_hints(node):
-                        yield ns_url
+                    yield from etree_iter_location_hints(node)
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
             pass
         finally:
             if self.source is not resource:
                 resource.close()
 
-    def get_namespaces(self, namespaces=None, root_only=False):
+    def get_namespaces(self, namespaces=None, root_only=None):
         """
         Extracts namespaces with related prefixes from the XML resource. If a duplicate
         prefix declaration is encountered and the prefix maps a different namespace,
@@ -789,49 +822,32 @@ class XMLResource(object):
         names. In other cases uses 'default' prefix as substitute.
 
         :param namespaces: builds the namespace map starting over the dictionary provided.
-        :param root_only: if `True` extracts only the namespaces declared in the root element.
+        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
+        only the namespaces declared in the root element.
         :return: a dictionary for mapping namespace prefixes to full URI.
         """
-        def update_nsmap(prefix, uri):
-            if not prefix:
-                if '' not in nsmap:
-                    nsmap[prefix] = uri
-                    return
-                elif nsmap[''] == uri:
-                    return
-                prefix = 'default'
-
-            while prefix in nsmap:
-                if nsmap[prefix] == uri:
-                    return
-                match = re.search(r'(\d+)$', prefix)
-                if match:
-                    index = int(match.group()) + 1
-                    prefix = prefix[:match.span()[0]] + str(index)
-                else:
-                    prefix += '0'
-            nsmap[prefix] = uri
-
         nsmap = {}
         if not self.namespace:
             nsmap[''] = ''
         if namespaces:
             nsmap.update(namespaces)
+        if root_only is None:
+            root_only = self._lazy
 
         if self._url is not None or hasattr(self.source, 'read'):
             resource = self.open()
-        elif isinstance(self._text, string_base_type):
+        elif isinstance(self._text, str):
             resource = StringIO(self._text)
         else:
             if hasattr(self._root, 'nsmap'):
                 # Can extract namespace mapping information only from lxml etree structures
                 if root_only:
                     for k, v in self._root.nsmap.items():
-                        update_nsmap(k if k is not None else '', v)
+                        update_prefix(nsmap, k if k is not None else '', v)
                 else:
                     for elem in self._root.iter():
                         for k, v in elem.nsmap.items():
-                            update_nsmap(k if k is not None else '', v)
+                            update_prefix(nsmap, k if k is not None else '', v)
 
             if nsmap.get('') == '':
                 del nsmap['']
@@ -841,7 +857,7 @@ class XMLResource(object):
         try:
             for event, node in self.iterparse(resource, events):
                 if event == 'start-ns':
-                    update_nsmap(*node)
+                    update_prefix(nsmap, *node)
                 elif event == 'end':
                     node.clear()
                 else:
@@ -859,19 +875,22 @@ class XMLResource(object):
             del nsmap['']
         return nsmap
 
-    def get_locations(self, locations=None, root_only=False):
+    def get_locations(self, locations=None, root_only=None):
         """
         Extracts a list of normalized schema location hints from the XML resource.
         The locations are normalized using the base URL of the instance.
 
         :param locations: a dictionary or a list of namespace resources that is \
         inserted before the schema location hints extracted from the XML resource.
-        :param root_only: if `True` extracts only the location hints declared in \
-        the root element.
+        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
+        only the location hints declared in the root element.
         :returns: a list of couples containing namespace location hints.
         """
         base_url = self.base_url
         location_hints = []
+        if root_only is None:
+            root_only = self._lazy
+
         if locations is not None:
             try:
                 for ns, value in locations.items():

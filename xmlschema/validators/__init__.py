@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -8,16 +7,14 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-XML Schema validators subpackage.
-"""
 from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaValidationError, \
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaNotBuiltError, \
     XMLSchemaChildrenValidationError, XMLSchemaIncludeWarning, \
     XMLSchemaImportWarning, XMLSchemaTypeTableWarning
 
-from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, ValidationMixin, ParticleMixin
+from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, \
+    ValidationMixin, ParticleMixin
 
 from .assertions import XsdAssert
 from .notations import XsdNotation
@@ -39,3 +36,26 @@ from .elements import XsdElement, Xsd11Element, XsdAlternative
 
 from .globals_ import XsdGlobals
 from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
+
+
+__all__ = [
+    'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaModelError',
+    'XMLSchemaModelDepthError', 'XMLSchemaValidationError', 'XMLSchemaDecodeError',
+    'XMLSchemaEncodeError', 'XMLSchemaNotBuiltError', 'XMLSchemaChildrenValidationError',
+    'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
+    'XsdValidator', 'XsdComponent', 'XsdAnnotation', 'XsdType', 'ValidationMixin',
+    'ParticleMixin', 'XsdAssert', 'XsdNotation', 'XsdSelector', 'XsdFieldSelector',
+    'XsdIdentity', 'XsdKeyref', 'XsdKey', 'XsdUnique', 'Xsd11Keyref', 'Xsd11Key',
+    'Xsd11Unique', 'XsdFacet', 'XsdWhiteSpaceFacet', 'XsdLengthFacet', 'XsdMinLengthFacet',
+    'XsdMaxLengthFacet', 'XsdMinExclusiveFacet', 'XsdMinInclusiveFacet',
+    'XsdMaxExclusiveFacet', 'XsdMaxInclusiveFacet', 'XsdFractionDigitsFacet',
+    'XsdTotalDigitsFacet', 'XsdExplicitTimezoneFacet', 'XsdPatternFacets',
+    'XsdEnumerationFacets', 'XsdAssertionFacet', 'XsdAnyElement', 'Xsd11AnyElement',
+    'XsdAnyAttribute', 'Xsd11AnyAttribute', 'XsdOpenContent', 'XsdDefaultOpenContent',
+    'XsdAttribute', 'Xsd11Attribute', 'XsdAttributeGroup', 'xsd_simple_type_factory',
+    'XsdSimpleType', 'XsdAtomic', 'XsdAtomicBuiltin', 'XsdAtomicRestriction',
+    'Xsd11AtomicRestriction', 'XsdList', 'XsdUnion', 'Xsd11Union', 'XsdComplexType',
+    'Xsd11ComplexType', 'ModelGroup', 'ModelVisitor', 'XsdGroup', 'Xsd11Group',
+    'XsdElement', 'Xsd11Element', 'XsdAlternative', 'XsdGlobals', 'XMLSchemaMeta',
+    'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11'
+]

@@ -15,4 +15,4 @@ dist/
 build/
 development/
 test_cases/
-!xmlschema/tests/test_cases/
+!tests/test_cases/

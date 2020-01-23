@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,11 @@
 """
 This module contains namespace definitions for W3C core standards and namespace related classes.
 """
-from __future__ import unicode_literals
 import os
 import re
+from collections.abc import MutableMapping, Mapping
 
-from .compat import MutableMapping, Mapping
+from .qnames import get_namespace, local_name
 
 ###
 # Namespace URIs
@@ -64,20 +63,7 @@ LOCATION_HINTS = {
 
 
 ###
-# Helper functions and classes
-
-NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
-
-
-def get_namespace(name):
-    if not name or name[0] != '{':
-        return ''
-
-    try:
-        return NAMESPACE_PATTERN.match(name).group(1)
-    except (AttributeError, TypeError):
-        return ''
-
+# Base classes for managing namespaces
 
 class NamespaceResourcesMap(MutableMapping):
     """
@@ -126,12 +112,24 @@ class NamespaceMapper(MutableMapping):
     :param namespaces: initial data with namespace prefixes and URIs.
     :param register_namespace: a two-arguments function for registering namespaces \
     on ElementTree module.
+    :param strip_namespaces: if set to `True` uses name mapping methods that strip \
+    namespace information.
     """
-    def __init__(self, namespaces=None, register_namespace=None):
+    def __init__(self, namespaces=None, register_namespace=None, strip_namespaces=False):
         self._namespaces = {}
         self.register_namespace = register_namespace
+        self.strip_namespaces = strip_namespaces
         if namespaces is not None:
             self._namespaces.update(namespaces)
+
+    def __setattr__(self, name, value):
+        if name == 'strip_namespaces':
+            if value:
+                self.map_qname = self.unmap_qname = self._local_name
+            elif getattr(self, 'strip_namespaces', False):
+                self.map_qname = self._map_qname
+                self.unmap_qname = self._map_qname
+        super(NamespaceMapper, self).__setattr__(name, value)
 
     def __getitem__(self, prefix):
         return self._namespaces[prefix]
@@ -187,7 +185,7 @@ class NamespaceMapper(MutableMapping):
                 prefix += '0'
         self._namespaces[prefix] = uri
 
-    def map_qname(self, qname):
+    def _map_qname(self, qname):
         """
         Converts an extended QName to the prefixed format. Only registered
         namespaces are mapped.
@@ -215,7 +213,9 @@ class NamespaceMapper(MutableMapping):
         else:
             return qname
 
-    def unmap_qname(self, qname, name_table=None):
+    map_qname = _map_qname
+
+    def _unmap_qname(self, qname, name_table=None):
         """
         Converts a QName in prefixed format or a local name to the extended QName format.
         Local names are converted only if a default namespace is included in the instance.
@@ -248,6 +248,12 @@ class NamespaceMapper(MutableMapping):
                 return qname
             else:
                 return u'{%s}%s' % (uri, name) if uri else name
+
+    unmap_qname = _unmap_qname
+
+    @staticmethod
+    def _local_name(qname, *_args, **_kwargs):
+        return local_name(qname)
 
     def transfer(self, other):
         transferred = []

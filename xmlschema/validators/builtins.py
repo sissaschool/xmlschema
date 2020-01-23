@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -14,8 +13,6 @@ This module contains definitions and functions for XSD builtin datatypes.
 Only atomic builtins are created, the list builtins types ('NMTOKENS', 'ENTITIES', 'IDREFS')
 are created using the XSD 1.0 meta-schema or with and additional base schema for XSD 1.1.
 """
-from __future__ import unicode_literals
-
 import re
 import base64
 from decimal import Decimal
@@ -23,7 +20,6 @@ from math import isinf, isnan
 
 from elementpath import datatypes
 
-from ..compat import PY3, long_type, unicode_type
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_PATTERN, XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
@@ -79,14 +75,16 @@ DATETIME_FACETS = (
 def finite_number_validator(x):
     try:
         if isinf(x) or isnan(x):
-            yield XMLSchemaValidationError(finite_number_validator, x, "value {!r} is not an xs:decimal".format(x))
+            yield XMLSchemaValidationError(finite_number_validator, x,
+                                           "value {!r} is not an xs:decimal".format(x))
     except TypeError:
         pass
 
 
 def qname_validator(x):
     if datatypes.QNAME_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(qname_validator, x, "value {!r} is not an xs:QName".format(x))
+        yield XMLSchemaValidationError(qname_validator, x,
+                                       "value {!r} is not an xs:QName".format(x))
 
 
 def byte_validator(x):
@@ -159,17 +157,20 @@ def base64_binary_validator(x):
         return
     match = NOT_BASE64_BINARY_PATTERN.search(x)
     if match is not None:
-        reason = "not a base64 encoding: illegal character %r at position %d." % (match.group(0), match.span()[0])
+        reason = "not a base64 encoding: illegal character %r " \
+                 "at position %d." % (match.group(0), match.span()[0])
         yield XMLSchemaValidationError(base64_binary_validator, x, reason)
     else:
         try:
             base64.standard_b64decode(x)
         except (ValueError, TypeError) as err:
-            yield XMLSchemaValidationError(base64_binary_validator, x, "not a base64 encoding: %s." % err)
+            yield XMLSchemaValidationError(base64_binary_validator, x,
+                                           "not a base64 encoding: %s." % err)
 
 
 def error_type_validator(x):
-    yield XMLSchemaValidationError(error_type_validator, x, "not value is allowed for xs:error type.")
+    yield XMLSchemaValidationError(error_type_validator, x,
+                                   "not value is allowed for xs:error type.")
 
 
 #
@@ -184,7 +185,7 @@ def boolean_to_python(s):
 
 
 def python_to_boolean(obj):
-    return unicode_type(obj).lower()
+    return str(obj).lower()
 
 
 #
@@ -202,7 +203,7 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- String Types ---
     {
         'name': XSD_STRING,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [PRESERVE_WHITE_SPACE_ELEMENT],
     },  # character string
@@ -210,7 +211,7 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- Numerical Types ---
     {
         'name': XSD_DECIMAL,
-        'python_type': (Decimal, str, unicode_type, int, float),
+        'python_type': (Decimal, str, str, int, float),
         'admitted_facets': DECIMAL_FACETS,
         'facets': [finite_number_validator, COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # decimal number
@@ -230,35 +231,35 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- Dates and Times (not year related) ---
     {
         'name': XSD_GDAY,
-        'python_type': (unicode_type, str, datatypes.GregorianDay),
+        'python_type': (str, str, datatypes.GregorianDay),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianDay.fromstring,
     },  # DD
     {
         'name': XSD_GMONTH,
-        'python_type': (unicode_type, str, datatypes.GregorianMonth),
+        'python_type': (str, str, datatypes.GregorianMonth),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonth.fromstring,
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
-        'python_type': (unicode_type, str, datatypes.GregorianMonthDay),
+        'python_type': (str, str, datatypes.GregorianMonthDay),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonthDay.fromstring,
     },  # MM-DD
     {
         'name': XSD_TIME,
-        'python_type': (unicode_type, str, datatypes.Time),
+        'python_type': (str, str, datatypes.Time),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Time.fromstring,
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
-        'python_type': (unicode_type, str, datatypes.Duration),
+        'python_type': (str, str, datatypes.Duration),
         'admitted_facets': FLOAT_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Duration.fromstring,
@@ -267,19 +268,19 @@ XSD_COMMON_BUILTIN_TYPES = (
     # Other primitive types
     {
         'name': XSD_QNAME,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, qname_validator],
     },  # prf:name (the prefix needs to be qualified with an in-scope namespace)
     {
         'name': XSD_NOTATION_TYPE,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # type for NOTATION attributes: QNames of xs:notation declarations as value space.
     {
         'name': XSD_ANY_URI,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # absolute or relative uri (RFC 2396)
@@ -293,13 +294,13 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # true/false or 1/0
     {
         'name': XSD_BASE64_BINARY,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator],
     },  # base64 encoded binary value
     {
         'name': XSD_HEX_BINARY,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator],
     },   # hexadecimal encoded binary value
@@ -311,19 +312,19 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- String Types ---
     {
         'name': XSD_NORMALIZED_STRING,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_STRING,
         'facets': [REPLACE_WHITE_SPACE_ELEMENT],
     },  # line breaks are normalized
     {
         'name': XSD_TOKEN,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_NORMALIZED_STRING,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # whitespaces are normalized
     {
         'name': XSD_LANGUAGE,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_TOKEN,
         'facets': [
             etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")
@@ -331,34 +332,34 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # language codes
     {
         'name': XSD_NAME,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_TOKEN,
         'facets': [etree_element(XSD_PATTERN, value=r"\i\c*")]
     },  # not starting with a digit
     {
         'name': XSD_NCNAME,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_NAME,
         'facets': [etree_element(XSD_PATTERN, value=r"[\i-[:]][\c-[:]]*")]
     },  # cannot contain colons
     {
         'name': XSD_ID,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_NCNAME
     },  # unique identification in document (attribute only)
     {
         'name': XSD_IDREF,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_NCNAME
     },  # reference to ID field in document (attribute only)
     {
         'name': XSD_ENTITY,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_NCNAME
     },  # reference to entity (attribute only)
     {
         'name': XSD_NMTOKEN,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_TOKEN,
         'facets': [etree_element(XSD_PATTERN, value=r"\c+")]
     },  # should not contain whitespace (attribute only)
@@ -366,12 +367,12 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- Numerical derived types ---
     {
         'name': XSD_INTEGER,
-        'python_type': int if PY3 else (long_type, int),
+        'python_type': int,
         'base_type': XSD_DECIMAL
     },  # any integer value
     {
         'name': XSD_LONG,
-        'python_type': int if PY3 else (long_type, int),
+        'python_type': int,
         'base_type': XSD_INTEGER,
         'facets': [long_validator,
                    etree_element(XSD_MIN_INCLUSIVE, value='-9223372036854775808'),
@@ -403,21 +404,22 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # signed 8 bit value
     {
         'name': XSD_NON_NEGATIVE_INTEGER,
-        'python_type': int if PY3 else (long_type, int),
+        'python_type': int,
         'base_type': XSD_INTEGER,
         'facets': [non_negative_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='0')]
     },  # only zero and more value allowed [>= 0]
     {
         'name': XSD_POSITIVE_INTEGER,
-        'python_type': int if PY3 else (long_type, int),
+        'python_type': int,
         'base_type': XSD_NON_NEGATIVE_INTEGER,
         'facets': [positive_int_validator, etree_element(XSD_MIN_INCLUSIVE, value='1')]
     },  # only positive value allowed [> 0]
     {
         'name': XSD_UNSIGNED_LONG,
-        'python_type': int if PY3 else (long_type, int),
+        'python_type': int,
         'base_type': XSD_NON_NEGATIVE_INTEGER,
-        'facets': [unsigned_long_validator, etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
+        'facets': [unsigned_long_validator,
+                   etree_element(XSD_MAX_INCLUSIVE, value='18446744073709551615')]
     },  # unsigned 128 bit value
     {
         'name': XSD_UNSIGNED_INT,
@@ -439,13 +441,13 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # unsigned 8 bit value
     {
         'name': XSD_NON_POSITIVE_INTEGER,
-        'python_type': (long_type, int),
+        'python_type': int,
         'base_type': XSD_INTEGER,
         'facets': [non_positive_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='0')]
     },  # only zero and smaller value allowed [<= 0]
     {
         'name': XSD_NEGATIVE_INTEGER,
-        'python_type': (long_type, int),
+        'python_type': int,
         'base_type': XSD_NON_POSITIVE_INTEGER,
         'facets': [negative_int_validator, etree_element(XSD_MAX_INCLUSIVE, value='-1')]
     },  # only negative value allowed [< 0]
@@ -455,28 +457,28 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Year related primitive types (year 0 not allowed) ---
     {
         'name': XSD_DATETIME,
-        'python_type': (unicode_type, str, datatypes.DateTime10),
+        'python_type': (str, str, datatypes.DateTime10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime10.fromstring,
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
-        'python_type': (unicode_type, str, datatypes.Date10),
+        'python_type': (str, str, datatypes.Date10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date10.fromstring,
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
-        'python_type': (unicode_type, str, datatypes.GregorianYear10),
+        'python_type': (str, str, datatypes.GregorianYear10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear10.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
-        'python_type': (unicode_type, str, datatypes.GregorianYearMonth10),
+        'python_type': (str, str, datatypes.GregorianYearMonth10),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth10.fromstring,
@@ -487,28 +489,28 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Year related primitive types (year 0 allowed and mapped to 1 BCE) ---
     {
         'name': XSD_DATETIME,
-        'python_type': (unicode_type, str, datatypes.DateTime),
+        'python_type': (str, str, datatypes.DateTime),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime.fromstring,
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
-        'python_type': (unicode_type, str, datatypes.Date),
+        'python_type': (str, str, datatypes.Date),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date.fromstring,
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
-        'python_type': (unicode_type, str, datatypes.GregorianYear),
+        'python_type': (str, str, datatypes.GregorianYear),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
-        'python_type': (unicode_type, str, datatypes.GregorianYearMonth),
+        'python_type': (str, str, datatypes.GregorianYearMonth),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth.fromstring,
@@ -516,20 +518,20 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Datetime derived types (XSD 1.1) ---
     {
         'name': XSD_DATE_TIME_STAMP,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_DATETIME,
         'to_python': datatypes.DateTime.fromstring,
         'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, value='required')],
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.DayTimeDuration.fromstring,
     },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
-        'python_type': (unicode_type, str),
+        'python_type': (str, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
     },  # PnYnMnDTnHnMnS with day and time equals to 0

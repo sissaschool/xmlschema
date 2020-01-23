@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,10 @@
 """
 This module contains classes and functions for processing XSD content models.
 """
-from __future__ import unicode_literals
 from collections import defaultdict, deque, Counter
+from collections.abc import MutableSequence
 
 from .. import limits
-from ..compat import PY3, MutableSequence
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
 from .xsdbase import ParticleMixin
@@ -59,10 +57,14 @@ class ModelGroup(MutableSequence, ParticleMixin):
             if value not in {'sequence', 'choice', 'all'}:
                 raise XMLSchemaValueError("invalid model group %r." % value)
             if self.model is not None and value != self.model and self.model != 'all':
-                raise XMLSchemaValueError("cannot change group model from %r to %r" % (self.model, value))
+                raise XMLSchemaValueError(
+                    "cannot change group model from %r to %r" % (self.model, value)
+                )
         elif name == '_group':
             if not all(isinstance(item, (tuple, ParticleMixin)) for item in value):
-                raise XMLSchemaValueError("XsdGroup's items must be tuples or ParticleMixin instances.")
+                raise XMLSchemaValueError(
+                    "XsdGroup's items must be tuples or ParticleMixin instances."
+                )
         super(ModelGroup, self).__setattr__(name, value)
 
     def clear(self):
@@ -77,10 +79,18 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def is_empty(self):
         return not self._group or self.max_occurs == 0
 
+    def is_single(self):
+        if self.max_occurs != 1 or not self:
+            return False
+        elif len(self) > 1:
+            return True
+        else:
+            return self[0].is_single()
+
     def is_pointless(self, parent):
         """
-        Returns `True` if the group may be eliminated without affecting the model, `False` otherwise.
-        A group is pointless if one of those conditions is verified:
+        Returns `True` if the group may be eliminated without affecting the model,
+        `False` otherwise. A group is pointless if one of those conditions is verified:
 
          - the group is empty
          - minOccurs == maxOccurs == 1 and the group has one child
@@ -172,8 +182,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             elif not item.is_pointless(parent=self):
                 yield item
             else:
-                for obj in item.iter_model(depth + 1):
-                    yield obj
+                yield from item.iter_model(depth + 1)
 
     def iter_elements(self, depth=0):
         """
@@ -186,8 +195,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             raise XMLSchemaModelDepthError(self)
         for item in self:
             if isinstance(item, ModelGroup):
-                for e in item.iter_elements(depth + 1):
-                    yield e
+                yield from item.iter_elements(depth + 1)
             else:
                 yield item
 
@@ -203,8 +211,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
             for item in group:
                 if isinstance(item, ModelGroup):
                     current_path.append(item)
-                    for _item in safe_iter_path(item, depth - 1):
-                        yield _item
+                    yield from safe_iter_path(item, depth - 1)
                     current_path.pop()
                 else:
                     yield item
@@ -246,9 +253,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
                     e.add_precedence(pe, self)
                 else:
-                    raise XMLSchemaModelError(
-                        self, "Unique Particle Attribution violation between {!r} and {!r}".format(pe, e)
-                    )
+                    msg = "Unique Particle Attribution violation between {!r} and {!r}"
+                    raise XMLSchemaModelError(self, msg.format(pe, e))
 
             paths[e.name] = e, current_path[:]
 
@@ -292,7 +298,8 @@ def distinguishable_paths(path1, path2):
             if any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
                 univocal1 = before1 = after1 = False
         else:
-            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
+            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path1[k]
+                                         if e is not path1[k][idx]):
                 univocal1 = before1 = after1 = False
 
     for k in range(depth + 1, len(path2) - 1):
@@ -305,13 +312,19 @@ def distinguishable_paths(path1, path2):
             if any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
                 univocal2 = before2 = after2 = False
         else:
-            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
+            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path2[k]
+                                         if e is not path2[k][idx]):
                 univocal2 = before2 = after2 = False
 
     if path1[depth].model != 'sequence':
-        return before1 and before2 or \
-            (before1 and (univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1)) or \
-            (before2 and (univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1))
+        if before1 and before2:
+            return True
+        elif before1:
+            return univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1
+        elif before2:
+            return univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1
+        else:
+            return False
     elif path1[depth].max_occurs == 1:
         return before2 or (before1 or univocal1) and (e1.is_univocal() or after1)
     else:
@@ -344,14 +357,7 @@ class ModelVisitor(MutableSequence):
         self._start()
 
     def __str__(self):
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return self.__repr__()
-
-    if PY3:
-        __str__ = __unicode__
 
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
@@ -592,7 +598,9 @@ class ModelVisitor(MutableSequence):
         :return: yields of a sequence of the Element being encoded's children.
         """
         if isinstance(content, dict):
-            cdata_content = sorted(((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True)
+            cdata_content = sorted(
+                ((k, v) for k, v in content.items() if isinstance(k, int)), reverse=True
+            )
             consumable_content = {k: deque(v) for k, v in content.items() if not isinstance(k, int)}
         else:
             cdata_content = sorted(((k, v) for k, v in content if isinstance(k, int)), reverse=True)

@@ -38,11 +38,15 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.0.18',
-    setup_requires=['elementpath~=1.3.0'],
-    install_requires=['elementpath~=1.3.0'],
+    version='1.1.0',
     packages=['xmlschema'],
     include_package_data=True,
+    setup_requires=['elementpath~=1.4.0'],
+    install_requires=['elementpath~=1.4.0'],
+    extra_require={
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=1.4.0',
+                'memory_profiler', 'Sphinx', 'sphinx_rtd_theme']
+    },
     cmdclass={
         'develop': DevelopCommand,
         'install': InstallCommand

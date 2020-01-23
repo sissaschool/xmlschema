@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -9,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains qualified names constants and helpers.
+This module contains qualified names constants and helper functions for QNames.
 """
-from __future__ import unicode_literals
+import re
+
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .namespaces import get_namespace
 
 VC_TEMPLATE = '{http://www.w3.org/2007/XMLSchema-versioning}%s'
 XML_TEMPLATE = '{http://www.w3.org/XML/1998/namespace}%s'
@@ -106,7 +105,7 @@ XSD_FRACTION_DIGITS = XSD_TEMPLATE % 'fractionDigits'
 
 # XSD 1.1 elements
 XSD_OPEN_CONTENT = XSD_TEMPLATE % 'openContent'                 # open content model
-XSD_DEFAULT_OPEN_CONTENT = XSD_TEMPLATE % 'defaultOpenContent'  # default open content model (schema level)
+XSD_DEFAULT_OPEN_CONTENT = XSD_TEMPLATE % 'defaultOpenContent'  # default open content model
 XSD_ALTERNATIVE = XSD_TEMPLATE % 'alternative'                  # conditional type assignment
 XSD_ASSERT = XSD_TEMPLATE % 'assert'                            # complex type assertions
 XSD_ASSERTION = XSD_TEMPLATE % 'assertion'                      # facets
@@ -183,6 +182,22 @@ XSD_DATE_TIME_STAMP = XSD_TEMPLATE % 'dateTimeStamp'
 XSD_DAY_TIME_DURATION = XSD_TEMPLATE % 'dayTimeDuration'
 XSD_YEAR_MONTH_DURATION = XSD_TEMPLATE % 'yearMonthDuration'
 XSD_ERROR = XSD_TEMPLATE % 'error'
+
+
+###
+# Helper functions for QNames
+
+NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
+
+
+def get_namespace(qname):
+    if not qname or qname[0] != '{':
+        return ''
+
+    try:
+        return NAMESPACE_PATTERN.match(qname).group(1)
+    except (AttributeError, TypeError):
+        return ''
 
 
 def get_qname(uri, name):

@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,11 +10,11 @@
 """
 This module contains classes for XML Schema attributes and attribute groups.
 """
-from __future__ import unicode_literals
 from decimal import Decimal
+from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..compat import MutableMapping, ordered_dict_class
+from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
@@ -116,7 +115,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
-                    self.parse_error("attribute %r is not allowed when attribute reference is used." % attribute)
+                    self.parse_error("attribute %r is not allowed when "
+                                     "attribute reference is used." % attribute)
 
             child = self._parse_child_component(self.elem)
             if child is not None and child.tag == XSD_SIMPLE_TYPE:
@@ -166,7 +166,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 if child is not None and child.tag == XSD_SIMPLE_TYPE:
                     self.parse_error("ambiguous type definition for XSD attribute")
                 elif child is not None:
-                    self.parse_error("not allowed element in XSD attribute declaration: %r" % child[0])
+                    self.parse_error("not allowed element in XSD attribute "
+                                     "declaration: %r" % child[0])
         elif child is not None:
             # No 'type' attribute in declaration, parse for child local simpleType
             xsd_type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
@@ -184,7 +185,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             if 'fixed' in attrib:
                 self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
             if self.use != 'optional':
-                self.parse_error("the attribute 'use' must be 'optional' if the attribute 'default' is present")
+                self.parse_error("the attribute 'use' must be 'optional' "
+                                 "if the attribute 'default' is present")
             if not self.type.is_valid(attrib['default']):
                 msg = "'default' value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
@@ -216,8 +218,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         if self.ref is None and self.type.parent is not None:
-            for obj in self.type.iter_components(xsd_classes):
-                yield obj
+            yield from self.type.iter_components(xsd_classes)
 
     def data_value(self, text):
         """Returns the decoded data value of the provided text as XPath fn:data()."""
@@ -379,9 +380,11 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             assert isinstance(value, dict), 'A dictionary object is required.'
             for k, v in value.items():
                 if k is None:
-                    assert isinstance(value, XsdAnyAttribute), 'An XsdAnyAttribute instance is required.'
+                    assert isinstance(value, XsdAnyAttribute), \
+                        'An XsdAnyAttribute instance is required.'
                 else:
-                    assert isinstance(value, XsdAttribute), 'An XsdAttribute instance is required.'
+                    assert isinstance(value, XsdAttribute), \
+                        'An XsdAttribute instance is required.'
 
     def _parse(self):
         super(XsdAttributeGroup, self)._parse()
@@ -420,7 +423,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             elif child.tag == XSD_ATTRIBUTE:
                 attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
                 if attribute.name in attributes:
-                    self.parse_error("multiple declaration for attribute {!r}".format(attribute.name))
+                    self.parse_error("multiple declaration for attribute "
+                                     "{!r}".format(attribute.name))
                 else:
                     attributes[attribute.name] = attribute
 
@@ -428,7 +432,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 try:
                     ref = child.attrib['ref']
                 except KeyError:
-                    self.parse_error("the attribute 'ref' is required in a local attributeGroup", elem)
+                    self.parse_error("the attribute 'ref' is required "
+                                     "in a local attributeGroup", elem)
                     continue
 
                 try:
@@ -441,7 +446,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     elif self.redefine is not None:
                         if attribute_group_qname == self.name:
                             if attribute_group_refs:
-                                self.parse_error("in a redefinition the reference to itself must be the first")
+                                self.parse_error("in a redefinition the reference "
+                                                 "to itself must be the first")
                             attribute_group_refs.append(attribute_group_qname)
                             attributes.update(self._attribute_group.items())
                             continue
@@ -449,7 +455,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                             # May be an attributeGroup restriction with a ref to another group
                             if not any(e.tag == XSD_ATTRIBUTE_GROUP and ref == e.get('ref')
                                        for e in self.redefine.elem):
-                                self.parse_error("attributeGroup ref=%r is not in the redefined group" % ref)
+                                self.parse_error("attributeGroup ref=%r is not "
+                                                 "in the redefined group" % ref)
                     elif attribute_group_qname == self.name and self.xsd_version == '1.0':
                         self.parse_error("Circular attribute groups not allowed in XSD 1.0")
                     attribute_group_refs.append(attribute_group_qname)
@@ -464,14 +471,17 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                                 if name not in attributes:
                                     attributes[name] = attr
                                 elif name is not None:
-                                    self.parse_error("multiple declaration for attribute {!r}".format(name))
+                                    self.parse_error("multiple declaration for attribute "
+                                                     "{!r}".format(name))
                                 else:
                                     attributes[None] = attributes[None].copy()
                                     attributes[None].intersection(attr)
 
                         elif self.xsd_version == '1.0':
-                            self.parse_error("Circular reference found between attribute groups "
-                                             "{!r} and {!r}".format(self.name, attribute_group_qname))
+                            self.parse_error(
+                                "Circular reference found between attribute groups "
+                                "{!r} and {!r}".format(self.name, attribute_group_qname)
+                            )
 
             elif self.name is not None:
                 self.parse_error("(attribute | attributeGroup) expected, found %r." % child)
@@ -496,17 +506,21 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         except ValueError as err:
                             self.parse_error(err)
                     elif not attr.is_restriction(base_attr):
-                        self.parse_error("Attribute wildcard is not a restriction of the base wildcard")
+                        self.parse_error("Attribute wildcard is not a restriction "
+                                         "of the base wildcard")
                     continue
                 if self.derivation == 'restriction' and attr.type.name != XSD_ANY_SIMPLE_TYPE and \
                         not attr.type.is_derived(base_attr.type, 'restriction'):
-                    self.parse_error("Attribute type is not a restriction of the base attribute type")
+                    self.parse_error("Attribute type is not a restriction "
+                                     "of the base attribute type")
                 if base_attr.use != 'optional' and attr.use == 'optional' or \
                         base_attr.use == 'required' and attr.use != 'required':
                     self.parse_error("Attribute %r: unmatched attribute use in restriction" % name)
                 if base_attr.fixed is not None and \
-                        attr.type.normalize(attr.fixed) != base_attr.type.normalize(base_attr.fixed):
-                    self.parse_error("Attribute %r: derived attribute has a different fixed value" % name)
+                        attr.type.normalize(attr.fixed) != \
+                        base_attr.type.normalize(base_attr.fixed):
+                    self.parse_error("Attribute %r: derived attribute "
+                                     "has a different fixed value" % name)
 
             if self.redefine is not None:
                 pass  # In case of redefinition do not copy base attributes
@@ -519,7 +533,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     continue
                 elif name not in attributes:
                     if attr.use == 'required':
-                        self.parse_error("Missing required attribute %r in redefinition restriction" % name)
+                        self.parse_error("Missing required attribute %r in "
+                                         "redefinition restriction" % name)
                     continue
                 if attr.use != 'optional' and attributes[name].use != attr.use:
                     self.parse_error("Attribute %r: unmatched attribute use in redefinition" % name)
@@ -532,7 +547,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 try:
                     next_pos = keys.index(name)
                 except ValueError:
-                    self.parse_error("Redefinition restriction contains additional attribute %r" % name)
+                    self.parse_error("Redefinition restriction contains "
+                                     "additional attribute %r" % name)
                 else:
                     if next_pos < pos:
                         self.parse_error("Wrong attribute order in redefinition restriction")
@@ -541,7 +557,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             self.clear()
 
         self._attribute_group.update(attributes)
-        if None in self._attribute_group and None not in attributes and self.derivation == 'restriction':
+        if None in self._attribute_group and None not in attributes \
+                and self.derivation == 'restriction':
             wildcard = self._attribute_group[None].copy()
             wildcard.namespace = wildcard.not_namespace = wildcard.not_qname = ()
             self._attribute_group[None] = wildcard
@@ -551,7 +568,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             for attr in self._attribute_group.values():
                 if attr.name is not None and attr.type.is_key():
                     if has_key:
-                        self.parse_error("multiple key attributes in a group not allowed in XSD 1.0")
+                        self.parse_error("multiple key attributes in a group "
+                                         "not allowed in XSD 1.0")
                     has_key = True
 
         elif self.parent is None and self.schema.default_attributes == self.name:
@@ -586,8 +604,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if self.ref is None:
             for attr in self.values():
                 if attr.parent is not None:
-                    for obj in attr.iter_components(xsd_classes):
-                        yield obj
+                    yield from attr.iter_components(xsd_classes)
 
     def iter_decode(self, attrs, validation='lax', **kwargs):
         if not attrs and not self:

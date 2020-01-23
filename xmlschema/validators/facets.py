@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,13 +10,12 @@
 """
 This module contains declarations and classes for XML Schema constraint facets.
 """
-from __future__ import unicode_literals
 import re
 import operator
+from collections.abc import MutableSequence
 from elementpath import XPath2Parser, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
-from ..compat import unicode_type, MutableSequence
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
     XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
@@ -44,10 +42,9 @@ class XsdFacet(XsdComponent):
 
     def __call__(self, value):
         try:
-            for error in self.validator(value):
-                yield error
+            yield from self.validator(value)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
     def _parse(self):
         super(XsdFacet, self)._parse()
@@ -60,11 +57,13 @@ class XsdFacet(XsdComponent):
             self._parse_value(self.elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
             self.value = None
-            self.parse_error(unicode_type(err))
+            self.parse_error(str(err))
         else:
             if base_facet is not None and base_facet.fixed and \
                     base_facet.value is not None and self.value != base_facet.value:
-                self.parse_error("%r facet value is fixed to %r" % (self.elem.tag, base_facet.value))
+                self.parse_error(
+                    "%r facet value is fixed to %r" % (self.elem.tag, base_facet.value)
+                )
 
     def _parse_value(self, elem):
         self.value = elem.attrib['value']
@@ -119,7 +118,8 @@ class XsdWhiteSpaceFacet(XsdFacet):
         elif value == 'collapse':
             self.validator = self.collapse_white_space_validator
         elif value != 'preserve':
-            self.parse_error("attribute 'value' must be one of ('preserve', 'replace', 'collapse').")
+            self.parse_error("attribute 'value' must be one of "
+                             "('preserve', 'replace', 'collapse').")
 
     def replace_white_space_validator(self, x):
         if '\t' in x or '\n' in x:
@@ -206,16 +206,22 @@ class XsdMinLengthFacet(XsdFacet):
 
     def min_length_validator(self, x):
         if len(x) < self.value:
-            yield XMLSchemaValidationError(self, x, "length cannot be lesser than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "length cannot be lesser than %r." % self.value
+            )
 
     def hex_min_length_validator(self, x):
         if len(x) < self.value * 2:
-            yield XMLSchemaValidationError(self, x, "binary length cannot be lesser than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "binary length cannot be lesser than %r." % self.value
+            )
 
     def base64_min_length_validator(self, x):
         x = x.replace(' ', '')
         if (len(x) // 4 * 3 - (x[-1] in ('=', 61)) - (x[-2] in ('=', 61))) < self.value:
-            yield XMLSchemaValidationError(self, x, "binary length cannot be lesser than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "binary length cannot be lesser than %r." % self.value
+            )
 
 
 class XsdMaxLengthFacet(XsdFacet):
@@ -249,16 +255,22 @@ class XsdMaxLengthFacet(XsdFacet):
 
     def max_length_validator(self, x):
         if len(x) > self.value:
-            yield XMLSchemaValidationError(self, x, "length cannot be greater than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "length cannot be greater than %r." % self.value
+            )
 
     def hex_max_length_validator(self, x):
         if len(x) > self.value * 2:
-            yield XMLSchemaValidationError(self, x, "binary length cannot be greater than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "binary length cannot be greater than %r." % self.value
+            )
 
     def base64_max_length_validator(self, x):
         x = x.replace(' ', '')
         if (len(x) // 4 * 3 - (x[-1] == '=') - (x[-2] == '=')) > self.value:
-            yield XMLSchemaValidationError(self, x, "binary length cannot be greater than %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "binary length cannot be greater than %r." % self.value
+            )
 
 
 class XsdMinInclusiveFacet(XsdFacet):
@@ -300,7 +312,7 @@ class XsdMinInclusiveFacet(XsdFacet):
                 reason = "value has to be greater or equal than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMinExclusiveFacet(XsdFacet):
@@ -342,7 +354,7 @@ class XsdMinExclusiveFacet(XsdFacet):
                 reason = "value has to be greater than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMaxInclusiveFacet(XsdFacet):
@@ -384,7 +396,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
                 reason = "value has to be lesser or equal than %r." % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdMaxExclusiveFacet(XsdFacet):
@@ -426,7 +438,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
                 reason = "value has to be lesser than %r" % self.value
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
-            yield XMLSchemaValidationError(self, value, unicode_type(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdTotalDigitsFacet(XsdFacet):
@@ -473,14 +485,17 @@ class XsdFractionDigitsFacet(XsdFacet):
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
         if not base_type.is_derived(self.schema.builtin_types()['decimal']):
-            self.parse_error("fractionDigits facet can be applied only to types derived from xs:decimal")
+            self.parse_error(
+                "fractionDigits facet can be applied only to types derived from xs:decimal"
+            )
 
     def _parse_value(self, elem):
         self.value = int(elem.attrib['value'])
         if self.value < 0:
             raise ValueError("'value' must be greater or equal than 0")
         elif self.value > 0 and self.base_type.is_derived(self.schema.builtin_types()['integer']):
-            raise ValueError("fractionDigits facet value has to be 0 for types derived from xs:integer.")
+            raise ValueError("fractionDigits facet value has to be 0 "
+                             "for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 
     def fraction_digits_validator(self, x):
@@ -511,15 +526,21 @@ class XsdExplicitTimezoneFacet(XsdFacet):
         elif value == 'required':
             self.validator = self.required_timezone_validator
         elif value != 'optional':
-            self.parse_error("attribute 'value' must be one of ('required', 'prohibited', 'optional').")
+            self.parse_error(
+                "attribute 'value' must be one of ('required', 'prohibited', 'optional')."
+            )
 
     def required_timezone_validator(self, x):
         if x.tzinfo is None:
-            yield XMLSchemaValidationError(self, x, "time zone required for value %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "time zone required for value %r." % self.value
+            )
 
     def prohibited_timezone_validator(self, x):
         if x.tzinfo is not None:
-            yield XMLSchemaValidationError(self, x, "time zone prohibited for value %r." % self.value)
+            yield XMLSchemaValidationError(
+                self, x, "time zone prohibited for value %r." % self.value
+            )
 
 
 class XsdEnumerationFacets(MutableSequence, XsdFacet):
@@ -591,9 +612,8 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
 
     def __call__(self, value):
         if value not in self.enumeration:
-            yield XMLSchemaValidationError(
-                self, value, reason="invalid value %r, it must be one of %r" % (value, self.enumeration)
-            )
+            reason = "invalid value %r, it must be one of %r" % (value, self.enumeration)
+            yield XMLSchemaValidationError(self, value, reason=reason)
 
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
@@ -659,7 +679,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
                 msg = "value doesn't match any pattern of %r."
                 yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
         except TypeError as err:
-            yield XMLSchemaValidationError(self, text, unicode_type(err))
+            yield XMLSchemaValidationError(self, text, str(err))
 
     @property
     def regexps(self):
@@ -765,7 +785,8 @@ XSD_11_FACETS_BUILDERS.update({
 XSD_10_FACETS = set(XSD_10_FACETS_BUILDERS)
 XSD_11_FACETS = set(XSD_11_FACETS_BUILDERS)
 
-XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE}
+XSD_10_LIST_FACETS = {XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
+                      XSD_ENUMERATION, XSD_WHITE_SPACE}
 XSD_11_LIST_FACETS = XSD_10_LIST_FACETS | {XSD_ASSERTION}
 
 XSD_10_UNION_FACETS = {XSD_PATTERN, XSD_ENUMERATION}

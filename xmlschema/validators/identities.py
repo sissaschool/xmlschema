@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,14 +10,13 @@
 """
 This module contains classes for other XML Schema identity constraints.
 """
-from __future__ import unicode_literals
 import re
 from collections import Counter
 from elementpath import Selector, XPath1Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
-    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_prefixed, qname_to_extended
+    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended
 from ..etree import etree_getpath
 from ..regex import get_python_regex
 
@@ -36,7 +34,9 @@ XSD_IDENTITY_XPATH_SYMBOLS = {
 
 
 class XsdIdentityXPathParser(XPath1Parser):
-    symbol_table = {k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS}
+    symbol_table = {
+        k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
+    }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
@@ -47,8 +47,9 @@ class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     pattern = re.compile(get_python_regex(
-        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*(\|"
-        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
+        r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
+        r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
+        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
     ))
 
     def __init__(self, elem, schema, parent):
@@ -66,10 +67,10 @@ class XsdSelector(XsdComponent):
                 self.parse_error("Wrong XPath expression for an xs:selector")
 
         try:
-            self.xpath_selector = Selector(self.path, self.namespaces, parser=XsdIdentityXPathParser)
+            self.xpath_selector = Selector(self.path, self.namespaces, XsdIdentityXPathParser)
         except ElementPathError as err:
             self.parse_error(err)
-            self.xpath_selector = Selector('*', self.namespaces, parser=XsdIdentityXPathParser)
+            self.xpath_selector = Selector('*', self.namespaces, XsdIdentityXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -90,9 +91,11 @@ class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
     pattern = re.compile(get_python_regex(
-        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
-        r"((attribute::|@)((\i\c*:)?(\i\c*|\*))))(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
-        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
+        r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
+        r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
+        r"(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
+        r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
     ))
 
 
@@ -104,6 +107,7 @@ class XsdIdentity(XsdComponent):
     :ivar fields: a list containing the XPath field selectors of the identity constraint.
     """
     selector = None
+    elements = ()
     fields = ()
 
     def __init__(self, elem, schema, parent):
@@ -145,8 +149,7 @@ class XsdIdentity(XsdComponent):
             self.parse_error("a reference cannot has child definitions")
 
     def iter_elements(self):
-        for xsd_element in self.selector.xpath_selector.iter_select(self.parent):
-            yield xsd_element
+        yield from self.parent.iterfind(self.selector.path, self.selector.namespaces)
 
     def get_fields(self, context, namespaces=None, decoders=None):
         """
@@ -198,7 +201,9 @@ class XsdIdentity(XsdComponent):
                 current_path = path
                 xsd_element = self.parent.find(path)
                 if not hasattr(xsd_element, 'tag'):
-                    yield XMLSchemaValidationError(self, e, "{!r} is not an element".format(xsd_element))
+                    yield XMLSchemaValidationError(
+                        self, e, "{!r} is not an element".format(xsd_element)
+                    )
                 xsd_fields = self.get_fields(xsd_element)
 
             if not xsd_fields or all(fld is None for fld in xsd_fields):
@@ -212,21 +217,12 @@ class XsdIdentity(XsdComponent):
                 if any(fld is not None for fld in fields):
                     yield fields
 
+    def get_counter(self):
+        return IdentityCounter(self)
+
     @property
     def built(self):
         return self.selector is not None
-
-    def __call__(self, elem, namespaces=None):
-        values = Counter()
-        for v in self.iter_values(elem, namespaces):
-            if isinstance(v, XMLSchemaValidationError):
-                yield v
-            else:
-                values[v] += 1
-
-        for value, count in values.items():
-            if value and count > 1:
-                yield XMLSchemaValidationError(self, elem, reason="duplicated value {!r}.".format(value))
 
 
 class XsdUnique(XsdIdentity):
@@ -247,11 +243,6 @@ class XsdKeyref(XsdIdentity):
     _ADMITTED_TAGS = {XSD_KEYREF}
     refer = None
     refer_path = '.'
-
-    def __repr__(self):
-        return '%s(name=%r, refer=%r)' % (
-            self.__class__.__name__, self.prefixed_name, getattr(self.refer, 'prefixed_name', None)
-        )
 
     def _parse(self):
         super(XsdKeyref, self)._parse()
@@ -286,14 +277,16 @@ class XsdKeyref(XsdIdentity):
         elif self.parent is not self.refer.parent:
             refer_path = self.refer.parent.get_path(ancestor=self.parent)
             if refer_path is None:
-                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref identity-constraints may be
-                # defined on domains distinct from the embedded domain of the identity-constraint they
-                # reference, or the domains may be the same but self-embedding at some depth. In either
-                # case the node table for the referenced identity-constraint needs to propagate upwards,
-                # with conflict resolution."
+                # From a note in par. 3.11.5 Part 1 of XSD 1.0 spec: "keyref
+                # identity-constraints may be defined on domains distinct from
+                # the embedded domain of the identity-constraint they reference,
+                # or the domains may be the same but self-embedding at some depth.
+                # In either case the node table for the referenced identity-constraint
+                # needs to propagate upwards, with conflict resolution."
                 refer_path = self.parent.get_path(ancestor=self.refer.parent, reverse=True)
                 if refer_path is None:
-                    refer_path = self.parent.get_path(reverse=True) + '/' + self.refer.parent.get_path()
+                    refer_path = self.parent.get_path(reverse=True) + '/' + \
+                        self.refer.parent.get_path()
 
             self.refer_path = refer_path
 
@@ -301,35 +294,21 @@ class XsdKeyref(XsdIdentity):
     def built(self):
         return self.selector is not None and isinstance(self.refer, XsdIdentity)
 
-    def get_refer_values(self, elem, namespaces=None):
-        values = set()
-        for e in elem.iterfind(self.refer_path):
-            for v in self.refer.iter_values(e, namespaces):
-                if not isinstance(v, XMLSchemaValidationError):
-                    values.add(v)
-        return values
-
-    def __call__(self, elem, namespaces=None):
+    def __call__(self, identities, elem, namespaces=None):
         if self.refer is None:
             return
 
-        refer_values = None
-        for v in self.iter_values(elem, namespaces):
-            if isinstance(v, XMLSchemaValidationError):
-                yield v
-                continue
+        values = identities[self].counter
+        refer_values = identities[self.refer].counter
 
-            if refer_values is None:
-                try:
-                    refer_values = self.get_refer_values(elem, namespaces)
-                except XMLSchemaValueError as err:
-                    yield XMLSchemaValidationError(self, elem, str(err))
-                    continue
-
+        for v in values:
             if v not in refer_values:
-                reason = "Key {!r} with value {!r} not found for identity constraint of element {!r}." \
-                    .format(self.prefixed_name, v, qname_to_prefixed(elem.tag, self.namespaces))
+                reason = "Value {!r} not found for key {} ({} times)" \
+                    .format(v, self.refer.prefixed_name, values[v])
                 yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)
+
+    def get_counter(self):
+        return KeyrefCounter(self)
 
 
 class Xsd11Unique(XsdUnique):
@@ -360,3 +339,42 @@ class Xsd11Keyref(XsdKeyref):
             self.ref = True
         else:
             super(Xsd11Keyref, self)._parse()
+
+
+class IdentityCounter(object):
+
+    def __init__(self, identity):
+        self.identity = identity
+        self.counter = Counter()
+        self.enabled = True
+
+    def clear(self):
+        self.counter.clear()
+        self.enabled = True
+
+    def increase(self, fields):
+        self.counter[fields] += 1
+        if self.counter[fields] == 2:
+            msg = "duplicated value {!r} for {!r}"
+            raise XMLSchemaValueError(msg.format(fields, self.identity))
+
+
+class KeyrefCounter(IdentityCounter):
+
+    def increase(self, fields):
+        self.counter[fields] += 1
+
+    def iter_errors(self, identities):
+        try:
+            refer_values = identities[self.identity.refer].counter
+        except KeyError:
+            if self.identity.refer is not None:
+                raise
+        else:
+            for v in filter(lambda x: x not in refer_values, self.counter):
+                if self.counter[v] > 1:
+                    msg = "Value {} not found for {!r} ({} times)"
+                    yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
+                else:
+                    msg = "Value {} not found for {!r}"
+                    yield XMLSchemaValueError(msg.format(v, self.identity.refer))

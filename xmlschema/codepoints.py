@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 #
-# Copyright (c), 2016-2019, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,13 +10,11 @@
 """
 This module defines Unicode character categories and blocks, defined as sets of code points.
 """
-from __future__ import unicode_literals
-
 import json
 import os
 from sys import maxunicode
+from collections.abc import Iterable, MutableSet
 
-from .compat import PY3, unicode_chr, string_base_type, Iterable, MutableSet
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError, XMLSchemaRegexError
 
 CHARACTER_GROUP_ESCAPED = {ord(c) for c in r'-|.^?*+{}()[]\\'}
@@ -99,23 +96,24 @@ def code_point_repr(cp):
     """
     Returns the string representation of a code point.
 
-    :param cp: an integer or a tuple with at least two integers. Values must be in interval [0, sys.maxunicode].
+    :param cp: an integer or a tuple with at least two integers. \
+    Values must be in interval [0, sys.maxunicode].
     """
     if isinstance(cp, int):
         if cp in CHARACTER_GROUP_ESCAPED:
-            return r'\%s' % unicode_chr(cp)
-        return unicode_chr(cp)
+            return r'\%s' % chr(cp)
+        return chr(cp)
 
     if cp[0] in CHARACTER_GROUP_ESCAPED:
-        start_char = r'\%s' % unicode_chr(cp[0])
+        start_char = r'\%s' % chr(cp[0])
     else:
-        start_char = unicode_chr(cp[0])
+        start_char = chr(cp[0])
 
     end_cp = cp[1] - 1  # Character ranges include the right bound
     if end_cp in CHARACTER_GROUP_ESCAPED:
-        end_char = r'\%s' % unicode_chr(end_cp)
+        end_char = r'\%s' % chr(end_cp)
     else:
-        end_char = unicode_chr(end_cp)
+        end_char = chr(end_cp)
 
     if end_cp > cp[0] + 1:
         return '%s-%s' % (start_char, end_char)
@@ -169,18 +167,17 @@ def iterparse_character_group(s, expand_ranges=False):
                             k = next(string_iter)
                             end_char = s[k]
                         elif s[k + 1] in r'sSdDiIcCwWpP':
-                            msg = "bad character range '%s-\\%s' at position %d: %r" % (char, s[k + 1], k - 2, s)
-                            raise XMLSchemaRegexError(msg)
+                            msg = "bad character range '%s-\\%s' at position %d: %r"
+                            raise XMLSchemaRegexError(msg % (char, s[k + 1], k - 2, s))
                 except StopIteration:
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, s[-1], k - 2, s)
-                    raise XMLSchemaRegexError(msg)
+                    msg = "bad character range '%s-%s' at position %d: %r"
+                    raise XMLSchemaRegexError(msg % (char, s[-1], k - 2, s))
 
                 if ord(char) > ord(end_char):
-                    msg = "bad character range '%s-%s' at position %d: %r" % (char, end_char, k - 2, s)
-                    raise XMLSchemaRegexError(msg)
+                    msg = "bad character range '%s-%s' at position %d: %r"
+                    raise XMLSchemaRegexError(msg % (char, end_char, k - 2, s))
                 elif expand_ranges:
-                    for cp in range(ord(char) + 1, ord(end_char) + 1):
-                        yield cp
+                    yield from range(ord(char) + 1, ord(end_char) + 1)
                 else:
                     yield ord(char), ord(end_char) + 1
         elif s[k] in r'|.^?*+{}()':
@@ -254,13 +251,7 @@ class UnicodeSubset(MutableSet):
         return "<%s %r at %d>" % (self.__class__.__name__, str(self._code_points), id(self))
 
     def __str__(self):
-        return unicode(self).encode("utf-8")
-
-    def __unicode__(self):
         return ''.join(code_point_repr(cp) for cp in self._code_points)
-
-    if PY3:
-        __str__ = __unicode__
 
     def copy(self):
         return self.__copy__()
@@ -273,8 +264,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(item, int):
                 yield item
             else:
-                for cp in reversed(range(item[0], item[1])):
-                    yield cp
+                yield from reversed(range(item[0], item[1]))
 
     def complement(self):
         last_cp = 0
@@ -311,7 +301,9 @@ class UnicodeSubset(MutableSet):
             try:
                 value = ord(value)
             except TypeError:
-                raise XMLSchemaTypeError("%r: argument must be a code point or a character." % value)
+                raise XMLSchemaTypeError(
+                    "%r: argument must be a code point or a character." % value
+                )
 
         for cp in self._code_points:
             if not isinstance(cp, int):
@@ -332,8 +324,7 @@ class UnicodeSubset(MutableSet):
             if isinstance(cp, int):
                 yield cp
             else:
-                for k in range(*cp):
-                    yield k
+                yield from range(*cp)
 
     def __len__(self):
         k = 0
@@ -343,7 +334,7 @@ class UnicodeSubset(MutableSet):
 
     def update(self, *others):
         for value in others:
-            if isinstance(value, string_base_type):
+            if isinstance(value, str):
                 for cp in iter_code_points(iterparse_character_group(value), reverse=True):
                     self.add(cp)
             else:
@@ -382,7 +373,7 @@ class UnicodeSubset(MutableSet):
 
     def difference_update(self, *others):
         for value in others:
-            if isinstance(value, string_base_type):
+            if isinstance(value, str):
                 for cp in iter_code_points(iterparse_character_group(value), reverse=True):
                     self.discard(cp)
             else:
@@ -509,7 +500,7 @@ def get_unicodedata_categories():
     minor_category = 'Cc'
     start_cp, next_cp = 0, 1
     for cp in range(maxunicode + 1):
-        if category(unicode_chr(cp)) != minor_category:
+        if category(chr(cp)) != minor_category:
             if cp > next_cp:
                 categories[minor_category].append((start_cp, cp))
                 categories[minor_category[0]].append(categories[minor_category][-1])
@@ -517,7 +508,7 @@ def get_unicodedata_categories():
                 categories[minor_category].append(start_cp)
                 categories[minor_category[0]].append(start_cp)
 
-            minor_category = category(unicode_chr(cp))
+            minor_category = category(chr(cp))
             start_cp, next_cp = cp, cp + 1
     else:
         if next_cp == maxunicode + 1:
