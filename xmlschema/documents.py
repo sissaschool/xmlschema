@@ -44,6 +44,22 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
     return source, schema
 
 
+def get_lazy_json_encoder(errors):
+
+    class JSONLazyEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Iterator):
+                while True:
+                    result = next(obj, None)
+                    if isinstance(result, XMLSchemaValidationError):
+                        errors.append(result)
+                    else:
+                        return result
+            return json.JSONEncoder.default(self, obj)
+
+    return JSONLazyEncoder
+
+
 def validate(xml_document, schema=None, cls=None, path=None, schema_path=None,
              use_defaults=True, namespaces=None, locations=None, base_url=None,
              defuse='remote', timeout=300, lazy=False):
@@ -209,19 +225,7 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
     errors = []
 
     if path is None and source.is_lazy() and 'cls' not in json_options:
-
-        class JSONLazyEncoder(json.JSONEncoder):
-            def default(self, obj):
-                if isinstance(obj, Iterator):
-                    while True:
-                        result = next(obj, None)
-                        if isinstance(result, XMLSchemaValidationError):
-                            errors.append(result)
-                        else:
-                            return result
-                return json.JSONEncoder.default(self, obj)
-
-        json_options['cls'] = JSONLazyEncoder
+        json_options['cls'] = get_lazy_json_encoder(errors)
         kwargs['lazy_decode'] = True
 
     obj = schema.decode(source, path=path, **kwargs)

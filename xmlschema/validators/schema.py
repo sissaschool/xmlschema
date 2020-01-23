@@ -1278,8 +1278,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if not schema_path:
             schema_path = source.get_absolute_path(path)
 
-        id_map = Counter()
-        identities = {}
         namespaces = source.get_namespaces(namespaces)
         namespace = source.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
@@ -1290,8 +1288,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             'namespaces': namespaces,
             'converter': None,
             'use_defaults': use_defaults,
-            'id_map': id_map,
-            'identities': identities,
+            'id_map': Counter(),
+            'identities': {},
             'inherited': {},
         }
 
@@ -1319,24 +1317,26 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 else:
                     del result
 
-        # Check unresolved IDREF values
-        for k, v in id_map.items():
-            if isinstance(v, XMLSchemaValidationError):
-                print(v)
-                yield v
-            elif v == 0:
-                yield self.validation_error(
-                    'lax', "IDREF %r not found in XML document" % k, source.root
-                )
+        yield from self._validate_references(validation='lax', **kwargs)
 
-        # Check still enabled key references (lazy validation)
-        for constraint, counter in \
-                filter(lambda x: x[1].enabled and isinstance(x[0], XsdKeyref), identities.items()):
-            for error in counter.iter_errors(identities):
-                yield self.validation_error('lax', error, source.root, **kwargs)
+    def _validate_references(self, source, validation='lax', id_map=None,
+                             identities=None, **kwargs):
+        # Check unresolved IDREF values
+        if id_map:
+            for k, v in id_map.items():
+                if v == 0:
+                    msg = "IDREF %r not found in XML document" % k
+                    yield self.validation_error(validation, msg, source.root)
+
+        # Check still enabled key references (lazy validation cases)
+        if identities:
+            for constraint, counter in identities.items():
+                if counter.enabled and isinstance(constraint, XsdKeyref):
+                    for error in counter.iter_errors(identities):
+                        yield self.validation_error(validation, error, source.root, **kwargs)
 
     def raw_decoder(self, source, path=None, schema_path=None, validation='lax',
-                         namespaces=None, lazy_mode=1, **kwargs):
+                    namespaces=None, lazy_mode=1, **kwargs):
         """Returns a generator for decoding a resource."""
         for elem in source.iter_subtrees(path, namespaces, lazy_mode):
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -1351,13 +1351,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         if 'max_depth' not in kwargs:
-            try:
-                for k, v in kwargs['id_map'].items():
-                    if v == 0:
-                        msg = "IDREF %r not found in XML document" % k
-                        yield self.validation_error(validation, msg, source.root)
-            except KeyError:
-                pass
+            yield from self._validate_references(source, validation=validation, **kwargs)
 
     def iter_decode(self, source, path=None, schema_path=None, validation='lax',
                     process_namespaces=True, namespaces=None, use_defaults=True,
@@ -1418,7 +1412,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             namespace = source.namespace
 
         schema = self.get_schema(namespace)
-        id_map = Counter()
         converter = self.get_converter(converter, namespaces, **kwargs)
         kwargs.update(
             converter=converter,
@@ -1427,7 +1420,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             use_defaults=use_defaults,
             datetime_types=datetime_types,
             fill_missing=fill_missing,
-            id_map=id_map,
+            id_map=Counter(),
+            identities={},
             inherited={},
         )
 
@@ -1466,10 +1460,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             yield from xsd_element.iter_decode(elem, validation, **kwargs)
 
         if 'max_depth' not in kwargs:
-            for k, v in id_map.items():
-                if v == 0:
-                    msg = "IDREF %r not found in XML document" % k
-                    yield self.validation_error(validation, msg, source.root)
+            yield from self._validate_references(validation=validation, **kwargs)
 
     def decode(self, source, path=None, schema_path=None, validation='strict', *args, **kwargs):
         """
