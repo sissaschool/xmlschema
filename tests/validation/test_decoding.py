@@ -783,6 +783,52 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(message_lines[-4].strip(), rotation_data)
         self.assertEqual(message_lines[-2], 'Path: /tns:rotation')
 
+    def test_empty_base_type_extension_single_value(self):
+        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            >
+              <xs:element name="root" type="rootType" />
+
+              <xs:complexType name="BaseType" abstract="true">
+                <xs:sequence />
+              </xs:complexType>
+
+
+              <xs:complexType name="ExtensionType">
+                <xs:complexContent>
+                  <xs:extension base="BaseType">
+                    <xs:sequence>
+                      <xs:element name="Content" type="xs:string" />
+                    </xs:sequence>
+                  </xs:extension>
+                </xs:complexContent>
+              </xs:complexType>
+
+              <xs:complexType name="rootType">
+                <xs:sequence>
+                    <xs:element name="ExtensionSub" type="BaseType" />
+                </xs:sequence>
+              </xs:complexType>
+            </xs:schema>"""
+
+        schema = self.schema_class(xsd_text)
+        result = schema.to_dict(
+            """<root xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+              <ExtensionSub xsi:type="ExtensionType">
+                <Content>my content</Content>
+              </ExtensionSub>
+            </root>"""
+        )
+        expected = {
+            "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "ExtensionSub": {
+                "@xsi:type": "ExtensionType",
+                "Content": "my content",
+            }
+        }
+        self.assertEqual(result, expected)
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
