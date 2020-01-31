@@ -1611,7 +1611,6 @@ class XMLSchema10(XMLSchemaBase):
     FALLBACK_LOCATIONS = LOCATION_HINTS
 
 
-# ++++ UNDER DEVELOPMENT, DO NOT USE!!! ++++
 class XMLSchema11(XMLSchemaBase):
     """
     XSD 1.1 schema class.
