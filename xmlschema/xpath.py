@@ -22,16 +22,14 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 class XMLSchemaContext(XPathSchemaContext):
     """
-    XPath dynamic context class for *xmlschema* library. Implements safe iteration
+    XPath dynamic context class for *xmlschema* library. Skips elem.text,
+    that is always `None` for schema elements, and implements safe iteration
     methods for schema elements that recognize circular references.
     """
     def _iter_descendants(self):
         def safe_iter_descendants(context):
             elem = context.item
             yield elem
-            if elem.text is not None:
-                context.item = elem.text
-                yield context.item
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
@@ -52,9 +50,6 @@ class XMLSchemaContext(XPathSchemaContext):
         def safe_iter_context(context):
             elem = context.item
             yield elem
-            if elem.text is not None:
-                context.item = elem.text
-                yield context.item
 
             for item in elem.attrib.items():
                 context.item = item
@@ -195,7 +190,7 @@ class ElementPathMixin(Sequence):
 
     @abstractmethod
     def __iter__(self):
-        pass
+        raise NotImplementedError
 
     def __getitem__(self, i):
         try:
