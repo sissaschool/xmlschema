@@ -510,8 +510,6 @@ class XsdComplexType(XsdType, ValidationMixin):
             return False
 
     def is_element_only(self):
-        if self.name == XSD_ANY_TYPE:
-            return False
         try:
             return not self.content_type.mixed
         except AttributeError:

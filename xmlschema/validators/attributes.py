@@ -60,12 +60,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if not hasattr(self, 'type'):
             raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
 
-    def __repr__(self):
-        if self.ref is None:
-            return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
-        else:
-            return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
-
     def __setattr__(self, name, value):
         if name == "type":
             if not isinstance(value, XsdSimpleType):

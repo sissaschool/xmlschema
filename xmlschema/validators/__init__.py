@@ -34,7 +34,7 @@ from .models import ModelGroup, ModelVisitor
 from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element, XsdAlternative
 
-from .globals_ import XsdGlobals
+from .global_maps import XsdGlobals
 from .schema import XMLSchemaMeta, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 
 

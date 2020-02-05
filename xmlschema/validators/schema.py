@@ -53,7 +53,7 @@ from .groups import XsdGroup, Xsd11Group
 from .elements import XsdElement, Xsd11Element
 from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
     Xsd11AnyAttribute, XsdDefaultOpenContent
-from .globals_ import XsdGlobals
+from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
 logging_formater = logging.Formatter('[%(levelname)s] %(message)s')

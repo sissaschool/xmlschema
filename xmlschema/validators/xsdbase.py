@@ -66,7 +66,7 @@ class XsdValidator(object):
         ``False`` otherwise. For schemas the property is checked on all global
         components. For XSD components check only the building of local subcomponents.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def validation_attempted(self):
@@ -77,7 +77,7 @@ class XsdValidator(object):
         | https://www.w3.org/TR/xmlschema-1/#e-validation_attempted
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validation_attempted
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def validity(self):
@@ -88,7 +88,9 @@ class XsdValidator(object):
         | https://www.w3.org/TR/xmlschema-1/#e-validity
         | https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#e-validity
         """
-        if self.errors or any(comp.errors for comp in self.iter_components()):
+        if self.validation == 'skip':
+            return 'notKnown'
+        elif self.errors or any(comp.errors for comp in self.iter_components()):
             return 'invalid'
         elif self.built:
             return 'valid'
@@ -102,7 +104,7 @@ class XsdValidator(object):
         :param xsd_classes: returns only a specific class/classes of components, \
         otherwise returns all components.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def all_errors(self):
@@ -143,8 +145,8 @@ class XsdValidator(object):
         elif elem is None:
             elem = getattr(self, 'elem', None)
         else:
-            raise XMLSchemaValueError("'elem' argument must be an Element instance, "
-                                      "not %r." % elem)
+            msg = "the argument 'elem' must be an Element instance, not {!r}."
+            raise XMLSchemaTypeError(msg.format(elem))
 
         if isinstance(error, XMLSchemaParseError):
             error.validator = self
@@ -159,8 +161,8 @@ class XsdValidator(object):
         elif isinstance(error, str):
             error = XMLSchemaParseError(self, error, elem)
         else:
-            raise XMLSchemaValueError("'error' argument must be an exception or a string, "
-                                      "not %r." % error)
+            msg = "'error' argument must be an exception or a string, not {!r}."
+            raise XMLSchemaTypeError(msg.format(error))
 
         if validation == 'lax':
             self.errors.append(error)
@@ -343,13 +345,13 @@ class XsdComponent(XsdValidator):
             elif self.parent is None:
                 self.parse_error("missing attribute 'name' in a global %r" % type(self))
             else:
-                self.parse_error("missing both attributes 'name' and 'ref' "
-                                 "in local %r" % type(self))
-            self.name = 'nameless_%s' % str(id(self))
-        elif self.parent is None:
-            self.parse_error("attribute 'ref' not allowed in a global %r" % type(self))
+                self.parse_error(
+                    "missing both attributes 'name' and 'ref' in local %r" % type(self)
+                )
         elif 'name' in self.elem.attrib:
             self.parse_error("attributes 'name' and 'ref' are mutually exclusive")
+        elif self.parent is None:
+            self.parse_error("attribute 'ref' not allowed in a global %r" % type(self))
         else:
             try:
                 self.name = self.schema.resolve_qname(ref)
@@ -400,8 +402,8 @@ class XsdComponent(XsdValidator):
                              "'targetNamespace' attribute is provided")
         if self._target_namespace != self.schema.target_namespace:
             if self.parent is None:
-                self.parse_error("a global attribute must have the same "
-                                 "namespace as its parent schema")
+                self.parse_error("a global %s must have the same namespace as "
+                                 "its parent schema" % self.__class__.__name__)
 
             xsd_type = self.get_parent_type()
             if not xsd_type or xsd_type.parent is not None:
@@ -410,10 +412,8 @@ class XsdComponent(XsdValidator):
                 self.parse_error("a declaration contained in a global complexType "
                                  "must have the same namespace as its parent schema")
 
-        if not self._target_namespace and self.name[0] == '{':
+        if not self._target_namespace:
             self.name = local_name(self.name)
-        elif self.name[0] != '{':
-            self.name = '{%s}%s' % (self._target_namespace, self.name)
         else:
             self.name = '{%s}%s' % (self._target_namespace, local_name(self.name))
 
@@ -440,7 +440,7 @@ class XsdComponent(XsdValidator):
 
     @property
     def built(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def is_matching(self, name, default_namespace=None, **kwargs):
         """
@@ -519,11 +519,7 @@ class XsdComponent(XsdValidator):
                 break
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
-        """
-        Returns the XML elements that declare or define the component as a string.
-        """
-        if self.elem is None:
-            return str(None)  # Incomplete component
+        """Serializes the XML elements that declare or define the component to a string."""
         return etree_tostring(self.schema_elem, self.namespaces, indent, max_lines, spaces_for_tab)
 
 
@@ -592,7 +588,7 @@ class XsdType(XsdComponent):
 
     @property
     def built(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def content_type_label(self):
@@ -625,12 +621,12 @@ class XsdType(XsdComponent):
     @staticmethod
     def is_simple():
         """Returns `True` if the instance is a simpleType, `False` otherwise."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @staticmethod
     def is_complex():
         """Returns `True` if the instance is a complexType, `False` otherwise."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @staticmethod
     def is_atomic():
@@ -646,34 +642,40 @@ class XsdType(XsdComponent):
 
     def is_empty(self):
         """Returns `True` if the instance has an empty value or content, `False` otherwise."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def is_emptiable(self):
         """Returns `True` if the instance has an emptiable value or content, `False` otherwise."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def has_simple_content(self):
         """
         Returns `True` if the instance is a simpleType or a complexType with simple
         content, `False` otherwise.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def has_mixed_content(self):
         """
         Returns `True` if the instance is a complexType with mixed content, `False` otherwise.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def is_element_only(self):
         """
         Returns `True` if the instance is a complexType with element-only content,
         `False` otherwise.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def is_derived(self, other, derivation=None):
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    def is_extension(self):
+        return self.derivation == 'extension'
+
+    def is_restriction(self):
+        return self.derivation == 'restriction'
 
     def is_blocked(self, xsd_element):
         """
@@ -698,7 +700,7 @@ class XsdType(XsdComponent):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
 
     def text_decode(self, text):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class ValidationMixin(object):
@@ -822,7 +824,7 @@ class ValidationMixin(object):
         :return: Yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
@@ -834,7 +836,7 @@ class ValidationMixin(object):
         :return: Yields an Element, eventually preceded by a sequence of validation \
         or encoding errors.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def validation_error(self, validation, error, obj=None,
                          source=None, namespaces=None, **_kwargs):
