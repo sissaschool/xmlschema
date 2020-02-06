@@ -195,7 +195,7 @@ class ElementPathMixin(Sequence):
     def __getitem__(self, i):
         try:
             return [e for e in self][i]
-        except AttributeError:
+        except IndexError:
             raise IndexError('child index out of range')
 
     def __reversed__(self):
@@ -303,7 +303,7 @@ class ElementPathMixin(Sequence):
                 if child.parent is None:
                     yield from safe_iter(child)
                 elif getattr(child, 'ref', None) is not None:
-                    if tag is None or elem.is_matching(tag):
+                    if tag is None or child.is_matching(tag):
                         yield child
                 elif child not in local_elements:
                     local_elements.append(child)

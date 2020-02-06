@@ -203,6 +203,44 @@ class XMLSchemaXPathTest(unittest.TestCase):
         self.assertTrue(selector.root_token.tree,
                         '(| (/ (/ (.) (: (ps) (Props))) (*)) (/ (/ (.) (: (ps) (MS))) (*)))')
 
+    def test_get(self):
+        xsd_element = self.xs1.elements['vehicles']
+        self.assertIsNone(xsd_element.get('unknown'))
+        self.assertEqual(xsd_element[0][0].get('model'), xsd_element[0][0].attributes['model'])
+
+    def test_getitem(self):
+        xsd_element = self.xs1.elements['vehicles']
+        self.assertEqual(xsd_element[0], xsd_element.type.content_type[0])
+        self.assertEqual(xsd_element[1], xsd_element.type.content_type[1])
+        with self.assertRaises(IndexError):
+            _ = xsd_element[2]
+
+    def test_reversed(self):
+        xsd_element = self.xs1.elements['vehicles']
+        self.assertListEqual(
+            list(reversed(xsd_element)),
+            [xsd_element.type.content_type[1], xsd_element.type.content_type[0]]
+        )
+
+    def test_iter(self):
+        xsd_element = self.xs1.elements['vehicles']
+        descendants = list(xsd_element.iter())
+        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content_type[:])
+
+        descendants = list(xsd_element.iter('*'))
+        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content_type[:])
+
+        descendants = list(xsd_element.iter(self.xs1.elements['cars'].name))
+        self.assertListEqual(descendants, [xsd_element.type.content_type[0]])
+
+    def test_iterchildren(self):
+        children = list(self.xs1.elements['vehicles'].iterchildren())
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[:])
+        children = list(self.xs1.elements['vehicles'].iterchildren('*'))
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[:])
+        children = list(self.xs1.elements['vehicles'].iterchildren(self.xs1.elements['bikes'].name))
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[1:])
+
 
 class ElementTreeXPathTest(unittest.TestCase):
 
