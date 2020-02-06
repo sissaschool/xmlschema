@@ -26,11 +26,11 @@ from collections import namedtuple, Counter
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
-    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_SCHEMA, \
-    XSD_ANNOTATION, XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, \
-    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, \
-    XSD_ALL, XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, \
-    XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE, XSI_TYPE
+    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_ANNOTATION, \
+    XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
+    XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, \
+    XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE, XSI_TYPE
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
@@ -41,7 +41,7 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaNotBuiltError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from .xsdbase import XSD_VALIDATION_MODES, XsdValidator, ValidationMixin, XsdComponent
+from .xsdbase import check_validation_mode, XsdValidator, ValidationMixin, XsdComponent
 from .notations import XsdNotation
 from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
 from .facets import XSD_11_FACETS
@@ -435,9 +435,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
-        if name == 'root' and value.tag not in (XSD_SCHEMA, 'schema'):
-            raise XMLSchemaValueError("schema root element must has %r tag." % XSD_SCHEMA)
-        elif name == 'maps':
+        if name == 'maps':
             if self.meta_schema is None and hasattr(self, 'maps'):
                 raise XMLSchemaValueError("cannot change the global maps instance of a meta-schema")
             super(XMLSchemaBase, self).__setattr__(name, value)
@@ -453,9 +451,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.global_maps = (self.notations, self.types, self.attributes,
                                 self.attribute_groups, self.groups, self.elements)
             value.register(self)
-        elif name == 'validation' and value not in ('strict', 'lax', 'skip'):
-            raise XMLSchemaValueError("Wrong value %r for attribute 'validation'." % value)
         else:
+            if name == 'validation':
+                check_validation_mode(value)
             super(XMLSchemaBase, self).__setattr__(name, value)
 
     def __iter__(self):
@@ -772,14 +770,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def check_validator(self, validation='strict'):
         """Checks the status of a schema validator against a validation mode."""
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
+        check_validation_mode(validation)
 
-        if not self.built:
-            if self.meta_schema is not None:
-                raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
+        if self.built:
+            pass
+        elif self.meta_schema is None:
             self.build()  # Meta-schema lazy build
+        elif validation == 'skip' and self.validation == 'skip' and \
+                any(comp.validation_attempted == 'partial' for comp in self.iter_globals()):
+            pass
+        else:
+            raise XMLSchemaNotBuiltError(self, "schema %r is not built" % self)
 
     def build(self):
         """Builds the schema's XSD global maps."""

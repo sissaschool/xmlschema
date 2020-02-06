@@ -12,9 +12,10 @@ import unittest
 import os
 import xml.etree.ElementTree as ElementTree
 
+from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header
-from xmlschema.validators import XsdValidator, XsdComponent, \
-    XMLSchema10, XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError
+from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
+    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
 from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -514,6 +515,205 @@ class TestValidationMixin(unittest.TestCase):
         root = ElementTree.parse(xml_file).getroot()
         with self.assertRaises(XMLSchemaValidationError):
             self.schema.elements['vehicles'].validate(root)
+
+    def test_decode(self):
+        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
+        root = ElementTree.parse(xml_file).getroot()
+
+        obj = self.schema.elements['vehicles'].decode(root)
+        self.assertIsInstance(obj, dict)
+        self.assertIn(self.schema.elements['cars'].name, obj)
+        self.assertIn(self.schema.elements['bikes'].name, obj)
+
+        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles-2_errors.xml')
+        root = ElementTree.parse(xml_file).getroot()
+
+        obj, errors = self.schema.elements['vehicles'].decode(root, validation='lax')
+        self.assertIsInstance(obj, dict)
+        self.assertIn(self.schema.elements['cars'].name, obj)
+        self.assertIn(self.schema.elements['bikes'].name, obj)
+        self.assertEqual(len(errors), 2)
+
+    def test_encode(self):
+        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
+        obj = self.schema.decode(xml_file, dict_class=ordered_dict_class)
+
+        root = self.schema.elements['vehicles'].encode(obj)
+        self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
+
+        xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles-2_errors.xml')
+        obj, errors = self.schema.decode(xml_file, validation='lax')
+
+        root, errors2 = self.schema.elements['vehicles'].encode(obj, validation='lax')
+        self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
+
+    def test_validation_error(self):
+        with self.assertRaises(ValueError) as err:
+            self.schema.validation_error('skip', 'Test error')
+        self.assertIn('incompatible', str(err.exception))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            self.schema.validation_error('strict', 'Test error')
+
+        self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
+                              XMLSchemaValidationError)
+
+    def test_decode_error(self):
+        with self.assertRaises(ValueError) as err:
+            self.schema.decode_error('skip', 'alpha', int, 'Test error')
+        self.assertIn('incompatible', str(err.exception))
+
+        with self.assertRaises(XMLSchemaDecodeError):
+            self.schema.decode_error('strict', 'alpha', int, 'Test error')
+
+        self.assertIsInstance(self.schema.decode_error('lax', 'alpha', int, 'Test error'),
+                              XMLSchemaDecodeError)
+
+    def test_encode_error(self):
+        with self.assertRaises(ValueError) as err:
+            self.schema.encode_error('skip', 'alpha', str, 'Test error')
+        self.assertIn('incompatible', str(err.exception))
+
+        with self.assertRaises(XMLSchemaEncodeError):
+            self.schema.encode_error('strict', 'alpha', str, 'Test error')
+
+        self.assertIsInstance(self.schema.encode_error('lax', 'alpha', str, 'Test error'),
+                              XMLSchemaEncodeError)
+
+
+class TestParticleMixin(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
+        cls.schema = XMLSchema10(xsd_file)
+
+    def test_occurs_property(self):
+        self.assertListEqual(self.schema.elements['cars'].occurs, [1, 1])
+        self.assertListEqual(self.schema.elements['cars'].type.content_type[0].occurs, [0, None])
+
+    def test_effective_min_occurs_property(self):
+        self.assertEqual(self.schema.elements['cars'].effective_min_occurs, 1)
+        self.assertEqual(self.schema.elements['cars'].type.content_type[0].effective_min_occurs, 0)
+
+    def test_effective_max_occurs_property(self):
+        self.assertEqual(self.schema.elements['cars'].effective_max_occurs, 1)
+        self.assertIsNone(self.schema.elements['cars'].type.content_type[0].effective_max_occurs)
+
+    def test_is_emptiable(self):
+        self.assertFalse(self.schema.elements['cars'].is_emptiable())
+        self.assertTrue(self.schema.elements['cars'].type.content_type[0].is_emptiable())
+
+    def test_is_empty(self):
+        self.assertFalse(self.schema.elements['cars'].is_empty())
+
+    def test_is_single(self):
+        self.assertTrue(self.schema.elements['cars'].is_single())
+        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_single())
+
+    def test_is_ambiguous(self):
+        self.assertFalse(self.schema.elements['cars'].is_ambiguous())
+        self.assertTrue(self.schema.elements['cars'].type.content_type[0].is_ambiguous())
+
+    def test_is_univocal(self):
+        self.assertTrue(self.schema.elements['cars'].is_univocal())
+        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_univocal())
+
+    def test_is_missing(self):
+        self.assertTrue(self.schema.elements['cars'].is_missing(0))
+        self.assertFalse(self.schema.elements['cars'].is_missing(1))
+        self.assertFalse(self.schema.elements['cars'].is_missing(2))
+        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_missing(0))
+
+    def test_is_over(self):
+        self.assertFalse(self.schema.elements['cars'].is_over(0))
+        self.assertTrue(self.schema.elements['cars'].is_over(1))
+        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_over(1000))
+
+    def test_has_occurs_restriction(self):
+        schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                     <xs:complexType name="barType">
+                         <xs:sequence>
+                             <xs:element name="node0" />
+                             <xs:element name="node1" minOccurs="0"/>
+                             <xs:element name="node2" minOccurs="0" maxOccurs="unbounded"/>
+                             <xs:element name="node3" minOccurs="2" maxOccurs="unbounded"/>
+                             <xs:element name="node4" minOccurs="2" maxOccurs="10"/>
+                             <xs:element name="node5" minOccurs="4" maxOccurs="10"/>
+                             <xs:element name="node6" minOccurs="4" maxOccurs="9"/>
+                             <xs:element name="node7" minOccurs="1" maxOccurs="9"/>
+                             <xs:element name="node8" minOccurs="3" maxOccurs="11"/>
+                         </xs:sequence>
+                     </xs:complexType>                             
+                 </xs:schema>""")
+
+        xsd_group = schema.types['barType'].content_type
+
+        for k in range(9):
+            self.assertTrue(
+                xsd_group[k].has_occurs_restriction(xsd_group[k]), msg="Fail for node%d" % k
+            )
+
+        self.assertTrue(xsd_group[0].has_occurs_restriction(xsd_group[1]))
+        self.assertFalse(xsd_group[1].has_occurs_restriction(xsd_group[0]))
+        self.assertTrue(xsd_group[3].has_occurs_restriction(xsd_group[2]))
+        self.assertFalse(xsd_group[2].has_occurs_restriction(xsd_group[1]))
+        self.assertFalse(xsd_group[2].has_occurs_restriction(xsd_group[3]))
+        self.assertTrue(xsd_group[4].has_occurs_restriction(xsd_group[3]))
+        self.assertTrue(xsd_group[4].has_occurs_restriction(xsd_group[2]))
+        self.assertFalse(xsd_group[4].has_occurs_restriction(xsd_group[5]))
+        self.assertTrue(xsd_group[5].has_occurs_restriction(xsd_group[4]))
+        self.assertTrue(xsd_group[6].has_occurs_restriction(xsd_group[5]))
+        self.assertFalse(xsd_group[5].has_occurs_restriction(xsd_group[6]))
+        self.assertFalse(xsd_group[7].has_occurs_restriction(xsd_group[6]))
+        self.assertFalse(xsd_group[5].has_occurs_restriction(xsd_group[7]))
+        self.assertTrue(xsd_group[6].has_occurs_restriction(xsd_group[7]))
+        self.assertFalse(xsd_group[7].has_occurs_restriction(xsd_group[8]))
+        self.assertFalse(xsd_group[8].has_occurs_restriction(xsd_group[7]))
+
+    def test_parse_particle(self):
+        schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                     <xs:element name="root"/>
+                 </xs:schema>""")
+        xsd_element = schema.elements['root']
+
+        elem = ElementTree.Element('root', minOccurs='1', maxOccurs='1')
+        xsd_element._parse_particle(elem)
+
+        elem = ElementTree.Element('root', minOccurs='2', maxOccurs='1')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("maxOccurs must be 'unbounded' or greater than minOccurs",
+                      str(err.exception))
+
+        elem = ElementTree.Element('root', minOccurs='-1', maxOccurs='1')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("minOccurs value must be a non negative integer", str(err.exception))
+
+        elem = ElementTree.Element('root', minOccurs='1', maxOccurs='-1')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("maxOccurs must be 'unbounded' or greater than minOccurs",
+                      str(err.exception))
+
+        elem = ElementTree.Element('root', minOccurs='1', maxOccurs='none')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("maxOccurs value must be a non negative integer or 'unbounded'",
+                      str(err.exception))
+
+        elem = ElementTree.Element('root', minOccurs='2')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("minOccurs must be lesser or equal than maxOccurs",
+                      str(err.exception))
+
+        elem = ElementTree.Element('root', minOccurs='none')
+        with self.assertRaises(XMLSchemaParseError) as err:
+            xsd_element._parse_particle(elem)
+        self.assertIn("minOccurs value is not an integer value",
+                      str(err.exception))
 
 
 if __name__ == '__main__':

@@ -21,6 +21,8 @@ from ..helpers import is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
     XMLSchemaDecodeError, XMLSchemaEncodeError
 
+XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
+XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
 
 XSD_VALIDATION_MODES = {'strict', 'lax', 'skip'}
 """
@@ -28,8 +30,11 @@ XML Schema validation modes
 Ref.: https://www.w3.org/TR/xmlschema11-1/#key-va
 """
 
-XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
-XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
+
+def check_validation_mode(validation):
+    if validation not in XSD_VALIDATION_MODES:
+        raise XMLSchemaValueError("validation mode can be 'strict', "
+                                  "'lax' or 'skip': %r" % validation)
 
 
 class XsdValidator(object):
@@ -50,9 +55,6 @@ class XsdValidator(object):
     xsd_version = None
 
     def __init__(self, validation='strict'):
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
         self.validation = validation
         self.errors = []
 
@@ -135,8 +137,11 @@ class XsdValidator(object):
         attribute of the validator, if it's present.
         :param validation: overrides the default validation mode of the validator.
         """
-        if validation not in XSD_VALIDATION_MODES:
+        if validation:
+            check_validation_mode(validation)
+        else:
             validation = self.validation
+
         if validation == 'skip':
             return
 
@@ -774,18 +779,18 @@ class ValidationMixin(object):
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \
         the XSD component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
+        check_validation_mode(validation)
 
-        errors = []
+        result, errors = None, []
         for result in self.iter_decode(source, validation, **kwargs):
             if not isinstance(result, XMLSchemaValidationError):
-                return (result, errors) if validation == 'lax' else result
+                break
             elif validation == 'strict':
                 raise result
             elif validation == 'lax':
                 errors.append(result)
+
+        return (result, errors) if validation == 'lax' else result
 
     def encode(self, obj, validation='strict', **kwargs):
         """
@@ -801,18 +806,18 @@ class ValidationMixin(object):
         :raises: :exc:`XMLSchemaValidationError` if the object is not encodable by the XSD \
         component, or also if it's invalid when ``validation='strict'`` is provided.
         """
-        if validation not in XSD_VALIDATION_MODES:
-            raise XMLSchemaValueError("validation argument can be 'strict', "
-                                      "'lax' or 'skip': %r" % validation)
+        check_validation_mode(validation)
 
-        errors = []
+        result, errors = None, []
         for result in self.iter_encode(obj, validation=validation, **kwargs):
             if not isinstance(result, XMLSchemaValidationError):
-                return (result, errors) if validation == 'lax' else result
+                break
             elif validation == 'strict':
                 raise result
             elif validation == 'lax':
                 errors.append(result)
+
+        return (result, errors) if validation == 'lax' else result
 
     def iter_decode(self, source, validation='lax', **kwargs):
         """
@@ -851,6 +856,7 @@ class ValidationMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param _kwargs: keyword arguments of the validation process that are not used.
         """
+        check_validation_mode(validation)
         if not isinstance(error, XMLSchemaValidationError):
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
         else:
@@ -867,10 +873,8 @@ class ValidationMixin(object):
             return error
         elif validation == 'strict':
             raise error
-        elif validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
         else:
-            raise XMLSchemaValueError("unknown validation mode %r" % validation)
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
 
     def decode_error(self, validation, obj, decoder, reason=None,
                      source=None, namespaces=None, **_kwargs):
@@ -886,15 +890,14 @@ class ValidationMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param _kwargs: keyword arguments of the validation process that are not used.
         """
+        check_validation_mode(validation)
         error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
         if validation == 'lax':
             return error
         elif validation == 'strict':
             raise error
-        elif validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
         else:
-            raise XMLSchemaValueError("unknown validation mode %r" % validation)
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
 
     def encode_error(self, validation, obj, encoder, reason=None,
                      source=None, namespaces=None, **_kwargs):
@@ -910,15 +913,14 @@ class ValidationMixin(object):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param _kwargs: keyword arguments of the validation process that are not used.
         """
+        check_validation_mode(validation)
         error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
         if validation == 'lax':
             return error
         elif validation == 'strict':
             raise error
-        elif validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
         else:
-            raise XMLSchemaValueError("unknown validation mode %r" % validation)
+            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
 
 
 class ParticleMixin(object):
@@ -934,6 +936,14 @@ class ParticleMixin(object):
     @property
     def occurs(self):
         return [self.min_occurs, self.max_occurs]
+
+    @property
+    def effective_min_occurs(self):
+        return self.min_occurs
+
+    @property
+    def effective_max_occurs(self):
+        return self.max_occurs
 
     def is_emptiable(self):
         return self.min_occurs == 0
@@ -968,19 +978,8 @@ class ParticleMixin(object):
         else:
             return self.max_occurs <= other.max_occurs
 
-    @property
-    def effective_min_occurs(self):
-        return self.min_occurs
-
-    @property
-    def effective_max_occurs(self):
-        return self.max_occurs
-
-    ###
-    # Methods used by XSD components
     def parse_error(self, *args, **kwargs):
-        """Helper method overridden by XsdValidator.parse_error() in XSD components."""
-        raise XMLSchemaParseError(*args)
+        raise NotImplementedError()
 
     def _parse_particle(self, elem):
         if 'minOccurs' in elem.attrib:
