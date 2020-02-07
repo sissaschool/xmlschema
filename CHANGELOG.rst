@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.1.1`_ (2020-02-xx)
+======================
+* Extension of location hints by argument to imported/included schemas
+
 `v1.1.0`_ (2020-01-23)
 =======================
 * Removed Python 2 compatibility code

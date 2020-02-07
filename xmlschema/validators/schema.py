@@ -157,8 +157,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :type converter: XMLSchemaConverter or None
-    :param locations: schema location hints, that can include additional namespaces to \
-    import after processing schema's import statements. Usually filled with the couples \
+    :param locations: schema extra location hints, that can include additional namespaces \
+    to import after processing schema's import statements, or custom resource locations \
+    (eg. local XSD file instead of remote resource). Usually filled with the couples \
     (namespace, url) extracted from xsi:schemaLocations. Can be a dictionary or a sequence \
     of couples (namespace URI, resource URL).
     :type locations: dict or list or None
@@ -228,8 +229,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar locations: schemas location hints.
-    :vartype locations: NamespaceResourcesMap
+    :ivar locations: schemas extra location hints.
+    :vartype locations: dict or list or None
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
     into namespace URI.
     :vartype namespaces: dict
@@ -353,7 +354,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             except ValueError as err:
                 self.parse_error(err, root)
 
-        self.locations = NamespaceResourcesMap(self.source.get_locations(locations))
+        self.locations = locations
+        self._locations = NamespaceResourcesMap(self.source.get_locations(locations))
         self.converter = self.get_converter(converter)
 
         if self.meta_schema is None:
@@ -397,9 +399,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self._parse_imports()
 
         # Imports by argument (usually from xsi:schemaLocation attribute).
-        for ns in self.locations:
+        for ns in self._locations:
             if ns not in self.maps.namespaces:
-                self._import_namespace(ns, self.locations[ns])
+                self._import_namespace(ns, self._locations[ns])
 
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
@@ -744,7 +746,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         schema.errors = self.errors[:]
         schema.warnings = self.warnings[:]
         schema.namespaces = self.namespaces.copy()
-        schema.locations = NamespaceResourcesMap(self.locations)
+        schema._locations = NamespaceResourcesMap(self._locations)
         schema.imports = dict(self.imports)
         schema.includes = dict(self.includes)
         schema.maps = self.maps.copy(validator=schema)
@@ -897,7 +899,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         Get a list of location hints for a namespace.
         """
         try:
-            return list(self.locations[namespace])
+            return list(self._locations[namespace])
         except KeyError:
             return []
 
@@ -978,6 +980,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
+                locations=self.locations,
                 base_url=self.base_url,
                 defuse=self.defuse,
                 timeout=self.timeout,
@@ -1091,6 +1094,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param build: defines when to build the imported schema, the default is to not build.
         :return: the imported :class:`XMLSchema` instance.
         """
+        if location == self.url:
+            return self
+
         if not force:
             if self.imports.get(namespace) is not None:
                 return self.imports[namespace]
@@ -1112,6 +1118,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
+            locations=self.locations,
             base_url=self.base_url,
             defuse=self.defuse,
             timeout=self.timeout,
