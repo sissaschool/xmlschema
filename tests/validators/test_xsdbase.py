@@ -262,9 +262,9 @@ class TestXsdComponent(unittest.TestCase):
         group = self.schema.elements['vehicles'].type.content_type
 
         xsd_element = self.FakeElement(elem=elem, name=name, schema=self.schema, parent=None)
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_target_namespace()
-        self.assertIn("must have the same namespace", err.exception.message)
+        self.assertIn("must have the same namespace", ctx.exception.message)
 
         xsd_element = self.FakeElement(elem=elem, name=name, schema=self.schema, parent=group)
         self.assertIsNone(xsd_element._parse_target_namespace())
@@ -272,15 +272,15 @@ class TestXsdComponent(unittest.TestCase):
 
         elem = ElementTree.Element(XSD_ELEMENT, targetNamespace='tns0')
         xsd_element = self.FakeElement(elem=elem, name=None, schema=self.schema, parent=group)
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_target_namespace()
-        self.assertIn("attribute 'name' must be present", err.exception.message)
+        self.assertIn("attribute 'name' must be present", ctx.exception.message)
 
         elem = ElementTree.Element(XSD_ELEMENT, name=name, form='qualified', targetNamespace='tns0')
         xsd_element = self.FakeElement(elem=elem, name=name, schema=self.schema, parent=group)
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_target_namespace()
-        self.assertIn("attribute 'form' must be absent", err.exception.message)
+        self.assertIn("attribute 'form' must be absent", ctx.exception.message)
 
         elem = ElementTree.Element(
             XSD_ELEMENT, name='motobikes', targetNamespace=self.schema.target_namespace
@@ -291,17 +291,17 @@ class TestXsdComponent(unittest.TestCase):
 
         xsd_attribute = self.schema.types['vehicleType'].attributes['model']
         xsd_attribute.elem.attrib['targetNamespace'] = 'tns0'
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_attribute._parse_target_namespace()
         self.assertIn("a declaration contained in a global complexType must "
-                      "have the same namespace", err.exception.message)
+                      "have the same namespace", ctx.exception.message)
         del xsd_attribute.elem.attrib['targetNamespace']
 
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             XMLSchema11("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root" targetNamespace=""/>
             </xs:schema>""")
-        self.assertIn("use of attribute 'targetNamespace' is prohibited", err.exception.message)
+        self.assertIn("use of attribute 'targetNamespace' is prohibited", ctx.exception.message)
 
         schema = XMLSchema11("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
@@ -548,9 +548,9 @@ class TestValidationMixin(unittest.TestCase):
         self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
 
     def test_validation_error(self):
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             self.schema.validation_error('skip', 'Test error')
-        self.assertIn('incompatible', str(err.exception))
+        self.assertIn('incompatible', str(ctx.exception))
 
         with self.assertRaises(XMLSchemaValidationError):
             self.schema.validation_error('strict', 'Test error')
@@ -559,9 +559,9 @@ class TestValidationMixin(unittest.TestCase):
                               XMLSchemaValidationError)
 
     def test_decode_error(self):
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             self.schema.decode_error('skip', 'alpha', int, 'Test error')
-        self.assertIn('incompatible', str(err.exception))
+        self.assertIn('incompatible', str(ctx.exception))
 
         with self.assertRaises(XMLSchemaDecodeError):
             self.schema.decode_error('strict', 'alpha', int, 'Test error')
@@ -570,9 +570,9 @@ class TestValidationMixin(unittest.TestCase):
                               XMLSchemaDecodeError)
 
     def test_encode_error(self):
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError) as ctx:
             self.schema.encode_error('skip', 'alpha', str, 'Test error')
-        self.assertIn('incompatible', str(err.exception))
+        self.assertIn('incompatible', str(ctx.exception))
 
         with self.assertRaises(XMLSchemaEncodeError):
             self.schema.encode_error('strict', 'alpha', str, 'Test error')
@@ -681,39 +681,39 @@ class TestParticleMixin(unittest.TestCase):
         xsd_element._parse_particle(elem)
 
         elem = ElementTree.Element('root', minOccurs='2', maxOccurs='1')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
         self.assertIn("maxOccurs must be 'unbounded' or greater than minOccurs",
-                      str(err.exception))
+                      str(ctx.exception))
 
         elem = ElementTree.Element('root', minOccurs='-1', maxOccurs='1')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
-        self.assertIn("minOccurs value must be a non negative integer", str(err.exception))
+        self.assertIn("minOccurs value must be a non negative integer", str(ctx.exception))
 
         elem = ElementTree.Element('root', minOccurs='1', maxOccurs='-1')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
         self.assertIn("maxOccurs must be 'unbounded' or greater than minOccurs",
-                      str(err.exception))
+                      str(ctx.exception))
 
         elem = ElementTree.Element('root', minOccurs='1', maxOccurs='none')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
         self.assertIn("maxOccurs value must be a non negative integer or 'unbounded'",
-                      str(err.exception))
+                      str(ctx.exception))
 
         elem = ElementTree.Element('root', minOccurs='2')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
         self.assertIn("minOccurs must be lesser or equal than maxOccurs",
-                      str(err.exception))
+                      str(ctx.exception))
 
         elem = ElementTree.Element('root', minOccurs='none')
-        with self.assertRaises(XMLSchemaParseError) as err:
+        with self.assertRaises(XMLSchemaParseError) as ctx:
             xsd_element._parse_particle(elem)
         self.assertIn("minOccurs value is not an integer value",
-                      str(err.exception))
+                      str(ctx.exception))
 
 
 if __name__ == '__main__':
