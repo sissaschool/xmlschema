@@ -643,6 +643,7 @@ class TestResources(unittest.TestCase):
         locations = resource.get_locations([('ns', 'other.xsd')])
         self.assertEqual(len(locations), 2)
         self.check_url(locations[0][1], os.path.join(self.col_dir, 'other.xsd'))
+        self.check_url(locations[1][1], normalize_url(self.col_xsd_file))
 
     @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
                      "Remote networks are not accessible or avoid SSL "

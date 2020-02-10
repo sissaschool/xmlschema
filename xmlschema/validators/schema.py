@@ -35,7 +35,8 @@ from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
-from ..resources import is_remote_url, url_path_is_file, fetch_resource, XMLResource
+from ..resources import is_remote_url, url_path_is_file, normalize_locations, \
+    fetch_resource, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -157,12 +158,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :param converter: is an optional argument that can be an :class:`XMLSchemaConverter` \
     subclass or instance, used for defining the default XML data converter for XML Schema instance.
     :type converter: XMLSchemaConverter or None
-    :param locations: schema extra location hints, that can include additional namespaces \
-    to import after processing schema's import statements, or custom resource locations \
-    (eg. local XSD file instead of remote resource). Usually filled with the couples \
-    (namespace, url) extracted from xsi:schemaLocations. Can be a dictionary or a sequence \
-    of couples (namespace URI, resource URL).
-    :type locations: dict or list or None
+    :param locations: schema extra location hints, that can include custom resource locations \
+    (eg. local XSD file instead of remote resource) or additional namespaces to import after \
+    processing schema's import statements. Can be a dictionary or a sequence of couples \
+    (namespace URI, resource URL). Extra locations passed using a tuple container are not \
+    normalized.
+    :type locations: dict or list or tuple or None
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
     :type base_url: str or None
@@ -229,8 +230,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar locations: schemas extra location hints.
-    :vartype locations: dict or list or None
+    :ivar extra_locations: schema extra location hints provided with the argument *locations*.
+    :vartype locations: tuple or None
+    :ivar locations: schema location hints.
+    :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
     into namespace URI.
     :vartype namespaces: dict
@@ -354,8 +357,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             except ValueError as err:
                 self.parse_error(err, root)
 
-        self.locations = locations
-        self._locations = NamespaceResourcesMap(self.source.get_locations(locations))
+        if locations is None or isinstance(locations, tuple):
+            self.extra_locations = locations
+        else:
+            self.extra_locations = tuple(normalize_locations(locations, self.base_url))
+
+        self.locations = NamespaceResourcesMap(self.source.get_locations(self.extra_locations))
         self.converter = self.get_converter(converter)
 
         if self.meta_schema is None:
@@ -399,9 +406,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self._parse_imports()
 
         # Imports by argument (usually from xsi:schemaLocation attribute).
-        for ns in self._locations:
+        for ns in self.locations:
             if ns not in self.maps.namespaces:
-                self._import_namespace(ns, self._locations[ns])
+                self._import_namespace(ns, self.locations[ns])
 
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
@@ -746,7 +753,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         schema.errors = self.errors[:]
         schema.warnings = self.warnings[:]
         schema.namespaces = self.namespaces.copy()
-        schema._locations = NamespaceResourcesMap(self._locations)
+        schema.locations = NamespaceResourcesMap(self.locations)
         schema.imports = dict(self.imports)
         schema.includes = dict(self.includes)
         schema.maps = self.maps.copy(validator=schema)
@@ -899,7 +906,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         Get a list of location hints for a namespace.
         """
         try:
-            return list(self._locations[namespace])
+            return list(self.locations[namespace])
         except KeyError:
             return []
 
@@ -980,7 +987,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
-                locations=self.locations,
+                locations=self.extra_locations,
                 base_url=self.base_url,
                 defuse=self.defuse,
                 timeout=self.timeout,
@@ -1054,13 +1061,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
                 self.import_schema(namespace, url, self.base_url)
-            except (OSError, IOError) as err:
+            except (XMLSchemaURLError, OSError, IOError) as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                 logger.debug('%s', err)
                 if import_error is None:
                     import_error = err
-            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 if namespace:
                     msg = "cannot import namespace %r: %s." % (namespace, err)
                 else:
@@ -1118,7 +1125,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=self.locations,
+            locations=self.extra_locations,
             base_url=self.base_url,
             defuse=self.defuse,
             timeout=self.timeout,

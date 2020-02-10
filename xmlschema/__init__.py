@@ -12,10 +12,8 @@ from . import limits
 from .exceptions import XMLSchemaException, XMLSchemaRegexError, XMLSchemaURLError, \
     XMLSchemaNamespaceError
 from .etree import etree_tostring
-from .resources import (
-    normalize_url, fetch_resource, fetch_namespaces,
-    fetch_schema_locations, fetch_schema, XMLResource
-)
+from .resources import normalize_url, normalize_locations, fetch_resource, \
+    fetch_namespaces, fetch_schema_locations, fetch_schema, XMLResource
 from .xpath import ElementPathMixin
 from .converters import (
     ElementData, XMLSchemaConverter, UnorderedConverter, ParkerConverter,
@@ -41,12 +39,12 @@ __status__ = "Production/Stable"
 
 __all__ = [
     'limits', 'XMLSchemaException', 'XMLSchemaRegexError', 'XMLSchemaURLError',
-    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'fetch_resource',
-    'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema', 'XMLResource',
-    'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
-    'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
-    'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json', 'from_json',
-    'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
+    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
+    'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
+    'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
+    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
+    'JsonMLConverter', 'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json',
+    'from_json', 'XMLSchemaValidatorError', 'XMLSchemaParseError', 'XMLSchemaNotBuiltError',
     'XMLSchemaModelError', 'XMLSchemaModelDepthError', 'XMLSchemaValidationError',
     'XMLSchemaDecodeError', 'XMLSchemaEncodeError', 'XMLSchemaChildrenValidationError',
     'XMLSchemaIncludeWarning', 'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
