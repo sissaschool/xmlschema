@@ -699,7 +699,7 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1):
+    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1, ancestors=None):
         """
         XML resource subtree iterator, that yields fully loaded elements. If a
         path is provided the elements selected by the XPath expression are yielded.
@@ -718,6 +718,8 @@ class XMLResource(object):
         is lazy the namespace map is updated during the iteration.
         :param lazy_mode: defines how a lazy resource is iterated when a path \
         is not provided.
+        :param ancestors: if a list is provided the iterator tracks the list of \
+        ancestors of yielded elements of lazy resources.
         """
         if not (1 <= lazy_mode <= 5):
             raise XMLSchemaValueError("invalid argument lazy_mode={!r}".format(lazy_mode))
@@ -745,6 +747,8 @@ class XMLResource(object):
         else:
             # Track ad update namespaces
             events = 'start-ns', 'end-ns', 'start', 'end'
+        if ancestors is None:
+            ancestors = []
 
         if path is None:
             subtree_level = int(self._lazy) if lazy_mode > 1 else 0
@@ -773,6 +777,9 @@ class XMLResource(object):
                         self._root = node
                         if not path and lazy_mode == 5:
                             yield node
+                        ancestors.append(node)
+                    elif level < subtree_level:
+                        ancestors.append(node)
                     level += 1
                 elif event == 'end':
                     level -= 1
@@ -785,6 +792,8 @@ class XMLResource(object):
                         elif select_all or node in selector.select(self._root):
                             yield node
                     elif level != subtree_level:
+                        if level < subtree_level:
+                            ancestors.pop()
                         continue
                     elif skip_depth_elements:
                         pass
