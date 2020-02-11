@@ -197,7 +197,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 print("\n##\n## Testing %r validation in debug mode.\n##" % xml_file)
                 pdb.set_trace()
 
-        def check_etree_encode(self, root, converter=None, **kwargs):
+        def check_decode_encode(self, root, converter=None, **kwargs):
             namespaces = kwargs.get('namespaces', {})
 
             lossy = converter in (ParkerConverter, AbderaConverter)
@@ -374,18 +374,18 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.assertEqual(skip_data, self.chunks[0],
                              msg_tmpl % "'skip' validation has a different result")
 
-        def check_encoding_with_element_tree(self):
+        def check_data_conversion_with_element_tree(self):
             root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
-            self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-            self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-            self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-            self.check_etree_encode(root, BadgerFishConverter, **options)
-            self.check_etree_encode(root, AbderaConverter, **options)
-            self.check_etree_encode(root, JsonMLConverter, **options)
-            self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+            self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+            self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
+            self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
+            self.check_decode_encode(root, BadgerFishConverter, **options)
+            self.check_decode_encode(root, AbderaConverter, **options)
+            self.check_decode_encode(root, JsonMLConverter, **options)
+            self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
             options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
@@ -396,7 +396,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_json_serialization(root, JsonMLConverter, **options)
             self.check_json_serialization(root, UnorderedConverter, **options)
 
-        def check_decoding_and_encoding_with_lxml(self):
+        def check_data_conversion_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)
             namespaces = fetch_namespaces(xml_file)
 
@@ -424,13 +424,13 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                     'namespaces': namespaces,
                     'dict_class': ordered_dict_class,
                 }
-                self.check_etree_encode(root, cdata_prefix='#', **options)  # Default converter
-                self.check_etree_encode(root, ParkerConverter, validation='lax', **options)
-                self.check_etree_encode(root, ParkerConverter, validation='skip', **options)
-                self.check_etree_encode(root, BadgerFishConverter, **options)
-                self.check_etree_encode(root, AbderaConverter, **options)
-                self.check_etree_encode(root, JsonMLConverter, **options)
-                self.check_etree_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+                self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+                self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
+                self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
+                self.check_decode_encode(root, BadgerFishConverter, **options)
+                self.check_decode_encode(root, AbderaConverter, **options)
+                self.check_decode_encode(root, JsonMLConverter, **options)
+                self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
                 options.pop('dict_class')
                 self.check_json_serialization(root, cdata_prefix='#', **options)
@@ -453,8 +453,24 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                                  msg_tmpl % "file without errors not validated")
 
         def check_iter_errors(self):
-            self.assertEqual(len(list(self.schema.iter_errors(xml_file))), expected_errors,
+            errors1 = list(self.schema.iter_errors(xml_file))
+            for e in errors1:
+                self.assertIsInstance(e.reason, str)
+            self.assertEqual(len(errors1), expected_errors,
                              msg_tmpl % "wrong number of errors (%d expected)" % expected_errors)
+
+            errors2 = list(xmlschema.iter_errors(xml_file, schema=self.schema))
+            self.assertEqual(len(errors1), len(errors2))
+            for e1, e2 in zip(errors1, errors2):
+                self.assertEqual(e1.reason, e2.reason)
+
+            lazy_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
+            if len(errors1) != len(lazy_errors):
+                list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
+
+            self.assertEqual(len(errors1), len(lazy_errors))
+            for e1, e2 in zip(errors1, lazy_errors):
+                self.assertEqual(e1.reason, e2.reason)
 
         def check_lxml_validation(self):
             try:
@@ -471,15 +487,14 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
         def test_xml_document_validation(self):
             self.check_decoding_with_element_tree()
-
-            if not inspect and sys.version_info >= (3,):
+            if not inspect:
                 self.check_schema_serialization()
 
             if not self.errors:
-                self.check_encoding_with_element_tree()
+                self.check_data_conversion_with_element_tree()
 
             if lxml_etree is not None:
-                self.check_decoding_and_encoding_with_lxml()
+                self.check_data_conversion_with_lxml()
 
             self.check_iter_errors()
             self.check_validate_and_is_valid_api()
