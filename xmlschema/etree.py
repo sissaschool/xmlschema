@@ -24,6 +24,9 @@ from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
 from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
+_REGEX_NS_PREFIX = re.compile(r'ns\d+$')
+_REGEX_SPACES = re.compile(r'\s+')
+
 ###
 # Programmatic import of xml.etree.ElementTree
 #
@@ -149,21 +152,21 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
     if isinstance(elem, etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                if not re.match(r'ns\d+$', prefix):
+                if not _REGEX_NS_PREFIX.match(prefix):
                     etree_register_namespace(prefix, uri)
         tostring = ElementTree.tostring
 
     elif isinstance(elem, py_etree_element):
         if namespaces:
             for prefix, uri in namespaces.items():
-                if not re.match(r'ns\d+$', prefix):
+                if not _REGEX_NS_PREFIX.match(prefix):
                     PyElementTree.register_namespace(prefix, uri)
         tostring = PyElementTree.tostring
 
     elif lxml_etree is not None:
         if namespaces:
             for prefix, uri in namespaces.items():
-                if prefix and not re.match(r'ns\d+$', prefix):
+                if prefix and not _REGEX_NS_PREFIX.match(prefix):
                     lxml_etree_register_namespace(prefix, uri)
         tostring = lxml_etree.tostring
     else:
@@ -234,7 +237,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
         yield from etree_iterpath(child, tag, child_path, namespaces)
 
 
-def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False):
+def etree_getpath(elem, root, namespaces=None, relative=True,
+                  add_position=False, parent_path=False):
     """
     Returns the XPath path from *root* to descendant *elem* element.
 
@@ -243,6 +247,7 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     :param namespaces: is an optional mapping from namespace prefix to URI.
     :param relative: returns a relative path.
     :param add_position: add context position to child elements that appear multiple times.
+    :param parent_path: if set to `True` returns the parent path. Default is `False`.
     :return: An XPath expression or `None` if *elem* is not a descendant of *root*.
     """
     if relative:
@@ -252,9 +257,16 @@ def etree_getpath(elem, root, namespaces=None, relative=True, add_position=False
     else:
         path = '/%s' % root.tag
 
-    for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
-        if e is elem:
-            return path
+    if not parent_path:
+        for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
+            if e is elem:
+                return path
+    elif elem in root:
+        return path
+    else:
+        for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
+            if elem in e:
+                return path
 
 
 def etree_iter_location_hints(elem):
@@ -280,8 +292,6 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     :param unordered: children may have different order.
     :raise: an AssertionError containing information about first difference encountered.
     """
-    _REGEX_SPACES = re.compile(r'\s+')
-
     if unordered:
         children = sorted(elem, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag)
         other_children = iter(sorted(

@@ -13,11 +13,14 @@ This module defines a mixin class for enabling XPath on schemas.
 from abc import abstractmethod
 from collections.abc import Sequence
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
+import re
 import threading
 
 from .qnames import XSD_SCHEMA
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
+
+_REGEX_TAG_POSITION = re.compile(r'\b\[\d+\]')
 
 
 class XMLSchemaContext(XPathSchemaContext):
@@ -244,6 +247,7 @@ class ElementPathMixin(Sequence):
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
             path = ''.join(['/', XSD_SCHEMA, path])
+        path = _REGEX_TAG_POSITION.sub('', path)  # Strips tags's positions from path
 
         namespaces = self._get_xpath_namespaces(namespaces)
         with self._xpath_lock:
