@@ -800,7 +800,7 @@ class XMLResource(object):
                     elif select_all or node in selector.select(self._root):
                         yield node
 
-                    node.clear()
+                    del node[:]  # delete children, keep attributes, text and tail.
                     if changed:
                         namespaces.clear()
                         namespaces.update(nsmap)
