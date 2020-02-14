@@ -857,9 +857,7 @@ class ValidationMixin(object):
         :param _kwargs: keyword arguments of the validation process that are not used.
         """
         check_validation_mode(validation)
-        if not isinstance(error, XMLSchemaValidationError):
-            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
-        else:
+        if isinstance(error, XMLSchemaValidationError):
             if error.namespaces is None and namespaces is not None:
                 error.namespaces = namespaces
             if error.source is None and source is not None:
@@ -868,6 +866,10 @@ class ValidationMixin(object):
                 error.obj = obj
             if error.elem is None and is_etree_element(obj):
                 error.elem = obj
+        elif isinstance(error, Exception):
+            error = XMLSchemaValidationError(self, obj, str(error), source, namespaces)
+        else:
+            error = XMLSchemaValidationError(self, obj, error, source, namespaces)
 
         if validation == 'lax':
             return error
