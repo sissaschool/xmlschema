@@ -462,6 +462,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         text = elem.text
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
+            if text is None:
+                return
         return self.type.text_decode(text)
 
     def check_dynamic_context(self, elem, **kwargs):
@@ -498,6 +500,30 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if ns not in locations:
                 locations[ns] = None
 
+    def start_identities(self, identities):
+        """
+        Start tracking of XSD element's identities.
+
+        :param identities: a dictionary containing the identities counters.
+        """
+        for constraint in self.identities.values():
+            try:
+                identities[constraint].clear()
+            except KeyError:
+                identities[constraint] = constraint.get_counter()
+
+    def stop_identities(self, identities):
+        """
+        Stop tracking of XSD element's identities.
+
+        :param identities: a dictionary containing the identities counters.
+        """
+        for identity in self.identities.values():
+            try:
+                identities[identity].enabled = False
+            except KeyError:
+                identities[identity] = identity.get_counter(enabled=False)
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
@@ -527,11 +553,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             identities = kwargs['identities'] = {}
 
-        for constraint in self.identities.values():
-            try:
-                identities[constraint].clear()
-            except KeyError:
-                identities[constraint] = constraint.get_counter()
+        self.start_identities(identities)
 
         try:
             converter = kwargs['converter']
@@ -717,8 +739,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     for err in counter.iter_errors(identities):
                         yield self.validation_error(validation, err, elem, **kwargs)
         elif level:
-            for constraint in self.identities.values():
-                identities[constraint].enabled = False
+            self.stop_identities(identities)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """

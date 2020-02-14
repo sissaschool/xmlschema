@@ -217,8 +217,8 @@ class XsdIdentity(XsdComponent):
                 if any(fld is not None for fld in fields):
                     yield fields
 
-    def get_counter(self):
-        return IdentityCounter(self)
+    def get_counter(self, enabled=True):
+        return IdentityCounter(self, enabled)
 
     @property
     def built(self):
@@ -307,8 +307,8 @@ class XsdKeyref(XsdIdentity):
                     .format(v, self.refer.prefixed_name, values[v])
                 yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)
 
-    def get_counter(self):
-        return KeyrefCounter(self)
+    def get_counter(self, enabled=True):
+        return KeyrefCounter(self, enabled)
 
 
 class Xsd11Unique(XsdUnique):
@@ -343,10 +343,13 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter(object):
 
-    def __init__(self, identity):
-        self.identity = identity
+    def __init__(self, identity, enabled=True):
         self.counter = Counter()
-        self.enabled = True
+        self.identity = identity
+        self.enabled = enabled
+
+    def __repr__(self):
+        return "%s(counter=%r)" % (self.__class__.__name__, self.counter)
 
     def clear(self):
         self.counter.clear()

@@ -57,9 +57,9 @@ from .wildcards import XsdAnyElement, XsdAnyAttribute, Xsd11AnyElement, \
 from .global_maps import XsdGlobals
 
 logger = logging.getLogger('xmlschema')
-logging_formater = logging.Formatter('[%(levelname)s] %(message)s')
+logging_formatter = logging.Formatter('[%(levelname)s] %(message)s')
 logging_handler = logging.StreamHandler(sys.stderr)
-logging_handler.setFormatter(logging_formater)
+logging_handler.setFormatter(logging_formatter)
 logger.addHandler(logging_handler)
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
@@ -914,7 +914,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if not path:
             return self.find(tag)
         elif path[-1] == '*':
-            return self.find(path[:-1] + tag, namespaces) or self.maps.elements.get(tag)
+            xsd_element = self.find(path[:-1] + tag, namespaces)
+            return self.maps.elements.get(tag) if xsd_element is None else xsd_element
         else:
             return self.find(path, namespaces)
 
@@ -1296,31 +1297,54 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         namespaces = source.get_namespaces(namespaces)
         namespace = source.namespace or namespaces.get('', '')
         schema = self.get_schema(namespace)
-
+        identities = {}
+        ancestors = []
+        prev_ancestors = []
         kwargs = {
-            'level': 0,
+            'level': source.lazy_depth or bool(path),
             'source': source,
             'namespaces': namespaces,
             'converter': None,
             'use_defaults': use_defaults,
             'id_map': Counter(),
-            'identities': {},
+            'identities': identities,
             'inherited': {},
         }
 
         # TODO: kwargs['locations'] = {}  # Lazy schemas load
 
-        for elem in source.iter_subtrees(path, namespaces, lazy_mode=4):
+        for elem in source.iter_subtrees(path, namespaces, lazy_mode=4, ancestors=ancestors):
             if elem is source.root:
                 xsd_element = schema.get_element(elem.tag, namespaces=namespaces)
                 if source.lazy_depth:
+                    kwargs['level'] = 0
+                    kwargs['identities'] = {}
                     kwargs['max_depth'] = source.lazy_depth
             else:
+                if prev_ancestors != ancestors:
+                    k = 0
+                    for k in range(min(len(ancestors), len(prev_ancestors))):
+                        if ancestors[k] is not prev_ancestors[k]:
+                            break
+
+                    path_ = '/'.join(e.tag for e in ancestors) + '/ancestor-or-self::node()'
+                    xsd_ancestors = schema.findall(path_, namespaces)[1:]
+
+                    for e in xsd_ancestors[k:]:
+                        e.stop_identities(identities)
+
+                    for e in xsd_ancestors[k:]:
+                        e.start_identities(identities)
+
+                    prev_ancestors = ancestors[:]
+
                 xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
 
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
                     xsd_element = self.create_element(name=elem.tag)
+                elif elem is not source.root and ancestors:
+                    continue
                 else:
                     reason = "{!r} is not an element of the schema".format(elem)
                     yield schema.validation_error('lax', reason, elem, source, namespaces)
@@ -1331,6 +1355,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     yield result
                 else:
                     del result
+
+        if kwargs['identities'] is not identities:
+            for identity, counter in kwargs['identities'].items():
+                identities[identity].counter.update(counter.counter)
+            kwargs['identities'] = identities
 
         yield from self._validate_references(validation='lax', **kwargs)
 

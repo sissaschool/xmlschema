@@ -465,12 +465,14 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.assertEqual(e1.reason, e2.reason)
 
             lazy_errors = list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
-            if len(errors1) != len(lazy_errors):
-                list(xmlschema.iter_errors(xml_file, schema=self.schema, lazy=True))
-
             self.assertEqual(len(errors1), len(lazy_errors))
             for e1, e2 in zip(errors1, lazy_errors):
                 self.assertEqual(e1.reason, e2.reason)
+
+            # TODO: Test also lazy validation with lazy=2.
+            #  This needs two fixes in XPath:
+            #   1) find has to retrieve also element substitutes
+            #   2) multiple XSD type match on tokens that have wildcard parent (eg. /root/*/name)
 
         def check_lxml_validation(self):
             try:
