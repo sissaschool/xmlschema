@@ -10,6 +10,8 @@
 #
 import unittest
 import os
+import platform
+import re
 import xml.etree.ElementTree as ElementTree
 
 from xmlschema.compat import ordered_dict_class
@@ -35,7 +37,10 @@ class TestXsdValidator(unittest.TestCase):
     def test_string_representation(self):
         validator = XsdValidator()
         tmpl = '<xmlschema.validators.xsdbase.XsdValidator object at {}>'
-        self.assertEqual(str(validator), tmpl.format(hex(id(validator))))
+        string_repr = str(validator)
+        if platform.python_implementation() == 'PyPy':
+            string_repr = re.sub(r'0x[0]+', '0x', string_repr, 1)
+        self.assertEqual(string_repr, tmpl.format(hex(id(validator))))
 
     def test_parse_error(self):
         xsd_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xsd')
