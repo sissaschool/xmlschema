@@ -410,6 +410,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if ns not in self.maps.namespaces:
                 self._import_namespace(ns, self.locations[ns])
 
+        # Imports missing base schemas
+        if self.maps is not self.meta_schema.maps:
+            for ns in filter(lambda x: x not in self.maps.namespaces, self.BASE_SCHEMAS):
+                self._import_namespace(ns, [self.BASE_SCHEMAS[ns]])
+
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
 

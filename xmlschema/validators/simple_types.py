@@ -331,7 +331,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
-            return True
+            return derivation != 'extension'
         elif self.base_type is other:
             return True
         elif self.base_type is None:
@@ -547,9 +547,12 @@ class XsdAtomicBuiltin(XsdAtomic):
             except KeyError:
                 pass
             else:
+                xsd_element = kwargs.get('element')
                 if not id_map[obj]:
                     id_map[obj] = 1
-                else:
+                    if xsd_element is not None:
+                        id_map[(xsd_element, obj)] = 1
+                elif xsd_element is None or (xsd_element, obj) not in id_map:
                     yield self.validation_error(
                         validation, "Duplicated xsd:ID value {!r}".format(obj)
                     )
@@ -751,7 +754,7 @@ class XsdList(XsdSimpleType):
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
-            return True
+            return derivation != 'extension'
         elif self.base_type is other:
             return True
         else:
