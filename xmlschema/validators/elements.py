@@ -585,6 +585,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     validation, "usage of %r is blocked" % xsd_type, elem, **kwargs
                 )
 
+        content_type = xsd_type.content_type if xsd_type.is_complex() else xsd_type
+
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_decode(elem.attrib, validation, **kwargs):
@@ -632,7 +634,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
 
-            for result in xsd_type.content_type.iter_decode(elem, validation, **kwargs):
+            for result in content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -640,6 +642,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             if len(content) == 1 and content[0][0] == 1:
                 value, content = content[0][1], None
+
+            if self.fixed is not None and \
+                    (len(elem) > 0 or value is not None and self.fixed != value):
+                reason = "must have the fixed value %r." % self.fixed
+                yield self.validation_error(validation, reason, elem, **kwargs)
 
         else:
             if len(elem) and validation != 'skip':
@@ -654,7 +661,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     pass
                 elif not strictly_equal(xsd_type.text_decode(text),
                                         xsd_type.text_decode(self.fixed)):
-                    reason = "must has the fixed value %r." % self.fixed
+                    reason = "must have the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
 
             elif not text and kwargs.get('use_defaults') and self.default is not None:
@@ -669,19 +676,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     value = text.split()
                 else:
                     value = text
-
-                xsd_type = xsd_type.content_type
             elif xsd_type.is_key() and self.xsd_version != '1.0':
                 kwargs['element'] = self if self.ref is None else self.ref
 
             if text is None:
-                for result in xsd_type.iter_decode('', validation, **kwargs):
+                for result in content_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                for result in xsd_type.iter_decode(text, validation, **kwargs):
+                for result in content_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                     elif result is None and 'filler' in kwargs:
@@ -719,7 +724,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 continue
 
             try:
-                xsd_fields = constraint.get_fields(self)
+                if xsd_type is self.type:
+                    xsd_fields = constraint.get_fields(self)
+                else:
+                    xsd_element = self.copy()
+                    xsd_element.type = xsd_type
+                    xsd_fields = constraint.get_fields(xsd_element)
+
                 if not any(fld is not None for fld in xsd_fields):
                     continue
                 fields = constraint.get_fields(elem, namespaces, decoders=xsd_fields)

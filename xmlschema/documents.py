@@ -11,6 +11,7 @@ import json
 from collections.abc import Iterator
 
 from .compat import ordered_dict_class
+from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
 
@@ -33,7 +34,9 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
         schema_location, locations = fetch_schema_locations(source, locations, base_url=base_url)
     except ValueError:
         if schema is None:
-            raise
+            if XSI_TYPE not in source.root.attrib:
+                raise
+            schema = cls.meta_schema
         elif not isinstance(schema, XMLSchemaBase):
             schema = cls(schema, validation='strict', locations=locations,
                          base_url=base_url, defuse=defuse, timeout=timeout)

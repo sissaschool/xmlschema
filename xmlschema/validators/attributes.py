@@ -419,7 +419,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if attribute.name in attributes:
                     self.parse_error("multiple declaration for attribute "
                                      "{!r}".format(attribute.name))
-                else:
+                elif attribute.use != 'prohibited' or elem.tag != XSD_ATTRIBUTE_GROUP:
                     attributes[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:

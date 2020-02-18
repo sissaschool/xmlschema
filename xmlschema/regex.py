@@ -146,14 +146,21 @@ class XsdRegexCharGroup(MutableSet):
                     self.positive |= value
                 else:
                     self.negative |= value
-            elif part.startswith('\\p'):
+            elif part.startswith('\\p') or part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
-                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.positive |= unicode_subset(part[3:-1], self.xsd_version > '1.0')
-            elif part.startswith('\\P'):
-                if self._re_unicode_ref.search(part) is None:
-                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.negative |= unicode_subset(part[3:-1], self.xsd_version > '1.0')
+                    raise XMLSchemaValueError("wrong Unicode block specification %r" % part)
+
+                try:
+                    subset = unicode_subset(part[3:-1])
+                except XMLSchemaRegexError:
+                    if self.xsd_version == '1.0' or not part[3:].startswith('Is'):
+                        raise
+                    self.positive |= UnicodeSubset.fromlist([(0, maxunicode)])
+                else:
+                    if part.startswith('\\p'):
+                        self.positive |= subset
+                    else:
+                        self.negative |= subset
             else:
                 self.positive.update(part)
 
@@ -167,14 +174,20 @@ class XsdRegexCharGroup(MutableSet):
                     self.positive -= value
                 else:
                     self.negative -= value
-            elif part.startswith('\\p'):
+            elif part.startswith('\\p') or part.startswith('\\P'):
                 if self._re_unicode_ref.search(part) is None:
-                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.positive -= unicode_subset(part[3:-1], self.xsd_version > '1.0')
-            elif part.startswith('\\P'):
-                if self._re_unicode_ref.search(part) is None:
-                    raise XMLSchemaValueError("wrong Unicode subset specification %r" % part)
-                self.negative -= unicode_subset(part[3:-1], self.xsd_version > '1.0')
+                    raise XMLSchemaValueError("wrong Unicode block specification %r" % part)
+                try:
+                    subset = unicode_subset(part[3:-1])
+                except XMLSchemaRegexError:
+                    if self.xsd_version == '1.0' or not part[3:].startswith('Is'):
+                        raise
+                    self.positive -= UnicodeSubset.fromlist([(0, maxunicode)])
+                else:
+                    if part.startswith('\\p'):
+                        self.positive -= subset
+                    else:
+                        self.negative -= subset
             else:
                 self.positive.difference_update(part)
 
@@ -347,11 +360,17 @@ def get_python_regex(xml_regex, xsd_version='1.0'):
                     raise XMLSchemaRegexError("truncated unicode block escape at position "
                                               "%d: %r" % (block_pos, xml_regex))
 
-                p_shortcut_set = unicode_subset(xml_regex[block_pos + 3:pos], xsd_version > '1.0')
-                if xml_regex[block_pos + 1] == 'p':
-                    regex.append('[%s]' % p_shortcut_set)
+                try:
+                    p_shortcut_set = unicode_subset(xml_regex[block_pos + 3:pos])
+                except XMLSchemaRegexError:
+                    if xsd_version == '1.0' or not xml_regex[3:].startswith('Is'):
+                        raise
+                    regex.append('[%s]' % UnicodeSubset.fromlist([(0, maxunicode)]))
                 else:
-                    regex.append('[^%s]' % p_shortcut_set)
+                    if xml_regex[block_pos + 1] == 'p':
+                        regex.append('[%s]' % p_shortcut_set)
+                    else:
+                        regex.append('[^%s]' % p_shortcut_set)
             else:
                 regex.append('\\%s' % xml_regex[pos])
         else:

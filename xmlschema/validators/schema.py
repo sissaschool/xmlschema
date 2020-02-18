@@ -737,15 +737,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         )
         return any_type
 
-    def create_element(self, name):
+    def create_element(self, name, text=None, **attrib):
         """
         Creates an xs:element instance related to schema instance.
         """
-        return self.BUILDERS.element_class(
-            elem=etree_element(XSD_ELEMENT, name=name),
-            schema=self,
-            parent=None,
-        )
+        elem = etree_element(XSD_ELEMENT, name=name, **attrib)
+        if text is not None:
+            elem.text = text
+        return self.BUILDERS.element_class(elem=elem, schema=self, parent=None)
 
     def copy(self):
         """

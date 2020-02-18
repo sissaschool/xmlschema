@@ -444,7 +444,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
                 if XSI_TYPE in elem.attrib:
-                    xsd_element = self.schema.create_element(name=elem.tag)
+                    if self.process_contents == 'lax':
+                        xsd_element = self.schema.create_element(name=elem.tag, nillable='true')
+                    else:
+                        xsd_element = self.schema.create_element(name=elem.tag)
                     yield from xsd_element.iter_decode(elem, validation, **kwargs)
                 elif validation == 'skip' or self.process_contents == 'lax':
                     yield from self.any_type.iter_decode(elem, validation, **kwargs)
