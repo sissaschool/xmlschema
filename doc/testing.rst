@@ -99,9 +99,10 @@ From version 1.0.0 each test-case line is parsed for those additional arguments:
 **--timeout=SEC**
     Timeout for fetching resources (default=300).
 
-**--skip**
-    Skip strict encoding checks (for cases where test data uses default or fixed values
-    or some test data are skipped by wildcards processContents).
+**--lax-encode**
+    Use lax mode on encode checks (for cases where test data uses default or
+    fixed values or some test data are skipped by wildcards processContents).
+    Ignored on schema tests.
 
 **--debug**
     Activate the debug mode (only the cases with `--debug` are executed).
