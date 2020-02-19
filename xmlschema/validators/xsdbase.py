@@ -14,8 +14,8 @@ import re
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
-    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_OVERRIDE, \
-    get_qname, local_name, qname_to_prefixed
+    XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
+    XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed
 from ..etree import etree_tostring
 from ..helpers import is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -703,6 +703,9 @@ class XsdType(XsdComponent):
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
+
+    def is_qname(self):
+        return self.name == XSD_QNAME or self.is_derived(self.maps.types[XSD_QNAME])
 
     def text_decode(self, text):
         raise NotImplementedError()

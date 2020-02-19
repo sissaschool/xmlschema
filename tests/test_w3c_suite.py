@@ -41,6 +41,7 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 ####
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
+    ##
     # Signed as valid that have to be checked
     '../msData/additional/addB194.xsd',         # invalid xml:lang='enu'
     '../msData/particles/particlesZ001.xsd',    # Invalid in XSD 1.0
@@ -55,12 +56,15 @@ SKIPPED_TESTS = {
     '../saxonData/VC/vc024.xsd',                # VC 1.1? required
     '../saxonData/XmlVersions/xv004.xsd',       # non-BMP chars allowed in names in XML 1.1+
 
+    ##
     # Signed as valid that depends by implementation choice
     '../saxonData/Assert/assert-simple007.xsd',     # XPath [err:FOCA0002] invalid lexical value
 
+    ##
     # Signed as valid but not implemented yet
     '../saxonData/Assert/assert011.xsd',          # TODO: XPath 2 doc() function in elementpath
 
+    ##
     # Invalid that may be valid
     '../msData/additional/adhocAddC002.xsd',  # Lack of the processor on XML namespace knowledge
     '../msData/additional/test65026.xsd',  # Lack of the processor on XML namespace knowledge
@@ -68,6 +72,7 @@ SKIPPED_TESTS = {
     '../msData/datatypes/Facets/base64Binary/'
     'base64Binary_enumeration003.xsd',  # check base64 invalid values
 
+    ##
     # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
     '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',
     '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',
@@ -83,10 +88,12 @@ SKIPPED_TESTS = {
     '../msData/particles/particlesV020.xsd',
     # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
 
+    ##
     # Invalid that maybe valid because depends by implementation choices
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
 
+    ##
     # Indeterminate that depends by implementation choices
     '../msData/particles/particlesZ026a.xsd',
     '../msData/schema/schG14a.xsd',
@@ -96,6 +103,7 @@ SKIPPED_TESTS = {
     '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
+    ##
     # Invalid XML tests
     '../sunData/combined/xsd005/xsd005.n05.xml',
     # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
@@ -110,10 +118,57 @@ SKIPPED_TESTS = {
     # 14896: wrong href for valid instanceTest name="e1bis.xml"
 
     ##
-    # Valid XML tests
+    # Valid XML tests signed as 'invalid'
     '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',
     # defaultAttributeApply is true (false in comment)
 
+    '../msData/regex/reJ11.xml',
+    '../msData/regex/reJ13.xml',
+    '../msData/regex/reJ19.xml',
+    '../msData/regex/reJ21.xml',
+    '../msData/regex/reJ23.xml',
+    '../msData/regex/reJ25.xml',
+    '../msData/regex/reJ29.xml',
+    '../msData/regex/reJ31.xml',
+    '../msData/regex/reJ33.xml',
+    '../msData/regex/reJ35.xml',
+    '../msData/regex/reJ61.xml',
+    '../msData/regex/reJ69.xml',
+    '../msData/regex/reJ75.xml',
+    '../msData/regex/reJ77.xml',
+    '../msData/regex/reL98.xml',
+    '../msData/regex/reL99.xml',
+    '../msData/regex/reM98.xml',
+    '../msData/regex/reN99.xml',
+    '../msData/regex/reS21.xml',
+    '../msData/regex/reS42.xml',
+    '../msData/regex/reT63.xml',
+    '../msData/regex/reT84.xml',
+    # http://www.w3.org/Bugs/Public/show_bug.cgi?id=4113
+
+    '../msData/regex/reV16.xml',
+    '../msData/regex/reV17.xml',
+    '../msData/regex/reV18.xml',
+    '../msData/regex/reV19.xml',
+    '../msData/regex/reV20.xml',
+    '../msData/regex/reV21.xml',
+    '../msData/regex/reV22.xml',
+    '../msData/regex/reV23.xml',
+    '../msData/regex/reV24.xml',
+    '../msData/regex/reV33.xml',
+    '../msData/regex/reV34.xml',
+    '../msData/regex/reV35.xml',
+    '../msData/regex/reV36.xml',
+    '../msData/regex/reV37.xml',
+    '../msData/regex/reV38.xml',
+    '../msData/regex/reV39.xml',
+    '../msData/regex/reV40.xml',
+    '../msData/regex/reV41.xml',
+    '../msData/regex/reV42.xml',
+    '../msData/regex/reV43.xml',
+    # Tests with \W pattern and characters belonging to the M category
+
+    ##
     # Skip for missing XML version 1.1 implementation
     '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
     '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
@@ -123,8 +178,18 @@ SKIPPED_TESTS = {
     '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
     '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
 
+    ##
     # Skip for TODO
     '../sunData/combined/005/test.1.v.xml',  # 3959: valid but needs equal op (#cos-ct-derived-ok)
+
+    '../msData/additional/test93490_2.xml',  # 4793
+    '../msData/additional/test93490_5.xml',  # 4796
+    '../msData/additional/test93490_7.xml',  # 4798
+    '../msData/additional/test93490_10.xml',  # 4801
+    '../msData/additional/test93490_12.xml',  # 4803
+    '../msData/additional/addB191.xml',       # 4824
+    # Dynamic schema load cases
+
 }
 
 XSD11_SKIPPED_TESTS = {

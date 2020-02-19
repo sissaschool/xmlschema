@@ -20,7 +20,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION,\
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, get_qname, local_name
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, get_qname, local_name
+from ..namespaces import XSD_NAMESPACE
 from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -532,7 +533,24 @@ class XsdAtomicBuiltin(XsdAtomic):
                 reason="value is not an instance of {!r}".format(self.instance_types)
             )
 
-        if self.name == XSD_IDREF:
+        if self.name == XSD_QNAME:
+            if ':' in obj:
+                try:
+                    prefix, _ = obj.split(':')
+                except ValueError:
+                    pass
+                else:
+                    try:
+                        kwargs['namespaces'][prefix]
+                    except (TypeError, KeyError):
+                        try:
+                            if kwargs['source'].namespace != XSD_NAMESPACE:
+                                reason = "unmapped prefix %r on QName" % prefix
+                                yield self.validation_error(validation, reason)
+                        except KeyError:
+                            pass
+
+        elif self.name == XSD_IDREF:
             try:
                 id_map = kwargs['id_map']
             except KeyError:

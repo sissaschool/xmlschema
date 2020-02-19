@@ -75,8 +75,8 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(self.types['float'].decode(' 1000.1  \n') == 1000.10)
         self.assertTrue(self.types['float'].decode(' -19  \n') == -19.0)
         self.assertTrue(self.types['double'].decode(' 0.0001\n') == 0.0001)
-        self.assertRaises(XMLSchemaDecodeError, self.types['float'].decode, ' true ')
-        self.assertRaises(XMLSchemaDecodeError, self.types['double'].decode, ' alpha  \n')
+        self.assertRaises(XMLSchemaValidationError, self.types['float'].decode, ' true ')
+        self.assertRaises(XMLSchemaValidationError, self.types['double'].decode, ' alpha  \n')
 
     def test_float_encode(self):
         float_type = self.types['float']
