@@ -64,7 +64,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
           Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
         </element>
     """
-    type = None
     qualified = False
     alternatives = ()
     inheritable = ()
@@ -76,6 +75,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     _form = None
     _nillable = False
     _substitution_group = None
+    _head_type = None
 
     def __init__(self, elem, schema, parent):
         super(XsdElement, self).__init__(elem, schema, parent)
@@ -317,8 +317,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return
 
         final = head_element.final
-        if self.type == head_element.type or self.type.name == XSD_ANY_TYPE:
+        if self.type == head_element.type:
             pass
+        elif self.type.name == XSD_ANY_TYPE:
+            if head_element.type.name != XSD_ANY_TYPE:
+                # Use head element's type for validate content
+                # ref: https://www.w3.org/TR/xmlschema-1/#cElement_Declarations
+                self._head_type = head_element.type
         elif not self.type.is_derived(head_element.type):
             self.parse_error("%r type is not of the same or a derivation "
                              "of the head element %r type." % (self, head_element))
@@ -402,13 +407,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         return self.type.attributes[name]
 
     def get_type(self, elem, inherited=None):
-        return self.type
+        return self._head_type or self.type
 
     def get_attributes(self, xsd_type):
         try:
             return xsd_type.attributes
         except AttributeError:
-            return self.attributes
+            if xsd_type is self.type:
+                return self.attributes
+            else:
+                return self.schema.create_empty_attribute_group(self)
 
     def get_path(self, ancestor=None, reverse=False):
         """
@@ -462,6 +470,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         text = elem.text
         if text is None:
             text = self.fixed if self.fixed is not None else self.default
+            if text is None:
+                return
         return self.type.text_decode(text)
 
     def check_dynamic_context(self, elem, **kwargs):
@@ -498,19 +508,43 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if ns not in locations:
                 locations[ns] = None
 
+    def start_identities(self, identities):
+        """
+        Start tracking of XSD element's identities.
+
+        :param identities: a dictionary containing the identities counters.
+        """
+        for constraint in self.identities.values():
+            try:
+                identities[constraint].clear()
+            except KeyError:
+                identities[constraint] = constraint.get_counter()
+
+    def stop_identities(self, identities):
+        """
+        Stop tracking of XSD element's identities.
+
+        :param identities: a dictionary containing the identities counters.
+        """
+        for identity in self.identities.values():
+            try:
+                identities[identity].enabled = False
+            except KeyError:
+                identities[identity] = identity.get_counter(enabled=False)
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
         if self.abstract:
-            msg = "cannot use an abstract element for validation"
-            yield self.validation_error(validation, msg, elem, **kwargs)
+            reason = "cannot use an abstract element for validation"
+            yield self.validation_error(validation, reason, elem, **kwargs)
 
         try:
             namespaces = kwargs['namespaces']
@@ -527,11 +561,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             identities = kwargs['identities'] = {}
 
-        for constraint in self.identities.values():
-            try:
-                identities[constraint].clear()
-            except KeyError:
-                identities[constraint] = constraint.get_counter()
+        self.start_identities(identities)
 
         try:
             converter = kwargs['converter']
@@ -542,7 +572,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 converter = kwargs['converter'] = self.schema.get_converter(**kwargs)
 
         try:
-            pass  # self.check_dynamic_context(elem, **kwargs)
+            pass  # self.check_dynamic_context(elem, **kwargs) TODO: dynamic schema load
         except XMLSchemaValidationError as err:
             yield self.validation_error(validation, err, elem, **kwargs)
 
@@ -559,9 +589,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, err, elem, **kwargs)
 
             if xsd_type.is_blocked(self):
-                yield self.validation_error(
-                    validation, "usage of %r is blocked" % xsd_type, elem, **kwargs
-                )
+                reason = "usage of %r is blocked" % xsd_type
+                yield self.validation_error(validation, reason, elem, **kwargs)
+
+        if xsd_type.abstract:
+            yield self.validation_error(validation, "%r is abstract", elem, **kwargs)
+
+        content_type = xsd_type.content_type if xsd_type.is_complex() else xsd_type
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
@@ -583,7 +617,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if XSI_NIL in elem.attrib:
             xsi_nil = elem.attrib[XSI_NIL].strip()
             if not self.nillable:
-                yield self.validation_error(validation, "element is not nillable.", elem, **kwargs)
+                reason = "element is not nillable."
+                yield self.validation_error(validation, reason, elem, **kwargs)
             elif xsi_nil not in {'0', '1', 'false', 'true'}:
                 reason = "xsi:nil attribute must has a boolean value."
                 yield self.validation_error(validation, reason, elem, **kwargs)
@@ -598,7 +633,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             else:
                 if converter is not None:
                     element_data = ElementData(elem.tag, None, None, attributes)
-                    yield converter.element_decode(element_data, self, level)
+                    yield converter.element_decode(element_data, self, xsd_type, level)
                 return
 
         if xsd_type.is_empty() and elem.text:
@@ -610,7 +645,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
 
-            for result in xsd_type.content_type.iter_decode(elem, validation, **kwargs):
+            for result in content_type.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -619,8 +654,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if len(content) == 1 and content[0][0] == 1:
                 value, content = content[0][1], None
 
+            if self.fixed is not None and \
+                    (len(elem) > 0 or value is not None and self.fixed != value):
+                reason = "must have the fixed value %r." % self.fixed
+                yield self.validation_error(validation, reason, elem, **kwargs)
+
         else:
-            if len(elem) and validation != 'skip':
+            if len(elem):
                 reason = "a simple content element can't has child elements."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
@@ -628,11 +668,11 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.fixed is not None:
                 if text is None:
                     text = self.fixed
-                elif text == self.fixed or validation == 'skip':
+                elif text == self.fixed:
                     pass
                 elif not strictly_equal(xsd_type.text_decode(text),
                                         xsd_type.text_decode(self.fixed)):
-                    reason = "must has the fixed value %r." % self.fixed
+                    reason = "must have the fixed value %r." % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
 
             elif not text and kwargs.get('use_defaults') and self.default is not None:
@@ -647,17 +687,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     value = text.split()
                 else:
                     value = text
-
-                xsd_type = xsd_type.content_type
+            elif xsd_type.is_key() and self.xsd_version != '1.0':
+                kwargs['element'] = self if self.ref is None else self.ref
 
             if text is None:
-                for result in xsd_type.iter_decode('', validation, **kwargs):
+                for result in content_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                for result in xsd_type.iter_decode(text, validation, **kwargs):
+                for result in content_type.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                     elif result is None and 'filler' in kwargs:
@@ -679,15 +719,12 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)
-            yield converter.element_decode(element_data, self, level)
+            yield converter.element_decode(element_data, self, xsd_type, level)
         elif not level:
             yield ElementData(elem.tag, value, None, attributes)
 
         if content is not None:
             del content
-
-        if validation == 'skip':
-            return
 
         # Collects fields values for identities that refer to this element.
         for constraint, counter in identities.items():
@@ -695,7 +732,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 continue
 
             try:
-                xsd_fields = constraint.get_fields(self)
+                if xsd_type is self.type:
+                    xsd_fields = constraint.get_fields(self)
+                else:
+                    xsd_element = self.copy()
+                    xsd_element.type = xsd_type
+                    xsd_fields = constraint.get_fields(xsd_element)
+
                 if not any(fld is not None for fld in xsd_fields):
                     continue
                 fields = constraint.get_fields(elem, namespaces, decoders=xsd_fields)
@@ -717,8 +760,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     for err in counter.iter_errors(identities):
                         yield self.validation_error(validation, err, elem, **kwargs)
         elif level:
-            for constraint in self.identities.values():
-                identities[constraint].enabled = False
+            self.stop_identities(identities)
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         """
@@ -815,7 +857,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         elem = converter.etree_element(tag, text, children, attributes, level)
 
-        if validation != 'skip' and errors:
+        if errors:
             for e in errors:
                 yield self.validation_error(validation, e, elem, **kwargs)
         yield elem
@@ -1047,7 +1089,7 @@ class Xsd11Element(XsdElement):
 
     def get_type(self, elem, inherited=None):
         if not self.alternatives:
-            return self.type
+            return self._head_type or self.type
 
         if isinstance(elem, ElementData):
             if elem.attributes:
@@ -1068,7 +1110,7 @@ class Xsd11Element(XsdElement):
                 if alt.token is None or alt.test(elem):
                     return alt.type
 
-        return self.type
+        return self._head_type or self.type
 
     def is_overlap(self, other):
         if isinstance(other, XsdElement):

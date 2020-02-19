@@ -13,25 +13,26 @@ This module defines a mixin class for enabling XPath on schemas.
 from abc import abstractmethod
 from collections.abc import Sequence
 from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
+import re
 import threading
 
 from .qnames import XSD_SCHEMA
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
+_REGEX_TAG_POSITION = re.compile(r'\b\[\d+\]')
+
 
 class XMLSchemaContext(XPathSchemaContext):
     """
-    XPath dynamic context class for *xmlschema* library. Implements safe iteration
+    XPath dynamic context class for *xmlschema* library. Skips elem.text,
+    that is always `None` for schema elements, and implements safe iteration
     methods for schema elements that recognize circular references.
     """
     def _iter_descendants(self):
         def safe_iter_descendants(context):
             elem = context.item
             yield elem
-            if elem.text is not None:
-                context.item = elem.text
-                yield context.item
             if len(elem):
                 context.size = len(elem)
                 for context.position, context.item in enumerate(elem):
@@ -52,9 +53,6 @@ class XMLSchemaContext(XPathSchemaContext):
         def safe_iter_context(context):
             elem = context.item
             yield elem
-            if elem.text is not None:
-                context.item = elem.text
-                yield context.item
 
             for item in elem.attrib.items():
                 context.item = item
@@ -195,12 +193,12 @@ class ElementPathMixin(Sequence):
 
     @abstractmethod
     def __iter__(self):
-        pass
+        raise NotImplementedError
 
     def __getitem__(self, i):
         try:
             return [e for e in self][i]
-        except AttributeError:
+        except IndexError:
             raise IndexError('child index out of range')
 
     def __reversed__(self):
@@ -249,6 +247,7 @@ class ElementPathMixin(Sequence):
         path = path.strip()
         if path.startswith('/') and not path.startswith('//'):
             path = ''.join(['/', XSD_SCHEMA, path])
+        path = _REGEX_TAG_POSITION.sub('', path)  # Strips tags's positions from path
 
         namespaces = self._get_xpath_namespaces(namespaces)
         with self._xpath_lock:
@@ -308,7 +307,7 @@ class ElementPathMixin(Sequence):
                 if child.parent is None:
                     yield from safe_iter(child)
                 elif getattr(child, 'ref', None) is not None:
-                    if tag is None or elem.is_matching(tag):
+                    if tag is None or child.is_matching(tag):
                         yield child
                 elif child not in local_elements:
                     local_elements.append(child)

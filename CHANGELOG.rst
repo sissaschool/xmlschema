@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.1.1`_ (2020-02-19)
+======================
+* Change of *skip* validation mode with errors filtering in decode() or encode()
+* Extension of location hints by argument to imported/included schemas
+* Fixed lazy validation with identity constraints
+* Fixed many W3C instance tests (remain ~100 over 15344 tests)
+
 `v1.1.0`_ (2020-01-23)
 =======================
 * Removed Python 2 compatibility code
@@ -294,3 +301,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.17: https://github.com/brunato/xmlschema/compare/v1.0.16...v1.0.17
 .. _v1.0.18: https://github.com/brunato/xmlschema/compare/v1.0.17...v1.0.18
 .. _v1.1.0: https://github.com/brunato/xmlschema/compare/v1.0.18...v1.1.0
+.. _v1.1.1: https://github.com/brunato/xmlschema/compare/v1.1.0...v1.1.1

@@ -17,9 +17,10 @@ from elementpath import XPath2Parser, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
-    XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, \
-    XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_ASSERTION, \
-    XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
+    XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
+    XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
+    XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
+    XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
 from ..helpers import count_digits
 from ..regex import get_python_regex
 
@@ -156,8 +157,8 @@ class XsdLengthFacet(XsdFacet):
             self.validator = self.hex_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_length_validator
-        elif primitive_type.name == XSD_QNAME:
-            pass  # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009
+        elif primitive_type.name in (XSD_QNAME, XSD_NOTATION_TYPE):
+            pass  # See: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4009 and id=4049
         else:
             self.validator = self.length_validator
 
@@ -201,7 +202,7 @@ class XsdMinLengthFacet(XsdFacet):
             self.validator = self.hex_min_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_min_length_validator
-        elif primitive_type.name != XSD_QNAME:
+        elif primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             self.validator = self.min_length_validator
 
     def min_length_validator(self, x):
@@ -250,7 +251,7 @@ class XsdMaxLengthFacet(XsdFacet):
             self.validator = self.hex_max_length_validator
         elif primitive_type.name == XSD_BASE64_BINARY:
             self.validator = self.base64_max_length_validator
-        elif primitive_type.name != XSD_QNAME:
+        elif primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             self.validator = self.max_length_validator
 
     def max_length_validator(self, x):
@@ -462,10 +463,12 @@ class XsdTotalDigitsFacet(XsdFacet):
         self.validator = self.total_digits_validator
 
     def total_digits_validator(self, x):
-        if operator.add(*count_digits(x)) > self.value:
-            yield XMLSchemaValidationError(
-                self, x, "the number of digits is greater than %r." % self.value
-            )
+        try:
+            if operator.add(*count_digits(x)) > self.value:
+                reason = "the number of digits is greater than %r." % self.value
+                yield XMLSchemaValidationError(self, x, reason)
+        except (TypeError, ValueError, ArithmeticError) as err:
+            yield XMLSchemaValidationError(self, x, str(err))
 
 
 class XsdFractionDigitsFacet(XsdFacet):
@@ -484,7 +487,7 @@ class XsdFractionDigitsFacet(XsdFacet):
 
     def __init__(self, elem, schema, parent, base_type):
         super(XsdFractionDigitsFacet, self).__init__(elem, schema, parent, base_type)
-        if not base_type.is_derived(self.schema.builtin_types()['decimal']):
+        if not base_type.is_derived(self.maps.types[XSD_DECIMAL]):
             self.parse_error(
                 "fractionDigits facet can be applied only to types derived from xs:decimal"
             )
@@ -493,16 +496,18 @@ class XsdFractionDigitsFacet(XsdFacet):
         self.value = int(elem.attrib['value'])
         if self.value < 0:
             raise ValueError("'value' must be greater or equal than 0")
-        elif self.value > 0 and self.base_type.is_derived(self.schema.builtin_types()['integer']):
+        elif self.value > 0 and self.base_type.is_derived(self.maps.types[XSD_INTEGER]):
             raise ValueError("fractionDigits facet value has to be 0 "
                              "for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 
     def fraction_digits_validator(self, x):
-        if count_digits(x)[1] > self.value:
-            yield XMLSchemaValidationError(
-                self, x, "the number of fraction digits is greater than %r." % self.value
-            )
+        try:
+            if count_digits(x)[1] > self.value:
+                reason = "the number of fraction digits is greater than %r." % self.value
+                yield XMLSchemaValidationError(self, x, reason)
+        except (TypeError, ValueError, ArithmeticError) as err:
+            yield XMLSchemaValidationError(self, x, str(err))
 
 
 class XsdExplicitTimezoneFacet(XsdFacet):

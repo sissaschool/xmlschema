@@ -17,6 +17,42 @@ from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
 class TestXsdWildcards(XsdValidatorTestCase):
 
+    def test_parsing(self):
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:choice>
+                <xs:any namespace=" ##any "/>
+                <xs:any namespace="##local"/>
+                <xs:any namespace="##other"/>
+                <xs:any namespace="##targetNamespace foo bar"/>
+                <xs:any namespace="##local foo bar"/>
+                <xs:any namespace="##targetNamespace ##local foo bar"/>
+              </xs:choice>
+            </xs:group>
+        </xs:schema>""")
+
+        self.assertEqual(schema.groups['group1'][0].namespace, ('##any',))
+        self.assertEqual(schema.groups['group1'][1].namespace, [''])
+        self.assertEqual(schema.groups['group1'][2].namespace, ['##other'])
+        self.assertEqual(schema.groups['group1'][3].namespace, ['tns1', 'foo', 'bar'])
+        self.assertEqual(schema.groups['group1'][4].namespace, ['', 'foo', 'bar'])
+        self.assertEqual(schema.groups['group1'][5].namespace, ['tns1', '', 'foo', 'bar'])
+
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:choice>
+                <xs:any namespace="##all"/>
+                <xs:any processContents="any"/>
+              </xs:choice>
+            </xs:group>
+        </xs:schema>""", validation='lax')
+
+        errors = schema.all_errors
+        self.assertIn("wrong value '##all' in 'namespace' attribute", str(errors[1]))
+        self.assertIn("invalid value 'any', it must be one of ['skip'", str(errors[0]))
+
     def test_overlap(self):
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
@@ -72,7 +108,8 @@ class TestXsdWildcards(XsdValidatorTestCase):
             <xs:any namespace="tns2 tns1 tns3" processContents="skip"/>
           </xs:sequence>
         </xs:complexType>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace, ['tns2', 'tns1', 'tns3'])
+        self.assertEqual(schema.types['taggedType'].content_type[-1].namespace,
+                         ['tns2', 'tns1', 'tns3'])
         self.assertEqual(schema.types['taggedType'].content_type[-1].min_occurs, 1)
         self.assertEqual(schema.types['taggedType'].content_type[-1].max_occurs, 1)
 
@@ -129,6 +166,20 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
     schema_class = XMLSchema11
 
+    def test_parsing(self):
+        super(TestXsd11Wildcards, self).test_parsing()
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="tns1">
+            <xs:group name="group1">
+              <xs:choice>
+                <xs:any notNamespace="##all"/>
+              </xs:choice>
+            </xs:group>
+        </xs:schema>""", validation='lax')
+
+        errors = schema.all_errors
+        self.assertIn("wrong value '##all' in 'notNamespace' attribute", str(errors[0]))
+
     def test_is_restriction(self):
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns1="tns1"
@@ -153,6 +204,11 @@ class TestXsd11Wildcards(TestXsdWildcards):
 
         any1, any2, any3 = schema.groups['group1'][:3]
 
+        self.assertEqual(repr(any1), "Xsd11AnyElement(not_namespace=['tns1'], "
+                                     "process_contents='strict', occurs=[1, 1])")
+        self.assertEqual(repr(any2), "Xsd11AnyElement(not_namespace=['tns1', 'tns2'], "
+                                     "process_contents='strict', occurs=[1, 1])")
+
         self.assertTrue(any1.is_restriction(any1))
         self.assertFalse(any1.is_restriction(any2))
         self.assertFalse(any1.is_restriction(any3))
@@ -164,6 +220,12 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertTrue(any3.is_restriction(any3))
 
         any1, any2, any3 = schema.groups['group1'][3:6]
+
+        self.assertEqual(repr(any1), "Xsd11AnyElement(namespace=('##any',), "
+                                     "process_contents='strict', occurs=[1, 1])")
+        self.assertEqual(repr(any2), "Xsd11AnyElement(namespace=[''], "
+                                     "process_contents='strict', occurs=[1, 1])")
+
         self.assertTrue(any1.is_restriction(any1))
         self.assertTrue(any2.is_restriction(any1))
         self.assertTrue(any3.is_restriction(any1))
@@ -474,7 +536,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
         </xs:complexType>""", XMLSchemaParseError)
 
     def test_default_open_content(self):
-        schema = self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:defaultOpenContent>
                 <xs:any namespace="##other" processContents="skip"/>
             </xs:defaultOpenContent>
@@ -483,7 +546,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertIsInstance(schema.default_open_content, XsdDefaultOpenContent)
         self.assertFalse(schema.default_open_content.applies_to_empty)
 
-        schema = self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
             <xs:defaultOpenContent appliesToEmpty="true">
                 <xs:any namespace="##other" processContents="skip"/>
             </xs:defaultOpenContent>
@@ -492,7 +556,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
         self.assertTrue(schema.default_open_content.applies_to_empty)
 
         with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:defaultOpenContent appliesToEmpty="wrong">
                     <xs:any namespace="##other" processContents="skip"/>
                 </xs:defaultOpenContent>
@@ -500,7 +565,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:schema>""")
 
         with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root" />
                 <xs:defaultOpenContent>
                     <xs:any namespace="##other" processContents="skip"/>
@@ -508,7 +574,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:schema>""")
 
         with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:defaultOpenContent>
                     <xs:any namespace="##other" processContents="skip"/>
                 </xs:defaultOpenContent>
@@ -519,7 +586,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:schema>""")
 
         with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root" />
                 <xs:defaultOpenContent mode="wrong">
                     <xs:any namespace="##other" processContents="skip"/>
@@ -527,7 +595,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
             </xs:schema>""")
 
         with self.assertRaises(XMLSchemaParseError):
-            self.schema_class("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root" />
                 <xs:defaultOpenContent mode="none" />
             </xs:schema>""")
@@ -689,7 +758,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
               </xs:sequence>
             </xs:complexType>
         </xs:schema>""")
-        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname, ['{tns1}foo', '{tns1}bar'])
+        self.assertEqual(schema.types['taggedType'].content_type[-1].not_qname,
+                         ['{tns1}foo', '{tns1}bar'])
 
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -697,7 +767,8 @@ class TestXsd11Wildcards(TestXsdWildcards):
             <xs:complexType name="taggedType">
               <xs:sequence>
                 <xs:element name="tag" type="xs:string"/>
-                <xs:any namespace="##targetNamespace" notQName="##defined tns1:foo ##definedSibling"/>
+                <xs:any namespace="##targetNamespace" 
+                notQName="##defined tns1:foo ##definedSibling"/>
               </xs:sequence>
             </xs:complexType>
         </xs:schema>""")
@@ -719,6 +790,16 @@ class TestXsd11Wildcards(TestXsdWildcards):
         </xs:schema>""")
         self.assertEqual(schema.types['taggedType'].attributes[None].namespace, ('##any',))
         self.assertEqual(schema.types['taggedType'].attributes[None].not_qname, ['{tns1}foo'])
+
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:complexType name="barType">
+              <xs:anyAttribute notNamespace="tns1"/>
+            </xs:complexType>
+        </xs:schema>""")
+        self.assertEqual(schema.types['barType'].attributes[None].not_namespace, ['tns1'])
+        self.assertEqual(repr(schema.types['barType'].attributes[None]),
+                         "Xsd11AnyAttribute(not_namespace=['tns1'], process_contents='strict')")
 
 
 if __name__ == '__main__':

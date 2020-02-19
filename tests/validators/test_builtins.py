@@ -75,8 +75,8 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertTrue(self.types['float'].decode(' 1000.1  \n') == 1000.10)
         self.assertTrue(self.types['float'].decode(' -19  \n') == -19.0)
         self.assertTrue(self.types['double'].decode(' 0.0001\n') == 0.0001)
-        self.assertRaises(XMLSchemaDecodeError, self.types['float'].decode, ' true ')
-        self.assertRaises(XMLSchemaDecodeError, self.types['double'].decode, ' alpha  \n')
+        self.assertRaises(XMLSchemaValidationError, self.types['float'].decode, ' true ')
+        self.assertRaises(XMLSchemaValidationError, self.types['double'].decode, ' alpha  \n')
 
     def test_float_encode(self):
         float_type = self.types['float']
@@ -262,81 +262,6 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
         self.assertFalse(year_month_duration_type.is_valid('P2YM'))
         self.assertFalse(year_month_duration_type.is_valid('P-1Y'))
         self.assertFalse(year_month_duration_type.is_valid(''))
-
-
-class TestGlobalMaps(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        XMLSchema10.meta_schema.build()
-        XMLSchema11.meta_schema.build()
-
-    @classmethod
-    def tearDownClass(cls):
-        XMLSchema10.meta_schema.clear()
-        XMLSchema11.meta_schema.clear()
-
-    def test_xsd_10_globals(self):
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.notations), 2)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.types), 92)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.attributes), 8)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.attribute_groups), 3)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.groups), 12)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.elements), 41)
-        self.assertEqual(len([e.is_global() for e in XMLSchema10.meta_schema.maps.iter_globals()]), 158)
-        self.assertEqual(len(XMLSchema10.meta_schema.maps.substitution_groups), 0)
-
-    def test_xsd_11_globals(self):
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.notations), 2)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.types), 103)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.attributes), 14)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.attribute_groups), 4)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.groups), 13)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.elements), 47)
-        self.assertEqual(len([e.is_global() for e in XMLSchema11.meta_schema.maps.iter_globals()]), 183)
-        self.assertEqual(len(XMLSchema11.meta_schema.maps.substitution_groups), 1)
-
-    def test_xsd_10_build(self):
-        self.assertEqual(len([e for e in XMLSchema10.meta_schema.maps.iter_globals()]), 158)
-        self.assertTrue(XMLSchema10.meta_schema.maps.built)
-        XMLSchema10.meta_schema.maps.clear()
-        XMLSchema10.meta_schema.maps.build()
-        self.assertTrue(XMLSchema10.meta_schema.maps.built)
-
-    def test_xsd_11_build(self):
-        self.assertEqual(len([e for e in XMLSchema11.meta_schema.maps.iter_globals()]), 183)
-        self.assertTrue(XMLSchema11.meta_schema.maps.built)
-        XMLSchema11.meta_schema.maps.clear()
-        XMLSchema11.meta_schema.maps.build()
-        self.assertTrue(XMLSchema11.meta_schema.maps.built)
-
-    def test_xsd_10_components(self):
-        total_counter = 0
-        global_counter = 0
-        for g in XMLSchema10.meta_schema.maps.iter_globals():
-            for c in g.iter_components():
-                total_counter += 1
-                if c.is_global():
-                    global_counter += 1
-        self.assertEqual(global_counter, 158)
-        self.assertEqual(total_counter, 782)
-
-    def test_xsd_11_components(self):
-        total_counter = 0
-        global_counter = 0
-        for g in XMLSchema11.meta_schema.maps.iter_globals():
-            for c in g.iter_components():
-                total_counter += 1
-                if c.is_global():
-                    global_counter += 1
-        self.assertEqual(global_counter, 183)
-        self.assertEqual(total_counter, 932)
-
-    def test_xsd_11_restrictions(self):
-        all_model_type = XMLSchema11.meta_schema.types['all']
-        self.assertTrue(
-            all_model_type.content_type.is_restriction(all_model_type.base_type.content_type)
-        )
 
 
 if __name__ == '__main__':

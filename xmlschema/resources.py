@@ -168,6 +168,33 @@ def normalize_url(url, base_url=None, keep_relative=False):
     return filter_url(normalized_url)
 
 
+def normalize_locations(locations, base_url=None, keep_relative=False):
+    """
+    Returns a list of normalized locations. The locations are normalized using
+    the base URL of the instance.
+
+    :param locations: a dictionary or a list of couples containing namespace location hints.
+    :param base_url: the reference base URL for construct the normalized URL from the argument.
+    :param keep_relative: if set to `True` keeps relative file paths, which would not strictly \
+    conformant to URL format specification.
+    :return: a list of couples containing normalized namespace location hints.
+    """
+    normalized_locations = []
+    try:
+        for ns, value in locations.items():
+            if isinstance(value, list):
+                normalized_locations.extend(
+                    [(ns, normalize_url(url, base_url, keep_relative)) for url in value]
+                )
+            else:
+                normalized_locations.append((ns, normalize_url(value, base_url, keep_relative)))
+    except AttributeError:
+        normalized_locations.extend(
+            [(ns, normalize_url(url, base_url, keep_relative)) for ns, url in locations]
+        )
+    return normalized_locations
+
+
 def fetch_resource(location, base_url=None, timeout=30):
     """
     Fetch a resource trying to accessing it. If the resource is accessible
@@ -183,20 +210,19 @@ def fetch_resource(location, base_url=None, timeout=30):
 
     url = normalize_url(location, base_url)
     try:
-        resource = urlopen(url, timeout=timeout)
+        with urlopen(url, timeout=timeout):
+            return url
     except URLError as err:
         # fallback joining the path without a base URL
         alt_url = normalize_url(location)
+        if url == alt_url:
+            raise XMLSchemaURLError("cannot access to resource %r: %s" % (url, err.reason))
+
         try:
-            resource = urlopen(alt_url, timeout=timeout)
+            with urlopen(alt_url, timeout=timeout):
+                return alt_url
         except URLError:
             raise XMLSchemaURLError("cannot access to resource %r: %s" % (url, err.reason))
-        else:
-            resource.close()
-            return url
-    else:
-        resource.close()
-        return url
 
 
 def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote', timeout=30):
@@ -673,7 +699,7 @@ class XMLResource(object):
             if resource is not self.source:
                 resource.close()
 
-    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1):
+    def iter_subtrees(self, path=None, namespaces=None, lazy_mode=1, ancestors=None):
         """
         XML resource subtree iterator, that yields fully loaded elements. If a
         path is provided the elements selected by the XPath expression are yielded.
@@ -692,6 +718,8 @@ class XMLResource(object):
         is lazy the namespace map is updated during the iteration.
         :param lazy_mode: defines how a lazy resource is iterated when a path \
         is not provided.
+        :param ancestors: if a list is provided the iterator tracks the list of \
+        ancestors of yielded elements of lazy resources.
         """
         if not (1 <= lazy_mode <= 5):
             raise XMLSchemaValueError("invalid argument lazy_mode={!r}".format(lazy_mode))
@@ -719,6 +747,8 @@ class XMLResource(object):
         else:
             # Track ad update namespaces
             events = 'start-ns', 'end-ns', 'start', 'end'
+        if ancestors is None:
+            ancestors = []
 
         if path is None:
             subtree_level = int(self._lazy) if lazy_mode > 1 else 0
@@ -747,6 +777,9 @@ class XMLResource(object):
                         self._root = node
                         if not path and lazy_mode == 5:
                             yield node
+                        ancestors.append(node)
+                    elif level < subtree_level:
+                        ancestors.append(node)
                     level += 1
                 elif event == 'end':
                     level -= 1
@@ -759,13 +792,15 @@ class XMLResource(object):
                         elif select_all or node in selector.select(self._root):
                             yield node
                     elif level != subtree_level:
+                        if level < subtree_level:
+                            ancestors.pop()
                         continue
                     elif skip_depth_elements:
                         pass
                     elif select_all or node in selector.select(self._root):
                         yield node
 
-                    node.clear()
+                    del node[:]  # delete children, keep attributes, text and tail.
                     if changed:
                         namespaces.clear()
                         namespaces.update(nsmap)
@@ -877,31 +912,28 @@ class XMLResource(object):
 
     def get_locations(self, locations=None, root_only=None):
         """
-        Extracts a list of normalized schema location hints from the XML resource.
+        Extracts a list of schema location hints from the XML resource.
         The locations are normalized using the base URL of the instance.
 
-        :param locations: a dictionary or a list of namespace resources that is \
-        inserted before the schema location hints extracted from the XML resource.
-        :param root_only: if `True`, or `None` and the resource is lazy, extracts \
-        only the location hints declared in the root element.
+        :param locations: a sequence of schema location hints inserted \
+        before the ones extracted from the XML resource. Locations passed \
+        within a tuple container are not normalized.
+        :param root_only: if `True`, or `None` and the resource is lazy, \
+        extracts only the location hints declared in the root element.
         :returns: a list of couples containing namespace location hints.
         """
-        base_url = self.base_url
-        location_hints = []
         if root_only is None:
             root_only = self._lazy
 
-        if locations is not None:
-            try:
-                for ns, value in locations.items():
-                    if isinstance(value, list):
-                        location_hints.extend([(ns, normalize_url(url, base_url)) for url in value])
-                    else:
-                        location_hints.append((ns, normalize_url(value, base_url)))
-            except AttributeError:
-                location_hints.extend([(ns, normalize_url(url, base_url)) for ns, url in locations])
+        if not locations:
+            location_hints = []
+        elif isinstance(locations, tuple):
+            location_hints = [x for x in locations]
+        else:
+            location_hints = normalize_locations(locations, self.base_url)
 
         location_hints.extend([
-            (ns, normalize_url(url, base_url)) for ns, url in self.iter_location_hints(root_only)
+            (ns, normalize_url(url, self.base_url))
+            for ns, url in self.iter_location_hints(root_only)
         ])
         return location_hints

@@ -566,6 +566,7 @@ def build_unicode_categories(filename=None):
 UNICODE_CATEGORIES = build_unicode_categories()
 
 
+# See http://www.unicode.org/Public/UNIDATA/Blocks.txt and XSD 1.1 Datatypes
 UNICODE_BLOCKS = {
     'IsBasicLatin': UnicodeSubset('\u0000-\u007F'),
     'IsLatin-1Supplement': UnicodeSubset('\u0080-\u00FF'),
@@ -644,7 +645,7 @@ UNICODE_BLOCKS = {
     'IsHighSurrogates': UnicodeSubset('\uD800-\uDB7F'),
     'IsHighPrivateUseSurrogates': UnicodeSubset('\uDB80-\uDBFF'),
     'IsLowSurrogates': UnicodeSubset('\uDC00-\uDFFF'),
-    'IsPrivateUse': UnicodeSubset('\uE000-\uF8FF'),
+    'IsPrivateUse': UnicodeSubset('\uE000-\uF8FF\U000F0000-\U000FFFFF\U00100000-\U0010FFFF'),
     'IsCJKCompatibilityIdeographs': UnicodeSubset('\uF900-\uFAFF'),
     'IsAlphabeticPresentationForms': UnicodeSubset('\uFB00-\uFB4F'),
     'IsArabicPresentationForms-A': UnicodeSubset('\uFB50-\uFDFF'),
@@ -671,13 +672,11 @@ if maxunicode == UCS4_MAXUNICODE:
     })
 
 
-def unicode_subset(name, block_safe=False):
+def unicode_subset(name):
     if name.startswith('Is'):
         try:
             return UNICODE_BLOCKS[name]
         except KeyError:
-            if block_safe:
-                return UnicodeSubset.fromlist([0, maxunicode])
             raise XMLSchemaRegexError("%r doesn't match to any Unicode block." % name)
     else:
         try:

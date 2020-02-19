@@ -24,6 +24,24 @@ from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase, print_tes
 class TestXMLSchema10(XsdValidatorTestCase):
     TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
+    def test_schema_validation(self):
+        schema = self.schema_class(self.vh_xsd_file)
+        self.assertEqual(schema.validation, 'strict')
+
+        schema = self.schema_class(self.vh_xsd_file, validation='lax')
+        self.assertEqual(schema.validation, 'lax')
+
+        schema = self.schema_class(self.vh_xsd_file, validation='skip')
+        self.assertEqual(schema.validation, 'skip')
+
+        with self.assertRaises(ValueError):
+            self.schema_class(self.vh_xsd_file, validation='none')
+
+    def test_schema_string_repr(self):
+        schema = self.schema_class(self.vh_xsd_file)
+        tmpl = "%s(basename='vehicles.xsd', namespace='http://example.com/vehicles')"
+        self.assertEqual(str(schema), tmpl % self.schema_class.__name__)
+
     def test_schema_copy(self):
         schema = self.vh_schema.copy()
         self.assertNotEqual(id(self.vh_schema), id(schema))

@@ -41,6 +41,7 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 ####
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
+    ##
     # Signed as valid that have to be checked
     '../msData/additional/addB194.xsd',         # invalid xml:lang='enu'
     '../msData/particles/particlesZ001.xsd',    # Invalid in XSD 1.0
@@ -55,33 +56,44 @@ SKIPPED_TESTS = {
     '../saxonData/VC/vc024.xsd',                # VC 1.1? required
     '../saxonData/XmlVersions/xv004.xsd',       # non-BMP chars allowed in names in XML 1.1+
 
+    ##
     # Signed as valid that depends by implementation choice
     '../saxonData/Assert/assert-simple007.xsd',     # XPath [err:FOCA0002] invalid lexical value
 
+    ##
     # Signed as valid but not implemented yet
     '../saxonData/Assert/assert011.xsd',          # TODO: XPath 2 doc() function in elementpath
 
+    ##
     # Invalid that may be valid
-    '../msData/additional/adhocAddC002.xsd',    # Lack of the processor on XML namespace knowledge
-    '../msData/additional/test65026.xsd',       # Lack of the processor on XML namespace knowledge
-    '../msData/annotations/annotF001.xsd',      # Annotation contains xml:lang="" ?? (but xml.xsd allows '')
-    '../msData/datatypes/Facets/base64Binary/base64Binary_enumeration003.xsd',  # check base64 invalid values
-    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
-    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',  # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/additional/adhocAddC002.xsd',  # Lack of the processor on XML namespace knowledge
+    '../msData/additional/test65026.xsd',  # Lack of the processor on XML namespace knowledge
+    '../msData/annotations/annotF001.xsd',  # Contains xml:lang="" ?? (but xml.xsd allows '')
+    '../msData/datatypes/Facets/base64Binary/'
+    'base64Binary_enumeration003.xsd',  # check base64 invalid values
+
+    ##
+    # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
+    '../msData/datatypes/Facets/anyURI/anyURI_a001.xsd',
+    '../msData/datatypes/Facets/anyURI/anyURI_a003.xsd',
+    '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',
+    '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',
+
     '../msData/element/elemZ026.xsd',           # This is good because the head element is abstract
     '../msData/element/elemZ031.xsd',           # Valid in Python that has arbitrary large integers
     '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1
     '../msData/identityConstraint/idC019.xsd',  # TODO: is it an error?
-    '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* in a selector (restrict XPath parser)
-    '../msData/modelGroups/mgE006.xsd',         # Is valid? (is mg007.xsd invalid for the same reason)
-    '../msData/particles/particlesV020.xsd',    # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
+    '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* select (restrict XPath parser)
+    '../msData/modelGroups/mgE006.xsd',  # Is valid? (is mg007.xsd invalid for the same reason)
+    '../msData/particles/particlesV020.xsd',
+    # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
 
+    ##
     # Invalid that maybe valid because depends by implementation choices
-    '../msData/schema/schG6_a.xsd',     # Schema is valid because the ns import is done once, validation fails.
-    '../msData/schema/schG11_a.xsd',    # Schema is valid because the ns import is done once, validation fails.
+    '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
+    '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
 
+    ##
     # Indeterminate that depends by implementation choices
     '../msData/particles/particlesZ026a.xsd',
     '../msData/schema/schG14a.xsd',
@@ -91,28 +103,93 @@ SKIPPED_TESTS = {
     '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
     '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
+    ##
     # Invalid XML tests
-    '../sunData/combined/xsd005/xsd005.n05.xml',  # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
-    '../msData/additional/test93490_4.xml',  # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
+    '../sunData/combined/xsd005/xsd005.n05.xml',
+    # 3984: Invalid if lxml is used (xsi:type and duplicate prefix)
+    '../msData/additional/test93490_4.xml',
+    # 4795: https://www.w3.org/Bugs/Public/show_bug.cgi?id=4078
     '../msData/additional/test93490_8.xml',  # 4799: Idem
-    '../msData/datatypes/gMonth002.xml',  # 8017: gMonth bogus: conflicts with other invalid schema tests
-    '../msData/datatypes/gMonth004.xml',  # 8019: (http://www.w3.org/Bugs/Public/show_bug.cgi?id=6901)
-    '../wgData/sg/e1.xml',                # 14896: wrong href for valid instanceTest name="e1bis.xml"
+    '../msData/datatypes/gMonth002.xml',
+    # 8017: gMonth bogus: conflicts with other invalid schema tests
+    '../msData/datatypes/gMonth004.xml',
+    # 8019: (http://www.w3.org/Bugs/Public/show_bug.cgi?id=6901)
+    '../wgData/sg/e1.xml',
+    # 14896: wrong href for valid instanceTest name="e1bis.xml"
 
-    # Valid XML tests
-    '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',  # defaultAttributeApply is true (false in comment)
+    ##
+    # Valid XML tests signed as 'invalid'
+    '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',
+    # defaultAttributeApply is true (false in comment)
 
+    '../msData/regex/reJ11.xml',
+    '../msData/regex/reJ13.xml',
+    '../msData/regex/reJ19.xml',
+    '../msData/regex/reJ21.xml',
+    '../msData/regex/reJ23.xml',
+    '../msData/regex/reJ25.xml',
+    '../msData/regex/reJ29.xml',
+    '../msData/regex/reJ31.xml',
+    '../msData/regex/reJ33.xml',
+    '../msData/regex/reJ35.xml',
+    '../msData/regex/reJ61.xml',
+    '../msData/regex/reJ69.xml',
+    '../msData/regex/reJ75.xml',
+    '../msData/regex/reJ77.xml',
+    '../msData/regex/reL98.xml',
+    '../msData/regex/reL99.xml',
+    '../msData/regex/reM98.xml',
+    '../msData/regex/reN99.xml',
+    '../msData/regex/reS21.xml',
+    '../msData/regex/reS42.xml',
+    '../msData/regex/reT63.xml',
+    '../msData/regex/reT84.xml',
+    # http://www.w3.org/Bugs/Public/show_bug.cgi?id=4113
+
+    '../msData/regex/reV16.xml',
+    '../msData/regex/reV17.xml',
+    '../msData/regex/reV18.xml',
+    '../msData/regex/reV19.xml',
+    '../msData/regex/reV20.xml',
+    '../msData/regex/reV21.xml',
+    '../msData/regex/reV22.xml',
+    '../msData/regex/reV23.xml',
+    '../msData/regex/reV24.xml',
+    '../msData/regex/reV33.xml',
+    '../msData/regex/reV34.xml',
+    '../msData/regex/reV35.xml',
+    '../msData/regex/reV36.xml',
+    '../msData/regex/reV37.xml',
+    '../msData/regex/reV38.xml',
+    '../msData/regex/reV39.xml',
+    '../msData/regex/reV40.xml',
+    '../msData/regex/reV41.xml',
+    '../msData/regex/reV42.xml',
+    '../msData/regex/reV43.xml',
+    # Tests with \W pattern and characters belonging to the M category
+
+    ##
     # Skip for missing XML version 1.1 implementation
     '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
     '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
     '../saxonData/XmlVersions/xv005.v01.xml',   # 14854
-    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in XML 1.1)
-    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in 1.1)
+    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in 1.1)
     '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
     '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
 
+    ##
     # Skip for TODO
-    '../sunData/combined/005/test.1.v.xml',     # 3959: is valid but needs equality operators (#cos-ct-derived-ok)
+    '../sunData/combined/005/test.1.v.xml',  # 3959: valid but needs equal op (#cos-ct-derived-ok)
+
+    '../msData/additional/test93490_2.xml',  # 4793
+    '../msData/additional/test93490_5.xml',  # 4796
+    '../msData/additional/test93490_7.xml',  # 4798
+    '../msData/additional/test93490_10.xml',  # 4801
+    '../msData/additional/test93490_12.xml',  # 4803
+    '../msData/additional/addB191.xml',       # 4824
+    # Dynamic schema load cases
+
 }
 
 XSD11_SKIPPED_TESTS = {
@@ -120,14 +197,18 @@ XSD11_SKIPPED_TESTS = {
     '../msData/regex/reK86.xsd',                # \P{Is} is valid in regex for XSD 1.1
     '../msData/regex/reK87.xsd',                # \P{Is} is valid in regex for XSD 1.1
     '../msData/particles/particlesHb009.xsd',   # valid in XSD 1.1
-    '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (signed invalid for engine limitation)
+    '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (invalid for engine limitation)
     '../saxonData/Override/over026.bad.xsd',    # Same as over003.xsd, that is signed as valid.
-    '../saxonData/CTA/cta0043.xsd',             # Only a warning for type table difference on restriction
-    '../saxonData/Wild/wild069.xsd',            # Maybe inverted?
+    '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
+    '../saxonData/Wild/wild069.xsd',  # Maybe inverted?
 
     # TODO: schema tests
-    '../saxonData/CTA/cta9005err.xsd',          # 14549: Type alternative using an inherited attribute
-    '../saxonData/CTA/cta9008err.xsd',          # 14552: Type alternative using an inherited attribute
+    '../saxonData/CTA/cta9005err.xsd',  # 14549: Type alternative using an inherited attribute
+    '../saxonData/CTA/cta9008err.xsd',  # 14552: Type alternative using an inherited attribute
+}
+
+DO_NOT_USE_META_SCHEMA = {
+    '../msData/additional/test264908_1.xsd',
 }
 
 # Total files counters
@@ -221,13 +302,20 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
         if test_conf:
             test_conf['source'] = source_path
-            if schema_test and not source_path.endswith('.xml'):
-                test_conf['sources'] = [
-                    os.path.normpath(
-                        os.path.join(os.path.dirname(filename), schema_href.get('{%s}href' % XLINK_NAMESPACE))
-                    )
-                    for schema_href in elem.findall(tag)
-                ]
+            if schema_test:
+                if not source_path.endswith('.xml'):
+                    test_conf['sources'] = [
+                        os.path.normpath(
+                            os.path.join(os.path.dirname(filename),
+                                         schema_href.get('{%s}href' % XLINK_NAMESPACE))
+                        )
+                        for schema_href in elem.findall(tag)
+                    ]
+
+                if source_href in DO_NOT_USE_META_SCHEMA:
+                    nonlocal use_meta
+                    use_meta = False
+
         return test_conf
 
     if group_num == 1:
@@ -239,6 +327,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
     group_tests = []
     global total_xsd_files
     global total_xml_files
+    use_meta = True
 
     # Get schema/instance path
     for k, child in enumerate(group_elem.iterfind('{%s}schemaTest' % TEST_SUITE_NAMESPACE)):
@@ -273,7 +362,8 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 source = item['source']
                 rel_path = os.path.relpath(source)
 
-                for version, expected in sorted(filter(lambda x: not x[0].startswith('source'), item.items())):
+                for version, expected in \
+                        sorted(filter(lambda x: not x[0].startswith('source'), item.items())):
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "schema %s should be invalid with XSD %s" % (rel_path, version)
@@ -281,9 +371,9 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 if len(item['sources']) <= 1:
-                                    schema_class(source, use_meta=False)
+                                    schema_class(source, use_meta=use_meta)
                                 else:
-                                    schema = schema_class(source, use_meta=False, build=False)
+                                    schema = schema_class(source, use_meta=use_meta, build=False)
                                     for other in item['sources'][1:]:
                                         schema_class(other, global_maps=schema.maps, build=False)
                                     schema.build()
@@ -292,22 +382,24 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 if len(item['sources']) <= 1:
-                                    schema = schema_class(source, use_meta=False)
+                                    schema = schema_class(source, use_meta=use_meta)
                                 else:
-                                    schema = schema_class(source, use_meta=False, build=False)
+                                    schema = schema_class(source, use_meta=use_meta, build=False)
                                     for other in item['sources'][1:]:
                                         schema_class(other, global_maps=schema.maps, build=False)
                                     schema.build()
                         except XMLSchemaException as err:
                             schema = None
-                            message = "schema %s should be valid with XSD %s, but an error is raised:" \
-                                      "\n\n%s" % (rel_path, version, str(err))
+                            message = "schema %s should be valid with XSD %s, but an error " \
+                                      "is raised:\n\n%s" % (rel_path, version, str(err))
                         else:
                             message = None
 
                         self.assertIsInstance(schema, schema_class, msg=message)
 
-        @unittest.skipIf(group_tests[0]['source'].endswith('.xsd') and len(group_tests) == 1, 'No instance tests')
+        @unittest.skipIf(
+            group_tests[0]['source'].endswith('.xsd') and len(group_tests) == 1, 'No instance tests'
+        )
         def test_xml_instances(self):
             if group_tests[0]['source'].endswith('.xsd'):
                 schema = group_tests[0]['source']
@@ -324,13 +416,14 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "instance %s should be invalid with XSD %s" % (rel_path, version)
-                        with self.assertRaises((XMLSchemaException, ElementTree.ParseError), msg=message):
+                        with self.assertRaises((XMLSchemaException, ElementTree.ParseError),
+                                               msg=message):
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                if len(schemas) <= 1:
+                                if not schemas:
                                     validate(source, schema=schema, cls=schema_class)
                                 else:
-                                    xs = schema_class(schemas[0], use_meta=False, build=False)
+                                    xs = schema_class(schemas[0], use_meta=use_meta, build=False)
                                     for other in schemas[1:]:
                                         schema_class(other, global_maps=xs.maps, build=False)
                                     xs.build()
@@ -342,7 +435,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                 if len(schemas) <= 1:
                                     validate(source, schema=schema, cls=schema_class)
                                 else:
-                                    xs = schema_class(schemas[0], use_meta=False, build=False)
+                                    xs = schema_class(schemas[0], use_meta=use_meta, build=False)
                                     for other in schemas[1:]:
                                         schema_class(other, global_maps=xs.maps, build=False)
                                     xs.build()
@@ -377,6 +470,26 @@ def w3c_tests_factory(argv=None):
             raise argparse.ArgumentTypeError("%r is not an XSD version string" % value)
         return value
 
+    def number_or_interval(value):
+        try:
+            return int(value)
+        except ValueError:
+            if '-' not in value:
+                raise
+            try:
+                start, stop = value.split('-')
+                return [int(start), int(stop)]
+            except ValueError:
+                pass
+            raise
+
+    def iter_numbers(numbers):
+        for x in numbers:
+            if isinstance(x, int):
+                yield x
+            elif isinstance(x, list) and len(x) == 2:
+                yield from range(x[0], x[1] + 1)
+
     parser = argparse.ArgumentParser(add_help=True)
     parser.add_argument('-v', '--verbose', default=False, action='store_true')
     parser.add_argument('--version', dest='version', type=xsd_versions,
@@ -393,9 +506,11 @@ def w3c_tests_factory(argv=None):
     parser.add_argument('--unknown', dest='expected',
                         const='indeterminate', action='store_const',
                         help="Run only expected 'indeterminate' tests.")
-    parser.add_argument('numbers', metavar='TEST_NUMBER', type=int, nargs='*',
+    parser.add_argument('numbers', metavar='TEST_NUMBER', type=number_or_interval, nargs='*',
                         help='Runs only specific tests, selected by numbers.')
     args = parser.parse_args(args=argv)
+
+    args.numbers = [x for x in iter_numbers(args.numbers)]
 
     quiet = __name__ == '__main__'
     index_path = fetch_xsd_test_suite()
@@ -437,7 +552,8 @@ def w3c_tests_factory(argv=None):
                 continue
             elif testgroup_version not in testset_version:
                 if args.verbose and not quiet:
-                    _msg = "Warning: Test group %r version=%r is not included in test set version=%r"
+                    _msg = "Warning: Test group %r version=%r is not included " \
+                           "in test set version=%r"
                     print(_msg % (testgroup_elem.get('name'), testgroup_version, testset_version))
 
             cls = create_w3c_test_group_case(

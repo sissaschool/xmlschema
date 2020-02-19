@@ -225,9 +225,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):
         """
-        Helper method for generating model validation errors. Incompatible with
-        'skip' validation mode. Il validation mode is 'lax' returns the error,
-        otherwise raise the error.
+        Helper method for generating model validation errors. If validation mode
+        is 'lax' or 'skip' returns the error, otherwise raise the error.
 
         :param validation: the validation mode. Can be 'lax' or 'strict'.
         :param elem: the instance Element.
@@ -239,15 +238,11 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param _kwargs: keyword arguments of the validation process that are not used.
         """
-        if validation == 'skip':
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
-
         error = XMLSchemaChildrenValidationError(self, elem, index, particle, occurs,
                                                  expected, source, namespaces)
         if validation == 'strict':
             raise error
-        else:
-            return error
+        return error
 
     def build(self):
         element_class = self.schema.BUILDERS.element_class
@@ -567,7 +562,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         Creates an iterator for decoding an Element content.
 
         :param elem: the Element that has to be decoded.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a list of 3-tuples (key, decoded data, decoder), \
         eventually preceded by a sequence of validation or decoding errors.
@@ -575,7 +570,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         result_list = []
         cdata_index = 1  # keys for CDATA sections are positive integers
 
-        if validation != 'skip' and not self.mixed:
+        if not self.mixed:
             # Check element CDATA
             if not_whitespace(elem.text) or any(not_whitespace(child.tail) for child in elem):
                 if len(self) == 1 and isinstance(self[0], XsdAnyElement):
@@ -688,7 +683,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             for particle, occurs, expected in model.stop():
                 errors.append((index, particle, occurs, expected))
 
-        if validation != 'skip' and errors:
+        if errors:
             for model_error in errors:
                 yield self.children_validation_error(validation, elem, *model_error, **kwargs)
 
@@ -780,15 +775,14 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                                 value = get_qname(default_namespace, name), value
                             break
                         else:
-                            if validation != 'skip':
-                                if name.startswith('{') or ':' not in name:
-                                    reason = '{!r} does not match any declared element ' \
-                                             'of the model group.'.format(name)
-                                else:
-                                    reason = '{} has an unknown prefix {!r}'.format(
-                                        name, name.split(':')[0]
-                                    )
-                                yield self.validation_error(validation, reason, value, **kwargs)
+                            if name.startswith('{') or ':' not in name:
+                                reason = '{!r} does not match any declared element ' \
+                                         'of the model group.'.format(name)
+                            else:
+                                reason = '{} has an unknown prefix {!r}'.format(
+                                    name, name.split(':')[0]
+                                )
+                            yield self.validation_error(validation, reason, value, **kwargs)
                             continue
 
             for result in xsd_element.iter_encode(value, validation, **kwargs):
@@ -810,9 +804,9 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         cdata_not_allowed = not self.mixed and not_whitespace(text) and self and \
             (len(self) > 1 or not isinstance(self[0], XsdAnyElement))
 
-        if validation != 'skip' and (errors or cdata_not_allowed or wrong_content_type):
+        if errors or cdata_not_allowed or wrong_content_type:
             attrib = {k: str(v) for k, v in element_data.attributes.items()}
-            if validation == 'lax' and converter.etree_element_class is not etree_element:
+            if validation != 'strict' and converter.etree_element_class is not etree_element:
                 child_tags = [converter.etree_element(e.tag, attrib=e.attrib) for e in children]
                 elem = converter.etree_element(element_data.tag, text, child_tags, attrib)
             else:

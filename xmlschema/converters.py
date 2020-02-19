@@ -229,15 +229,18 @@ class XMLSchemaConverter(NamespaceMapper):
 
         return elem
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         """
         Converts a decoded element data to a data structure.
 
         :param data: ElementData instance decoded from an Element node.
         :param xsd_element: the `XsdElement` associated to decoded the data.
+        :param xsd_type: optional `XsdType` for supporting dynamic type through \
+        xsi:type or xs:alternative.
         :param level: the level related to the decoding process (0 means the root).
         :return: a data structure containing the decoded data.
         """
+        xsd_type = xsd_type or xsd_element.type
         result_dict = self.dict()
         if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
             schema_namespaces = set(xsd_element.namespaces.values())
@@ -247,8 +250,8 @@ class XMLSchemaConverter(NamespaceMapper):
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-            if data.attributes or self.force_dict and not xsd_element.type.is_simple():
+        if xsd_type.is_simple() or xsd_type.has_simple_content():
+            if data.attributes or self.force_dict and not xsd_type.is_simple():
                 result_dict.update(t for t in self.map_attributes(data.attributes))
                 if data.text is not None and data.text != '':
                     result_dict[self.text_key] = data.text
@@ -259,7 +262,7 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
-            has_single_group = xsd_element.type.content_type.is_single()
+            has_single_group = xsd_type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
@@ -483,9 +486,10 @@ class ParkerConverter(XMLSchemaConverter):
     def lossy(self):
         return True
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        xsd_type = xsd_type or xsd_element.type
         preserve_root = self.preserve_root
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+        if xsd_type.is_simple() or xsd_type.has_simple_content():
             if preserve_root:
                 return self.dict([(self.map_qname(data.tag), data.text)])
             else:
@@ -589,7 +593,8 @@ class BadgerFishConverter(XMLSchemaConverter):
     def lossy(self):
         return False
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        xsd_type = xsd_type or xsd_element.type
         dict_class = self.dict
 
         tag = self.map_qname(data.tag)
@@ -598,11 +603,11 @@ class BadgerFishConverter(XMLSchemaConverter):
         if has_local_root:
             result_dict['@xmlns'] = dict_class()
 
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+        if xsd_type.is_simple() or xsd_type.has_simple_content():
             if data.text is not None and data.text != '':
                 result_dict[self.text_key] = data.text
         else:
-            has_single_group = xsd_element.type.content_type.is_single()
+            has_single_group = xsd_type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
@@ -729,8 +734,9 @@ class AbderaConverter(XMLSchemaConverter):
     def lossy(self):
         return True  # Loss cdata parts
 
-    def element_decode(self, data, xsd_element, level=0):
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        xsd_type = xsd_type or xsd_element.type
+        if xsd_type.is_simple() or xsd_type.has_simple_content():
             children = data.text if data.text is not None and data.text != '' else None
         else:
             children = self.dict()
@@ -842,13 +848,14 @@ class JsonMLConverter(XMLSchemaConverter):
     def losslessly(self):
         return True
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        xsd_type = xsd_type or xsd_element.type
         result_list = self.list()
         result_list.append(self.map_qname(data.tag))
         if data.text is not None and data.text != '':
             result_list.append(data.text)
 
-        if not xsd_element.type.has_simple_content():
+        if not xsd_type.has_simple_content():
             result_list.extend([
                 value if value is not None else self.list([name])
                 for name, value, _ in self.map_content(data.content)
@@ -942,14 +949,15 @@ class ParquetConverter(XMLSchemaConverter):
         else:
             super(XMLSchemaConverter, self).__setattr__(name, value)
 
-    def element_decode(self, data, xsd_element, level=0):
+    def element_decode(self, data, xsd_element, xsd_type=None, level=0):
+        xsd_type = xsd_type or xsd_element.type
         if data.attributes:
             pfx = xsd_element.local_name + self.attr_prefix
             result_dict = self.dict((pfx + self.map_qname(k), v) for k, v in data.attributes)
         else:
             result_dict = self.dict()
 
-        if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+        if xsd_type.is_simple() or xsd_type.has_simple_content():
             result_dict[xsd_element.local_name] = data.text or None
 
         if data.content:

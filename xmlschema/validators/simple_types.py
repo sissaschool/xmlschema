@@ -20,7 +20,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION,\
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, get_qname, local_name
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, get_qname, local_name
+from ..namespaces import XSD_NAMESPACE
 from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
@@ -331,7 +332,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
-            return True
+            return derivation != 'extension'
         elif self.base_type is other:
             return True
         elif self.base_type is None:
@@ -378,7 +379,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
-        if validation != 'skip' and obj is not None:
+        if obj is not None:
             if self.patterns is not None:
                 yield from self.patterns(obj)
 
@@ -390,10 +391,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def iter_encode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
-        elif validation != 'skip':
+        else:
             yield self.encode_error(validation, obj, str)
 
-        if validation != 'skip' and obj is not None:
+        if obj is not None:
             if self.patterns is not None:
                 yield from self.patterns(obj)
 
@@ -526,13 +527,30 @@ class XsdAtomicBuiltin(XsdAtomic):
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
-        elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
+        elif obj is not None and not isinstance(obj, self.instance_types):
             yield self.decode_error(
                 validation, obj, self.to_python,
                 reason="value is not an instance of {!r}".format(self.instance_types)
             )
 
-        if self.name == XSD_IDREF:
+        if self.name == XSD_QNAME:
+            if ':' in obj:
+                try:
+                    prefix, _ = obj.split(':')
+                except ValueError:
+                    pass
+                else:
+                    try:
+                        kwargs['namespaces'][prefix]
+                    except (TypeError, KeyError):
+                        try:
+                            if kwargs['source'].namespace != XSD_NAMESPACE:
+                                reason = "unmapped prefix %r on QName" % prefix
+                                yield self.validation_error(validation, reason)
+                        except KeyError:
+                            pass
+
+        elif self.name == XSD_IDREF:
             try:
                 id_map = kwargs['id_map']
             except KeyError:
@@ -547,9 +565,12 @@ class XsdAtomicBuiltin(XsdAtomic):
             except KeyError:
                 pass
             else:
+                xsd_element = kwargs.get('element')
                 if not id_map[obj]:
                     id_map[obj] = 1
-                else:
+                    if xsd_element is not None:
+                        id_map[(xsd_element, obj)] = 1
+                elif xsd_element is None or (xsd_element, obj) not in id_map:
                     yield self.validation_error(
                         validation, "Duplicated xsd:ID value {!r}".format(obj)
                     )
@@ -751,7 +772,7 @@ class XsdList(XsdSimpleType):
         elif derivation and self.derivation and derivation != self.derivation:
             return False
         elif other.name in self._special_types:
-            return True
+            return derivation != 'extension'
         elif self.base_type is other:
             return True
         else:
@@ -912,7 +933,7 @@ class XsdUnion(XsdSimpleType):
         for member_type in self.member_types:
             for result in member_type.iter_decode(obj, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
-                    if validation != 'skip' and patterns:
+                    if patterns:
                         obj = member_type.normalize(obj)
                         yield from patterns(obj)
 
@@ -920,7 +941,7 @@ class XsdUnion(XsdSimpleType):
                     return
                 break
 
-        if validation != 'skip' and ' ' not in obj.strip():
+        if ' ' not in obj.strip():
             reason = "invalid value %r." % obj
             yield self.decode_error(validation, obj, self.member_types, reason)
 
@@ -941,10 +962,9 @@ class XsdUnion(XsdSimpleType):
                 else:
                     items.append(str(chunk))
 
-        if validation != 'skip':
-            if not_decodable:
-                reason = "no type suitable for decoding the values %r." % not_decodable
-                yield self.decode_error(validation, obj, self.member_types, reason)
+        if not_decodable:
+            reason = "no type suitable for decoding the values %r." % not_decodable
+            yield self.decode_error(validation, obj, self.member_types, reason)
 
         yield items if len(items) > 1 else items[0] if items else None
 
@@ -1164,7 +1184,7 @@ class XsdAtomicRestriction(XsdAtomic):
             raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
                                       "simple or mixed content required." % self.base_type)
 
-        if validation != 'skip' and self.patterns:
+        if self.patterns:
             if not isinstance(self.primitive_type, XsdUnion):
                 yield from self.patterns(obj)
             elif 'patterns' not in kwargs:
@@ -1176,7 +1196,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 if isinstance(result, XMLSchemaDecodeError):
                     yield str(obj) if validation == 'skip' else None
             else:
-                if validation != 'skip' and result is not None:
+                if result is not None:
                     for validator in self.validators:
                         yield from validator(result)
 
@@ -1210,7 +1230,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     yield str(obj) if validation == 'skip' else None
                     return
             else:
-                if validation != 'skip' and self.validators and obj is not None:
+                if self.validators and obj is not None:
                     if isinstance(obj, (str, bytes)):
                         if self.primitive_type.is_datetime():
                             obj = self.primitive_type.to_python(obj)

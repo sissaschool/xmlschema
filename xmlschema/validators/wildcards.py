@@ -432,9 +432,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         if not self.is_matching(elem.tag):
-            if validation != 'skip':
-                reason = "{!r} is not allowed here".format(elem)
-                yield self.validation_error(validation, reason, elem, **kwargs)
+            reason = "{!r} is not allowed here".format(elem)
+            yield self.validation_error(validation, reason, elem, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -444,7 +443,10 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
                 xsd_element = self.maps.lookup_element(elem.tag)
             except LookupError:
                 if XSI_TYPE in elem.attrib:
-                    xsd_element = self.schema.create_element(name=elem.tag)
+                    if self.process_contents == 'lax':
+                        xsd_element = self.schema.create_element(name=elem.tag, nillable='true')
+                    else:
+                        xsd_element = self.schema.create_element(name=elem.tag)
                     yield from xsd_element.iter_decode(elem, validation, **kwargs)
                 elif validation == 'skip' or self.process_contents == 'lax':
                     yield from self.any_type.iter_decode(elem, validation, **kwargs)
@@ -466,9 +468,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            if validation != 'skip':
-                reason = "element {!r} is not allowed here".format(name)
-                yield self.validation_error(validation, reason, value, **kwargs)
+            reason = "element {!r} is not allowed here".format(name)
+            yield self.validation_error(validation, reason, value, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -569,9 +570,8 @@ class XsdAnyAttribute(XsdWildcard):
         name, value = attribute
 
         if not self.is_matching(name):
-            if validation != 'skip':
-                reason = "attribute %r not allowed." % name
-                yield self.validation_error(validation, reason, attribute, **kwargs)
+            reason = "attribute %r not allowed." % name
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -600,9 +600,8 @@ class XsdAnyAttribute(XsdWildcard):
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            if validation != 'skip':
-                reason = "attribute %r not allowed." % name
-                yield self.validation_error(validation, reason, attribute, **kwargs)
+            reason = "attribute %r not allowed." % name
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
         elif self.process_contents == 'skip':
             return

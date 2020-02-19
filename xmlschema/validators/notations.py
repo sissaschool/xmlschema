@@ -40,7 +40,7 @@ class XsdNotation(XsdComponent):
             self.parse_error("a notation must have a 'name' attribute", self.elem)
 
         if 'public' not in self.elem.attrib and 'system' not in self.elem.attrib:
-            self.parse_error("a notation must has a 'public' or a 'system' attribute", self.elem)
+            self.parse_error("a notation must have a 'public' or a 'system' attribute", self.elem)
 
     @property
     def public(self):

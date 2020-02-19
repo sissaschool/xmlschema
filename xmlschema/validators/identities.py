@@ -151,20 +151,20 @@ class XsdIdentity(XsdComponent):
     def iter_elements(self):
         yield from self.parent.iterfind(self.selector.path, self.selector.namespaces)
 
-    def get_fields(self, context, namespaces=None, decoders=None):
+    def get_fields(self, elem, namespaces=None, decoders=None):
         """
         Get fields for a schema or instance context element.
 
-        :param context: context Element or XsdElement
+        :param elem: an Element or an XsdElement
         :param namespaces: is an optional mapping from namespace prefix to URI.
         :param decoders: context schema fields decoders.
         :return: a tuple with field values. An empty field is replaced by `None`.
         """
         fields = []
         for k, field in enumerate(self.fields):
-            result = field.xpath_selector.select(context)
+            result = field.xpath_selector.select(elem)
             if not result:
-                if not isinstance(self, XsdKey) or 'ref' in context.attrib and \
+                if not isinstance(self, XsdKey) or 'ref' in elem.attrib and \
                         self.schema.meta_schema is None and self.schema.XSD_VERSION != '1.0':
                     fields.append(None)
                 else:
@@ -178,6 +178,8 @@ class XsdIdentity(XsdComponent):
                         value = qname_to_extended(value, namespaces)
                     if isinstance(value, list):
                         fields.append(tuple(value))
+                    elif isinstance(value, (bool, float)):
+                        fields.append(tuple([value, type(value)]))
                     else:
                         fields.append(value)
             else:
@@ -217,8 +219,8 @@ class XsdIdentity(XsdComponent):
                 if any(fld is not None for fld in fields):
                     yield fields
 
-    def get_counter(self):
-        return IdentityCounter(self)
+    def get_counter(self, enabled=True):
+        return IdentityCounter(self, enabled)
 
     @property
     def built(self):
@@ -307,8 +309,8 @@ class XsdKeyref(XsdIdentity):
                     .format(v, self.refer.prefixed_name, values[v])
                 yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)
 
-    def get_counter(self):
-        return KeyrefCounter(self)
+    def get_counter(self, enabled=True):
+        return KeyrefCounter(self, enabled)
 
 
 class Xsd11Unique(XsdUnique):
@@ -343,10 +345,13 @@ class Xsd11Keyref(XsdKeyref):
 
 class IdentityCounter(object):
 
-    def __init__(self, identity):
-        self.identity = identity
+    def __init__(self, identity, enabled=True):
         self.counter = Counter()
-        self.enabled = True
+        self.identity = identity
+        self.enabled = enabled
+
+    def __repr__(self):
+        return "%s(counter=%r)" % (self.__class__.__name__, self.counter)
 
     def clear(self):
         self.counter.clear()
