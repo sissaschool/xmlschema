@@ -537,7 +537,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         Creates an iterator for decoding an Element instance.
 
         :param elem: the Element that has to be decoded.
-        :param validation: the validation mode, can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode, can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -660,7 +660,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         else:
-            if len(elem) and validation != 'skip':
+            if len(elem):
                 reason = "a simple content element can't has child elements."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
@@ -668,7 +668,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             if self.fixed is not None:
                 if text is None:
                     text = self.fixed
-                elif text == self.fixed or validation == 'skip':
+                elif text == self.fixed:
                     pass
                 elif not strictly_equal(xsd_type.text_decode(text),
                                         xsd_type.text_decode(self.fixed)):
@@ -725,9 +725,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         if content is not None:
             del content
-
-        if validation == 'skip':
-            return
 
         # Collects fields values for identities that refer to this element.
         for constraint, counter in identities.items():
@@ -860,7 +857,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         elem = converter.etree_element(tag, text, children, attributes, level)
 
-        if validation != 'skip' and errors:
+        if errors:
             for e in errors:
                 yield self.validation_error(validation, e, elem, **kwargs)
         yield elem

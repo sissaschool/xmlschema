@@ -463,10 +463,12 @@ class XsdTotalDigitsFacet(XsdFacet):
         self.validator = self.total_digits_validator
 
     def total_digits_validator(self, x):
-        if operator.add(*count_digits(x)) > self.value:
-            yield XMLSchemaValidationError(
-                self, x, "the number of digits is greater than %r." % self.value
-            )
+        try:
+            if operator.add(*count_digits(x)) > self.value:
+                reason = "the number of digits is greater than %r." % self.value
+                yield XMLSchemaValidationError(self, x, reason)
+        except (TypeError, ValueError, ArithmeticError) as err:
+            yield XMLSchemaValidationError(self, x, str(err))
 
 
 class XsdFractionDigitsFacet(XsdFacet):
@@ -500,10 +502,12 @@ class XsdFractionDigitsFacet(XsdFacet):
         self.validator = self.fraction_digits_validator
 
     def fraction_digits_validator(self, x):
-        if count_digits(x)[1] > self.value:
-            yield XMLSchemaValidationError(
-                self, x, "the number of fraction digits is greater than %r." % self.value
-            )
+        try:
+            if count_digits(x)[1] > self.value:
+                reason = "the number of fraction digits is greater than %r." % self.value
+                yield XMLSchemaValidationError(self, x, reason)
+        except (TypeError, ValueError, ArithmeticError) as err:
+            yield XMLSchemaValidationError(self, x, str(err))
 
 
 class XsdExplicitTimezoneFacet(XsdFacet):

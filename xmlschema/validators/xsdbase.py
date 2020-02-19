@@ -849,8 +849,8 @@ class ValidationMixin(object):
     def validation_error(self, validation, error, obj=None,
                          source=None, namespaces=None, **_kwargs):
         """
-        Helper method for generating and updating validation errors. Incompatible with 'skip'
-        validation mode. Il validation mode is 'lax' returns the error, otherwise raises the error.
+        Helper method for generating and updating validation errors. If validation
+        mode is 'lax' or 'skip' returns the error, otherwise raises the error.
 
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
         :param error: an error instance or the detailed reason of failed validation.
@@ -874,18 +874,15 @@ class ValidationMixin(object):
         else:
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
 
-        if validation == 'lax':
-            return error
-        elif validation == 'strict':
+        if validation == 'strict':
             raise error
-        else:
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        return error
 
     def decode_error(self, validation, obj, decoder, reason=None,
                      source=None, namespaces=None, **_kwargs):
         """
-        Helper method for generating decode errors. Incompatible with 'skip' validation mode.
-        Il validation mode is 'lax' returns the error, otherwise raises the error.
+        Helper method for generating decode errors. If validation mode is 'lax'
+        or 'skip' returns the error, otherwise raises the error.
 
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
         :param obj: the not validated XML data.
@@ -897,18 +894,15 @@ class ValidationMixin(object):
         """
         check_validation_mode(validation)
         error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
-        if validation == 'lax':
-            return error
-        elif validation == 'strict':
+        if validation == 'strict':
             raise error
-        else:
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        return error
 
     def encode_error(self, validation, obj, encoder, reason=None,
                      source=None, namespaces=None, **_kwargs):
         """
-        Helper method for generating encode errors. Incompatible with 'skip' validation mode.
-        Il validation mode is 'lax' returns the error, otherwise raises the error.
+        Helper method for generating encode errors. If validation mode is 'lax'
+        or 'skip' returns the error, otherwise raises the error.
 
         :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
         :param obj: the not validated XML data.
@@ -920,12 +914,9 @@ class ValidationMixin(object):
         """
         check_validation_mode(validation)
         error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
-        if validation == 'lax':
-            return error
-        elif validation == 'strict':
+        if validation == 'strict':
             raise error
-        else:
-            raise XMLSchemaValueError("validation mode 'skip' incompatible with error generation.")
+        return error
 
 
 class ParticleMixin(object):

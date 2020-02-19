@@ -188,7 +188,7 @@ XSD types
 ^^^^^^^^^
 .. autoclass:: xmlschema.validators.XsdType
     :members: is_simple, is_complex, is_atomic, is_empty, is_emptiable, has_simple_content,
-        has_mixed_content, is_element_only
+        has_mixed_content, is_element_only, is_restriction, is_extension, is_key, is_qname
 .. autoclass:: xmlschema.validators.Xsd11ComplexType
 .. autoclass:: xmlschema.validators.XsdComplexType
 .. autoclass:: xmlschema.validators.XsdSimpleType

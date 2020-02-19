@@ -525,6 +525,11 @@ validate/decode XML data.
 For example you can build a schema using a *strict* mode and then decode XML data
 using the *validation* argument setted to 'lax'.
 
+.. note::
+    From release v1.1.1 the *iter_decode()* and *iter_encode()* methods propagate
+    errors also for *skip* validation mode. The errors generated in *skip* mode are
+    discarded by the top-level methods *decode()* and *encode()*.
+
 
 Lazy validation
 ---------------

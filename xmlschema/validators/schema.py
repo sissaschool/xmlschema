@@ -1520,7 +1520,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 data.append(result)
             elif validation == 'lax':
                 errors.append(result)
-            else:
+            elif validation == 'strict':
                 raise result
 
         if not data:
@@ -1603,7 +1603,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 data.append(result)
             elif validation == 'lax':
                 errors.append(result)
-            else:
+            elif validation == 'strict':
                 raise result
 
         if not data:

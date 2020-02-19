@@ -344,8 +344,14 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 )
             elif not isinstance(self.chunks[0], dict):
                 raise ValueError("Decoded object is not a dictionary: {}".format(self.chunks))
-            else:
-                self.assertTrue(True, "Successfully test decoding for {}".format(xml_file))
+            elif not self.errors:
+                try:
+                    self.assertEqual(
+                        self.schema.decode(xml_file, validation='skip'), self.chunks[0]
+                    )
+                except AssertionError:
+                    if not lax_encode:
+                        raise
 
         def check_schema_serialization(self):
             # Repeat with serialized-deserialized schema (only for Python 3)

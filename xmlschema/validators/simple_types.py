@@ -379,7 +379,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
 
-        if validation != 'skip' and obj is not None:
+        if obj is not None:
             if self.patterns is not None:
                 yield from self.patterns(obj)
 
@@ -391,10 +391,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def iter_encode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
-        elif validation != 'skip':
+        else:
             yield self.encode_error(validation, obj, str)
 
-        if validation != 'skip' and obj is not None:
+        if obj is not None:
             if self.patterns is not None:
                 yield from self.patterns(obj)
 
@@ -527,7 +527,7 @@ class XsdAtomicBuiltin(XsdAtomic):
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
             obj = self.normalize(obj)
-        elif validation != 'skip' and obj is not None and not isinstance(obj, self.instance_types):
+        elif obj is not None and not isinstance(obj, self.instance_types):
             yield self.decode_error(
                 validation, obj, self.to_python,
                 reason="value is not an instance of {!r}".format(self.instance_types)
@@ -933,7 +933,7 @@ class XsdUnion(XsdSimpleType):
         for member_type in self.member_types:
             for result in member_type.iter_decode(obj, validation='lax', **kwargs):
                 if not isinstance(result, XMLSchemaValidationError):
-                    if validation != 'skip' and patterns:
+                    if patterns:
                         obj = member_type.normalize(obj)
                         yield from patterns(obj)
 
@@ -941,7 +941,7 @@ class XsdUnion(XsdSimpleType):
                     return
                 break
 
-        if validation != 'skip' and ' ' not in obj.strip():
+        if ' ' not in obj.strip():
             reason = "invalid value %r." % obj
             yield self.decode_error(validation, obj, self.member_types, reason)
 
@@ -962,10 +962,9 @@ class XsdUnion(XsdSimpleType):
                 else:
                     items.append(str(chunk))
 
-        if validation != 'skip':
-            if not_decodable:
-                reason = "no type suitable for decoding the values %r." % not_decodable
-                yield self.decode_error(validation, obj, self.member_types, reason)
+        if not_decodable:
+            reason = "no type suitable for decoding the values %r." % not_decodable
+            yield self.decode_error(validation, obj, self.member_types, reason)
 
         yield items if len(items) > 1 else items[0] if items else None
 
@@ -1185,7 +1184,7 @@ class XsdAtomicRestriction(XsdAtomic):
             raise XMLSchemaValueError("wrong base type %r: a simpleType or a complexType with "
                                       "simple or mixed content required." % self.base_type)
 
-        if validation != 'skip' and self.patterns:
+        if self.patterns:
             if not isinstance(self.primitive_type, XsdUnion):
                 yield from self.patterns(obj)
             elif 'patterns' not in kwargs:
@@ -1197,7 +1196,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 if isinstance(result, XMLSchemaDecodeError):
                     yield str(obj) if validation == 'skip' else None
             else:
-                if validation != 'skip' and result is not None:
+                if result is not None:
                     for validator in self.validators:
                         yield from validator(result)
 
@@ -1231,7 +1230,7 @@ class XsdAtomicRestriction(XsdAtomic):
                     yield str(obj) if validation == 'skip' else None
                     return
             else:
-                if validation != 'skip' and self.validators and obj is not None:
+                if self.validators and obj is not None:
                     if isinstance(obj, (str, bytes)):
                         if self.primitive_type.is_datetime():
                             obj = self.primitive_type.to_python(obj)

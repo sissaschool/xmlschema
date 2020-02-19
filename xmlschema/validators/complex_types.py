@@ -600,7 +600,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         element is not available.
 
         :param elem: the Element that has to be decoded.
-        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip.
+        :param validation: the validation mode. Can be 'lax', 'strict' or 'skip'.
         :param kwargs: keyword arguments for the decoding process.
         :return: yields a decoded object, eventually preceded by a sequence of \
         validation or decoding errors.

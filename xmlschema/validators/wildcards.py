@@ -432,9 +432,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
 
     def iter_decode(self, elem, validation='lax', **kwargs):
         if not self.is_matching(elem.tag):
-            if validation != 'skip':
-                reason = "{!r} is not allowed here".format(elem)
-                yield self.validation_error(validation, reason, elem, **kwargs)
+            reason = "{!r} is not allowed here".format(elem)
+            yield self.validation_error(validation, reason, elem, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -469,9 +468,8 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            if validation != 'skip':
-                reason = "element {!r} is not allowed here".format(name)
-                yield self.validation_error(validation, reason, value, **kwargs)
+            reason = "element {!r} is not allowed here".format(name)
+            yield self.validation_error(validation, reason, value, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -572,9 +570,8 @@ class XsdAnyAttribute(XsdWildcard):
         name, value = attribute
 
         if not self.is_matching(name):
-            if validation != 'skip':
-                reason = "attribute %r not allowed." % name
-                yield self.validation_error(validation, reason, attribute, **kwargs)
+            reason = "attribute %r not allowed." % name
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
         elif self.process_contents == 'skip':
             return
@@ -603,9 +600,8 @@ class XsdAnyAttribute(XsdWildcard):
         namespace = get_namespace(name)
 
         if not self.is_namespace_allowed(namespace):
-            if validation != 'skip':
-                reason = "attribute %r not allowed." % name
-                yield self.validation_error(validation, reason, attribute, **kwargs)
+            reason = "attribute %r not allowed." % name
+            yield self.validation_error(validation, reason, attribute, **kwargs)
 
         elif self.process_contents == 'skip':
             return

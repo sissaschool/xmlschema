@@ -553,36 +553,33 @@ class TestValidationMixin(unittest.TestCase):
         self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
 
     def test_validation_error(self):
-        with self.assertRaises(ValueError) as ctx:
-            self.schema.validation_error('skip', 'Test error')
-        self.assertIn('incompatible', str(ctx.exception))
-
         with self.assertRaises(XMLSchemaValidationError):
             self.schema.validation_error('strict', 'Test error')
 
         self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
                               XMLSchemaValidationError)
 
-    def test_decode_error(self):
-        with self.assertRaises(ValueError) as ctx:
-            self.schema.decode_error('skip', 'alpha', int, 'Test error')
-        self.assertIn('incompatible', str(ctx.exception))
+        self.assertIsInstance(self.schema.validation_error('skip', 'Test error'),
+                              XMLSchemaValidationError)
 
+    def test_decode_error(self):
         with self.assertRaises(XMLSchemaDecodeError):
             self.schema.decode_error('strict', 'alpha', int, 'Test error')
 
         self.assertIsInstance(self.schema.decode_error('lax', 'alpha', int, 'Test error'),
                               XMLSchemaDecodeError)
 
-    def test_encode_error(self):
-        with self.assertRaises(ValueError) as ctx:
-            self.schema.encode_error('skip', 'alpha', str, 'Test error')
-        self.assertIn('incompatible', str(ctx.exception))
+        self.assertIsInstance(self.schema.decode_error('skip', 'alpha', int, 'Test error'),
+                              XMLSchemaDecodeError)
 
+    def test_encode_error(self):
         with self.assertRaises(XMLSchemaEncodeError):
             self.schema.encode_error('strict', 'alpha', str, 'Test error')
 
         self.assertIsInstance(self.schema.encode_error('lax', 'alpha', str, 'Test error'),
+                              XMLSchemaEncodeError)
+
+        self.assertIsInstance(self.schema.encode_error('skip', 'alpha', str, 'Test error'),
                               XMLSchemaEncodeError)
 
 
