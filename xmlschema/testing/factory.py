@@ -118,13 +118,10 @@ def get_test_line_args_parser():
         help="Timeout for fetching resources (default=300)."
     )
     parser.add_argument(
-        '--defaults', action="store_true", default=False,
-        help="Test data uses default or fixed values (skip strict encoding checks).",
-    )
-    parser.add_argument(
-        '--skip', action="store_true", default=False,
-        help="Skip strict encoding checks (for cases where test data uses default or "
-             "fixed values or some test data are skipped by wildcards processContents)."
+        '--lax-encode', action="store_true", default=False,
+        help="Use lax mode on encode checks (for cases where test data uses default or "
+             "fixed values or some test data are skipped by wildcards processContents). "
+             "Ignored on schema tests."
     )
     parser.add_argument(
         '--debug', action="store_true", default=False,

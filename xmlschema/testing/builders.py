@@ -174,7 +174,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
     inspect = test_args.inspect
     locations = test_args.locations
     defuse = test_args.defuse
-    skip_strict = test_args.skip
+    lax_encode = test_args.lax_encode
     debug_mode = test_args.debug
 
     class TestValidator(XsdValidatorTestCase):
@@ -235,7 +235,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 # If the check fails retry only if the converter is lossy (eg. ParkerConverter)
                 # or if the XML case has defaults taken from the schema or some part of data
                 # decoding is skipped by schema wildcards (set the specific argument in testfiles).
-                if skip_strict:
+                if lax_encode:
                     pass  # can't ensure encode equivalence if the test case use defaults
                 elif lossy:
                     pass  # can't check encode equivalence if the converter is lossy
@@ -289,7 +289,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             if isinstance(data2, tuple):
                 data2 = data2[0]
 
-            if data2 != data1 and (skip_strict or lossy or unordered):
+            if data2 != data1 and (lax_encode or lossy or unordered):
                 # Can't ensure decode equivalence if the test case use defaults,
                 # or the converter is lossy or the decoding is unordered.
                 return
