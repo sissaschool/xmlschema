@@ -38,7 +38,7 @@ class TestXsdValidator(unittest.TestCase):
         validator = XsdValidator()
         tmpl = '<xmlschema.validators.xsdbase.XsdValidator object at {}>'
         string_repr = str(validator)
-        if platform.python_implementation() == 'PyPy':
+        if platform.python_implementation() == 'PyPy' or platform.system() == 'Windows':
             string_repr = re.sub(r'0x[0]+', '0x', string_repr, 1)
         self.assertEqual(string_repr, tmpl.format(hex(id(validator))))
 

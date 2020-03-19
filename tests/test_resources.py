@@ -107,7 +107,9 @@ class TestResources(unittest.TestCase):
         self.check_url(normalize_url('other.xsd', 'file:///home/'), 'file:///home/other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'file:///home'), 'file:///home/other.xsd')
 
-        cwd_url = 'file://{}/'.format(os.getcwd())
+        cwd = os.getcwd()
+        cwd_url = 'file://{}/'.format(cwd) if cwd.startswith('/') else 'file://{}/'.format(cwd)
+
         self.check_url(normalize_url('file:other.xsd', keep_relative=True), 'file:other.xsd')
         self.check_url(normalize_url('file:other.xsd'), cwd_url + 'other.xsd')
         self.check_url(normalize_url('file:other.xsd', 'http://site/base', True), 'file:other.xsd')
