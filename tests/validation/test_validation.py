@@ -44,6 +44,19 @@ class TestValidation(XsdValidatorTestCase):
     def test_issue_064(self):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
+    def test_issue_171(self):
+        # First schema has an assert with naive check that maps '0' to False ('0'--> 0--> false)
+        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+        # Same schema with a more reliable assert expression
+        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171b.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
     def test_document_validate_api(self):
         self.assertIsNone(xmlschema.validate(self.vh_xml_file))
         self.assertIsNone(xmlschema.validate(self.vh_xml_file, use_defaults=False))
