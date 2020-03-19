@@ -60,8 +60,14 @@ class TestElementTree(unittest.TestCase):
 
         cmd = [os.path.join(test_dir, 'check_etree_import.py')]
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = process.stdout.decode('utf-8')
-        self.assertTrue("\nTest OK:" in output, msg="Wrong import of ElementTree after xmlschema")
+
+        stderr = process.stderr.decode('utf-8')
+        self.assertTrue("ModuleNotFoundError" not in stderr,
+                        msg="Test script fails because a package "
+                            "is missing:\n\n{}".format(stderr))
+
+        self.assertIn("\nTest OK:", process.stdout.decode('utf-8'),
+                      msg="Wrong import of ElementTree after xmlschema")
 
         cmd.append('--before')
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
