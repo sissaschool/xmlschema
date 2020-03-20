@@ -62,6 +62,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
     def parse_xpath_test(self):
+        # FIXME: parser's variables filled with XSD type with next elementpath minor release
         if not self.base_type.has_simple_content():
             variables = {'value': XSD_BUILTIN_TYPES['anyType'].value}
         else:
@@ -85,17 +86,22 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         except ElementPathError as err:
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
+        finally:
+            self.parser.variables.clear()
 
     def __call__(self, elem, value=None, source=None, namespaces=None, **kwargs):
-        if value is not None:
-            self.parser.variables['value'] = self.base_type.text_decode(value)
         if not self.parser.is_schema_bound():
             self.parser.schema.bind_parser(self.parser)
 
-        if source is None:
-            context = XPathContext(root=elem)
+        if value is not None:
+            variables = {'value': self.base_type.text_decode(value)}
         else:
-            context = XPathContext(root=source.root, item=elem)
+            variables = {'value': ''}
+
+        if source is None:
+            context = XPathContext(root=elem, variables=variables)
+        else:
+            context = XPathContext(root=source.root, item=elem, variables=variables)
 
         default_namespace = self.parser.namespaces['']
         if namespaces and '' in namespaces:
