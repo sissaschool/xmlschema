@@ -17,15 +17,16 @@ import sys
 import warnings
 
 import xmlschema
-from xmlschema import XMLSchemaBase, XMLSchemaValidationError, ParkerConverter, \
-    BadgerFishConverter, AbderaConverter, JsonMLConverter, UnorderedConverter
+from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
+    XMLSchemaParseError, ParkerConverter, BadgerFishConverter, AbderaConverter, \
+    JsonMLConverter, UnorderedConverter
 from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
     etree_elements_assert_equal, py_etree_element, lxml_etree_element
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator
+from xmlschema.validators import XsdValidator, Xsd11ComplexType
 
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
@@ -106,6 +107,22 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 self.assertEqual(context_elements, [x for x in context.iter_descendants()])
                 self.assertEqual(context_elements, elements)
 
+            # Check that the schema is valid also with XSD 1.1 validator
+            if not expected_errors and schema_class.XSD_VERSION == '1.0':
+                try:
+                    XMLSchema11(xsd_file, locations=locations, defuse=defuse, loglevel=loglevel)
+                except XMLSchemaParseError as err:
+                    if not isinstance(err.validator, Xsd11ComplexType) or \
+                            "is simple or has a simple content" not in str(err):
+                        raise  # Not a case of forbidden complex content extension
+
+                    xs = schema_class(xsd_file, validation='lax', locations=locations,
+                                      defuse=defuse, loglevel=loglevel)
+                    for error in xs.all_errors:
+                        if not isinstance(err.validator, Xsd11ComplexType) or \
+                                "is simple or has a simple content" not in str(err):
+                            raise error
+
         def check_xsd_file_with_lxml(self, xmlschema_time):
             start_time = time.time()
             lxs = lxml_etree.parse(xsd_file)
@@ -145,7 +162,7 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             else:
                 self.check_xsd_file()
 
-                # Check with lxml.etree.XMLSchema class
+            # Check with lxml.etree.XMLSchema class
             if check_with_lxml and lxml_etree is not None:
                 self.check_xsd_file_with_lxml(xmlschema_time=time.time() - start_time)
             self.check_errors(xsd_file, expected_errors)
