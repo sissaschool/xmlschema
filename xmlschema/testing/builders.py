@@ -26,7 +26,7 @@ from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator, Xsd11ComplexType
+from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
 
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
@@ -106,6 +106,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
                 self.assertEqual(context_elements, [x for x in context.iter_descendants()])
                 self.assertEqual(context_elements, elements)
+
+            # Checks on XSD types
+            for xsd_type in xs.maps.iter_components(xsd_classes=XsdType):
+                self.assertNotEqual(xsd_type.content_type_label, 'unknown')
 
             # Check that the schema is valid also with XSD 1.1 validator
             if not expected_errors and schema_class.XSD_VERSION == '1.0':

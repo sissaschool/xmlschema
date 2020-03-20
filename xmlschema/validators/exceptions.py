@@ -40,22 +40,19 @@ class XMLSchemaValidatorError(XMLSchemaException):
 
     def __str__(self):
         if self.elem is None:
-            return '%s.' % self.message
-        else:
-            msg = ['%s:\n' % self.message]
-            if self.elem is not None:
-                elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
-                if hasattr(self.elem, 'sourceline'):
-                    msg.append("Schema (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))
-                else:
-                    msg.append("Schema:\n\n%s\n" % elem_as_string)
-            if self.path is not None:
-                msg.append("Path: %s\n" % self.path)
-            if self.schema_url is not None:
-                msg.append("Schema URL: %s\n" % self.schema_url)
-                if self.origin_url not in (None, self.schema_url):
-                    msg.append("Origin URL: %s\n" % self.origin_url)
-            return '\n'.join(msg)
+            return self.message
+
+        msg = ['%s:\n' % self.message]
+        elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
+        msg.append("Schema:\n\n%s\n" % elem_as_string)
+
+        if self.path is not None:
+            msg.append("Path: %s\n" % self.path)
+        if self.schema_url is not None:
+            msg.append("Schema URL: %s\n" % self.schema_url)
+            if self.origin_url not in (None, self.schema_url):
+                msg.append("Origin URL: %s\n" % self.origin_url)
+        return '\n'.join(msg)
 
     @property
     def msg(self):
@@ -72,11 +69,6 @@ class XMLSchemaValidatorError(XMLSchemaException):
                                           relative=False, add_position=True)
                 if self.source.is_lazy():
                     value = None  # Don't save the element of a lazy resource
-        if name == 'source' and value is not None and getattr(self, 'elem', None) is not None:
-            self.path = etree_getpath(self.elem, value.root, self.namespaces,
-                                      relative=False, add_position=True)
-            if value.is_lazy():
-                self.elem = None
         super(XMLSchemaValidatorError, self).__setattr__(name, value)
 
     @property
@@ -167,7 +159,7 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
 class XMLSchemaModelDepthError(XMLSchemaModelError):
     """Raised when recursion depth is exceeded while iterating a model group."""
     def __init__(self, group):
-        msg = "maximum model recursion depth exceeded while iterating group %r" % group
+        msg = "maximum model recursion depth exceeded while iterating {!r}".format(group)
         super(XMLSchemaModelDepthError, self).__init__(group, message=msg)
 
 
@@ -226,6 +218,8 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
                 msg.append("Instance:\n\n%s\n" % elem_as_string)
         if self.path is not None:
             msg.append("Path: %s\n" % self.path)
+        if len(msg) == 1:
+            return msg[0][:-2]
         return '\n'.join(msg)
 
 
@@ -334,7 +328,7 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
             if not expected_tags:
                 pass
             elif len(expected_tags) == 1:
-                reason += " Tag %r expected." % expected_tags[0]
+                reason += " Tag %s expected." % expected_tags[0]
             else:
                 reason += " Tag (%s) expected." % ' | '.join(expected_tags)
 
