@@ -75,7 +75,8 @@ class TestValidation(XsdValidatorTestCase):
             self.assertEqual('Path: /vhx:vehicles/vhx:cars', path_line)
         else:
             self.assertTrue(
-                'Path: /vh:vehicles/vh:cars' == path_line or 'Path: /vhx:vehicles/vhx:cars', path_line
+                'Path: /vh:vehicles/vh:cars' == path_line or
+                'Path: /vhx:vehicles/vhx:cars', path_line
             )  # Due to unordered dicts
 
         # Issue #80
@@ -93,10 +94,11 @@ class TestValidation(XsdValidatorTestCase):
         source.root[1].clear()
         xsd_element = self.col_schema.elements['collection']
 
-        self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root, namespaces=namespaces)
+        self.assertRaises(XMLSchemaValidationError, xsd_element.decode, source.root,
+                          namespaces=namespaces)
 
         for _ in xsd_element.iter_decode(source.root, 'strict', namespaces=namespaces,
-                source=source, max_depth=1):
+                                         source=source, max_depth=1):
             del _
 
         self.assertIsNone(xmlschema.validate(self.col_xml_file, lazy=True))

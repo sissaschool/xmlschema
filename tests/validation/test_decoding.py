@@ -245,11 +245,12 @@ DATA_DICT = {
         {'$': 'ISO-27001', '@Year': 2009}
     ],
     'decimal_value': [Decimal('1')],
-    u'menù': u'baccalà mantecato',
-    u'complex_boolean': [
+    'menù': 'baccalà mantecato',
+    'complex_boolean': [
         {'$': True, '@Type': 2}, {'$': False, '@Type': 1}, True, False
     ],
-    u'simple_boolean': [True, False]
+    'simple_boolean': [True, False],
+    'date_and_time': '2020-03-05T23:04:10.047',  # xs:dateTime is not decoded for default
 }
 
 
@@ -294,7 +295,8 @@ class TestDecoding(XsdValidatorTestCase):
         xml_dict = self.col_schema.to_dict(col_xml_tree, namespaces=self.col_namespaces)
         self.assertEqual(xml_dict, COLLECTION_DICT)
 
-        xml_dict = xmlschema.to_dict(col_xml_tree, self.col_schema.url, namespaces=self.col_namespaces)
+        xml_dict = xmlschema.to_dict(col_xml_tree, self.col_schema.url,
+                                     namespaces=self.col_namespaces)
         self.assertEqual(xml_dict, COLLECTION_DICT)
 
     def test_to_dict_from_string(self):
@@ -307,13 +309,15 @@ class TestDecoding(XsdValidatorTestCase):
         xml_dict = self.vh_schema.to_dict(vh_xml_string, namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, VEHICLES_DICT)
 
-        xml_dict = xmlschema.to_dict(vh_xml_string, self.vh_schema.url, namespaces=self.vh_namespaces)
+        xml_dict = xmlschema.to_dict(vh_xml_string, self.vh_schema.url,
+                                     namespaces=self.vh_namespaces)
         self.assertEqual(xml_dict, VEHICLES_DICT)
 
         xml_dict = self.col_schema.to_dict(col_xml_string, namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, COLLECTION_DICT)
 
-        xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url, namespaces=self.col_namespaces)
+        xml_dict = xmlschema.to_dict(col_xml_string, self.col_schema.url,
+                                     namespaces=self.col_namespaces)
         self.assertTrue(xml_dict, COLLECTION_DICT)
 
     def test_date_decoding(self):
@@ -338,7 +342,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(data, '2019-01-01')
         self.assertEqual(errors, [])
 
-        data, errors = schema.to_dict("<Date>2019-01-01</Date>", validation='lax', datetime_types=True)
+        data, errors = schema.to_dict("<Date>2019-01-01</Date>", validation='lax',
+                                      datetime_types=True)
         self.assertEqual(data, datatypes.Date10.fromstring('2019-01-01'))
         self.assertEqual(errors, [])
 
@@ -347,7 +352,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn('value has to be greater or equal than', str(errors[0]))
 
-        data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax', datetime_types=True)
+        data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax',
+                                      datetime_types=True)
         self.assertEqual(data, datatypes.Date10.fromstring('1999-12-31'))
         self.assertEqual(len(errors), 1)
 
@@ -528,7 +534,8 @@ class TestDecoding(XsdValidatorTestCase):
     def test_default_converter(self):
         self.assertEqual(self.col_schema.to_dict(self.col_xml_file), COLLECTION_DICT)
 
-        default_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.XMLSchemaConverter)
+        default_dict = self.col_schema.to_dict(self.col_xml_file,
+                                               converter=xmlschema.XMLSchemaConverter)
         self.assertEqual(default_dict, COLLECTION_DICT)
 
         default_dict_root = self.col_schema.to_dict(self.col_xml_file, preserve_root=True)
@@ -543,7 +550,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(visitor_dict_root, {'col:collection': COLLECTION_DICT})
 
     def test_parker_converter(self):
-        parker_dict = self.col_schema.to_dict(self.col_xml_file, converter=xmlschema.ParkerConverter)
+        parker_dict = self.col_schema.to_dict(self.col_xml_file,
+                                              converter=xmlschema.ParkerConverter)
         self.assertEqual(parker_dict, COLLECTION_PARKER)
 
         parker_dict_root = self.col_schema.to_dict(
@@ -574,7 +582,8 @@ class TestDecoding(XsdValidatorTestCase):
         xml_data_1 = xsd_schema.to_dict(xml_string_1)
         xml_data_2 = xsd_schema.to_dict(xml_string_2)
         self.assertTrue(isinstance(xml_data_1['bar'], type(xml_data_2['bar'])),
-                        msg="XSD with an array that return a single element from xml must still yield a list.")
+                        msg="XSD with an array that return a single element from "
+                            "xml must still yield a list.")
 
     def test_any_type(self):
         any_type = xmlschema.XMLSchema.meta_schema.types['anyType']
@@ -634,9 +643,11 @@ class TestDecoding(XsdValidatorTestCase):
         self.check_decode(base64_length4_type, base64.b64encode(b'abcef'), XMLSchemaValidationError)
 
         base64_length5_type = self.st_schema.types['base64Length5']
-        self.check_decode(base64_length5_type, base64.b64encode(b'1234'), XMLSchemaValidationError)
+        self.check_decode(base64_length5_type, base64.b64encode(b'1234'),
+                          XMLSchemaValidationError)
         self.check_decode(base64_length5_type, base64.b64encode(b'12345'), u'MTIzNDU=')
-        self.check_decode(base64_length5_type, base64.b64encode(b'123456'), XMLSchemaValidationError)
+        self.check_decode(base64_length5_type, base64.b64encode(b'123456'),
+                          XMLSchemaValidationError)
 
     def test_decimal_type(self):
         schema = self.get_schema("""
@@ -682,8 +693,9 @@ class TestDecoding(XsdValidatorTestCase):
     def test_default_namespace(self):
         # Issue #77
         xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
-        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://example.com/foo">
-            <xs:element name="foo" type="xs:string" />
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+            targetNamespace="http://example.com/foo">
+          <xs:element name="foo" type="xs:string" />
         </xs:schema>""")
         self.assertEqual(xs.to_dict("""<foo xmlns="http://example.com/foo">bar</foo>""",
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), 'bar')
@@ -691,7 +703,9 @@ class TestDecoding(XsdValidatorTestCase):
                                     path='/foo', namespaces={'': 'http://example.com/foo'}), None)
 
     def test_complex_with_simple_content_restriction(self):
-        xs = self.schema_class(self.casepath('features/derivations/complex-with-simple-content-restriction.xsd'))
+        xs = self.schema_class(
+            self.casepath('features/derivations/complex-with-simple-content-restriction.xsd')
+        )
         self.assertTrue(xs.is_valid('<value>10</value>'))
         self.assertFalse(xs.is_valid('<value>alpha</value>'))
         self.assertEqual(xs.decode('<value>10</value>'), 10)
@@ -736,9 +750,11 @@ class TestDecoding(XsdValidatorTestCase):
 
         self.assertEqual(schema.to_dict("<root>text</root>", use_defaults=False),
                          {'@attrWithFixed': 'fixed_value', '$': 'text'})
-        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>""", use_defaults=False),
+        self.assertEqual(schema.to_dict("""<root attr="attr_value">text</root>""",
+                                        use_defaults=False),
                          {'$': 'text', '@attr': 'attr_value', '@attrWithFixed': 'fixed_value'})
-        self.assertEqual(schema.to_dict("<root/>", use_defaults=False), {'@attrWithFixed': 'fixed_value'})
+        self.assertEqual(schema.to_dict("<root/>", use_defaults=False),
+                         {'@attrWithFixed': 'fixed_value'})
 
         self.assertEqual(schema.to_dict("<simple_root/>"), 'default_value')
         self.assertIsNone(schema.to_dict("<simple_root/>", use_defaults=False))
@@ -761,7 +777,8 @@ class TestDecoding(XsdValidatorTestCase):
         schema = self.schema_class(xsd_text)
 
         self.assertIsNone(schema.to_dict("<simple_root>alpha</simple_root>", validation='lax')[0])
-        self.assertEqual(schema.to_dict("<root int_attr='10'>20</root>"), {'@int_attr': 10, '$': 20})
+        self.assertEqual(schema.to_dict("<root int_attr='10'>20</root>"),
+                         {'@int_attr': 10, '$': 20})
         self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='lax')[0],
                          {'@int_attr': None, '$': 20})
         self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='skip'),
