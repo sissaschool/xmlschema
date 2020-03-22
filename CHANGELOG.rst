@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.1.2`_ (2020-03-22)
+======================
+* Extension of validation tests with *XMLSchema11* validator
+* Fixed several bugs
+* Extended testing with Travis CI
+
 `v1.1.1`_ (2020-02-19)
 ======================
 * Change of *skip* validation mode with errors filtering in decode() or encode()
@@ -302,3 +308,4 @@ v0.9.6 (2017-05-05)
 .. _v1.0.18: https://github.com/brunato/xmlschema/compare/v1.0.17...v1.0.18
 .. _v1.1.0: https://github.com/brunato/xmlschema/compare/v1.0.18...v1.1.0
 .. _v1.1.1: https://github.com/brunato/xmlschema/compare/v1.1.0...v1.1.1
+.. _v1.1.2: https://github.com/brunato/xmlschema/compare/v1.1.1...v1.1.2

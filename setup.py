@@ -37,7 +37,7 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.1.1',
+    version='1.1.2',
     packages=['xmlschema'],
     include_package_data=True,
     setup_requires=['elementpath~=1.4.0'],

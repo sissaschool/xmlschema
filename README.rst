@@ -2,6 +2,22 @@
 xmlschema
 *********
 
+.. image:: https://img.shields.io/pypi/v/xmlschema.svg
+   :target: https://pypi.python.org/pypi/xmlschema/
+.. image:: https://img.shields.io/pypi/pyversions/xmlschema.svg
+   :target: https://pypi.python.org/pypi/xmlschema/
+.. image:: https://img.shields.io/pypi/implementation/xmlschema.svg
+   :target: https://pypi.python.org/pypi/xmlschema/
+.. image:: https://img.shields.io/badge/License-MIT-blue.svg
+   :alt: MIT License
+   :target: https://lbesson.mit-license.org/
+.. image:: https://travis-ci.org/sissaschool/xmlschema.svg?branch=master
+   :target: https://travis-ci.org/sissaschool/xmlschema
+.. image:: https://img.shields.io/pypi/dm/xmlschema.svg
+   :target: https://pypi.python.org/pypi/xmlschema/
+.. image:: https://img.shields.io/badge/Maintained%3F-yes-green.svg
+   :target: https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity
+
 .. xmlschema-introduction-start
 
 The *xmlschema* library is an implementation of `XML Schema <http://www.w3.org/2001/XMLSchema>`_
