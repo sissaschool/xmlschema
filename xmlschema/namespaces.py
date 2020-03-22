@@ -14,6 +14,7 @@ import os
 import re
 from collections.abc import MutableMapping, Mapping
 
+from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import get_namespace, local_name
 
 ###
@@ -196,20 +197,17 @@ class NamespaceMapper(MutableMapping):
         try:
             if qname[0] != '{' or not self._namespaces:
                 return qname
+            namespace, local_part = qname[1:].split('}')
         except IndexError:
             return qname
+        except ValueError:
+            raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
+        except TypeError:
+            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
 
-        qname_uri = get_namespace(qname)
-        for prefix, uri in self._namespaces.items():
-            if uri != qname_uri:
-                continue
-            if prefix:
-                self._namespaces[prefix] = uri
-                return qname.replace(u'{%s}' % uri, u'%s:' % prefix)
-            else:
-                if uri:
-                    self._namespaces[prefix] = uri
-                return qname.replace(u'{%s}' % uri, '')
+        for prefix, uri in sorted(self._namespaces.items(), reverse=True):
+            if uri == namespace:
+                return '%s:%s' % (prefix, local_part) if prefix else local_part
         else:
             return qname
 
@@ -227,27 +225,29 @@ class NamespaceMapper(MutableMapping):
         :return: a QName in extended format or a local name.
         """
         try:
-            if qname[0] == '{' or not self:
+            if qname[0] == '{' or not self._namespaces:
                 return qname
+            prefix, name = qname.split(':')
         except IndexError:
             return qname
-
-        try:
-            prefix, name = qname.split(':', 1)
         except ValueError:
+            if ':' in qname:
+                raise XMLSchemaValueError("the argument 'qname' has a wrong format: %r" % qname)
             if not self._namespaces.get(''):
                 return qname
             elif name_table is None or qname not in name_table:
                 return '{%s}%s' % (self._namespaces.get(''), qname)
             else:
                 return qname
+        except (TypeError, AttributeError):
+            raise XMLSchemaTypeError("the argument 'qname' must be a string-like object")
         else:
             try:
                 uri = self._namespaces[prefix]
             except KeyError:
                 return qname
             else:
-                return u'{%s}%s' % (uri, name) if uri else name
+                return '{%s}%s' % (uri, name) if uri else name
 
     unmap_qname = _unmap_qname
 
@@ -255,17 +255,24 @@ class NamespaceMapper(MutableMapping):
     def _local_name(qname, *_args, **_kwargs):
         return local_name(qname)
 
-    def transfer(self, other):
+    def transfer(self, namespaces):
+        """
+        Transfers compatible prefix/namespace registrations from a dictionary.
+        Registrations added to namespace mapper instance are deleted from argument.
+
+        :param namespaces: a dictionary containing prefix/namespace registrations.
+        """
         transferred = []
-        for k, v in other.items():
-            if k in self:
-                if v != self[k]:
+        for k, v in namespaces.items():
+            if k in self._namespaces:
+                if v != self._namespaces[k]:
                     continue
             else:
                 self[k] = v
             transferred.append(k)
+
         for k in transferred:
-            del other[k]
+            del namespaces[k]
 
 
 class NamespaceView(Mapping):
@@ -297,9 +304,6 @@ class NamespaceView(Mapping):
 
     def __eq__(self, other):
         return self.as_dict() == dict(other.items())
-
-    def copy(self, **kwargs):
-        return self.__class__(self, **kwargs)
 
     def as_dict(self, fqn_keys=False):
         if fqn_keys:
