@@ -54,7 +54,7 @@ class TestElementTree(unittest.TestCase):
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
         self.assertIs(xmlschema_etree.ElementTree, ElementTree)
 
-    @unittest.skipIf(platform.system() == 'Windows', "Run only for UNIX based systems.")
+    @unittest.skipIf(platform.system() != 'Linux', "Skip macOS and Windows platforms")
     def test_element_tree_import_script(self):
         test_dir = os.path.dirname(__file__) or '.'
 
@@ -63,16 +63,15 @@ class TestElementTree(unittest.TestCase):
 
         stderr = process.stderr.decode('utf-8')
         self.assertTrue("ModuleNotFoundError" not in stderr,
-                        msg="Test script fails because a package "
-                            "is missing:\n\n{}".format(stderr))
+                        msg="Test script fails because a package is missing:\n\n{}".format(stderr))
 
         self.assertIn("\nTest OK:", process.stdout.decode('utf-8'),
-                      msg="Wrong import of ElementTree after xmlschema")
+                      msg="Wrong import of ElementTree after xmlschema:\n\n{}".format(stderr))
 
         cmd.append('--before')
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = process.stdout.decode('utf-8')
-        self.assertTrue("\nTest OK:" in output, msg="Wrong import of ElementTree before xmlschema")
+        self.assertTrue("\nTest OK:" in process.stdout.decode('utf-8'),
+                        msg="Wrong import of ElementTree before xmlschema:\n\n{}".format(stderr))
 
     def test_safe_xml_parser(self):
         test_dir = os.path.dirname(__file__) or '.'
