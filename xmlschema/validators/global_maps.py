@@ -17,9 +17,9 @@ from functools import lru_cache
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
 from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
-from ..qnames import XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, \
-    XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, \
-    XSD_ELEMENT, XSI_TYPE, get_qname, local_name, qname_to_extended
+from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
+    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, \
+    XSI_TYPE, get_qname, local_name, qname_to_extended, is_xsd_redefine_or_override
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
@@ -37,7 +37,7 @@ def create_load_function(tag):
         for schema in schemas:
             target_namespace = schema.target_namespace
 
-            for elem in filter(lambda x: x.tag in (XSD_REDEFINE, XSD_OVERRIDE), schema.root):
+            for elem in filter(is_xsd_redefine_or_override, schema.root):
                 location = elem.get('schemaLocation')
                 if location is None:
                     continue

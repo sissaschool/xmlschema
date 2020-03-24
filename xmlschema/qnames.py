@@ -296,3 +296,34 @@ def qname_to_extended(qname, namespaces):
             return qname
         else:
             return u'{%s}%s' % (uri, name) if uri else name
+
+
+###
+# XSD tag filter functions
+
+def is_not_xsd_annotation(elem):
+    return elem.tag != XSD_ANNOTATION
+
+
+def is_xsd_include(elem):
+    return elem.tag == XSD_INCLUDE
+
+
+def is_xsd_import(elem):
+    return elem.tag == XSD_IMPORT
+
+
+def is_xsd_override(elem):
+    return elem.tag == XSD_OVERRIDE
+
+
+def is_xsd_redefine(elem):
+    return elem.tag == XSD_REDEFINE
+
+
+def is_xsd_redefine_or_override(elem):
+    return elem.tag in {XSD_REDEFINE, XSD_OVERRIDE}
+
+
+def is_xsd_default_open_content(elem):
+    return elem.tag == XSD_DEFAULT_OPEN_CONTENT

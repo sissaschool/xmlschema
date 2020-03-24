@@ -16,10 +16,10 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
-    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
+    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname, is_not_xsd_annotation
 from ..etree import etree_element, etree_iter_location_hints
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     raw_xml_encode, ParticleCounter, strictly_equal
@@ -268,7 +268,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         self.identities = {}
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
+        for child in filter(is_not_xsd_annotation, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
                 constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
             elif child.tag == XSD_KEY:
@@ -1036,7 +1036,7 @@ class Xsd11Element(XsdElement):
         else:
             alternatives = []
             has_test = True
-            for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
+            for child in filter(is_not_xsd_annotation, self.elem[index:]):
                 if child.tag == XSD_ALTERNATIVE:
                     alternatives.append(XsdAlternative(child, self.schema, self))
                     if not has_test:

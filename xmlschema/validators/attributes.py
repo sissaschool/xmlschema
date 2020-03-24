@@ -16,10 +16,10 @@ from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
-    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
-    XSD_ASSERT, get_namespace, get_qname
+from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, \
+    XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, \
+    XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, get_namespace, \
+    get_qname, is_not_xsd_annotation
 from ..helpers import get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
@@ -397,7 +397,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.schema.default_attributes = self
 
         attributes = ordered_dict_class()
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for child in filter(is_not_xsd_annotation, elem):
             if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")

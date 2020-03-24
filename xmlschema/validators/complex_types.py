@@ -8,11 +8,11 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
+from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
-    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_OVERRIDE, \
+    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, \
     XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT, \
-    get_qname, local_name
+    get_qname, local_name, is_not_xsd_annotation, is_xsd_override
 from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaDecodeError
@@ -339,7 +339,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             base_type = self.maps.types[XSD_ANY_TYPE]
 
         # complexContent restriction: the base type must be a complexType with a complex content.
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for child in filter(is_not_xsd_annotation, elem):
             if child.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
                 self.open_content = XsdOpenContent(child, self.schema, self)
                 continue
@@ -386,7 +386,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         if 'extension' in base_type.final:
             self.parse_error("the base type is not derivable by extension")
 
-        for group_elem in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for group_elem in filter(is_not_xsd_annotation, elem):
             break
         else:
             group_elem = None
@@ -666,7 +666,7 @@ class Xsd11ComplexType(XsdComplexType):
         if self.redefine is not None:
             return self.schema.default_attributes
 
-        for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.schema.root):
+        for child in filter(is_xsd_override, self.schema.root):
             if self.elem in child:
                 schema = self.schema.includes[child.attrib['schemaLocation']]
                 if schema.override is self.schema:
@@ -679,7 +679,7 @@ class Xsd11ComplexType(XsdComplexType):
         if self.parent is not None:
             return self.schema.default_open_content
 
-        for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.schema.root):
+        for child in filter(is_xsd_override, self.schema.root):
             if self.elem in child:
                 schema = self.schema.includes[child.attrib['schemaLocation']]
                 if schema.override is self.schema:
@@ -742,7 +742,7 @@ class Xsd11ComplexType(XsdComplexType):
             self.parse_error("the base type is not derivable by extension")
 
         # Parse openContent
-        for group_elem in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for group_elem in filter(is_not_xsd_annotation, elem):
             if group_elem.tag != XSD_OPEN_CONTENT:
                 break
             self.open_content = XsdOpenContent(group_elem, self.schema, self)

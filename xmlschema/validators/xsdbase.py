@@ -15,7 +15,7 @@ import re
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
-    XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed
+    XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed, is_not_xsd_annotation
 from ..etree import etree_tostring
 from ..helpers import is_etree_element
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
@@ -383,7 +383,7 @@ class XsdComponent(XsdValidator):
 
     def _parse_child_component(self, elem, strict=True):
         child = None
-        for index, child in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
+        for index, child in enumerate(filter(is_not_xsd_annotation, elem)):
             if not strict:
                 return child
             elif index:

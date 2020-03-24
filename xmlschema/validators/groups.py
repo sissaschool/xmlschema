@@ -15,8 +15,8 @@ import warnings
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ELEMENT, XSD_ANY, XSI_TYPE, get_qname, local_name
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
+    XSD_ANY, XSI_TYPE, get_qname, local_name, is_not_xsd_annotation
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
@@ -185,7 +185,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, content_model):
+        for child in filter(is_not_xsd_annotation, content_model):
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
@@ -850,7 +850,7 @@ class Xsd11Group(XsdGroup):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, content_model):
+        for child in filter(is_not_xsd_annotation, content_model):
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))

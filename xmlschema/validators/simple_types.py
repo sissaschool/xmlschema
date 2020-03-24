@@ -20,7 +20,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION,\
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, get_qname, local_name
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, get_qname, local_name, \
+    is_not_xsd_annotation
 from ..namespaces import XSD_NAMESPACE
 from ..helpers import get_xsd_derivation_attribute
 
@@ -859,7 +860,7 @@ class XsdUnion(XsdSimpleType):
         elem = self.elem
         member_types = []
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for child in filter(is_not_xsd_annotation, elem):
             mt = xsd_simple_type_factory(child, self.schema, self)
             if isinstance(mt, XMLSchemaParseError):
                 self.parse_error(mt)
@@ -1098,7 +1099,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         "simpleType restriction of %r is not allowed" % base_type, elem
                     )
 
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem):
+        for child in filter(is_not_xsd_annotation, elem):
             if child.tag in self._CONTENT_TAIL_TAGS:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
