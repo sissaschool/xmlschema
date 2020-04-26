@@ -368,12 +368,11 @@ class XMLResource(object):
                 else:
                     return self.fromstring(source), source, None
             except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-                if '\n' in source:
+                if '\n' in source or source.lstrip().startswith('<'):
                     raise
+                url = normalize_url(source)
             finally:
                 self._url = _url
-
-            url = normalize_url(source) if '\n' not in source else None
 
         elif isinstance(source, StringIO):
             _url, self._url = self._url, None
