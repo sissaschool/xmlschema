@@ -571,7 +571,7 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
 
     def _parse_value(self, elem):
         try:
-            value = self.base_type.decode(elem.attrib['value'])
+            value = self.base_type.decode(elem.attrib['value'], namespaces=self.schema.namespaces)
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
         except XMLSchemaDecodeError as err:

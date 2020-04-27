@@ -16,8 +16,8 @@ import xml.etree.ElementTree as ElementTree
 
 from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header
-from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, XMLSchema11, \
-    XMLSchemaParseError, XMLSchemaValidationError, XMLSchemaDecodeError, XMLSchemaEncodeError
+from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
+    XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -553,34 +553,18 @@ class TestValidationMixin(unittest.TestCase):
         self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
 
     def test_validation_error(self):
+        elem = ElementTree.XML('<foo/>')
         with self.assertRaises(XMLSchemaValidationError):
-            self.schema.validation_error('strict', 'Test error')
+            self.schema.validation_error('strict', 'Test error', obj=elem)
+
+        self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
+                              XMLSchemaValidationError)
 
         self.assertIsInstance(self.schema.validation_error('lax', 'Test error'),
                               XMLSchemaValidationError)
 
         self.assertIsInstance(self.schema.validation_error('skip', 'Test error'),
                               XMLSchemaValidationError)
-
-    def test_decode_error(self):
-        with self.assertRaises(XMLSchemaDecodeError):
-            self.schema.decode_error('strict', 'alpha', int, 'Test error')
-
-        self.assertIsInstance(self.schema.decode_error('lax', 'alpha', int, 'Test error'),
-                              XMLSchemaDecodeError)
-
-        self.assertIsInstance(self.schema.decode_error('skip', 'alpha', int, 'Test error'),
-                              XMLSchemaDecodeError)
-
-    def test_encode_error(self):
-        with self.assertRaises(XMLSchemaEncodeError):
-            self.schema.encode_error('strict', 'alpha', str, 'Test error')
-
-        self.assertIsInstance(self.schema.encode_error('lax', 'alpha', str, 'Test error'),
-                              XMLSchemaEncodeError)
-
-        self.assertIsInstance(self.schema.encode_error('skip', 'alpha', str, 'Test error'),
-                              XMLSchemaEncodeError)
 
 
 class TestParticleMixin(unittest.TestCase):

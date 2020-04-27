@@ -234,20 +234,22 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
                 yield result
+                continue
             elif isinstance(result, Decimal):
                 try:
                     yield kwargs['decimal_type'](result)
                 except (KeyError, TypeError):
                     yield result
-                break
             elif isinstance(result, (AbstractDateTime, Duration)):
                 try:
                     yield result if kwargs['datetime_types'] is True else text
                 except KeyError:
                     yield text
+            elif isinstance(result, str) and result.startswith('{') and self.type.is_qname():
+                yield text
             else:
                 yield result
-                break
+            break
 
     def iter_encode(self, obj, validation='lax', **kwargs):
         for result in self.type.iter_encode(obj, validation):

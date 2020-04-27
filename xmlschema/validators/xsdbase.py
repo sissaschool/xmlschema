@@ -874,47 +874,7 @@ class ValidationMixin(object):
         else:
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
 
-        if validation == 'strict':
-            raise error
-        return error
-
-    def decode_error(self, validation, obj, decoder, reason=None,
-                     source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating decode errors. If validation mode is 'lax'
-        or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param obj: the not validated XML data.
-        :param decoder: the XML data decoder.
-        :param reason: the detailed reason of failed validation.
-        :param source: the XML resource that contains the error.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        check_validation_mode(validation)
-        error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
-        if validation == 'strict':
-            raise error
-        return error
-
-    def encode_error(self, validation, obj, encoder, reason=None,
-                     source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating encode errors. If validation mode is 'lax'
-        or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param obj: the not validated XML data.
-        :param encoder: the XML encoder.
-        :param reason: the detailed reason of failed validation.
-        :param source: the XML resource that contains the error.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        check_validation_mode(validation)
-        error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
-        if validation == 'strict':
+        if validation == 'strict' and error.elem is not None:
             raise error
         return error
 

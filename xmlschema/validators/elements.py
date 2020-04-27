@@ -683,12 +683,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     for error in assertion(elem, value=text, **kwargs):
                         yield self.validation_error(validation, error, **kwargs)
 
-                if text and xsd_type.content_type.is_list():
+                if text and content_type.is_list():
                     value = text.split()
                 else:
                     value = text
             elif xsd_type.is_key() and self.xsd_version != '1.0':
                 kwargs['element'] = self if self.ref is None else self.ref
+
 
             if text is None:
                 for result in content_type.iter_decode('', validation, **kwargs):
@@ -705,17 +706,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         value = result
 
-        if isinstance(value, Decimal):
-            try:
-                value = kwargs['decimal_type'](value)
-            except (KeyError, TypeError):
-                pass
-        elif isinstance(value, (AbstractDateTime, Duration)):
-            try:
-                if kwargs['datetime_types'] is not True:
+            if isinstance(value, Decimal):
+                try:
+                    value = kwargs['decimal_type'](value)
+                except (KeyError, TypeError):
+                    pass
+            elif isinstance(value, (AbstractDateTime, Duration)):
+                try:
+                    if kwargs['datetime_types'] is not True:
+                        value = elem.text
+                except KeyError:
                     value = elem.text
-            except KeyError:
-                value = elem.text
+            elif isinstance(value, str) and value.startswith('{'):
+                if xsd_type.is_qname():
+                    value = text
 
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)
