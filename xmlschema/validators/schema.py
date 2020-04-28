@@ -37,7 +37,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPA
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, normalize_locations, \
-    fetch_resource, XMLResource
+    fetch_resource, update_prefix, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -302,10 +302,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self._root_elements = None
         root = self.source.root
 
-        # Parse namespaces and targetNamespace
-        self.namespaces = self.source.get_namespaces(
-            namespaces={'xml': XML_NAMESPACE}  # the XML namespace is implicitly declared
-        )
+        # Get the schema'namespaces, the XML namespace is implicitly declared.
+        self.namespaces = self.source.get_namespaces(namespaces={'xml': XML_NAMESPACE})
+
         try:
             self.target_namespace = root.attrib['targetNamespace']
         except KeyError:
@@ -317,13 +316,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
+                msg = "wrong namespace (%r instead of %r) for XSD resource %s."
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
             # Chameleon schema case: set the target namespace and the default namespace
             self.target_namespace = namespace
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
+            elif '' not in self.source.get_namespaces(root_only=True):
+                other_ns = self.namespaces.pop('')
+                self.namespaces[''] = namespace
+                update_prefix(self.namespaces, '', other_ns)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)

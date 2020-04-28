@@ -690,7 +690,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif xsd_type.is_key() and self.xsd_version != '1.0':
                 kwargs['element'] = self if self.ref is None else self.ref
 
-
             if text is None:
                 for result in content_type.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
