@@ -18,8 +18,7 @@ from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed, is_not_xsd_annotation
 from ..etree import etree_tostring
 from ..helpers import is_etree_element
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
-    XMLSchemaDecodeError, XMLSchemaEncodeError
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
@@ -934,8 +933,8 @@ class ParticleMixin(object):
         else:
             return self.max_occurs <= other.max_occurs
 
-    def parse_error(self, *args, **kwargs):
-        raise NotImplementedError()
+    def parse_error(self, message):
+        raise XMLSchemaParseError(self, message)
 
     def _parse_particle(self, elem):
         if 'minOccurs' in elem.attrib:

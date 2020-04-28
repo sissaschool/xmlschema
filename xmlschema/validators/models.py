@@ -294,13 +294,8 @@ def distinguishable_paths(path1, path2):
         if path1[k].model == 'sequence':
             before1 |= any(not e.is_emptiable() for e in path1[k][:idx])
             after1 |= any(not e.is_emptiable() for e in path1[k][idx + 1:])
-        elif path1[k].model in ('all', 'choice'):
-            if any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
-                univocal1 = before1 = after1 = False
-        else:
-            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path1[k]
-                                         if e is not path1[k][idx]):
-                univocal1 = before1 = after1 = False
+        elif any(e.is_emptiable() for e in path1[k] if e is not path1[k][idx]):
+            univocal1 = False
 
     for k in range(depth + 1, len(path2) - 1):
         univocal2 &= path2[k].is_univocal()
@@ -308,13 +303,8 @@ def distinguishable_paths(path1, path2):
         if path2[k].model == 'sequence':
             before2 |= any(not e.is_emptiable() for e in path2[k][:idx])
             after2 |= any(not e.is_emptiable() for e in path2[k][idx + 1:])
-        elif path2[k].model in ('all', 'choice'):
-            if any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
-                univocal2 = before2 = after2 = False
-        else:
-            if len(path2[k]) > 1 and all(e.is_emptiable() for e in path2[k]
-                                         if e is not path2[k][idx]):
-                univocal2 = before2 = after2 = False
+        elif any(e.is_emptiable() for e in path2[k] if e is not path2[k][idx]):
+            univocal2 = False
 
     if path1[depth].model != 'sequence':
         if before1 and before2:

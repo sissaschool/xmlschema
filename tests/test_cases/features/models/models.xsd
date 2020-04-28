@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- A schema for testing model validation -->
+<!-- A schema for testing model validation with ModelVisitor class -->
 <xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
 
     <xs:element name="data">

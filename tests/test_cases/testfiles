@@ -55,6 +55,7 @@ features/models/invalid_models2.xsd --errors=3
 features/models/model1.xml --errors=1
 features/models/models.xsd
 features/models/recursive-groups.xsd --errors=2 # Two circular definitions
+features/models/valid_model1.xsd
 
 features/namespaces/default_ns_invalid.xsd --errors=1
 features/namespaces/default_ns_valid1.xsd

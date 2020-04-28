@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A valid schema model (related to issue #182). -->
+<xs:schema xmlns="ns" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="ns" >
+
+    <xs:element name="elem1" type="xs:string" />
+    <xs:element name="elem2" type="xs:string" />
+    <xs:element name="elem3" type="xs:string" />
+    <xs:element name="elem4" type="xs:string" />
+
+    <xs:complexType name="type1">
+      <xs:sequence>
+        <xs:element ref="elem1" maxOccurs="10" />
+        <xs:choice>
+            <xs:sequence>
+                <xs:choice>
+                    <xs:element ref="elem2" />
+                    <xs:element ref="elem3" />
+                </xs:choice>
+            </xs:sequence>
+            <xs:sequence>
+                <xs:element ref="elem4" />
+                <xs:choice>
+                    <xs:element ref="elem2" minOccurs="0" />
+                    <xs:element ref="elem3" minOccurs="0" />
+                </xs:choice>
+            </xs:sequence>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>
