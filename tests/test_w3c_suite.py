@@ -9,27 +9,18 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module runs tests concerning the W3C XML Schema 1.1 test suite.
-Execute this module as script to run the tests. For default all the
-schema tests are built and run. To operate a different selection you
-can provide the following options:
-
- --xml: run also XML instance tests
- --xsd10: run only XSD 1.0 tests
- --xsd11: run only XSD 1.1 tests
- --valid: run only tests set as valid
- --invalid: run only tests set as invalid
-
-Additionally you can provide an unlimited list of positive integers to
-run only the tests associated with a progressive list of index.
-Also the unittest options are accepted (run with --help to show a summary
-of available options).
+This script runs tests concerning the W3C XML Schema 1.1 test suite.
 """
 import unittest
 import argparse
 import os.path
 import xml.etree.ElementTree as ElementTree
 import warnings
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
 
@@ -355,7 +346,6 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
         return
 
     class TestGroupCase(unittest.TestCase):
-
         @unittest.skipIf(group_tests[0]['source'].endswith('.xml'), 'No schema test')
         def test_xsd_schema(self):
             for item in filter(lambda x: x['source'].endswith('.xsd'), group_tests):
@@ -364,6 +354,17 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
 
                 for version, expected in \
                         sorted(filter(lambda x: not x[0].startswith('source'), item.items())):
+
+                    if args.lxml and version == '1.0':
+                        if expected == 'invalid':
+                            with self.assertRaises(lxml_etree.XMLSchemaParseError):
+                                schema_tree = lxml_etree.parse(source)
+                                lxml_etree.XMLSchema(schema_tree)
+                        else:
+                            schema_tree = lxml_etree.parse(source)
+                            lxml_etree.XMLSchema(schema_tree)
+                        continue
+
                     schema_class = XMLSchema11 if version == '1.1' else XMLSchema10
                     if expected == 'invalid':
                         message = "schema %s should be invalid with XSD %s" % (rel_path, version)
@@ -497,6 +498,8 @@ def w3c_tests_factory(argv=None):
                         help="Run only tests related to a specific XSD version.")
     parser.add_argument('--xml', default=False, action='store_true',
                         help="Include XML validation tests.")
+    parser.add_argument('--lxml', default=False, action='store_true',
+                        help="Use lxml's XMLSchema validator for XSD 1.0 tests.")
     parser.add_argument('--valid', dest='expected', default=ADMITTED_VALIDITY,
                         const='valid', action='store_const',
                         help="Run only expected 'valid' tests.")
@@ -511,6 +514,10 @@ def w3c_tests_factory(argv=None):
     args = parser.parse_args(args=argv)
 
     args.numbers = [x for x in iter_numbers(args.numbers)]
+
+    if lxml_etree is None and args.lxml:
+        print("Ignore --lxml option: library lxml is not available ...")
+        args.lxml = False
 
     quiet = __name__ == '__main__'
     index_path = fetch_xsd_test_suite()

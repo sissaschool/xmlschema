@@ -16,10 +16,10 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_GROUP, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
-    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname
+    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname, is_not_xsd_annotation
 from ..etree import etree_element, etree_iter_location_hints
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     raw_xml_encode, ParticleCounter, strictly_equal
@@ -268,7 +268,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         self.identities = {}
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
+        for child in filter(is_not_xsd_annotation, self.elem[index:]):
             if child.tag == XSD_UNIQUE:
                 constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
             elif child.tag == XSD_KEY:
@@ -683,7 +683,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     for error in assertion(elem, value=text, **kwargs):
                         yield self.validation_error(validation, error, **kwargs)
 
-                if text and xsd_type.content_type.is_list():
+                if text and content_type.is_list():
                     value = text.split()
                 else:
                     value = text
@@ -705,17 +705,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         value = result
 
-        if isinstance(value, Decimal):
-            try:
-                value = kwargs['decimal_type'](value)
-            except (KeyError, TypeError):
-                pass
-        elif isinstance(value, (AbstractDateTime, Duration)):
-            try:
-                if kwargs['datetime_types'] is not True:
+            if isinstance(value, Decimal):
+                try:
+                    value = kwargs['decimal_type'](value)
+                except (KeyError, TypeError):
+                    pass
+            elif isinstance(value, (AbstractDateTime, Duration)):
+                try:
+                    if kwargs['datetime_types'] is not True:
+                        value = elem.text
+                except KeyError:
                     value = elem.text
-            except KeyError:
-                value = elem.text
+            elif isinstance(value, str) and value.startswith('{'):
+                if xsd_type.is_qname():
+                    value = text
 
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)
@@ -1036,7 +1039,7 @@ class Xsd11Element(XsdElement):
         else:
             alternatives = []
             has_test = True
-            for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.elem[index:]):
+            for child in filter(is_not_xsd_annotation, self.elem[index:]):
                 if child.tag == XSD_ALTERNATIVE:
                     alternatives.append(XsdAlternative(child, self.schema, self))
                     if not has_test:

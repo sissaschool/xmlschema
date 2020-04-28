@@ -26,17 +26,18 @@ from collections import namedtuple, Counter
 from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
-    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_ANNOTATION, \
-    XSD_NOTATION, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, \
+    VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
+    XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
-    XSD_ANY_ATTRIBUTE, XSD_INCLUDE, XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, \
-    XSD_DEFAULT_OPEN_CONTENT, XSD_ANY_TYPE, XSI_TYPE
+    XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, is_not_xsd_annotation, is_xsd_import, \
+    is_xsd_include, is_xsd_override, is_xsd_redefine, is_xsd_redefine_or_override, \
+    is_xsd_default_open_content
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
 from ..resources import is_remote_url, url_path_is_file, normalize_locations, \
-    fetch_resource, XMLResource
+    fetch_resource, update_prefix, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -301,10 +302,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self._root_elements = None
         root = self.source.root
 
-        # Parse namespaces and targetNamespace
-        self.namespaces = self.source.get_namespaces(
-            namespaces={'xml': XML_NAMESPACE}  # the XML namespace is implicitly declared
-        )
+        # Get the schema'namespaces, the XML namespace is implicitly declared.
+        self.namespaces = self.source.get_namespaces(namespaces={'xml': XML_NAMESPACE})
+
         try:
             self.target_namespace = root.attrib['targetNamespace']
         except KeyError:
@@ -316,13 +316,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                msg = u"wrong namespace (%r instead of %r) for XSD resource %r."
+                msg = "wrong namespace (%r instead of %r) for XSD resource %s."
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
             # Chameleon schema case: set the target namespace and the default namespace
             self.target_namespace = namespace
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
+            elif '' not in self.source.get_namespaces(root_only=True):
+                other_ns = self.namespaces.pop('')
+                self.namespaces[''] = namespace
+                update_prefix(self.namespaces, '', other_ns)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)
@@ -368,7 +372,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if self.meta_schema is None:
             # Meta-schema creation phase (MetaXMLSchema class)
             self.maps = global_maps or XsdGlobals(self)
-            for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
+            for child in filter(is_xsd_override, self.root):
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
 
@@ -428,7 +432,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 except (ValueError, KeyError, RuntimeError) as err:
                     self.parse_error(str(err), root)
 
-            for child in filter(lambda x: x.tag == XSD_DEFAULT_OPEN_CONTENT, root):
+            for child in filter(is_xsd_default_open_content, root):
                 self.default_open_content = XsdDefaultOpenContent(child, self)
                 break
 
@@ -814,8 +818,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         # No XSD globals: check with a lookup of schema child elements.
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, self.root):
-            if child.tag in {XSD_REDEFINE, XSD_OVERRIDE}:
+        for child in filter(is_not_xsd_annotation, self.root):
+            if is_xsd_redefine_or_override(child):
                 for e in filter(lambda x: x.tag in self.BUILDERS_MAP, child):
                     name = e.get('name')
                     if name is not None:
@@ -925,7 +929,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def _parse_inclusions(self):
         """Processes schema document inclusions and redefinitions."""
-        for child in filter(lambda x: x.tag == XSD_INCLUDE, self.root):
+        for child in filter(is_xsd_include, self.root):
             try:
                 location = child.attrib['schemaLocation'].strip()
                 logger.info("Include schema from %r", location)
@@ -948,7 +952,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 else:
                     self.errors.append(type(err)(msg))
 
-        for child in filter(lambda x: x.tag == XSD_REDEFINE, self.root):
+        for child in filter(is_xsd_redefine, self.root):
             try:
                 location = child.attrib['schemaLocation'].strip()
                 logger.info("Redefine schema %r", location)
@@ -960,7 +964,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 # is equivalent to an include, so no error is generated. Otherwise fails.
                 self.warnings.append("Redefine schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if any(e.tag != XSD_ANNOTATION for e in child):
+                if any(is_not_xsd_annotation(e) for e in child):
                     self.parse_error(str(err), child)
             except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
@@ -1014,7 +1018,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         namespace_imports = NamespaceResourcesMap(map(
             lambda x: (x.get('namespace'), x.get('schemaLocation')),
-            filter(lambda x: x.tag == XSD_IMPORT, self.root)
+            filter(is_xsd_import, self.root)
         ))
 
         for namespace, locations in namespace_imports.items():
@@ -1723,7 +1727,7 @@ class XMLSchema11(XMLSchemaBase):
     def _parse_inclusions(self):
         super(XMLSchema11, self)._parse_inclusions()
 
-        for child in filter(lambda x: x.tag == XSD_OVERRIDE, self.root):
+        for child in filter(is_xsd_override, self.root):
             try:
                 location = child.attrib['schemaLocation'].strip()
                 logger.info("Override schema %r", location)
@@ -1735,7 +1739,7 @@ class XMLSchema11(XMLSchemaBase):
                 # is equivalent to an include, so no error is generated. Otherwise fails.
                 self.warnings.append("Override schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if any(e.tag != XSD_ANNOTATION for e in child):
+                if any(is_not_xsd_annotation(e) for e in child):
                     self.parse_error(str(err), child)
             else:
                 schema.override = self

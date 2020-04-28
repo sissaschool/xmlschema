@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 #
-# Copyright (c) 2016, SISSA (International School for Advanced Studies).
+# Copyright (c) 2016-2020, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -37,7 +37,7 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.1.2',
+    version='1.1.3',
     packages=['xmlschema'],
     include_package_data=True,
     setup_requires=['elementpath~=1.4.0'],
@@ -54,6 +54,7 @@ setup(
     author_email='brunato@sissa.it',
     url='https://github.com/brunato/xmlschema',
     license='MIT',
+    license_file='LICENSE',
     description='An XML Schema validator and decoder',
     long_description=long_description,
     classifiers=[
@@ -64,12 +65,15 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Topic :: Software Development :: Libraries'
+        'Programming Language :: Python :: Implementation :: PyPy',
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Text Processing :: Markup :: XML',
     ]
 )

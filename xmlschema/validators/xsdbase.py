@@ -15,11 +15,10 @@ import re
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
-    XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed
+    XSD_OVERRIDE, get_qname, local_name, qname_to_prefixed, is_not_xsd_annotation
 from ..etree import etree_tostring
 from ..helpers import is_etree_element
-from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, \
-    XMLSchemaDecodeError, XMLSchemaEncodeError
+from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
 XSD_ELEMENT_DERIVATIONS = {'extension', 'restriction', 'substitution'}
@@ -383,7 +382,7 @@ class XsdComponent(XsdValidator):
 
     def _parse_child_component(self, elem, strict=True):
         child = None
-        for index, child in enumerate(filter(lambda x: x.tag != XSD_ANNOTATION, elem)):
+        for index, child in enumerate(filter(is_not_xsd_annotation, elem)):
             if not strict:
                 return child
             elif index:
@@ -874,47 +873,7 @@ class ValidationMixin(object):
         else:
             error = XMLSchemaValidationError(self, obj, error, source, namespaces)
 
-        if validation == 'strict':
-            raise error
-        return error
-
-    def decode_error(self, validation, obj, decoder, reason=None,
-                     source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating decode errors. If validation mode is 'lax'
-        or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param obj: the not validated XML data.
-        :param decoder: the XML data decoder.
-        :param reason: the detailed reason of failed validation.
-        :param source: the XML resource that contains the error.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        check_validation_mode(validation)
-        error = XMLSchemaDecodeError(self, obj, decoder, reason, source, namespaces)
-        if validation == 'strict':
-            raise error
-        return error
-
-    def encode_error(self, validation, obj, encoder, reason=None,
-                     source=None, namespaces=None, **_kwargs):
-        """
-        Helper method for generating encode errors. If validation mode is 'lax'
-        or 'skip' returns the error, otherwise raises the error.
-
-        :param validation: an error-compatible validation mode: can be 'lax' or 'strict'.
-        :param obj: the not validated XML data.
-        :param encoder: the XML encoder.
-        :param reason: the detailed reason of failed validation.
-        :param source: the XML resource that contains the error.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
-        :param _kwargs: keyword arguments of the validation process that are not used.
-        """
-        check_validation_mode(validation)
-        error = XMLSchemaEncodeError(self, obj, encoder, reason, source, namespaces)
-        if validation == 'strict':
+        if validation == 'strict' and error.elem is not None:
             raise error
         return error
 
@@ -974,8 +933,8 @@ class ParticleMixin(object):
         else:
             return self.max_occurs <= other.max_occurs
 
-    def parse_error(self, *args, **kwargs):
-        raise NotImplementedError()
+    def parse_error(self, message):
+        raise XMLSchemaParseError(self, message)
 
     def _parse_particle(self, elem):
         if 'minOccurs' in elem.attrib:

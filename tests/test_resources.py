@@ -355,6 +355,12 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.document)
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
+        invalid_xml = '<tns0:root>missing namespace declaration</tns0:root>'
+        with self.assertRaises(ElementTree.ParseError) as ctx:
+            XMLResource(invalid_xml)
+
+        self.assertEqual(str(ctx.exception), 'unbound prefix: line 1, column 0')
+
     def test_xml_resource_from_string_io(self):
         with open(self.vh_xsd_file) as schema_file:
             schema_text = schema_file.read()

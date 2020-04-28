@@ -368,6 +368,44 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertIsNone(data)
         self.assertEqual(len(errors), 1)
 
+    def test_qname_decoding(self):
+        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="rootType" />
+              <xs:complexType name="rootType">
+                <xs:simpleContent>
+                  <xs:extension base="xs:QName">
+                    <xs:attribute name="name" type="xs:QName"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+            </xs:schema>""")
+
+        xml_data = '<root xmlns:ns0="http://xmlschema.test/0">ns0:foo</root>'
+        self.assertEqual(schema.decode(xml_data), 'ns0:foo')
+
+        self.assertEqual(schema.decode('<root>foo</root>'), 'foo')
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.decode('<root>ns0:foo</root>')
+        self.assertIn("failed validating 'ns0:foo'", str(ctx.exception))
+        self.assertIn("Reason: unmapped prefix 'ns0' on QName", str(ctx.exception))
+        self.assertIn("Path: /root", str(ctx.exception))
+
+        xml_data = '<root name="ns0:bar" xmlns:ns0="http://xmlschema.test/0">ns0:foo</root>'
+        self.assertEqual(schema.decode(xml_data), {'@name': 'ns0:bar', '$': 'ns0:foo'})
+
+        # Check reverse encoding
+        obj = schema.decode(xml_data, converter=JsonMLConverter)
+        root = schema.encode(obj, converter=JsonMLConverter)
+        self.assertEqual(ElementTree.tostring(root), b'<root name="ns0:bar">ns0:foo</root>\n')
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.decode('<root name="ns0:bar">foo</root>')
+        self.assertIn("failed validating 'ns0:bar'", str(ctx.exception))
+        self.assertIn("Reason: unmapped prefix 'ns0' on QName", str(ctx.exception))
+        self.assertIn("Path: /root", str(ctx.exception))
+
     def test_json_dump_and_load(self):
         vh_xml_tree = ElementTree.parse(self.vh_xml_file)
         col_xml_tree = ElementTree.parse(self.col_xml_file)
@@ -759,8 +797,8 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(schema.to_dict("<simple_root/>"), 'default_value')
         self.assertIsNone(schema.to_dict("<simple_root/>", use_defaults=False))
 
-    def test_validation_errors(self):
-        xsd_text = """<?xml version="1.0" encoding="utf-8"?>
+    def test_decoding_errors_with_validation_modes(self):
+        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
               <xs:element name="root" type="rootType" />
               <xs:complexType name="rootType">
@@ -772,9 +810,7 @@ class TestDecoding(XsdValidatorTestCase):
                 </xs:simpleContent>
               </xs:complexType>
               <xs:element name="simple_root" type="xs:float"/>
-            </xs:schema>"""
-
-        schema = self.schema_class(xsd_text)
+            </xs:schema>""")
 
         self.assertIsNone(schema.to_dict("<simple_root>alpha</simple_root>", validation='lax')[0])
         self.assertEqual(schema.to_dict("<root int_attr='10'>20</root>"),

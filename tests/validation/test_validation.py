@@ -41,22 +41,6 @@ class TestValidation(XsdValidatorTestCase):
         self.assertTrue(xs.validate(xt1) is None)
         self.assertRaises(xmlschema.XMLSchemaValidationError, xs.validate, xt2)
 
-    def test_issue_064(self):
-        self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
-
-    def test_issue_171(self):
-        # First schema has an assert with naive check that maps '0' to False ('0'--> 0--> false)
-        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', True)
-        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
-
-        # Same schema with a more reliable assert expression
-        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171b.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
-        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
-
     def test_document_validate_api(self):
         self.assertIsNone(xmlschema.validate(self.vh_xml_file))
         self.assertIsNone(xmlschema.validate(self.vh_xml_file, use_defaults=False))
@@ -140,6 +124,53 @@ class TestValidation(XsdValidatorTestCase):
              '@xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
              'object': [{'@id': 'b0836217462', '@available': True},
                         {'@id': 'b0836217463', '@available': True}]})
+
+    def test_issue_064(self):
+        self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
+
+    def test_issue_171(self):
+        # First schema has an assert with naive check that maps '0' to False ('0'--> 0--> false)
+        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+        # Same schema with a more reliable assert expression
+        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171b.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
+        self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+    def test_issue_183(self):
+        # Test for issue #183
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:tns0="http://xmlschema.test/0"
+                xmlns:tns1="http://xmlschema.test/1"
+                xmlns="http://xmlschema.test/2"
+                targetNamespace="http://xmlschema.test/0">
+
+                <xs:element name="elem1" type="xs:string"/>
+                <xs:element name="elem2" type="xs:string"/>
+                <xs:element name="root" type="tns0:enumType"/>
+
+                <xs:simpleType name="enumType">
+                    <xs:restriction base="xs:QName">
+                        <xs:enumeration value="tns0:elem1"/>
+                        <xs:enumeration value="tns0:elem2"/>
+                        <xs:enumeration value="tns1:elem1"/>
+                        <xs:enumeration value="elem1"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>""")
+
+        xml_data = '<tns0:root xmlns:tns0="http://xmlschema.test/0" >tns0:elem1</tns0:root>'
+        self.check_validity(schema, xml_data, True)
+
+        xml_data = '<ns0:root xmlns:ns0="http://xmlschema.test/0" >ns0:elem1</ns0:root>'
+        self.check_validity(schema, xml_data, True)
+
+        self.assertEqual(schema.decode(xml_data), 'ns0:elem1')
 
 
 class TestValidation11(TestValidation):

@@ -16,7 +16,7 @@ from elementpath import Selector, XPath1Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
-    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended
+    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended, is_not_xsd_annotation
 from ..etree import etree_getpath
 from ..regex import get_python_regex
 
@@ -134,7 +134,7 @@ class XsdIdentity(XsdComponent):
             index = -1
 
         self.fields = []
-        for child in filter(lambda x: x.tag != XSD_ANNOTATION, elem[index + 1:]):
+        for child in filter(is_not_xsd_annotation, elem[index + 1:]):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
