@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.1.3`_ (2020-04-28)
+======================
+* Clean component parsing
+* Fix namespace loading for chameleon schemas
+* Fix UPA checks with nested choice/all models
+* Fixed issues #182 and #183
+
 `v1.1.2`_ (2020-03-22)
 ======================
 * Extension of validation tests with *XMLSchema11* validator
@@ -309,3 +316,4 @@ v0.9.6 (2017-05-05)
 .. _v1.1.0: https://github.com/brunato/xmlschema/compare/v1.0.18...v1.1.0
 .. _v1.1.1: https://github.com/brunato/xmlschema/compare/v1.1.0...v1.1.1
 .. _v1.1.2: https://github.com/brunato/xmlschema/compare/v1.1.1...v1.1.2
+.. _v1.1.3: https://github.com/brunato/xmlschema/compare/v1.1.2...v1.1.3
