@@ -1,5 +1,6 @@
+*****
 Usage
-=====
+*****
 
 .. _lxml: http://lxml.de
 
@@ -25,7 +26,7 @@ the Unicode categories.
 
 
 Create a schema instance
-------------------------
+========================
 
 Import the library and then create an instance of a schema using the path of
 the file containing the schema as argument:
@@ -84,7 +85,7 @@ reference directory path for other includes and imports:
 
 
 XSD declarations
-----------------
+================
 
 The schema object includes XSD components of declarations (*elements*, *attributes* and *notations*)
 and definitions (*types*, *model groups*, *attribute groups*, *identity constraints* and *substitution
@@ -142,7 +143,7 @@ defining the search criteria:
 
 
 Validation
-----------
+==========
 
 The library provides several methods to validate an XML document with a schema.
 
@@ -211,7 +212,7 @@ typically the schema location and the namespace, directly from the XML document:
 
 
 Data decoding and encoding
---------------------------
+==========================
 
 Each schema component includes methods for data conversion:
 
@@ -313,8 +314,8 @@ namely *iter_decode()* and *iter_encode()*, that yield both data and validation 
 See :ref:`schema-level-api` section for more information.
 
 
-Validating and decoding ElementTree's elements
-----------------------------------------------
+Validating and decoding ElementTree's data
+==========================================
 
 Validation and decode API works also with XML data loaded in ElementTree structures:
 
@@ -376,7 +377,7 @@ namespace information is associated within each node of the trees:
 
 
 Customize the decoded data structure
-------------------------------------
+====================================
 
 Starting from the version 0.9.9 the package includes converter objects, in order to
 control the decoding process and produce different data structures. Those objects
@@ -422,7 +423,7 @@ See the :ref:`customize-output-data` section for more information about converte
 
 
 Decoding to JSON
-----------------
+================
 
 The data structured created by the decoder can be easily serialized to JSON. But if you data
 include `Decimal` values (for *decimal* XSD built-in type) you cannot convert the data to JSON:
@@ -500,8 +501,9 @@ using the keyword argument *decimal_type*:
 From version 1.0 there are two module level API for simplify the JSON serialization and deserialization task.
 See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`document-level-api` section.
 
+
 XSD validation modes
---------------------
+====================
 
 Starting from the version 0.9.10 the library uses XSD validation modes *strict*/*lax*/*skip*,
 both for schemas and for XML instances. Each validation mode defines a specific behaviour:
@@ -532,7 +534,7 @@ using the *validation* argument setted to 'lax'.
 
 
 Lazy validation
----------------
+===============
 
 From release v1.0.12 the document validation and decoding API has an optional argument `lazy=False`,
 that can be changed to True for operating with a lazy :class:`XMLResource`. The lazy mode can be
@@ -541,7 +543,8 @@ will be refined and integrated in future versions.
 
 
 XSD 1.0 and 1.1 support
------------------------
+=======================
+
 From release v1.0.14 XSD 1.1 support has been added to the library through the class
 :class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
 class :class:`XMLSchema` that is still linked to XSD 1.0 validator :class:`XMLSchema10`.
@@ -549,7 +552,7 @@ From next minor release (v1.1) the default class will become :class:`XMLSchema11
 
 
 XML entity-based attacks protection
------------------------------------
+===================================
 
 The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
 the pure Python version of XMLParser that forbids the use of entities.
@@ -559,8 +562,9 @@ For default this argument has value *'remote'* that means the protection on XML 
 applied only to data loaded from remote. Other values for this argument can be *'always'*
 and *'never'*.
 
+
 Processing limits
------------------
+=================
 
 From release v1.0.16 a module has been added in order to group constants that define
 processing limits, generally to protect against attacks prepared to exhaust system
@@ -568,7 +572,7 @@ resources. These limits usually don't need to be changed, but this possibility h
 been left at the module level for situations where a different setting is needed.
 
 Limit on XSD model groups checking
-..................................
+----------------------------------
 
 Model groups of the schemas are checked against restriction violations and *Unique Particle
 Attribution* violations. To avoids XSD model recursion attacks a depth limit of 15 levels
@@ -584,7 +588,7 @@ module:
 
 
 Limit on XML data depth
-.......................
+-----------------------
 
 A limit of 9999 on maximum depth is set for XML validation/decoding/encoding to avoid
 attacks based on extremely deep XML data. To increase or decrease this limit change the
@@ -594,5 +598,4 @@ value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the packag
 
     >>> import xmlschema
     >>> xmlschema.limits.MAX_XML_DEPTH = 1000
-
 

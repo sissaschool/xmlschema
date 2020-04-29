@@ -1,7 +1,8 @@
 .. _customize-output-data:
 
+***************************************
 Customizing output data with converters
-=======================================
+***************************************
 
 XML data decoding and encoding is handled using an intermediate converter class
 instance that takes charge of composing inner data and mapping of namespaces and prefixes.
@@ -23,7 +24,7 @@ like JSON, because prefixed name is more manageable and readable than expanded f
 
 
 Available converters
---------------------
+====================
 
 The library includes some converters. The default converter :class:`XMLSchemaConverter`
 is the base class of other converter types. Each derived converter type implements a
@@ -45,7 +46,7 @@ base class options and attributes.
 
 
 Create a custom converter
--------------------------
+=========================
 
 To create a new customized converter you have to subclass the :class:`XMLSchemaConverter`
 and redefine the two methods *element_decode* and *element_encode*. These methods are based

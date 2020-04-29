@@ -1,5 +1,6 @@
+*******
 Testing
-=======
+*******
 
 The tests of the *xmlschema* library are implemented using the Python's *unitest*
 library. From version v1.1.0 the test scripts have been moved into the directory
@@ -9,7 +10,7 @@ classes for XSD and XML file, has been left into the package's code.
 
 
 Test scripts
-------------
+============
 
 There are several test scripts, each one for a different target. These scripts can
 be run individually or by the unittest module. For example to run XPath tests through
@@ -40,7 +41,7 @@ all tests with all supported Python's versions using the command ``tox``.
 
 
 Test cases based on files
--------------------------
+=========================
 
 Three scripts (*test_all.py*, *test_schemas.py*, *test_validation.py*) create many tests
 dinamically, building test classes from a set of XSD/XML files. Only a small set of test
@@ -118,7 +119,7 @@ index, for example:
 
 
 Testing with the W3C XML Schema 1.1 test suite
-----------------------------------------------
+==============================================
 
 From release v1.0.11, using the script *test_w3c_suite.py*, you can run also tests based on the
 `W3C XML Schema 1.1 test suite <https://github.com/w3c/xsdtests>`_. To run these tests clone the
@@ -132,8 +133,9 @@ W3C repo on the project's parent directory and than run the script:
 You can also provides additional options for select a subset of W3C tests, run
 ``test_w3_suite.py --help`` to show available options.
 
+
 Direct testing of schemas and instances
----------------------------------------
+=======================================
 
 From release v1.0.12, using the script *test_files.py*, you can test schemas or XML instances
 passing them as arguments:
