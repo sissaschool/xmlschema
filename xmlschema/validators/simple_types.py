@@ -293,6 +293,12 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return max_inclusive_facet.value
 
     @property
+    def enumeration(self):
+        enumeration = self.get_facet(XSD_ENUMERATION)
+        if enumeration is not None:
+            return enumeration.enumeration
+
+    @property
     def admitted_facets(self):
         return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
