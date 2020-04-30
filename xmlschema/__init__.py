@@ -17,7 +17,7 @@ from .resources import normalize_url, normalize_locations, fetch_resource, \
 from .xpath import ElementPathMixin
 from .converters import (
     ElementData, XMLSchemaConverter, UnorderedConverter, ParkerConverter,
-    BadgerFishConverter, AbderaConverter, JsonMLConverter
+    BadgerFishConverter, AbderaConverter, JsonMLConverter, ColumnarConverter
 )
 from .documents import validate, is_valid, iter_errors, to_dict, to_json, from_json
 
@@ -29,7 +29,7 @@ from .validators import (
     XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
 )
 
-__version__ = '1.1.3'
+__version__ = '1.2.0'
 __author__ = "Davide Brunato"
 __contact__ = "brunato@sissa.it"
 __copyright__ = "Copyright 2016-2020, SISSA"

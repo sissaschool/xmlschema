@@ -75,6 +75,10 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
+
+    dict = dict
+    list = list
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  etree_element_class=None, text_key='$', attr_prefix='@',
                  cdata_prefix=None, indent=4, strip_namespaces=False,
@@ -913,9 +917,9 @@ class JsonMLConverter(XMLSchemaConverter):
             return ElementData(xsd_element.name, None, content, attributes)
 
 
-class ParquetConverter(XMLSchemaConverter):
+class ColumnarConverter(XMLSchemaConverter):
     """
-    XML Schema based converter class for Parquet friendly json (work in progress).
+    XML Schema based converter class for columnar formats.
 
     TODO: an element_encode() method
     TODO: publish to package API
@@ -930,7 +934,7 @@ class ParquetConverter(XMLSchemaConverter):
         Can be the empty string (the default) or a single/double underscore.
         """
         kwargs.update(text_key=None, cdata_prefix=None)
-        super(ParquetConverter, self).__init__(namespaces, dict_class or ordered_dict_class,
+        super(ColumnarConverter, self).__init__(namespaces, dict_class or ordered_dict_class,
                                                list_class, attr_prefix=attr_prefix, **kwargs)
 
     @property
@@ -939,7 +943,7 @@ class ParquetConverter(XMLSchemaConverter):
 
     def __setattr__(self, name, value):
         if name != 'attr_prefix':
-            super(ParquetConverter, self).__setattr__(name, value)
+            super(ColumnarConverter, self).__setattr__(name, value)
         elif not isinstance(value, str):
             msg = '{} must be a str, not {}'
             raise XMLSchemaTypeError(msg.format(name, type(value).__name__))

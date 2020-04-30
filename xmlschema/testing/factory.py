@@ -21,7 +21,8 @@ import os
 import fileinput
 import logging
 
-from xmlschema.validators import XMLSchema10, XMLSchema11
+from ..cli import xsd_version_number, defuse_data
+from ..validators import XMLSchema10, XMLSchema11
 from .observers import ObservedXMLSchema10, ObservedXMLSchema11
 
 logger = logging.getLogger(__file__)
@@ -34,20 +35,6 @@ def get_test_args(args_line):
     except ValueError:
         pass
     return re.split(r'(?<!\\) ', args_line.strip())
-
-
-def xsd_version_number(value):
-    if value not in ('1.0', '1.1'):
-        msg = "%r is not an XSD version." % value
-        raise argparse.ArgumentTypeError(msg)
-    return value
-
-
-def defuse_data(value):
-    if value not in ('always', 'remote', 'never'):
-        msg = "%r is not a valid value." % value
-        raise argparse.ArgumentTypeError(msg)
-    return value
 
 
 def get_test_program_args_parser(default_testfiles):
