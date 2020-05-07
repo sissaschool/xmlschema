@@ -622,6 +622,14 @@ class XsdType(XsdComponent):
             # The type has complex or XsdList content
             return self.base_type
 
+    @property
+    def depth(self):
+        """
+        Returns the depth of the XSD type definition. It's 0 for the
+        builtin types, a positive integer for other derived types.
+        """
+        raise NotImplementedError()
+
     @staticmethod
     def is_simple():
         """Returns `True` if the instance is a simpleType, `False` otherwise."""
