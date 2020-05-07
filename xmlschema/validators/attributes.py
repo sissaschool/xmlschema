@@ -208,6 +208,12 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def is_optional(self):
         return self.use == 'optional'
 
+    def is_required(self):
+        return self.use == 'required'
+
+    def is_prohibited(self):
+        return self.use == 'prohibited'
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
