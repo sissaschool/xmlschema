@@ -20,6 +20,24 @@ matrix:
         - pip3 install --upgrade pip
       install: pip3 install -r requirements-dev.txt
       script: python3 tests/test_all.py
+    - name: "Python 3.7.7 on macOS 10.14.6"
+      os: osx
+      osx_image: xcode11.3
+      language: shell
+      before_install:
+        - python3 --version
+        - pip3 install --upgrade pip
+      install: pip3 install -r requirements-dev.txt
+      script: python3 tests/test_all.py
+    - name: "Python 3.7.7 on macOS 10.15.4"
+      os: osx
+      osx_image: xcode11.4
+      language: shell
+      before_install:
+        - python3 --version
+        - pip3 install --upgrade pip
+      install: pip3 install -r requirements-dev.txt
+      script: python3 tests/test_all.py
     - name: "Python 3.7.4 on Windows"
       os: windows
       language: shell
