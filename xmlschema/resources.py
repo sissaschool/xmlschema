@@ -15,15 +15,14 @@ from urllib.request import urlopen, pathname2url
 from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
 from urllib.error import URLError
 
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, \
-    XMLSchemaURLError, XMLSchemaOSError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaResourceError
 from .namespaces import get_namespace
 from .etree import ElementTree, PyElementTree, SafeXMLParser, \
     etree_tostring, etree_iter_location_hints
 
 
-DEFUSE_MODES = ('always', 'remote', 'never')
-
+DEFUSE_MODES = ('never', 'remote', 'always')
+SECURITY_MODES = ('all', 'remote', 'local', 'sandbox')
 
 XML_RESOURCE_XPATH_SYMBOLS = {
     'position', 'last', 'not', 'and', 'or', '!=', '<=', '>=', '(', ')', 'text',
@@ -198,7 +197,7 @@ def normalize_locations(locations, base_url=None, keep_relative=False):
 def fetch_resource(location, base_url=None, timeout=30):
     """
     Fetch a resource trying to accessing it. If the resource is accessible
-    returns the URL, otherwise raises an error (XMLSchemaURLError).
+    returns the URL, otherwise raises an error (XMLSchemaResourceError).
 
     :param location: an URL or a file path.
     :param base_url: reference base URL for normalizing local and relative URLs.
@@ -216,16 +215,17 @@ def fetch_resource(location, base_url=None, timeout=30):
         # fallback joining the path without a base URL
         alt_url = normalize_url(location)
         if url == alt_url:
-            raise XMLSchemaURLError("cannot access to resource %r: %s" % (url, err.reason))
+            raise XMLSchemaResourceError("cannot access to resource %r: %s" % (url, err.reason))
 
         try:
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
         except URLError:
-            raise XMLSchemaURLError("cannot access to resource %r: %s" % (url, err.reason))
+            raise XMLSchemaResourceError("cannot access to resource %r: %s" % (url, err.reason))
 
 
-def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote', timeout=30):
+def fetch_schema_locations(source, locations=None, base_url=None,
+                           allow='all', defuse='remote', timeout=30):
     """
     Fetches schema location hints from an XML data source and a list of location hints.
     If an accessible schema location is not found raises a ValueError.
@@ -236,13 +236,14 @@ def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote
     instance a new one is built using this and *defuse*, *timeout* and *lazy* arguments.
     :param locations: a dictionary or dictionary items with additional schema location hints.
     :param base_url: the same argument of the :class:`XMLResource`.
+    :param allow: the same argument of the :class:`XMLResource`.
     :param defuse: the same argument of the :class:`XMLResource`.
     :param timeout: the same argument of the :class:`XMLResource` but with a reduced default.
     :return: A 2-tuple with the URL referring to the first reachable schema resource \
     and a list of dictionary items with normalized location hints.
     """
     if not isinstance(source, XMLResource):
-        resource = XMLResource(source, base_url, defuse, timeout)
+        resource = XMLResource(source, base_url, allow, defuse, timeout)
     else:
         resource = source
 
@@ -256,28 +257,28 @@ def fetch_schema_locations(source, locations=None, base_url=None, defuse='remote
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
             return fetch_resource(url, base_url, timeout), locations
-        except XMLSchemaURLError:
+        except XMLSchemaResourceError:
             pass
 
     raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
 
 
-def fetch_schema(source, locations=None, base_url=None, defuse='remote', timeout=30):
+def fetch_schema(source, locations=None, base_url=None, allow='all', defuse='remote', timeout=30):
     """
     Like :meth:`fetch_schema_locations` but returns only a reachable
     location hint for a schema related to the source's namespace.
     """
-    return fetch_schema_locations(source, locations, base_url, defuse, timeout)[0]
+    return fetch_schema_locations(source, locations, base_url, allow, defuse, timeout)[0]
 
 
-def fetch_namespaces(source, base_url=None, defuse='remote', timeout=30):
+def fetch_namespaces(source, base_url=None, allow='all', defuse='remote', timeout=30):
     """
     Fetches namespaces information from the XML data source. The argument *source*
     can be a string containing the XML document or file path or an url or a file-like
     object or an ElementTree instance or an Element instance. A dictionary with
     namespace mappings is returned.
     """
-    resource = XMLResource(source, base_url, defuse, timeout)
+    resource = XMLResource(source, base_url, allow, defuse, timeout)
     return resource.get_namespaces(root_only=False)
 
 
@@ -288,9 +289,15 @@ class XMLResource(object):
     :param source: a string containing the XML document or file path or an URL or a \
     file like object or an ElementTree or an Element.
     :param base_url: is an optional base URL, used for the normalization of relative paths \
-    when the URL of the resource can't be obtained from the source argument.
-    :param defuse: set the usage of SafeXMLParser for XML data. Can be 'always', 'remote' \
-    or 'never'. Default is 'remote' that uses the defusedxml only when loading remote data.
+    when the URL of the resource can't be obtained from the source argument. For security \
+    access to a local file resource is always denied if the *base_url* is a remote URL.
+    :param allow: defines the security mode for accessing resource locations. Can be \
+    'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
+    URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
+    only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
+    are under the directory path identified by the *base_url* argument are allowed.
+    :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
+    'always', 'remote' or 'never'. For default defuses only remote XML data.
     :param timeout: the timeout in seconds for the connection attempt in case of remote data.
     :param lazy: if a value `False` or 0 is provided the XML data is fully loaded into and \
     processed from memory. For default only the root element of the source is loaded, \
@@ -300,8 +307,10 @@ class XMLResource(object):
     """
     _root = _text = _url = None
 
-    def __init__(self, source, base_url=None, defuse='remote', timeout=300, lazy=True):
+    def __init__(self, source, base_url=None, allow='all',
+                 defuse='remote', timeout=300, lazy=True):
         self._base_url = base_url
+        self.allow = allow
         self.defuse = defuse
         self.timeout = timeout
         self._lazy = lazy
@@ -327,8 +336,15 @@ class XMLResource(object):
             if value is not None and not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'base_url'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
+        elif name == 'allow':
+            if not isinstance(value, str):
+                msg = "invalid type {!r} for the attribute 'allow'"
+                raise XMLSchemaTypeError(msg.format(type(value)))
+            elif value not in SECURITY_MODES:
+                msg = "'allow' attribute: {!r} is not a security mode"
+                raise XMLSchemaValueError(msg.format(value))
         elif name == 'defuse':
-            if value is not None and not isinstance(value, str):
+            if not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'defuse'"
                 raise XMLSchemaTypeError(msg.format(type(value)))
             elif value not in DEFUSE_MODES:
@@ -351,6 +367,23 @@ class XMLResource(object):
                 raise XMLSchemaValueError(msg.format(value))
 
         super(XMLResource, self).__setattr__(name, value)
+
+    def _access_control(self, url):
+        if self.allow == 'all':
+            return
+        elif self.allow == 'remote':
+            if is_remote_url(url):
+                return
+            raise XMLSchemaResourceError("block access to local resource {}".format(url))
+        elif is_remote_url(url):
+            raise XMLSchemaResourceError("block access to remote resource {}".format(url))
+        elif self.allow == 'local' or self._base_url is None:
+            return
+        else:
+            path = os.path.normpath(os.path.normcase(urlsplit(url).path))
+            base_path = os.path.normpath(os.path.normcase(urlsplit(self._base_url).path))
+            if not path.startswith(base_path):
+                raise XMLSchemaResourceError("block access to out of sandbox file {}".format(path))
 
     def _fromsource(self, source):
         url = None
@@ -390,6 +423,7 @@ class XMLResource(object):
                 # Save remote urls for open new resources (non seekable)
                 if is_remote_url(source.url):
                     url = source.url
+                    self._access_control(url)
             except AttributeError:
                 pass
 
@@ -421,17 +455,17 @@ class XMLResource(object):
                 "or a file-like object is required." % type(source)
             )
         else:
-            resource = urlopen(url, timeout=self.timeout)
+            self._access_control(url)
             _url, self._url = self._url, url
             try:
-                if self._lazy:
-                    for _, root in self.iterparse(resource, events=('start',)):
-                        return root, None, url
-                else:
-                    return self.parse(resource).getroot(), None, url
+                with urlopen(url, timeout=self.timeout) as resource:
+                    if self._lazy:
+                        for _, root in self.iterparse(resource, events=('start',)):
+                            return root, None, url
+                    else:
+                        return self.parse(resource).getroot(), None, url
             finally:
                 self._url = _url
-                resource.close()
 
     @property
     def root(self):
@@ -586,12 +620,14 @@ class XMLResource(object):
         if self.seek(0) == 0:
             return self.source
         elif self._url is None:
-            raise XMLSchemaValueError("can't open, the resource has no URL associated.")
+            raise XMLSchemaResourceError("can't open, the resource has no URL associated.")
 
         try:
             return urlopen(self._url, timeout=self.timeout)
         except URLError as err:
-            raise XMLSchemaURLError("cannot access to resource %r: %s" % (self._url, err.reason))
+            raise XMLSchemaResourceError(
+                "cannot access to resource %r: %s" % (self._url, err.reason)
+            )
 
     def seek(self, position):
         """
@@ -645,7 +681,7 @@ class XMLResource(object):
         try:
             data = resource.read()
         except (OSError, IOError) as err:
-            raise XMLSchemaOSError("cannot load data from %r: %s" % (self._url, err))
+            raise XMLSchemaResourceError("cannot load data from %r: %s" % (self._url, err))
         finally:
             # We don't want to close the file obj if it wasn't originally
             # opened by `XMLResource`. That is the concern of the code
@@ -873,7 +909,7 @@ class XMLResource(object):
         elif isinstance(self._text, str):
             resource = StringIO(self._text)
         else:
-            if hasattr(self._root, 'nsmap'):
+            try:
                 # Can extract namespace mapping information only from lxml etree structures
                 if root_only:
                     for k, v in self._root.nsmap.items():
@@ -882,6 +918,8 @@ class XMLResource(object):
                     for elem in self._root.iter():
                         for k, v in elem.nsmap.items():
                             update_prefix(nsmap, k if k is not None else '', v)
+            except AttributeError:
+                pass
 
             if nsmap.get('') == '':
                 del nsmap['']

@@ -21,7 +21,7 @@ from pathlib import PureWindowsPath, PurePath
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
-    XMLResource, XMLSchemaURLError, XMLSchema, XMLSchema10, XMLSchema11
+    XMLResource, XMLSchemaResourceError, XMLSchema, XMLSchema10, XMLSchema11
 )
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
@@ -166,7 +166,7 @@ class TestResources(unittest.TestCase):
 
     def test_fetch_resource(self):
         wrong_path = casepath('resources/dummy_file.txt')
-        self.assertRaises(XMLSchemaURLError, fetch_resource, wrong_path)
+        self.assertRaises(XMLSchemaResourceError, fetch_resource, wrong_path)
         right_path = casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
 
@@ -393,11 +393,47 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.namespace, 'http://example.com/ns/collection')
         self.assertEqual(XMLResource('<A/>').namespace, '')
 
+    def test_xml_resource_access(self):
+        resource = XMLResource(self.vh_xml_file)
+        base_url = resource.base_url
+
+        XMLResource(self.vh_xml_file, allow='local')
+        XMLResource(self.vh_xml_file, allow='sandbox')
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            XMLResource(self.vh_xml_file, allow='remote')
+        self.assertTrue(str(ctx.exception).startswith("block access to local resource"))
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            XMLResource("https://xmlschema.test/vehicles.xsd", allow='local')
+        self.assertEqual(str(ctx.exception),
+                         "block access to remote resource https://xmlschema.test/vehicles.xsd")
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            XMLResource("https://xmlschema.test/vehicles.xsd", allow='sandbox')
+        self.assertEqual(str(ctx.exception),
+                         "block access to remote resource https://xmlschema.test/vehicles.xsd")
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            XMLResource("/tmp/vehicles.xsd", base_url=base_url, allow='sandbox')
+        self.assertEqual(str(ctx.exception),
+                         "block access to out of sandbox file /tmp/vehicles.xsd")
+
+        with self.assertRaises(TypeError) as ctx:
+            XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
+        self.assertEqual(str(ctx.exception),
+                         "invalid type <class 'NoneType'> for the attribute 'allow'")
+
+        with self.assertRaises(ValueError) as ctx:
+            XMLResource("https://xmlschema.test/vehicles.xsd", allow='any')
+        self.assertEqual(str(ctx.exception),
+                         "'allow' attribute: 'any' is not a security mode")
+
     def test_xml_resource_defuse(self):
         resource = XMLResource(self.vh_xml_file, defuse='never')
         self.assertEqual(resource.defuse, 'never')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
-        self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse=None)
+        self.assertRaises(TypeError, XMLResource, self.vh_xml_file, defuse=None)
         self.assertIsInstance(resource.root, etree_element)
         resource = XMLResource(self.vh_xml_file, defuse='always')
         self.assertIsInstance(resource.root, py_etree_element)
@@ -491,7 +527,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(data.startswith('<?xml '))
         xml_file.close()
         resource = XMLResource('<A/>')
-        self.assertRaises(ValueError, resource.open)
+        self.assertRaises(XMLSchemaResourceError, resource.open)
 
         resource = XMLResource(source=open(self.vh_xml_file))
         xml_file = resource.open()

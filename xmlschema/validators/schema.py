@@ -23,7 +23,7 @@ import sys
 from abc import ABCMeta
 from collections import namedtuple, Counter
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaURLError, XMLSchemaKeyError, \
+from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
@@ -168,9 +168,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :param base_url: is an optional base URL, used for the normalization of relative paths \
     when the URL of the schema resource can't be obtained from the source argument.
     :type base_url: str or None
-    :param defuse: defines when to defuse XML data. Can be 'always', 'remote' or 'never'. \
-    For default defuse only remote XML data.
-    :type defuse: str or None
+    :param allow: defines the security mode for accessing resource locations. Can be \
+    'all', 'remote', 'local' or 'sandbox'. Default is 'all' that means all types of \
+    URLs are allowed. With 'remote' only remote resource URLs are allowed. With 'local' \
+    only file paths and URLs are allowed. With 'sandbox' only file paths and URLs that \
+    are under the directory path identified by source or by the *base_url* argument \
+    are allowed.
+    :type allow: str
+    :param defuse: defines when to defuse XML data using a `SafeXMLParser`. Can be \
+    'always', 'remote' or 'never'. For default defuses only remote XML data.
+    :type defuse: str
     :param timeout: the timeout in seconds for fetching resources. Default is `300`.
     :type timeout: int
     :param build: defines whether build the schema maps. Default is `True`.
@@ -283,7 +290,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     xpath_tokens = None
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
-                 converter=None, locations=None, base_url=None, defuse='remote',
+                 converter=None, locations=None, base_url=None, allow='all', defuse='remote',
                  timeout=300, build=True, use_meta=True, loglevel=None):
         super(XMLSchemaBase, self).__init__(validation)
         ElementPathMixin.__init__(self)
@@ -293,7 +300,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         elif build and global_maps is None:
             logger.setLevel(logging.WARNING)
 
-        self.source = XMLResource(source, base_url, defuse, timeout, lazy=False)
+        self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
         logger.debug("Read schema from %r", self.source)
 
         self.imports = {}
@@ -524,6 +531,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return self.source.base_url
 
     @property
+    def allow(self):
+        """Defines the resource access security mode, can be 'all', 'local' or 'sandbox'."""
+        return self.source.allow
+
+    @property
     def defuse(self):
         """Defines when to defuse XML data, can be 'always', 'remote' or 'never'."""
         return self.source.defuse
@@ -622,6 +634,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self._root_elements = list(names)
 
         return [e for e in self.elements.values() if e.name in self._root_elements]
+
+    @property
+    def simple_types(self):
+        return [x for x in self.types.values() if x.is_simple()]
+
+    @property
+    def complex_types(self):
+        return [x for x in self.types.values() if x.is_complex()]
 
     @classmethod
     def create_meta_schema(cls, source=None, base_schemas=None, global_maps=None):
@@ -875,6 +895,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return XMLResource(
             source=source,
             base_url=kwargs.get('base_url'),
+            allow=kwargs.get('allow', self.allow),
             defuse=kwargs.get('defuse', self.defuse),
             timeout=kwargs.get('timeout', self.timeout),
             lazy=kwargs.get('lazy', False)
@@ -943,7 +964,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
                 self.warnings.append("Include schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 msg = 'cannot include schema %r: %s' % (child.attrib['schemaLocation'], err)
                 if isinstance(err, (XMLSchemaParseError, ParseError)):
                     self.parse_error(msg)
@@ -966,7 +987,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if any(is_not_xsd_annotation(e) for e in child):
                     self.parse_error(str(err), child)
-            except (XMLSchemaURLError, XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
                 if isinstance(err, (XMLSchemaParseError, ParseError)):
                     self.parse_error(msg)
@@ -998,6 +1019,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 converter=self.converter,
                 locations=self.extra_locations,
                 base_url=self.base_url,
+                allow=self.allow,
                 defuse=self.defuse,
                 timeout=self.timeout,
                 build=False,
@@ -1070,7 +1092,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             try:
                 logger.debug("Import namespace %r from %r", namespace, url)
                 self.import_schema(namespace, url, self.base_url)
-            except (XMLSchemaURLError, OSError, IOError) as err:
+            except (OSError, IOError) as err:
                 # It's not an error if the location access fails (ref. section 4.2.6.2):
                 #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                 logger.debug('%s', err)
@@ -1136,6 +1158,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             converter=self.converter,
             locations=self.extra_locations,
             base_url=self.base_url,
+            allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,
             build=build,

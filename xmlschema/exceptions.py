@@ -45,8 +45,8 @@ class XMLSchemaIndexError(XMLSchemaException, ImportError):
     pass
 
 
-class XMLSchemaURLError(XMLSchemaException, URLError):
-    pass
+class XMLSchemaResourceError(XMLSchemaException, OSError):
+    """Raised when an error is found accessing an XML resource."""
 
 
 class XMLSchemaRegexError(XMLSchemaException, ValueError):

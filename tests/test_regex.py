@@ -28,16 +28,19 @@ class TestCodePoints(unittest.TestCase):
     def test_iter_code_points(self):
         self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 21), 21])), [(9, 22), 25])
         self.assertEqual(list(iter_code_points([10, 20, 11, 12, 25, (9, 20), 21])), [(9, 22), 25])
-        self.assertEqual(list(iter_code_points({2, 120, 121, (150, 260)})), [2, (120, 122), (150, 260)])
+        self.assertEqual(list(iter_code_points({2, 120, 121, (150, 260)})),
+                         [2, (120, 122), (150, 260)])
         self.assertEqual(
             list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0])),
             [0, (8, 23), 25]
         )
         self.assertEqual(
-            list(e for e in iter_code_points([10, 20, 11, 12, 25, (9, 21)], reverse=True)), [25, (9, 21)]
+            list(e for e in iter_code_points([10, 20, 11, 12, 25, (9, 21)], reverse=True)),
+            [25, (9, 21)]
         )
         self.assertEqual(
-            list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0], reverse=True)),
+            list(iter_code_points([10, 20, (10, 22), 11, 12, 25, 8, (9, 20), 21, 22, 9, 0],
+                                  reverse=True)),
             [25, (8, 23), 0]
         )
 
@@ -86,9 +89,11 @@ class TestUnicodeSubset(unittest.TestCase):
 
     def test_complement(self):
         cds = UnicodeSubset([50, 90, 10, 90])
-        self.assertEqual(list(cds.complement()), [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode + 1)])
+        self.assertEqual(list(cds.complement()),
+                         [(0, 10), (11, 50), (51, 90), (91, sys.maxunicode + 1)])
         cds.add(11)
-        self.assertEqual(list(cds.complement()), [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode + 1)])
+        self.assertEqual(list(cds.complement()),
+                         [(0, 10), (12, 50), (51, 90), (91, sys.maxunicode + 1)])
         cds.add((0, 10))
         self.assertEqual(list(cds.complement()), [(12, 50), (51, 90), (91, sys.maxunicode + 1)])
 
@@ -139,20 +144,22 @@ class TestUnicodeCategories(unittest.TestCase):
     """
     def test_build_unicode_categories(self):
         categories = build_unicode_categories('not_existing_file.json')
-        self.assertEqual(sum(len(v) for k, v in categories.items() if len(k) > 1), sys.maxunicode + 1)
+        self.assertEqual(sum(len(v) for k, v in categories.items() if len(k) > 1),
+                         sys.maxunicode + 1)
         self.assertEqual(min([min(s) for s in categories.values()]), 0)
         self.assertEqual(max([max(s) for s in categories.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in categories.items() if len(k) > 1]
         self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
     def test_unicode_categories(self):
-        self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1), sys.maxunicode + 1)
+        self.assertEqual(sum(len(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1),
+                         sys.maxunicode + 1)
         self.assertEqual(min([min(s) for s in UNICODE_CATEGORIES.values()]), 0)
         self.assertEqual(max([max(s) for s in UNICODE_CATEGORIES.values()]), sys.maxunicode)
         base_sets = [set(v) for k, v in UNICODE_CATEGORIES.items() if len(k) > 1]
         self.assertFalse(any(s.intersection(t) for s in base_sets for t in base_sets if s != t))
 
-    @unittest.skipIf(not ((3, 7) <= sys.version_info < (3, 8)), "Test only for Python 3.7")
+    @unittest.skipIf(not ((3, 8) <= sys.version_info < (3, 9)), "Test only for Python 3.8")
     def test_unicodedata_category(self):
         for key in UNICODE_CATEGORIES:
             for cp in UNICODE_CATEGORIES[key]:
@@ -202,7 +209,8 @@ class TestPatterns(unittest.TestCase):
         pattern = re.compile(regex)
         self.assertIsNone(pattern.search('alpha\r'))
         self.assertEqual(pattern.search('beta').group(0), 'beta')
-        self.assertEqual(pattern.search('beta\n').group(0), 'beta')  # $ matches also a \n at last position
+        self.assertEqual(pattern.search('beta\n').group(0),
+                         'beta')  # $ matches also a \n at last position
         self.assertIsNone(pattern.search('beta\n '))
         self.assertIsNone(pattern.search(''))
         self.assertIsNone(pattern.search('over the maximum length!'))
