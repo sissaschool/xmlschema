@@ -476,13 +476,6 @@ class XsdComplexType(XsdType, ValidationMixin):
     def validation_attempted(self):
         return 'full' if self.built else self.content_type.validation_attempted
 
-    @property
-    def depth(self):
-        if isinstance(self.content_type, XsdSimpleType):
-            return self.content_type.depth + 1
-        else:
-            return max(e.type.depth for e in self.content_type.iter_elements()) + 1
-
     @staticmethod
     def is_simple():
         return False

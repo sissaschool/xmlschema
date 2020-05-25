@@ -452,8 +452,8 @@ class XsdComponent(XsdValidator):
         `False` otherwise. For XSD elements the matching is extended to substitutes.
 
         :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing the name \
-        argument in case it's a local name.
+        :param default_namespace: used if it's not None and not empty for completing \
+        the name argument in case it's a local name.
         :param kwargs: additional options that can be used by certain components.
         """
         if not name:
@@ -622,14 +622,6 @@ class XsdType(XsdComponent):
             # The type has complex or XsdList content
             return self.base_type
 
-    @property
-    def depth(self):
-        """
-        Returns the depth of the XSD type definition. It's 0 for the
-        builtin types, a positive integer for other derived types.
-        """
-        raise NotImplementedError()
-
     @staticmethod
     def is_simple():
         """Returns `True` if the instance is a simpleType, `False` otherwise."""
@@ -643,6 +635,11 @@ class XsdType(XsdComponent):
     @staticmethod
     def is_atomic():
         """Returns `True` if the instance is an atomic simpleType, `False` otherwise."""
+        return False
+
+    @staticmethod
+    def is_list():
+        """Returns `True` if the instance is a list simpleType, `False` otherwise."""
         return False
 
     @staticmethod
@@ -916,6 +913,9 @@ class ParticleMixin(object):
 
     def is_single(self):
         return self.max_occurs == 1
+
+    def is_multiple(self):
+        return self.max_occurs is None or self.max_occurs > 1
 
     def is_ambiguous(self):
         return self.min_occurs != self.max_occurs

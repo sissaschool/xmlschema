@@ -172,6 +172,35 @@ class TestValidation(XsdValidatorTestCase):
 
         self.assertEqual(schema.decode(xml_data), 'ns0:elem1')
 
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://xmlschema.test/0"
+                xmlns:tns1="http://xmlschema.test/1"
+                xmlns:tns2="http://xmlschema.test/2"
+                targetNamespace="http://xmlschema.test/0">
+
+                <xs:element name="elem1" type="xs:string"/>
+                <xs:element name="elem2" type="xs:string"/>
+                <xs:element name="elem3" type="xs:string"/>
+                <xs:element name="elem4" type="xs:string"/>
+                
+                <xs:element name="root" type="enumType"/>
+
+                <xs:simpleType name="enumType">
+                    <xs:restriction base="xs:QName">
+                        <xs:enumeration value="elem1"/>
+                        <xs:enumeration value="elem2"/>
+                        <xs:enumeration value="tns1:other1"/>
+                        <xs:enumeration value="elem3"/>
+                        <xs:enumeration value="tns2:other2"/>                        
+                        <xs:enumeration value="elem4"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:schema>""")
+
+        xml_data = '<ns0:root xmlns:ns0="http://xmlschema.test/0">ns0:elem2</ns0:root>'
+        self.check_validity(schema, xml_data, True)
+
 
 class TestValidation11(TestValidation):
     schema_class = XMLSchema11

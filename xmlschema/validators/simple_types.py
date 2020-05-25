@@ -299,10 +299,6 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return enumeration.enumeration
 
     @property
-    def depth(self):
-        return 0
-
-    @property
     def admitted_facets(self):
         return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
 
@@ -316,10 +312,6 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
     @staticmethod
     def is_complex():
-        return False
-
-    @staticmethod
-    def is_list():
         return False
 
     def is_empty(self):
@@ -366,10 +358,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def normalize(self, text):
         """
         Normalize and restrict value-space with pre-lexical and lexical facets.
-        The normalized string is returned. Returns the argument if it isn't a string.
 
         :param text: text string encoded value.
-        :return: normalized string.
+        :return: a normalized string.
         """
         if isinstance(text, bytes):
             text = text.decode('utf-8')
@@ -587,6 +578,14 @@ class XsdAtomicBuiltin(XsdAtomic):
                                 yield self.validation_error(validation, error=reason, obj=obj)
                         except KeyError:
                             pass
+            else:
+                try:
+                    default_namespace = kwargs['namespaces']['']
+                except (TypeError, KeyError):
+                    pass
+                else:
+                    if default_namespace:
+                        result = '{%s}%s' % (default_namespace, obj)
 
         elif self.name == XSD_IDREF:
             try:
@@ -764,10 +763,6 @@ class XsdList(XsdSimpleType):
                 self.allow_empty = False
 
     @property
-    def depth(self):
-        return self.base_type.depth + 1
-
-    @property
     def admitted_facets(self):
         return XSD_10_LIST_FACETS if self.xsd_version == '1.0' else XSD_11_LIST_FACETS
 
@@ -923,10 +918,6 @@ class XsdUnion(XsdSimpleType):
             self.member_types = member_types
             if all(not mt.allow_empty for mt in member_types):
                 self.allow_empty = False
-
-    @property
-    def depth(self):
-        return max(mt.depth for mt in self.member_types) + 1
 
     @property
     def admitted_facets(self):
@@ -1183,10 +1174,6 @@ class XsdAtomicRestriction(XsdAtomic):
 
         self.base_type = base_type
         self.facets = facets
-
-    @property
-    def depth(self):
-        return self.base_type.depth + 1
 
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):

@@ -360,15 +360,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         else:
             return 'none'
 
-    @property
-    def depth(self):
-        if self.ref is not None:
-            return 1
-        elif self.type.parent is None:
-            return 1
-        else:
-            return self.type.depth + 1
-
     # Global element's exclusive properties
     @property
     def abstract(self):
@@ -934,9 +925,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
-            elif other.fixed is not None and (
-                    self.fixed is None or
-                    self.type.normalize(self.fixed) != other.type.normalize(other.fixed)):
+            elif other.fixed is not None and \
+                    (self.fixed is None or self.type.normalize(
+                        self.fixed) != other.type.normalize(other.fixed)):
                 return False
             elif other.nillable is False and self.nillable:
                 return False
