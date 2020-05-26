@@ -882,6 +882,14 @@ class TestDecoding(XsdValidatorTestCase):
         }
         self.assertEqual(result, expected)
 
+    def test_issue_190(self):
+        # Changed is_single() for XsdElement to check also parent group.
+        schema = self.schema_class(self.casepath('issues/issue_190/issue_190.xsd'))
+        self.assertEqual(
+            schema.to_dict(self.casepath('issues/issue_190/issue_190.xml')),
+            {'a': {'c': [{'$': '1'}]}, 'b': {'c': [{'$': '1'}], 'e': [{'$': '1'}]}}
+        )
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11

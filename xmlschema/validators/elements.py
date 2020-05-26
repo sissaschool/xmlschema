@@ -990,6 +990,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """
         return self.name != other.name or self.type is other.type
 
+    def is_single(self):
+        try:
+            if self.max_occurs != 1:
+                return False
+            elif self.parent.max_occurs == 1:
+                return True
+            else:
+                return self.parent.model != 'choice' and len(self.parent) > 1
+        except AttributeError:
+            return True
+
 
 class Xsd11Element(XsdElement):
     """
