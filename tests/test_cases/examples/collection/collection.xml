@@ -10,7 +10,7 @@
 			<name>Pierre-Auguste Renoir</name>
 			<born>1841-02-25</born>
 			<dead>1919-12-03</dead>
-            <qualification>painter</qualification>
+			<qualification>painter</qualification>
 		</author>
         <estimation>10000.00</estimation>
 	</object>
@@ -22,7 +22,7 @@
 			<name>Joan Miró</name>
 			<born>1893-04-20</born>
 			<dead>1983-12-25</dead>
-            <qualification>painter, sculptor and ceramicist</qualification>
+			<qualification>painter, sculptor and ceramicist</qualification>
 		</author>
 	</object>
 </col:collection>

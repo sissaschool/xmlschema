@@ -16,7 +16,7 @@ from elementpath import datatypes
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
-    AbderaConverter, JsonMLConverter
+    AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.converters import UnorderedConverter
 from xmlschema.compat import ordered_dict_class
@@ -235,6 +235,73 @@ COLLECTION_JSON_ML = [
          ['qualification', 'painter, sculptor and ceramicist']
      ]]
 ]
+
+
+COLLECTION_COLUMNAR = {
+    'collection': {
+        'collectionxsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+        'object': [{
+            'objectid': 'b0836217462',
+            'objectavailable': True,
+            'position': 1,
+            'title': 'The Umbrellas',
+            'year': '1886',
+            'author': {
+                'authorid': 'PAR',
+                'name': 'Pierre-Auguste Renoir',
+                'born': '1841-02-25',
+                'dead': '1919-12-03',
+                'qualification': 'painter'
+            },
+            'estimation': Decimal('10000.00')}, {
+            'objectid': 'b0836217463',
+            'objectavailable': True,
+            'position': 2,
+            'title': None,
+            'year': '1925',
+            'author': {
+                'authorid': 'JM',
+                'name': 'Joan Miró',
+                'born': '1893-04-20',
+                'dead': '1983-12-25',
+                'qualification': 'painter, sculptor and ceramicist'
+            }
+        }]
+    }
+}
+
+COLLECTION_COLUMNAR_ = {
+    'collection': {
+        'collection_xsi:schemaLocation': 'http://example.com/ns/collection collection.xsd',
+        'object': [{
+            'object_id': 'b0836217462',
+            'object_available': True,
+            'position': 1,
+            'title': 'The Umbrellas',
+            'year': '1886',
+            'author': {
+                'author_id': 'PAR',
+                'name': 'Pierre-Auguste Renoir',
+                'born': '1841-02-25',
+                'dead': '1919-12-03',
+                'qualification': 'painter'
+            },
+            'estimation': Decimal('10000.00')}, {
+            'object_id': 'b0836217463',
+            'object_available': True,
+            'position': 2,
+            'title': None,
+            'year': '1925',
+            'author': {
+                'author_id': 'JM',
+                'name': 'Joan Miró',
+                'born': '1893-04-20',
+                'dead': '1983-12-25',
+                'qualification': 'painter, sculptor and ceramicist'
+            }
+        }]
+    }
+}
 
 DATA_DICT = {
     '@xmlns:ns': 'ns',
@@ -609,6 +676,21 @@ class TestDecoding(XsdValidatorTestCase):
     def test_json_ml_converter(self):
         json_ml_dict = self.col_schema.to_dict(self.col_xml_file, converter=JsonMLConverter)
         self.assertEqual(json_ml_dict, COLLECTION_JSON_ML)
+
+    def test_columnar_converter(self):
+        columnar_dict = self.col_schema.to_dict(self.col_xml_file, converter=ColumnarConverter)
+        self.assertEqual(columnar_dict, COLLECTION_COLUMNAR)
+        columnar_dict = self.col_schema.to_dict(
+            self.col_xml_file, converter=ColumnarConverter, attr_prefix='_',
+        )
+        self.assertEqual(columnar_dict, COLLECTION_COLUMNAR_)
+
+        with self.assertRaises(ValueError) as ctx:
+            self.col_schema.to_dict(
+                self.col_xml_file, converter=ColumnarConverter, attr_prefix='-',
+            )
+        self.assertEqual(str(ctx.exception),
+                         "attr_prefix can be the empty string or a single/double underscore")
 
     def test_dict_granularity(self):
         """Based on Issue #22, test to make sure an xsd indicating list with

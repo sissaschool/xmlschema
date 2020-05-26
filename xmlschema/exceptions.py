@@ -7,10 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains the exception and warning classes of the 'xmlschema' package.
-"""
-from urllib.error import URLError
 
 
 class XMLSchemaException(Exception):
