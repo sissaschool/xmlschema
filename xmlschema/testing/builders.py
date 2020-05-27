@@ -26,7 +26,7 @@ from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
+from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType, XsdAttributeGroup
 
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
@@ -77,7 +77,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             if inspect:
                 components_ids = set([id(c) for c in xs.maps.iter_components()])
                 components_ids.update(id(c) for c in xs.meta_schema.iter_components())
-                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                missing = [
+                    c for c in SchemaObserver.components
+                    if id(c) not in components_ids and (not isinstance(c, XsdAttributeGroup) or c)
+                ]
                 if missing:
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 

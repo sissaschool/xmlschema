@@ -451,9 +451,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if isinstance(obj, xsd_classes):
                     yield obj
 
-        if not hasattr(self.type, 'attributes'):
-            yield from self.attributes.iter_components(xsd_classes)
-
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
 
@@ -1093,9 +1090,6 @@ class Xsd11Element(XsdElement):
 
         for alt in self.alternatives:
             yield from alt.iter_components(xsd_classes)
-
-        if not hasattr(self.type, 'attributes'):
-            yield from self.attributes.iter_components(xsd_classes)
 
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)

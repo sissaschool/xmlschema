@@ -886,6 +886,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                         yield obj
 
     def iter_components(self, xsd_classes=None):
+        """
+        Iterates yielding the schema and its components. For default
+        includes all the relevant components of the schema, excluding
+        only facets and empty attribute groups. The first returned
+        component is the schema itself.
+
+        :param xsd_classes: provide a class or a tuple of classes to \
+        restrict the range of component types yielded.
+        """
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
         for xsd_global in self.iter_globals(self):

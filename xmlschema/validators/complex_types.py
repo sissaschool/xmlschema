@@ -552,7 +552,7 @@ class XsdComplexType(XsdType, ValidationMixin):
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
-        if self.attributes.parent is not None:
+        if self.attributes and self.attributes.parent is not None:
             yield from self.attributes.iter_components(xsd_classes)
         if self.content_type.parent is not None:
             yield from self.content_type.iter_components(xsd_classes)
@@ -708,13 +708,15 @@ class Xsd11ComplexType(XsdComplexType):
                 self.content_type.suffix = self.open_content.any_element
 
         # Add inheritable attributes
-        if hasattr(self.base_type, 'attributes'):
+        try:
             for name, attr in self.base_type.attributes.items():
                 if attr.inheritable:
                     if name not in self.attributes:
                         self.attributes[name] = attr
                     elif not self.attributes[name].inheritable:
                         self.parse_error("attribute %r must be inheritable")
+        except AttributeError:
+            pass
 
         if 'defaultAttributesApply' in self.elem.attrib:
             attr = self.elem.attrib['defaultAttributesApply'].strip()
