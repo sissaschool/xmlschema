@@ -82,7 +82,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def is_single(self):
         if self.max_occurs != 1 or not self:
             return False
-        elif len(self) > 1:
+        elif len(self) > 1 or not isinstance(self[0], ModelGroup):
             return True
         else:
             return self[0].is_single()

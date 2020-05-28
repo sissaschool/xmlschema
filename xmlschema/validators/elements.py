@@ -451,9 +451,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if isinstance(obj, xsd_classes):
                     yield obj
 
-        if not hasattr(self.type, 'attributes'):
-            yield from self.attributes.iter_components(xsd_classes)
-
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)
 
@@ -925,8 +922,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif not self.is_consistent(other) and self.type.elem is not other.type.elem and \
                     not self.type.is_derived(other.type, 'restriction') and not other.type.abstract:
                 return False
-            elif self.fixed != other.fixed and \
-                    self.type.normalize(self.fixed) != other.type.normalize(other.fixed):
+            elif other.fixed is not None and \
+                    (self.fixed is None or self.type.normalize(
+                        self.fixed) != other.type.normalize(other.fixed)):
                 return False
             elif other.nillable is False and self.nillable:
                 return False
@@ -988,6 +986,17 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         :returns: `True` if there is no inconsistency between the particles, `False` otherwise,
         """
         return self.name != other.name or self.type is other.type
+
+    def is_single(self):
+        try:
+            if self.max_occurs != 1:
+                return False
+            elif self.parent.max_occurs == 1:
+                return True
+            else:
+                return self.parent.model != 'choice' and len(self.parent) > 1
+        except AttributeError:
+            return True
 
 
 class Xsd11Element(XsdElement):
@@ -1081,9 +1090,6 @@ class Xsd11Element(XsdElement):
 
         for alt in self.alternatives:
             yield from alt.iter_components(xsd_classes)
-
-        if not hasattr(self.type, 'attributes'):
-            yield from self.attributes.iter_components(xsd_classes)
 
         if self.ref is None and self.type.parent is not None:
             yield from self.type.iter_components(xsd_classes)

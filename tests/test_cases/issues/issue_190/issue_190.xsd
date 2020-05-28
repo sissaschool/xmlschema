@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="root">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="a" type="type_a"/>
+				<xs:element name="b" type="type_b"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	
+	<xs:complexType name="type_a">
+		<xs:sequence>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element name="c"/>
+				<xs:element name="d"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="type_b">
+		<xs:sequence>
+			<xs:element name="e" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element name="c"/>
+				<xs:element name="d"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+</xs:schema>

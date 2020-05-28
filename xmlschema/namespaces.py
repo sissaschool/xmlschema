@@ -129,7 +129,7 @@ class NamespaceMapper(MutableMapping):
                 self.map_qname = self.unmap_qname = self._local_name
             elif getattr(self, 'strip_namespaces', False):
                 self.map_qname = self._map_qname
-                self.unmap_qname = self._map_qname
+                self.unmap_qname = self._unmap_qname
         super(NamespaceMapper, self).__setattr__(name, value)
 
     def __getitem__(self, prefix):

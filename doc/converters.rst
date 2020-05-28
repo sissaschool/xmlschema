@@ -1,14 +1,15 @@
-.. _customize-output-data:
+.. _converters:
 
-Customizing output data with converters
-=======================================
+***********************
+Converters for XML data
+***********************
 
 XML data decoding and encoding is handled using an intermediate converter class
 instance that takes charge of composing inner data and mapping of namespaces and prefixes.
 
 Because XML is a structured format that includes data and metadata information,
 as attributes and namespace declarations, is necessary to define conventions for
-naming the different data objects in a distiguishable way. For example a wide-used
+naming the different data objects in a distinguishable way. For example a wide-used
 convention is to prefixing attribute names with an '@' character. With this convention
 the attribute `name='John'` is decoded to `'@name': 'John'`, or `'level='10'` is
 decoded to `'@level': 10`.
@@ -23,7 +24,7 @@ like JSON, because prefixed name is more manageable and readable than expanded f
 
 
 Available converters
---------------------
+====================
 
 The library includes some converters. The default converter :class:`XMLSchemaConverter`
 is the base class of other converter types. Each derived converter type implements a
@@ -40,12 +41,18 @@ A summary of these and other conventions can be found on the wiki page
 The base class, that not implements any particular convention, has several options that
 can be used to variate the converting process. Some of these options are not used by other
 predefined converter types (eg. *force_list* and *force_dict*) or are used with a fixed value
-(eg. *text_key* or *attr_prefix*). See :ref:`xml-schema-converters-api` for details about
+(eg. *text_key* or *attr_prefix*). See :ref:`converters-api` for details about
 base class options and attributes.
+
+Moreover there are also other two converters useful for specific cases:
+
+  * :class:`UnorderedConverter`: like default converter but with unordered decoding and encoding.
+  * :class:`ColumnarConverter`: a converter that remaps attributes as child elements in a
+    columnar shape (available since release v1.2.0).
 
 
 Create a custom converter
--------------------------
+=========================
 
 To create a new customized converter you have to subclass the :class:`XMLSchemaConverter`
 and redefine the two methods *element_decode* and *element_encode*. These methods are based

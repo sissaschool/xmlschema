@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.2.0`_ (2020-05-28)
+======================
+* Add ColumnarConverter class
+* Add command-line interface utility for document API
+* Fix a stable public API for XSD types, elements and attributes
+* Add security modes for accessing URLs
+
 `v1.1.3`_ (2020-04-28)
 ======================
 * Clean component parsing
@@ -317,3 +324,4 @@ v0.9.6 (2017-05-05)
 .. _v1.1.1: https://github.com/brunato/xmlschema/compare/v1.1.0...v1.1.1
 .. _v1.1.2: https://github.com/brunato/xmlschema/compare/v1.1.1...v1.1.2
 .. _v1.1.3: https://github.com/brunato/xmlschema/compare/v1.1.2...v1.1.3
+.. _v1.2.0: https://github.com/brunato/xmlschema/compare/v1.1.3...v1.2.0

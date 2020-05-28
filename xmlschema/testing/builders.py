@@ -18,15 +18,15 @@ import warnings
 
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
-    XMLSchemaParseError, ParkerConverter, BadgerFishConverter, AbderaConverter, \
-    JsonMLConverter, UnorderedConverter
+    XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
+    AbderaConverter, JsonMLConverter, ColumnarConverter
 from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
     etree_elements_assert_equal, py_etree_element, lxml_etree_element
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
-from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
+from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType, XsdAttributeGroup
 
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
@@ -77,7 +77,10 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
             if inspect:
                 components_ids = set([id(c) for c in xs.maps.iter_components()])
                 components_ids.update(id(c) for c in xs.meta_schema.iter_components())
-                missing = [c for c in SchemaObserver.components if id(c) not in components_ids]
+                missing = [
+                    c for c in SchemaObserver.components
+                    if id(c) not in components_ids and (not isinstance(c, XsdAttributeGroup) or c)
+                ]
                 if missing:
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
@@ -221,7 +224,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
         def check_decode_encode(self, root, converter=None, **kwargs):
             namespaces = kwargs.get('namespaces', {})
 
-            lossy = converter in (ParkerConverter, AbderaConverter)
+            lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             losslessly = converter is JsonMLConverter
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
@@ -240,7 +243,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             if isinstance(elem1, tuple):
                 # When validation='lax'
-                if converter is not ParkerConverter:
+                if converter is not ParkerConverter and converter is not ColumnarConverter:
                     for e in elem1[1]:
                         self.check_namespace_prefixes(str(e))
                 elem1 = elem1[0]
@@ -293,7 +296,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                         )
 
         def check_json_serialization(self, root, converter=None, **kwargs):
-            lossy = converter in (ParkerConverter, AbderaConverter)
+            lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
 
@@ -407,21 +410,23 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
 
             self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
+            self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
             self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
             self.check_decode_encode(root, ParkerConverter, validation='skip', **options)
             self.check_decode_encode(root, BadgerFishConverter, **options)
             self.check_decode_encode(root, AbderaConverter, **options)
             self.check_decode_encode(root, JsonMLConverter, **options)
-            self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
+            self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
             options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
+            self.check_json_serialization(root, UnorderedConverter, **options)
             self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
             self.check_json_serialization(root, ParkerConverter, validation='skip', **options)
             self.check_json_serialization(root, BadgerFishConverter, **options)
             self.check_json_serialization(root, AbderaConverter, **options)
             self.check_json_serialization(root, JsonMLConverter, **options)
-            self.check_json_serialization(root, UnorderedConverter, **options)
+            self.check_json_serialization(root, ColumnarConverter, validation='lax', **options)
 
         def check_data_conversion_with_lxml(self):
             xml_tree = lxml_etree.parse(xml_file)

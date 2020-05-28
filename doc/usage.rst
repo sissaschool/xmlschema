@@ -1,5 +1,6 @@
+*****
 Usage
-=====
+*****
 
 .. _lxml: http://lxml.de
 
@@ -8,24 +9,25 @@ Usage
     import xmlschema
     import os
     import warnings
-    os.chdir('..')
+
+    if os.getcwd().endswith('/doc'):
+        os.chdir('..')
     warnings.simplefilter("ignore", xmlschema.XMLSchemaIncludeWarning)
 
-.. testsetup:: vehicles
+.. testsetup:: collection
 
     import xmlschema
     import os
+    import warnings
 
-Import the library in your code with::
-
-    import xmlschema
-
-The module initialization builds the dictionary containing the code points of
-the Unicode categories.
+    if os.getcwd().endswith('/doc'):
+        os.chdir('..')
+    warnings.simplefilter("ignore", xmlschema.XMLSchemaIncludeWarning)
+    schema = xmlschema.XMLSchema('tests/test_cases/examples/collection/collection.xsd')
 
 
 Create a schema instance
-------------------------
+========================
 
 Import the library and then create an instance of a schema using the path of
 the file containing the schema as argument:
@@ -35,19 +37,15 @@ the file containing the schema as argument:
     >>> import xmlschema
     >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
 
-Otherwise the argument can be also an opened file-like object:
+The argument can be also a file-like object or a string containing the schema definition:
 
 .. doctest::
 
-    >>> import xmlschema
     >>> schema_file = open('tests/test_cases/examples/collection/collection.xsd')
     >>> schema = xmlschema.XMLSchema(schema_file)
 
-Alternatively you can pass a string containing the schema definition:
-
 .. doctest::
 
-    >>> import xmlschema
     >>> schema = xmlschema.XMLSchema("""
     ... <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
     ... <xs:element name="block" type="xs:string"/>
@@ -59,7 +57,6 @@ because the package cannot knows anything about the schema's source location:
 
 .. doctest::
 
-    >>> import xmlschema
     >>> schema_xsd = open('tests/test_cases/examples/vehicles/vehicles.xsd').read()
     >>> schema = xmlschema.XMLSchema(schema_xsd)
     Traceback (most recent call last):
@@ -78,77 +75,18 @@ reference directory path for other includes and imports:
 
 .. doctest::
 
-    >>> import xmlschema
     >>> schema_file = open('tests/test_cases/examples/vehicles/vehicles.xsd')
     >>> schema = xmlschema.XMLSchema(schema_file, base_url='tests/test_cases/examples/vehicles/')
 
 
-XSD declarations
-----------------
-
-The schema object includes XSD components of declarations (*elements*, *attributes* and *notations*)
-and definitions (*types*, *model groups*, *attribute groups*, *identity constraints* and *substitution
-groups*). The global XSD components are available as attributes of the schema instance:
-
-.. doctest::
-
-    >>> import xmlschema
-    >>> from pprint import pprint
-    >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
-    >>> schema.types
-    NamespaceView({'vehicleType': XsdComplexType(name='vehicleType')})
-    >>> pprint(dict(schema.elements))
-    {'bikes': XsdElement(name='vh:bikes', occurs=[1, 1]),
-     'cars': XsdElement(name='vh:cars', occurs=[1, 1]),
-     'vehicles': XsdElement(name='vh:vehicles', occurs=[1, 1])}
-    >>> schema.attributes
-    NamespaceView({'step': XsdAttribute(name='vh:step')})
-
-Global components are local views of *XSD global maps* shared between related schema instances.
-The global maps can be accessed through :attr:`XMLSchema.maps` attribute:
-
-.. doctest::
-
-    >>> from pprint import pprint
-    >>> pprint(sorted(schema.maps.types.keys())[:5])
-    ['{http://example.com/vehicles}vehicleType',
-     '{http://www.w3.org/2001/XMLSchema}ENTITIES',
-     '{http://www.w3.org/2001/XMLSchema}ENTITY',
-     '{http://www.w3.org/2001/XMLSchema}ID',
-     '{http://www.w3.org/2001/XMLSchema}IDREF']
-    >>> pprint(sorted(schema.maps.elements.keys())[:10])
-    ['{http://example.com/vehicles}bikes',
-     '{http://example.com/vehicles}cars',
-     '{http://example.com/vehicles}vehicles',
-     '{http://www.w3.org/2001/XMLSchema}all',
-     '{http://www.w3.org/2001/XMLSchema}annotation',
-     '{http://www.w3.org/2001/XMLSchema}any',
-     '{http://www.w3.org/2001/XMLSchema}anyAttribute',
-     '{http://www.w3.org/2001/XMLSchema}appinfo',
-     '{http://www.w3.org/2001/XMLSchema}attribute',
-     '{http://www.w3.org/2001/XMLSchema}attributeGroup']
-
-Schema objects include methods for finding XSD elements and attributes in the schema.
-Those are methods ot the ElementTree's API, so you can use an XPath expression for
-defining the search criteria:
-
-.. doctest::
-
-    >>> schema.find('vh:vehicles/vh:bikes')
-    XsdElement(ref='vh:bikes', occurs=[1, 1])
-    >>> pprint(schema.findall('vh:vehicles/*'))
-    [XsdElement(ref='vh:cars', occurs=[1, 1]),
-     XsdElement(ref='vh:bikes', occurs=[1, 1])]
-
-
 Validation
-----------
+==========
 
-The library provides several methods to validate an XML document with a schema.
+A schema instance has methods to validate an XML document against the schema.
 
-The first mode is the method :meth:`XMLSchema.is_valid`. This method returns ``True``
+The first method is :meth:`XMLSchema.is_valid`, that returns ``True``
 if the XML argument is validated by the schema loaded in the instance,
-returns ``False`` if the document is invalid.
+and returns ``False`` if the document is invalid.
 
 .. doctest::
 
@@ -200,50 +138,17 @@ typically the schema location and the namespace, directly from the XML document:
 
 .. doctest::
 
-    >>> import xmlschema
     >>> xmlschema.validate('tests/test_cases/examples/vehicles/vehicles.xml')
 
-.. doctest:: vehicles
-
-    >>> import xmlschema
-    >>> os.chdir('tests/test_cases/examples/vehicles/')
-    >>> xmlschema.validate('vehicles.xml', 'vehicles.xsd')
+    >>> xml_file = 'tests/test_cases/examples/vehicles/vehicles.xml'
+    >>> xsd_file = 'tests/test_cases/examples/vehicles/vehicles.xsd'
+    >>> xmlschema.validate(xml_file, schema=xsd_file)
 
 
 Data decoding and encoding
---------------------------
+==========================
 
-Each schema component includes methods for data conversion:
-
-.. doctest::
-
-    >>> schema.types['vehicleType'].decode
-    <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
-    >>> schema.elements['cars'].encode
-    <bound method ValidationMixin.encode of XsdElement(name='vh:cars', occurs=[1, 1])>
-
-
-Those methods can be used to decode the correspondents parts of the XML document:
-
-.. doctest::
-
-    >>> import xmlschema
-    >>> from pprint import pprint
-    >>> from xml.etree import ElementTree
-    >>> xs = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
-    >>> xt = ElementTree.parse('tests/test_cases/examples/vehicles/vehicles.xml')
-    >>> root = xt.getroot()
-    >>> pprint(xs.elements['cars'].decode(root[0]))
-    {'{http://example.com/vehicles}car': [{'@make': 'Porsche', '@model': '911'},
-                                          {'@make': 'Porsche', '@model': '911'}]}
-    >>> pprint(xs.elements['cars'].decode(xt.getroot()[1], validation='skip'))
-    None
-    >>> pprint(xs.elements['bikes'].decode(root[1], namespaces={'vh': 'http://example.com/vehicles'}))
-    {'@xmlns:vh': 'http://example.com/vehicles',
-     'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
-                 {'@make': 'Yamaha', '@model': 'XS650'}]}
-
-You can also decode the entire XML document to a nested dictionary:
+A schema instance can be also used for decoding an XML document to a nested dictionary:
 
 .. doctest::
 
@@ -259,7 +164,7 @@ You can also decode the entire XML document to a nested dictionary:
      'vh:cars': {'vh:car': [{'@make': 'Porsche', '@model': '911'},
                             {'@make': 'Porsche', '@model': '911'}]}}
 
-The decoded values coincide with the datatypes declared in the XSD schema:
+The decoded values match the datatypes declared in the XSD schema:
 
 .. doctest::
 
@@ -292,8 +197,53 @@ The decoded values coincide with the datatypes declared in the XSD schema:
                  'title': None,
                  'year': '1925'}]}
 
+
+Decoded data can be encoded back to XML:
+
+.. doctest:: collection
+
+    >>> obj = schema.decode('tests/test_cases/examples/collection/collection.xml')
+    >>> collection = schema.encode(obj)
+    >>> collection
+    <Element '{http://example.com/ns/collection}collection' at ...>
+    >>> print(xmlschema.etree_tostring(collection))
+    <col:collection xmlns:col="http://example.com/ns/collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
+        <object id="b0836217462" available="true">
+            <position>1</position>
+            <title>The Umbrellas</title>
+            <year>1886</year>
+            <author id="PAR">
+                <name>Pierre-Auguste Renoir</name>
+                <born>1841-02-25</born>
+                <dead>1919-12-03</dead>
+                <qualification>painter</qualification>
+            </author>
+            <estimation>10000.00</estimation>
+        </object>
+        <object id="b0836217463" available="true">
+            <position>2</position>
+            <title />
+            <year>1925</year>
+            <author id="JM">
+                <name>Joan Miró</name>
+                <born>1893-04-20</born>
+                <dead>1983-12-25</dead>
+                <qualification>painter, sculptor and ceramicist</qualification>
+            </author>
+        </object>
+    </col:collection>
+
+
+All the decoding and encoding methods are based on two generator methods of the `XMLSchema` class,
+namely *iter_decode()* and *iter_encode()*, that yield both data and validation errors.
+See :ref:`schema-level-api` section for more information.
+
+
+Decoding a part using XPath
+---------------------------
+
 If you need to decode only a part of the XML document you can pass also an XPath
-expression using in the *path* argument.
+expression using the *path* argument.
 
 .. doctest::
 
@@ -304,17 +254,12 @@ expression using in the *path* argument.
 
 .. note::
 
-    Decode using an XPath could be simpler than using subelements, method illustrated previously.
-    An XPath expression for the schema *considers the schema as the root element with global
-    elements as its children*.
-
-All the decoding and encoding methods are based on two generator methods of the `XMLSchema` class,
-namely *iter_decode()* and *iter_encode()*, that yield both data and validation errors.
-See :ref:`schema-level-api` section for more information.
+    An XPath expression for the schema *considers the schema as the root element
+    with global elements as its children*.
 
 
-Validating and decoding ElementTree's elements
-----------------------------------------------
+Validating and decoding ElementTree's data
+------------------------------------------
 
 Validation and decode API works also with XML data loaded in ElementTree structures:
 
@@ -379,7 +324,7 @@ Customize the decoded data structure
 ------------------------------------
 
 Starting from the version 0.9.9 the package includes converter objects, in order to
-control the decoding process and produce different data structures. Those objects
+control the decoding process and produce different data structures. These objects
 intervene at element level to compose the decoded data (attributes and content) into
 a data structure.
 
@@ -410,7 +355,8 @@ For instance you can use the *Badgerfish* converter for a schema instance:
                                                         {   '@make': 'Porsche',
                                                             '@model': '911'}]}}}
 
-You can also change the data decoding process providing the keyword argument *converter* to the method call:
+You can also change the data decoding process providing the keyword argument *converter*
+to the method call:
 
 .. doctest::
 
@@ -418,7 +364,7 @@ You can also change the data decoding process providing the keyword argument *co
     {'vh:bikes': {'vh:bike': [None, None]}, 'vh:cars': {'vh:car': [None, None]}}
 
 
-See the :ref:`customize-output-data` section for more information about converters.
+See the :ref:`converters` section for more information about converters.
 
 
 Decoding to JSON
@@ -499,100 +445,3 @@ using the keyword argument *decimal_type*:
 
 From version 1.0 there are two module level API for simplify the JSON serialization and deserialization task.
 See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`document-level-api` section.
-
-XSD validation modes
---------------------
-
-Starting from the version 0.9.10 the library uses XSD validation modes *strict*/*lax*/*skip*,
-both for schemas and for XML instances. Each validation mode defines a specific behaviour:
-
-strict
-    Schemas are validated against the meta-schema. The processor stops when an error is
-    found in a schema or during the validation/decode of XML data.
-
-lax
-    Schemas are validated against the meta-schema. The processor collects the errors
-    and continues, eventually replacing missing parts with wildcards.
-    Undecodable XML data are replaced with `None`.
-
-skip
-    Schemas are not validated against the meta-schema. The processor doesn't collect
-    any error. Undecodable XML data are replaced with the original text.
-
-The default mode is *strict*, both for schemas and for XML data. The mode is set with
-the *validation* argument, provided when creating the schema instance or when you want to
-validate/decode XML data.
-For example you can build a schema using a *strict* mode and then decode XML data
-using the *validation* argument setted to 'lax'.
-
-.. note::
-    From release v1.1.1 the *iter_decode()* and *iter_encode()* methods propagate
-    errors also for *skip* validation mode. The errors generated in *skip* mode are
-    discarded by the top-level methods *decode()* and *encode()*.
-
-
-Lazy validation
----------------
-
-From release v1.0.12 the document validation and decoding API has an optional argument `lazy=False`,
-that can be changed to True for operating with a lazy :class:`XMLResource`. The lazy mode can be
-useful for validating and decoding big XML data files. This is still an experimental feature that
-will be refined and integrated in future versions.
-
-
-XSD 1.0 and 1.1 support
------------------------
-From release v1.0.14 XSD 1.1 support has been added to the library through the class
-:class:`XMLSchema11`. You have to use this class for XSD 1.1 schemas instead the default
-class :class:`XMLSchema` that is still linked to XSD 1.0 validator :class:`XMLSchema10`.
-From next minor release (v1.1) the default class will become :class:`XMLSchema11`.
-
-
-XML entity-based attacks protection
------------------------------------
-
-The XML data resource loading is protected using the  `SafeXMLParser` class, a subclass of
-the pure Python version of XMLParser that forbids the use of entities.
-The protection is applied both to XSD schemas and to XML data. The usage of this feature is
-regulated by the XMLSchema's argument *defuse*.
-For default this argument has value *'remote'* that means the protection on XML data is
-applied only to data loaded from remote. Other values for this argument can be *'always'*
-and *'never'*.
-
-Processing limits
------------------
-
-From release v1.0.16 a module has been added in order to group constants that define
-processing limits, generally to protect against attacks prepared to exhaust system
-resources. These limits usually don't need to be changed, but this possibility has
-been left at the module level for situations where a different setting is needed.
-
-Limit on XSD model groups checking
-..................................
-
-Model groups of the schemas are checked against restriction violations and *Unique Particle
-Attribution* violations. To avoids XSD model recursion attacks a depth limit of 15 levels
-is set. If this limit is exceeded an ``XMLSchemaModelDepthError`` is raised, the error is
-caught and a warning is generated. If you need to set an higher limit for checking all your
-groups you can import the library and change the value of ``MAX_MODEL_DEPTH`` in the limits
-module:
-
-.. doctest::
-
-    >>> import xmlschema
-    >>> xmlschema.limits.MAX_MODEL_DEPTH = 20
-
-
-Limit on XML data depth
-.......................
-
-A limit of 9999 on maximum depth is set for XML validation/decoding/encoding to avoid
-attacks based on extremely deep XML data. To increase or decrease this limit change the
-value of ``MAX_XML_DEPTH`` in the module *limits* after the import of the package:
-
-.. doctest::
-
-    >>> import xmlschema
-    >>> xmlschema.limits.MAX_XML_DEPTH = 1000
-
-

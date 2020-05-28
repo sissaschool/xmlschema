@@ -15,7 +15,7 @@ from xmlschema import XMLSchema, XMLSchemaConverter, ElementData
 from xmlschema.etree import etree_element, etree_register_namespace, \
     lxml_etree_element, lxml_etree_register_namespace, etree_elements_assert_equal
 
-from xmlschema.converters import ParquetConverter
+from xmlschema.converters import ColumnarConverter
 
 
 class TestConverters(unittest.TestCase):
@@ -100,7 +100,7 @@ class TestConverters(unittest.TestCase):
         col_xsd_filename = self.casepath('examples/collection/collection.xsd')
         col_xml_filename = self.casepath('examples/collection/collection.xml')
 
-        col_schema = XMLSchema(col_xsd_filename, converter=ParquetConverter)
+        col_schema = XMLSchema(col_xsd_filename, converter=ColumnarConverter)
 
         obj = col_schema.decode(col_xml_filename)
         self.assertIn("'authorid'", str(obj))
@@ -119,7 +119,7 @@ class TestConverters(unittest.TestCase):
 
         col_schema = XMLSchema(col_xsd_filename)
 
-        obj = col_schema.decode(col_xml_filename, converter=ParquetConverter, attr_prefix='__')
+        obj = col_schema.decode(col_xml_filename, converter=ColumnarConverter, attr_prefix='__')
         self.assertNotIn("'authorid'", str(obj))
         self.assertNotIn("'author_id'", str(obj))
         self.assertIn("'author__id'", str(obj))

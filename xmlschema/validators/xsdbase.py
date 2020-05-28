@@ -423,14 +423,17 @@ class XsdComponent(XsdValidator):
 
     @property
     def local_name(self):
+        """The local part of the name of the component, or `None` if the name is `None`."""
         return local_name(self.name)
 
     @property
     def qualified_name(self):
+        """The name of the component in extended format, or `None` if the name is `None`."""
         return get_qname(self.target_namespace, self.name)
 
     @property
     def prefixed_name(self):
+        """The name of the component in prefixed format, or `None` if the name is `None`."""
         return qname_to_prefixed(self.name, self.namespaces)
 
     @property
@@ -452,8 +455,8 @@ class XsdComponent(XsdValidator):
         `False` otherwise. For XSD elements the matching is extended to substitutes.
 
         :param name: a local or fully-qualified name.
-        :param default_namespace: used if it's not None and not empty for completing the name \
-        argument in case it's a local name.
+        :param default_namespace: used if it's not None and not empty for completing \
+        the name argument in case it's a local name.
         :param kwargs: additional options that can be used by certain components.
         """
         if not name:
@@ -638,6 +641,11 @@ class XsdType(XsdComponent):
         return False
 
     @staticmethod
+    def is_list():
+        """Returns `True` if the instance is a list simpleType, `False` otherwise."""
+        return False
+
+    @staticmethod
     def is_datetime():
         """
         Returns `True` if the instance is a datetime/duration XSD builtin-type, `False` otherwise.
@@ -655,6 +663,13 @@ class XsdType(XsdComponent):
     def has_simple_content(self):
         """
         Returns `True` if the instance is a simpleType or a complexType with simple
+        content, `False` otherwise.
+        """
+        raise NotImplementedError()
+
+    def has_complex_content(self):
+        """
+        Returns `True` if the instance is a complexType with mixed or element-only
         content, `False` otherwise.
         """
         raise NotImplementedError()
@@ -884,6 +899,10 @@ class ParticleMixin(object):
 
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#p
       https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#t
+
+    :ivar min_occurs: the minOccurs property of the XSD particle. Defaults to 1.
+    :ivar max_occurs: the maxOccurs property of the XSD particle. Defaults to 1, \
+    a `None` value means 'unbounded'.
     """
     min_occurs = 1
     max_occurs = 1
@@ -901,24 +920,44 @@ class ParticleMixin(object):
         return self.max_occurs
 
     def is_emptiable(self):
+        """
+        Tests if max_occurs == 0. A zero-length model group is considered emptiable.
+        For model groups the test outcome depends also on nested particles.
+        """
         return self.min_occurs == 0
 
     def is_empty(self):
+        """
+        Tests if max_occurs == 0. A zero-length model group is considered empty.
+        """
         return self.max_occurs == 0
 
     def is_single(self):
+        """
+        Tests if the particle has max_occurs == 1. For elements the test
+        outcome depends also on parent group. For model groups the test
+        outcome depends also on nested model groups.
+        """
         return self.max_occurs == 1
 
+    def is_multiple(self):
+        """Tests the particle can have multiple occurrences."""
+        return not self.is_empty() and not self.is_single()
+
     def is_ambiguous(self):
+        """Tests if min_occurs != max_occurs."""
         return self.min_occurs != self.max_occurs
 
     def is_univocal(self):
+        """Tests if min_occurs == max_occurs."""
         return self.min_occurs == self.max_occurs
 
     def is_missing(self, occurs):
+        """Tests if provided occurrences are under the minimum."""
         return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
 
     def is_over(self, occurs):
+        """Tests if provided occurrences are over the maximum."""
         return self.max_occurs is not None and self.max_occurs <= occurs
 
     def has_occurs_restriction(self, other):

@@ -1,10 +1,39 @@
-API Documentation
-=================
+.. _package-api:
+
+***********
+Package API
+***********
+
+
+.. _errors-and-exceptions:
+
+Errors and exceptions
+=====================
+
+.. autoexception:: xmlschema.XMLSchemaException
+.. autoexception:: xmlschema.XMLSchemaResourceError
+.. autoexception:: xmlschema.XMLSchemaRegexError
+.. autoexception:: xmlschema.XMLSchemaNamespaceError
+
+.. autoexception:: xmlschema.XMLSchemaValidatorError
+.. autoexception:: xmlschema.XMLSchemaNotBuiltError
+.. autoexception:: xmlschema.XMLSchemaParseError
+.. autoexception:: xmlschema.XMLSchemaModelError
+.. autoexception:: xmlschema.XMLSchemaModelDepthError
+.. autoexception:: xmlschema.XMLSchemaValidationError
+.. autoexception:: xmlschema.XMLSchemaDecodeError
+.. autoexception:: xmlschema.XMLSchemaEncodeError
+.. autoexception:: xmlschema.XMLSchemaChildrenValidationError
+
+.. autoexception:: xmlschema.XMLSchemaIncludeWarning
+.. autoexception:: xmlschema.XMLSchemaImportWarning
+.. autoexception:: xmlschema.XMLSchemaTypeTableWarning
+
 
 .. _document-level-api:
 
 Document level API
-------------------
+==================
 
 .. autofunction:: xmlschema.validate
 .. autofunction:: xmlschema.is_valid
@@ -17,7 +46,7 @@ Document level API
 .. _schema-level-api:
 
 Schema level API
-----------------
+================
 
 .. class:: xmlschema.XMLSchema10
 .. class:: xmlschema.XMLSchema11
@@ -42,9 +71,11 @@ Schema level API
     .. autoattribute:: target_prefix
     .. autoattribute:: default_namespace
     .. autoattribute:: base_url
-    .. autoattribute:: builtin_types
     .. autoattribute:: root_elements
+    .. autoattribute:: simple_types
+    .. autoattribute:: complex_types
 
+    .. automethod:: builtin_types
     .. automethod:: create_meta_schema
     .. automethod:: create_any_content_group
     .. automethod:: create_any_attribute_group
@@ -81,8 +112,10 @@ Schema level API
     .. automethod:: iter_encode
 
 
-XSD global maps API
--------------------
+.. _global-maps-api:
+
+Global maps API
+===============
 
 .. autoclass:: xmlschema.XsdGlobals
     :members: copy, register, iter_schemas, iter_globals, lookup_notation, lookup_type,
@@ -90,10 +123,10 @@ XSD global maps API
         clear, build, unbuilt, check
 
 
-.. _xml-schema-converters-api:
+.. _converters-api:
 
-XML Schema converters
----------------------
+Converters API
+==============
 
 The base class `XMLSchemaConverter` is used for defining generic converters.
 The subclasses implement some of the most used `conventions for converting XML
@@ -126,11 +159,13 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
 .. autoclass:: xmlschema.JsonMLConverter
 
+.. autoclass:: xmlschema.ColumnarConverter
 
-.. _resource-access-api:
 
-Resource access API
--------------------
+.. _xml-resource-api:
+
+XML resource API
+================
 
 .. autoclass:: xmlschema.XMLResource
 
@@ -166,29 +201,101 @@ Resource access API
 .. autofunction:: xmlschema.normalize_url
 
 
-XSD components API
-------------------
+.. _xpath-api:
 
-.. note::
-    For XSD components only methods included in the following documentation are considered
-    part of the stable API, the others are considered internals that can be changed without
-    forewarning.
+XPath API
+=========
 
-XSD elements
-^^^^^^^^^^^^
+Implemented through a mixin class on XSD schemas and elements.
+
+.. autoclass:: xmlschema.ElementPathMixin
+
+    .. autoattribute:: tag
+    .. autoattribute:: attrib
+    .. automethod:: get
+    .. automethod:: iter
+    .. automethod:: iterchildren
+    .. automethod:: find
+    .. automethod:: findall
+    .. automethod:: iterfind
+
+
+.. _validation-api:
+
+Validation API
+==============
+
+Implemented for XSD schemas, elements, attributes, types, attribute
+groups and model groups.
+
+.. autoclass:: xmlschema.validators.ValidationMixin
+
+    .. automethod:: is_valid
+    .. automethod:: validate
+    .. automethod:: decode
+    .. automethod:: iter_decode
+    .. automethod:: iter_encode
+        :noindex:
+    .. automethod:: iter_errors
+    .. automethod:: encode
+    .. automethod:: iter_encode
+
+
+.. _particles-api:
+
+Particles API
+=============
+
+Implemented for XSD model groups, elements and element wildcards.
+
+.. autoclass:: xmlschema.validators.ParticleMixin
+
+    .. automethod:: is_empty
+    .. automethod:: is_emptiable
+    .. automethod:: is_single
+    .. automethod:: is_multiple
+    .. automethod:: is_ambiguous
+    .. automethod:: is_univocal
+    .. automethod:: is_missing
+    .. automethod:: is_over
+
+
+.. _main-xsd-components:
+
+Main XSD components
+===================
+
+.. autoclass:: xmlschema.XsdComponent
+
+    .. autoattribute:: target_namespace
+    .. autoattribute:: local_name
+    .. autoattribute:: qualified_name
+    .. autoattribute:: prefixed_name
+    .. automethod:: is_global
+    .. automethod:: is_matching
+    .. automethod:: tostring
+
+.. autoclass:: xmlschema.XsdType
+    :members: is_simple, is_complex, is_atomic, is_list, is_datetime, is_empty,
+        is_emptiable, has_simple_content, has_complex_content, has_mixed_content,
+        is_element_only, is_derived, is_extension, is_restriction, is_key, is_qname
+.. autoclass:: xmlschema.XsdElement
+.. autoclass:: xmlschema.XsdAttribute
+
+
+.. _other-xsd-components:
+
+Other XSD components
+====================
+
+Elements and attributes
+-----------------------
 .. autoclass:: xmlschema.validators.Xsd11Element
-.. autoclass:: xmlschema.validators.XsdElement
-
-XSD attributes
-^^^^^^^^^^^^^^
 .. autoclass:: xmlschema.validators.Xsd11Attribute
-.. autoclass:: xmlschema.validators.XsdAttribute
 
-XSD types
-^^^^^^^^^
-.. autoclass:: xmlschema.validators.XsdType
-    :members: is_simple, is_complex, is_atomic, is_empty, is_emptiable, has_simple_content,
-        has_mixed_content, is_element_only, is_restriction, is_extension, is_key, is_qname
+
+Types
+-----
 .. autoclass:: xmlschema.validators.Xsd11ComplexType
 .. autoclass:: xmlschema.validators.XsdComplexType
 .. autoclass:: xmlschema.validators.XsdSimpleType
@@ -199,14 +306,16 @@ XSD types
 .. autoclass:: xmlschema.validators.Xsd11AtomicRestriction
 .. autoclass:: xmlschema.validators.XsdAtomicRestriction
 
+
 Attribute and model groups
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 .. autoclass:: xmlschema.validators.XsdAttributeGroup
 .. autoclass:: xmlschema.validators.Xsd11Group
 .. autoclass:: xmlschema.validators.XsdGroup
 
+
 Wildcards
-^^^^^^^^^
+---------
 .. autoclass:: xmlschema.validators.Xsd11AnyElement
 .. autoclass:: xmlschema.validators.XsdAnyElement
 .. autoclass:: xmlschema.validators.Xsd11AnyAttribute
@@ -214,8 +323,9 @@ Wildcards
 .. autoclass:: xmlschema.validators.XsdOpenContent
 .. autoclass:: xmlschema.validators.XsdDefaultOpenContent
 
+
 Identity constraints
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 .. autoclass:: xmlschema.validators.XsdIdentity
 .. autoclass:: xmlschema.validators.XsdSelector
 .. autoclass:: xmlschema.validators.XsdFieldSelector
@@ -226,8 +336,9 @@ Identity constraints
 .. autoclass:: xmlschema.validators.Xsd11Keyref
 .. autoclass:: xmlschema.validators.XsdKeyref
 
+
 Facets
-^^^^^^
+------
 .. autoclass:: xmlschema.validators.XsdFacet
 .. autoclass:: xmlschema.validators.XsdWhiteSpaceFacet
 .. autoclass:: xmlschema.validators.XsdLengthFacet
@@ -244,63 +355,10 @@ Facets
 .. autoclass:: xmlschema.validators.XsdEnumerationFacets
 .. autoclass:: xmlschema.validators.XsdPatternFacets
 
-Other XSD components
-^^^^^^^^^^^^^^^^^^^^
+
+Others
+------
 .. autoclass:: xmlschema.validators.XsdAssert
 .. autoclass:: xmlschema.validators.XsdAlternative
 .. autoclass:: xmlschema.validators.XsdNotation
 .. autoclass:: xmlschema.validators.XsdAnnotation
-
-XSD Validation API
-^^^^^^^^^^^^^^^^^^
-This API is implemented for XSD schemas, elements, attributes, types, attribute
-groups and model groups.
-
-.. autoclass:: xmlschema.validators.ValidationMixin
-
-    .. automethod:: is_valid
-    .. automethod:: validate
-    .. automethod:: decode
-    .. automethod:: iter_decode
-    .. automethod:: iter_encode
-    .. automethod:: iter_errors
-    .. automethod:: encode
-    .. automethod:: iter_encode
-
-ElementTree and XPath API
-^^^^^^^^^^^^^^^^^^^^^^^^^
-This API is implemented for XSD schemas, elements and complexType's assertions.
-
-.. autoclass:: xmlschema.ElementPathMixin
-
-    .. autoattribute:: tag
-    .. autoattribute:: attrib
-    .. automethod:: get
-    .. automethod:: iter
-    .. automethod:: iterchildren
-    .. automethod:: find
-    .. automethod:: findall
-    .. automethod:: iterfind
-
-
-.. _errors-and-exceptions:
-
-Errors and exceptions
----------------------
-
-.. autoexception:: xmlschema.XMLSchemaException
-.. autoexception:: xmlschema.XMLSchemaRegexError
-
-.. autoexception:: xmlschema.XMLSchemaValidatorError
-.. autoexception:: xmlschema.XMLSchemaNotBuiltError
-.. autoexception:: xmlschema.XMLSchemaParseError
-.. autoexception:: xmlschema.XMLSchemaModelError
-.. autoexception:: xmlschema.XMLSchemaModelDepthError
-.. autoexception:: xmlschema.XMLSchemaValidationError
-.. autoexception:: xmlschema.XMLSchemaDecodeError
-.. autoexception:: xmlschema.XMLSchemaEncodeError
-.. autoexception:: xmlschema.XMLSchemaChildrenValidationError
-
-.. autoexception:: xmlschema.XMLSchemaIncludeWarning
-.. autoexception:: xmlschema.XMLSchemaImportWarning
-.. autoexception:: xmlschema.XMLSchemaTypeTableWarning

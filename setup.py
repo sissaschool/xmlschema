@@ -37,9 +37,16 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.1.3',
+    version='1.2.0',
     packages=['xmlschema'],
     include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'xmlschema-validate=xmlschema.cli:validate',
+            'xmlschema-xml2json=xmlschema.cli:xml2json',
+            'xmlschema-json2xml=xmlschema.cli:json2xml',
+        ]
+    },
     setup_requires=['elementpath~=1.4.0'],
     install_requires=['elementpath~=1.4.0'],
     extra_require={

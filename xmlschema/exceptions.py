@@ -7,10 +7,6 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""
-This module contains the exception and warning classes of the 'xmlschema' package.
-"""
-from urllib.error import URLError
 
 
 class XMLSchemaException(Exception):
@@ -45,8 +41,8 @@ class XMLSchemaIndexError(XMLSchemaException, ImportError):
     pass
 
 
-class XMLSchemaURLError(XMLSchemaException, URLError):
-    pass
+class XMLSchemaResourceError(XMLSchemaException, OSError):
+    """Raised when an error is found accessing an XML resource."""
 
 
 class XMLSchemaRegexError(XMLSchemaException, ValueError):

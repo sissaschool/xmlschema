@@ -75,6 +75,12 @@ class XMLSchemaConverter(NamespaceMapper):
     :ivar force_dict: force dictionary for complex elements with simple content
     :ivar force_list: force list for child elements
     """
+
+    dict = dict
+    list = list
+    etree_element_class = etree_element
+    ns_prefix = None
+
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  etree_element_class=None, text_key='$', attr_prefix='@',
                  cdata_prefix=None, indent=4, strip_namespaces=False,
@@ -89,9 +95,13 @@ class XMLSchemaConverter(NamespaceMapper):
 
         super(XMLSchemaConverter, self).__init__(namespaces, register_namespace, strip_namespaces)
 
-        self.dict = dict_class or dict
-        self.list = list_class or list
-        self.etree_element_class = etree_element_class or etree_element
+        if dict_class is not None:
+            self.dict = dict_class
+        if list_class is not None:
+            self.list = list_class
+        if etree_element_class is not None:
+            self.etree_element_class = etree_element_class
+
         self.text_key = text_key
         self.attr_prefix = attr_prefix
         self.cdata_prefix = cdata_prefix
@@ -325,7 +335,7 @@ class XMLSchemaConverter(NamespaceMapper):
 
         for name, value in obj.items():
             if name == self.text_key and self.text_key:
-                text = obj[self.text_key]
+                text = value
             elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
                     name[0].isdigit() and self.cdata_prefix == '':
                 index = int(name[len(self.cdata_prefix):])
@@ -418,7 +428,7 @@ class UnorderedConverter(XMLSchemaConverter):
 
         for name, value in obj.items():
             if name == self.text_key and self.text_key:
-                text = obj[self.text_key]
+                text = value
             elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
                     name[0].isdigit() and self.cdata_prefix == '':
                 index = int(name[len(self.cdata_prefix):])
@@ -913,33 +923,31 @@ class JsonMLConverter(XMLSchemaConverter):
             return ElementData(xsd_element.name, None, content, attributes)
 
 
-class ParquetConverter(XMLSchemaConverter):
+class ColumnarConverter(XMLSchemaConverter):
     """
-    XML Schema based converter class for Parquet friendly json (work in progress).
+    XML Schema based converter class for columnar formats.
 
-    TODO: an element_encode() method
-    TODO: publish to package API
+    :param namespaces: map from namespace prefixes to URI.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
+    :param attr_prefix: used as separator string for renaming the decoded attributes. \
+    Can be the empty string (the default) or a single/double underscore.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  attr_prefix='', **kwargs):
-        """
-        :param namespaces: map from namespace prefixes to URI.
-        :param dict_class: dictionary class to use for decoded data. Default is `dict`.
-        :param list_class: list class to use for decoded data. Default is `list`.
-        :param attr_prefix: used as separator string for renaming the decoded attributes. \
-        Can be the empty string (the default) or a single/double underscore.
-        """
         kwargs.update(text_key=None, cdata_prefix=None)
-        super(ParquetConverter, self).__init__(namespaces, dict_class or ordered_dict_class,
-                                               list_class, attr_prefix=attr_prefix, **kwargs)
+        if dict_class is None:
+            dict_class = ordered_dict_class
+        super(ColumnarConverter, self).__init__(namespaces, dict_class, list_class,
+                                                attr_prefix=attr_prefix, **kwargs)
 
     @property
     def lossy(self):
-        return True
+        return True  # Loss cdata parts
 
     def __setattr__(self, name, value):
         if name != 'attr_prefix':
-            super(ParquetConverter, self).__setattr__(name, value)
+            super(ColumnarConverter, self).__setattr__(name, value)
         elif not isinstance(value, str):
             msg = '{} must be a str, not {}'
             raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
@@ -977,7 +985,8 @@ class ParquetConverter(XMLSchemaConverter):
                     else:
                         result_dict[name] = value
                 else:
-                    if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) \
+                    if hasattr(xsd_child, 'type') and \
+                            (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) \
                             and not xsd_child.attributes:
                         if len(xsd_element.findall('*')) == 1:
                             try:
@@ -1003,3 +1012,53 @@ class ParquetConverter(XMLSchemaConverter):
             return self.dict([(xsd_element.local_name, result_dict)])
         else:
             return result_dict
+
+    def element_encode(self, obj, xsd_element, level=0):
+        if level != 0:
+            tag = xsd_element.local_name
+        else:
+            tag = xsd_element.local_name
+            try:
+                obj = obj[tag]
+            except (KeyError, AttributeError, TypeError):
+                pass
+
+        if not isinstance(obj, (self.dict, dict)):
+            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+                return ElementData(xsd_element.name, obj, None, {})
+            elif xsd_element.type.mixed and not isinstance(obj, list):
+                return ElementData(xsd_element.name, obj, None, {})
+            else:
+                return ElementData(xsd_element.name, None, obj, {})
+
+        text = None
+        content = []
+        attributes = {}
+        pfx = tag + self.attr_prefix
+
+        for name, value in obj.items():
+            if name == tag:
+                text = value
+            elif name.startswith(pfx) and len(name) > len(pfx):
+                attr_name = name[len(pfx):]
+                ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
+                attributes[ns_name] = value
+            elif not isinstance(value, (self.list, list)) or not value:
+                content.append((self.unmap_qname(name), value))
+            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                ns_name = self.unmap_qname(name)
+                content.extend((ns_name, item) for item in value)
+            else:
+                ns_name = self.unmap_qname(name)
+                for xsd_child in xsd_element.type.content_type.iter_elements():
+                    matched_element = xsd_child.match(ns_name, resolve=True)
+                    if matched_element is not None:
+                        if matched_element.type.is_list():
+                            content.append((xsd_child.name, value))
+                        else:
+                            content.extend((xsd_child.name, item) for item in value)
+                        break
+                else:
+                    content.append((ns_name, value))
+
+        return ElementData(xsd_element.name, text, content, attributes)
