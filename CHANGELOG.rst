@@ -2,12 +2,12 @@
 CHANGELOG
 *********
 
-`v1.2.0`_ (2020-05-xx)
+`v1.2.0`_ (2020-05-28)
 ======================
 * Add ColumnarConverter class
 * Add command-line interface utility for document API
 * Fix a stable public API for XSD types, elements and attributes
-* Add security modes for accessing URLs 
+* Add security modes for accessing URLs
 
 `v1.1.3`_ (2020-04-28)
 ======================
