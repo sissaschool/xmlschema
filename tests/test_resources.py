@@ -416,7 +416,7 @@ class TestResources(unittest.TestCase):
 
         with self.assertRaises(XMLSchemaResourceError) as ctx:
             XMLResource("/tmp/vehicles.xsd", base_url=base_url, allow='sandbox')
-        self.assertEqual(str(ctx.exception),
+        self.assertEqual(str(ctx.exception).replace('\\', '/'),
                          "block access to out of sandbox file /tmp/vehicles.xsd")
 
         with self.assertRaises(TypeError) as ctx:

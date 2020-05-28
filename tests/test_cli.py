@@ -15,6 +15,7 @@ import glob
 import io
 import pathlib
 import os
+import platform
 import sys
 
 from xmlschema.cli import validate, xml2json, json2xml
@@ -77,7 +78,11 @@ class TestConsoleScripts(unittest.TestCase):
     def test_validate_command_04(self, mock_out, mock_err):
         self.run_validate('unknown.xml')
         self.assertEqual(mock_err.getvalue(), '')
-        self.assertIn("No such file or directory", mock_out.getvalue())
+        output = mock_out.getvalue()
+        if platform.system() == 'Windows':
+            self.assertIn("The system cannot find the file specified", output)
+        else:
+            self.assertIn("No such file or directory", output)
         self.assertEqual('1', str(self.ctx.exception))
 
     @patch('sys.stderr', new_callable=io.StringIO)
@@ -85,11 +90,12 @@ class TestConsoleScripts(unittest.TestCase):
     def test_validate_command_05(self, mock_out, mock_err):
         self.run_validate(*glob.glob('vehicles*.xml'))
         self.assertEqual(mock_err.getvalue(), '')
-        self.assertEqual("vehicles.xml is valid\n"
-                         "vehicles-3_errors.xml is not valid\n"
-                         "vehicles-1_error.xml is not valid\n"
-                         "vehicles2.xml is valid\n"
-                         "vehicles-2_errors.xml is not valid\n", mock_out.getvalue())
+        output = mock_out.getvalue()
+        self.assertIn("vehicles.xml is valid", output)
+        self.assertIn("vehicles-3_errors.xml is not valid", output)
+        self.assertIn("vehicles-1_error.xml is not valid", output)
+        self.assertIn("vehicles2.xml is valid", output)
+        self.assertIn("vehicles-2_errors.xml is not valid", output)
         self.assertEqual('6', str(self.ctx.exception))
 
     @patch('sys.stderr', new_callable=io.StringIO)
