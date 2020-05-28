@@ -926,16 +926,15 @@ class JsonMLConverter(XMLSchemaConverter):
 class ColumnarConverter(XMLSchemaConverter):
     """
     XML Schema based converter class for columnar formats.
+
+    :param namespaces: map from namespace prefixes to URI.
+    :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+    :param list_class: list class to use for decoded data. Default is `list`.
+    :param attr_prefix: used as separator string for renaming the decoded attributes. \
+    Can be the empty string (the default) or a single/double underscore.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  attr_prefix='', **kwargs):
-        """
-        :param namespaces: map from namespace prefixes to URI.
-        :param dict_class: dictionary class to use for decoded data. Default is `dict`.
-        :param list_class: list class to use for decoded data. Default is `list`.
-        :param attr_prefix: used as separator string for renaming the decoded attributes. \
-        Can be the empty string (the default) or a single/double underscore.
-        """
         kwargs.update(text_key=None, cdata_prefix=None)
         if dict_class is None:
             dict_class = ordered_dict_class

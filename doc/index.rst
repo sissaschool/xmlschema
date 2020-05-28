@@ -6,15 +6,14 @@ xmlschema Documentation
 
     intro
     usage
-    components
+    features
     converters
+    components
     testing
 
 .. only:: html
 
     .. toctree::
 
-        exceptions
-        package_api
-        components_api
+        api
 

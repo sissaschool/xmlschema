@@ -105,6 +105,7 @@ class XMLSchemaMeta(ABCMeta):
 
         builders = dict_.get('BUILDERS') or get_attribute('BUILDERS', *bases)
         if isinstance(builders, dict):
+            # noinspection PyArgumentList
             dict_['BUILDERS'] = namedtuple('Builders', builders)(**builders)
             dict_['BUILDERS_MAP'] = {
                 XSD_NOTATION: builders['notation_class'],
@@ -597,7 +598,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     @classmethod
     def builtin_types(cls):
-        """Accessor for XSD built-in types."""
+        """Returns the XSD built-in types of the meta-schema."""
         try:
             builtin_types = cls.meta_schema.maps.namespaces[XSD_NAMESPACE][0].types
         except KeyError:
@@ -637,10 +638,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     @property
     def simple_types(self):
+        """Returns a list containing the global simple types."""
         return [x for x in self.types.values() if x.is_simple()]
 
     @property
     def complex_types(self):
+        """Returns a list containing the global complex types."""
         return [x for x in self.types.values() if x.is_complex()]
 
     @classmethod

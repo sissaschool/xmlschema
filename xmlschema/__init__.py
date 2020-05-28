@@ -26,7 +26,8 @@ from .validators import (
     XMLSchemaModelError, XMLSchemaModelDepthError, XMLSchemaValidationError,
     XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaChildrenValidationError,
     XMLSchemaIncludeWarning, XMLSchemaImportWarning, XMLSchemaTypeTableWarning,
-    XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11
+    XsdGlobals, XMLSchemaBase, XMLSchema, XMLSchema10, XMLSchema11,
+    XsdComponent, XsdType, XsdElement, XsdAttribute
 )
 
 __version__ = '1.2.0'
@@ -50,4 +51,5 @@ __all__ = [
     'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',
     'XMLSchemaImportWarning', 'XMLSchemaTypeTableWarning',
     'XsdGlobals', 'XMLSchemaBase', 'XMLSchema', 'XMLSchema10', 'XMLSchema11',
+    'XsdComponent', 'XsdType', 'XsdElement', 'XsdAttribute',
 ]

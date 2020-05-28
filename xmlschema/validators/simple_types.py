@@ -323,6 +323,9 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def has_simple_content(self):
         return True
 
+    def has_complex_content(self):
+        return False
+
     def has_mixed_content(self):
         return False
 
@@ -931,7 +934,7 @@ class XsdUnion(XsdSimpleType):
 
     def is_dynamic_consistent(self, other):
         return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
-            other.is_derived(self) or hasattr(other, 'member_types') and \
+            other.is_derived(self) or isinstance(other, self.__class__) and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 
     def iter_components(self, xsd_classes=None):

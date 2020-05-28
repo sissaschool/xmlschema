@@ -149,4 +149,4 @@ latex_documents = [
      'Davide Brunato', 'manual'),
 ]
 
-latex_appendices = ['exceptions', 'package_api', 'components_api']
+latex_appendices = ['api']

@@ -281,6 +281,7 @@ def etree_iter_location_hints(elem):
             yield '', url
 
 
+# noinspection PyUnresolvedReferences
 def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, unordered=False):
     """
     Tests the equality of two XML Element trees.

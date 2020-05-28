@@ -485,9 +485,7 @@ class XsdComplexType(XsdType, ValidationMixin):
         return True
 
     def is_empty(self):
-        if self.name == XSD_ANY_TYPE:
-            return False
-        elif self.open_content and self.open_content.mode != 'none':
+        if self.open_content and self.open_content.mode != 'none':
             return False
         return self.content_type.is_empty()
 
@@ -495,25 +493,35 @@ class XsdComplexType(XsdType, ValidationMixin):
         return self.content_type.is_emptiable()
 
     def has_simple_content(self):
-        try:
-            return self.content_type.is_simple()
-        except AttributeError:
-            if self.content_type or self.content_type.mixed or self.base_type is None:
-                return False
-            else:
-                return self.base_type.is_simple() or self.base_type.has_simple_content()
+        if not isinstance(self.content_type, XsdGroup):
+            return not self.content_type.is_empty()
+        elif self.content_type or self.content_type.mixed or self.base_type is None:
+            return False
+        else:
+            return self.base_type.is_simple() or self.base_type.has_simple_content()
+
+    def has_complex_content(self):
+        if not isinstance(self.content_type, XsdGroup):
+            return False
+        elif self.open_content and self.open_content.mode != 'none':
+            return True
+        return not self.content_type.is_empty()
 
     def has_mixed_content(self):
-        try:
-            return self.content_type.mixed
-        except AttributeError:
+        if not isinstance(self.content_type, XsdGroup):
             return False
+        elif self.content_type.is_empty():
+            return False
+        else:
+            return self.content_type.mixed
 
     def is_element_only(self):
-        try:
-            return not self.content_type.mixed
-        except AttributeError:
+        if not isinstance(self.content_type, XsdGroup):
             return False
+        elif self.content_type.is_empty():
+            return False
+        else:
+            return not self.content_type.mixed
 
     def is_list(self):
         return self.has_simple_content() and self.content_type.is_list()
