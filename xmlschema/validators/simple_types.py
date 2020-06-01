@@ -932,6 +932,9 @@ class XsdUnion(XsdSimpleType):
     def is_list(self):
         return all(mt.is_list() for mt in self.member_types)
 
+    def is_union(self):
+        return True
+
     def is_dynamic_consistent(self, other):
         return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
             other.is_derived(self) or isinstance(other, self.__class__) and \
@@ -1258,6 +1261,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def is_list(self):
         return self.primitive_type.is_list()
+
+    def is_union(self):
+        return self.primitive_type.is_union()
 
 
 class Xsd11AtomicRestriction(XsdAtomicRestriction):

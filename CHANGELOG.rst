@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.2.1`_ (2020-06-XX)
+======================
+* Fix W3C tests
+
 `v1.2.0`_ (2020-05-28)
 ======================
 * Add ColumnarConverter class
@@ -325,3 +329,4 @@ v0.9.6 (2017-05-05)
 .. _v1.1.2: https://github.com/brunato/xmlschema/compare/v1.1.1...v1.1.2
 .. _v1.1.3: https://github.com/brunato/xmlschema/compare/v1.1.2...v1.1.3
 .. _v1.2.0: https://github.com/brunato/xmlschema/compare/v1.1.3...v1.2.0
+.. _v1.2.1: https://github.com/brunato/xmlschema/compare/v1.2.0...v1.2.1

@@ -302,9 +302,17 @@ class XsdGlobals(XsdValidator):
 
         extended_name = qname_to_extended(type_name, namespaces)
         xsi_type = lookup_type(extended_name, self.types, self.validator.BUILDERS_MAP)
-        if not xsi_type.is_derived(base_type):
-            raise XMLSchemaTypeError("%r is not a derived type of %r" % (xsi_type, self))
-        return xsi_type
+        if xsi_type.is_derived(base_type):
+            return xsi_type
+        elif base_type.is_union():
+            try:
+                if xsi_type in base_type.primitive_type.member_types:
+                    return xsi_type
+            except AttributeError:
+                if xsi_type in base_type.member_types:
+                    return xsi_type
+
+        raise XMLSchemaTypeError("%r cannot substitute %r" % (xsi_type, base_type))
 
     @property
     def built(self):
