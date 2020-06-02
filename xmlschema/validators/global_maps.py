@@ -66,7 +66,7 @@ def create_load_function(tag):
                     schema.parse_error(msg.format(local_name(tag), qname))
 
         tags = Counter([x[0] for x in redefinitions])
-        for qname, elem, child, schema, redefined_schema in redefinitions:
+        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
 
             # Checks multiple redefinitions
             if tags[qname] > 1:
@@ -304,7 +304,9 @@ class XsdGlobals(XsdValidator):
         xsi_type = lookup_type(extended_name, self.types, self.validator.BUILDERS_MAP)
         if xsi_type.is_derived(base_type):
             return xsi_type
-        elif base_type.is_union():
+        elif base_type.is_union() and not base_type.facets:
+            # Can be valid only if the union doesn't have facets, see:
+            #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4065
             try:
                 if xsi_type in base_type.primitive_type.member_types:
                     return xsi_type
@@ -642,10 +644,13 @@ class XsdGlobals(XsdValidator):
         # Check redefined global groups restrictions
         for group in filter(lambda x: x.schema in schemas and x.redefine is not None,
                             self.groups.values()):
-            if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
-                    and not group.is_restriction(group.redefine):
-                msg = "the redefined group is an illegal restriction of the original group"
-                group.parse_error(msg, validation=validation)
+            while group.redefine is not None:
+                if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
+                        and not group.is_restriction(group.redefine):
+                    msg = "the redefined group is an illegal restriction of the original group"
+                    group.parse_error(msg, validation=validation)
+
+                group = group.redefine
 
         # Check complex content types models restrictions
         for xsd_global in filter(lambda x: x.schema in schemas, self.iter_globals()):
