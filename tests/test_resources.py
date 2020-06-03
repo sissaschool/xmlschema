@@ -398,7 +398,9 @@ class TestResources(unittest.TestCase):
         base_url = resource.base_url
 
         XMLResource(self.vh_xml_file, allow='local')
-        XMLResource(self.vh_xml_file, allow='sandbox')
+        XMLResource(
+            self.vh_xml_file, base_url=os.path.dirname(self.vh_xml_file), allow='sandbox'
+        )
 
         with self.assertRaises(XMLSchemaResourceError) as ctx:
             XMLResource(self.vh_xml_file, allow='remote')
@@ -413,6 +415,13 @@ class TestResources(unittest.TestCase):
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='sandbox')
         self.assertEqual(str(ctx.exception),
                          "block access to remote resource https://xmlschema.test/vehicles.xsd")
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            XMLResource("/tmp/vehicles.xsd", allow='sandbox')
+        self.assertEqual(
+            str(ctx.exception),
+            "block access to files out of sandbox requires 'base_url' to be set",
+        )
 
         with self.assertRaises(XMLSchemaResourceError) as ctx:
             XMLResource("/tmp/vehicles.xsd", base_url=base_url, allow='sandbox')
