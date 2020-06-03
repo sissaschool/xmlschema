@@ -81,8 +81,11 @@ SKIPPED_TESTS = {
 
     ##
     # Invalid that maybe valid because depends by implementation choices
+    #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
+    '../msData/schema/schG3.xml',
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
+    '../msData/schema/schG12.xml',
 
     ##
     # Indeterminate that depends by implementation choices
