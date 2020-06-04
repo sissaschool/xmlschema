@@ -423,10 +423,13 @@ class TestResources(unittest.TestCase):
             "block access to files out of sandbox requires 'base_url' to be set",
         )
 
+        source = "/tmp/vehicles.xsd"
         with self.assertRaises(XMLSchemaResourceError) as ctx:
-            XMLResource("/tmp/vehicles.xsd", base_url=base_url, allow='sandbox')
-        self.assertEqual(str(ctx.exception).replace('\\', '/'),
-                         "block access to out of sandbox file /tmp/vehicles.xsd")
+            XMLResource(source, base_url=base_url, allow='sandbox')
+        self.assertEqual(
+            str(ctx.exception),
+            "block access to out of sandbox file {}".format(normalize_url(source)),
+        )
 
         with self.assertRaises(TypeError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow=None)
