@@ -711,13 +711,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         return group
 
-    def create_empty_content_group(self, parent, model='sequence'):
+    def create_empty_content_group(self, parent, model='sequence', **attrib):
         if model == 'sequence':
-            group_elem = etree_element(XSD_SEQUENCE)
+            group_elem = etree_element(XSD_SEQUENCE, **attrib)
         elif model == 'choice':
-            group_elem = etree_element(XSD_CHOICE)
+            group_elem = etree_element(XSD_CHOICE, **attrib)
         elif model == 'all':
-            group_elem = etree_element(XSD_ALL)
+            group_elem = etree_element(XSD_ALL, **attrib)
         else:
             raise XMLSchemaValueError("'model' argument must be (sequence | choice | all)")
 
