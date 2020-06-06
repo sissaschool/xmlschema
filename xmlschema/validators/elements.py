@@ -401,6 +401,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def form(self):
         return self._form if self.ref is None else self.ref.form
 
+    @property
+    def predefined_value(self):
+        return self.fixed if self.fixed is not None else self.default
+
     def get_attribute(self, name):
         if name[0] != '{':
             return self.type.attributes[get_qname(self.type.target_namespace, name)]

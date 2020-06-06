@@ -205,6 +205,10 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def form(self):
         return get_xsd_form_attribute(self.elem, 'form')
 
+    @property
+    def predefined_value(self):
+        return self.fixed if self.fixed is not None else self.default
+
     def is_optional(self):
         return self.use == 'optional'
 

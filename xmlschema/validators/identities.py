@@ -164,11 +164,28 @@ class XsdIdentity(XsdComponent):
         for k, field in enumerate(self.fields):
             result = field.xpath_selector.select(elem)
             if not result:
+                if decoders is not None and decoders[k] is not None:
+                    value = decoders[k].predefined_value
+                    if value is not None:
+                        if decoders[k].type.root_type.name == XSD_QNAME:
+                            value = qname_to_extended(value, namespaces)
+
+                        if isinstance(value, list):
+                            fields.append(tuple(value))
+                        elif isinstance(value, (bool, float)):
+                            fields.append(tuple([value, type(value)]))
+                        else:
+                            fields.append(value)
+
+                        result.append(value)
+                        continue
+
                 if not isinstance(self, XsdKey) or 'ref' in elem.attrib and \
                         self.schema.meta_schema is None and self.schema.XSD_VERSION != '1.0':
                     fields.append(None)
                 else:
                     raise XMLSchemaValueError("%r key field must have a value!" % field)
+
             elif len(result) == 1:
                 if decoders is None or decoders[k] is None:
                     fields.append(result[0])
@@ -176,6 +193,7 @@ class XsdIdentity(XsdComponent):
                     value = decoders[k].data_value(result[0])
                     if decoders[k].type.root_type.name == XSD_QNAME:
                         value = qname_to_extended(value, namespaces)
+
                     if isinstance(value, list):
                         fields.append(tuple(value))
                     elif isinstance(value, (bool, float)):
@@ -184,6 +202,7 @@ class XsdIdentity(XsdComponent):
                         fields.append(value)
             else:
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
+
         return tuple(fields)
 
     def iter_values(self, elem, namespaces=None):
