@@ -38,6 +38,9 @@ sys.path.insert(0, os.path.abspath('..'))
 # ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest']
 
+# Option for autodoc: do not add module name as prefix to classes or functions.
+add_module_names = False
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

@@ -12,7 +12,7 @@ This module contains classes for other XML Schema identity constraints.
 """
 import re
 from collections import Counter
-from elementpath import Selector, XPath1Parser, ElementPathError
+from elementpath import Selector, XPath1Parser, XPath2Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
@@ -22,6 +22,11 @@ from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
+
+QNAME_PATTERN = re.compile(
+    r'(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
+    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)',
+)
 
 XSD_IDENTITY_XPATH_SYMBOLS = {
     'processing-instruction', 'following-sibling', 'preceding-sibling',
@@ -33,9 +38,9 @@ XSD_IDENTITY_XPATH_SYMBOLS = {
 }
 
 
-class XsdIdentityXPathParser(XPath1Parser):
+class XsdIdentityXPathParser(XPath2Parser):
     symbol_table = {
-        k: v for k, v in XPath1Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
+        k: v for k, v in XPath2Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
     }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
@@ -46,6 +51,7 @@ XsdIdentityXPathParser.build_tokenizer()
 class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
+    xpath_default_namespace = None
     pattern = re.compile(get_python_regex(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
@@ -61,16 +67,10 @@ class XsdSelector(XsdComponent):
             self.path = self.elem.attrib['xpath']
         except KeyError:
             self.parse_error("'xpath' attribute required:", self.elem)
-            self.path = "*"
+            self.path = '*'
         else:
             if not self.pattern.match(self.path.replace(' ', '')):
                 self.parse_error("Wrong XPath expression for an xs:selector")
-
-        try:
-            self.xpath_selector = Selector(self.path, self.namespaces, XsdIdentityXPathParser)
-        except ElementPathError as err:
-            self.parse_error(err)
-            self.xpath_selector = Selector('*', self.namespaces, XsdIdentityXPathParser)
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -79,12 +79,37 @@ class XsdSelector(XsdComponent):
             else:
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 
+        try:
+            self.xpath_selector = Selector(
+                path=self.path,
+                namespaces=self.namespaces,
+                parser=XsdIdentityXPathParser,
+                default_namespace=self.xpath_default_namespace or '',
+                compatibility_mode=True,
+            )
+        except ElementPathError as err:
+            self.parse_error(err)
+            self.xpath_selector = Selector('*', self.namespaces, XsdIdentityXPathParser)
+
     def __repr__(self):
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
 
     @property
     def built(self):
         return True
+
+    @property
+    def target_namespace(self):
+        if ':' in self.path:
+            match = QNAME_PATTERN.findall(self.path)
+            if match is not None:
+                prefix = match[0][0]
+                if prefix:
+                    return self.namespaces[prefix]
+                elif self.xpath_default_namespace:
+                    return self.xpath_default_namespace
+
+        return self.schema.target_namespace
 
 
 class XsdFieldSelector(XsdSelector):
@@ -149,7 +174,10 @@ class XsdIdentity(XsdComponent):
             self.parse_error("a reference cannot has child definitions")
 
     def iter_elements(self):
-        yield from self.parent.iterfind(self.selector.path, self.selector.namespaces)
+        yield from self.parent.iterfind(
+            path=self.selector.xpath_selector.path,
+            namespaces=self.selector.xpath_selector.namespaces
+        )
 
     def get_fields(self, elem, namespaces=None, decoders=None):
         """
@@ -182,6 +210,8 @@ class XsdIdentity(XsdComponent):
 
                 if not isinstance(self, XsdKey) or 'ref' in elem.attrib and \
                         self.schema.meta_schema is None and self.schema.XSD_VERSION != '1.0':
+                    fields.append(None)
+                elif field.target_namespace not in self.maps.namespaces:
                     fields.append(None)
                 else:
                     raise XMLSchemaValueError("%r key field must have a value!" % field)
@@ -396,7 +426,9 @@ class KeyrefCounter(IdentityCounter):
                 raise
         else:
             for v in filter(lambda x: x not in refer_values, self.counter):
-                if self.counter[v] > 1:
+                if len(v) == 1 and v[0] in refer_values:
+                    continue
+                elif self.counter[v] > 1:
                     msg = "Value {} not found for {!r} ({} times)"
                     yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
                 else:

@@ -193,7 +193,7 @@ class XsdGlobals(XsdValidator):
     """
     Mediator class for related XML schema instances. It stores the global
     declarations defined in the registered schemas. Register a schema to
-    add it's declarations to the global maps.
+    add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.

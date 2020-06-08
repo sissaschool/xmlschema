@@ -73,48 +73,50 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             else:
                 variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
 
-        self.parser = XPath2Parser(
-            namespaces=self.namespaces,
-            variables=variables,
-            strict=False,
-            default_namespace=self.xpath_default_namespace,
-            schema=XMLSchemaProxy(self.schema, self)
-        )
+        with self._xpath_lock:
+            self.parser = XPath2Parser(
+                namespaces=self.namespaces,
+                variables=variables,
+                strict=False,
+                default_namespace=self.xpath_default_namespace,
+                schema=XMLSchemaProxy(self.schema, self)
+            )
 
-        try:
-            self.token = self.parser.parse(self.path)
-        except ElementPathError as err:
-            self.parse_error(err, elem=self.elem)
-            self.token = self.parser.parse('true()')
-        finally:
-            self.parser.variables.clear()
+            try:
+                self.token = self.parser.parse(self.path)
+            except ElementPathError as err:
+                self.parse_error(err, elem=self.elem)
+                self.token = self.parser.parse('true()')
+            finally:
+                self.parser.variables.clear()
 
     def __call__(self, elem, value=None, source=None, namespaces=None, **kwargs):
-        if not self.parser.is_schema_bound():
-            self.parser.schema.bind_parser(self.parser)
+        with self._xpath_lock:
+            if not self.parser.is_schema_bound():
+                self.parser.schema.bind_parser(self.parser)
 
-        if value is not None:
-            variables = {'value': self.base_type.text_decode(value)}
-        else:
-            variables = {'value': ''}
+            if value is not None:
+                variables = {'value': self.base_type.text_decode(value)}
+            else:
+                variables = {'value': ''}
 
-        if source is None:
-            context = XPathContext(root=elem, variables=variables)
-        else:
-            context = XPathContext(root=source.root, item=elem, variables=variables)
+            if source is None:
+                context = XPathContext(root=elem, variables=variables)
+            else:
+                context = XPathContext(root=source.root, item=elem, variables=variables)
 
-        default_namespace = self.parser.namespaces['']
-        if namespaces and '' in namespaces:
-            self.parser.namespaces[''] = namespaces['']
+            default_namespace = self.parser.namespaces['']
+            if namespaces and '' in namespaces:
+                self.parser.namespaces[''] = namespaces['']
 
-        try:
-            if not self.token.evaluate(context.copy()):
-                msg = "expression is not true with test path %r."
-                yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
-        except ElementPathError as err:
-            yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
+            try:
+                if not self.token.evaluate(context.copy()):
+                    msg = "expression is not true with test path %r."
+                    yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
+            except ElementPathError as err:
+                yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
 
-        self.parser.namespaces[''] = default_namespace
+            self.parser.namespaces[''] = default_namespace
 
     # For implementing ElementPathMixin
     def __iter__(self):

@@ -743,7 +743,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     xsd_element.type = xsd_type
                     xsd_fields = constraint.get_fields(xsd_element)
 
-                if not any(fld is not None for fld in xsd_fields):
+                if all(fld is None for fld in xsd_fields):
                     continue
                 fields = constraint.get_fields(elem, namespaces, decoders=xsd_fields)
             except XMLSchemaValueError as err:
