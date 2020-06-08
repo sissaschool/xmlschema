@@ -377,13 +377,15 @@ class XMLResource(object):
             raise XMLSchemaResourceError("block access to local resource {}".format(url))
         elif is_remote_url(url):
             raise XMLSchemaResourceError("block access to remote resource {}".format(url))
-        elif self.allow == 'local' or self._base_url is None:
+        elif self.allow == 'local':
             return
         else:
-            path = os.path.normpath(os.path.normcase(urlsplit(url).path))
-            base_path = os.path.normpath(os.path.normcase(urlsplit(self._base_url).path))
-            if not path.startswith(base_path):
-                raise XMLSchemaResourceError("block access to out of sandbox file {}".format(path))
+            if self._base_url is None:
+                raise XMLSchemaResourceError(
+                    "block access to files out of sandbox requires 'base_url' to be set"
+                )
+            if not url.startswith(normalize_url(self._base_url)):
+                raise XMLSchemaResourceError("block access to out of sandbox file {}".format(url))
 
     def _fromsource(self, source):
         url = None
