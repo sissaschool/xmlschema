@@ -36,8 +36,8 @@ from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
-from ..resources import is_remote_url, url_path_is_file, normalize_locations, \
-    fetch_resource, update_prefix, XMLResource
+from ..resources import is_local_url, is_remote_url, url_path_is_file, normalize_locations, \
+    fetch_resource, update_prefix, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -300,6 +300,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             logger.setLevel(loglevel)
         elif build and global_maps is None:
             logger.setLevel(logging.WARNING)
+
+        if allow == 'sandbox' and base_url is None and is_local_url(source):
+            base_url = os.path.dirname(normalize_url(source))
 
         self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
         logger.debug("Read schema from %r", self.source)
@@ -903,17 +906,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         for xsd_global in self.iter_globals(self):
             yield from xsd_global.iter_components(xsd_classes)
 
-    def get_resource(self, source, **kwargs):
-        return XMLResource(
-            source=source,
-            base_url=kwargs.get('base_url'),
-            allow=kwargs.get('allow', self.allow),
-            defuse=kwargs.get('defuse', self.defuse),
-            timeout=kwargs.get('timeout', self.timeout),
-            lazy=kwargs.get('lazy', False)
-        )
-
     def get_schema(self, namespace):
+        """
+        Returns the first schema loaded for a namespace. Raises a
+        `KeyError` if the requested namespace is not loaded.
+        """
         try:
             return self.maps.namespaces[namespace][0]
         except KeyError:
@@ -1333,7 +1330,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         self.check_validator(validation='lax')
         if not isinstance(source, XMLResource):
-            source = self.get_resource(source)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
         if not schema_path:
             schema_path = source.get_absolute_path(path)
 
@@ -1488,7 +1485,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         self.check_validator(validation)
         if not isinstance(source, XMLResource):
-            source = self.get_resource(source, **kwargs)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
         if not schema_path and path:
             schema_path = source.get_absolute_path(path)
 

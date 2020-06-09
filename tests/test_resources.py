@@ -13,6 +13,7 @@
 import unittest
 import os
 import platform
+import warnings
 from io import StringIO
 from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
@@ -414,7 +415,7 @@ class TestResources(unittest.TestCase):
         with self.assertRaises(XMLSchemaResourceError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='sandbox')
         self.assertEqual(str(ctx.exception),
-                         "block access to remote resource https://xmlschema.test/vehicles.xsd")
+                         "block access to files out of sandbox requires 'base_url' to be set")
 
         with self.assertRaises(XMLSchemaResourceError) as ctx:
             XMLResource("/tmp/vehicles.xsd", allow='sandbox')
@@ -719,6 +720,49 @@ class TestResources(unittest.TestCase):
         self.assertIsInstance(vh_schema.root, etree_element)
         for schema in vh_schema.maps.iter_schemas():
             self.assertIsInstance(schema.root, etree_element)
+
+    def test_schema_resource_access(self):
+        vh_schema = self.schema_class(self.vh_xsd_file, allow='sandbox')
+        self.assertTrue(isinstance(vh_schema, self.schema_class))
+
+        xsd_source = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                xmlns:vh="http://example.com/vehicles">
+            <xs:import namespace="http://example.com/vehicles" schemaLocation="{}"/>
+        </xs:schema>""".format(self.vh_xsd_file)
+
+        schema = self.schema_class(xsd_source, allow='all')
+        self.assertTrue(isinstance(schema, self.schema_class))
+        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
+        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            self.schema_class(xsd_source, allow='remote')
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("block access to local resource", str(ctx[0].message))
+
+        schema = self.schema_class(xsd_source, allow='local')
+        self.assertTrue(isinstance(schema, self.schema_class))
+        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
+        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+
+        with self.assertRaises(XMLSchemaResourceError) as ctx:
+            self.schema_class(xsd_source, allow='sandbox')
+        self.assertIn("block access to files out of sandbox", str(ctx.exception))
+
+        schema = self.schema_class(
+            xsd_source, base_url=os.path.dirname(self.vh_xsd_file), allow='all'
+        )
+        self.assertTrue(isinstance(schema, self.schema_class))
+        self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
+        self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
+
+        with warnings.catch_warnings(record=True) as ctx:
+            warnings.simplefilter("always")
+            self.schema_class(xsd_source, base_url='/tmp', allow='sandbox')
+            self.assertEqual(len(ctx), 1, "Expected one import warning")
+            self.assertIn("block access to out of sandbox", str(ctx[0].message))
 
     def test_fid_with_name_attr(self):
         """XMLResource gets correct data when passed a file like object

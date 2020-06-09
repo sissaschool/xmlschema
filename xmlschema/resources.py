@@ -41,16 +41,40 @@ class XmlResourceXPathParser(XPath1Parser):
 XmlResourceXPathParser.build_tokenizer()
 
 
+###
+# Internal helper functions
+
+def is_url(obj):
+    """
+    Checks if and object can be an URL, restricting to strings that cannot be XML data.
+    """
+    if not isinstance(obj, (str, bytes)):
+        return False
+    elif '\n' in obj or obj.lstrip().startswith('<'):
+        return False
+
+    try:
+        urlsplit(obj)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
 def is_remote_url(url):
-    return isinstance(url, str) and urlsplit(url).scheme not in ('', 'file')
+    return is_url(url) and urlsplit(url).scheme not in ('', 'file')
+
+
+def is_local_url(url):
+    return is_url(url) and urlsplit(url).scheme in ('', 'file')
 
 
 def url_path_is_directory(url):
-    return os.path.isdir(urlsplit(url).path)
+    return is_local_url(url) and os.path.isdir(urlsplit(url).path)
 
 
 def url_path_is_file(url):
-    return os.path.isfile(urlsplit(url).path)
+    return is_local_url(url) and os.path.isfile(urlsplit(url).path)
 
 
 def update_prefix(namespaces, prefix, uri):
@@ -343,6 +367,10 @@ class XMLResource(object):
             elif value not in SECURITY_MODES:
                 msg = "'allow' attribute: {!r} is not a security mode"
                 raise XMLSchemaValueError(msg.format(value))
+            elif value == 'sandbox' and self._base_url is None:
+                raise XMLSchemaResourceError(
+                    "block access to files out of sandbox requires 'base_url' to be set"
+                )
         elif name == 'defuse':
             if not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'defuse'"
@@ -372,26 +400,28 @@ class XMLResource(object):
         if self.allow == 'all':
             return
         elif self.allow == 'remote':
-            if is_remote_url(url):
-                return
-            raise XMLSchemaResourceError("block access to local resource {}".format(url))
+            if is_local_url(url):
+                raise XMLSchemaResourceError("block access to local resource {}".format(url))
         elif is_remote_url(url):
             raise XMLSchemaResourceError("block access to remote resource {}".format(url))
-        elif self.allow == 'local':
-            return
-        else:
-            if self._base_url is None:
-                raise XMLSchemaResourceError(
-                    "block access to files out of sandbox requires 'base_url' to be set"
-                )
+        elif self.allow == 'sandbox':
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLSchemaResourceError("block access to out of sandbox file {}".format(url))
 
     def _fromsource(self, source):
-        url = None
-        if hasattr(source, 'tag') and hasattr(source, 'attrib'):
-            self._lazy = False
-            return source, None, None  # Source is already an Element --> nothing to load
+        if is_url(source):
+            url = normalize_url(source)
+            self._access_control(url)
+            _url, self._url = self._url, url
+            try:
+                with urlopen(url, timeout=self.timeout) as resource:
+                    if self._lazy:
+                        for _, root in self.iterparse(resource, events=('start',)):
+                            return root, None, url
+                    else:
+                        return self.parse(resource).getroot(), None, url
+            finally:
+                self._url = _url
 
         elif isinstance(source, str):
             _url, self._url = self._url, None
@@ -402,10 +432,6 @@ class XMLResource(object):
                         return root, source, None
                 else:
                     return self.fromstring(source), source, None
-            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-                if '\n' in source or source.lstrip().startswith('<'):
-                    raise
-                url = normalize_url(source)
             finally:
                 self._url = _url
 
@@ -426,8 +452,10 @@ class XMLResource(object):
                 if is_remote_url(source.url):
                     url = source.url
                     self._access_control(url)
+                else:
+                    url = None
             except AttributeError:
-                pass
+                url = None
 
             _url, self._url = self._url, url
             try:
@@ -438,6 +466,10 @@ class XMLResource(object):
                     return self.parse(source).getroot(), None, url
             finally:
                 self._url = _url
+
+        elif hasattr(source, 'tag') and hasattr(source, 'attrib'):
+            self._lazy = False
+            return source, None, None  # Source is already an Element --> nothing to load
 
         else:
             # Try ElementTree object at last
@@ -450,24 +482,11 @@ class XMLResource(object):
                     self._lazy = False
                     return root, None, None
 
-        if url is None:
             raise XMLSchemaTypeError(
                 "wrong type %r for 'source' attribute: an ElementTree object or "
                 "an Element instance or a string containing XML data or an URL "
                 "or a file-like object is required." % type(source)
             )
-        else:
-            self._access_control(url)
-            _url, self._url = self._url, url
-            try:
-                with urlopen(url, timeout=self.timeout) as resource:
-                    if self._lazy:
-                        for _, root in self.iterparse(resource, events=('start',)):
-                            return root, None, url
-                    else:
-                        return self.parse(resource).getroot(), None, url
-            finally:
-                self._url = _url
 
     @property
     def root(self):
