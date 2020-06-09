@@ -11,7 +11,6 @@
 This module contains converter classes and definitions.
 """
 from collections import namedtuple
-import string
 
 from .compat import ordered_dict_class
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -38,9 +37,11 @@ class XMLSchemaConverter(NamespaceMapper):
     decoded XML data for an Element into a data structure and to build an Element
     from encoded data structure. There are two methods for interfacing the
     converter with the decoding/encoding process. The method *element_decode*
-    accepts ElementData instance, containing the element parts, and returns
-    a data structure. The method *element_encode* accepts a data structure
-    and returns an ElementData that can be
+    accepts an ElementData tuple, containing the element parts, and returns
+    a data structure. The method *element_encode* accepts a data structure and
+    returns an ElementData tuple. For default character data parts are ignored.
+    Prefixes and text key can be changed also using alphanumeric values but
+    ambiguities with schema elements could affect XML data re-encoding.
 
     :param namespaces: map from namespace prefixes to URI.
     :param dict_class: dictionary class to use for decoded data. Default is `dict`.
@@ -112,14 +113,9 @@ class XMLSchemaConverter(NamespaceMapper):
 
     def __setattr__(self, name, value):
         if name in {'attr_prefix', 'text_key', 'cdata_prefix'}:
-            if value is None:
-                pass
-            elif not isinstance(value, str):
+            if value is not None and not isinstance(value, str):
                 msg = '{} must be a str or None, not {}'
                 raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
-            elif any(c in string.ascii_letters or c == '_' for c in value):
-                msg = '{} cannot includes letters or underscores: {!r}'
-                raise XMLSchemaValueError(msg.format(name, value))
 
             if name == 'attr_prefix':
                 self.ns_prefix = (value or '') + 'xmlns'
@@ -139,7 +135,7 @@ class XMLSchemaConverter(NamespaceMapper):
     @property
     def lossy(self):
         """The converter ignores some kind of XML data during decoding/encoding."""
-        return not self.cdata_prefix or not self.text_key or not self.attr_prefix
+        return self.cdata_prefix is None or self.text_key is None or self.attr_prefix is None
 
     @property
     def losslessly(self):
@@ -334,10 +330,11 @@ class XMLSchemaConverter(NamespaceMapper):
         attributes = {}
 
         for name, value in obj.items():
-            if name == self.text_key and self.text_key:
+            if name == self.text_key:
                 text = value
-            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
-                    name[0].isdigit() and self.cdata_prefix == '':
+            elif self.cdata_prefix is not None and \
+                    name.startswith(self.cdata_prefix) and \
+                    name[len(self.cdata_prefix):].isdigit():
                 index = int(name[len(self.cdata_prefix):])
                 content.append((index, value))
             elif name == self.ns_prefix:
@@ -345,7 +342,9 @@ class XMLSchemaConverter(NamespaceMapper):
             elif name.startswith('%s:' % self.ns_prefix):
                 if not self.strip_namespaces:
                     self[name[len(self.ns_prefix) + 1:]] = value
-            elif self.attr_prefix and name.startswith(self.attr_prefix):
+            elif self.attr_prefix and \
+                    name.startswith(self.attr_prefix) and \
+                    name != self.attr_prefix:
                 attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
@@ -427,17 +426,20 @@ class UnorderedConverter(XMLSchemaConverter):
         content_lu = {}
 
         for name, value in obj.items():
-            if name == self.text_key and self.text_key:
+            if name == self.text_key:
                 text = value
-            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
-                    name[0].isdigit() and self.cdata_prefix == '':
+            elif self.cdata_prefix is not None and \
+                    name.startswith(self.cdata_prefix) and \
+                    name[len(self.cdata_prefix):].isdigit():
                 index = int(name[len(self.cdata_prefix):])
                 content_lu[index] = value
             elif name == self.ns_prefix:
                 self[''] = value
             elif name.startswith('%s:' % self.ns_prefix):
                 self[name[len(self.ns_prefix) + 1:]] = value
-            elif self.attr_prefix and name.startswith(self.attr_prefix):
+            elif self.attr_prefix and \
+                    name.startswith(self.attr_prefix) and \
+                    name != self.attr_prefix:
                 attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
@@ -615,7 +617,7 @@ class BadgerFishConverter(XMLSchemaConverter):
 
         if xsd_type.is_simple() or xsd_type.has_simple_content():
             if data.text is not None and data.text != '':
-                result_dict[self.text_key] = data.text
+                result_dict['$'] = data.text
         else:
             has_single_group = xsd_type.content_type.is_single()
             list_types = list if self.list is list else (self.list, list)
@@ -682,14 +684,12 @@ class BadgerFishConverter(XMLSchemaConverter):
         for name, value in element_data.items():
             if name == '@xmlns':
                 continue
-            elif name == self.text_key and self.text_key:
-                text = element_data[self.text_key]
-            elif (self.cdata_prefix and name.startswith(self.cdata_prefix)) or \
-                    name[0].isdigit() and self.cdata_prefix == '':
-                index = int(name[len(self.cdata_prefix):])
-                content.append((index, value))
-            elif self.attr_prefix and name.startswith(self.attr_prefix):
-                attr_name = name[len(self.attr_prefix):]
+            elif name == '$':
+                text = value
+            elif name[0] == '$' and name[1:].isdigit():
+                content.append((int(name[1:]), value))
+            elif name[0] == '@':
+                attr_name = name[1:]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
             elif not isinstance(value, (self.list, list)) or not value:
@@ -709,15 +709,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                             content.extend((ns_name, item) for item in value)
                         break
                 else:
-                    if self.attr_prefix == '' and ns_name not in attributes:
-                        for xsd_attribute in xsd_element.attributes.values():
-                            if xsd_attribute.is_matching(ns_name):
-                                attributes[ns_name] = value
-                                break
-                        else:
-                            content.append((ns_name, value))
-                    else:
-                        content.append((ns_name, value))
+                    content.append((ns_name, value))
 
         return ElementData(tag, text, content, attributes)
 

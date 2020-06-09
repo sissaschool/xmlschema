@@ -50,8 +50,14 @@ class TestConverters(unittest.TestCase):
         converter = XMLSchemaConverter(attr_prefix='%')
         self.assertEqual(converter.attr_prefix, '%')
 
-        with self.assertRaises(ValueError):
-            XMLSchemaConverter(attr_prefix='_')
+        converter = XMLSchemaConverter(attr_prefix='_')
+        self.assertEqual(converter.attr_prefix, '_')
+
+        converter = XMLSchemaConverter(attr_prefix='attribute__')
+        self.assertEqual(converter.attr_prefix, 'attribute__')
+
+        converter = XMLSchemaConverter(text_key='text__')
+        self.assertEqual(converter.text_key, 'text__')
 
     def test_strip_namespace_argument(self):
         # Test for issue #161
