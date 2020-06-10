@@ -605,14 +605,26 @@ class XsdAtomicBuiltin(XsdAtomic):
             except KeyError:
                 pass
             else:
-                xsd_element = kwargs.get('element')
-                if not id_map[obj]:
-                    id_map[obj] = 1
-                    if xsd_element is not None:
-                        id_map[(xsd_element, obj)] = 1
-                elif xsd_element is None or (xsd_element, obj) not in id_map:
-                    reason = "Duplicated xs:ID value {!r}".format(obj)
-                    yield self.validation_error(validation, error=reason, obj=obj)
+                try:
+                    id_list = kwargs['id_list']
+                except KeyError:
+                    if not id_map[obj]:
+                        id_map[obj] = 1
+                    else:
+                        reason = "Duplicated xs:ID value {!r}".format(obj)
+                        yield self.validation_error(validation, error=reason, obj=obj)
+                else:
+                    if not id_map[obj]:
+                        id_map[obj] = 1
+                        id_list.append(obj)
+                        if len(id_list) > 1 and self.xsd_version == '1.0':
+                            reason = "No more than one attribute of type ID should " \
+                                     "be present in an element"
+                            yield self.validation_error(validation, reason, obj, **kwargs)
+
+                    elif obj not in id_list or self.xsd_version == '1.0':
+                        reason = "Duplicated xs:ID value {!r}".format(obj)
+                        yield self.validation_error(validation, error=reason, obj=obj)
 
         yield result
 
@@ -931,6 +943,9 @@ class XsdUnion(XsdSimpleType):
 
     def is_list(self):
         return all(mt.is_list() for mt in self.member_types)
+
+    def is_union(self):
+        return True
 
     def is_dynamic_consistent(self, other):
         return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
@@ -1258,6 +1273,9 @@ class XsdAtomicRestriction(XsdAtomic):
 
     def is_list(self):
         return self.primitive_type.is_list()
+
+    def is_union(self):
+        return self.primitive_type.is_union()
 
 
 class Xsd11AtomicRestriction(XsdAtomicRestriction):

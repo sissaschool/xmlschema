@@ -402,7 +402,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                     self.content_type = self.schema.create_empty_content_group(self)
                 else:
                     self.content_type = self.schema.create_empty_content_group(
-                        parent=self, model=base_type.content_type.model
+                        parent=self, elem=base_type.content_type.elem
                     )
             elif base_type.mixed:
                 # Empty mixed model extension
@@ -770,10 +770,21 @@ class Xsd11ComplexType(XsdComplexType):
                     self.content_type = self.schema.BUILDERS.group_class(
                         group_elem, self.schema, self
                     )
+                elif base_type.content_type.max_occurs is None:
+                    self.content_type = self.schema.create_empty_content_group(
+                        parent=self,
+                        model=base_type.content_type.model,
+                        minOccurs=str(base_type.content_type.min_occurs),
+                        maxOccurs='unbounded',
+                    )
                 else:
                     self.content_type = self.schema.create_empty_content_group(
-                        parent=self, model=base_type.content_type.model
+                        parent=self,
+                        model=base_type.content_type.model,
+                        minOccurs=str(base_type.content_type.min_occurs),
+                        maxOccurs=str(base_type.content_type.max_occurs),
                     )
+
             elif base_type.mixed:
                 # Empty mixed model extension
                 self.content_type = self.schema.create_empty_content_group(self)

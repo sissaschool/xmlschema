@@ -137,6 +137,36 @@ class TestXsdRegexCharGroup(unittest.TestCase):
     def test_char_group_split(self):
         self.assertListEqual(XsdRegexCharGroup._re_char_group.split(r'2-\\'), [r'2-\\'])
 
+    def test_complement(self):
+        char_group = XsdRegexCharGroup('a-z')
+        char_group.complement()
+        self.assertEqual(str(char_group), '[^a-z]')
+
+    def test_isub_operator(self):
+        char_group = XsdRegexCharGroup('A-Za-z')
+        char_group -= XsdRegexCharGroup('a-z')
+        self.assertEqual(str(char_group), '[A-Z]')
+
+        char_group = XsdRegexCharGroup('a-z')
+        other = XsdRegexCharGroup('A-Za-c')
+        other.complement()
+        char_group -= other
+        self.assertEqual(str(char_group), '[a-c]')
+
+        char_group = XsdRegexCharGroup('a-z')
+        other = XsdRegexCharGroup('A-Za-c')
+        other.complement()
+        other.add('b')
+        char_group -= other
+        self.assertEqual(str(char_group), '[ac]')
+
+        char_group = XsdRegexCharGroup('a-c')
+        char_group.complement()
+        other = XsdRegexCharGroup('a-z')
+        other.complement()
+        char_group -= other
+        self.assertEqual(str(char_group), '[d-z]')
+
 
 class TestUnicodeCategories(unittest.TestCase):
     """
@@ -398,6 +428,19 @@ class TestPatterns(unittest.TestCase):
     def test_character_class_range(self):
         regex = get_python_regex('[bc-]')
         self.assertEqual(regex, r'^([\-bc])$')
+
+    def test_character_class_subtraction(self):
+        regex = get_python_regex('[a-z-[aeiuo]]')
+        self.assertEqual(regex, '^([b-df-hj-np-tv-z])$')
+
+        # W3C XSD 1.1 test group RegexTest_422
+        regex = get_python_regex('[^0-9-[a-zAE-Z]]')
+        self.assertEqual(regex, '^([^0-9AE-Za-z])$')
+
+        regex = get_python_regex(r'([^0-9-[a-zAE-Z]]|[\w-[a-zAF-Z]])+')
+        pattern = re.compile(regex)
+        self.assertIsNone(pattern.search('azBCDE1234567890BCDEFza'))
+        self.assertEqual(pattern.search('BCD').group(0), 'BCD')
 
 
 if __name__ == '__main__':

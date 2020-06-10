@@ -89,7 +89,7 @@ class XsdRegexCharGroup(MutableSet):
     _re_char_group = re.compile(r'(?<!.-)(\\[nrt|.\-^?*+{}()\]sSdDiIcCwW]|\\[pP]{[a-zA-Z\-0-9]+})')
     _re_unicode_ref = re.compile(r'\\([pP]){([\w\d-]+)}')
 
-    def __init__(self, xsd_version='1.0', *args):
+    def __init__(self, *args, xsd_version='1.0'):
         self.xsd_version = xsd_version
         self.positive = UnicodeSubset()
         self.negative = UnicodeSubset()
@@ -125,12 +125,14 @@ class XsdRegexCharGroup(MutableSet):
     def __len__(self):
         return len(self.positive) + len(self.negative)
 
-    # Operators override
+    # TODO: implementation of __ior__, __iand__, __ixor__ operators
+    #       to have a full mutable set class.
     def __isub__(self, other):
         if self.negative:
-            self.positive |= (other.negative - self.negative)
             if other.negative:
+                self.positive |= (other.negative - self.negative)
                 self.negative.clear()
+            self.negative |= other.positive
         elif other.negative:
             self.positive &= other.negative
         self.positive -= other.positive
@@ -237,7 +239,7 @@ def parse_character_class(xml_regex, class_pos, xsd_version='1.0'):
                     "invalid character range '--' at position %d: %r" % (class_pos, xml_regex)
                 )
 
-            char_group = XsdRegexCharGroup(xsd_version, xml_regex[group_pos:pos])
+            char_group = XsdRegexCharGroup(xml_regex[group_pos:pos], xsd_version=xsd_version)
             if negative:
                 char_group.complement()
             break

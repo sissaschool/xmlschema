@@ -173,7 +173,7 @@ class ElementPathMixin(Sequence):
     tail = None
     attributes = {}
     namespaces = {}
-    xpath_default_namespace = None
+    xpath_default_namespace = ''
 
     _xpath_parser = None  # Internal XPath 2.0 parser, instantiated at first use.
 

@@ -37,7 +37,7 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.2.0',
+    version='1.2.1',
     packages=['xmlschema'],
     include_package_data=True,
     entry_points={
@@ -47,10 +47,10 @@ setup(
             'xmlschema-json2xml=xmlschema.cli:json2xml',
         ]
     },
-    setup_requires=['elementpath~=1.4.0'],
-    install_requires=['elementpath~=1.4.0'],
+    setup_requires=['elementpath~=1.4'],
+    install_requires=['elementpath~=1.4'],
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=1.4.0',
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=1.4',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme']
     },
     cmdclass={

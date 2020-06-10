@@ -310,10 +310,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return model == 'choice' or len(self.ref or self) <= 1
 
     def is_empty(self):
-        return not self.mixed and not self
+        return not self.mixed and not self._group
 
     def is_restriction(self, other, check_occurs=True):
-        if not self:
+        if not self._group:
             return True
         elif not isinstance(other, ParticleMixin):
             raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)
@@ -569,6 +569,12 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         """
         result_list = []
         cdata_index = 1  # keys for CDATA sections are positive integers
+
+        if not self._group and self.model == 'choice' and self.min_occurs:
+            reason = "an empty 'choice' group with minOccurs > 0 cannot validate any content"
+            yield self.validation_error(validation, reason, elem, **kwargs)
+            yield result_list
+            return
 
         if not self.mixed:
             # Check element CDATA
@@ -894,7 +900,7 @@ class Xsd11Group(XsdGroup):
             return model == 'choice' or len(self.ref or self) <= 1
 
     def is_restriction(self, other, check_occurs=True):
-        if not self:
+        if not self._group:
             return True
         elif not isinstance(other, ParticleMixin):
             raise XMLSchemaValueError("the argument 'base' must be a %r instance" % ParticleMixin)

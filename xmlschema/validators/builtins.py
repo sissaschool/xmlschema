@@ -94,17 +94,17 @@ def byte_validator(x):
 
 def short_validator(x):
     if not (-2**15 <= x < 2**15):
-        yield XMLSchemaValidationError(short_validator, x, "value must be -2^16 <= x < 2^16.")
+        yield XMLSchemaValidationError(short_validator, x, "value must be -2^15 <= x < 2^15.")
 
 
 def int_validator(x):
     if not (-2**31 <= x < 2**31):
-        yield XMLSchemaValidationError(int_validator, x, "value must be -2^63 <= x < 2^63.")
+        yield XMLSchemaValidationError(int_validator, x, "value must be -2^31 <= x < 2^31.")
 
 
 def long_validator(x):
     if not (-2**63 <= x < 2**63):
-        yield XMLSchemaValidationError(long_validator, x, "value must be -2^127 <= x < 2^127.")
+        yield XMLSchemaValidationError(long_validator, x, "value must be -2^63 <= x < 2^63.")
 
 
 def unsigned_byte_validator(x):
@@ -114,17 +114,17 @@ def unsigned_byte_validator(x):
 
 def unsigned_short_validator(x):
     if not (0 <= x < 2**16):
-        yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^32.")
+        yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^16.")
 
 
 def unsigned_int_validator(x):
     if not (0 <= x < 2**32):
-        yield XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^64.")
+        yield XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^32.")
 
 
 def unsigned_long_validator(x):
     if not (0 <= x < 2**64):
-        yield XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^128.")
+        yield XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^64.")
 
 
 def negative_int_validator(x):

@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import elementpath
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
@@ -61,60 +62,68 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def built(self):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
-    def parse_xpath_test(self):
-        # FIXME: parser's variables filled with XSD type with next elementpath minor release
+    def build(self):
         if not self.base_type.has_simple_content():
-            variables = {'value': XSD_BUILTIN_TYPES['anyType'].value}
+            builtin_type = XSD_BUILTIN_TYPES['anyType']
         else:
             try:
                 builtin_type_name = self.base_type.content_type.primitive_type.local_name
             except AttributeError:
-                variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
+                builtin_type = XSD_BUILTIN_TYPES['anySimpleType']
             else:
-                variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
+                builtin_type = XSD_BUILTIN_TYPES[builtin_type_name]
 
-        self.parser = XPath2Parser(
-            namespaces=self.namespaces,
-            variables=variables,
-            strict=False,
-            default_namespace=self.xpath_default_namespace,
-            schema=XMLSchemaProxy(self.schema, self)
-        )
+        # Patch for compatibility with next elementpath minor release (v1.5)
+        # where parser variables will be filled with types.
+        if elementpath.__version__.startswith('1.4.'):
+            variables = {'value': builtin_type.value}
+        else:
+            variables = {'value': builtin_type}
 
-        try:
-            self.token = self.parser.parse(self.path)
-        except ElementPathError as err:
-            self.parse_error(err, elem=self.elem)
-            self.token = self.parser.parse('true()')
-        finally:
-            self.parser.variables.clear()
+        with self._xpath_lock:
+            self.parser = XPath2Parser(
+                namespaces=self.namespaces,
+                variables=variables,
+                strict=False,
+                default_namespace=self.xpath_default_namespace,
+                schema=XMLSchemaProxy(self.schema, self)
+            )
+
+            try:
+                self.token = self.parser.parse(self.path)
+            except ElementPathError as err:
+                self.parse_error(err, elem=self.elem)
+                self.token = self.parser.parse('true()')
+            finally:
+                self.parser.variables.clear()
 
     def __call__(self, elem, value=None, source=None, namespaces=None, **kwargs):
-        if not self.parser.is_schema_bound():
-            self.parser.schema.bind_parser(self.parser)
+        with self._xpath_lock:
+            if not self.parser.is_schema_bound():
+                self.parser.schema.bind_parser(self.parser)
 
-        if value is not None:
-            variables = {'value': self.base_type.text_decode(value)}
-        else:
-            variables = {'value': ''}
+            if value is not None:
+                variables = {'value': self.base_type.text_decode(value)}
+            else:
+                variables = {'value': ''}
 
-        if source is None:
-            context = XPathContext(root=elem, variables=variables)
-        else:
-            context = XPathContext(root=source.root, item=elem, variables=variables)
+            if source is None:
+                context = XPathContext(root=elem, variables=variables)
+            else:
+                context = XPathContext(root=source.root, item=elem, variables=variables)
 
-        default_namespace = self.parser.namespaces['']
-        if namespaces and '' in namespaces:
-            self.parser.namespaces[''] = namespaces['']
+            default_namespace = self.parser.namespaces['']
+            if namespaces and '' in namespaces:
+                self.parser.namespaces[''] = namespaces['']
 
-        try:
-            if not self.token.evaluate(context.copy()):
-                msg = "expression is not true with test path %r."
-                yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
-        except ElementPathError as err:
-            yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
+            try:
+                if not self.token.evaluate(context.copy()):
+                    msg = "expression is not true with test path %r."
+                    yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
+            except ElementPathError as err:
+                yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
 
-        self.parser.namespaces[''] = default_namespace
+            self.parser.namespaces[''] = default_namespace
 
     # For implementing ElementPathMixin
     def __iter__(self):

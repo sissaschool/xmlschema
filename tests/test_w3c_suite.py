@@ -81,8 +81,11 @@ SKIPPED_TESTS = {
 
     ##
     # Invalid that maybe valid because depends by implementation choices
+    #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
+    '../msData/schema/schG3.xml',
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
+    '../msData/schema/schG12.xml',
 
     ##
     # Indeterminate that depends by implementation choices
@@ -161,13 +164,19 @@ SKIPPED_TESTS = {
 
     ##
     # Skip for missing XML version 1.1 implementation
-    '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
-    '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
-    '../saxonData/XmlVersions/xv005.v01.xml',   # 14854
-    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in 1.1)
-    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in 1.1)
-    '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
-    '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
+    '../saxonData/XmlVersions/xv001.v01.xml',  # 14850
+    '../saxonData/XmlVersions/xv003.v01.xml',  # 14852
+    '../saxonData/XmlVersions/xv005.v01.xml',  # 14854
+    '../saxonData/XmlVersions/xv006.v01.xml',  # 14855 invalid character &#x07 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv006.n02.xml',  # 14855 invalid character &#x10000 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv007.v01.xml',  # 14856
+    '../saxonData/XmlVersions/xv008.v01.xml',  # 14857
+    '../saxonData/XmlVersions/xv008.n01.xml',
+    '../saxonData/XmlVersions/xv009.v02.xml',  # 14858
+    '../saxonData/XmlVersions/xv009.n02.xml',
+    '../saxonData/XmlVersions/xv009.n03.xml',
+    '../saxonData/XmlVersions/xv100.i.xml',    # 14859
+    '../saxonData/XmlVersions/xv100.c.xml',    # 14860
 
     ##
     # Skip for TODO
@@ -193,9 +202,20 @@ XSD11_SKIPPED_TESTS = {
     '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
     '../saxonData/Wild/wild069.xsd',  # Maybe inverted?
 
-    # TODO: schema tests
+    # TODO: invalid schema cases
     '../saxonData/CTA/cta9005err.xsd',  # 14549: Type alternative using an inherited attribute
     '../saxonData/CTA/cta9008err.xsd',  # 14552: Type alternative using an inherited attribute
+
+    # TODO: Parse ENTITY declarations in DOCTYPE before enforce checking
+    '../saxonData/Id/id017.n01.xml',     # 14571-14575
+    '../saxonData/Id/id018.n01.xml',
+    '../saxonData/Id/id018.n02.xml',
+    '../saxonData/Id/id019.n01.xml',
+    '../saxonData/Id/id019.n02.xml',
+    '../saxonData/Id/id020.n01.xml',
+    '../saxonData/Id/id020.n02.xml',
+    '../saxonData/Id/id021.n01.xml',
+    '../saxonData/Id/id021.n02.xml',
 }
 
 DO_NOT_USE_META_SCHEMA = {

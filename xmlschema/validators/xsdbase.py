@@ -646,6 +646,11 @@ class XsdType(XsdComponent):
         return False
 
     @staticmethod
+    def is_union():
+        """Returns `True` if the instance is a union simpleType, `False` otherwise."""
+        return False
+
+    @staticmethod
     def is_datetime():
         """
         Returns `True` if the instance is a datetime/duration XSD builtin-type, `False` otherwise.

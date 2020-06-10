@@ -23,8 +23,7 @@ from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, 
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
-    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, Xsd11Element, \
-    XsdIdentity, XsdKeyref, XsdAssert
+    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -66,7 +65,7 @@ def create_load_function(tag):
                     schema.parse_error(msg.format(local_name(tag), qname))
 
         tags = Counter([x[0] for x in redefinitions])
-        for qname, elem, child, schema, redefined_schema in redefinitions:
+        for qname, elem, child, schema, redefined_schema in reversed(redefinitions):
 
             # Checks multiple redefinitions
             if tags[qname] > 1:
@@ -193,7 +192,7 @@ class XsdGlobals(XsdValidator):
     """
     Mediator class for related XML schema instances. It stores the global
     declarations defined in the registered schemas. Register a schema to
-    add it's declarations to the global maps.
+    add its declarations to the global maps.
 
     :param validator: the origin schema class/instance used for creating the global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
@@ -302,9 +301,19 @@ class XsdGlobals(XsdValidator):
 
         extended_name = qname_to_extended(type_name, namespaces)
         xsi_type = lookup_type(extended_name, self.types, self.validator.BUILDERS_MAP)
-        if not xsi_type.is_derived(base_type):
-            raise XMLSchemaTypeError("%r is not a derived type of %r" % (xsi_type, self))
-        return xsi_type
+        if xsi_type.is_derived(base_type):
+            return xsi_type
+        elif base_type.is_union() and not base_type.facets:
+            # Can be valid only if the union doesn't have facets, see:
+            #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4065
+            try:
+                if xsi_type in base_type.primitive_type.member_types:
+                    return xsi_type
+            except AttributeError:
+                if xsi_type in base_type.member_types:
+                    return xsi_type
+
+        raise XMLSchemaTypeError("%r cannot substitute %r" % (xsi_type, base_type))
 
     @property
     def built(self):
@@ -564,47 +573,15 @@ class XsdGlobals(XsdValidator):
         for qname in self.groups:
             self.lookup_group(qname)
 
-        # Builds element declarations inside model groups.
+        # Build element declarations inside model groups.
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
                 group.build()
 
-        # Builds xs:keyref's key references
-        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.identities.values()):
-            constraint.parse_refer()
-
-        # Build XSD 1.1 identity references and assertions
-        if self.xsd_version != '1.0':
-            for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
-                for e in schema.iter_components(Xsd11Element):
-                    for constraint in filter(lambda x: x.ref is not None, e.identities.values()):
-                        try:
-                            ref = self.identities[constraint.name]
-                        except KeyError:
-                            schema.parse_error(
-                                "Unknown %r constraint %r" % (type(constraint), constraint.name)
-                            )
-                        else:
-                            constraint.selector = ref.selector
-                            constraint.fields = ref.fields
-                            if not isinstance(ref, constraint.__class__):
-                                constraint.parse_error(
-                                    "attribute 'ref' points to a different kind constraint"
-                                )
-                            elif isinstance(constraint, XsdKeyref):
-                                constraint.refer = ref.refer
-                            constraint.ref = ref
-
-                for assertion in schema.iter_components(XsdAssert):
-                    assertion.parse_xpath_test()
-
-        # Builds _identities list on selected elements for speed-up
-        # instance validation and for a full lazy validation.
+        # Build identity references and XSD 1.1 assertions
         for schema in not_built_schemas:
-            for constraint in schema.iter_components(XsdIdentity):
-                constraint.elements = {
-                    e for e in constraint.iter_elements() if isinstance(e, XsdElement)
-                }
+            for obj in schema.iter_components((XsdIdentity, XsdAssert)):
+                obj.build()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 
@@ -634,10 +611,13 @@ class XsdGlobals(XsdValidator):
         # Check redefined global groups restrictions
         for group in filter(lambda x: x.schema in schemas and x.redefine is not None,
                             self.groups.values()):
-            if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
-                    and not group.is_restriction(group.redefine):
-                msg = "the redefined group is an illegal restriction of the original group"
-                group.parse_error(msg, validation=validation)
+            while group.redefine is not None:
+                if not any(isinstance(e, XsdGroup) and e.name == group.name for e in group) \
+                        and not group.is_restriction(group.redefine):
+                    msg = "the redefined group is an illegal restriction of the original group"
+                    group.parse_error(msg, validation=validation)
+
+                group = group.redefine
 
         # Check complex content types models restrictions
         for xsd_global in filter(lambda x: x.schema in schemas, self.iter_globals()):

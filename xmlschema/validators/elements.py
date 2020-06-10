@@ -401,6 +401,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def form(self):
         return self._form if self.ref is None else self.ref.form
 
+    @property
+    def predefined_value(self):
+        return self.fixed if self.fixed is not None else self.default
+
     def get_attribute(self, name):
         if name[0] != '{':
             return self.type.attributes[get_qname(self.type.target_namespace, name)]
@@ -591,6 +595,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         if xsd_type.abstract:
             yield self.validation_error(validation, "%r is abstract", elem, **kwargs)
+        if xsd_type.is_complex() and self.xsd_version == '1.1':
+            kwargs['id_list'] = []  # Track XSD 1.1 multiple xs:ID attributes/children
 
         content_type = xsd_type.content_type if xsd_type.is_complex() else xsd_type
 
@@ -684,8 +690,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     value = text.split()
                 else:
                     value = text
-            elif xsd_type.is_key() and self.xsd_version != '1.0':
-                kwargs['element'] = self if self.ref is None else self.ref
 
             if text is None:
                 for result in content_type.iter_decode('', validation, **kwargs):
@@ -727,21 +731,21 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             del content
 
         # Collects fields values for identities that refer to this element.
-        for constraint, counter in identities.items():
-            if not counter.enabled or self not in constraint.elements:
+        for identity, counter in identities.items():
+            if not counter.enabled or self not in identity.elements:
                 continue
 
             try:
                 if xsd_type is self.type:
-                    xsd_fields = constraint.get_fields(self)
+                    xsd_fields = identity.get_fields(self)
                 else:
                     xsd_element = self.copy()
                     xsd_element.type = xsd_type
-                    xsd_fields = constraint.get_fields(xsd_element)
+                    xsd_fields = identity.get_fields(xsd_element)
 
-                if not any(fld is not None for fld in xsd_fields):
+                if all(fld is None for fld in xsd_fields):
                     continue
-                fields = constraint.get_fields(elem, namespaces, decoders=xsd_fields)
+                fields = identity.get_fields(elem, namespaces, decoders=xsd_fields)
             except XMLSchemaValueError as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
             else:
@@ -753,10 +757,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Disable collect for out of scope identities and check key references
         if 'max_depth' not in kwargs:
-            for constraint in self.identities.values():
-                counter = identities[constraint]
+            for identity in self.identities.values():
+                counter = identities[identity]
                 counter.enabled = False
-                if isinstance(constraint, XsdKeyref):
+                if isinstance(identity, XsdKeyref):
                     for err in counter.iter_errors(identities):
                         yield self.validation_error(validation, err, elem, **kwargs)
         elif level:

@@ -11,6 +11,7 @@
 This module contains declarations and classes for XML Schema constraint facets.
 """
 import re
+import math
 import operator
 from collections.abc import MutableSequence
 from elementpath import XPath2Parser, ElementPathError
@@ -616,9 +617,19 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
             return '%s(%r)' % (self.__class__.__name__, self.enumeration)
 
     def __call__(self, value):
-        if value not in self.enumeration:
-            reason = "invalid value %r, it must be one of %r" % (value, self.enumeration)
-            yield XMLSchemaValidationError(self, value, reason=reason)
+        if value in self.enumeration:
+            return
+
+        try:
+            if math.isnan(value) and any(math.isnan(x) for x in self.enumeration):
+                return
+            elif math.isinf(value) and any(math.isinf(x) for x in self.enumeration):
+                return
+        except TypeError:
+            pass
+
+        reason = "invalid value %r, it must be one of %r" % (value, self.enumeration)
+        yield XMLSchemaValidationError(self, value, reason=reason)
 
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
