@@ -47,10 +47,10 @@ setup(
             'xmlschema-json2xml=xmlschema.cli:json2xml',
         ]
     },
-    setup_requires=['elementpath~=1.4.0'],
-    install_requires=['elementpath~=1.4.0'],
+    setup_requires=['elementpath~=1.4'],
+    install_requires=['elementpath~=1.4'],
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=1.4.0',
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=1.4',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme']
     },
     cmdclass={

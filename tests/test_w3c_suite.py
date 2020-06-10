@@ -164,13 +164,19 @@ SKIPPED_TESTS = {
 
     ##
     # Skip for missing XML version 1.1 implementation
-    '../saxonData/XmlVersions/xv001.v01.xml',   # 14850
-    '../saxonData/XmlVersions/xv003.v01.xml',   # 14852
-    '../saxonData/XmlVersions/xv005.v01.xml',   # 14854
-    '../saxonData/XmlVersions/xv006.v01.xml',   # 14855: invalid character &#x07 (valid in 1.1)
-    '../saxonData/XmlVersions/xv006.n02.xml',   # 14855: invalid character &#x10000 (valid in 1.1)
-    '../saxonData/XmlVersions/xv008.v01.xml',   # 14857
-    '../saxonData/XmlVersions/xv008.n01.xml',   # 14857
+    '../saxonData/XmlVersions/xv001.v01.xml',  # 14850
+    '../saxonData/XmlVersions/xv003.v01.xml',  # 14852
+    '../saxonData/XmlVersions/xv005.v01.xml',  # 14854
+    '../saxonData/XmlVersions/xv006.v01.xml',  # 14855 invalid character &#x07 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv006.n02.xml',  # 14855 invalid character &#x10000 (valid in XML 1.1)
+    '../saxonData/XmlVersions/xv007.v01.xml',  # 14856
+    '../saxonData/XmlVersions/xv008.v01.xml',  # 14857
+    '../saxonData/XmlVersions/xv008.n01.xml',
+    '../saxonData/XmlVersions/xv009.v02.xml',  # 14858
+    '../saxonData/XmlVersions/xv009.n02.xml',
+    '../saxonData/XmlVersions/xv009.n03.xml',
+    '../saxonData/XmlVersions/xv100.i.xml',    # 14859
+    '../saxonData/XmlVersions/xv100.c.xml',    # 14860
 
     ##
     # Skip for TODO

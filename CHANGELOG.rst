@@ -2,9 +2,12 @@
 CHANGELOG
 *********
 
-`v1.2.1`_ (2020-06-XX)
+`v1.2.1`_ (2020-06-11)
 ======================
-* Fix W3C tests
+* Make sandbox mode more explicit (PR #191)
+* Allow alphanumeric prefixes for the base converter
+* Fix XPath issues with default namespace
+* Fix W3C tests on XSD identities
 
 `v1.2.0`_ (2020-05-28)
 ======================
