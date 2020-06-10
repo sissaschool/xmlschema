@@ -12,7 +12,7 @@ This module contains classes for other XML Schema identity constraints.
 """
 import re
 from collections import Counter
-from elementpath import Selector, XPath1Parser, XPath2Parser, ElementPathError
+from elementpath import Selector, XPath2Parser, ElementPathError
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
@@ -132,7 +132,7 @@ class XsdIdentity(XsdComponent):
     :ivar fields: a list containing the XPath field selectors of the identity constraint.
     """
     selector = None
-    elements = ()
+    elements = None  # XSD elements bound by selector (for speed-up and lazy mode)
     fields = ()
 
     def __init__(self, elem, schema, parent):
@@ -173,11 +173,30 @@ class XsdIdentity(XsdComponent):
         elif self._parse_child_component(self.elem) is not None:
             self.parse_error("a reference cannot has child definitions")
 
-    def iter_elements(self):
-        yield from self.parent.iterfind(
-            path=self.selector.xpath_selector.path,
-            namespaces=self.selector.xpath_selector.namespaces
-        )
+    def build(self):
+        if self.ref is True:
+            try:
+                ref = self.maps.identities[self.name]
+            except KeyError:
+                self.parse_error("Unknown identity constraint {!r}".format(self.name))
+                return
+            else:
+                if not isinstance(ref, self.__class__):
+                    self.parse_error("attribute 'ref' points to a different kind constraint")
+                self.selector = ref.selector
+                self.fields = ref.fields
+                self.ref = ref
+
+        self.elements = {
+            e for e in self.parent.iterfind(
+                path=self.selector.xpath_selector.path,
+                namespaces=self.selector.xpath_selector.namespaces
+            ) if e.name
+        }
+
+    @property
+    def built(self):
+        return self.elements is not None
 
     def get_fields(self, elem, namespaces=None, decoders=None):
         """
@@ -271,10 +290,6 @@ class XsdIdentity(XsdComponent):
     def get_counter(self, enabled=True):
         return IdentityCounter(self, enabled)
 
-    @property
-    def built(self):
-        return self.selector is not None
-
 
 class XsdUnique(XsdIdentity):
     _ADMITTED_TAGS = {XSD_UNIQUE}
@@ -305,21 +320,26 @@ class XsdKeyref(XsdIdentity):
             else:
                 self.parse_error(err)
 
-    def parse_refer(self):
+    def build(self):
+        super(XsdKeyref, self).build()
+
+        if isinstance(self.refer, (XsdKey, XsdUnique)):
+            return  # referenced key/unique identity constraint already set
+        elif isinstance(self.ref, XsdKeyref):
+            self.refer = self.ref.refer
+
         if self.refer is None:
             return  # attribute or key/unique identity constraint missing
-        elif isinstance(self.refer, (XsdKey, XsdUnique)):
-            return  # referenced key/unique identity constraint already set
-
-        refer = self.parent.identities.get(self.refer)
-        if refer is not None and refer.ref is None:
-            self.refer = refer
-        else:
-            try:
-                self.refer = self.maps.identities[self.refer]
-            except KeyError:
-                self.parse_error("key/unique identity constraint %r is missing" % self.refer)
-                return
+        elif isinstance(self.refer, str):
+            refer = self.parent.identities.get(self.refer)
+            if refer is not None and refer.ref is None:
+                self.refer = refer
+            else:
+                try:
+                    self.refer = self.maps.identities[self.refer]
+                except KeyError:
+                    self.parse_error("key/unique identity constraint %r is missing" % self.refer)
+                    return
 
         if not isinstance(self.refer, (XsdKey, XsdUnique)):
             self.parse_error("reference to a non key/unique identity constraint %r" % self.refer)
@@ -343,7 +363,7 @@ class XsdKeyref(XsdIdentity):
 
     @property
     def built(self):
-        return self.selector is not None and isinstance(self.refer, XsdIdentity)
+        return self.elements is not None and isinstance(self.refer, XsdIdentity)
 
     def __call__(self, identities, elem, namespaces=None):
         if self.refer is None:

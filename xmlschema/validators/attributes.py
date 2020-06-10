@@ -570,10 +570,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if self.xsd_version == '1.0':
             has_key = False
             for attr in self._attribute_group.values():
-                if attr.name is not None and attr.type.is_key():
+                if attr.name and attr.type.is_key():
                     if has_key:
-                        self.parse_error("multiple key attributes in a group "
-                                         "not allowed in XSD 1.0")
+                        self.parse_error("multiple ID attributes not allowed for XSD 1.0")
+                        break
                     has_key = True
 
         elif self.parent is None and self.schema.default_attributes == self.name:
@@ -582,6 +582,12 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     @property
     def built(self):
         return True
+
+    def parse_error(self, error, elem=None, validation=None):
+        if self.parent is None:
+            super(XsdAttributeGroup, self).parse_error(error, elem, validation)
+        else:
+            self.parent.parse_error(error, elem, validation)
 
     def iter_required(self):
         for k, v in self._attribute_group.items():
@@ -620,8 +626,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
         kwargs['level'] = kwargs.get('level', 0) + 1
         use_defaults = kwargs.get('use_defaults', True)
-        id_map = kwargs.get('id_map', '')
-        num_id = len(id_map)
 
         additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
         if additional_attrs:
@@ -664,10 +668,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 else:
                     result_list.append((name, result))
                     break
-
-        if self.xsd_version == '1.0' and len(id_map) - num_id > 1:
-            reason = "No more than one attribute of type ID should be present in an element"
-            yield self.validation_error(validation, reason, attrs, **kwargs)
 
         if kwargs.get('fill_missing') is True:
             if filler is None:

@@ -7,6 +7,7 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+import elementpath
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 from elementpath.datatypes import XSD_BUILTIN_TYPES
 
@@ -61,17 +62,23 @@ class XsdAssert(XsdComponent, ElementPathMixin):
     def built(self):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
-    def parse_xpath_test(self):
-        # FIXME: parser's variables filled with XSD type with next elementpath minor release
+    def build(self):
         if not self.base_type.has_simple_content():
-            variables = {'value': XSD_BUILTIN_TYPES['anyType'].value}
+            builtin_type = XSD_BUILTIN_TYPES['anyType']
         else:
             try:
                 builtin_type_name = self.base_type.content_type.primitive_type.local_name
             except AttributeError:
-                variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
+                builtin_type = XSD_BUILTIN_TYPES['anySimpleType']
             else:
-                variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
+                builtin_type = XSD_BUILTIN_TYPES[builtin_type_name]
+
+        # Patch for compatibility with next elementpath minor release (v1.5)
+        # where parser variables will be filled with types.
+        if elementpath.__version__.startswith('1.4.'):
+            variables = {'value': builtin_type.value}
+        else:
+            variables = {'value': builtin_type}
 
         with self._xpath_lock:
             self.parser = XPath2Parser(

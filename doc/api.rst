@@ -299,6 +299,11 @@ Types
 .. autoclass:: xmlschema.validators.Xsd11ComplexType
 .. autoclass:: xmlschema.validators.XsdComplexType
 .. autoclass:: xmlschema.validators.XsdSimpleType
+
+    .. autoattribute:: enumeration
+    .. autoattribute:: max_value
+    .. autoattribute:: min_value
+
 .. autoclass:: xmlschema.validators.XsdAtomicBuiltin
 .. autoclass:: xmlschema.validators.XsdList
 .. autoclass:: xmlschema.validators.Xsd11Union

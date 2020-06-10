@@ -196,9 +196,20 @@ XSD11_SKIPPED_TESTS = {
     '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
     '../saxonData/Wild/wild069.xsd',  # Maybe inverted?
 
-    # TODO: schema tests
+    # TODO: invalid schema cases
     '../saxonData/CTA/cta9005err.xsd',  # 14549: Type alternative using an inherited attribute
     '../saxonData/CTA/cta9008err.xsd',  # 14552: Type alternative using an inherited attribute
+
+    # TODO: Parse ENTITY declarations in DOCTYPE before enforce checking
+    '../saxonData/Id/id017.n01.xml',     # 14571-14575
+    '../saxonData/Id/id018.n01.xml',
+    '../saxonData/Id/id018.n02.xml',
+    '../saxonData/Id/id019.n01.xml',
+    '../saxonData/Id/id019.n02.xml',
+    '../saxonData/Id/id020.n01.xml',
+    '../saxonData/Id/id020.n02.xml',
+    '../saxonData/Id/id021.n01.xml',
+    '../saxonData/Id/id021.n02.xml',
 }
 
 DO_NOT_USE_META_SCHEMA = {

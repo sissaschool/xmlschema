@@ -23,8 +23,7 @@ from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, 
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
-    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, Xsd11Element, \
-    XsdIdentity, XsdKeyref, XsdAssert
+    XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert
 from .builtins import xsd_builtin_types_factory
 
 
@@ -574,47 +573,15 @@ class XsdGlobals(XsdValidator):
         for qname in self.groups:
             self.lookup_group(qname)
 
-        # Builds element declarations inside model groups.
+        # Build element declarations inside model groups.
         for schema in not_built_schemas:
             for group in schema.iter_components(XsdGroup):
                 group.build()
 
-        # Builds xs:keyref's key references
-        for constraint in filter(lambda x: isinstance(x, XsdKeyref), self.identities.values()):
-            constraint.parse_refer()
-
-        # Build XSD 1.1 identity references and assertions
-        if self.xsd_version != '1.0':
-            for schema in filter(lambda x: x.meta_schema is not None, not_built_schemas):
-                for e in schema.iter_components(Xsd11Element):
-                    for constraint in filter(lambda x: x.ref is not None, e.identities.values()):
-                        try:
-                            ref = self.identities[constraint.name]
-                        except KeyError:
-                            schema.parse_error(
-                                "Unknown %r constraint %r" % (type(constraint), constraint.name)
-                            )
-                        else:
-                            constraint.selector = ref.selector
-                            constraint.fields = ref.fields
-                            if not isinstance(ref, constraint.__class__):
-                                constraint.parse_error(
-                                    "attribute 'ref' points to a different kind constraint"
-                                )
-                            elif isinstance(constraint, XsdKeyref):
-                                constraint.refer = ref.refer
-                            constraint.ref = ref
-
-                for assertion in schema.iter_components(XsdAssert):
-                    assertion.parse_xpath_test()
-
-        # Builds _identities list on selected elements for speed-up
-        # instance validation and for a full lazy validation.
+        # Build identity references and XSD 1.1 assertions
         for schema in not_built_schemas:
-            for constraint in schema.iter_components(XsdIdentity):
-                constraint.elements = {
-                    e for e in constraint.iter_elements() if isinstance(e, XsdElement)
-                }
+            for obj in schema.iter_components((XsdIdentity, XsdAssert)):
+                obj.build()
 
         self.check(filter(lambda x: x.meta_schema is not None, not_built_schemas), self.validation)
 
