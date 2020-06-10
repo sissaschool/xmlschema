@@ -51,7 +51,7 @@ XsdIdentityXPathParser.build_tokenizer()
 class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
-    xpath_default_namespace = None
+    xpath_default_namespace = ''
     pattern = re.compile(get_python_regex(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
@@ -84,8 +84,9 @@ class XsdSelector(XsdComponent):
                 path=self.path,
                 namespaces=self.namespaces,
                 parser=XsdIdentityXPathParser,
-                default_namespace=self.xpath_default_namespace or '',
+                default_namespace=self.xpath_default_namespace,
                 compatibility_mode=True,
+                strict=False,
             )
         except ElementPathError as err:
             self.parse_error(err)
@@ -188,10 +189,7 @@ class XsdIdentity(XsdComponent):
                 self.ref = ref
 
         self.elements = {
-            e for e in self.parent.iterfind(
-                path=self.selector.xpath_selector.path,
-                namespaces=self.selector.xpath_selector.namespaces
-            ) if e.name
+            e for e in self.selector.xpath_selector.iter_select(self.parent) if e.name
         }
 
     @property
