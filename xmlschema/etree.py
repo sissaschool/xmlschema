@@ -204,8 +204,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
     :param elem: the element to iterate.
     :param tag: tag filtering.
     :param path: the current path, '.' for default.
-    :param add_position: add context position to child elements that appear multiple times.
     :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param add_position: add context position to child elements that appear multiple times.
     """
     if tag == "*":
         tag = None
@@ -234,7 +234,7 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
             child_path += '[%d]' % positions[child.tag]
             positions[child.tag] += 1
 
-        yield from etree_iterpath(child, tag, child_path, namespaces)
+        yield from etree_iterpath(child, tag, child_path, namespaces, add_position)
 
 
 def etree_getpath(elem, root, namespaces=None, relative=True,
