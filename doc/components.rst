@@ -347,8 +347,10 @@ The content type checking can be complicated if you want to know which is the
 content validator without use a type checking. To making this simpler there are
 two properties defined for XSD types:
 
-- **simple_type**: a simple type in case of *simple* content or when an *empty*
-    content is based on an empty simple type, `None` otherwise.
+simple_type
+    a simple type in case of *simple* content or when an *empty* content is
+    based on an empty simple type, `None` otherwise.
 
-- **model_group**: a model group in case of *mixed* or *element-only* content or
-    when an *empty* content is based on an empty model group, `None` otherwise.
+model_group
+    a model group in case of *mixed* or *element-only* content or when an
+    *empty* content is based on an empty model group, `None` otherwise.
