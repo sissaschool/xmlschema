@@ -28,6 +28,7 @@ from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.helpers import is_etree_element
+from xmlschema.resources import is_url, is_local_url, is_remote_url, url_path_is_file
 from xmlschema.documents import get_context
 from xmlschema.testing import SKIP_REMOTE_TESTS
 
@@ -93,6 +94,29 @@ class TestResources(unittest.TestCase):
             path = PurePath(url_parts.path)
             expected_path = PurePath(expected_parts.path)
         self.assertEqual(path, expected_path, "%r: Paths differ." % url)
+
+    def test_url_helper_functions(self):
+        self.assertTrue(is_url(self.col_xsd_file))
+        self.assertFalse(is_url(' \t<root/>'))
+        self.assertFalse(is_url('line1\nline2'))
+        self.assertFalse(is_url(None))
+
+        self.assertTrue(is_local_url(self.col_xsd_file))
+        self.assertTrue(is_local_url('/home/user/'))
+        self.assertTrue(is_local_url('/home/user/schema.xsd'))
+        self.assertTrue(is_local_url('  /home/user/schema.xsd  '))
+        self.assertTrue(is_local_url('C:\\Users\\foo\\schema.xsd'))
+        self.assertTrue(is_local_url(' file:///home/user/schema.xsd'))
+        self.assertFalse(is_local_url('http://example.com/schema.xsd'))
+
+        self.assertFalse(is_remote_url(self.col_xsd_file))
+        self.assertFalse(is_remote_url('/home/user/'))
+        self.assertFalse(is_remote_url('/home/user/schema.xsd'))
+        self.assertFalse(is_remote_url(' file:///home/user/schema.xsd'))
+        self.assertTrue(is_remote_url('  http://example.com/schema.xsd'))
+
+        self.assertTrue(url_path_is_file(self.col_xml_file))
+        self.assertFalse(url_path_is_file(self.col_dir))
 
     def test_normalize_url_posix(self):
         url1 = "https://example.com/xsd/other_schema.xsd"

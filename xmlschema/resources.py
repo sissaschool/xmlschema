@@ -42,65 +42,7 @@ XmlResourceXPathParser.build_tokenizer()
 
 
 ###
-# Internal helper functions
-
-def is_url(obj):
-    """
-    Checks if and object can be an URL, restricting to strings that cannot be XML data.
-    """
-    if not isinstance(obj, (str, bytes)):
-        return False
-    elif '\n' in obj or obj.lstrip().startswith('<'):
-        return False
-
-    try:
-        urlsplit(obj)
-    except ValueError:
-        return False
-    else:
-        return True
-
-
-def is_remote_url(url):
-    return is_url(url) and urlsplit(url).scheme not in ('', 'file')
-
-
-def is_local_url(url):
-    return is_url(url) and urlsplit(url).scheme in ('', 'file')
-
-
-def url_path_is_directory(url):
-    return is_local_url(url) and os.path.isdir(urlsplit(url).path)
-
-
-def url_path_is_file(url):
-    return is_local_url(url) and os.path.isfile(urlsplit(url).path)
-
-
-def update_prefix(namespaces, prefix, uri):
-    """Update namespace registration without overwrite an existing one."""
-    if not prefix:
-        if '' not in namespaces:
-            namespaces[prefix] = uri
-            return
-        elif namespaces[''] == uri:
-            return
-        prefix = 'default'
-
-    while prefix in namespaces:
-        if namespaces[prefix] == uri:
-            return
-        match = re.search(r'(\d+)$', prefix)
-        if match:
-            index = int(match.group()) + 1
-            prefix = prefix[:match.span()[0]] + str(index)
-        else:
-            prefix += '0'
-    namespaces[prefix] = uri
-
-
-###
-# API for XML resources
+# URL normalization (that fixes many headaches :)
 
 def normalize_url(url, base_url=None, keep_relative=False):
     """
@@ -190,6 +132,65 @@ def normalize_url(url, base_url=None, keep_relative=False):
         ))
     return filter_url(normalized_url)
 
+
+###
+# Internal helper functions
+
+def is_url(obj):
+    """
+    Checks if and object can be an URL, restricting to strings that cannot be XML data.
+    """
+    if not isinstance(obj, (str, bytes)):
+        return False
+    elif '\n' in obj or obj.lstrip().startswith('<'):
+        return False
+
+    try:
+        urlsplit(obj.strip())
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def is_remote_url(url):
+    return is_url(url) and urlsplit(normalize_url(url)).scheme not in ('', 'file')
+
+
+def is_local_url(url):
+    return is_url(url) and urlsplit(normalize_url(url)).scheme in ('', 'file')
+
+
+def url_path_is_file(url):
+    if not is_local_url(url):
+        return False
+    return os.path.isfile(url) or os.path.isfile(urlsplit(normalize_url(url)).path)
+
+
+def update_prefix(namespaces, prefix, uri):
+    """Update namespace registration without overwrite an existing one."""
+    if not prefix:
+        if '' not in namespaces:
+            namespaces[prefix] = uri
+            return
+        elif namespaces[''] == uri:
+            return
+        prefix = 'default'
+
+    while prefix in namespaces:
+        if namespaces[prefix] == uri:
+            return
+        match = re.search(r'(\d+)$', prefix)
+        if match:
+            index = int(match.group()) + 1
+            prefix = prefix[:match.span()[0]] + str(index)
+        else:
+            prefix += '0'
+    namespaces[prefix] = uri
+
+
+###
+# API for XML resources
 
 def normalize_locations(locations, base_url=None, keep_relative=False):
     """

@@ -302,7 +302,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             logger.setLevel(logging.WARNING)
 
         if allow == 'sandbox' and base_url is None and is_local_url(source):
-            base_url = os.path.dirname(source)
+            # Allow sandbox mode without a base_url using the initial schema URL as base
+            base_url = os.path.dirname(normalize_url(source))
 
         self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
         logger.debug("Read schema from %r", self.source)
