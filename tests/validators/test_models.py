@@ -83,7 +83,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_vehicles_model(self):
         # Sequence with two not-emptiable single-occurs elements
-        group = self.vh_schema.elements['vehicles'].type.content_type
+        group = self.vh_schema.elements['vehicles'].type.content
 
         model = ModelVisitor(group)
         self.check_advance_true(model)                # <cars>
@@ -98,7 +98,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_cars_model(self):
         # Emptiable 1:1 sequence with one emptiable and unlimited element.
-        group = self.vh_schema.elements['cars'].type.content_type
+        group = self.vh_schema.elements['cars'].type.content
 
         model = ModelVisitor(group)
         self.check_advance_true(model)     # <car>
@@ -115,7 +115,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_collection_model(self):
         # Sequence with one not-emptiable and unlimited element.
-        group = self.col_schema.elements['collection'].type.content_type
+        group = self.col_schema.elements['collection'].type.content
 
         model = ModelVisitor(group)
         self.check_advance_true(model)     # <car>
@@ -131,7 +131,7 @@ class TestModelValidation(XsdValidatorTestCase):
 
     def test_person_type_model(self):
         # Sequence with four single elements, last two are also emptiable.
-        group = self.col_schema.types['personType'].content_type
+        group = self.col_schema.types['personType'].content
 
         model = ModelVisitor(group)
         self.check_advance_true(model)     # <name>
@@ -405,7 +405,7 @@ class TestModelValidation(XsdValidatorTestCase):
             self.assertIsNone(model.element)
 
     def test_meta_schema_document_model(self):
-        group = self.schema_class.meta_schema.elements['schema'].type.content_type
+        group = self.schema_class.meta_schema.elements['schema'].type.content
 
         # A schema model with a wrong tag
         model = ModelVisitor(group)
@@ -491,13 +491,13 @@ class TestModelValidation(XsdValidatorTestCase):
         self.assertIsNone(model.element)
 
     def test_model_group7(self):
-        group = self.models_schema.types['complexType7'].content_type
+        group = self.models_schema.types['complexType7'].content
 
         model = ModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
         self.check_stop(model, [(group[0][0], 0, [group[0][0]])])
 
-        group = self.models_schema.types['complexType7_emptiable'].content_type
+        group = self.models_schema.types['complexType7_emptiable'].content
 
         model = ModelVisitor(group)
         self.assertEqual(model.element, group[0][0])
@@ -541,7 +541,7 @@ class TestModelValidation(XsdValidatorTestCase):
         </xs:schema>""")
 
         xml_data = "<root><elem1/></root>"
-        model = ModelVisitor(schema.elements['root'].type.content_type)
+        model = ModelVisitor(schema.elements['root'].type.content)
         self.assertIsInstance(model.element, XsdElement)
         self.assertEqual(model.element.name, 'elem1')
         self.assertIsNone(schema.validate(xml_data))
@@ -682,7 +682,7 @@ class TestModelValidation(XsdValidatorTestCase):
     def test_issue_086(self):
         issue_086_xsd = self.casepath('issues/issue_086/issue_086.xsd')
         schema = self.schema_class(issue_086_xsd)
-        group = schema.types['Foo'].content_type
+        group = schema.types['Foo'].content
 
         # issue_086-1.xml sequence simulation
         model = ModelVisitor(group)
@@ -848,7 +848,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content_type)
+        model = ModelVisitor(schema.types['A_type'].content)
 
         self.assertListEqual(
             model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)]),
@@ -916,7 +916,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content_type)
+        model = ModelVisitor(schema.types['A_type'].content)
 
         content = [('B3', 10), ('B4', None), ('B5', True), ('B6', 'alpha'), ('B7', 20)]
         model.restart()
@@ -946,7 +946,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content_type)
+        model = ModelVisitor(schema.types['A_type'].content)
 
         content = [
             ('B3', 10), ('B4', None), ('B5', True), ('B5', False), ('B6', 'alpha'), ('B7', 20)
@@ -979,7 +979,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content_type)
+        model = ModelVisitor(schema.types['A_type'].content)
 
         content = [('B1', 1), ('B1', 2), ('B2', 3), ('B2', 4)]
         self.assertListEqual(
@@ -1026,7 +1026,7 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             </xs:complexType>
             """)
 
-        model = ModelVisitor(schema.types['A_type'].content_type)
+        model = ModelVisitor(schema.types['A_type'].content)
 
         content = [('B1', 'abc'), ('B2', 10), ('B3', False)]
         model.restart()

@@ -88,7 +88,7 @@ class TestGlobalMaps(unittest.TestCase):
     def test_xsd_11_restrictions(self):
         all_model_type = XMLSchema11.meta_schema.types['all']
         self.assertTrue(
-            all_model_type.content_type.is_restriction(all_model_type.base_type.content_type)
+            all_model_type.content.is_restriction(all_model_type.base_type.content)
         )
 
 

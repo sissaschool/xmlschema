@@ -2,8 +2,9 @@
 CHANGELOG
 *********
 
-`v1.2.1`_ (2020-06-11)
+`v1.2.1`_ (2020-06-12)
 ======================
+* Fix content type classification (issue #195)
 * Make sandbox mode more explicit (PR #191)
 * Allow alphanumeric prefixes for the base converter
 * Fix XPath issues with default namespace

@@ -256,7 +256,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 if v in schema_namespaces or v == XSI_NAMESPACE
             )
 
-        if xsd_type.is_simple() or xsd_type.has_simple_content():
+        if xsd_type.simple_type is not None:
             if data.attributes or self.force_dict and not xsd_type.is_simple():
                 result_dict.update(t for t in self.map_attributes(data.attributes))
                 if data.text is not None and data.text != '':
@@ -268,7 +268,7 @@ class XMLSchemaConverter(NamespaceMapper):
             if data.attributes:
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
-            has_single_group = xsd_type.content_type.is_single()
+            has_single_group = xsd_type.content.is_single()
             list_types = list if self.list is list else (self.list, list)
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
@@ -318,7 +318,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 pass
 
         if not isinstance(obj, (self.dict, dict)):
-            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+            if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
             elif xsd_element.type.mixed and not isinstance(obj, list):
                 return ElementData(tag, obj, None, {})
@@ -355,7 +355,7 @@ class XMLSchemaConverter(NamespaceMapper):
                 content.extend((ns_name, item) for item in value)
             else:
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content_type.iter_elements():
+                for xsd_child in xsd_element.type.content.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
@@ -408,7 +408,7 @@ class UnorderedConverter(XMLSchemaConverter):
                 pass
 
         if not isinstance(obj, (self.dict, dict)):
-            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+            if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
             else:
                 return ElementData(tag, None, obj, {})
@@ -450,7 +450,7 @@ class UnorderedConverter(XMLSchemaConverter):
             else:
                 # `value` is a list but not a list of lists or list of dicts.
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content_type.iter_elements():
+                for xsd_child in xsd_element.type.content.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
@@ -501,7 +501,7 @@ class ParkerConverter(XMLSchemaConverter):
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         xsd_type = xsd_type or xsd_element.type
         preserve_root = self.preserve_root
-        if xsd_type.is_simple() or xsd_type.has_simple_content():
+        if xsd_type.simple_type is not None:
             if preserve_root:
                 return self.dict([(self.map_qname(data.tag), data.text)])
             else:
@@ -541,7 +541,7 @@ class ParkerConverter(XMLSchemaConverter):
         if not isinstance(obj, (self.dict, dict)):
             if obj == '':
                 obj = None
-            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+            if xsd_element.type.simple_type is not None:
                 return ElementData(xsd_element.name, obj, None, {})
             else:
                 return ElementData(xsd_element.name, None, obj, {})
@@ -566,7 +566,7 @@ class ParkerConverter(XMLSchemaConverter):
                         for item in value:
                             content.append((ns_name, item))
                     else:
-                        for xsd_child in xsd_element.type.content_type.iter_elements():
+                        for xsd_child in xsd_element.type.content.iter_elements():
                             matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
@@ -615,11 +615,11 @@ class BadgerFishConverter(XMLSchemaConverter):
         if has_local_root:
             result_dict['@xmlns'] = dict_class()
 
-        if xsd_type.is_simple() or xsd_type.has_simple_content():
+        if xsd_type.simple_type is not None:
             if data.text is not None and data.text != '':
                 result_dict['$'] = data.text
         else:
-            has_single_group = xsd_type.content_type.is_single()
+            has_single_group = xsd_type.content.is_single()
             list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
@@ -700,7 +700,7 @@ class BadgerFishConverter(XMLSchemaConverter):
                     content.append((ns_name, item))
             else:
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content_type.iter_elements():
+                for xsd_child in xsd_element.type.content.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():
@@ -738,7 +738,7 @@ class AbderaConverter(XMLSchemaConverter):
 
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
         xsd_type = xsd_type or xsd_element.type
-        if xsd_type.is_simple() or xsd_type.has_simple_content():
+        if xsd_type.simple_type is not None:
             children = data.text if data.text is not None and data.text != '' else None
         else:
             children = self.dict()
@@ -810,7 +810,7 @@ class AbderaConverter(XMLSchemaConverter):
                             content.append((ns_name, item))
                     else:
                         ns_name = self.unmap_qname(name)
-                        for xsd_child in xsd_element.type.content_type.iter_elements():
+                        for xsd_child in xsd_element.type.content.iter_elements():
                             matched_element = xsd_child.match(ns_name, resolve=True)
                             if matched_element is not None:
                                 if matched_element.type.is_list():
@@ -857,7 +857,7 @@ class JsonMLConverter(XMLSchemaConverter):
         if data.text is not None and data.text != '':
             result_list.append(data.text)
 
-        if not xsd_type.has_simple_content():
+        if xsd_type.model_group is not None:
             result_list.extend([
                 value if value is not None else self.list([name])
                 for name, value, _ in self.map_content(data.content)
@@ -902,8 +902,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
-        elif data_len == content_index + 1 and \
-                (xsd_element.type.is_simple() or xsd_element.type.has_simple_content()):
+        elif data_len == content_index + 1 and xsd_element.type.simple_type is not None:
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
@@ -957,7 +956,7 @@ class ColumnarConverter(XMLSchemaConverter):
         else:
             result_dict = self.dict()
 
-        if xsd_type.is_simple() or xsd_type.has_simple_content():
+        if xsd_type.simple_type is not None:
             result_dict[xsd_element.local_name] = data.text or None
 
         if data.content:
@@ -970,15 +969,13 @@ class ColumnarConverter(XMLSchemaConverter):
                     name = name[2 + len(xsd_child.namespace):]
 
                 if xsd_child.is_single():
-                    if hasattr(xsd_child, 'type') and \
-                            (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()):
+                    if hasattr(xsd_child, 'type') and xsd_child.type.simple_type is not None:
                         for k in value:
                             result_dict[k] = value[k]
                     else:
                         result_dict[name] = value
                 else:
-                    if hasattr(xsd_child, 'type') and \
-                            (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) \
+                    if hasattr(xsd_child, 'type') and xsd_child.type.simple_type is not None \
                             and not xsd_child.attributes:
                         if len(xsd_element.findall('*')) == 1:
                             try:
@@ -1016,7 +1013,7 @@ class ColumnarConverter(XMLSchemaConverter):
                 pass
 
         if not isinstance(obj, (self.dict, dict)):
-            if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
+            if xsd_element.type.simple_type is not None:
                 return ElementData(xsd_element.name, obj, None, {})
             elif xsd_element.type.mixed and not isinstance(obj, list):
                 return ElementData(xsd_element.name, obj, None, {})
@@ -1042,7 +1039,7 @@ class ColumnarConverter(XMLSchemaConverter):
                 content.extend((ns_name, item) for item in value)
             else:
                 ns_name = self.unmap_qname(name)
-                for xsd_child in xsd_element.type.content_type.iter_elements():
+                for xsd_child in xsd_element.type.content.iter_elements():
                     matched_element = xsd_child.match(ns_name, resolve=True)
                     if matched_element is not None:
                         if matched_element.type.is_list():

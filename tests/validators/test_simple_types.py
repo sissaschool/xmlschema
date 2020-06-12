@@ -35,6 +35,32 @@ class TestXsdSimpleTypes(XsdValidatorTestCase):
         xs.types['test_union'].elem = xs.root[1]  # elem.tag == 'simpleType'
         self.assertEqual(xs.types['test_union'].elem.tag, XSD_UNION)
 
+    def test_variety_property(self):
+        schema = self.check_schema("""        
+        <xs:simpleType name="atomicType">
+            <xs:restriction base="xs:string"/>
+        </xs:simpleType>
+
+        <xs:simpleType name="listType">
+            <xs:list itemType="xs:string"/>
+        </xs:simpleType>
+        <xs:simpleType name="listType2">
+            <xs:restriction base="listType"/>
+        </xs:simpleType>
+
+        <xs:simpleType name="unionType">
+            <xs:union memberTypes="xs:string xs:integer xs:boolean"/>
+        </xs:simpleType>
+        <xs:simpleType name="unionType2">
+            <xs:restriction base="unionType"/>
+        </xs:simpleType>
+        """)
+        self.assertEqual(schema.types['atomicType'].variety, 'atomic')
+        self.assertEqual(schema.types['listType'].variety, 'list')
+        self.assertEqual(schema.types['listType2'].variety, 'list')
+        self.assertEqual(schema.types['unionType'].variety, 'union')
+        self.assertEqual(schema.types['unionType2'].variety, 'union')
+
     def test_final_attribute(self):
         self.check_schema("""
         <xs:simpleType name="aType" final="list restriction">

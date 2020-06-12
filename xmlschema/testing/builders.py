@@ -112,7 +112,9 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
 
             # Checks on XSD types
             for xsd_type in xs.maps.iter_components(xsd_classes=XsdType):
-                self.assertNotEqual(xsd_type.content_type_label, 'unknown')
+                self.assertIn(
+                    xsd_type.content_type_label, {'empty', 'simple', 'element-only', 'mixed'}
+                )
 
             # Check that the schema is valid also with XSD 1.1 validator
             if not expected_errors and schema_class.XSD_VERSION == '1.0':

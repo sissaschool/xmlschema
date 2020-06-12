@@ -102,6 +102,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE}
     _ADMITTED_TAGS = {XSD_SIMPLE_TYPE}
 
+    variety = None
     min_length = None
     max_length = None
     white_space = None
@@ -160,7 +161,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
                         "facets not allowed for a direct derivation of xs:anySimpleType"
                     )
             elif self.base_type.has_simple_content():
-                if self.base_type.content_type.name == XSD_ANY_SIMPLE_TYPE:
+                if self.base_type.content.name == XSD_ANY_SIMPLE_TYPE:
                     self.parse_error(
                         "facets not allowed for a direct content derivation of xs:anySimpleType"
                     )
@@ -269,6 +270,14 @@ class XsdSimpleType(XsdType, ValidationMixin):
         self.max_length = max_length
 
     @property
+    def simple_type(self):
+        return self
+
+    @property
+    def model_group(self):
+        return
+
+    @property
     def min_value(self):
         min_exclusive_facet = self.get_facet(XSD_MIN_EXCLUSIVE)
         if min_exclusive_facet is None:
@@ -314,6 +323,10 @@ class XsdSimpleType(XsdType, ValidationMixin):
     def is_complex():
         return False
 
+    @property
+    def content_type_label(self):
+        return 'empty' if self.max_length == 0 else 'simple'
+
     def is_empty(self):
         return self.max_length == 0
 
@@ -321,7 +334,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         return self.allow_empty
 
     def has_simple_content(self):
-        return True
+        return self.max_length != 0
 
     def has_complex_content(self):
         return False
@@ -348,7 +361,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
         elif self.base_type.is_complex():
             if not self.base_type.has_simple_content():
                 return False
-            return self.base_type.content_type.is_derived(other, derivation)
+            return self.base_type.content.is_derived(other, derivation)
         elif hasattr(other, 'member_types'):
             return any(self.is_derived(m, derivation) for m in other.member_types)
         else:
@@ -421,6 +434,8 @@ class XsdAtomic(XsdSimpleType):
     a base_type attribute that refers to primitive or derived atomic
     built-in type or another derived simpleType.
     """
+    variety = 'atomic'
+
     to_python = str
     _special_types = {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE}
     _ADMITTED_TAGS = {XSD_RESTRICTION, XSD_SIMPLE_TYPE}
@@ -453,7 +468,7 @@ class XsdAtomic(XsdSimpleType):
                 if value.is_simple():
                     self.primitive_type = self.base_type.primitive_type
                 else:
-                    self.primitive_type = self.base_type.content_type.primitive_type
+                    self.primitive_type = self.base_type.content.primitive_type
             except AttributeError:
                 self.primitive_type = value
 
@@ -691,6 +706,8 @@ class XsdList(XsdSimpleType):
           Content: (annotation?, simpleType?)
         </list>
     """
+    variety = 'list'
+
     _ADMITTED_TAGS = {XSD_LIST}
     _white_space_elem = etree_element(
         XSD_WHITE_SPACE, attrib={'value': 'collapse', 'fixed': 'true'}
@@ -852,10 +869,11 @@ class XsdUnion(XsdSimpleType):
           Content: (annotation?, simpleType*)
         </union>
     """
-    _ADMITTED_TYPES = XsdSimpleType
-    _ADMITTED_TAGS = {XSD_UNION}
+    variety = 'union'
 
     member_types = None
+    _ADMITTED_TYPES = XsdSimpleType
+    _ADMITTED_TAGS = {XSD_UNION}
 
     def __init__(self, elem, schema, parent, name=None):
         super(XsdUnion, self).__init__(elem, schema, parent, name, facets=None)
@@ -1150,7 +1168,7 @@ class XsdAtomicRestriction(XsdAtomic):
                             elem=elem,
                             schema=self.schema,
                             parent=self,
-                            content_type=xsd_simple_type_factory(child, self.schema, self),
+                            content=xsd_simple_type_factory(child, self.schema, self),
                             attributes=base_type.attributes,
                             mixed=base_type.mixed,
                             block=base_type.block,
@@ -1193,6 +1211,10 @@ class XsdAtomicRestriction(XsdAtomic):
         self.base_type = base_type
         self.facets = facets
 
+    @property
+    def variety(self):
+        return self.base_type.variety
+
     def iter_components(self, xsd_classes=None):
         if xsd_classes is None or isinstance(self, xsd_classes):
             yield self
@@ -1206,7 +1228,7 @@ class XsdAtomicRestriction(XsdAtomic):
         if self.base_type.is_simple():
             base_type = self.base_type
         elif self.base_type.has_simple_content():
-            base_type = self.base_type.content_type
+            base_type = self.base_type.content
         elif self.base_type.mixed:
             yield obj
             return
@@ -1245,7 +1267,7 @@ class XsdAtomicRestriction(XsdAtomic):
             if self.base_type.is_simple():
                 base_type = self.base_type
             elif self.base_type.has_simple_content():
-                base_type = self.base_type.content_type
+                base_type = self.base_type.content
             elif self.base_type.mixed:
                 yield str(obj)
                 return

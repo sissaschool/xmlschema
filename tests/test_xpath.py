@@ -135,8 +135,8 @@ class XMLSchemaXPathTest(unittest.TestCase):
     def setUpClass(cls):
         cls.xs1 = cls.schema_class(os.path.join(CASES_DIR, "examples/vehicles/vehicles.xsd"))
         cls.xs2 = cls.schema_class(os.path.join(CASES_DIR, "examples/collection/collection.xsd"))
-        cls.cars = cls.xs1.elements['vehicles'].type.content_type[0]
-        cls.bikes = cls.xs1.elements['vehicles'].type.content_type[1]
+        cls.cars = cls.xs1.elements['vehicles'].type.content[0]
+        cls.bikes = cls.xs1.elements['vehicles'].type.content[1]
 
     def test_xpath_wrong_syntax(self):
         self.assertRaises(ElementPathSyntaxError, self.xs1.find, './*[')
@@ -182,7 +182,7 @@ class XMLSchemaXPathTest(unittest.TestCase):
                          self.xs1.findall("/vh:vehicles/*/*[1]")[:1])
 
     def test_xpath_predicate(self):
-        car = self.xs1.elements['cars'].type.content_type[0]
+        car = self.xs1.elements['cars'].type.content[0]
         self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]"), [car])
         self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars/vh:car[@make]"), [car])
         self.assertListEqual(self.xs1.findall("./vh:vehicles/vh:cars['ciao']"), [self.cars])
@@ -210,8 +210,8 @@ class XMLSchemaXPathTest(unittest.TestCase):
 
     def test_getitem(self):
         xsd_element = self.xs1.elements['vehicles']
-        self.assertEqual(xsd_element[0], xsd_element.type.content_type[0])
-        self.assertEqual(xsd_element[1], xsd_element.type.content_type[1])
+        self.assertEqual(xsd_element[0], xsd_element.type.content[0])
+        self.assertEqual(xsd_element[1], xsd_element.type.content[1])
         with self.assertRaises(IndexError):
             _ = xsd_element[2]
 
@@ -219,27 +219,27 @@ class XMLSchemaXPathTest(unittest.TestCase):
         xsd_element = self.xs1.elements['vehicles']
         self.assertListEqual(
             list(reversed(xsd_element)),
-            [xsd_element.type.content_type[1], xsd_element.type.content_type[0]]
+            [xsd_element.type.content[1], xsd_element.type.content[0]]
         )
 
     def test_iter(self):
         xsd_element = self.xs1.elements['vehicles']
         descendants = list(xsd_element.iter())
-        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content_type[:])
+        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content[:])
 
         descendants = list(xsd_element.iter('*'))
-        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content_type[:])
+        self.assertListEqual(descendants, [xsd_element] + xsd_element.type.content[:])
 
         descendants = list(xsd_element.iter(self.xs1.elements['cars'].name))
-        self.assertListEqual(descendants, [xsd_element.type.content_type[0]])
+        self.assertListEqual(descendants, [xsd_element.type.content[0]])
 
     def test_iterchildren(self):
         children = list(self.xs1.elements['vehicles'].iterchildren())
-        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[:])
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content[:])
         children = list(self.xs1.elements['vehicles'].iterchildren('*'))
-        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[:])
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content[:])
         children = list(self.xs1.elements['vehicles'].iterchildren(self.xs1.elements['bikes'].name))
-        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content_type[1:])
+        self.assertListEqual(children, self.xs1.elements['vehicles'].type.content[1:])
 
 
 class ElementTreeXPathTest(unittest.TestCase):

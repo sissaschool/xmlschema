@@ -279,6 +279,10 @@ Main XSD components
     :members: is_simple, is_complex, is_atomic, is_list, is_datetime, is_empty,
         is_emptiable, has_simple_content, has_complex_content, has_mixed_content,
         is_element_only, is_derived, is_extension, is_restriction, is_key, is_qname
+
+    .. autoattribute:: simple_type
+    .. autoattribute:: model_group
+
 .. autoclass:: xmlschema.XsdElement
 .. autoclass:: xmlschema.XsdAttribute
 
@@ -298,6 +302,9 @@ Types
 -----
 .. autoclass:: xmlschema.validators.Xsd11ComplexType
 .. autoclass:: xmlschema.validators.XsdComplexType
+
+    .. autoattribute:: content_type
+
 .. autoclass:: xmlschema.validators.XsdSimpleType
 
     .. autoattribute:: enumeration

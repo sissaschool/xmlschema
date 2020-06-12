@@ -6,7 +6,7 @@ Schema components
 
 After the building a schema object contains a set of components that represent
 the definitions/declarations defined in loaded schema files. These components,
-sometimes referred as *Post Schema Validation Infoset* or **PSVI**, constitutes
+sometimes referred as *Post Schema Validation Infoset* or **PSVI**, constitute
 an augmentation of the original information contained into schema files.
 
 .. testsetup:: collection
@@ -114,8 +114,8 @@ loaded schemas in a structure called *maps*:
     XsdElement(name='person', occurs=[1, 1])
 
 
-XSD component structure
-=======================
+Component structure
+===================
 
 Only the main component classes are available at package level:
 
@@ -142,8 +142,8 @@ subpackage, for example:
     <class 'xmlschema.validators.elements.Xsd11Element'>
 
 
-Connections to schema
----------------------
+Connection with the schema
+--------------------------
 
 Every component is linked to its container schema and a reference node of its
 XSD schema document:
@@ -183,92 +183,14 @@ a different name format, so there are some properties for getting these formats:
     '{http://example.com/vehicles}model'
 
 
-XSD Types
-=========
-
-Every element or attribute has a *type* attribute for accessing its XSD type:
-
-.. doctest:: collection
-
-    >>> person = schema.elements['person']
-    >>> person.type
-    XsdComplexType(name='personType')
-
-In this case the element's type is a complexType with a complex content, and the
-content type is a not-empty `XsdGroup`:
-
-.. doctest:: collection
-
-    >>> person.type.has_complex_content()
-    True
-    >>> person.type.content_type
-    XsdGroup(model='sequence', occurs=[1, 1])
-    >>> for item in person.type.content_type:
-    ...     item
-    ...
-    XsdElement(name='name', occurs=[1, 1])
-    XsdElement(name='born', occurs=[1, 1])
-    XsdElement(name='dead', occurs=[0, 1])
-    XsdElement(name='qualification', occurs=[0, 1])
-
-Model groups can be nested with very complex structures, so there is an generator
-function *iter_elements()* to traverse a model group:
-
-.. doctest:: collection
-
-    >>> for e in person.type.content_type.iter_elements():
-    ...     e
-    ...
-    XsdElement(name='name', occurs=[1, 1])
-    XsdElement(name='born', occurs=[1, 1])
-    XsdElement(name='dead', occurs=[0, 1])
-    XsdElement(name='qualification', occurs=[0, 1])
-
-A complex type can have also attributes:
-
-.. doctest:: collection
-
-    >>> schema.types['objType']
-    XsdComplexType(name='objType')
-    >>> schema.types['objType'].attributes
-    XsdAttributeGroup(['id', 'available'])
-    >>> schema.types['objType'].attributes['available']
-    XsdAttribute(name='available')
-
-Sometimes a complex type can have a simple content, in this case
-the *content_type* attribute is a simple type.
-
-Simple types are used on attributes and elements that contains a text value:
-
-.. doctest::
-
-    >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
-    >>> schema.attributes['step']
-    XsdAttribute(name='vh:step')
-    >>> schema.attributes['step'].type
-    XsdAtomicBuiltin(name='xs:positiveInteger')
-
-A simple type doesn't have attributes but can have facets-related validators or properties:
-
-.. doctest::
-
-    >>> schema.attributes['step'].type.attributes
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-    AttributeError: 'XsdAtomicBuiltin' object has no attribute 'attributes'
-    >>> schema.attributes['step'].type.validators
-    [<function positive_int_validator at ...>]
-    >>> schema.attributes['step'].type.white_space
-    'collapse'
-
-
 Decoding and encoding
-=====================
+---------------------
 
 Every schema component includes methods for data conversion:
 
 .. doctest::
 
+    >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
     >>> schema.types['vehicleType'].decode
     <bound method XsdComplexType.decode of XsdComplexType(name='vehicleType')>
     >>> schema.elements['cars'].encode
@@ -294,3 +216,139 @@ Those methods can be used to decode the correspondents parts of the XML document
     {'@xmlns:vh': 'http://example.com/vehicles',
      'vh:bike': [{'@make': 'Harley-Davidson', '@model': 'WL'},
                  {'@make': 'Yamaha', '@model': 'XS650'}]}
+
+
+XSD types
+=========
+
+Every element or attribute declaration has a *type* attribute for accessing its XSD type:
+
+.. doctest:: collection
+
+    >>> person = schema.elements['person']
+    >>> person.type
+    XsdComplexType(name='personType')
+
+
+Simple types
+------------
+
+Simple types are used on attributes and elements that contains a text value:
+
+.. doctest::
+
+    >>> schema = xmlschema.XMLSchema('tests/test_cases/examples/vehicles/vehicles.xsd')
+    >>> schema.attributes['step']
+    XsdAttribute(name='vh:step')
+    >>> schema.attributes['step'].type
+    XsdAtomicBuiltin(name='xs:positiveInteger')
+
+A simple type doesn't have attributes but can have facets-related validators or properties:
+
+.. doctest::
+
+    >>> schema.attributes['step'].type.attributes
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    AttributeError: 'XsdAtomicBuiltin' object has no attribute 'attributes'
+    >>> schema.attributes['step'].type.validators
+    [<function positive_int_validator at ...>]
+    >>> schema.attributes['step'].type.white_space
+    'collapse'
+
+To check if a type is a simpleType use *is_simple()*:
+
+.. doctest::
+
+    >>> schema.attributes['step'].type.is_simple()
+    True
+
+
+Complex types
+-------------
+
+Complex types are used only for elements with attributes or with child elements.
+
+For accessing the attributes there is always defined and attribute group, also
+when the complex type has no attributes:
+
+.. doctest:: collection
+
+    >>> schema.types['objType']
+    XsdComplexType(name='objType')
+    >>> schema.types['objType'].attributes
+    XsdAttributeGroup(['id', 'available'])
+    >>> schema.types['objType'].attributes['available']
+    XsdAttribute(name='available')
+
+For accessing the content model there use the attribute *content*. In most
+cases the element's type is a complexType with a complex content and in these
+cases *content* is a not-empty `XsdGroup`:
+
+.. doctest:: collection
+
+    >>> person = schema.elements['person']
+    >>> person.type.has_complex_content()
+    True
+    >>> person.type.content
+    XsdGroup(model='sequence', occurs=[1, 1])
+    >>> for item in person.type.content:
+    ...     item
+    ...
+    XsdElement(name='name', occurs=[1, 1])
+    XsdElement(name='born', occurs=[1, 1])
+    XsdElement(name='dead', occurs=[0, 1])
+    XsdElement(name='qualification', occurs=[0, 1])
+
+.. note::
+
+    The attribute *content_type* has been renamed to *content* in v1.2.1
+    in order to avoid confusions between the complex type and its content.
+    A property with the old name will be maintained until v1.3.0
+
+
+Model groups can be nested with very complex structures, so there is an generator
+function *iter_elements()* to traverse a model group:
+
+.. doctest:: collection
+
+    >>> for e in person.type.content.iter_elements():
+    ...     e
+    ...
+    XsdElement(name='name', occurs=[1, 1])
+    XsdElement(name='born', occurs=[1, 1])
+    XsdElement(name='dead', occurs=[0, 1])
+    XsdElement(name='qualification', occurs=[0, 1])
+
+Sometimes a complex type can have a simple content, in these cases *content* is a simple type.
+
+
+Content types
+-------------
+
+An element can have four different content types:
+
+- **empty**: deny child elements, deny text content
+- **simple**: deny child elements, allow text content
+- **element-only**: allow child elements, deny intermingled text content
+- **mixed**: allow child elements and intermingled text content
+
+For attributes only *empty* or *simple* content types are possible, because
+they can have only a simpleType value.
+
+The reference methods for checking the content type are respectively *is_empty()*,
+*has_simple_content()*, *is_element_only()* and *has_mixed_content()*.
+
+
+Access to content validator
+---------------------------
+
+The content type checking can be complicated if you want to know which is the
+content validator without use a type checking. To making this simpler there are
+two properties defined for XSD types:
+
+- **simple_type**: a simple type in case of *simple* content or when an *empty*
+    content is based on an empty simple type, `None` otherwise.
+
+- **model_group**: a model group in case of *mixed* or *element-only* content or
+    when an *empty* content is based on an empty model group, `None` otherwise.

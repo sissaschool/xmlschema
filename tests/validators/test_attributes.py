@@ -41,6 +41,29 @@ class TestXsdAttributes(XsdValidatorTestCase):
             """, validation='lax')
         self.assertTrue(isinstance(schema.all_errors[1], XMLSchemaParseError))
 
+    def test_scope_property(self):
+        schema = self.check_schema("""
+        <xs:attribute name="global_attr" type="xs:string"/>
+        <xs:attributeGroup name="attrGroup">
+            <xs:attribute name="local_attr" type="xs:string"/>
+        </xs:attributeGroup>
+        """)
+        self.assertEqual(schema.attributes['global_attr'].scope, 'global')
+        self.assertEqual(schema.attribute_groups['attrGroup']['local_attr'].scope, 'local')
+
+    def test_value_constraint_property(self):
+        schema = self.check_schema("""
+        <xs:attributeGroup name="attrGroup">
+            <xs:attribute name="attr1" type="xs:string"/>
+            <xs:attribute name="attr2" type="xs:string" default="alpha"/>
+            <xs:attribute name="attr3" type="xs:string" default="beta"/>
+        </xs:attributeGroup>
+        """)
+        attribute_group = schema.attribute_groups['attrGroup']
+        self.assertIsNone(attribute_group['attr1'].value_constraint)
+        self.assertEqual(attribute_group['attr2'].value_constraint, 'alpha')
+        self.assertEqual(attribute_group['attr3'].value_constraint, 'beta')
+
 
 class TestXsd11Attributes(TestXsdAttributes):
 

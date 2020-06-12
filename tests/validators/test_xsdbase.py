@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ElementTree
 from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
-    XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError
+    XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
 from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -169,7 +169,7 @@ class TestXsdComponent(unittest.TestCase):
 
     def test_is_override(self):
         self.assertFalse(self.schema.elements['cars'].is_override())
-        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_override())
+        self.assertFalse(self.schema.elements['cars'].type.content[0].is_override())
 
     def test_representation(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -191,7 +191,7 @@ class TestXsdComponent(unittest.TestCase):
                          "XsdAttribute(ref='slot')")
 
     def test_parse_reference(self):
-        group = self.schema.elements['vehicles'].type.content_type
+        group = self.schema.elements['vehicles'].type.content
 
         name = '{%s}motorbikes' % XSD_NAMESPACE
         elem = ElementTree.Element(XSD_ELEMENT, name=name)
@@ -264,7 +264,7 @@ class TestXsdComponent(unittest.TestCase):
         name = '{%s}motorbikes' % self.schema.target_namespace
 
         elem = ElementTree.Element(XSD_ELEMENT, name=name, targetNamespace='tns0')
-        group = self.schema.elements['vehicles'].type.content_type
+        group = self.schema.elements['vehicles'].type.content
 
         xsd_element = self.FakeElement(elem=elem, name=name, schema=self.schema, parent=None)
         with self.assertRaises(XMLSchemaParseError) as ctx:
@@ -317,7 +317,7 @@ class TestXsdComponent(unittest.TestCase):
                     </xs:complexType>
                 </xs:element>
             </xs:schema>""")
-        self.assertEqual(schema.elements['root'].type.content_type[0].name, 'node')
+        self.assertEqual(schema.elements['root'].type.content[0].name, 'node')
 
     def test_id_property(self):
         name = '{%s}motorbikes' % self.schema.target_namespace
@@ -368,10 +368,10 @@ class TestXsdComponent(unittest.TestCase):
         self.assertListEqual(list(xsd_element.iter_components(str)), [])
 
     def test_iter_ancestors(self):
-        xsd_element = self.schema.elements['cars'].type.content_type[0]
+        xsd_element = self.schema.elements['cars'].type.content[0]
         ancestors = [e for e in xsd_element.iter_ancestors()]
         self.assertListEqual(ancestors, [
-            self.schema.elements['cars'].type.content_type,
+            self.schema.elements['cars'].type.content,
             self.schema.elements['cars'].type,
             self.schema.elements['cars'],
         ])
@@ -425,6 +425,10 @@ class TestXsdType(unittest.TestCase):
                          </xs:restriction>
                      </xs:simpleType>
 
+                     <xs:complexType name="emptyType2">
+                         <xs:attribute name="foo" type="xs:string"/>
+                     </xs:complexType>        
+
                      <xs:simpleType name="idType">
                          <xs:restriction base="xs:ID"/>
                      </xs:simpleType>
@@ -463,9 +467,18 @@ class TestXsdType(unittest.TestCase):
 
     def test_content_type_label(self):
         self.assertEqual(self.schema.types['emptyType'].content_type_label, 'empty')
+        self.assertEqual(self.schema.types['emptyType2'].content_type_label, 'empty')
         self.assertEqual(self.schema.types['fooType'].content_type_label, 'simple')
         self.assertEqual(self.schema.types['barType'].content_type_label, 'element-only')
         self.assertEqual(self.schema.types['mixedType'].content_type_label, 'mixed')
+
+    def test_simple_type_property(self):
+        self.assertIsInstance(self.schema.types['emptyType'].simple_type, XsdSimpleType)
+        self.assertIsNone(self.schema.types['emptyType2'].simple_type)
+
+    def test_model_group_property(self):
+        self.assertIsNone(self.schema.types['emptyType'].model_group)
+        self.assertIsInstance(self.schema.types['emptyType2'].model_group, XsdGroup)
 
     def test_root_type(self):
         self.assertIs(self.schema.types['fooType'].root_type,
@@ -576,45 +589,45 @@ class TestParticleMixin(unittest.TestCase):
 
     def test_occurs_property(self):
         self.assertListEqual(self.schema.elements['cars'].occurs, [1, 1])
-        self.assertListEqual(self.schema.elements['cars'].type.content_type[0].occurs, [0, None])
+        self.assertListEqual(self.schema.elements['cars'].type.content[0].occurs, [0, None])
 
     def test_effective_min_occurs_property(self):
         self.assertEqual(self.schema.elements['cars'].effective_min_occurs, 1)
-        self.assertEqual(self.schema.elements['cars'].type.content_type[0].effective_min_occurs, 0)
+        self.assertEqual(self.schema.elements['cars'].type.content[0].effective_min_occurs, 0)
 
     def test_effective_max_occurs_property(self):
         self.assertEqual(self.schema.elements['cars'].effective_max_occurs, 1)
-        self.assertIsNone(self.schema.elements['cars'].type.content_type[0].effective_max_occurs)
+        self.assertIsNone(self.schema.elements['cars'].type.content[0].effective_max_occurs)
 
     def test_is_emptiable(self):
         self.assertFalse(self.schema.elements['cars'].is_emptiable())
-        self.assertTrue(self.schema.elements['cars'].type.content_type[0].is_emptiable())
+        self.assertTrue(self.schema.elements['cars'].type.content[0].is_emptiable())
 
     def test_is_empty(self):
         self.assertFalse(self.schema.elements['cars'].is_empty())
 
     def test_is_single(self):
         self.assertTrue(self.schema.elements['cars'].is_single())
-        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_single())
+        self.assertFalse(self.schema.elements['cars'].type.content[0].is_single())
 
     def test_is_ambiguous(self):
         self.assertFalse(self.schema.elements['cars'].is_ambiguous())
-        self.assertTrue(self.schema.elements['cars'].type.content_type[0].is_ambiguous())
+        self.assertTrue(self.schema.elements['cars'].type.content[0].is_ambiguous())
 
     def test_is_univocal(self):
         self.assertTrue(self.schema.elements['cars'].is_univocal())
-        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_univocal())
+        self.assertFalse(self.schema.elements['cars'].type.content[0].is_univocal())
 
     def test_is_missing(self):
         self.assertTrue(self.schema.elements['cars'].is_missing(0))
         self.assertFalse(self.schema.elements['cars'].is_missing(1))
         self.assertFalse(self.schema.elements['cars'].is_missing(2))
-        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_missing(0))
+        self.assertFalse(self.schema.elements['cars'].type.content[0].is_missing(0))
 
     def test_is_over(self):
         self.assertFalse(self.schema.elements['cars'].is_over(0))
         self.assertTrue(self.schema.elements['cars'].is_over(1))
-        self.assertFalse(self.schema.elements['cars'].type.content_type[0].is_over(1000))
+        self.assertFalse(self.schema.elements['cars'].type.content[0].is_over(1000))
 
     def test_has_occurs_restriction(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -633,7 +646,7 @@ class TestParticleMixin(unittest.TestCase):
                      </xs:complexType>                             
                  </xs:schema>""")
 
-        xsd_group = schema.types['barType'].content_type
+        xsd_group = schema.types['barType'].content
 
         for k in range(9):
             self.assertTrue(

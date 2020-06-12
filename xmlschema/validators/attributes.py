@@ -202,12 +202,18 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         return 'full'
 
     @property
-    def form(self):
-        return get_xsd_form_attribute(self.elem, 'form')
+    def scope(self):
+        """The scope of the attribute declaration that can be 'global' or 'local'."""
+        return 'global' if self.parent is None else 'local'
 
     @property
-    def predefined_value(self):
+    def value_constraint(self):
+        """The fixed or the default value if either is defined, `None` otherwise."""
         return self.fixed if self.fixed is not None else self.default
+
+    @property
+    def form(self):
+        return get_xsd_form_attribute(self.elem, 'form')
 
     def is_optional(self):
         return self.use == 'optional'

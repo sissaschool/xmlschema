@@ -599,16 +599,8 @@ class XsdType(XsdComponent):
 
     @property
     def content_type_label(self):
-        if self.is_empty():
-            return 'empty'
-        elif self.has_simple_content():
-            return 'simple'
-        elif self.is_element_only():
-            return 'element-only'
-        elif self.has_mixed_content():
-            return 'mixed'
-        else:
-            return 'unknown'
+        """The content type classification."""
+        raise NotImplementedError()
 
     @property
     def root_type(self):
@@ -620,10 +612,28 @@ class XsdType(XsdComponent):
             if self.base_type.is_simple():
                 return self.base_type.primitive_type
             else:
-                return self.base_type.content_type.primitive_type
+                return self.base_type.content.primitive_type
         except AttributeError:
             # The type has complex or XsdList content
             return self.base_type
+
+    @property
+    def simple_type(self):
+        """
+        Property that is the instance itself for a simpleType. For a
+        complexType is the instance's *content* if this is a simpleType
+        or `None` if the instance's *content* is a model group.
+        """
+        raise NotImplementedError()
+
+    @property
+    def model_group(self):
+        """
+        Property that is `None` for a simpleType. For a complexType is
+        the instance's *content* if this is a model group or `None` if
+        the instance's *content* is a simpleType.
+        """
+        raise NotImplementedError()
 
     @staticmethod
     def is_simple():
@@ -658,7 +668,7 @@ class XsdType(XsdComponent):
         return False
 
     def is_empty(self):
-        """Returns `True` if the instance has an empty value or content, `False` otherwise."""
+        """Returns `True` if the instance has an empty content, `False` otherwise."""
         raise NotImplementedError()
 
     def is_emptiable(self):
@@ -667,8 +677,7 @@ class XsdType(XsdComponent):
 
     def has_simple_content(self):
         """
-        Returns `True` if the instance is a simpleType or a complexType with simple
-        content, `False` otherwise.
+        Returns `True` if the instance has a simple content, `False` otherwise.
         """
         raise NotImplementedError()
 
@@ -795,7 +804,7 @@ class ValidationMixin(object):
         :param kwargs: optional keyword arguments for the method :func:`iter_decode`.
         :return: a dictionary like object if the XSD component is an element, a \
         group or a complex type; a list if the XSD component is an attribute group; \
-         a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
+        a simple data type object otherwise. If *validation* argument is 'lax' a 2-items \
         tuple is returned, where the first item is the decoded object and the second item \
         is a list containing the errors.
         :raises: :exc:`XMLSchemaValidationError` if the object is not decodable by \

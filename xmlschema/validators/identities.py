@@ -210,7 +210,7 @@ class XsdIdentity(XsdComponent):
             result = field.xpath_selector.select(elem)
             if not result:
                 if decoders is not None and decoders[k] is not None:
-                    value = decoders[k].predefined_value
+                    value = decoders[k].value_constraint
                     if value is not None:
                         if decoders[k].type.root_type.name == XSD_QNAME:
                             value = qname_to_extended(value, namespaces)

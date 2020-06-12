@@ -168,7 +168,7 @@ class TestValidatorExceptions(unittest.TestCase):
         self.assertEqual(lines[-2], "Path: /a")
 
         root = ElementTree.XML('<a><b1/><b2/><b2/><b3/><b3/><b3/></a>')
-        validator = schema.elements['a'].type.content_type
+        validator = schema.elements['a'].type.content
         with self.assertRaises(XMLSchemaChildrenValidationError) as ctx:
             raise XMLSchemaChildrenValidationError(validator, root, 2, validator[1], 2)
 

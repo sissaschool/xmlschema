@@ -105,12 +105,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         super(XsdElement, self).__setattr__(name, value)
 
     def __iter__(self):
-        if not self.type.has_simple_content():
-            yield from self.type.content_type.iter_elements()
-
-    @property
-    def xpath_proxy(self):
-        return XMLSchemaProxy(self.schema, self)
+        if self.type.has_complex_content():
+            yield from self.type.content.iter_elements()
 
     def _parse(self):
         XsdComponent._parse(self)
@@ -345,6 +341,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             self._substitution_group = substitution_group_qname
 
     @property
+    def xpath_proxy(self):
+        return XMLSchemaProxy(self.schema, self)
+
+    @property
     def built(self):
         return (self.type.parent is None or self.type.built) and \
             all(c.built for c in self.identities.values())
@@ -359,6 +359,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return 'partial'
         else:
             return 'none'
+
+    @property
+    def scope(self):
+        """The scope of the element declaration that can be 'global' or 'local'."""
+        return 'global' if self.parent is None else 'local'
+
+    @property
+    def value_constraint(self):
+        """The fixed or the default value if either is defined, `None` otherwise."""
+        return self.fixed if self.fixed is not None else self.default
 
     # Global element's exclusive properties
     @property
@@ -400,10 +410,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     @property
     def form(self):
         return self._form if self.ref is None else self.ref.form
-
-    @property
-    def predefined_value(self):
-        return self.fixed if self.fixed is not None else self.default
 
     def get_attribute(self, name):
         if name[0] != '{':
@@ -598,7 +604,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         if xsd_type.is_complex() and self.xsd_version == '1.1':
             kwargs['id_list'] = []  # Track XSD 1.1 multiple xs:ID attributes/children
 
-        content_type = xsd_type.content_type if xsd_type.is_complex() else xsd_type
+        content_decoder = xsd_type.content if xsd_type.is_complex() else xsd_type
 
         # Decode attributes
         attribute_group = self.get_attributes(xsd_type)
@@ -640,15 +646,15 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return
 
         if xsd_type.is_empty() and elem.text:
-            reason = "character data is not allowed because the type's content is empty"
+            reason = "character data is not allowed because content is empty"
             yield self.validation_error(validation, reason, elem, **kwargs)
 
-        if not xsd_type.has_simple_content():
+        if xsd_type.model_group is not None:
             for assertion in xsd_type.assertions:
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
 
-            for result in content_type.iter_decode(elem, validation, **kwargs):
+            for result in content_decoder.iter_decode(elem, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     yield self.validation_error(validation, result, elem, **kwargs)
                 else:
@@ -664,7 +670,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         else:
             if len(elem):
-                reason = "a simple content element can't has child elements."
+                reason = "a simple content element can't have child elements."
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
             text = elem.text
@@ -686,19 +692,19 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     for error in assertion(elem, value=text, **kwargs):
                         yield self.validation_error(validation, error, **kwargs)
 
-                if text and content_type.is_list():
+                if text and content_decoder.is_list():
                     value = text.split()
                 else:
                     value = text
 
             if text is None:
-                for result in content_type.iter_decode('', validation, **kwargs):
+                for result in content_decoder.iter_decode('', validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                         if 'filler' in kwargs:
                             value = kwargs['filler'](self)
             else:
-                for result in content_type.iter_decode(text, validation, **kwargs):
+                for result in content_decoder.iter_decode(text, validation, **kwargs):
                     if isinstance(result, XMLSchemaValidationError):
                         yield self.validation_error(validation, result, elem, **kwargs)
                     elif result is None and 'filler' in kwargs:
@@ -845,7 +851,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         elif xsd_type.has_simple_content():
             if element_data.text is not None:
-                for result in xsd_type.content_type.iter_encode(
+                for result in xsd_type.content.iter_encode(
                         element_data.text, validation, **kwargs
                 ):
                     if isinstance(result, XMLSchemaValidationError):
@@ -853,7 +859,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         text = result
         else:
-            for result in xsd_type.content_type.iter_encode(element_data, validation, **kwargs):
+            for result in xsd_type.content.iter_encode(element_data, validation, **kwargs):
                 if isinstance(result, XMLSchemaValidationError):
                     errors.append(result)
                 elif result:

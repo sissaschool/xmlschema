@@ -302,7 +302,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             logger.setLevel(logging.WARNING)
 
         if allow == 'sandbox' and base_url is None and is_local_url(source):
-            base_url = os.path.dirname(normalize_url(source))
+            base_url = os.path.dirname(source)
 
         self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
         logger.debug("Read schema from %r", self.source)
@@ -759,8 +759,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             parent=None,
             mixed=True
         )
-        any_type.content_type.append(self.BUILDERS.any_element_class(
-            ANY_ELEMENT, self, any_type.content_type
+        any_type.content.append(self.BUILDERS.any_element_class(
+            ANY_ELEMENT, self, any_type.content
         ))
         any_type.attributes[None] = self.BUILDERS.any_attribute_class(
             ANY_ATTRIBUTE_ELEMENT, self, any_type.attributes

@@ -622,13 +622,13 @@ class XsdGlobals(XsdValidator):
         # Check complex content types models restrictions
         for xsd_global in filter(lambda x: x.schema in schemas, self.iter_globals()):
             for xsd_type in xsd_global.iter_components(XsdComplexType):
-                if not isinstance(xsd_type.content_type, XsdGroup):
+                if not isinstance(xsd_type.content, XsdGroup):
                     continue
 
                 if xsd_type.derivation == 'restriction':
                     base_type = xsd_type.base_type
                     if base_type and base_type.name != XSD_ANY_TYPE and base_type.is_complex():
-                        if not xsd_type.content_type.is_restriction(base_type.content_type):
+                        if not xsd_type.content.is_restriction(base_type.content):
                             xsd_type.parse_error("the derived group is an illegal restriction "
                                                  "of the base type group", validation=validation)
 
@@ -638,12 +638,12 @@ class XsdGlobals(XsdValidator):
                             parent=xsd_type,
                             any_element=xsd_type.open_content.any_element
                         )
-                        if not group.is_restriction(base_type.content_type):
+                        if not group.is_restriction(base_type.content):
                             msg = "restriction has an open content but base type has not"
                             group.parse_error(msg, validation=validation)
 
                 try:
-                    xsd_type.content_type.check_model()
+                    xsd_type.content.check_model()
                 except XMLSchemaModelDepthError:
                     msg = "cannot verify the content model of {!r} " \
                           "due to maximum recursion depth exceeded".format(xsd_type)

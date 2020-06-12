@@ -132,14 +132,17 @@ class TestXsdComplexType(XsdValidatorTestCase):
             base, '<xs:sequence><xs:element name="A"/><xs:element name="B"/></xs:sequence>'
         )
         self.check_complex_restriction(
-            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>', XMLSchemaParseError
-        )
-        self.check_complex_restriction(
-            base, '<xs:sequence><xs:element name="A" minOccurs="0"/><xs:element name="B"/></xs:sequence>',
+            base, '<xs:sequence><xs:element name="A"/><xs:element name="C"/></xs:sequence>',
             XMLSchemaParseError
         )
         self.check_complex_restriction(
-            base, '<xs:sequence><xs:element name="B" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
+            base,
+            '<xs:sequence><xs:element name="A" minOccurs="0"/><xs:element name="B"/></xs:sequence>',
+            XMLSchemaParseError
+        )
+        self.check_complex_restriction(
+            base,
+            '<xs:sequence><xs:element name="B" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
             XMLSchemaParseError
         )
 
@@ -174,7 +177,8 @@ class TestXsdComplexType(XsdValidatorTestCase):
             </xs:sequence>
             """)
         self.check_complex_restriction(
-            base, '<xs:sequence><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:sequence>',
+            base,
+            '<xs:sequence><xs:element name="C" minOccurs="0"/><xs:element name="A"/></xs:sequence>'
         )
         self.check_complex_restriction(
             base, restriction="""
@@ -198,7 +202,8 @@ class TestXsdComplexType(XsdValidatorTestCase):
             <xs:element name="A" minOccurs="0" maxOccurs="0"/>
         </xs:all>
         """
-        self.check_complex_restriction(base, '<xs:all><xs:element name="A"/></xs:all>', XMLSchemaParseError)
+        self.check_complex_restriction(base, '<xs:all><xs:element name="A"/></xs:all>',
+                                       XMLSchemaParseError)
 
     def test_choice_group_restriction(self):
         base = """
@@ -208,13 +213,16 @@ class TestXsdComplexType(XsdValidatorTestCase):
             <xs:element name="C"/>
         </xs:choice>
         """
-        self.check_complex_restriction(base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
         self.check_complex_restriction(
-            base, '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
+            base, '<xs:choice><xs:element name="A"/><xs:element name="C"/></xs:choice>')
+        self.check_complex_restriction(
+            base,
+            '<xs:choice maxOccurs="2"><xs:element name="C"/><xs:element name="A"/></xs:choice>',
             XMLSchemaParseError if self.schema_class.XSD_VERSION == '1.0' else None
         )
         self.check_complex_restriction(
-            base, '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
+            base,
+            '<xs:choice maxOccurs="2"><xs:element name="A"/><xs:element name="C"/></xs:choice>',
         )
 
     def test_occurs_restriction(self):
@@ -297,6 +305,121 @@ class TestXsdComplexType(XsdValidatorTestCase):
         </xs:schema>
         """, XMLSchemaModelError if self.schema_class.XSD_VERSION == '1.0' else None)
 
+    def test_content_type(self):
+        # Ref: https://www.w3.org/TR/xmlschema11-1/#Complex_Type_Definition_details
+
+        schema = self.schema_class("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+            <xs:complexType name="emptyContentType1">
+                <xs:attribute name="a1"/>
+            </xs:complexType>
+
+            <xs:simpleType name="emptyContentType2">
+                <xs:restriction base="xs:string">
+                    <xs:length value="0"/>
+                </xs:restriction>
+            </xs:simpleType>
+
+            <xs:complexType name="emptyContentType3">
+                <xs:simpleContent>
+                    <xs:extension base="emptyContentType2">
+                        <xs:attribute name="a1"/>
+                    </xs:extension>
+                </xs:simpleContent>
+            </xs:complexType>
+
+            <xs:simpleType name="simpleContentType1">
+                <xs:restriction base="xs:string">
+                    <xs:length value="1"/>
+                </xs:restriction>
+            </xs:simpleType>
+
+            <xs:complexType name="simpleContentType2">
+                <xs:simpleContent>
+                    <xs:extension base="xs:string">
+                        <xs:attribute name="a1"/>
+                    </xs:extension>
+                </xs:simpleContent>
+            </xs:complexType>
+
+            <xs:complexType name="elementOnlyContentType">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+
+            <xs:complexType name="mixedContentType" mixed="true">
+                <xs:sequence>
+                    <xs:element name="elem1"/>
+                </xs:sequence>
+            </xs:complexType>
+
+        </xs:schema>
+        """)
+
+        xsd_type = schema.types['emptyContentType1']
+        self.assertTrue(xsd_type.is_empty())
+        self.assertFalse(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'empty')
+
+        xsd_type = schema.types['emptyContentType2']
+        self.assertTrue(xsd_type.is_empty())
+        self.assertFalse(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'empty')
+
+        xsd_type = schema.types['emptyContentType3']
+        self.assertTrue(xsd_type.is_empty())
+        self.assertFalse(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'empty')
+
+        xsd_type = schema.types['simpleContentType1']
+        self.assertFalse(xsd_type.is_empty())
+        self.assertTrue(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'simple')
+
+        xsd_type = schema.types['simpleContentType2']
+        self.assertFalse(xsd_type.is_empty())
+        self.assertTrue(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'simple')
+
+        xsd_type = schema.types['elementOnlyContentType']
+        self.assertFalse(xsd_type.is_empty())
+        self.assertFalse(xsd_type.has_simple_content())
+        self.assertTrue(xsd_type.is_element_only())
+        self.assertFalse(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'element-only')
+
+        xsd_type = schema.types['mixedContentType']
+        self.assertFalse(xsd_type.is_empty())
+        self.assertFalse(xsd_type.has_simple_content())
+        self.assertFalse(xsd_type.is_element_only())
+        self.assertTrue(xsd_type.has_mixed_content())
+        self.assertEqual(xsd_type.content_type_label, 'mixed')
+
+    def test_content_type_property(self):
+        schema = self.schema_class("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:complexType name="type1">
+                    <xs:sequence>
+                        <xs:element name="elem1"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:schema>""")
+
+        xsd_type = schema.types['type1']
+        self.assertIs(xsd_type.content_type, xsd_type.content)
+
 
 class TestXsd11ComplexType(TestXsdComplexType):
 
@@ -342,14 +465,14 @@ class TestXsd11ComplexType(TestXsdComplexType):
               </xs:complexType>
             </xs:schema>""")
 
-        base_group = schema.types['base'].content_type
+        base_group = schema.types['base'].content
         self.assertEqual(base_group.model, 'sequence')
         self.assertEqual(base_group[0].name, 'a')
         self.assertEqual(base_group[1].name, 'b')
         self.assertEqual(base_group[2].name, 'c')
         self.assertEqual(len(base_group), 3)
 
-        ext_group = schema.types['ext'].content_type
+        ext_group = schema.types['ext'].content
         self.assertEqual(ext_group.model, 'sequence')
         self.assertEqual(len(ext_group), 2)
         self.assertEqual(ext_group[0].model, 'sequence')
