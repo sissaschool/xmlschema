@@ -37,7 +37,7 @@ class InstallCommand(install):
 
 setup(
     name='xmlschema',
-    version='1.2.1',
+    version='1.2.2',
     packages=['xmlschema'],
     include_package_data=True,
     entry_points={

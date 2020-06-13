@@ -784,7 +784,7 @@ class TestResources(unittest.TestCase):
 
         with warnings.catch_warnings(record=True) as ctx:
             warnings.simplefilter("always")
-            self.schema_class(xsd_source, base_url='/tmp', allow='sandbox')
+            self.schema_class(xsd_source, base_url='/improbable', allow='sandbox')
             self.assertEqual(len(ctx), 1, "Expected one import warning")
             self.assertIn("block access to out of sandbox", str(ctx[0].message))
 
