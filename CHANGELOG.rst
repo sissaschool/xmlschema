@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.2.2`_ (2020-06-15)
+======================
+* Fix XPath context for schema nodes
+* Fix XPath parser and context for identities
+
 `v1.2.1`_ (2020-06-12)
 ======================
 * Fix content type classification (issue #195)
@@ -334,3 +339,4 @@ v0.9.6 (2017-05-05)
 .. _v1.1.3: https://github.com/brunato/xmlschema/compare/v1.1.2...v1.1.3
 .. _v1.2.0: https://github.com/brunato/xmlschema/compare/v1.1.3...v1.2.0
 .. _v1.2.1: https://github.com/brunato/xmlschema/compare/v1.2.0...v1.2.1
+.. _v1.2.2: https://github.com/brunato/xmlschema/compare/v1.2.1...v1.2.2

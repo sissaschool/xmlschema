@@ -12,9 +12,11 @@ This module defines a mixin class for enabling XPath on schemas.
 """
 from abc import abstractmethod
 from collections.abc import Sequence
-from elementpath import XPath2Parser, XPathSchemaContext, AbstractSchemaProxy
 import re
 import threading
+
+from elementpath import AttributeNode, TypedElement, XPath2Parser, \
+    XPathSchemaContext, AbstractSchemaProxy
 
 from .qnames import XSD_SCHEMA
 from .namespaces import XSD_NAMESPACE
@@ -23,54 +25,53 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+\]')
 
 
+def iter_schema_nodes(elem, with_root=True, with_attributes=False):
+    """
+    Iteration function for schema nodes. It doesn't yield text nodes,
+    that are always `None` for schema elements, and detects visited
+    element in order to skip already visited nodes.
+
+    :param elem: schema or schema's element.
+    :param with_root: if `True` yields initial element.
+    :param with_attributes: if `True` yields also attribute nodes.
+    """
+    def attribute_node(x):
+        return AttributeNode(*x)
+
+    def _iter_schema_nodes(_elem):
+        for child in _elem:
+            if child in nodes:
+                continue
+            elif child.ref is not None:
+                nodes.add(child)
+                yield child
+                if child.ref not in nodes:
+                    nodes.add(child.ref)
+                    yield child.ref
+                    if with_attributes:
+                        yield from map(attribute_node, child.attributes.items())
+                    yield from _iter_schema_nodes(child.ref)
+            else:
+                nodes.add(child)
+                yield child
+                if with_attributes:
+                    yield from map(attribute_node, child.attributes.items())
+                yield from _iter_schema_nodes(child)
+
+    if isinstance(elem, TypedElement):
+        elem = elem.elem
+
+    nodes = {elem}
+    if with_root:
+        yield elem
+        if with_attributes:
+            yield from map(attribute_node, elem.attributes.items())
+    yield from _iter_schema_nodes(elem)
+
+
 class XMLSchemaContext(XPathSchemaContext):
-    """
-    XPath dynamic context class for *xmlschema* library. Skips elem.text,
-    that is always `None` for schema elements, and implements safe iteration
-    methods for schema elements that recognize circular references.
-    """
-    def _iter_descendants(self):
-        def safe_iter_descendants(context):
-            elem = context.item
-            yield elem
-            if len(elem):
-                context.size = len(elem)
-                for context.position, context.item in enumerate(elem):
-                    if context.item.parent is None:
-                        for item in safe_iter_descendants(context):
-                            yield item
-                    elif getattr(context.item, 'ref', None) is not None:
-                        yield context.item
-                    elif context.item not in local_items:
-                        local_items.append(context.item)
-                        for item in safe_iter_descendants(context):
-                            yield item
-
-        local_items = []
-        return safe_iter_descendants(self)
-
-    def _iter_context(self):
-        def safe_iter_context(context):
-            elem = context.item
-            yield elem
-
-            for item in elem.attrib.items():
-                context.item = item
-                yield item
-
-            if len(elem):
-                context.size = len(elem)
-                for context.position, context.item in enumerate(elem):
-                    if context.item.parent is None:
-                        yield from safe_iter_context(context)
-                    elif getattr(context.item, 'ref', None) is not None:
-                        yield context.item
-                    elif context.item not in local_items:
-                        local_items.append(context.item)
-                        yield from safe_iter_context(context)
-
-        local_items = []
-        return safe_iter_context(self)
+    """XPath dynamic schema context for the *xmlschema* library."""
+    _iter_nodes = staticmethod(iter_schema_nodes)
 
 
 class XMLSchemaProxy(AbstractSchemaProxy):
@@ -310,12 +311,12 @@ class ElementPathMixin(Sequence):
                     if tag is None or child.is_matching(tag):
                         yield child
                 elif child not in local_elements:
-                    local_elements.append(child)
+                    local_elements.add(child)
                     yield from safe_iter(child)
 
         if tag == '*':
             tag = None
-        local_elements = []
+        local_elements = set()
         return safe_iter(self)
 
     def iterchildren(self, tag=None):
