@@ -2,10 +2,10 @@
 CHANGELOG
 *********
 
-`v1.2.2`_ (2020-06-XX)
+`v1.2.2`_ (2020-06-15)
 ======================
-* Increase coverage ...
-* Fix W3C tests ...
+* Fix XPath context for schema nodes
+* Fix XPath parser and context for identities
 
 `v1.2.1`_ (2020-06-12)
 ======================

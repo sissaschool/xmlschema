@@ -453,7 +453,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                if len(schemas) <= 1:
+                                if len(schemas) <= 1 and use_meta:
                                     validate(source, schema=schema, cls=schema_class)
                                 else:
                                     xs = schema_class(schemas[0], use_meta=use_meta, build=False)

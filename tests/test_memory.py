@@ -68,7 +68,7 @@ class TestMemoryUsage(unittest.TestCase):
         lazy_iterparse_mem = self.check_memory_profile(output)
 
         self.assertLess(parse_mem, 2)
-        self.assertLessEqual(lazy_iterparse_mem, parse_mem / 2)
+        self.assertLessEqual(lazy_iterparse_mem, parse_mem / decimal.Decimal('1.75'))
         self.assertLessEqual(lazy_iterparse_mem, iterparse_mem)
 
     def test_decode_memory_usage(self):
