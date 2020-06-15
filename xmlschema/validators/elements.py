@@ -743,7 +743,9 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             try:
                 if xsd_type is self.type:
-                    xsd_fields = identity.get_fields(self)
+                    xsd_fields = identity.elements[self]
+                    if xsd_fields is None:
+                        xsd_fields = identity.elements[self] = identity.get_fields(self)
                 else:
                     xsd_element = self.copy()
                     xsd_element.type = xsd_type

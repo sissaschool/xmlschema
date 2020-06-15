@@ -12,14 +12,13 @@ This module contains classes for other XML Schema identity constraints.
 """
 import re
 from collections import Counter
-from elementpath import Selector, XPath2Parser, ElementPathError
+from elementpath import XPath2Parser, ElementPathError, XPathContext
 
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
     XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended, is_not_xsd_annotation
-from ..etree import etree_getpath
 from ..regex import get_python_regex
-
+from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 
@@ -34,18 +33,25 @@ XSD_IDENTITY_XPATH_SYMBOLS = {
     'ancestor', 'position', 'comment', 'parent', 'child', 'false', 'text', 'node',
     'true', 'last', 'not', 'and', 'mod', 'div', 'or', '..', '//', '!=', '<=', '>=', '(', ')',
     '[', ']', '.', '@', ',', '/', '|', '*', '-', '=', '+', '<', '>', ':', '(end)', '(name)',
-    '(string)', '(float)', '(decimal)', '(integer)', '::'
+    '(string)', '(float)', '(decimal)', '(integer)', '::', '{', '}',
 }
 
 
-class XsdIdentityXPathParser(XPath2Parser):
+# XSD identities use a restricted parser and a context for iterate element
+# references. The XMLSchemaProxy is not used for the specific selection of
+# fields and elements and the XSD fields are got at first validation run.
+class IdentityXPathContext(XPathContext):
+    _iter_nodes = staticmethod(iter_schema_nodes)
+
+
+class IdentityXPathParser(XPath2Parser):
     symbol_table = {
         k: v for k, v in XPath2Parser.symbol_table.items() if k in XSD_IDENTITY_XPATH_SYMBOLS
     }
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
-XsdIdentityXPathParser.build_tokenizer()
+IdentityXPathParser.build_tokenizer()
 
 
 class XsdSelector(XsdComponent):
@@ -57,6 +63,8 @@ class XsdSelector(XsdComponent):
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
         r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
     ))
+    token = None
+    parser = None
 
     def __init__(self, elem, schema, parent):
         super(XsdSelector, self).__init__(elem, schema, parent)
@@ -79,25 +87,25 @@ class XsdSelector(XsdComponent):
             else:
                 self.xpath_default_namespace = self.schema.xpath_default_namespace
 
+        self.parser = IdentityXPathParser(
+            namespaces=self.namespaces,
+            strict=False,
+            compatibility_mode=True,
+            default_namespace=self.xpath_default_namespace,
+        )
+
         try:
-            self.xpath_selector = Selector(
-                path=self.path,
-                namespaces=self.namespaces,
-                parser=XsdIdentityXPathParser,
-                default_namespace=self.xpath_default_namespace,
-                compatibility_mode=True,
-                strict=False,
-            )
+            self.token = self.parser.parse(self.path)
         except ElementPathError as err:
             self.parse_error(err)
-            self.xpath_selector = Selector('*', self.namespaces, XsdIdentityXPathParser)
+            self.token = self.parser.parse('*')
 
     def __repr__(self):
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
 
     @property
     def built(self):
-        return True
+        return self.token is not None
 
     @property
     def target_namespace(self):
@@ -188,8 +196,9 @@ class XsdIdentity(XsdComponent):
                 self.fields = ref.fields
                 self.ref = ref
 
+        context = IdentityXPathContext(self.parent)
         self.elements = {
-            e for e in self.selector.xpath_selector.iter_select(self.parent) if e.name
+            e: None for e in self.selector.token.select_results(context) if e.name
         }
 
     @property
@@ -206,8 +215,13 @@ class XsdIdentity(XsdComponent):
         :return: a tuple with field values. An empty field is replaced by `None`.
         """
         fields = []
+        if isinstance(elem, XsdComponent):
+            context_class = IdentityXPathContext
+        else:
+            context_class = XPathContext
+
         for k, field in enumerate(self.fields):
-            result = field.xpath_selector.select(elem)
+            result = field.token.get_results(context_class(elem))
             if not result:
                 if decoders is not None and decoders[k] is not None:
                     value = decoders[k].value_constraint
@@ -251,39 +265,6 @@ class XsdIdentity(XsdComponent):
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
 
         return tuple(fields)
-
-    def iter_values(self, elem, namespaces=None):
-        """
-        Iterate field values, excluding empty values (tuples with all `None` values).
-
-        :param elem: instance XML element.
-        :param namespaces: XML document namespaces.
-        :return: N-Tuple with value fields.
-        """
-        current_path = ''
-        xsd_fields = None
-        for e in self.selector.xpath_selector.iter_select(elem):
-            path = etree_getpath(e, elem)
-            if current_path != path:
-                # Change the XSD context only if the path is changed
-                current_path = path
-                xsd_element = self.parent.find(path)
-                if not hasattr(xsd_element, 'tag'):
-                    yield XMLSchemaValidationError(
-                        self, e, "{!r} is not an element".format(xsd_element)
-                    )
-                xsd_fields = self.get_fields(xsd_element)
-
-            if not xsd_fields or all(fld is None for fld in xsd_fields):
-                continue
-
-            try:
-                fields = self.get_fields(e, namespaces, decoders=xsd_fields)
-            except XMLSchemaValueError as err:
-                yield XMLSchemaValidationError(self, e, reason=str(err))
-            else:
-                if any(fld is not None for fld in fields):
-                    yield fields
 
     def get_counter(self, enabled=True):
         return IdentityCounter(self, enabled)
