@@ -30,7 +30,7 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin, ParticleMixin
-from .identities import XsdKeyref
+from .identities import XsdUnique, XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -643,6 +643,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if converter is not None:
                     element_data = ElementData(elem.tag, None, None, attributes)
                     yield converter.element_decode(element_data, self, xsd_type, level)
+
+                for identity, counter in identities.items():
+                    if isinstance(identity, XsdUnique) and counter.enabled and \
+                            self in identity.elements:
+                        try:
+                            counter.increase(None)
+                        except ValueError as err:
+                            yield self.validation_error(validation, err, elem, **kwargs)
                 return
 
         if xsd_type.is_empty() and elem.text:
