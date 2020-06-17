@@ -14,7 +14,7 @@ import re
 from collections import Counter
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 
-from ..exceptions import XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
     XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended, is_not_xsd_annotation
 from ..regex import get_python_regex
@@ -251,6 +251,9 @@ class XsdIdentity(XsdComponent):
                 if decoders is None or decoders[k] is None:
                     fields.append(result[0])
                 else:
+                    if decoders[k].type.content_type_label not in ('simple', 'mixed'):
+                        raise XMLSchemaTypeError("%r field doesn't have a simple type!" % field)
+
                     value = decoders[k].data_value(result[0])
                     if decoders[k].type.root_type.name == XSD_QNAME:
                         value = qname_to_extended(value, namespaces)

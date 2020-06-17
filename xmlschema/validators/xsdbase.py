@@ -232,6 +232,7 @@ class XsdComponent(XsdValidator):
         if parent is not None:
             self.parent = parent
         self.schema = schema
+        self.maps = schema.maps
         self.elem = elem
 
     def __setattr__(self, name, value):
@@ -298,24 +299,19 @@ class XsdComponent(XsdValidator):
         return self.schema.namespaces
 
     @property
-    def maps(self):
-        """Property that references to schema's global maps."""
-        return self.schema.maps
-
-    @property
     def any_type(self):
         """Property that references to the xs:anyType instance of the global maps."""
-        return self.schema.maps.types[XSD_ANY_TYPE]
+        return self.maps.types[XSD_ANY_TYPE]
 
     @property
     def any_simple_type(self):
         """Property that references to the xs:anySimpleType instance of the global maps."""
-        return self.schema.maps.types[XSD_ANY_SIMPLE_TYPE]
+        return self.maps.types[XSD_ANY_SIMPLE_TYPE]
 
     @property
     def any_atomic_type(self):
         """Property that references to the xs:anyAtomicType instance of the global maps."""
-        return self.schema.maps.types[XSD_ANY_ATOMIC_TYPE]
+        return self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
     def __repr__(self):
         if self.name is None:

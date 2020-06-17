@@ -368,7 +368,7 @@ class XsdSimpleType(XsdType, ValidationMixin):
             return self.base_type.is_derived(other, derivation)
 
     def is_dynamic_consistent(self, other):
-        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or self.is_derived(other) or \
+        return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or self.is_derived(other) or \
             hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
 
     def normalize(self, text):
@@ -749,7 +749,7 @@ class XsdList(XsdSimpleType):
                 base_type = xsd_simple_type_factory(child, self.schema, self)
             except XMLSchemaParseError as err:
                 self.parse_error(err, elem)
-                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                base_type = self.any_atomic_type
 
             if 'itemType' in elem.attrib:
                 self.parse_error("ambiguous list type declaration", self)
@@ -763,33 +763,33 @@ class XsdList(XsdSimpleType):
                     self.parse_error("missing list type declaration")
                 else:
                     self.parse_error(err)
-                base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                base_type = self.any_atomic_type
             else:
                 try:
                     base_type = self.maps.lookup_type(item_qname)
                 except KeyError:
                     self.parse_error("unknown itemType %r" % elem.attrib['itemType'], elem)
-                    base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    base_type = self.any_atomic_type
                 else:
                     if isinstance(base_type, tuple):
                         self.parse_error(
                             "circular definition found for type {!r}".format(item_qname)
                         )
-                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                        base_type = self.any_atomic_type
 
         if base_type.final == '#all' or 'list' in base_type.final:
             self.parse_error(
                 "'final' value of the itemType %r forbids derivation by list" % base_type
             )
 
-        if base_type is self.any_atomic_type:
+        if base_type.name == XSD_ANY_ATOMIC_TYPE:
             self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
 
         try:
             self.base_type = base_type
         except XMLSchemaValueError as err:
             self.parse_error(str(err), elem)
-            self.base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+            self.base_type = self.any_atomic_type
         else:
             if not base_type.allow_empty and self.min_length != 0:
                 self.allow_empty = False
@@ -923,10 +923,10 @@ class XsdUnion(XsdSimpleType):
                     mt = self.maps.lookup_type(type_qname)
                 except KeyError:
                     self.parse_error("unknown member type %r" % type_qname)
-                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    mt = self.any_atomic_type
                 except XMLSchemaParseError as err:
                     self.parse_error(err)
-                    mt = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                    mt = self.any_atomic_type
 
                 if isinstance(mt, tuple):
                     self.parse_error(
@@ -944,8 +944,8 @@ class XsdUnion(XsdSimpleType):
 
         if not member_types:
             self.parse_error("missing xs:union type declarations", elem)
-            self.member_types = [self.maps.types[XSD_ANY_ATOMIC_TYPE]]
-        elif any(mt is self.any_atomic_type for mt in member_types):
+            self.member_types = [self.any_atomic_type]
+        elif any(mt.name == XSD_ANY_ATOMIC_TYPE for mt in member_types):
             self.parse_error("Cannot use xs:anyAtomicType as base type of a user-defined type")
         else:
             self.member_types = member_types
@@ -966,7 +966,7 @@ class XsdUnion(XsdSimpleType):
         return True
 
     def is_dynamic_consistent(self, other):
-        return other.name in (XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE) or \
+        return other.name in {XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE} or \
             other.is_derived(self) or isinstance(other, self.__class__) and \
             any(mt1.is_derived(mt2) for mt1 in other.member_types for mt2 in self.member_types)
 
@@ -1101,12 +1101,12 @@ class XsdAtomicRestriction(XsdAtomic):
                 base_qname = self.schema.resolve_qname(elem.attrib['base'])
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err, elem)
-                base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
+                base_type = self.any_atomic_type
             else:
                 if base_qname == self.name:
                     if self.redefine is None:
                         self.parse_error("wrong definition with self-reference", elem)
-                        base_type = self.maps.type[XSD_ANY_ATOMIC_TYPE]
+                        base_type = self.any_atomic_type
                     else:
                         base_type = self.base_type
                 else:
@@ -1117,15 +1117,15 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = self.maps.lookup_type(base_qname)
                     except KeyError:
                         self.parse_error("unknown type %r." % elem.attrib['base'])
-                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                        base_type = self.any_atomic_type
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
-                        base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                        base_type = self.any_atomic_type
                     else:
                         if isinstance(base_type, tuple):
                             msg = "circularity definition between %r and %r"
                             self.parse_error(msg % (self, base_qname), elem)
-                            base_type = self.maps.types[XSD_ANY_ATOMIC_TYPE]
+                            base_type = self.any_atomic_type
 
             if base_type.is_simple() and base_type.name == XSD_ANY_SIMPLE_TYPE:
                 self.parse_error("wrong base type {!r}, an atomic type required")
@@ -1161,7 +1161,7 @@ class XsdAtomicRestriction(XsdAtomic):
                         base_type = xsd_simple_type_factory(child, self.schema, self)
                     except XMLSchemaParseError as err:
                         self.parse_error(err)
-                        base_type = self.maps.types[XSD_ANY_SIMPLE_TYPE]
+                        base_type = self.any_simple_type
                 elif base_type.is_complex():
                     if base_type.admit_simple_restriction():
                         base_type = self.schema.BUILDERS.complex_type_class(

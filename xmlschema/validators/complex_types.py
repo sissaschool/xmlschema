@@ -11,7 +11,7 @@ from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, \
-    XSD_SIMPLE_CONTENT, XSD_ANY_SIMPLE_TYPE, XSD_OPEN_CONTENT, XSD_ASSERT, \
+    XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ASSERT, \
     get_qname, local_name, is_not_xsd_annotation, is_xsd_override
 from ..helpers import get_xsd_derivation_attribute
 
@@ -263,24 +263,24 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error("'base' attribute required", elem)
             else:
                 self.parse_error(err, elem)
-            return self.maps.types[XSD_ANY_TYPE]
+            return self.any_type
 
         try:
             base_type = self.maps.lookup_type(base_qname)
         except KeyError:
             self.parse_error("missing base type %r" % base_qname, elem)
             if complex_content:
-                return self.maps.types[XSD_ANY_TYPE]
+                return self.any_type
             else:
-                return self.maps.types[XSD_ANY_SIMPLE_TYPE]
+                return self.any_simple_type
         else:
             if isinstance(base_type, tuple):
                 self.parse_error("circularity definition found between %r "
                                  "and %r" % (self, base_qname), elem)
-                return self.maps.types[XSD_ANY_TYPE]
+                return self.any_type
             elif complex_content and base_type.is_simple():
                 self.parse_error("a complexType ancestor required: %r" % base_type, elem)
-                return self.maps.types[XSD_ANY_TYPE]
+                return self.any_type
 
             if base_type.final and elem.tag.rsplit('}', 1)[-1] in base_type.final:
                 msg = "derivation by %r blocked by attribute 'final' in base type"
@@ -336,7 +336,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             self.parse_error("the base type is not derivable by restriction")
         if base_type.is_simple() or base_type.has_simple_content():
             self.parse_error("base %r is simple or has a simple content." % base_type, elem)
-            base_type = self.maps.types[XSD_ANY_TYPE]
+            base_type = self.any_type
 
         # complexContent restriction: the base type must be a complexType with a complex content.
         for child in filter(is_not_xsd_annotation, elem):

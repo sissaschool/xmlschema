@@ -90,7 +90,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 xsd_attribute = self.maps.lookup_attribute(self.name)
             except LookupError:
                 self.parse_error("unknown attribute %r" % self.name)
-                self.type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                self.type = self.any_simple_type
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
@@ -149,13 +149,13 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 type_qname = self.schema.resolve_qname(attrib['type'])
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
-                xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                xsd_type = self.any_simple_type
             else:
                 try:
                     xsd_type = self.maps.lookup_type(type_qname)
                 except LookupError as err:
                     self.parse_error(err)
-                    xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+                    xsd_type = self.any_simple_type
 
                 if child is not None and child.tag == XSD_SIMPLE_TYPE:
                     self.parse_error("ambiguous type definition for XSD attribute")
@@ -167,7 +167,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             xsd_type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
         else:
             # Empty declaration means xsdAnySimpleType
-            xsd_type = self.maps.lookup_type(XSD_ANY_SIMPLE_TYPE)
+            xsd_type = self.any_simple_type
 
         try:
             self.type = xsd_type
@@ -472,12 +472,12 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     attribute_group_refs.append(attribute_group_qname)
 
                     try:
-                        base_attributes = self.maps.lookup_attribute_group(attribute_group_qname)
+                        base_attrs = self.maps.lookup_attribute_group(attribute_group_qname)
                     except LookupError:
                         self.parse_error("unknown attribute group %r" % child.attrib['ref'], elem)
                     else:
-                        if not isinstance(base_attributes, tuple):
-                            for name, attr in base_attributes.items():
+                        if not isinstance(base_attrs, tuple):
+                            for name, attr in base_attrs.items():
                                 if name not in attributes:
                                     attributes[name] = attr
                                 elif name is not None:

@@ -15,7 +15,7 @@ from decimal import Decimal
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..exceptions import XMLSchemaAttributeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
@@ -125,7 +125,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 xsd_element = self.maps.lookup_element(self.name)
             except KeyError:
                 self.parse_error('unknown element %r' % self.name)
-                self.type = self.maps.types[XSD_ANY_TYPE]
+                self.type = self.any_type
             else:
                 self.ref = xsd_element
                 self.type = xsd_element.type
@@ -206,13 +206,16 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 type_qname = self.schema.resolve_qname(attrib['type'])
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
-                self.type = self.maps.types[XSD_ANY_TYPE]
+                self.type = self.any_type
             else:
-                try:
-                    self.type = self.maps.lookup_type(type_qname)
-                except KeyError:
-                    self.parse_error('unknown type %r' % attrib['type'])
-                    self.type = self.maps.types[XSD_ANY_TYPE]
+                if type_qname == XSD_ANY_TYPE:
+                    self.type = self.any_type
+                else:
+                    try:
+                        self.type = self.maps.lookup_type(type_qname)
+                    except KeyError:
+                        self.parse_error('unknown type %r' % attrib['type'])
+                        self.type = self.any_type
             finally:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is not None and child.tag in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
@@ -226,7 +229,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 elif child.tag == XSD_SIMPLE_TYPE:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
                 else:
-                    self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                    self.type = self.any_type
                     return 0
 
                 # Check value constraints
@@ -239,7 +242,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
                 return 1
             else:
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = self.any_type
                 return 0
 
         # Check value constraints
@@ -762,7 +765,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 if all(fld is None for fld in xsd_fields):
                     continue
                 fields = identity.get_fields(elem, namespaces, decoders=xsd_fields)
-            except XMLSchemaValueError as err:
+            except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
             else:
                 if any(fld is not None for fld in fields):
@@ -1257,12 +1260,12 @@ class XsdAlternative(XsdComponent):
         except (KeyError, ValueError, RuntimeError) as err:
             if 'type' in attrib:
                 self.parse_error(err)
-                self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                self.type = self.any_type
             else:
                 child = self._parse_child_component(self.elem, strict=False)
                 if child is None or child.tag not in (XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE):
                     self.parse_error("missing 'type' attribute")
-                    self.type = self.maps.lookup_type(XSD_ANY_TYPE)
+                    self.type = self.any_type
                 elif child.tag == XSD_COMPLEX_TYPE:
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
                 else:

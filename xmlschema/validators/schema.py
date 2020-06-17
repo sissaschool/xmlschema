@@ -752,20 +752,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def create_any_type(self):
         """
-        Creates an xs:anyType instance related to schema instance.
+        Creates an xs:anyType equivalent type related with the wildcards
+        connected to global maps of the schema instance in order to do a
+        correct namespace lookup during wildcards validation.
         """
+        schema = self.meta_schema or self
         any_type = self.BUILDERS.complex_type_class(
             elem=etree_element(XSD_COMPLEX_TYPE, name=XSD_ANY_TYPE),
-            schema=self,
-            parent=None,
-            mixed=True
+            schema=schema, parent=None, mixed=True, block='', final=''
         )
         any_type.content.append(self.BUILDERS.any_element_class(
-            ANY_ELEMENT, self, any_type.content
+            ANY_ELEMENT, schema, any_type.content
         ))
         any_type.attributes[None] = self.BUILDERS.any_attribute_class(
-            ANY_ATTRIBUTE_ELEMENT, self, any_type.attributes
+            ANY_ATTRIBUTE_ELEMENT, schema, any_type.attributes
         )
+        any_type.maps = any_type.content.maps = any_type.content[0].maps = \
+            any_type.attributes[None].maps = self.maps
         return any_type
 
     def create_element(self, name, text=None, **attrib):
