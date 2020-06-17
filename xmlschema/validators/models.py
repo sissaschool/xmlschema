@@ -193,11 +193,12 @@ class ModelGroup(MutableSequence, ParticleMixin):
         """
         if depth > limits.MAX_MODEL_DEPTH:
             raise XMLSchemaModelDepthError(self)
-        for item in self:
-            if isinstance(item, ModelGroup):
-                yield from item.iter_elements(depth + 1)
-            else:
-                yield item
+        if self.max_occurs != 0:
+            for item in self:
+                if isinstance(item, ModelGroup):
+                    yield from item.iter_elements(depth + 1)
+                else:
+                    yield item
 
     def check_model(self):
         """
@@ -425,7 +426,9 @@ class ModelVisitor(MutableSequence):
 
     def iter_group(self):
         """Returns an iterator for the current model group."""
-        if self.group.model != 'all':
+        if self.group.max_occurs == 0:
+            return iter(())
+        elif self.group.model != 'all':
             return iter(self.group)
         else:
             return (e for e in self.group.iter_elements() if not e.is_over(self.occurs[e]))

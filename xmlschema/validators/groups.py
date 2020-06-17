@@ -310,7 +310,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return model == 'choice' or len(self.ref or self) <= 1
 
     def is_empty(self):
-        return not self.mixed and not self._group
+        return not self.mixed and (not self._group or self.max_occurs == 0)
 
     def is_restriction(self, other, check_occurs=True):
         if not self._group:
