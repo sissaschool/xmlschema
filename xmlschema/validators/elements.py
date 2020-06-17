@@ -468,12 +468,13 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             yield from self.type.iter_components(xsd_classes)
 
     def iter_substitutes(self):
-        for xsd_element in self.maps.substitution_groups.get(self.name, ()):
-            if not xsd_element.abstract:
-                yield xsd_element
-            for e in xsd_element.iter_substitutes():
-                if not e.abstract:
-                    yield e
+        if self.parent is None or self.ref is not None:
+            for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+                if not xsd_element.abstract:
+                    yield xsd_element
+                for e in xsd_element.iter_substitutes():
+                    if not e.abstract:
+                        yield e
 
     def data_value(self, elem):
         """Returns the decoded data value of the provided element as XPath fn:data()."""
@@ -1118,9 +1119,10 @@ class Xsd11Element(XsdElement):
             yield from self.type.iter_components(xsd_classes)
 
     def iter_substitutes(self):
-        for xsd_element in self.maps.substitution_groups.get(self.name, ()):
-            yield xsd_element
-            yield from xsd_element.iter_substitutes()
+        if self.parent is None or self.ref is not None:
+            for xsd_element in self.maps.substitution_groups.get(self.name, ()):
+                yield xsd_element
+                yield from xsd_element.iter_substitutes()
 
     def get_type(self, elem, inherited=None):
         if not self.alternatives:
