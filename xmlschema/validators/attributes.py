@@ -18,8 +18,8 @@ from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, get_namespace, \
-    get_qname, is_not_xsd_annotation
+    XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, XSD_NOTATION_TYPE, \
+    get_namespace, get_qname, is_not_xsd_annotation
 from ..helpers import get_xsd_form_attribute
 from ..namespaces import XSI_NAMESPACE
 
@@ -237,6 +237,15 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def iter_decode(self, text, validation='lax', **kwargs):
         if not text and self.default is not None:
             text = self.default
+
+        if self.type.is_notation():
+            if self.type.name == XSD_NOTATION_TYPE:
+                msg = "cannot validate against xs:NOTATION directly, " \
+                      "only against a subtype with an enumeration facet"
+                yield self.validation_error(validation, msg, text, **kwargs)
+            elif not self.type.enumeration:
+                msg = "missing enumeration facet in xs:NOTATION subtype"
+                yield self.validation_error(validation, msg, text, **kwargs)
 
         if self.fixed is not None:
             if text is None:
@@ -600,7 +609,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             if k is not None and v.use == 'required':
                 yield k
 
-    def iter_predefined(self, use_defaults=True):
+    def iter_value_constraints(self, use_defaults=True):
         if use_defaults:
             for k, v in self._attribute_group.items():
                 if k is None:
@@ -633,7 +642,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         kwargs['level'] = kwargs.get('level', 0) + 1
         use_defaults = kwargs.get('use_defaults', True)
 
-        additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
+        additional_attrs = [
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
+        ]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
             attrs.update(additional_attrs)
@@ -648,9 +659,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        reason = "%r is not an attribute of the XSI namespace." % name
-                        yield self.validation_error(validation, reason, attrs, **kwargs)
-                        continue
+                        try:
+                            xsd_attribute = self[None]  # None key ==> anyAttribute
+                            value = (name, value)
+                        except KeyError:
+                            reason = "%r is not an attribute of the XSI namespace." % name
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
+                            continue
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute
@@ -694,7 +709,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
         use_defaults = kwargs.get('use_defaults', True)
-        additional_attrs = [(k, v) for k, v in self.iter_predefined(use_defaults) if k not in attrs]
+        additional_attrs = [
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
+        ]
         if additional_attrs:
             attrs = {k: v for k, v in attrs.items()}
             attrs.update(additional_attrs)
@@ -709,9 +726,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     try:
                         xsd_attribute = self.maps.lookup_attribute(name)
                     except LookupError:
-                        reason = "%r is not an attribute of the XSI namespace." % name
-                        yield self.validation_error(validation, reason, attrs, **kwargs)
-                        continue
+                        try:
+                            xsd_attribute = self[None]  # None key ==> anyAttribute
+                            value = (name, value)
+                        except KeyError:
+                            reason = "%r is not an attribute of the XSI namespace." % name
+                            yield self.validation_error(validation, reason, attrs, **kwargs)
+                            continue
                 else:
                     try:
                         xsd_attribute = self[None]  # None key ==> anyAttribute

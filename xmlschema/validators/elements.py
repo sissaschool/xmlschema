@@ -16,10 +16,10 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
-    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, \
-    XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, get_qname, is_not_xsd_annotation
+from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
+    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, \
+    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, \
+    get_qname, is_not_xsd_annotation
 from ..etree import etree_element, etree_iter_location_hints
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     raw_xml_encode, ParticleCounter, strictly_equal
@@ -708,6 +708,15 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     value = text.split()
                 else:
                     value = text
+
+            elif xsd_type.is_notation():
+                if xsd_type.name == XSD_NOTATION_TYPE:
+                    msg = "cannot validate against xs:NOTATION directly, " \
+                          "only against a subtype with an enumeration facet"
+                    yield self.validation_error(validation, msg, text, **kwargs)
+                elif not xsd_type.enumeration:
+                    msg = "missing enumeration facet in xs:NOTATION subtype"
+                    yield self.validation_error(validation, msg, text, **kwargs)
 
             if text is None:
                 for result in content_decoder.iter_decode('', validation, **kwargs):
