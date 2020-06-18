@@ -109,7 +109,7 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertFalse(datetime_type.is_valid('2007-05-10t14:35:00'))
         self.assertFalse(datetime_type.is_valid('2007-05-1014:35:00'))
         self.assertFalse(datetime_type.is_valid('07-05-10T14:35:00'))
-        self.assertTrue(datetime_type.is_valid('2007-05-10'))
+        self.assertFalse(datetime_type.is_valid('2007-05-10'))
 
         # Issue #85
         self.assertTrue(datetime_type.is_valid('2018-10-10T13:57:53.0702116-04:00'))
