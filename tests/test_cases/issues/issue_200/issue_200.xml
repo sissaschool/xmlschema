@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<na:main
+        xmlns:na="ames"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="ames ./issue_200.xsd">
+    <na:item doc_id="1" ref_id="k1">content_k1</na:item>
+    <na:item doc_id="2" ref_id="k2">content_k2</na:item>
+</na:main>

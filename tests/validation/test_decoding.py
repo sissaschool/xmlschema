@@ -972,6 +972,19 @@ class TestDecoding(XsdValidatorTestCase):
             {'a': {'c': [{'$': '1'}]}, 'b': {'c': [{'$': '1'}], 'e': [{'$': '1'}]}}
         )
 
+    def test_issue_200(self):
+        # Schema path is required when path doesn't resolve to an XSD element
+        schema = self.schema_class(self.casepath('issues/issue_200/issue_200.xsd'))
+        self.assertEqual(
+            schema.to_dict(self.casepath('issues/issue_200/issue_200.xml'),
+                           path='/na:main/na:item[@doc_id=1]'),
+            {'@doc_id': 1, '@ref_id': 'k1', '$': 'content_k1'}
+        )
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.to_dict(self.casepath('issues/issue_200/issue_200.xml'),
+                           path='/na:main/na:item[@doc_id=2]'),
+        self.assertIn('is not an element of the schema', str(ctx.exception))
+
 
 class TestDecoding11(TestDecoding):
     schema_class = XMLSchema11
