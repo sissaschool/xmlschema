@@ -22,7 +22,7 @@ except ImportError:
 
 from .exceptions import XMLSchemaTypeError
 from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
-from .qnames import get_qname, qname_to_prefixed, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+from .qnames import get_qname, get_prefixed_qname, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 _REGEX_NS_PREFIX = re.compile(r'ns\d+$')
 _REGEX_SPACES = re.compile(r'\s+')
@@ -222,7 +222,7 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
         if callable(child.tag):
             continue  # Skip lxml comments
 
-        child_name = child.tag if namespaces is None else qname_to_prefixed(child.tag, namespaces)
+        child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
         if path == '/':
             child_path = '/%s' % child_name
         elif path:
@@ -253,7 +253,7 @@ def etree_getpath(elem, root, namespaces=None, relative=True,
     if relative:
         path = '.'
     elif namespaces:
-        path = '/%s' % qname_to_prefixed(root.tag, namespaces)
+        path = '/%s' % get_prefixed_qname(root.tag, namespaces)
     else:
         path = '/%s' % root.tag
 

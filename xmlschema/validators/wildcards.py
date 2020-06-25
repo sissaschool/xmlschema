@@ -444,9 +444,9 @@ class XsdAnyElement(XsdWildcard, ParticleMixin, ElementPathMixin):
             except LookupError:
                 if XSI_TYPE in elem.attrib:
                     if self.process_contents == 'lax':
-                        xsd_element = self.schema.create_element(name=elem.tag, nillable='true')
+                        xsd_element = self.maps.validator.create_element(elem.tag, nillable='true')
                     else:
-                        xsd_element = self.schema.create_element(name=elem.tag)
+                        xsd_element = self.maps.validator.create_element(elem.tag)
                     yield from xsd_element.iter_decode(elem, validation, **kwargs)
                 elif validation == 'skip' or self.process_contents == 'lax':
                     yield from self.any_type.iter_decode(elem, validation, **kwargs)
@@ -736,7 +736,8 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
             namespace = default_namespace
 
         if '##defined' in self.not_qname and name in self.maps.attributes:
-            return False
+            if self.maps.attributes[name].schema is self.schema:
+                return False
         return name not in self.not_qname and self.is_namespace_allowed(namespace)
 
 

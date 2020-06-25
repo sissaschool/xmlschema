@@ -649,6 +649,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             attrs = {k: v for k, v in attrs.items()}
             attrs.update(additional_attrs)
 
+        if self.xsd_version == '1.0':
+            kwargs['id_list'] = []
+
         filler = kwargs.get('filler')
         result_list = []
         for name, value in attrs.items():

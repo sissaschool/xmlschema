@@ -17,9 +17,7 @@ from collections import OrderedDict
 
 from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import etree_element, prune_etree
-from xmlschema.qnames import XSI_TYPE, XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, \
-    XSD_ANNOTATION, get_namespace, get_qname, local_name, qname_to_prefixed
-from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
+from xmlschema.qnames import XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 from xmlschema.helpers import get_xsd_annotation, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, raw_xml_encode, count_digits, strictly_equal, \
     iter_nested_items, ParticleCounter
@@ -34,70 +32,6 @@ class TestHelpers(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         XMLSchema.meta_schema.clear()
-
-    def test_get_namespace_function(self):
-        self.assertEqual(get_namespace(XSD_SIMPLE_TYPE), XSD_NAMESPACE)
-        self.assertEqual(get_namespace(''), '')
-        self.assertEqual(get_namespace(None), '')
-        self.assertEqual(get_namespace('{}name'), '')
-        self.assertEqual(get_namespace('{  }name'), '  ')
-        self.assertEqual(get_namespace('{ ns }name'), ' ns ')
-
-    def test_get_qname_functions(self):
-        self.assertEqual(get_qname(XSD_NAMESPACE, 'element'), XSD_ELEMENT)
-        self.assertEqual(get_qname(XSI_NAMESPACE, 'type'), XSI_TYPE)
-
-        self.assertEqual(get_qname(XSI_NAMESPACE, ''), '')
-        self.assertEqual(get_qname(XSI_NAMESPACE, None), None)
-        self.assertEqual(get_qname(XSI_NAMESPACE, 0), 0)
-        self.assertEqual(get_qname(XSI_NAMESPACE, False), False)
-        self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, True)
-        self.assertEqual(get_qname(None, True), True)
-
-        self.assertEqual(get_qname(None, 'element'), 'element')
-        self.assertEqual(get_qname(None, ''), '')
-        self.assertEqual(get_qname('', 'element'), 'element')
-
-    def test_local_name_functions(self):
-        self.assertEqual(local_name(XSD_SCHEMA), 'schema')
-        self.assertEqual(local_name('schema'), 'schema')
-        self.assertEqual(local_name(''), '')
-        self.assertEqual(local_name(None), None)
-
-        self.assertRaises(ValueError, local_name, '{ns name')
-        self.assertRaises(TypeError, local_name, 1.0)
-        self.assertRaises(TypeError, local_name, 0)
-
-    def test_qname_to_prefixed_functions(self):
-        namespaces = {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE}
-        self.assertEqual(qname_to_prefixed(XSD_ELEMENT, namespaces), 'xs:element')
-        self.assertEqual(qname_to_prefixed('xs:element', namespaces), 'xs:element')
-        self.assertEqual(qname_to_prefixed('element', namespaces), 'element')
-
-        self.assertEqual(qname_to_prefixed('', namespaces), '')
-        self.assertEqual(qname_to_prefixed(None, namespaces), None)
-        self.assertEqual(qname_to_prefixed(0, namespaces), 0)
-
-        self.assertEqual(qname_to_prefixed(XSI_TYPE, {}), XSI_TYPE)
-        self.assertEqual(qname_to_prefixed(None, {}), None)
-        self.assertEqual(qname_to_prefixed('', {}), '')
-
-        self.assertEqual(qname_to_prefixed('type', {'': XSI_NAMESPACE}), 'type')
-        self.assertEqual(qname_to_prefixed('type', {'': ''}), 'type')
-        self.assertEqual(qname_to_prefixed('{}type', {'': ''}), 'type')
-        self.assertEqual(qname_to_prefixed('{}type', {'': ''}, use_empty=False), '{}type')
-
-        # Attention! in XML the empty namespace (that means no namespace) can be
-        # associated only with empty prefix, so these cases should never happen.
-        self.assertEqual(qname_to_prefixed('{}type', {'p': ''}), 'p:type')
-        self.assertEqual(qname_to_prefixed('type', {'p': ''}), 'type')
-
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns'}, use_empty=True), 'type')
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns'}, use_empty=False), '{ns}type')
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=True), 'p:type')
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=False), 'p:type')
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=True), 'type')
-        self.assertEqual(qname_to_prefixed('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=False), '{ns}type')
 
     def test_get_xsd_annotation(self):
         elem = etree_element(XSD_SCHEMA)
@@ -124,7 +58,8 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a2', values), ' restriction')
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a3', values), 'extension restriction')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a4', values)
-        self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values), 'restriction extension restriction ')
+        self.assertEqual(get_xsd_derivation_attribute(elem, 'a5', values),
+                         'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
 

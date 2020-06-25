@@ -30,7 +30,8 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin, ParticleMixin
-from .identities import XsdUnique, XsdKeyref
+from .attributes import XsdAttribute
+from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 
 
@@ -589,6 +590,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         inherited = kwargs.get('inherited')
         value = content = attributes = None
+        nilled = False
 
         # Get the instance effective type
         xsd_type = self.get_type(elem, inherited)
@@ -633,7 +635,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 reason = "element is not nillable."
                 yield self.validation_error(validation, reason, elem, **kwargs)
             elif xsi_nil not in {'0', '1', 'false', 'true'}:
-                reason = "xsi:nil attribute must has a boolean value."
+                reason = "xsi:nil attribute must have a boolean value."
                 yield self.validation_error(validation, reason, elem, **kwargs)
             elif xsi_nil in ('0', 'false'):
                 pass
@@ -644,24 +646,15 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 reason = "xsi:nil='true' but the element is not empty."
                 yield self.validation_error(validation, reason, elem, **kwargs)
             else:
-                if converter is not None:
-                    element_data = ElementData(elem.tag, None, None, attributes)
-                    yield converter.element_decode(element_data, self, xsd_type, level)
-
-                for identity, counter in identities.items():
-                    if isinstance(identity, XsdUnique) and counter.enabled and \
-                            self in identity.elements:
-                        try:
-                            counter.increase(None)
-                        except ValueError as err:
-                            yield self.validation_error(validation, err, elem, **kwargs)
-                return
+                nilled = True
 
         if xsd_type.is_empty() and elem.text:
             reason = "character data is not allowed because content is empty"
             yield self.validation_error(validation, reason, elem, **kwargs)
 
-        if xsd_type.model_group is not None:
+        if nilled:
+            pass
+        elif xsd_type.model_group is not None:
             for assertion in xsd_type.assertions:
                 for error in assertion(elem, **kwargs):
                     yield self.validation_error(validation, error, **kwargs)
@@ -772,17 +765,18 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     xsd_element.type = xsd_type
                     xsd_fields = identity.get_fields(xsd_element)
 
-                if all(fld is None for fld in xsd_fields):
+                if all(x is None for x in xsd_fields):
                     continue
                 fields = identity.get_fields(elem, namespaces, decoders=xsd_fields)
             except (XMLSchemaValueError, XMLSchemaTypeError) as err:
                 yield self.validation_error(validation, err, elem, **kwargs)
             else:
-                if any(fld is not None for fld in fields):
+                if any(x is not None for x in fields) or nilled:
                     try:
                         counter.increase(fields)
                     except ValueError as err:
                         yield self.validation_error(validation, err, elem, **kwargs)
+
 
         # Disable collect for out of scope identities and check key references
         if 'max_depth' not in kwargs:

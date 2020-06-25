@@ -79,6 +79,11 @@ SKIPPED_TESTS = {
     '../msData/particles/particlesV020.xsd',
     # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
 
+    ###
+    # 7295: Inapplicable test on URI (the first resource is not reachable anymore)
+    # https://www.w3.org/Bugs/Public/show_bug.cgi?id=4126
+    '../msData/datatypes/Facets/anyURI/anyURI_a004.xml',
+
     ##
     # Invalid that maybe valid because depends by implementation choices
     #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
@@ -222,6 +227,10 @@ DO_NOT_USE_META_SCHEMA = {
     '../msData/additional/test264908_1.xsd',
 }
 
+DO_NOT_USE_FALLBACK_LOCATIONS = {
+    '../msData/wildcards/wildZ001.xml',
+}
+
 # Total files counters
 total_xsd_files = 0
 total_xml_files = 0
@@ -323,9 +332,13 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                         for schema_href in elem.findall(tag)
                     ]
 
-                if source_href in DO_NOT_USE_META_SCHEMA:
-                    nonlocal use_meta
-                    use_meta = False
+            if source_href in DO_NOT_USE_META_SCHEMA:
+                nonlocal use_meta
+                use_meta = False
+
+            if source_href in DO_NOT_USE_FALLBACK_LOCATIONS:
+                nonlocal use_fallback
+                use_fallback = False
 
         return test_conf
 
@@ -339,6 +352,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
     global total_xsd_files
     global total_xml_files
     use_meta = True
+    use_fallback = True
 
     # Get schema/instance path
     for k, child in enumerate(group_elem.iterfind('{%s}schemaTest' % TEST_SUITE_NAMESPACE)):
@@ -392,22 +406,28 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 if len(item['sources']) <= 1:
-                                    schema_class(source, use_meta=use_meta)
+                                    schema_class(source, use_meta=use_meta,
+                                                 use_fallback=use_fallback)
                                 else:
-                                    schema = schema_class(source, use_meta=use_meta, build=False)
+                                    schema = schema_class(source, use_meta=use_meta,
+                                                          use_fallback=use_fallback, build=False)
                                     for other in item['sources'][1:]:
-                                        schema_class(other, global_maps=schema.maps, build=False)
+                                        schema_class(other, global_maps=schema.maps,
+                                                     use_fallback=use_fallback, build=False)
                                     schema.build()
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
                                 if len(item['sources']) <= 1:
-                                    schema = schema_class(source, use_meta=use_meta)
+                                    schema = schema_class(source, use_meta=use_meta,
+                                                          use_fallback=use_fallback)
                                 else:
-                                    schema = schema_class(source, use_meta=use_meta, build=False)
+                                    schema = schema_class(source, use_meta=use_meta,
+                                                          use_fallback=use_fallback, build=False)
                                     for other in item['sources'][1:]:
-                                        schema_class(other, global_maps=schema.maps, build=False)
+                                        schema_class(other, global_maps=schema.maps,
+                                                     use_fallback=use_fallback, build=False)
                                     schema.build()
                         except XMLSchemaException as err:
                             schema = None
@@ -444,19 +464,22 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                                 if not schemas:
                                     validate(source, schema=schema, cls=schema_class)
                                 else:
-                                    xs = schema_class(schemas[0], use_meta=use_meta, build=False)
+                                    xs = schema_class(schemas[0], use_meta=use_meta,
+                                                      use_fallback=use_fallback, build=False)
                                     for other in schemas[1:]:
-                                        schema_class(other, global_maps=xs.maps, build=False)
+                                        schema_class(other, global_maps=xs.maps,
+                                                     use_fallback=use_fallback, build=False)
                                     xs.build()
                                     xs.validate(source)
                     else:
                         try:
                             with warnings.catch_warnings():
                                 warnings.simplefilter('ignore')
-                                if len(schemas) <= 1 and use_meta:
+                                if len(schemas) <= 1 and use_meta and use_fallback:
                                     validate(source, schema=schema, cls=schema_class)
                                 else:
-                                    xs = schema_class(schemas[0], use_meta=use_meta, build=False)
+                                    xs = schema_class(schemas[0], use_meta=use_meta,
+                                                      use_fallback=use_fallback, build=False)
                                     for other in schemas[1:]:
                                         schema_class(other, global_maps=xs.maps, build=False)
                                     xs.build()

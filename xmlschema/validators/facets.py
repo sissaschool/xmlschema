@@ -14,9 +14,9 @@ import re
 import math
 import operator
 from collections.abc import MutableSequence
-from elementpath import XPath2Parser, ElementPathError
-from elementpath.datatypes import XSD_BUILTIN_TYPES
+from elementpath import XPath2Parser, XPathContext, ElementPathError
 
+from ..etree import etree_element
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_INTEGER, XSD_WHITE_SPACE, XSD_PATTERN, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, \
     XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, \
@@ -738,6 +738,7 @@ class XsdAssertionFacet(XsdFacet):
         </assertion>
     """
     _ADMITTED_TAGS = {XSD_ASSERTION}
+    _root = etree_element('root')
 
     def __repr__(self):
         return '%s(test=%r)' % (self.__class__.__name__, self.path)
@@ -751,10 +752,9 @@ class XsdAssertionFacet(XsdFacet):
             self.path = 'true()'
 
         try:
-            builtin_type_name = self.base_type.primitive_type.local_name
-            variables = {'value': XSD_BUILTIN_TYPES[builtin_type_name].value}
+            variables = {'value': self.base_type.primitive_type.prefixed_name}
         except AttributeError:
-            variables = {'value': XSD_BUILTIN_TYPES['anySimpleType'].value}
+            variables = {'value': self.any_simple_type.prefixed_name}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
@@ -770,9 +770,9 @@ class XsdAssertionFacet(XsdFacet):
             self.token = self.parser.parse('true()')
 
     def __call__(self, value):
-        self.parser.variables['value'] = value
+        context = XPathContext(self._root, variable_values={'value': value})
         try:
-            if not self.token.evaluate():
+            if not self.token.evaluate(context):
                 msg = "value is not true with test path %r."
                 yield XMLSchemaValidationError(self, value, reason=msg % self.path)
         except ElementPathError as err:

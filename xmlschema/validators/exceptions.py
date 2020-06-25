@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..qnames import qname_to_prefixed
+from ..qnames import get_prefixed_qname
 from ..etree import etree_tostring, etree_getpath
 from ..helpers import is_etree_element
 
@@ -299,11 +299,11 @@ class XMLSchemaChildrenValidationError(XMLSchemaValidationError):
         self.occurs = occurs
         self.expected = expected
 
-        tag = qname_to_prefixed(elem.tag, validator.namespaces, use_empty=False)
+        tag = get_prefixed_qname(elem.tag, validator.namespaces, use_empty=False)
         if index >= len(elem):
             reason = "The content of element %r is not complete." % tag
         else:
-            child_tag = qname_to_prefixed(elem[index].tag, validator.namespaces, use_empty=False)
+            child_tag = get_prefixed_qname(elem[index].tag, validator.namespaces, use_empty=False)
             reason = "Unexpected child with tag %r at position %d." % (child_tag, index + 1)
 
         if occurs and particle.is_missing(occurs):

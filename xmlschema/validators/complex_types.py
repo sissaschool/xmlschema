@@ -845,7 +845,9 @@ class Xsd11ComplexType(XsdComplexType):
                     content.append(group)
                     content.elem.append(group.elem)
             else:
-                content = self.schema.create_empty_content_group(self, model='all')
+                content = self.schema.create_empty_content_group(
+                    self, model='all', minOccurs=str(base_type.content.min_occurs)
+                )
                 content.extend(base_type.content)
                 content.elem.extend(base_type.content.elem)
 

@@ -565,6 +565,75 @@ class TestModelValidation(XsdValidatorTestCase):
             schema.validate("<root/>")
         self.assertIn(reason, str(ctx.exception))
 
+    def test_single_item_groups(self):
+        schema = self.schema_class("""<?xml version="1.0"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="a1">
+                <xs:complexType>
+                    <xs:choice>
+            			<xs:any maxOccurs="2" processContents="lax"/>
+		            </xs:choice>
+                </xs:complexType>                
+            </xs:element>
+            <xs:element name="a2">
+                <xs:complexType>
+                    <xs:choice>
+            			<xs:any maxOccurs="2" processContents="strict"/>
+		            </xs:choice>
+                </xs:complexType>                
+            </xs:element>
+            <xs:element name="a3">
+                <xs:complexType>
+                    <xs:sequence>
+            			<xs:any maxOccurs="2" processContents="lax"/>
+		            </xs:sequence>
+                </xs:complexType>                
+            </xs:element>
+            <xs:element name="a4">
+                <xs:complexType>
+                    <xs:choice>
+            			<xs:element name="b" maxOccurs="2"/>
+		            </xs:choice>
+                </xs:complexType>                
+            </xs:element>
+            <xs:element name="a5">
+                <xs:complexType>
+                    <xs:sequence>
+            			<xs:element name="b" maxOccurs="2"/>
+		            </xs:sequence>
+                </xs:complexType>                
+            </xs:element>
+            <xs:element name="b"/>
+        </xs:schema>""")
+
+        schema.is_valid('<a4><b/><b/><b/></a4>')
+
+        return
+        self.assertFalse(schema.is_valid('<a1></a1>'))
+        self.assertFalse(schema.is_valid('<a2></a2>'))
+        self.assertFalse(schema.is_valid('<a3></a3>'))
+        self.assertFalse(schema.is_valid('<a4></a4>'))
+
+        self.assertTrue(schema.is_valid('<a1><c/></a1>'))
+        self.assertFalse(schema.is_valid('<a2><c/></a2>'))
+        self.assertTrue(schema.is_valid('<a3><c/></a3>'))
+        self.assertFalse(schema.is_valid('<a4><c/></a4>'))
+
+        self.assertTrue(schema.is_valid('<a1><b/></a1>'))
+        self.assertTrue(schema.is_valid('<a2><b/></a2>'))
+        self.assertTrue(schema.is_valid('<a3><b/></a3>'))
+        self.assertTrue(schema.is_valid('<a4><b/></a4>'))
+
+        self.assertTrue(schema.is_valid('<a1><b/><b/></a1>'))
+        self.assertTrue(schema.is_valid('<a2><b/><b/></a2>'))
+        self.assertTrue(schema.is_valid('<a3><b/><b/></a3>'))
+        self.assertTrue(schema.is_valid('<a4><b/><b/></a4>'))
+
+        self.assertTrue(schema.is_valid('<a1><b/><b/><b/></a1>'))
+        self.assertTrue(schema.is_valid('<a2><b/><b/><b/></a2>'))
+        self.assertFalse(schema.is_valid('<a3><b/><b/><b/></a3>'))
+        self.assertFalse(schema.is_valid('<a4><b/><b/><b/></a4>'))
+
     def test_sequence_model_with_extended_occurs(self):
         schema = self.schema_class(
             """<?xml version="1.0" encoding="UTF-8"?>

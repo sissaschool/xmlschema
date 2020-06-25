@@ -11,12 +11,13 @@
 This module contains classes for other XML Schema identity constraints.
 """
 import re
+import math
 from collections import Counter
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
-    XSD_SELECTOR, XSD_FIELD, get_qname, qname_to_extended, is_not_xsd_annotation
+    XSD_SELECTOR, XSD_FIELD, get_qname, get_extended_qname, is_not_xsd_annotation
 from ..regex import get_python_regex
 from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
@@ -227,16 +228,19 @@ class XsdIdentity(XsdComponent):
                     value = decoders[k].value_constraint
                     if value is not None:
                         if decoders[k].type.root_type.name == XSD_QNAME:
-                            value = qname_to_extended(value, namespaces)
+                            value = get_extended_qname(value, namespaces)
 
                         if isinstance(value, list):
                             fields.append(tuple(value))
-                        elif isinstance(value, (bool, float)):
-                            fields.append(tuple([value, type(value)]))
-                        else:
+                        elif isinstance(value, bool):
+                            fields.append((value, bool))
+                        elif not isinstance(value, float):
                             fields.append(value)
+                        elif math.isnan(value):
+                            fields.append(('nan', float))
+                        else:
+                            fields.append((value, float))
 
-                        result.append(value)
                         continue
 
                 if not isinstance(self, XsdKey) or 'ref' in elem.attrib and \
@@ -256,14 +260,18 @@ class XsdIdentity(XsdComponent):
 
                     value = decoders[k].data_value(result[0])
                     if decoders[k].type.root_type.name == XSD_QNAME:
-                        value = qname_to_extended(value, namespaces)
+                        value = get_extended_qname(value, namespaces)
 
                     if isinstance(value, list):
                         fields.append(tuple(value))
-                    elif isinstance(value, (bool, float)):
-                        fields.append(tuple([value, type(value)]))
-                    else:
+                    elif isinstance(value, bool):
+                        fields.append((value, bool))
+                    elif not isinstance(value, float):
                         fields.append(value)
+                    elif math.isnan(value):
+                        fields.append(('nan', float))
+                    else:
+                        fields.append((value, float))
             else:
                 raise XMLSchemaValueError("%r field selects multiple values!" % field)
 

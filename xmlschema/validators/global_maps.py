@@ -16,10 +16,10 @@ from functools import lru_cache
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
-from ..namespaces import XSD_NAMESPACE, LOCATION_HINTS, NamespaceResourcesMap
+from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
 from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
     XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, \
-    XSI_TYPE, get_qname, local_name, qname_to_extended, is_xsd_redefine_or_override
+    XSI_TYPE, get_qname, local_name, get_extended_qname, is_xsd_redefine_or_override
 
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
@@ -299,7 +299,7 @@ class XsdGlobals(XsdValidator):
         if base_type.is_complex() and XSI_TYPE in base_type.attributes:
             base_type.attributes[XSI_TYPE].validate(type_name)
 
-        extended_name = qname_to_extended(type_name, namespaces)
+        extended_name = get_extended_qname(type_name, namespaces)
         xsi_type = lookup_type(extended_name, self.types, self.validator.BUILDERS_MAP)
         if xsi_type.is_derived(base_type):
             return xsi_type
@@ -432,8 +432,8 @@ class XsdGlobals(XsdValidator):
                     return True
 
         # Try from library location hint, if there is any.
-        if namespace in LOCATION_HINTS:
-            url = LOCATION_HINTS[namespace]
+        if namespace in self.validator.fallback_locations:
+            url = self.validator.fallback_locations[namespace]
             if url not in self.missing_locations:
                 try:
                     if self.validator.import_schema(namespace, url) is not None:

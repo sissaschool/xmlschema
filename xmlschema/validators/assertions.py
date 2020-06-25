@@ -8,11 +8,9 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import threading
-import elementpath
 from elementpath import XPath2Parser, XPathContext, ElementPathError
-from elementpath.datatypes import XSD_BUILTIN_TYPES
 
-from ..qnames import XSD_ASSERT
+from ..qnames import XSD_ASSERT, XSD_UNTYPED_ATOMIC, get_prefixed_qname
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError
@@ -79,25 +77,16 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
     def build(self):
         if not self.base_type.has_simple_content():
-            builtin_type = XSD_BUILTIN_TYPES['anyType']
+            sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
         else:
             try:
-                builtin_type_name = self.base_type.content.primitive_type.local_name
+                sequence_type = self.base_type.content.primitive_type.prefixed_name
             except AttributeError:
-                builtin_type = XSD_BUILTIN_TYPES['anySimpleType']
-            else:
-                builtin_type = XSD_BUILTIN_TYPES[builtin_type_name]
-
-        # Patch for compatibility with next elementpath minor release (v1.5)
-        # where parser variables will be filled with types.
-        if elementpath.__version__.startswith('1.4.'):
-            variables = {'value': builtin_type.value}
-        else:
-            variables = {'value': builtin_type}
+                sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
 
         self.parser = XPath2Parser(
             namespaces=self.namespaces,
-            variables=variables,
+            variables={'value': sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
             schema=XMLSchemaProxy(self.schema, self)
@@ -116,16 +105,13 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             if not self.parser.is_schema_bound():
                 self.parser.schema.bind_parser(self.parser)
 
-        if value is not None:
-            variables = {'value': self.base_type.text_decode(value)}
-        else:
-            variables = {'value': ''}
+        variable_values = {'value': '' if value is None else self.base_type.text_decode(value)}
 
         if source is not None:
-            context = XPathContext(root=source.root, item=elem, variables=variables)
+            context = XPathContext(source.root, item=elem, variable_values=variable_values)
         else:
             # If validated from a component (could not work with rooted XPath expressions)
-            context = XPathContext(root=elem, variables=variables)
+            context = XPathContext(elem, variable_values=variable_values)
 
         try:
             if not self.token.evaluate(context):

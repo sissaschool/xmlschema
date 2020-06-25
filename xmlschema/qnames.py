@@ -183,6 +183,7 @@ XSD_DAY_TIME_DURATION = XSD_TEMPLATE % 'dayTimeDuration'
 XSD_YEAR_MONTH_DURATION = XSD_TEMPLATE % 'yearMonthDuration'
 XSD_ERROR = XSD_TEMPLATE % 'error'
 
+XSD_UNTYPED_ATOMIC = XSD_TEMPLATE % 'untypedAtomic'
 
 ###
 # Helper functions for QNames
@@ -239,15 +240,13 @@ def local_name(qname):
         return qname
 
 
-def qname_to_prefixed(qname, namespaces, use_empty=True):
+def get_prefixed_qname(qname, namespaces, use_empty=True):
     """
-    Maps a QName in extended format to a QName in prefixed format.
-    Do not change local names and QNames in prefixed format.
+    Get the prefixed form of a QName, using a namespace map.
 
-    :param qname: a QName or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
+    :param qname: an extended QName or a local name or a prefixed QName.
+    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     :param use_empty: if `True` use the empty prefix for mapping.
-    :return: a QName in prefixed format or a local name.
     """
     if not qname or qname[0] != '{':
         return qname
@@ -267,17 +266,16 @@ def qname_to_prefixed(qname, namespaces, use_empty=True):
         return qname
 
 
-def qname_to_extended(qname, namespaces):
+def get_extended_qname(qname, namespaces):
     """
-    Maps a QName in prefixed format or a local name to the extended QName format.
-    Local names are mapped if *namespaces* has a not empty default namespace.
+    Get the extended form of a QName, using a namespace map.
+    Local names are mapped to the default namespace.
 
-    :param qname: a QName in prefixed format or a local name.
-    :param namespaces: a map from prefixes to namespace URIs.
-    :return: a QName in extended format or a local name.
+    :param qname: a prefixed QName or a local name or an extended QName.
+    :param namespaces: a dictionary with a map from prefixes to namespace URIs.
     """
     try:
-        if qname[0] == '{' or not namespaces:
+        if qname[0] == '{':
             return qname
     except IndexError:
         return qname

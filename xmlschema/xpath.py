@@ -18,7 +18,7 @@ import threading
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
-from .qnames import XSD_SCHEMA
+from .qnames import XSD_SCHEMA, XSD_ANY_TYPE
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
@@ -151,8 +151,8 @@ class XMLSchemaProxy(AbstractSchemaProxy):
                 yield xsd_type
 
     def get_primitive_type(self, xsd_type):
-        if not xsd_type.is_simple():
-            return self._schema.maps.types['{%s}anyType' % XSD_NAMESPACE]
+        if xsd_type.is_complex():
+            return self._schema.maps.types[XSD_ANY_TYPE]
         elif not hasattr(xsd_type, 'primitive_type'):
             if xsd_type.base_type is None:
                 return xsd_type

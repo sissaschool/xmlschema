@@ -183,11 +183,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :type timeout: int
     :param build: defines whether build the schema maps. Default is `True`.
     :type build: bool
-    :param use_meta: if `True` the schema processor uses the package meta-schema, \
+    :param use_meta: if `True` the schema processor uses the validator meta-schema, \
     otherwise a new meta-schema is added at the end. In the latter case the meta-schema \
     is rebuilt if any base namespace has been overridden by an import. Ignored if the \
     argument *global_maps* is provided.
     :type use_meta: bool
+    :param use_fallback: if `True` the schema processor uses the validator fallback \
+    location hints to load well-known namespaces (eg. xhtml).
+    :type use_fallback: bool
     :param loglevel: for setting a different logging level for schema initialization \
     and building. For default is WARNING (30). For INFO level set it with 20, for \
     DEBUG level with 10. The default loglevel is restored after schema building, \
@@ -204,8 +207,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype BUILDERS_MAP: dict
     :cvar BASE_SCHEMAS: a dictionary from namespace to schema resource for meta-schema bases.
     :vartype BASE_SCHEMAS: dict
-    :cvar FALLBACK_LOCATIONS: fallback schema location hints for other standard namespaces.
-    :vartype FALLBACK_LOCATIONS: dict
+    :cvar fallback_locations: fallback schema location hints for other standard namespaces.
+    :vartype fallback_locations: dict
     :cvar meta_schema: the XSD meta-schema instance.
     :vartype meta_schema: XMLSchema
     :cvar attribute_form_default: the schema's *attributeFormDefault* attribute. \
@@ -273,7 +276,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     BUILDERS = None
     BUILDERS_MAP = None
     BASE_SCHEMAS = None
-    FALLBACK_LOCATIONS = None
+    fallback_locations = None
     meta_schema = None
 
     # Schema defaults
@@ -292,11 +295,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def __init__(self, source, namespace=None, validation='strict', global_maps=None,
                  converter=None, locations=None, base_url=None, allow='all', defuse='remote',
-                 timeout=300, build=True, use_meta=True, loglevel=None):
+                 timeout=300, build=True, use_meta=True, use_fallback=True, loglevel=None):
         super(XMLSchemaBase, self).__init__(validation)
         ElementPathMixin.__init__(self)
 
         if loglevel is not None:
+            if isinstance(loglevel, str):
+                level = loglevel.strip().upper()
+                if level in {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}:
+                    loglevel = getattr(logging, level)
+
             logger.setLevel(loglevel)
         elif build and global_maps is None:
             logger.setLevel(logging.WARNING)
@@ -380,6 +388,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         self.locations = NamespaceResourcesMap(self.source.get_locations(self.extra_locations))
         self.converter = self.get_converter(converter)
+        if not use_fallback:
+            self.fallback_locations = {}
 
         if self.meta_schema is None:
             # Meta-schema creation phase (MetaXMLSchema class)
@@ -1094,8 +1104,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 if local_hints:
                     locations = local_hints + locations
 
-            if namespace in self.FALLBACK_LOCATIONS:
-                locations.append(self.FALLBACK_LOCATIONS[namespace])
+            if namespace in self.fallback_locations:
+                locations.append(self.fallback_locations[namespace])
 
             self._import_namespace(namespace, locations)
 
@@ -1696,7 +1706,7 @@ class XMLSchema10(XMLSchemaBase):
         XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
         XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = LOCATION_HINTS
+    fallback_locations = LOCATION_HINTS.copy()
 
 
 class XMLSchema11(XMLSchemaBase):
@@ -1758,7 +1768,7 @@ class XMLSchema11(XMLSchemaBase):
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
         VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
     }
-    FALLBACK_LOCATIONS = LOCATION_HINTS
+    fallback_locations = LOCATION_HINTS.copy()
 
     def _parse_inclusions(self):
         super(XMLSchema11, self)._parse_inclusions()
