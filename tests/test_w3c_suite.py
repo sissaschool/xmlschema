@@ -33,35 +33,29 @@ ADMITTED_VALIDITY = {'valid', 'invalid', 'indeterminate'}
 # Tests that are incompatible with XSD meta-schema validation or that are postponed
 SKIPPED_TESTS = {
     ##
-    # Signed as valid that have to be checked
-    '../msData/additional/addB194.xsd',         # invalid xml:lang='enu'
-    '../msData/particles/particlesZ001.xsd',    # Invalid in XSD 1.0
+    # Skip for typos in test data
+    '../msData/regex/reZ003v.xml',                          # 13589
+    '../ibmData/instance_invalid/S3_10_6/s3_10_6ii01.xsd',  # 14911
+    '../ibmData/instance_invalid/S3_10_6/s3_10_6ii02.xsd',  # 14912
+    '../ibmData/instance_invalid/S3_10_6/s3_10_6ii04.xsd',  # 14914
+    '../ibmData/instance_invalid/S3_10_1/s3_10_1ii08.xsd',  # 15360
+    '../ibmData/instance_invalid/S3_10_1/s3_10_1ii09.xsd',  # 15361
+
+    ##
+    # Invalid schemas signed as valid
+    '../msData/additional/addB194.xsd',         # invalid xml:lang='enu' is a typo?
+    '../msData/particles/particlesZ001.xsd',    # Invalid XSD 1.0 schema (valid with XSD 1.1)
     '../msData/simpleType/stE110.xsd',          # Circular xs:union declaration
     '../saxonData/Missing/missing001.xsd',      # missing type (this may be valid in 'lax' mode?)
     '../saxonData/Missing/missing002.xsd',      # missing substitution group
     '../saxonData/Missing/missing003.xsd',      # missing type and substitution group
     '../saxonData/Missing/missing006.xsd',      # missing list item type
-    '../saxonData/VC/vc001.xsd',                # VC namespace required
-    '../saxonData/VC/vc002.xsd',                # VC namespace required
-    '../saxonData/VC/vc014.xsd',                # VC namespace required
-    '../saxonData/VC/vc024.xsd',                # VC 1.1? required
-    '../saxonData/XmlVersions/xv004.xsd',       # non-BMP chars allowed in names in XML 1.1+
 
-    ##
-    # Signed as valid that depends by implementation choice
-    '../saxonData/Assert/assert-simple007.xsd',     # XPath [err:FOCA0002] invalid lexical value
-
-    ##
-    # Signed as valid but not implemented yet
-    '../saxonData/Assert/assert011.xsd',          # TODO: XPath 2 doc() function in elementpath
-
-    ##
-    # Invalid that may be valid
-    '../msData/additional/adhocAddC002.xsd',  # Lack of the processor on XML namespace knowledge
-    '../msData/additional/test65026.xsd',  # Lack of the processor on XML namespace knowledge
-    '../msData/annotations/annotF001.xsd',  # Contains xml:lang="" ?? (but xml.xsd allows '')
+    # TODO: invalid schema cases not raised
+    '../msData/annotations/annotF001.xsd',  # 4989: Contains xml:lang="" ?? (but xml.xsd allows '')
     '../msData/datatypes/Facets/base64Binary/'
-    'base64Binary_enumeration003.xsd',  # check base64 invalid values
+    'base64Binary_enumeration003.xsd',  # 7277: check base64 invalid
+    # values 'M0SyLMT=' is not in the value space of the base type, base64Binary
 
     ##
     # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
@@ -72,7 +66,7 @@ SKIPPED_TESTS = {
 
     '../msData/element/elemZ026.xsd',           # This is good because the head element is abstract
     '../msData/element/elemZ031.xsd',           # Valid in Python that has arbitrary large integers
-    '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1
+    '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1. Why??
     '../msData/identityConstraint/idC019.xsd',  # TODO: is it an error?
     '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* select (restrict XPath parser)
     '../msData/modelGroups/mgE006.xsd',  # Is valid? (is mg007.xsd invalid for the same reason)
@@ -85,22 +79,12 @@ SKIPPED_TESTS = {
     '../msData/datatypes/Facets/anyURI/anyURI_a004.xml',
 
     ##
-    # Invalid that maybe valid because depends by implementation choices
+    # Invalid that maybe valid because depend by implementation choices
     #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
     '../msData/schema/schG3.xml',
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG12.xml',
-
-    ##
-    # Indeterminate that depends by implementation choices
-    '../msData/particles/particlesZ026a.xsd',
-    '../msData/schema/schG14a.xsd',
-    '../msData/schema/schU3_a.xsd',     # Circular redefines
-    '../msData/schema/schU4_a.xsd',     # Circular redefines
-    '../msData/schema/schU5_a.xsd',     # Circular redefines
-    '../msData/schema/schZ012_a.xsd',   # Comparison of file urls to be case sensitive or not
-    '../msData/schema/schZ015.xsd',     # schemaLocation=""
 
     ##
     # Invalid XML tests
@@ -117,10 +101,7 @@ SKIPPED_TESTS = {
     # 14896: wrong href for valid instanceTest name="e1bis.xml"
 
     ##
-    # Valid XML tests signed as 'invalid'
-    '../ibmData/instance_invalid/S3_4_2_4/s3_4_2_4ii03.xml',
-    # defaultAttributeApply is true (false in comment)
-
+    # Unicode version related
     '../msData/regex/reJ11.xml',
     '../msData/regex/reJ13.xml',
     '../msData/regex/reJ19.xml',
@@ -171,6 +152,7 @@ SKIPPED_TESTS = {
     # Skip for missing XML version 1.1 implementation
     '../saxonData/XmlVersions/xv001.v01.xml',  # 14850
     '../saxonData/XmlVersions/xv003.v01.xml',  # 14852
+    '../saxonData/XmlVersions/xv004.xsd',      # 14853 non-BMP chars allowed in names in XML 1.1+
     '../saxonData/XmlVersions/xv005.v01.xml',  # 14854
     '../saxonData/XmlVersions/xv006.v01.xml',  # 14855 invalid character &#x07 (valid in XML 1.1)
     '../saxonData/XmlVersions/xv006.n02.xml',  # 14855 invalid character &#x10000 (valid in XML 1.1)
@@ -185,8 +167,6 @@ SKIPPED_TESTS = {
 
     ##
     # Skip for TODO
-    '../sunData/combined/005/test.1.v.xml',  # 3959: valid but needs equal op (#cos-ct-derived-ok)
-
     '../msData/additional/test93490_2.xml',  # 4793
     '../msData/additional/test93490_5.xml',  # 4796
     '../msData/additional/test93490_7.xml',  # 4798
@@ -198,18 +178,18 @@ SKIPPED_TESTS = {
 }
 
 XSD11_SKIPPED_TESTS = {
-    # Invalid that may be valid
+    # Valid schemas signed ad invalid
     '../msData/regex/reK86.xsd',                # \P{Is} is valid in regex for XSD 1.1
     '../msData/regex/reK87.xsd',                # \P{Is} is valid in regex for XSD 1.1
-    '../msData/particles/particlesHb009.xsd',   # valid in XSD 1.1
     '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (invalid for engine limitation)
-    '../saxonData/Override/over026.bad.xsd',    # Same as over003.xsd, that is signed as valid.
     '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
-    '../saxonData/Wild/wild069.xsd',  # Maybe inverted?
 
-    # TODO: invalid schema cases
+    # TODO: invalid schema cases not raised
+    '../msData/particles/particlesHb009.xsd',  # 10447: Invalid particle restriction
     '../saxonData/CTA/cta9005err.xsd',  # 14549: Type alternative using an inherited attribute
     '../saxonData/CTA/cta9008err.xsd',  # 14552: Type alternative using an inherited attribute
+    '../saxonData/Override/over026.bad.xsd',  # 14669
+    '../saxonData/Wild/wild069.xsd',          # 14834 invalid particle restriction
 
     # TODO: Parse ENTITY declarations in DOCTYPE before enforce checking
     '../saxonData/Id/id017.n01.xml',     # 14571-14575
@@ -248,6 +228,13 @@ def fetch_xsd_test_suite():
         raise FileNotFoundError("can't find the XSD suite index file suite.xml ...")
 
 
+def skip_message(source_href, group_num):
+    if source_href.endswith('.xsd'):
+        print("Skip test number %d with schema %r ..." % (group_num, source_href))
+    else:
+        print("Skip file %r for test number %d ..." % (source_href, group_num))
+
+
 def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_version='1.0'):
     """
     Creates a test class for a W3C test group.
@@ -275,10 +262,7 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 return
             if source_href in SKIPPED_TESTS:
                 if args.numbers:
-                    if source_href.endswith('.xsd'):
-                        print("Skip test number %d ..." % group_num)
-                    else:
-                        print("Skip file %r for test number %d ..." % (source_href, group_num))
+                    skip_message(source_href, group_num)
                 return
 
         # Normalize and check file path
@@ -295,6 +279,8 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
             elif version not in args.version:
                 continue
             elif version == '1.1' and source_href in XSD11_SKIPPED_TESTS:
+                if args.numbers:
+                    skip_message(source_href, group_num)
                 continue
 
             for e in elem.findall('{%s}expected' % TEST_SUITE_NAMESPACE):

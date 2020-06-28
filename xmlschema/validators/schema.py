@@ -46,7 +46,7 @@ from .exceptions import XMLSchemaParseError, XMLSchemaValidationError, XMLSchema
 from .xsdbase import check_validation_mode, XsdValidator, ValidationMixin, XsdComponent
 from .notations import XsdNotation
 from .identities import XsdKey, XsdKeyref, XsdUnique, Xsd11Key, Xsd11Unique, Xsd11Keyref
-from .facets import XSD_11_FACETS
+from .facets import XSD_10_FACETS, XSD_11_FACETS
 from .simple_types import xsd_simple_type_factory, XsdUnion, XsdAtomicRestriction, \
     Xsd11AtomicRestriction, Xsd11Union
 from .attributes import XsdAttribute, XsdAttributeGroup, Xsd11Attribute
@@ -414,7 +414,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         else:
             raise XMLSchemaTypeError("'global_maps' argument must be an %r instance." % XsdGlobals)
 
-        if self.XSD_VERSION > '1.0' and any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
+        if any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
             # 4.2.2 of XSD 1.1 (Part 1: Structures) definition for details.
             # Ref: https://www.w3.org/TR/xmlschema11-1/#cip
@@ -1196,7 +1196,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     def version_check(self, elem):
         """
         Checks if the element is compatible with the version of the validator and XSD
-        types/facets availability.
+        types/facets availability. Invalid vc attributes are not detected in XSD 1.0.
 
         :param elem: an Element of the schema.
         :return: `True` if the schema element is compatible with the validator, \
@@ -1205,15 +1205,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if VC_MIN_VERSION in elem.attrib:
             vc_min_version = elem.attrib[VC_MIN_VERSION]
             if not XSD_VERSION_PATTERN.match(vc_min_version):
-                self.parse_error("invalid attribute vc:minVersion value", elem)
-            elif vc_min_version > '1.1':
+                if self.XSD_VERSION > '1.0':
+                    self.parse_error("invalid attribute vc:minVersion value", elem)
+            elif vc_min_version > self.XSD_VERSION:
                 return False
 
         if VC_MAX_VERSION in elem.attrib:
             vc_max_version = elem.attrib[VC_MAX_VERSION]
             if not XSD_VERSION_PATTERN.match(vc_max_version):
-                self.parse_error("invalid attribute vc:maxVersion value", elem)
-            elif vc_max_version <= '1.1':
+                if self.XSD_VERSION > '1.0':
+                    self.parse_error("invalid attribute vc:maxVersion value", elem)
+            elif vc_max_version <= self.XSD_VERSION:
                 return False
 
         if VC_TYPE_AVAILABLE in elem.attrib:
@@ -1241,22 +1243,32 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if VC_FACET_AVAILABLE in elem.attrib:
             for qname in elem.attrib[VC_FACET_AVAILABLE].split():
                 try:
-                    if self.resolve_qname(qname) not in XSD_11_FACETS:
-                        return False
+                    facet_name = self.resolve_qname(qname)
                 except XMLSchemaNamespaceError:
                     pass
                 except (KeyError, ValueError) as err:
                     self.parse_error(str(err), elem)
+                else:
+                    if self.XSD_VERSION == '1.0':
+                        if facet_name not in XSD_10_FACETS:
+                            return False
+                    elif facet_name not in XSD_11_FACETS:
+                        return False
 
         if VC_FACET_UNAVAILABLE in elem.attrib:
             for qname in elem.attrib[VC_FACET_UNAVAILABLE].split():
                 try:
-                    if self.resolve_qname(qname) not in XSD_11_FACETS:
-                        break
+                    facet_name = self.resolve_qname(qname)
                 except XMLSchemaNamespaceError:
                     break
                 except (KeyError, ValueError) as err:
                     self.parse_error(err, elem)
+                else:
+                    if self.XSD_VERSION == '1.0':
+                        if facet_name not in XSD_10_FACETS:
+                            break
+                    elif facet_name not in XSD_11_FACETS:
+                        break
             else:
                 return False
 
