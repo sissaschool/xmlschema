@@ -41,7 +41,10 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         ElementPathMixin.__init__(self)
 
     def __repr__(self):
-        return '%s(test=%r)' % (self.__class__.__name__, self.path)
+        if len(self.path) < 40:
+            return '%s(test=%r)' % (self.__class__.__name__, self.path)
+        else:
+            return '%s(test=%r)' % (self.__class__.__name__, self.path[:37] + '...')
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -100,15 +103,15 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         finally:
             self.parser.variables.clear()
 
-    def __call__(self, elem, value=None, source=None, **kwargs):
+    def __call__(self, elem, value=None, namespaces=None, source=None, **kwargs):
         with self._xpath_lock:
             if not self.parser.is_schema_bound():
                 self.parser.schema.bind_parser(self.parser)
 
-        variable_values = {'value': '' if value is None else self.base_type.text_decode(value)}
-
+        variable_values = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
-            context = XPathContext(source.root, item=elem, variable_values=variable_values)
+            context = XPathContext(source.root, namespaces=namespaces,
+                                   item=elem, variable_values=variable_values)
         else:
             # If validated from a component (could not work with rooted XPath expressions)
             context = XPathContext(elem, variable_values=variable_values)

@@ -103,7 +103,11 @@ class XMLSchemaProxy(AbstractSchemaProxy):
         parser.tokenizer = parser.create_tokenizer(parser.symbol_table)
 
     def get_context(self):
-        return XMLSchemaContext(root=self._schema, item=self._base_element)
+        return XMLSchemaContext(
+            root=self._schema,
+            namespaces=self._schema.namespaces,
+            item=self._base_element
+        )
 
     def get_type(self, qname):
         try:

@@ -456,7 +456,13 @@ class ModelVisitor(MutableSequence):
                     return False
                 item_max_occurs = occurs[(item,)] or item_occurs
 
-                min_group_occurs = max(1, item_occurs // (item.max_occurs or item_occurs))
+                if item.max_occurs is None:
+                    min_group_occurs = 1
+                elif item_occurs % item.max_occurs:
+                    min_group_occurs = 1 + item_occurs // item.max_occurs
+                else:
+                    min_group_occurs = item_occurs // item.max_occurs
+
                 max_group_occurs = max(1, item_max_occurs // (item.min_occurs or 1))
 
                 occurs[self.group] += min_group_occurs
@@ -516,8 +522,9 @@ class ModelVisitor(MutableSequence):
 
         obj = None
         try:
+            element_occurs = occurs[element]
             if stop_item(element):
-                yield element, occurs[element], [element]
+                yield element, element_occurs, [element]
 
             while True:
                 while self.group.is_over(max(occurs[self.group], occurs[(self.group,)])):
@@ -550,6 +557,10 @@ class ModelVisitor(MutableSequence):
 
                 elif self.group.model != 'all':
                     self.items, self.match = self.iter_group(), False
+                elif any(e.min_occurs > occurs[e] for e in self.group.iter_elements()):
+                    if not self.group.min_occurs:
+                        yield self.group, occurs[self.group], self.expected
+                    self.group, self.items, self.match = self.pop()
                 elif any(not e.is_over(occurs[e]) for e in self.group):
                     self.items = self.iter_group()
                     self.match = False
@@ -567,6 +578,8 @@ class ModelVisitor(MutableSequence):
                         yield self.group, occurs[self.group], self.expected
                 elif any(e.min_occurs > occurs[e] for e in self.group):
                     yield self.group, occurs[self.group], self.expected
+            elif self.group.max_occurs is not None and self.group.max_occurs < occurs[self.group]:
+                yield self.group, occurs[self.group], self.expected
 
     def sort_content(self, content, restart=True):
         if restart:

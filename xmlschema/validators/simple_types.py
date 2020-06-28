@@ -1067,8 +1067,8 @@ class XsdAtomicRestriction(XsdAtomic):
           enumeration | whiteSpace | pattern)*))
         </restriction>
     """
-    FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     derivation = 'restriction'
+    _FACETS_BUILDERS = XSD_10_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE}
 
     def __setattr__(self, name, value):
@@ -1182,7 +1182,7 @@ class XsdAtomicRestriction(XsdAtomic):
                 has_simple_type_child = True
             else:
                 try:
-                    facet_class = self.FACETS_BUILDERS[child.tag]
+                    facet_class = self._FACETS_BUILDERS[child.tag]
                 except KeyError:
                     self.parse_error("unexpected tag %r in restriction:" % child.tag)
                     continue
@@ -1314,5 +1314,5 @@ class Xsd11AtomicRestriction(XsdAtomicRestriction):
           {any with namespace: ##other})*))
         </restriction>
     """
-    FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
+    _FACETS_BUILDERS = XSD_11_FACETS_BUILDERS
     _CONTENT_TAIL_TAGS = {XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ANY_ATTRIBUTE, XSD_ASSERT}

@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.2.3`_ (2020-06-XX)
+======================
+* No failures on W3C tests
+* Restrict XPath processor dependency
+* Fix check and iteration of empty model group
+* Fix substitution group iteration for local elements
+
 `v1.2.2`_ (2020-06-15)
 ======================
 * Fix XPath context for schema nodes
@@ -340,3 +347,4 @@ v0.9.6 (2017-05-05)
 .. _v1.2.0: https://github.com/brunato/xmlschema/compare/v1.1.3...v1.2.0
 .. _v1.2.1: https://github.com/brunato/xmlschema/compare/v1.2.0...v1.2.1
 .. _v1.2.2: https://github.com/brunato/xmlschema/compare/v1.2.1...v1.2.2
+.. _v1.2.3: https://github.com/brunato/xmlschema/compare/v1.2.2...v1.2.3

@@ -135,6 +135,10 @@ class XsdComplexType(XsdType, ValidationMixin):
         if content_elem is None or content_elem.tag in self._CONTENT_TAIL_TAGS:
             self.content = self.schema.create_empty_content_group(self)
             self._parse_content_tail(elem)
+            default_open_content = self.default_open_content
+            if default_open_content and \
+                    (self.mixed or self.content or default_open_content.applies_to_empty):
+                self.open_content = default_open_content
 
         elif content_elem.tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
             self.content = self.schema.BUILDERS.group_class(content_elem, self.schema, self)
@@ -904,7 +908,13 @@ class Xsd11ComplexType(XsdComplexType):
             elem, self.schema, self, **kwargs
         )
 
-        self.assertions = [XsdAssert(e, self.schema, self, self)
-                           for e in elem if e.tag == XSD_ASSERT]
-        if getattr(self.base_type, 'assertions', None):
-            self.assertions.extend(assertion for assertion in self.base_type.assertions)
+        self.assertions = [
+            XsdAssert(e, self.schema, self, self) for e in elem if e.tag == XSD_ASSERT
+        ]
+        try:
+            self.assertions.extend(
+                XsdAssert(assertion.elem, self.schema, self, self)
+                for assertion in self.base_type.assertions
+            )
+        except AttributeError:
+            pass

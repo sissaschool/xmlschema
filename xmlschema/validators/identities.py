@@ -197,10 +197,21 @@ class XsdIdentity(XsdComponent):
                 self.fields = ref.fields
                 self.ref = ref
 
-        context = IdentityXPathContext(self.parent)
+        context = IdentityXPathContext(self.schema, item=self.parent)
+
         self.elements = {
             e: None for e in self.selector.token.select_results(context) if e.name
         }
+
+        if not self.elements:
+            # Try to detect target XSD elements extracting QNames
+            # of the leaf elements from the XPath expression and
+            # use them to match global elements.
+
+            for qname in self.selector.token.iter_leaf_elements():
+                xsd_element = self.maps.elements.get(get_extended_qname(qname, self.namespaces))
+                if xsd_element is not None and xsd_element not in self.elements:
+                    self.elements[xsd_element] = None
 
     @property
     def built(self):

@@ -30,7 +30,6 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin, ParticleMixin
-from .attributes import XsdAttribute
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 
@@ -752,14 +751,21 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
         # Collects fields values for identities that refer to this element.
         for identity, counter in identities.items():
-            if not counter.enabled or self not in identity.elements:
+            if not counter.enabled:
+                continue
+            elif self in identity.elements:
+                xsd_element = self
+            elif self.ref in identity.elements:
+                xsd_element = self.ref
+            else:
                 continue
 
             try:
                 if xsd_type is self.type:
-                    xsd_fields = identity.elements[self]
+                    xsd_fields = identity.elements[xsd_element]
                     if xsd_fields is None:
-                        xsd_fields = identity.elements[self] = identity.get_fields(self)
+                        xsd_fields = identity.get_fields(xsd_element)
+                        identity.elements[xsd_element] = xsd_fields
                 else:
                     xsd_element = self.copy()
                     xsd_element.type = xsd_type
@@ -776,7 +782,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                         counter.increase(fields)
                     except ValueError as err:
                         yield self.validation_error(validation, err, elem, **kwargs)
-
 
         # Disable collect for out of scope identities and check key references
         if 'max_depth' not in kwargs:

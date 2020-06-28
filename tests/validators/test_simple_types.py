@@ -10,7 +10,7 @@
 #
 import unittest
 
-from xmlschema import XMLSchemaParseError
+from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, print_test_header
@@ -176,7 +176,7 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
               <xs:restriction base='xs:integer'>
                 <xs:assertion test='string-length($value) &lt; 2'/>
               </xs:restriction>
-            </xs:simpleType>""", XMLSchemaParseError)
+            </xs:simpleType>""")
 
         schema = self.check_schema("""
             <xs:simpleType name='MeasureType'>
@@ -187,12 +187,18 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
         self.assertTrue(schema.types['MeasureType'].is_valid('10'))
         self.assertFalse(schema.types['MeasureType'].is_valid('-1.5'))
 
-        self.check_schema("""
+        # Schema is valid but data value can't be compared with the string on the right
+        schema = self.check_schema("""
             <xs:simpleType name='RestrictedDateTimeType'>
               <xs:restriction base='xs:dateTime'>
                 <xs:assertion test="$value > '1999-12-31T23:59:59'"/>
               </xs:restriction>
-            </xs:simpleType>""", XMLSchemaParseError)
+            </xs:simpleType>""")
+        self.assertFalse(schema.types['RestrictedDateTimeType'].is_valid('2000-01-01T12:00:00'))
+
+        with self.assertRaises(XMLSchemaValidationError) as ctx:
+            schema.types['RestrictedDateTimeType'].validate('2000-01-01T12:00:00')
+        self.assertIn("wrong type <class 'str'> for operand", str(ctx.exception))
 
         schema = self.check_schema("""
         <xs:simpleType name='RestrictedDateTimeType'>
