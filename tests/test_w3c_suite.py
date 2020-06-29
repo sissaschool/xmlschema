@@ -42,7 +42,7 @@ SKIPPED_TESTS = {
     '../ibmData/instance_invalid/S3_10_1/s3_10_1ii09.xsd',  # 15361
 
     ##
-    # Invalid schemas signed as valid
+    # Invalid schemas marked as valid
     '../msData/additional/addB194.xsd',         # invalid xml:lang='enu' is a typo?
     '../msData/particles/particlesZ001.xsd',    # Invalid XSD 1.0 schema (valid with XSD 1.1)
     '../msData/simpleType/stE110.xsd',          # Circular xs:union declaration
@@ -50,12 +50,7 @@ SKIPPED_TESTS = {
     '../saxonData/Missing/missing002.xsd',      # missing substitution group
     '../saxonData/Missing/missing003.xsd',      # missing type and substitution group
     '../saxonData/Missing/missing006.xsd',      # missing list item type
-
-    # TODO: invalid schema cases not raised
-    '../msData/annotations/annotF001.xsd',  # 4989: Contains xml:lang="" ?? (but xml.xsd allows '')
-    '../msData/datatypes/Facets/base64Binary/'
-    'base64Binary_enumeration003.xsd',  # 7277: check base64 invalid
-    # values 'M0SyLMT=' is not in the value space of the base type, base64Binary
+    '../msData/annotations/annotF001.xsd',      # xml.xsd allows xml:lang="" for un-declarations
 
     ##
     # XSD 1.0 limited URI (see RFC 2396 + RFC 2732)
@@ -64,27 +59,33 @@ SKIPPED_TESTS = {
     '../msData/datatypes/Facets/anyURI/anyURI_b004.xsd',
     '../msData/datatypes/Facets/anyURI/anyURI_b006.xsd',
 
-    '../msData/element/elemZ026.xsd',           # This is good because the head element is abstract
-    '../msData/element/elemZ031.xsd',           # Valid in Python that has arbitrary large integers
-    '../msData/group/groupH021.xsd',            # TODO: wrong in XSD 1.0, good in XSD 1.1. Why??
-    '../msData/identityConstraint/idC019.xsd',  # TODO: is it an error?
-    '../msData/identityConstraint/idI148.xsd',  # FIXME attribute::* select (restrict XPath parser)
-    '../msData/modelGroups/mgE006.xsd',  # Is valid? (is mg007.xsd invalid for the same reason)
-    '../msData/particles/particlesV020.xsd',
-    # 10942: see http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
+    ##
+    # Uncertain cases (disputed tests)
+    '../msData/group/groupH021.xsd',  # 8679: Unclear invalidity stated for XSD 1.0 ...
+    #
+    # Two uncertain equivalent cases related with element
+    # substitution and its equivalence with a choice group.
+    # Xerces says these are both invalid with XSD 1.0 and valid with XSD 1.1.
+    #
+    # http://www.w3.org/Bugs/Public/show_bug.cgi?id=4146
+    # http://www.w3.org/Bugs/Public/show_bug.cgi?id=4147
+    #
+    '../msData/element/elemZ026.xsd',         # 8541: bug id=4147
+    '../msData/particles/particlesV020.xsd',  # 10942: bug id=4147
 
-    ###
+    ##
     # 7295: Inapplicable test on URI (the first resource is not reachable anymore)
     # https://www.w3.org/Bugs/Public/show_bug.cgi?id=4126
     '../msData/datatypes/Facets/anyURI/anyURI_a004.xml',
 
     ##
-    # Invalid that maybe valid because depend by implementation choices
+    # Signed ad invalid, but valid because depends by implementation choices or platform.
     #   https://www.w3.org/Bugs/Public/show_bug.cgi?id=4133
     '../msData/schema/schG3.xml',
     '../msData/schema/schG6_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG11_a.xsd',  # Valid because the ns import is done once, validation fails.
     '../msData/schema/schG12.xml',
+    '../msData/element/elemZ031.xsd',  # Valid because Python has arbitrary large integers
 
     ##
     # Invalid XML tests
@@ -174,22 +175,17 @@ SKIPPED_TESTS = {
     '../msData/additional/test93490_12.xml',  # 4803
     '../msData/additional/addB191.xml',       # 4824
     # Dynamic schema load cases
-
 }
 
 XSD11_SKIPPED_TESTS = {
-    # Valid schemas signed ad invalid
+    # Valid schemas marked ad invalid
     '../msData/regex/reK86.xsd',                # \P{Is} is valid in regex for XSD 1.1
     '../msData/regex/reK87.xsd',                # \P{Is} is valid in regex for XSD 1.1
     '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (invalid for engine limitation)
     '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
 
     # TODO: invalid schema cases not raised
-    '../msData/particles/particlesHb009.xsd',  # 10447: Invalid particle restriction
-    '../saxonData/CTA/cta9005err.xsd',  # 14549: Type alternative using an inherited attribute
-    '../saxonData/CTA/cta9008err.xsd',  # 14552: Type alternative using an inherited attribute
-    '../saxonData/Override/over026.bad.xsd',  # 14669
-    '../saxonData/Wild/wild069.xsd',          # 14834 invalid particle restriction
+    # '../saxonData/Wild/wild069.xsd',          # 14834 invalid particle restriction
 
     # TODO: Parse ENTITY declarations in DOCTYPE before enforce checking
     '../saxonData/Id/id017.n01.xml',     # 14571-14575

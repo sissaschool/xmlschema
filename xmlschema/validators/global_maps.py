@@ -90,7 +90,11 @@ def create_load_function(tag):
                                 break
 
             if elem.tag == XSD_OVERRIDE:
-                xsd_globals[qname] = (child, schema)
+                # Components which match nothing in the target schema are ignored. See the
+                # period starting with "Source declarations not present in the target set"
+                # of the paragraph https://www.w3.org/TR/xmlschema11-1/#override-schema.
+                if qname in xsd_globals:
+                    xsd_globals[qname] = (child, schema)
             else:
                 # Append to a list if it's a redefine
                 try:

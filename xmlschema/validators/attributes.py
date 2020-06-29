@@ -54,6 +54,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     qualified = False
     default = None
     fixed = None
+    inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
     def __init__(self, elem, schema, parent):
         super(XsdAttribute, self).__init__(elem, schema, parent)
@@ -302,7 +303,6 @@ class Xsd11Attribute(XsdAttribute):
           Content: (annotation?, simpleType?)
         </attribute>
     """
-    inheritable = False
     _target_namespace = None
 
     @property
@@ -540,6 +540,9 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         base_attr.type.normalize(base_attr.fixed):
                     self.parse_error("Attribute %r: derived attribute "
                                      "has a different fixed value" % name)
+                if base_attr.inheritable is not attr.inheritable:
+                    msg = "Attribute %r: attribute 'inheritable' value change in restriction"
+                    self.parse_error(msg % name)
 
             if self.redefine is not None:
                 pass  # In case of redefinition do not copy base attributes

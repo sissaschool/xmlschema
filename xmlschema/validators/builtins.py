@@ -43,6 +43,11 @@ from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
 NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
 
+BASE64_BINARY_PATTERN = re.compile(
+    r'((([A-Za-z0-9+/] ?){4})*(([A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|([A-Za-z0-9+/] ?){2}'
+    r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
+)
+
 #
 # Admitted facets sets for XSD atomic types
 STRING_FACETS = (
@@ -152,19 +157,19 @@ def hex_binary_validator(x):
         yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
 
 
-def base64_binary_validator(x):
-    if not x:
+def base64_binary_validator(value):
+    value = value.replace(' ', '')
+    if not value:
         return
-    match = NOT_BASE64_BINARY_PATTERN.search(x)
-    if match is not None:
-        reason = "not a base64 encoding: illegal character %r " \
-                 "at position %d." % (match.group(0), match.span()[0])
-        yield XMLSchemaValidationError(base64_binary_validator, x, reason)
+
+    match = BASE64_BINARY_PATTERN.match(value)
+    if match is None or match.group(0) != value:
+        yield XMLSchemaValidationError(base64_binary_validator, value, "not a base64 encoding")
     else:
         try:
-            base64.standard_b64decode(x)
+            base64.standard_b64decode(value)
         except (ValueError, TypeError) as err:
-            yield XMLSchemaValidationError(base64_binary_validator, x,
+            yield XMLSchemaValidationError(base64_binary_validator, value,
                                            "not a base64 encoding: %s." % err)
 
 

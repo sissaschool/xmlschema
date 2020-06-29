@@ -1280,6 +1280,10 @@ class XsdAlternative(XsdComponent):
                     self.type = self.schema.BUILDERS.complex_type_class(child, self.schema, self)
                 else:
                     self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+
+                if not self.type.is_derived(self.parent.type):
+                    msg = "declared type is not derived from {!r}"
+                    self.parse_error(msg.format(self.parent.type))
         else:
             try:
                 self.type = self.maps.lookup_type(type_qname)

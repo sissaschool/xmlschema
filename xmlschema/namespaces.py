@@ -52,8 +52,8 @@ SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'validators/schemas/')
 
 LOCATION_HINTS = {
     # Locally saved schemas
-    HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
+    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
     XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd'),
     XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd'),
 

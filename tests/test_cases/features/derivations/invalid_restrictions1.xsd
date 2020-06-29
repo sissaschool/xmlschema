@@ -22,7 +22,7 @@
         </xs:complexContent>
     </xs:complexType>
 
-    <!-- No UPA violation if the restricted element is empty -->
+    <!-- No UPA violation if the restricted element is empty but elem2 is not a restriction -->
     <xs:complexType name="restrictedType2">
         <xs:complexContent>
             <xs:restriction base="basicType1">

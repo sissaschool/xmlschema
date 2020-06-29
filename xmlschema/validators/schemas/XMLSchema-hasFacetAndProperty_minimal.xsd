@@ -2,6 +2,7 @@
 <schema xmlns="http://www.w3.org/2001/XMLSchema"
         targetNamespace="http://www.w3.org/2001/XMLSchema-hasFacetAndProperty"
         xmlns:hfp="http://www.w3.org/2001/XMLSchema-hasFacetAndProperty">
+ <!-- A minimal schema that not requires the loading of xhtml namespace -->
 
  <element name="hasFacet">
   <complexType>

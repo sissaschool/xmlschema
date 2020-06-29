@@ -22,6 +22,7 @@ from ..regex import get_python_regex
 from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
+from .attributes import XsdAttribute
 
 QNAME_PATTERN = re.compile(
     r'(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
@@ -203,7 +204,9 @@ class XsdIdentity(XsdComponent):
             e: None for e in self.selector.token.select_results(context) if e.name
         }
 
-        if not self.elements:
+        if any(isinstance(e, XsdAttribute) for e in self.elements):
+            self.parse_error("selector xpath cannot select attributes")
+        elif not self.elements:
             # Try to detect target XSD elements extracting QNames
             # of the leaf elements from the XPath expression and
             # use them to match global elements.

@@ -1310,6 +1310,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             namespace, local_name = self.namespaces.get('', ''), qname
 
         if not namespace:
+            if namespace_imported and self.target_namespace and '' not in self.imports:
+                raise XMLSchemaNamespaceError(
+                    "the QName {!r} is mapped to no namespace, but this requires "
+                    "that there is an xs:import statement in the schema without "
+                    "the 'namespace' attribute.".format(qname)
+                )
             return local_name
         elif namespace_imported and self.meta_schema is not None and \
                 namespace != self.target_namespace and \
@@ -1778,7 +1784,7 @@ class XMLSchema11(XMLSchemaBase):
         XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
         XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning_minimal.xsd'),
+        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
 

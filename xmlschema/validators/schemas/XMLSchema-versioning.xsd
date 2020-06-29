@@ -2,6 +2,9 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
            targetNamespace="http://www.w3.org/2007/XMLSchema-versioning">
 
+  <!-- A schema for XMLSchema-versioning namespace that includes all the attributes
+   defined in XSD 1.1 normative document https://www.w3.org/TR/xmlschema11-1/ -->
+
   <xs:attribute name="minVersion" type="xs:decimal" />
   <xs:attribute name="maxVersion" type="xs:decimal" />
   <xs:attribute name="typeAvailable">

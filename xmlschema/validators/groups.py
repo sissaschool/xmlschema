@@ -380,7 +380,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return False
 
         check_occurs = other.max_occurs != 0
-        check_emptiable = other.model != 'choice'
 
         # Same model: declarations must simply preserve order
         other_iterator = iter(other.iter_model())
@@ -392,10 +391,19 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     return False
                 if other_item is item or item.is_restriction(other_item, check_occurs):
                     break
-                elif check_emptiable and not other_item.is_emptiable():
+                elif other.model == 'choice':
+                    if item.max_occurs != 0:
+                        continue
+                    elif not other_item.is_matching(item.name, self.default_namespace):
+                        continue
+                    elif all(e.max_occurs == 0 for e in self.iter_model()):
+                        return False
+                    else:
+                        break
+                elif not other_item.is_emptiable():
                     return False
 
-        if not check_emptiable:
+        if other.model == 'choice':
             return True
 
         while True:
@@ -975,6 +983,38 @@ class Xsd11Group(XsdGroup):
 
         base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
 
+        if self.model != 'choice':
+            for other_item in base_items:
+                min_occurs, max_occurs = 0, other_item.max_occurs
+                for k in range(len(restriction_items) - 1, -1, -1):
+                    item = restriction_items[k]
+
+                    if item.is_restriction(other_item, check_occurs=False):
+                        if max_occurs is None:
+                            min_occurs += item.min_occurs
+                        elif item.max_occurs is None or max_occurs < item.max_occurs or \
+                                min_occurs + item.min_occurs > max_occurs:
+                            continue
+                        else:
+                            min_occurs += item.min_occurs
+                            max_occurs -= item.max_occurs
+
+                        restriction_items.remove(item)
+                        if not min_occurs or max_occurs == 0:
+                            break
+
+                if min_occurs < other_item.min_occurs:
+                    break
+            else:
+                if not restriction_items:
+                    return True
+            return False
+
+        # Restriction with a choice model: this a more complex case
+        # because the not emptiable elements of the base group have
+        # to be included in each item of the choice group.
+        not_emptiable_items = {x for x in base_items if x.min_occurs}
+
         for other_item in base_items:
             min_occurs, max_occurs = 0, other_item.max_occurs
             for k in range(len(restriction_items) - 1, -1, -1):
@@ -990,6 +1030,12 @@ class Xsd11Group(XsdGroup):
                         min_occurs += item.min_occurs
                         max_occurs -= item.max_occurs
 
+                    if not_emptiable_items:
+                        if len(not_emptiable_items) > 1:
+                            continue
+                        if other_item not in not_emptiable_items:
+                            continue
+
                     restriction_items.remove(item)
                     if not min_occurs or max_occurs == 0:
                         break
@@ -1000,18 +1046,34 @@ class Xsd11Group(XsdGroup):
             if not restriction_items:
                 return True
 
-        # Restriction check failed: try another check in case of a choice group
-        if self.model != 'choice':
+        if any(not isinstance(x, XsdGroup) for x in restriction_items):
             return False
-        return all(x.is_restriction(other) for x in self)
+
+        # If the remaining items are groups try to verify if they are all
+        # restrictions of the 'all' group and if each group contains all
+        # not emptiable elements.
+        for group in restriction_items:
+            if not group.is_restriction(other):
+                return False
+
+            for item in not_emptiable_items:
+                for e in group:
+                    if e.name == item.name:
+                        break
+                else:
+                    return False
+        else:
+            return True
 
     def is_choice_restriction(self, other):
-        restriction_items = list(self.iter_model())
         if self.model == 'choice':
             counter_func = max
         else:
             def counter_func(x, y):
                 return x + y
+
+        restriction_items = list(self.iter_model())
+        has_not_empty_item = any(e.max_occurs != 0 for e in restriction_items)
 
         check_occurs = other.max_occurs != 0
         max_occurs = 0
@@ -1034,6 +1096,14 @@ class Xsd11Group(XsdGroup):
                         else:
                             other_max_occurs = max(other_max_occurs, effective_max_occurs)
                     break
+                elif item.max_occurs != 0:
+                    continue
+                elif not other_item.is_matching(item.name, self.default_namespace):
+                    continue
+                elif has_not_empty_item:
+                    break
+                else:
+                    return False
             else:
                 continue
             restriction_items.remove(item)

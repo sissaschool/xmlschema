@@ -3,6 +3,12 @@
 <xs:schema targetNamespace="http://www.w3.org/XML/1998/namespace" 
   xmlns:xs="http://www.w3.org/2001/XMLSchema" 
   xml:lang="en">
+ <!-- A minimal schema that not requires the loading of xhtml namespace -->
+
+ <!-- References for XML namespace:
+   * https://www.w3.org/2001/xml.xsd (link updated with latest version)
+   * http://www.w3.org/2009/01/xml.xsd (permanent link for this version)
+   -->
 
  <xs:attribute name="lang">
   <xs:simpleType>

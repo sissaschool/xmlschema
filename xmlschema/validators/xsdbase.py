@@ -975,10 +975,10 @@ class ParticleMixin(object):
         return self.max_occurs is not None and self.max_occurs <= occurs
 
     def has_occurs_restriction(self, other):
-        if self.min_occurs == self.max_occurs == 0:
-            return True
-        elif self.min_occurs < other.min_occurs:
+        if self.min_occurs < other.min_occurs:
             return False
+        elif self.max_occurs == 0:
+            return True
         elif other.max_occurs is None:
             return True
         elif self.max_occurs is None:

@@ -9,7 +9,6 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
-import platform
 import warnings
 import os
 
@@ -147,7 +146,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 </xs:complexType>
             </xs:schema>""")
 
-        self.assertEqual(set(schema.root_elements), {schema.elements['root1'], schema.elements['root2']})
+        self.assertEqual(set(schema.root_elements),
+                         {schema.elements['root1'], schema.elements['root2']})
 
     def test_is_restriction_method(self):
         # Test issue #111 fix
@@ -155,8 +155,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         extended_header_def = schema.types['extendedHeaderDef']
         self.assertTrue(extended_header_def.is_derived(schema.types['blockDef']))
 
-    @unittest.skipIf(SKIP_REMOTE_TESTS or platform.system() == 'Windows',
-                     "Remote networks are not accessible or avoid SSL verification error on Windows.")
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_remote_schemas_loading(self):
         col_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
                                        "tests/test_cases/examples/collection/collection.xsd",
