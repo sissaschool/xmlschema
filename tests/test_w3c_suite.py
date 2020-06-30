@@ -184,9 +184,6 @@ XSD11_SKIPPED_TESTS = {
     '../msData/particles/particlesZ033_g.xsd',  # valid in XSD 1.1 (invalid for engine limitation)
     '../saxonData/CTA/cta0043.xsd',  # Only a warning for type table difference on restriction
 
-    # TODO: invalid schema cases not raised
-    # '../saxonData/Wild/wild069.xsd',          # 14834 invalid particle restriction
-
     # TODO: Parse ENTITY declarations in DOCTYPE before enforce checking
     '../saxonData/Id/id017.n01.xml',     # 14571-14575
     '../saxonData/Id/id018.n01.xml',

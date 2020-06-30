@@ -16,7 +16,7 @@ from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..etree import etree_element
 from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
-    XSD_ANY, XSI_TYPE, get_qname, local_name, is_not_xsd_annotation
+    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, get_qname, local_name, is_not_xsd_annotation
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
@@ -971,6 +971,9 @@ class Xsd11Group(XsdGroup):
         restriction_items = list(self.iter_model())
 
         base_items = list(other.iter_model())
+
+        # If the base includes more wildcard, calculates and appends a
+        # wildcard union for validating wildcard unions in restriction
         wildcards = []
         for w1 in filter(lambda x: isinstance(x, XsdAnyElement), base_items):
             for w2 in wildcards:
@@ -984,6 +987,8 @@ class Xsd11Group(XsdGroup):
         base_items.extend(w for w in wildcards if hasattr(w, 'extended'))
 
         if self.model != 'choice':
+            restriction_wildcards = [e for e in restriction_items if isinstance(e, XsdAnyElement)]
+
             for other_item in base_items:
                 min_occurs, max_occurs = 0, other_item.max_occurs
                 for k in range(len(restriction_items) - 1, -1, -1):
@@ -1002,6 +1007,15 @@ class Xsd11Group(XsdGroup):
                         restriction_items.remove(item)
                         if not min_occurs or max_occurs == 0:
                             break
+                else:
+                    if self.model == 'all' and restriction_wildcards:
+                        try:
+                            if other_item.type.name != XSD_ANY_TYPE:
+                                for w in restriction_wildcards:
+                                    if w.is_matching(other_item.name, self.target_namespace):
+                                        return False
+                        except AttributeError:
+                            pass
 
                 if min_occurs < other_item.min_occurs:
                     break

@@ -134,7 +134,7 @@ class XsdWildcard(XsdComponent, ValidationMixin):
             return False
         elif not name or name[0] == '{':
             return self.is_namespace_allowed(get_namespace(name))
-        elif default_namespace is None:
+        elif not default_namespace:
             return self.is_namespace_allowed('')
         else:
             return self.is_namespace_allowed('') or \
@@ -663,7 +663,7 @@ class Xsd11AnyElement(XsdAnyElement):
         elif not name or name[0] == '{':
             if not self.is_namespace_allowed(get_namespace(name)):
                 return False
-        elif default_namespace is None:
+        elif not default_namespace:
             if not self.is_namespace_allowed(''):
                 return False
         else:
@@ -729,7 +729,7 @@ class Xsd11AnyAttribute(XsdAnyAttribute):
             return False
         elif not name or name[0] == '{':
             namespace = get_namespace(name)
-        elif default_namespace is None:
+        elif not default_namespace:
             namespace = ''
         else:
             name = '{%s}%s' % (default_namespace, name)
