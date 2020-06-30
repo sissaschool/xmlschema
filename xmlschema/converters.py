@@ -902,7 +902,9 @@ class JsonMLConverter(XMLSchemaConverter):
 
         if data_len <= content_index:
             return ElementData(xsd_element.name, None, [], attributes)
-        elif data_len == content_index + 1 and xsd_element.type.simple_type is not None:
+        elif data_len == content_index + 1 and (
+                xsd_element.type.simple_type is not None or
+                not xsd_element.type.content and xsd_element.type.mixed):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
