@@ -41,8 +41,6 @@ from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
 HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-NOT_BASE64_BINARY_PATTERN = re.compile(r'[^0-9a-zA-z+/= \t\n]')
-
 BASE64_BINARY_PATTERN = re.compile(
     r'((([A-Za-z0-9+/] ?){4})*(([A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|([A-Za-z0-9+/] ?){2}'
     r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'

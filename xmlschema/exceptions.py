@@ -29,15 +29,7 @@ class XMLSchemaValueError(XMLSchemaException, ValueError):
     pass
 
 
-class XMLSchemaSyntaxError(XMLSchemaException, SyntaxError):
-    pass
-
-
 class XMLSchemaKeyError(XMLSchemaException, KeyError):
-    pass
-
-
-class XMLSchemaIndexError(XMLSchemaException, ImportError):
     pass
 
 

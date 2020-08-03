@@ -89,6 +89,10 @@ class XMLSchemaProxy(AbstractSchemaProxy):
             except AttributeError:
                 raise XMLSchemaTypeError("%r is not an XsdElement" % base_element)
 
+    @property
+    def xsd_version(self):
+        return self._schema.XSD_VERSION
+
     def bind_parser(self, parser):
         if parser.schema is not self:
             parser.schema = self

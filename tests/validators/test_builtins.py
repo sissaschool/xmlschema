@@ -13,7 +13,7 @@ import unittest
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError, \
     XMLSchema10, XMLSchema11
-from xmlschema.validators.builtins import HEX_BINARY_PATTERN, NOT_BASE64_BINARY_PATTERN
+from xmlschema.validators.builtins import HEX_BINARY_PATTERN, BASE64_BINARY_PATTERN
 
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
@@ -31,8 +31,8 @@ class TestXsd10BuiltinTypes(unittest.TestCase):
         self.assertEqual(HEX_BINARY_PATTERN.search("aF3Bc").group(0), 'aF3Bc')
 
     def test_not_base64_pattern(self):
-        self.assertIsNone(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U="))
-        self.assertEqual(NOT_BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(0), '!')
+        self.assertIsNotNone(BASE64_BINARY_PATTERN.search("YWVpb3U="))
+        self.assertNotEqual(BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(), 'YWVpb3U!=')
 
     def test_boolean_decode(self):
         boolean_type = self.types['boolean']
