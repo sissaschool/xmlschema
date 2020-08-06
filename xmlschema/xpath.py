@@ -18,11 +18,11 @@ import threading
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
-from .qnames import XSD_SCHEMA, XSD_ANY_TYPE
+from .qnames import XSD_ANY_TYPE
 from .namespaces import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
-_REGEX_TAG_POSITION = re.compile(r'\b\[\d+\]')
+_REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
 def iter_schema_nodes(elem, with_root=True, with_attributes=False):
@@ -253,10 +253,7 @@ class ElementPathMixin(Sequence):
         return xpath_namespaces
 
     def _xpath_parse(self, path, namespaces=None):
-        path = path.strip()
-        if path.startswith('/') and not path.startswith('//'):
-            path = ''.join(['/', XSD_SCHEMA, path])
-        path = _REGEX_TAG_POSITION.sub('', path)  # Strips tags's positions from path
+        path = _REGEX_TAG_POSITION.sub('', path.strip())  # Strips tags positions from path
 
         namespaces = self._get_xpath_namespaces(namespaces)
         with self._xpath_lock:
