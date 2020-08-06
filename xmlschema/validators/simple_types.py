@@ -962,6 +962,9 @@ class XsdUnion(XsdSimpleType):
     def is_list(self):
         return all(mt.is_list() for mt in self.member_types)
 
+    def is_key(self):
+        return any(mt.is_key() for mt in self.member_types)
+
     def is_union(self):
         return True
 
