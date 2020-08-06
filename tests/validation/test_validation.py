@@ -129,9 +129,9 @@ class TestValidation(XsdValidatorTestCase):
         self.check_validity(self.st_schema, '<name xmlns="ns"></name>', False)
 
     def test_issue_171(self):
-        # First schema has an assert with naive check that maps '0' to False ('0'--> 0--> false)
+        # First schema has an assert with naive check
         schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171.xsd'))
-        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
         self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
         self.check_validity(schema, '<tag name="test" abc="10"/>', True)
 
@@ -140,6 +140,15 @@ class TestValidation(XsdValidatorTestCase):
         self.check_validity(schema, '<tag name="test" abc="10" def="0"/>', False)
         self.check_validity(schema, '<tag name="test" abc="10" def="1"/>', False)
         self.check_validity(schema, '<tag name="test" abc="10"/>', True)
+
+        # Another schema with a simple assert expression to test that EBV of abc/def='0' is True
+        schema = xmlschema.XMLSchema11(self.casepath('issues/issue_171/issue_171c.xsd'))
+        self.check_validity(schema, '<tag name="test" abc="0" def="1"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1" def="1"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="0" def="0"/>', True)
+        self.check_validity(schema, '<tag name="test" abc="1"/>', False)
+        self.check_validity(schema, '<tag name="test" def="1"/>', False)
 
     def test_issue_183(self):
         # Test for issue #183

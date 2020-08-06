@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"
+           vc:minVersion="1.1">
+  <xs:element name="tag">
+    <xs:complexType>
+      <xs:sequence/>
+      <xs:attribute name="name" type="xs:string"/>
+      <xs:attribute name="abc" type="xs:integer"/>
+      <xs:attribute name="def" type="xs:integer"/>
+      <xs:assert test="@abc and @def"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
