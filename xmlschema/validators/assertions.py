@@ -89,7 +89,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
         self.parser = XPath2Parser(
             namespaces=self.namespaces,
-            variables={'value': sequence_type},
+            variable_types={'value': sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
             schema=XMLSchemaProxy(self.schema, self)
@@ -101,20 +101,20 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             self.parse_error(err, elem=self.elem)
             self.token = self.parser.parse('true()')
         finally:
-            self.parser.variables.clear()
+            self.parser.variable_types.clear()
 
     def __call__(self, elem, value=None, namespaces=None, source=None, **kwargs):
         with self._xpath_lock:
             if not self.parser.is_schema_bound():
                 self.parser.schema.bind_parser(self.parser)
 
-        variable_values = {'value': None if value is None else self.base_type.text_decode(value)}
+        variables = {'value': None if value is None else self.base_type.text_decode(value)}
         if source is not None:
             context = XPathContext(source.root, namespaces=namespaces,
-                                   item=elem, variable_values=variable_values)
+                                   item=elem, variables=variables)
         else:
             # If validated from a component (could not work with rooted XPath expressions)
-            context = XPathContext(elem, variable_values=variable_values)
+            context = XPathContext(elem, variables=variables)
 
         try:
             if not self.token.evaluate(context):

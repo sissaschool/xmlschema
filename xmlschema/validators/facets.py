@@ -752,16 +752,18 @@ class XsdAssertionFacet(XsdFacet):
             self.path = 'true()'
 
         try:
-            variables = {'value': self.base_type.primitive_type.prefixed_name}
+            variable_types = {'value': self.base_type.primitive_type.prefixed_name}
         except AttributeError:
-            variables = {'value': self.any_simple_type.prefixed_name}
+            variable_types = {'value': self.any_simple_type.prefixed_name}
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
-        self.parser = XsdAssertionXPathParser(self.namespaces, strict=False, variables=variables,
-                                              default_namespace=self.xpath_default_namespace)
+        self.parser = XsdAssertionXPathParser(
+            self.namespaces, strict=False, variable_types=variable_types,
+            default_namespace=self.xpath_default_namespace
+        )
 
         try:
             self.token = self.parser.parse(self.path)
@@ -770,7 +772,7 @@ class XsdAssertionFacet(XsdFacet):
             self.token = self.parser.parse('true()')
 
     def __call__(self, value):
-        context = XPathContext(self._root, variable_values={'value': value})
+        context = XPathContext(self._root, variables={'value': value})
         try:
             if not self.token.evaluate(context):
                 msg = "value is not true with test path %r."

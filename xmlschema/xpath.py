@@ -25,21 +25,21 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')
 
 
-def iter_schema_nodes(elem, with_root=True, with_attributes=False):
+def iter_schema_nodes(root, with_root=True, with_attributes=False):
     """
     Iteration function for schema nodes. It doesn't yield text nodes,
     that are always `None` for schema elements, and detects visited
     element in order to skip already visited nodes.
 
-    :param elem: schema or schema's element.
+    :param root: schema or schema's element.
     :param with_root: if `True` yields initial element.
     :param with_attributes: if `True` yields also attribute nodes.
     """
     def attribute_node(x):
         return AttributeNode(*x)
 
-    def _iter_schema_nodes(_elem):
-        for child in _elem:
+    def _iter_schema_nodes(elem):
+        for child in elem:
             if child in nodes:
                 continue
             elif child.ref is not None:
@@ -58,15 +58,15 @@ def iter_schema_nodes(elem, with_root=True, with_attributes=False):
                     yield from map(attribute_node, child.attributes.items())
                 yield from _iter_schema_nodes(child)
 
-    if isinstance(elem, TypedElement):
-        elem = elem.elem
+    if isinstance(root, TypedElement):
+        root = root.elem
 
-    nodes = {elem}
+    nodes = {root}
     if with_root:
-        yield elem
+        yield root
         if with_attributes:
-            yield from map(attribute_node, elem.attributes.items())
-    yield from _iter_schema_nodes(elem)
+            yield from map(attribute_node, root.attributes.items())
+    yield from _iter_schema_nodes(root)
 
 
 class XMLSchemaContext(XPathSchemaContext):

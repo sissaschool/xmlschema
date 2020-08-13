@@ -107,7 +107,8 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                 context = XMLSchemaContext(xs)
                 elements = [x for x in xs.iter()]  # Contains schema elements only
                 context_elements = [x for x in context.iter() if isinstance(x, XsdValidator)]
-                self.assertEqual(context_elements, [x for x in context.iter_descendants()])
+                descendants = [x for x in context.iter_descendants('descendant-or-self')]
+                self.assertTrue(x in descendants for x in context_elements)
                 for e in elements:
                     # Context elements can include elements of other schemas (by element ref)
                     self.assertIn(e, context_elements)
