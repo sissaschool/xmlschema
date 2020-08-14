@@ -2,10 +2,10 @@
 CHANGELOG
 *********
 
-`v1.2.3`_ (2020-06-XX)
+`v1.2.3`_ (2020-08-14)
 ======================
-* No failures on W3C tests
-* Restrict XPath processor dependency
+* Full coverage of W3C tests (excluding ones for unavailable or unimplemented features)
+* Update and restrict elementpath dependency to v2.0.x
 * Fix check and iteration of empty model group
 * Fix substitution group iteration for local elements
 
