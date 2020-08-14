@@ -440,6 +440,10 @@ class TestXsdType(unittest.TestCase):
                      <xs:simpleType name="fooListType">
                          <xs:list itemType="xs:string"/>
                      </xs:simpleType>
+
+                     <xs:simpleType name="fooUnionType">
+                         <xs:union memberTypes="xs:string xs:anyURI"/>
+                     </xs:simpleType>
                      
                      <xs:complexType name="barType">
                          <xs:sequence>
@@ -457,12 +461,25 @@ class TestXsdType(unittest.TestCase):
                          </xs:complexContent>
                      </xs:complexType>        
 
+                     <xs:complexType name="barResType">
+                         <xs:complexContent>
+                             <xs:restriction base="barType">
+                                 <xs:sequence>
+                                     <xs:element name="node"/>
+                                 </xs:sequence>
+                             </xs:restriction>
+                         </xs:complexContent>
+                     </xs:complexType>        
+
                      <xs:complexType name="mixedType" mixed="true">
                          <xs:sequence>
                              <xs:element name="node" type="xs:string"/>
                          </xs:sequence>
                      </xs:complexType>        
 
+                     <xs:element name="fooElem" type="fooType"/>
+                     <xs:element name="barElem" type="barType" block="extension"/>
+                     
                  </xs:schema>""")
 
     def test_content_type_label(self):
@@ -493,6 +510,16 @@ class TestXsdType(unittest.TestCase):
     def test_is_atomic(self):
         self.assertFalse(self.schema.types['barType'].is_atomic())
 
+    def test_is_list(self):
+        self.assertFalse(self.schema.types['barType'].is_list())
+        self.assertTrue(self.schema.types['fooListType'].is_list())
+        self.assertFalse(self.schema.types['fooUnionType'].is_list())
+
+    def test_is_union(self):
+        self.assertFalse(self.schema.types['barType'].is_union())
+        self.assertFalse(self.schema.types['fooListType'].is_union())
+        self.assertTrue(self.schema.types['fooUnionType'].is_union())
+
     def test_is_datetime(self):
         self.assertFalse(self.schema.types['barType'].is_datetime())
 
@@ -515,6 +542,17 @@ class TestXsdType(unittest.TestCase):
     def test_is_restriction(self):
         self.assertTrue(self.schema.types['fooType'].is_restriction())
         self.assertFalse(self.schema.types['barExtType'].is_restriction())
+
+    def test_is_blocked(self):
+        element = self.schema.elements['fooElem']
+        self.assertFalse(self.schema.types['fooType'].is_blocked(element))
+        self.assertFalse(self.schema.types['barExtType'].is_blocked(element))
+        self.assertFalse(self.schema.types['barResType'].is_blocked(element))
+
+        element = self.schema.elements['barElem']
+        self.assertFalse(self.schema.types['fooType'].is_blocked(element))
+        self.assertTrue(self.schema.types['barExtType'].is_blocked(element))
+        self.assertFalse(self.schema.types['barResType'].is_blocked(element))
 
 
 class TestValidationMixin(unittest.TestCase):
@@ -579,6 +617,10 @@ class TestValidationMixin(unittest.TestCase):
         self.assertIsInstance(self.schema.validation_error('skip', 'Test error'),
                               XMLSchemaValidationError)
 
+        error = self.schema.validation_error('lax', 'Test error')
+        self.assertIsNone(error.obj)
+        self.assertEqual(self.schema.validation_error('lax', error, obj=10).obj, 10)
+
 
 class TestParticleMixin(unittest.TestCase):
 
@@ -609,6 +651,13 @@ class TestParticleMixin(unittest.TestCase):
     def test_is_single(self):
         self.assertTrue(self.schema.elements['cars'].is_single())
         self.assertFalse(self.schema.elements['cars'].type.content[0].is_single())
+
+        # The base method is used only by xs:any wildcards
+        wildcard = self.schema.meta_schema.types['anyType'].content[0]
+        self.assertFalse(wildcard.is_single())
+
+    def test_is_multiple(self):
+        self.assertFalse(self.schema.elements['cars'].is_multiple())
 
     def test_is_ambiguous(self):
         self.assertFalse(self.schema.elements['cars'].is_ambiguous())
@@ -642,6 +691,7 @@ class TestParticleMixin(unittest.TestCase):
                              <xs:element name="node6" minOccurs="4" maxOccurs="9"/>
                              <xs:element name="node7" minOccurs="1" maxOccurs="9"/>
                              <xs:element name="node8" minOccurs="3" maxOccurs="11"/>
+                             <xs:element name="node9" minOccurs="0" maxOccurs="0"/>
                          </xs:sequence>
                      </xs:complexType>                             
                  </xs:schema>""")
@@ -669,6 +719,8 @@ class TestParticleMixin(unittest.TestCase):
         self.assertTrue(xsd_group[6].has_occurs_restriction(xsd_group[7]))
         self.assertFalse(xsd_group[7].has_occurs_restriction(xsd_group[8]))
         self.assertFalse(xsd_group[8].has_occurs_restriction(xsd_group[7]))
+        self.assertTrue(xsd_group[9].has_occurs_restriction(xsd_group[1]))
+        self.assertTrue(xsd_group[9].has_occurs_restriction(xsd_group[2]))
 
     def test_parse_particle(self):
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

@@ -64,8 +64,8 @@ def iter_schema_nodes(root, with_root=True, with_attributes=False):
     nodes = {root}
     if with_root:
         yield root
-        if with_attributes:
-            yield from map(attribute_node, root.attributes.items())
+    if with_attributes:
+        yield from map(attribute_node, root.attributes.items())
     yield from _iter_schema_nodes(root)
 
 

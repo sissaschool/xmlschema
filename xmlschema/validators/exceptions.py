@@ -209,8 +209,8 @@ class XMLSchemaValidationError(XMLSchemaValidatorError, ValueError):
         if is_etree_element(self.elem):
             try:
                 elem_as_string = etree_tostring(self.elem, self.namespaces, '  ', 20)
-            except (ValueError, TypeError):
-                elem_as_string = repr(self.elem)
+            except (ValueError, TypeError):        # pragma: no cover
+                elem_as_string = repr(self.elem)   # pragma: no cover
 
             if hasattr(self.elem, 'sourceline'):
                 msg.append("Instance (line %r):\n\n%s\n" % (self.elem.sourceline, elem_as_string))

@@ -81,7 +81,6 @@ def make_schema_test_class(test_file, test_args, test_num, schema_class, check_w
                     c for c in SchemaObserver.components if id(c) not in components_ids
                 ]
                 if missing:
-                    breakpoint()
                     raise ValueError("schema missing %d components: %r" % (len(missing), missing))
 
             # Pickling test (only for Python 3, skip inspected schema classes test)

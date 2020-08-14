@@ -13,11 +13,12 @@
 import unittest
 import os
 import xml.etree.ElementTree as ElementTree
-from elementpath import XPath1Parser, XPath2Parser, Selector, ElementPathSyntaxError
+from elementpath import XPath1Parser, XPath2Parser, Selector, \
+    AttributeNode, TypedElement, ElementPathSyntaxError
 
-from xmlschema import XMLSchema10, XMLSchema11
+from xmlschema import XMLSchema10, XMLSchema11, XsdElement, XsdAttribute
 from xmlschema.namespaces import XSD_NAMESPACE
-from xmlschema.xpath import XMLSchemaProxy
+from xmlschema.xpath import XMLSchemaProxy, iter_schema_nodes
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), 'test_cases/')
@@ -126,6 +127,37 @@ class XMLSchemaProxyTest(unittest.TestCase):
         xsd_type = self.xs3.types['integer_or_float']
         self.assertIs(schema_proxy.get_primitive_type(xsd_type), xsd_type)
 
+    def test_iter_schema_nodes_function(self):
+        vh_elements = set(e for e in self.xs1.maps.iter_components(XsdElement)
+                          if e.target_namespace == self.xs1.target_namespace)
+
+        self.assertEqual(set(iter_schema_nodes(self.xs1)), vh_elements | {self.xs1})
+        self.assertEqual(set(iter_schema_nodes(self.xs1, with_root=False)), vh_elements)
+
+        vh_nodes = set()
+        for node in self.xs1.maps.iter_components((XsdElement, XsdAttribute)):
+            if node.target_namespace != self.xs1.target_namespace:
+                continue
+            elif isinstance(node, XsdAttribute):
+                vh_nodes.add(AttributeNode(node.local_name, node))
+            else:
+                vh_nodes.add(node)
+
+        self.assertEqual(set(iter_schema_nodes(self.xs1, with_attributes=True)),
+                         vh_nodes | {self.xs1})
+        self.assertEqual(set(iter_schema_nodes(self.xs1, with_root=False, with_attributes=True)),
+                         vh_nodes)
+
+        cars = self.xs1.elements['cars']
+        car = self.xs1.find('//vh:car')
+        typed_cars = TypedElement(cars, cars.type, None)
+        self.assertListEqual(list(iter_schema_nodes(cars)), [cars, car])
+        self.assertListEqual(list(iter_schema_nodes(typed_cars)), [cars, car])
+        self.assertListEqual(list(iter_schema_nodes(cars, with_root=False)), [car])
+        self.assertListEqual(list(iter_schema_nodes(typed_cars, with_root=False)), [car])
+        self.assertEqual(len(list(iter_schema_nodes(cars, with_attributes=True))), 4)
+        self.assertEqual(len(list(iter_schema_nodes(cars, False, with_attributes=True))), 3)
+
 
 class XMLSchemaXPathTest(unittest.TestCase):
 
@@ -221,6 +253,13 @@ class XMLSchemaXPathTest(unittest.TestCase):
             list(reversed(xsd_element)),
             [xsd_element.type.content[1], xsd_element.type.content[0]]
         )
+
+    def test_iterfind(self):
+        car = self.xs1.find('//vh:car')
+        bike = self.xs1.find('//vh:bike')
+        self.assertIsNotNone(car)
+        self.assertIsNotNone(bike)
+        self.assertListEqual(list(self.xs1.iterfind("/(vh:vehicles/*/*)")), [car, bike])
 
     def test_iter(self):
         xsd_element = self.xs1.elements['vehicles']

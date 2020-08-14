@@ -515,12 +515,9 @@ class XsdComponent(XsdValidator):
         ancestor = self
         while True:
             ancestor = ancestor.parent
-            if ancestor is None:
+            if ancestor is None or xsd_classes and not isinstance(ancestor, xsd_classes):
                 break
-            elif xsd_classes is None or isinstance(ancestor, xsd_classes):
-                yield ancestor
-            else:
-                break
+            yield ancestor
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
         """Serializes the XML elements that declare or define the component to a string."""
@@ -724,7 +721,8 @@ class XsdType(XsdComponent):
 
     def is_dynamic_consistent(self, other):
         return other.name == XSD_ANY_TYPE or self.is_derived(other) or \
-            hasattr(other, 'member_types') and any(self.is_derived(mt) for mt in other.member_types)
+            hasattr(other, 'member_types') and \
+            any(self.is_derived(mt) for mt in other.member_types)  # pragma: no cover
 
     def is_key(self):
         return self.name == XSD_ID or self.is_derived(self.maps.types[XSD_ID])
@@ -813,12 +811,12 @@ class ValidationMixin(object):
         check_validation_mode(validation)
 
         result, errors = None, []
-        for result in self.iter_decode(source, validation, **kwargs):
+        for result in self.iter_decode(source, validation, **kwargs):  # pragma: no cover
             if not isinstance(result, XMLSchemaValidationError):
                 break
             elif validation == 'strict':
                 raise result
-            elif validation == 'lax':
+            else:
                 errors.append(result)
 
         return (result, errors) if validation == 'lax' else result
@@ -840,12 +838,12 @@ class ValidationMixin(object):
         check_validation_mode(validation)
 
         result, errors = None, []
-        for result in self.iter_encode(obj, validation=validation, **kwargs):
+        for result in self.iter_encode(obj, validation=validation, **kwargs):  # pragma: no cover
             if not isinstance(result, XMLSchemaValidationError):
                 break
             elif validation == 'strict':
                 raise result
-            elif validation == 'lax':
+            else:
                 errors.append(result)
 
         return (result, errors) if validation == 'lax' else result
@@ -987,7 +985,7 @@ class ParticleMixin(object):
             return self.max_occurs <= other.max_occurs
 
     def parse_error(self, message):
-        raise XMLSchemaParseError(self, message)
+        raise XMLSchemaParseError(self, message)   # pragma: no cover
 
     def _parse_particle(self, elem):
         if 'minOccurs' in elem.attrib:
