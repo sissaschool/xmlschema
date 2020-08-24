@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.2.4`_ (2020-08-xx)
+======================
+* Use regex engine from XPath processor 
+
 `v1.2.3`_ (2020-08-14)
 ======================
 * Full coverage of W3C tests (excluding ones for unavailable or unimplemented features)
@@ -348,3 +352,4 @@ v0.9.6 (2017-05-05)
 .. _v1.2.1: https://github.com/brunato/xmlschema/compare/v1.2.0...v1.2.1
 .. _v1.2.2: https://github.com/brunato/xmlschema/compare/v1.2.1...v1.2.2
 .. _v1.2.3: https://github.com/brunato/xmlschema/compare/v1.2.2...v1.2.3
+.. _v1.2.4: https://github.com/brunato/xmlschema/compare/v1.2.3...v1.2.4

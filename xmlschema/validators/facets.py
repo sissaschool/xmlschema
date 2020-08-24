@@ -14,7 +14,8 @@ import re
 import math
 import operator
 from collections.abc import MutableSequence
-from elementpath import XPath2Parser, XPathContext, ElementPathError
+from elementpath import XPath2Parser, XPathContext, ElementPathError, \
+    translate_pattern, RegexError
 
 from ..etree import etree_element
 from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
@@ -23,7 +24,6 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_ASSERTION, XSD_DECIMAL, XSD_EXPLICIT_TIMEZONE, XSD_NOTATION_TYPE, \
     XSD_BASE64_BINARY, XSD_HEX_BINARY, XSD_QNAME
 from ..helpers import count_digits
-from ..regex import get_python_regex
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaDecodeError
 from .xsdbase import XsdComponent
@@ -655,13 +655,20 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
 
     def _parse_value(self, elem):
         try:
-            return re.compile(get_python_regex(elem.attrib['value'], self.xsd_version))
+            python_pattern = translate_pattern(
+                pattern=elem.attrib['value'],
+                back_references=False,
+                lazy_quantifiers=False,
+                is_syntax=self.xsd_version != '1.0',
+                anchors=False
+            )
+            return re.compile(python_pattern)
         except KeyError:
             self.parse_error("missing 'value' attribute", elem)
-            return re.compile(r'^$')
-        except (re.error, XMLSchemaDecodeError) as err:
+            return re.compile(r'^.*$')
+        except (RegexError, re.error, XMLSchemaDecodeError) as err:
             self.parse_error(err, elem)
-            return re.compile(r'^$')
+            return re.compile(r'^.*$')
 
     # Implements the abstract methods of MutableSequence
     def __getitem__(self, i):

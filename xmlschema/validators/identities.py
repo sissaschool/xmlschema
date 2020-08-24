@@ -13,12 +13,11 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from collections import Counter
-from elementpath import XPath2Parser, ElementPathError, XPathContext
+from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
     XSD_SELECTOR, XSD_FIELD, get_qname, get_extended_qname, is_not_xsd_annotation
-from ..regex import get_python_regex
 from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -60,10 +59,14 @@ class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     xpath_default_namespace = ''
-    pattern = re.compile(get_python_regex(
+    pattern = re.compile(translate_pattern(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
-        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*"
+        r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*",
+        back_references=False,
+        lazy_quantifiers=False,
+        is_syntax=False,
+        anchors=False
     ))
     token = None
     parser = None
@@ -126,12 +129,16 @@ class XsdSelector(XsdComponent):
 class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
-    pattern = re.compile(get_python_regex(
+    pattern = re.compile(translate_pattern(
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
         r"(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
         r"((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)|"
-        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*"
+        r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*",
+        back_references=False,
+        lazy_quantifiers=False,
+        is_syntax=False,
+        anchors=False
     ))
 
 

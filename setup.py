@@ -8,37 +8,16 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-import importlib
-from setuptools import setup
-from setuptools.command.develop import develop
-from setuptools.command.install import install
+from setuptools import setup, find_packages
 
 with open("README.rst") as readme:
     long_description = readme.read()
 
 
-class DevelopCommand(develop):
-
-    def run(self):
-        develop.run(self)
-        print("Post-develop: create Unicode categories JSON file")
-        codepoints_module = importlib.import_module('xmlschema.codepoints')
-        codepoints_module.save_unicode_categories()
-
-
-class InstallCommand(install):
-
-    def run(self):
-        install.run(self)
-        print("Post-install: create Unicode categories JSON file")
-        codepoints_module = importlib.import_module('xmlschema.codepoints')
-        codepoints_module.save_unicode_categories()
-
-
 setup(
     name='xmlschema',
-    version='1.2.3',
-    packages=['xmlschema'],
+    version='1.2.4',
+    packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
         'console_scripts': [
@@ -47,15 +26,11 @@ setup(
             'xmlschema-json2xml=xmlschema.cli:json2xml',
         ]
     },
-    setup_requires=['elementpath~=2.0.0'],
-    install_requires=['elementpath~=2.0.0'],
+    setup_requires=['elementpath~=2.0.1'],
+    install_requires=['elementpath~=2.0.1'],
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=2.0.0',
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath~=2.0.1',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme']
-    },
-    cmdclass={
-        'develop': DevelopCommand,
-        'install': InstallCommand
     },
     author='Davide Brunato',
     author_email='brunato@sissa.it',

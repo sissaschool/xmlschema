@@ -2,7 +2,7 @@
 setuptools
 tox
 coverage
-elementpath~=2.0.0
+elementpath~=2.0.1
 lxml
 memory_profiler
 Sphinx
