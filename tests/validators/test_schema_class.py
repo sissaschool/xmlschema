@@ -38,7 +38,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_schema_string_repr(self):
         schema = self.schema_class(self.vh_xsd_file)
-        tmpl = "%s(basename='vehicles.xsd', namespace='http://example.com/vehicles')"
+        tmpl = "%s(name='vehicles.xsd', namespace='http://example.com/vehicles')"
         self.assertEqual(str(schema), tmpl % self.schema_class.__name__)
 
     def test_schema_copy(self):

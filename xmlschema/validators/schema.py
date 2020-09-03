@@ -465,19 +465,23 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if loglevel is not None:
                 logger.setLevel(logging.WARNING)  # Restore default logging
 
+    @property
+    def name(self):
+        return os.path.basename(self.url) if self.url else None
+
     def __repr__(self):
         if self.url:
-            basename = os.path.basename(self.url)
-            return u'%s(basename=%r, namespace=%r)' % (
-                self.__class__.__name__, basename, self.target_namespace
+            return '%s(name=%r, namespace=%r)' % (
+                self.__class__.__name__, self.name, self.target_namespace
             )
-        else:
-            return u'%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
+        return '%s(namespace=%r)' % (self.__class__.__name__, self.target_namespace)
 
     def __setattr__(self, name, value):
         if name == 'maps':
             if self.meta_schema is None and hasattr(self, 'maps'):
-                raise XMLSchemaValueError("cannot change the global maps instance of a meta-schema")
+                msg = "cannot change the global maps instance of a meta-schema"
+                raise XMLSchemaValueError(msg)
+
             super(XMLSchemaBase, self).__setattr__(name, value)
             self.notations = NamespaceView(value.notations, self.target_namespace)
             self.types = NamespaceView(value.types, self.target_namespace)

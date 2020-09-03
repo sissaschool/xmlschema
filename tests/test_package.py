@@ -13,7 +13,6 @@
 import unittest
 import glob
 import fileinput
-import json
 import os
 import re
 import importlib
@@ -84,18 +83,13 @@ class TestPackaging(unittest.TestCase):
                         message % (lineno, filename, match.group(1).strip('\'\"'), version)
                     )
 
-    def test_json_unicode_categories(self):
-        filename = os.path.join(self.source_dir, 'unicode_categories.json')
-        self.assertTrue(os.path.isfile(filename), msg="file %r is missing!" % filename)
-        with open(filename, 'r') as fp:
-            self.assertIsInstance(json.load(fp), dict, msg="file %r is not encoded in JSON format!" % filename)
-
     def test_base_schema_files(self):
         et = importlib.import_module('xml.etree.ElementTree')
         schemas_dir = os.path.join(self.source_dir, 'validators/schemas')
         base_schemas = [
-            'XSD_1.0/XMLSchema.xsd', 'XSD_1.1/XMLSchema.xsd', 'xhtml1-strict.xsd', 'xlink.xsd',
-            'xml_minimal.xsd', 'XMLSchema-hasFacetAndProperty_minimal.xsd', 'XMLSchema-instance_minimal.xsd'
+            'XSD_1.0/XMLSchema.xsd', 'XSD_1.1/XMLSchema.xsd', 'xhtml1-strict.xsd',
+            'xlink.xsd', 'xml_minimal.xsd', 'XMLSchema-hasFacetAndProperty_minimal.xsd',
+            'XMLSchema-instance_minimal.xsd'
         ]
         for rel_path in base_schemas:
             filename = os.path.join(schemas_dir, rel_path)
@@ -104,7 +98,8 @@ class TestPackaging(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header1 = "Test package %r installation" % os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    header1 = "Test package %r installation" % package_dir
     header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
 

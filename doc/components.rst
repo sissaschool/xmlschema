@@ -35,7 +35,7 @@ generator function:
     >>> for xsd_component in schema.iter_components():
     ...     xsd_component
     ...
-    XMLSchema10(basename='collection.xsd', namespace='http://example.com/ns/collection')
+    XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
     XsdComplexType(name='personType')
     XsdAttributeGroup(['id'])
     XsdAttribute(name='id')
@@ -103,7 +103,7 @@ loaded schemas in a structure called *maps*:
 .. doctest:: collection
 
     >>> schema.maps
-    XsdGlobals(validator=XMLSchema10(basename='collection.xsd', ...)
+    XsdGlobals(validator=XMLSchema10(name='collection.xsd', ...)
 
 .. doctest:: collection
 
@@ -152,7 +152,7 @@ XSD schema document:
 
     >>> person = schema.elements['person']
     >>> person.schema
-    XMLSchema10(basename='collection.xsd', namespace='http://example.com/ns/collection')
+    XMLSchema10(name='collection.xsd', namespace='http://example.com/ns/collection')
     >>> person.elem
     <Element '{http://www.w3.org/2001/XMLSchema}element' at ...>
     >>> person.tostring()

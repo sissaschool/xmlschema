@@ -657,9 +657,9 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
         try:
             python_pattern = translate_pattern(
                 pattern=elem.attrib['value'],
+                xsd_version=self.xsd_version,
                 back_references=False,
                 lazy_quantifiers=False,
-                is_syntax=self.xsd_version != '1.0',
                 anchors=False
             )
             return re.compile(python_pattern)

@@ -65,7 +65,6 @@ class XsdSelector(XsdComponent):
         r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*",
         back_references=False,
         lazy_quantifiers=False,
-        is_syntax=False,
         anchors=False
     ))
     token = None
@@ -137,7 +136,6 @@ class XsdFieldSelector(XsdSelector):
         r"((attribute::|@)((\i\c*:)?(\i\c*|\*)))))*",
         back_references=False,
         lazy_quantifiers=False,
-        is_syntax=False,
         anchors=False
     ))
 

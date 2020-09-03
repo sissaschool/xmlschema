@@ -177,6 +177,8 @@ SKIPPED_TESTS = {
     # Dynamic schema load cases
 }
 
+XSD10_SKIPPED_TESTS = {}
+
 XSD11_SKIPPED_TESTS = {
     # Valid schemas marked ad invalid
     '../msData/regex/reK86.xsd',                # \P{Is} is valid in regex for XSD 1.1
@@ -221,11 +223,12 @@ def fetch_xsd_test_suite():
         raise FileNotFoundError("can't find the XSD suite index file suite.xml ...")
 
 
-def skip_message(source_href, group_num):
+def skip_message(source_href, group_num, version='each'):
     if source_href.endswith('.xsd'):
-        print("Skip test number %d with schema %r ..." % (group_num, source_href))
+        msg = "Skip test number {} with schema {!r} for {} version ..."
     else:
-        print("Skip file %r for test number %d ..." % (source_href, group_num))
+        msg = "Skip test number {} with file {!r} for {} version ..."
+    print(msg.format(group_num, source_href, version))
 
 
 def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_version='1.0'):
@@ -271,9 +274,10 @@ def create_w3c_test_group_case(args, filename, group_elem, group_num, xsd_versio
                 continue
             elif version not in args.version:
                 continue
-            elif version == '1.1' and source_href in XSD11_SKIPPED_TESTS:
+            elif source_href in XSD10_SKIPPED_TESTS and version == '1.0' or \
+                    source_href in XSD11_SKIPPED_TESTS and version == '1.1':
                 if args.numbers:
-                    skip_message(source_href, group_num)
+                    skip_message(source_href, group_num, version)
                 continue
 
             for e in elem.findall('{%s}expected' % TEST_SUITE_NAMESPACE):
