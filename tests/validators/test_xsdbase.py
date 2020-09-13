@@ -18,7 +18,7 @@ from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
-from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION
+from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 from xmlschema.namespaces import XSD_NAMESPACE
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
@@ -503,9 +503,9 @@ class TestXsdType(unittest.TestCase):
         self.assertIs(self.schema.types['fooListType'].root_type,
                       self.schema.meta_schema.types['string'])
         self.assertIs(self.schema.types['mixedType'].root_type,
-                      self.schema.types['mixedType'])
+                      self.schema.maps.types[XSD_ANY_TYPE])
         self.assertIs(self.schema.types['barExtType'].root_type,
-                      self.schema.types['barType'])
+                      self.schema.maps.types[XSD_ANY_TYPE])
 
     def test_is_atomic(self):
         self.assertFalse(self.schema.types['barType'].is_atomic())

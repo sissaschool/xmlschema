@@ -577,6 +577,8 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
             self.parse_error("missing 'value' attribute", elem)
         except XMLSchemaDecodeError as err:
             self.parse_error(err, elem)
+        except XMLSchemaValidationError as err:
+            self.base_type.parse_error(err, elem)  # FIXME
         else:
             if self.base_type.name == XSD_NOTATION_TYPE:
                 try:

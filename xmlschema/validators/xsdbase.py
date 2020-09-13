@@ -597,10 +597,21 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
     @property
+    def sequence_type(self):
+        """The XPath sequence type associated with the content."""
+        raise NotImplementedError()
+
+    @property
     def root_type(self):
-        """The root type of the type definition hierarchy. Is itself for a root type."""
-        if self.base_type is None:
-            return self  # Note that a XsdUnion type is always considered a root type
+        """
+        The root type of the type definition hierarchy. For an atomic type
+        is the primitive type. For a list is the primitive type of the item.
+        For a union is the base union type. For a complex type is xs:anyType.
+        """
+        if self.is_complex() and self.attributes:
+            return self.maps.types[XSD_ANY_TYPE]
+        elif self.base_type is None:
+            return self if self.is_simple() else self.maps.types[XSD_ANY_TYPE]
 
         try:
             if self.base_type.is_simple():
@@ -609,7 +620,7 @@ class XsdType(XsdComponent):
                 return self.base_type.content.primitive_type
         except AttributeError:
             # The type has complex or XsdList content
-            return self.base_type
+            return self.base_type.root_type
 
     @property
     def simple_type(self):

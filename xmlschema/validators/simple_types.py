@@ -20,8 +20,8 @@ from ..qnames import XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, \
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_WHITE_SPACE, XSD_ENUMERATION,\
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
-    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, get_qname, local_name, \
-    is_not_xsd_annotation
+    XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_UNTYPED_ATOMIC, \
+    get_qname, get_prefixed_qname, local_name, is_not_xsd_annotation
 from ..namespaces import XSD_NAMESPACE
 from ..helpers import get_xsd_derivation_attribute
 
@@ -326,6 +326,24 @@ class XsdSimpleType(XsdType, ValidationMixin):
     @property
     def content_type_label(self):
         return 'empty' if self.max_length == 0 else 'simple'
+
+    @property
+    def sequence_type(self):
+        if self.is_empty():
+            return 'empty-sequence()'
+
+        root_type = self.root_type
+        if root_type.name is None:
+            sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+        else:
+            sequence_type = root_type.prefixed_name
+
+        if not self.is_list():
+            return sequence_type
+        elif self.is_emptiable():
+            return '{}*'.format(sequence_type)
+        else:
+            return '{}+'.format(sequence_type)
 
     def is_empty(self):
         return self.max_length == 0

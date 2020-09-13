@@ -10,7 +10,7 @@
 import threading
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 
-from ..qnames import XSD_ASSERT, XSD_UNTYPED_ATOMIC, get_prefixed_qname
+from ..qnames import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError
@@ -79,17 +79,9 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         return self.token is not None and (self.base_type.parent is None or self.base_type.built)
 
     def build(self):
-        if not self.base_type.has_simple_content():
-            sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
-        else:
-            try:
-                sequence_type = self.base_type.content.primitive_type.prefixed_name
-            except AttributeError:
-                sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
-
         self.parser = XPath2Parser(
             namespaces=self.namespaces,
-            variable_types={'value': sequence_type},
+            variable_types={'value': self.base_type.sequence_type},
             strict=False,
             default_namespace=self.xpath_default_namespace,
             schema=XMLSchemaProxy(self.schema, self)
@@ -118,8 +110,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
 
         try:
             if not self.token.evaluate(context):
-                msg = "expression is not true with test path %r."
-                yield XMLSchemaValidationError(self, obj=elem, reason=msg % self.path)
+                yield XMLSchemaValidationError(self, obj=elem, reason="assertion test if false")
         except ElementPathError as err:
             yield XMLSchemaValidationError(self, obj=elem, reason=str(err))
 

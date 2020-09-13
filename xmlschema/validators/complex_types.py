@@ -10,8 +10,8 @@
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
-    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, \
-    XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, XSD_ASSERT, \
+    XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
+    XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, get_prefixed_qname, \
     get_qname, local_name, is_not_xsd_annotation, is_xsd_override
 from ..helpers import get_xsd_derivation_attribute
 
@@ -503,6 +503,23 @@ class XsdComplexType(XsdType, ValidationMixin):
             return 'mixed'
         else:
             return 'element-only'
+
+    @property
+    def sequence_type(self):
+        if self.is_empty():
+            return 'empty-sequence()'
+        elif not self.has_simple_content():
+            sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+        else:
+            try:
+                sequence_type = self.content.primitive_type.prefixed_name
+            except AttributeError:
+                sequence_type = get_prefixed_qname(XSD_UNTYPED_ATOMIC, self.namespaces)
+            else:
+                if sequence_type is None:
+                    sequence_type = 'item()'
+
+        return '{}{}'.format(sequence_type, '*' if self.is_emptiable() else '+')
 
     @staticmethod
     def is_simple():
