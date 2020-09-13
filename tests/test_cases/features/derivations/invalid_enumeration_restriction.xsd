@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <!-- Invalid enumeration restriction related to issue #202 -->
+    <xs:simpleType name="LocalEnergyProductType">
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="8716867000016" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="LocalRestrictedEnergyProductType">
+        <xs:restriction base="LocalEnergyProductType">
+			<xs:enumeration value="A01"/>  <!-- not a valid value for base type -->
+		</xs:restriction>
+	</xs:simpleType>
+
+</xs:schema>
+
