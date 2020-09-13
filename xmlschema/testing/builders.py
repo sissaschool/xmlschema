@@ -322,6 +322,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             if isinstance(elem1, tuple):
                 elem1 = elem1[0]
 
+            if lax_encode:
+                kwargs['validation'] = kwargs.get('validation', 'lax')
+
             json_data2 = xmlschema.to_json(
                 elem1, schema=self.schema, converter=converter, **kwargs
             )

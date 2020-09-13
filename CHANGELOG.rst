@@ -2,9 +2,10 @@
 CHANGELOG
 *********
 
-`v1.2.4`_ (2020-08-xx)
+`v1.2.4`_ (2020-09-13)
 ======================
-* Use regex engine from XPath processor 
+* Use the regex engine of *elementpath* library
+* Fix and extend tests on xs:assert
 
 `v1.2.3`_ (2020-08-14)
 ======================
