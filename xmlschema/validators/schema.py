@@ -322,7 +322,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self._root_elements = None
         root = self.source.root
 
-        # Get the schema'namespaces, the XML namespace is implicitly declared.
+        # Get the schema's namespaces, the XML namespace is implicitly declared.
         self.namespaces = self.source.get_namespaces(namespaces={'xml': XML_NAMESPACE})
 
         try:

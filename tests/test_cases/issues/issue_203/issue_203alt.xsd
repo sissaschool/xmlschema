@@ -1,0 +1,29 @@
+<?xml version='1.0'?>
+<!-- issue_203alt.xsd - Valid also for XSD 1.0 (restriction items with base order) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="root" type="restrictedModel"/>
+
+    <xs:complexType name="baseModel">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="elem1"/>
+            <xs:element name="elem2"/>
+            <xs:element name="elem3"/>
+            <xs:element name="elem4"/>
+            <xs:element name="elem5"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="restrictedModel">
+        <xs:complexContent>
+            <xs:restriction base="baseModel">
+                <xs:choice>
+                    <xs:element name="elem1"/>
+                    <xs:element name="elem2"/>
+                    <xs:element name="elem5"/>
+                </xs:choice>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+</xs:schema>
