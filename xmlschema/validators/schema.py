@@ -1476,8 +1476,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     def iter_decode(self, source, path=None, schema_path=None, validation='lax',
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, converter=None,
-                    filler=None, fill_missing=False, max_depth=None, depth_filler=None,
-                    lazy_decode=False, **kwargs):
+                    filler=None, fill_missing=False, keep_unknown=False,
+                    max_depth=None, depth_filler=None, lazy_decode=False, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1509,6 +1509,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
+        :param keep_unknown: if set to `True` unknown tags are kept and are decoded with \
+        xs:anyType. For default unknown tags not decoded by a wildcard are discarded.
         :param max_depth: maximum level of decoding, for default there is no limit.
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
@@ -1539,7 +1541,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             source=source,
             use_defaults=use_defaults,
             datetime_types=datetime_types,
-            fill_missing=fill_missing,
             id_map=Counter(),
             identities={},
             inherited={},
@@ -1549,6 +1550,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
             kwargs['filler'] = filler
+        if fill_missing:
+            kwargs['fill_missing'] = fill_missing
+        if keep_unknown:
+            kwargs['keep_unknown'] = keep_unknown
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:
