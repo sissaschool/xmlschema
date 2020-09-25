@@ -725,6 +725,12 @@ class XMLResource(object):
         """Returns `True` if the XML resource is lazy."""
         return bool(self._lazy)
 
+    def is_remote(self):
+        return is_remote_url(self._url)
+
+    def is_local(self):
+        return is_local_url(self._url)
+
     @property
     def lazy_depth(self):
         """The optimal depth for validate this resource in lazy mode."""
