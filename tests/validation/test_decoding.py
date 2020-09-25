@@ -712,7 +712,7 @@ class TestDecoding(XsdValidatorTestCase):
         xml_data_2 = ElementTree.fromstring('<root>\n    <child_1/>\n    <child_2/>\n</root>')
         self.assertIsNone(any_type.decode(xml_data_2))  # Currently no decoding yet
 
-    def test_choice_model_decoding(self):
+    def test_choice_model_decoding__issue_041(self):
         schema = xmlschema.XMLSchema(self.casepath('issues/issue_041/issue_041.xsd'))
         data = schema.to_dict(self.casepath('issues/issue_041/issue_041.xml'))
         self.assertEqual(data, {
@@ -786,8 +786,7 @@ class TestDecoding(XsdValidatorTestCase):
         # Issue #66
         self.check_decode(schema, '<A>120.48</A>', '120.48', decimal_type=str)
 
-    def test_nillable(self):
-        # Issue #76
+    def test_nillable__issue_076(self):
         xsd_string = """<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
             <xs:element name="foo" type="Foo" />
@@ -810,8 +809,7 @@ class TestDecoding(XsdValidatorTestCase):
         obj = xsd_schema.decode(xml_string_2, use_defaults=False)
         self.check_etree_elements(ElementTree.fromstring(xml_string_2), xsd_schema.encode(obj))
 
-    def test_default_namespace(self):
-        # Issue #77
+    def test_default_namespace__issue_077(self):
         xs = xmlschema.XMLSchema("""<?xml version="1.0" encoding="UTF-8"?>
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
             targetNamespace="http://example.com/foo">
@@ -830,13 +828,12 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertFalse(xs.is_valid('<value>alpha</value>'))
         self.assertEqual(xs.decode('<value>10</value>'), 10)
 
-    def test_union_types(self):
-        # For testing issue #103
+    def test_union_types__issue_103(self):
         decimal_or_nan = self.st_schema.types['myType']
         self.check_decode(decimal_or_nan, '95.0', Decimal('95.0'))
         self.check_decode(decimal_or_nan, 'NaN', u'NaN')
 
-    def test_default_values(self):
+    def test_default_values__issue_108(self):
         # From issue #108
         xsd_text = """<?xml version="1.0" encoding="utf-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -902,7 +899,31 @@ class TestDecoding(XsdValidatorTestCase):
         self.assertEqual(schema.to_dict("<root int_attr='wrong'>20</root>", validation='skip'),
                          {'@int_attr': 'wrong', '$': 20})
 
-    def test_error_message(self):
+    def test_keep_unknown_tags__issue_204(self):
+        schema = self.schema_class(self.casepath('issues/issue_204/issue_204.xsd'))
+        self.assertTrue(schema.is_valid(self.casepath('issues/issue_204/issue_204_1.xml')))
+        self.assertFalse(schema.is_valid(self.casepath('issues/issue_204/issue_204_2.xml')))
+
+        data = schema.decode(self.casepath('issues/issue_204/issue_204_2.xml'), validation='lax')
+        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'child5'})
+
+        data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'), validation='lax')
+        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'child5'})
+
+        data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
+                             validation='lax', keep_unknown=True)
+        self.assertEqual(set(x for x in data[0] if x[0] != '@'), {'child2', 'unknown', 'child5'})
+        self.assertEqual(data[0]['unknown'], {'a': [{'$': '1'}], 'b': [None]})
+
+        data = schema.decode(self.casepath('issues/issue_204/issue_204_2.xml'), validation='skip')
+        self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'child5'})
+
+        data = schema.decode(self.casepath('issues/issue_204/issue_204_3.xml'),
+                             validation='skip', keep_unknown=True)
+        self.assertEqual(set(x for x in data if x[0] != '@'), {'child2', 'unknown', 'child5'})
+        self.assertEqual(data['unknown'], {'a': [{'$': '1'}], 'b': [None]})
+
+    def test_error_message__issue_115(self):
         schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
         rotation_data = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
                         'pitch="0.0" roll="0.0" yaw="-1.0" />'

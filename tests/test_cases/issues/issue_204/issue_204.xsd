@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="root" type="rootType" />
+    <xs:complexType name="rootType">
+        <xs:sequence>
+            <xs:element name="child1" minOccurs="0" />
+            <xs:element name="child2" minOccurs="0" />
+            <xs:element name="child3" />
+            <xs:element name="child4" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element name="child5" minOccurs="0" />
+        </xs:sequence>
+    </xs:complexType>
+</xs:schema>

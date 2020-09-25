@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.2.5`_ (2020-09-25)
+======================
+* Add schema export API to schema and global maps (issue #187)
+* Fix decoding with lax/skip validation modes (issue #204)
+* Add *keep_unknown* optional argument for *iter_decode()* methods
+
 `v1.2.4`_ (2020-09-13)
 ======================
 * Use the regex engine of *elementpath* library
@@ -354,3 +360,4 @@ v0.9.6 (2017-05-05)
 .. _v1.2.2: https://github.com/brunato/xmlschema/compare/v1.2.1...v1.2.2
 .. _v1.2.3: https://github.com/brunato/xmlschema/compare/v1.2.2...v1.2.3
 .. _v1.2.4: https://github.com/brunato/xmlschema/compare/v1.2.3...v1.2.4
+.. _v1.2.5: https://github.com/brunato/xmlschema/compare/v1.2.4...v1.2.5

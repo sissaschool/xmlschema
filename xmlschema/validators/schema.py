@@ -22,6 +22,7 @@ import re
 import sys
 from abc import ABCMeta
 from collections import namedtuple, Counter
+from itertools import chain
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
@@ -1197,6 +1198,86 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self.imports[namespace] = schema
         return schema
 
+    def export(self, target, only_relative=True):
+        """
+        Exports a schema instance. The schema instance is exported to a
+        directory with also the hierarchy of imported/included schemas.
+
+        :param target: a path to a local empty directory.
+        :param only_relative: for default only loaded schemas referred by a relative \
+        location are saved. If `False` is provided all the loaded schemas are saved.
+        """
+        import pathlib
+        from urllib.parse import urlsplit
+
+        target_path = pathlib.Path(target)
+        if target_path.is_dir():
+            if list(target_path.iterdir()):
+                raise XMLSchemaValueError("target directory {!r} is not empty".format(target))
+        elif target_path.exists():
+            msg = "target {} is not a directory"
+            raise XMLSchemaValueError(msg.format(target_path.parent))
+        elif not target_path.parent.exists():
+            msg = "target parent directory {} does not exist"
+            raise XMLSchemaValueError(msg.format(target_path.parent))
+        elif not target_path.parent.is_dir():
+            msg = "target parent {} is not a directory"
+            raise XMLSchemaValueError(msg.format(target_path.parent))
+
+        url = self.url or 'schema.xsd'
+        basename = pathlib.Path(urlsplit(url).path).name
+        exported_schemas = {self: [target_path.joinpath(basename), self.get_text()]}
+
+        while True:
+            current_length = len(exported_schemas)
+            for schema in list(exported_schemas):
+                for location, ref_schema in \
+                        chain(schema.includes.items(), schema.imports.items()):
+
+                    if ref_schema in exported_schemas:
+                        continue
+
+                    schema_path = exported_schemas[schema][0].parent
+                    if is_remote_url(location):
+                        if only_relative:
+                            continue
+                        url_parts = urlsplit(location)
+                        netloc, path = url_parts.netloc, url_parts.path
+                        path = target_path.joinpath(netloc).joinpath(path)
+                    else:
+                        path = pathlib.Path(location)
+                        if path.is_absolute():
+                            if only_relative:
+                                continue
+                        elif not str(path).startswith('..'):
+                            path = schema_path.joinpath(path)
+                            exported_schemas[ref_schema] = [path, ref_schema.get_text()]
+                            continue
+
+                    for strip_path in ('/', '\\', '..'):
+                        while True:
+                            try:
+                                path = path.relative_to(strip_path)
+                            except ValueError:
+                                break
+
+                    path = target_path.joinpath(path)
+                    repl = 'schemaLocation="{}"'.format(path)
+                    text = exported_schemas[schema][1]
+                    pattern = r'\bschemaLocation\s*=\s*[\'\"].*{}.*[\'"]'.format(location)
+                    exported_schemas[schema][1] = re.sub(pattern, repl, text)
+                    exported_schemas[ref_schema] = [path, ref_schema.get_text()]
+
+            if current_length == len(exported_schemas):
+                break
+
+        for schema, (path, text) in exported_schemas.items():
+            if not path.parent.exists():
+                path.parent.mkdir(parents=True)
+
+            with path.open(mode='w') as fp:
+                fp.write(text)
+
     def version_check(self, elem):
         """
         Checks if the element is compatible with the version of the validator and XSD
@@ -1476,8 +1557,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     def iter_decode(self, source, path=None, schema_path=None, validation='lax',
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, converter=None,
-                    filler=None, fill_missing=False, max_depth=None, depth_filler=None,
-                    lazy_decode=False, **kwargs):
+                    filler=None, fill_missing=False, keep_unknown=False,
+                    max_depth=None, depth_filler=None, lazy_decode=False, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1509,6 +1590,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         data is replaced by `None`.
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
+        :param keep_unknown: if set to `True` unknown tags are kept and are decoded with \
+        xs:anyType. For default unknown tags not decoded by a wildcard are discarded.
         :param max_depth: maximum level of decoding, for default there is no limit.
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
@@ -1539,7 +1622,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             source=source,
             use_defaults=use_defaults,
             datetime_types=datetime_types,
-            fill_missing=fill_missing,
             id_map=Counter(),
             identities={},
             inherited={},
@@ -1549,6 +1631,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             kwargs['decimal_type'] = decimal_type
         if filler is not None:
             kwargs['filler'] = filler
+        if fill_missing:
+            kwargs['fill_missing'] = fill_missing
+        if keep_unknown:
+            kwargs['keep_unknown'] = keep_unknown
         if max_depth is not None:
             kwargs['max_depth'] = max_depth
         if depth_filler is not None:

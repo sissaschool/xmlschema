@@ -571,6 +571,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                 msg = "Maybe a not equivalent type table between elements %r and %r."
                 warnings.warn(msg % (self, xsd_element), XMLSchemaTypeTableWarning, stacklevel=3)
 
+    def match_element(self, name, default_namespace=None):
+        """
+        Try a model-less match of a child element. Returns the
+        matched element, or `None` if there is no match.
+        """
+        for xsd_element in self.iter_elements():
+            if xsd_element.is_matching(name, default_namespace, group=self):
+                return xsd_element
+
     def iter_decode(self, elem, validation='lax', **kwargs):
         """
         Creates an iterator for decoding an Element content.
@@ -624,7 +633,7 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
 
         model = ModelVisitor(self)
         errors = []
-        model_broken = False
+        broken_model = False
 
         for index, child in enumerate(elem):
             if callable(child.tag):
@@ -643,7 +652,8 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                     for particle, occurs, expected in model.advance(False):
                         errors.append((index, particle, occurs, expected))
                         model.clear()
-                        model_broken = True  # the model is broken, continues with raw decoding.
+                        broken_model = True  # the model is broken, continues with raw decoding.
+                        xsd_element = self.match_element(child.tag, default_namespace)
                         break
                     else:
                         continue
@@ -662,19 +672,18 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         self.suffix.is_matching(child.tag, default_namespace, self):
                     xsd_element = self.suffix
                 else:
-                    for xsd_element in self.iter_elements():
-                        if xsd_element.is_matching(child.tag, default_namespace, group=self):
-                            if not model_broken:
-                                errors.append((index, xsd_element, 0, []))
-                                model_broken = True
-                            break
-                    else:
+                    xsd_element = self.match_element(child.tag, default_namespace)
+                    if xsd_element is None:
                         errors.append((index, self, 0, None))
-                        xsd_element = None
-                        model_broken = True
+                        broken_model = True
+                    elif not broken_model:
+                        errors.append((index, xsd_element, 0, []))
+                        broken_model = True
 
             if xsd_element is None:
-                # TODO: apply a default decoder str-->str??
+                if kwargs.get('keep_unknown'):
+                    for result in self.any_type.iter_decode(child, validation, **kwargs):
+                        result_list.append((child.tag, result, None))
                 continue
             elif over_max_depth:
                 if 'depth_filler' in kwargs:
@@ -788,13 +797,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         value = get_qname(default_namespace, name), value
                     else:
                         errors.append((index - cdata_index, self, 0, []))
-                        for xsd_element in self.iter_elements():
-                            if not xsd_element.is_matching(name, default_namespace, group=self):
-                                continue
-                            elif isinstance(xsd_element, XsdAnyElement):
-                                value = get_qname(default_namespace, name), value
-                            break
-                        else:
+                        xsd_element = self.match_element(name, default_namespace)
+                        if isinstance(xsd_element, XsdAnyElement):
+                            value = get_qname(default_namespace, name), value
+                        elif xsd_element is None:
                             if name.startswith('{') or ':' not in name:
                                 reason = '{!r} does not match any declared element ' \
                                          'of the model group.'.format(name)

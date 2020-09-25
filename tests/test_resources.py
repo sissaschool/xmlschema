@@ -499,6 +499,14 @@ class TestResources(unittest.TestCase):
         resource = XMLResource(self.vh_xml_file, lazy=False)
         self.assertFalse(resource.is_lazy())
 
+    def test_xml_resource_is_local(self):
+        resource = XMLResource(self.vh_xml_file)
+        self.assertTrue(resource.is_local())
+
+    def test_xml_resource_is_remote(self):
+        resource = XMLResource(self.vh_xml_file)
+        self.assertFalse(resource.is_remote())
+
     def test_xml_resource_is_loaded(self):
         resource = XMLResource(self.vh_xml_file)
         self.assertFalse(resource.is_loaded())
@@ -738,6 +746,7 @@ class TestResources(unittest.TestCase):
         vh_schema = self.schema_class("https://raw.githubusercontent.com/brunato/xmlschema/master/"
                                       "tests/test_cases/examples/vehicles/vehicles.xsd")
         self.assertTrue(isinstance(vh_schema, self.schema_class))
+        self.assertTrue(vh_schema.source.is_remote())
 
     def test_schema_defuse(self):
         vh_schema = self.schema_class(self.vh_xsd_file, defuse='always')

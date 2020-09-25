@@ -696,7 +696,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     result_list.append((name, result))
                     break
 
-        if kwargs.get('fill_missing') is True:
+        if kwargs.get('fill_missing'):
             if filler is None:
                 result_list.extend((k, None) for k in self._attribute_group
                                    if k is not None and k not in attrs)
