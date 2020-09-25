@@ -37,8 +37,8 @@ from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, etree_tostring, prune_etree, ParseError
-from ..resources import is_local_url, is_remote_url, url_path_is_file, normalize_locations, \
-    fetch_resource, update_prefix, normalize_url, XMLResource
+from ..resources import is_local_url, is_remote_url, url_path_is_file, \
+    normalize_locations, fetch_resource, update_prefix, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -65,6 +65,7 @@ logging_handler.setFormatter(logging_formatter)
 logger.addHandler(logging_handler)
 
 XSD_VERSION_PATTERN = re.compile(r'^\d+\.\d+$')
+DRIVE_PATTERN = re.compile(r'^[a-zA-Z]:$')
 
 # Elements for building dummy groups
 ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
@@ -538,6 +539,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     self.source.load()
                 except XMLSchemaOSError:
                     return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
+
         return self.source.text
 
     @property
@@ -1238,12 +1240,13 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                         continue
 
                     schema_path = exported_schemas[schema][0].parent
+
                     if is_remote_url(location):
                         if only_relative:
                             continue
                         url_parts = urlsplit(location)
                         netloc, path = url_parts.netloc, url_parts.path
-                        path = target_path.joinpath(netloc).joinpath(path)
+                        path = pathlib.Path().joinpath(netloc).joinpath(path.lstrip('/'))
                     else:
                         path = pathlib.Path(location)
                         if path.is_absolute():
@@ -1254,6 +1257,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                             exported_schemas[ref_schema] = [path, ref_schema.get_text()]
                             continue
 
+                    if DRIVE_PATTERN.match(path.parts[0]):
+                        path = pathlib.Path().joinpath(path.parts[1:])
+
                     for strip_path in ('/', '\\', '..'):
                         while True:
                             try:
@@ -1262,9 +1268,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                                 break
 
                     path = target_path.joinpath(path)
-                    repl = 'schemaLocation="{}"'.format(path)
+                    repl = 'schemaLocation="{}"'.format(path.as_posix())
                     text = exported_schemas[schema][1]
-                    pattern = r'\bschemaLocation\s*=\s*[\'\"].*{}.*[\'"]'.format(location)
+                    pattern = r'\bschemaLocation\s*=\s*[\'\"].*%s.*[\'"]' % re.escape(location)
                     exported_schemas[schema][1] = re.sub(pattern, repl, text)
                     exported_schemas[ref_schema] = [path, ref_schema.get_text()]
 

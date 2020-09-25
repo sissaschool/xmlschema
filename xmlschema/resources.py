@@ -9,6 +9,7 @@
 #
 import os.path
 import re
+from string import ascii_letters
 from elementpath import iter_select, Selector, XPath1Parser
 from io import StringIO, BytesIO
 from urllib.request import urlopen, pathname2url
@@ -154,11 +155,17 @@ def is_url(obj):
 
 
 def is_remote_url(url):
-    return is_url(url) and urlsplit(normalize_url(url)).scheme not in ('', 'file')
+    if not is_url(url):
+        return False
+    scheme = urlsplit(normalize_url(url)).scheme
+    return scheme not in ('', 'file') and (len(scheme) > 1 or scheme not in ascii_letters)
 
 
 def is_local_url(url):
-    return is_url(url) and urlsplit(normalize_url(url)).scheme in ('', 'file')
+    if not is_url(url):
+        return False
+    scheme = urlsplit(normalize_url(url)).scheme
+    return scheme in ('', 'file') or len(scheme) == 1 and scheme in ascii_letters
 
 
 def url_path_is_file(url):

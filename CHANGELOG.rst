@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.2.5`_ (2020-09-25)
+`v1.2.5`_ (2020-09-26)
 ======================
 * Add schema export API to schema and global maps (issue #187)
 * Fix decoding with lax/skip validation modes (issue #204)

@@ -12,8 +12,10 @@ import unittest
 import tempfile
 import warnings
 import pathlib
+import platform
 import glob
 import os
+import re
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
 from xmlschema.etree import etree_element
@@ -211,6 +213,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
                     exported_schema = fp.read()
                 with pathlib.Path(self.vh_dir).joinpath(filename).open() as fp:
                     original_schema = fp.read()
+
+                if platform.system() == 'Windows':
+                    exported_schema = re.sub(r'\s+', '', exported_schema)
+                    original_schema = re.sub(r'\s+', '', original_schema)
+
                 self.assertEqual(exported_schema, original_schema)
 
         self.assertFalse(os.path.isdir(dirname))
@@ -230,6 +237,11 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 basename = os.path.basename(filename)
                 with pathlib.Path(self.vh_dir).joinpath(basename).open() as fp:
                     original_schema = fp.read()
+
+                if platform.system() == 'Windows':
+                    exported_schema = re.sub(r'\s+', '', exported_schema)
+                    original_schema = re.sub(r'\s+', '', original_schema)
+
                 self.assertEqual(exported_schema, original_schema)
 
             with pathlib.Path(dirname).joinpath('issue_187_1.xsd').open() as fp:
@@ -237,8 +249,15 @@ class TestXMLSchema10(XsdValidatorTestCase):
             with open(vh_schema_file) as fp:
                 original_schema = fp.read()
 
+            if platform.system() == 'Windows':
+                exported_schema = re.sub(r'\s+', '', exported_schema)
+                original_schema = re.sub(r'\s+', '', original_schema)
+
             self.assertNotEqual(exported_schema, original_schema)
-            self.assertEqual(exported_schema, original_schema.replace('../..', dirname))
+            self.assertEqual(
+                exported_schema,
+                original_schema.replace('../..', dirname.replace('\\', '/'))
+            )
 
         self.assertFalse(os.path.isdir(dirname))
 
@@ -253,16 +272,21 @@ class TestXMLSchema10(XsdValidatorTestCase):
                 exported_schema = fp.read()
             with open(vh_schema_file) as fp:
                 original_schema = fp.read()
+
+            if platform.system() == 'Windows':
+                exported_schema = re.sub(r'\s+', '', exported_schema)
+                original_schema = re.sub(r'\s+', '', original_schema)
+
             self.assertEqual(exported_schema, original_schema)
 
         self.assertFalse(os.path.isdir(dirname))
 
         with tempfile.TemporaryDirectory() as dirname:
             vh_schema.export(target=dirname, only_relative=False)
+            path = pathlib.Path(dirname).joinpath('brunato/xmlschema/master/tests/test_cases/'
+                                                  'examples/vehicles/*.xsd')
 
-            path = pathlib.Path(dirname).joinpath('examples/vehicles/*.xsd')
             for filename in glob.iglob(pathname=str(path)):
-                print(pathlib.Path(dirname).joinpath(filename))
                 with pathlib.Path(dirname).joinpath(filename).open() as fp:
                     exported_schema = fp.read()
 
@@ -276,10 +300,15 @@ class TestXMLSchema10(XsdValidatorTestCase):
             with open(vh_schema_file) as fp:
                 original_schema = fp.read()
 
+            if platform.system() == 'Windows':
+                exported_schema = re.sub(r'\s+', '', exported_schema)
+                original_schema = re.sub(r'\s+', '', original_schema)
+
             self.assertNotEqual(exported_schema, original_schema)
             self.assertEqual(
                 exported_schema,
-                original_schema.replace('https://raw.githubusercontent.com', dirname)
+                original_schema.replace('https://raw.githubusercontent.com',
+                                        dirname.replace('\\', '/') + '/raw.githubusercontent.com')
             )
 
         self.assertFalse(os.path.isdir(dirname))
