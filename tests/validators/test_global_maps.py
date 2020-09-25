@@ -13,7 +13,7 @@ import unittest
 from xmlschema import XMLSchema10, XMLSchema11
 
 
-class TestGlobalMaps(unittest.TestCase):
+class TestMetaSchemaMaps(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):

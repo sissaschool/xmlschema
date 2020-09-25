@@ -1,0 +1,21 @@
+<!-- A sample base schema that includes schemas from a remote source -->
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:vh="http://example.com/vehicles"
+  targetNamespace="http://example.com/vehicles"
+  elementFormDefault="qualified">
+
+  <xs:include schemaLocation="https://raw.githubusercontent.com/brunato/xmlschema/master/tests/test_cases/examples/vehicles/cars.xsd"/>
+  <xs:include schemaLocation="https://raw.githubusercontent.com/brunato/xmlschema/master/tests/test_cases/examples/vehicles/bikes.xsd"/>
+
+  <xs:element name="vehicles">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="vh:cars" />
+        <xs:element ref="vh:bikes" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:attribute type="xs:positiveInteger" name="step"/>
+</xs:schema>
+

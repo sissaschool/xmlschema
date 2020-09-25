@@ -9,7 +9,10 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import tempfile
 import warnings
+import pathlib
+import glob
 import os
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
@@ -22,6 +25,7 @@ from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase, print_tes
 
 class TestXMLSchema10(XsdValidatorTestCase):
     TEST_CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
+    maxDiff = None
 
     def test_schema_validation(self):
         schema = self.schema_class(self.vh_xsd_file)
@@ -171,6 +175,114 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIsInstance(vh_schema.root, etree_element)
         for schema in vh_schema.maps.iter_schemas():
             self.assertIsInstance(schema.root, etree_element)
+
+    def test_export_errors__issue_187(self):
+        with self.assertRaises(ValueError) as ctx:
+            self.vh_schema.export(target=self.vh_dir)
+
+        self.assertIn("target directory", str(ctx.exception))
+        self.assertIn("is not empty", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.vh_schema.export(target=self.vh_xsd_file)
+
+        self.assertIn("target", str(ctx.exception))
+        self.assertIn("is not a directory", str(ctx.exception))
+
+        with self.assertRaises(ValueError) as ctx:
+            self.vh_schema.export(target=self.vh_xsd_file + '/target')
+
+        self.assertIn("target parent", str(ctx.exception))
+        self.assertIn("is not a directory", str(ctx.exception))
+
+        with tempfile.TemporaryDirectory() as dirname:
+            with self.assertRaises(ValueError) as ctx:
+                self.vh_schema.export(target=dirname + 'subdir/target')
+
+            self.assertIn("target parent directory", str(ctx.exception))
+            self.assertIn("does not exist", str(ctx.exception))
+
+    def test_export_same_directory__issue_187(self):
+        with tempfile.TemporaryDirectory() as dirname:
+            self.vh_schema.export(target=dirname)
+
+            for filename in os.listdir(dirname):
+                with pathlib.Path(dirname).joinpath(filename).open() as fp:
+                    exported_schema = fp.read()
+                with pathlib.Path(self.vh_dir).joinpath(filename).open() as fp:
+                    original_schema = fp.read()
+                self.assertEqual(exported_schema, original_schema)
+
+        self.assertFalse(os.path.isdir(dirname))
+
+    def test_export_another_directory__issue_187(self):
+        vh_schema_file = self.casepath('issues/issue_187/issue_187_1.xsd')
+        vh_schema = self.schema_class(vh_schema_file)
+
+        with tempfile.TemporaryDirectory() as dirname:
+            vh_schema.export(target=dirname)
+
+            path = pathlib.Path(dirname).joinpath('examples/vehicles/*.xsd')
+            for filename in glob.iglob(pathname=str(path)):
+                with pathlib.Path(dirname).joinpath(filename).open() as fp:
+                    exported_schema = fp.read()
+
+                basename = os.path.basename(filename)
+                with pathlib.Path(self.vh_dir).joinpath(basename).open() as fp:
+                    original_schema = fp.read()
+                self.assertEqual(exported_schema, original_schema)
+
+            with pathlib.Path(dirname).joinpath('issue_187_1.xsd').open() as fp:
+                exported_schema = fp.read()
+            with open(vh_schema_file) as fp:
+                original_schema = fp.read()
+
+            self.assertNotEqual(exported_schema, original_schema)
+            self.assertEqual(exported_schema, original_schema.replace('../..', dirname))
+
+        self.assertFalse(os.path.isdir(dirname))
+
+    def test_export_remote__issue_187(self):
+        vh_schema_file = self.casepath('issues/issue_187/issue_187_2.xsd')
+        vh_schema = self.schema_class(vh_schema_file)
+
+        with tempfile.TemporaryDirectory() as dirname:
+            vh_schema.export(target=dirname)
+
+            with pathlib.Path(dirname).joinpath('issue_187_2.xsd').open() as fp:
+                exported_schema = fp.read()
+            with open(vh_schema_file) as fp:
+                original_schema = fp.read()
+            self.assertEqual(exported_schema, original_schema)
+
+        self.assertFalse(os.path.isdir(dirname))
+
+        with tempfile.TemporaryDirectory() as dirname:
+            vh_schema.export(target=dirname, only_relative=False)
+
+            path = pathlib.Path(dirname).joinpath('examples/vehicles/*.xsd')
+            for filename in glob.iglob(pathname=str(path)):
+                print(pathlib.Path(dirname).joinpath(filename))
+                with pathlib.Path(dirname).joinpath(filename).open() as fp:
+                    exported_schema = fp.read()
+
+                basename = os.path.basename(filename)
+                with pathlib.Path(self.vh_dir).joinpath(basename).open() as fp:
+                    original_schema = fp.read()
+                self.assertEqual(exported_schema, original_schema)
+
+            with pathlib.Path(dirname).joinpath('issue_187_2.xsd').open() as fp:
+                exported_schema = fp.read()
+            with open(vh_schema_file) as fp:
+                original_schema = fp.read()
+
+            self.assertNotEqual(exported_schema, original_schema)
+            self.assertEqual(
+                exported_schema,
+                original_schema.replace('https://raw.githubusercontent.com', dirname)
+            )
+
+        self.assertFalse(os.path.isdir(dirname))
 
 
 class TestXMLSchema11(TestXMLSchema10):
