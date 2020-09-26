@@ -84,6 +84,7 @@ Schema level API
     .. automethod:: get_locations
     .. automethod:: include_schema
     .. automethod:: import_schema
+    .. automethod:: export
     .. automethod:: resolve_qname
     .. automethod:: iter_globals
     .. automethod:: iter_components
@@ -182,6 +183,8 @@ XML resource API
     .. automethod:: load
     .. automethod:: is_lazy
     .. autoattribute:: lazy_depth
+    .. automethod:: is_remote
+    .. automethod:: is_local
     .. automethod:: is_loaded
     .. automethod:: iter
     .. automethod:: iter_subtrees

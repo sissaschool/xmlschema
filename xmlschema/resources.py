@@ -733,9 +733,11 @@ class XMLResource(object):
         return bool(self._lazy)
 
     def is_remote(self):
+        """Returns `True` if the resource is related with remote XML data."""
         return is_remote_url(self._url)
 
     def is_local(self):
+        """Returns `True` if the resource is related with local XML data."""
         return is_local_url(self._url)
 
     @property

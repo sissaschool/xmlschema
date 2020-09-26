@@ -1597,7 +1597,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param fill_missing: if set to `True` the decoder fills also missing attributes. \
         The filling value is `None` or a typed value if the *filler* callback is provided.
         :param keep_unknown: if set to `True` unknown tags are kept and are decoded with \
-        xs:anyType. For default unknown tags not decoded by a wildcard are discarded.
+        *xs:anyType*. For default unknown tags not decoded by a wildcard are discarded.
         :param max_depth: maximum level of decoding, for default there is no limit.
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
