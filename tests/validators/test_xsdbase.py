@@ -14,7 +14,6 @@ import platform
 import re
 import xml.etree.ElementTree as ElementTree
 
-from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
@@ -592,7 +591,7 @@ class TestValidationMixin(unittest.TestCase):
 
     def test_encode(self):
         xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        obj = self.schema.decode(xml_file, dict_class=ordered_dict_class)
+        obj = self.schema.decode(xml_file)
 
         root = self.schema.elements['vehicles'].encode(obj)
         self.assertEqual(root.tag, self.schema.elements['vehicles'].name)

@@ -12,7 +12,6 @@ This module contains converter classes and definitions.
 """
 from collections import namedtuple
 
-from .compat import ordered_dict_class
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .namespaces import XSI_NAMESPACE
 from .etree import etree_element, lxml_etree_element, etree_register_namespace, \
@@ -490,7 +489,7 @@ class ParkerConverter(XMLSchemaConverter):
                  preserve_root=False, **kwargs):
         kwargs.update(attr_prefix=None, text_key='', cdata_prefix=None)
         super(ParkerConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class,
+            namespaces, dict_class, list_class,
             preserve_root=preserve_root, **kwargs
         )
 
@@ -598,7 +597,7 @@ class BadgerFishConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='@', text_key='$', cdata_prefix='$')
         super(BadgerFishConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
+            namespaces, dict_class, list_class, **kwargs
         )
 
     @property
@@ -729,7 +728,7 @@ class AbderaConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='', text_key='', cdata_prefix=None)
         super(AbderaConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
+            namespaces, dict_class, list_class, **kwargs
         )
 
     @property
@@ -839,7 +838,7 @@ class JsonMLConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
         kwargs.update(attr_prefix='', text_key='', cdata_prefix='')
         super(JsonMLConverter, self).__init__(
-            namespaces, dict_class or ordered_dict_class, list_class, **kwargs
+            namespaces, dict_class, list_class, **kwargs
         )
 
     @property
@@ -929,8 +928,6 @@ class ColumnarConverter(XMLSchemaConverter):
     def __init__(self, namespaces=None, dict_class=None, list_class=None,
                  attr_prefix='', **kwargs):
         kwargs.update(text_key=None, cdata_prefix=None)
-        if dict_class is None:
-            dict_class = ordered_dict_class
         super(ColumnarConverter, self).__init__(namespaces, dict_class, list_class,
                                                 attr_prefix=attr_prefix, **kwargs)
 

@@ -14,7 +14,6 @@ import unittest
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
-from xmlschema.compat import ordered_dict_class
 from xmlschema.qnames import local_name
 from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
@@ -49,7 +48,7 @@ class TestEncoding(XsdValidatorTestCase):
         """Test encode after a decode, checking the re-encoded tree."""
         filename = self.casepath('examples/collection/collection.xml')
         xt = ElementTree.parse(filename)
-        xd = self.col_schema.to_dict(filename, dict_class=ordered_dict_class)
+        xd = self.col_schema.to_dict(filename)
         elem = self.col_schema.encode(xd, path='./col:collection', namespaces=self.col_namespaces)
 
         self.assertEqual(
@@ -240,7 +239,7 @@ class TestEncoding(XsdValidatorTestCase):
         """)
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('B3', False)]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('B3', False)]),
             expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</A>',
             indent=0,
         )
@@ -319,31 +318,31 @@ class TestEncoding(XsdValidatorTestCase):
 
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            data=dict([('B2', 10), ('B1', 'abc'), ('B3', True)]),
             expected=XMLSchemaChildrenValidationError
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            data=dict([('B2', 10), ('B1', 'abc'), ('B3', True)]),
             expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#', converter=UnorderedConverter
         )
 
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
             expected='<A>\nhello<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#', converter=UnorderedConverter
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
             expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\nhello\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
             expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
 
@@ -363,19 +362,19 @@ class TestEncoding(XsdValidatorTestCase):
 
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B2', 10), ('B1', 'abc'), ('B3', True)]),
+            data=dict([('B2', 10), ('B1', 'abc'), ('B3', True)]),
             expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello'), ('B3', True)]),
             expected=u'<A>\nhello<B1>abc</B1>\n<B2>10</B2>\n<B3>true</B3>\n</A>',
             indent=0, cdata_prefix='#'
         )
         self.check_encode(
             xsd_component=schema.elements['A'],
-            data=ordered_dict_class([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
+            data=dict([('B1', 'abc'), ('B2', 10), ('#1', 'hello')]),
             expected=XMLSchemaValidationError, indent=0, cdata_prefix='#'
         )
 
@@ -408,7 +407,7 @@ class TestEncoding(XsdValidatorTestCase):
             </xs:element>
             """)
 
-        root = schema.to_etree(ordered_dict_class([('A', [1, 2]), ('B', [3, 4])]))
+        root = schema.to_etree(dict([('A', [1, 2]), ('B', [3, 4])]))
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, converter=UnorderedConverter)

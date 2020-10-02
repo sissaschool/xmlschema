@@ -19,7 +19,6 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.converters import UnorderedConverter
-from xmlschema.compat import ordered_dict_class
 from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, print_test_header
@@ -726,8 +725,8 @@ class TestDecoding(XsdValidatorTestCase):
         schema = xmlschema.XMLSchema(self.casepath('issues/issue_046/issue_046.xsd'))
         xml_file = self.casepath('issues/issue_046/issue_046.xml')
         self.assertEqual(
-            schema.decode(xml_file, dict_class=ordered_dict_class, cdata_prefix='#'),
-            ordered_dict_class(
+            schema.decode(xml_file, cdata_prefix='#'),
+            dict(
                 [('@xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance'),
                  ('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
                  ('#1', 'Dear Mr.'), ('name', 'John Smith'),

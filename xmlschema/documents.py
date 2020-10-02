@@ -10,7 +10,6 @@
 import json
 from collections.abc import Iterator
 
-from .compat import ordered_dict_class
 from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
@@ -220,8 +219,6 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
         json_options = {}
     if 'decimal_type' not in kwargs:
         kwargs['decimal_type'] = float
-    if 'dict_class' not in kwargs:
-        kwargs['dict_class'] = ordered_dict_class
     kwargs['converter'] = converter
     kwargs['process_namespaces'] = process_namespaces
 
@@ -274,14 +271,9 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
     elif json_options is None:
         json_options = {}
 
-    dict_class = kwargs.pop('dict_class', ordered_dict_class)
-    object_hook = json_options.pop('object_hook', ordered_dict_class)
-    object_pairs_hook = json_options.pop('object_pairs_hook', ordered_dict_class)
     if hasattr(source, 'read'):
-        obj = json.load(source, object_hook=object_hook,
-                        object_pairs_hook=object_pairs_hook, **json_options)
+        obj = json.load(source, **json_options)
     else:
-        obj = json.loads(source, object_hook=object_hook,
-                         object_pairs_hook=object_pairs_hook, **json_options)
+        obj = json.loads(source, **json_options)
 
-    return schema.encode(obj, path=path, converter=converter, dict_class=dict_class, **kwargs)
+    return schema.encode(obj, path=path, converter=converter, **kwargs)

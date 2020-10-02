@@ -14,7 +14,6 @@ import os.path
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import XsdElement, ModelVisitor, XMLSchemaValidationError
-from xmlschema.compat import ordered_dict_class
 from xmlschema.testing import print_test_header, XsdValidatorTestCase
 
 
@@ -947,11 +946,11 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         )
 
         # With a dict-type argument
-        content = ordered_dict_class([('B2', [10]), ('B1', ['abc']), ('B3', [True])])
+        content = dict([('B2', [10]), ('B1', ['abc']), ('B3', [True])])
         self.assertListEqual(
             model.sort_content(content), [('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
-        content = ordered_dict_class([('B2', [10]), ('B1', ['abc']), ('B3', [True]), (1, 'hello')])
+        content = dict([('B2', [10]), ('B1', ['abc']), ('B3', [True]), (1, 'hello')])
         self.assertListEqual(
             model.sort_content(content), [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
