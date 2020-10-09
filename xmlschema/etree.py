@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains ElementTree setup and helpers for xmlschema package.
+A unified setup module for ElementTree/lxml.etree with a safe parser and helper functions.
 """
 import sys
 import importlib
@@ -125,6 +125,16 @@ class SafeXMLParser(PyElementTree.XMLParser):
     def external_entity_reference(self, context, base, system_id, public_id):
         raise PyElementTree.ParseError("External references are forbidden (system_id={!r}, "
                                        "public_id={!r})".format(system_id, public_id))
+
+
+def is_etree_element(obj):
+    """A checker for valid ElementTree elements that excludes XsdElement objects."""
+    return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib')
+
+
+def is_etree_document(obj):
+    """A checker for valid ElementTree objects."""
+    return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
 def etree_tostring(elem, namespaces=None, indent='', max_lines=None,

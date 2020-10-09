@@ -10,13 +10,14 @@
 import json
 from collections.abc import Iterator
 
+from .exceptions import XMLSchemaValueError
 from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
 
 
 def get_context(source, schema=None, cls=None, locations=None, base_url=None,
-                defuse='remote', timeout=300, lazy=False):
+                defuse='remote', timeout=300, lazy=False, dummy_schema=False):
     """
     Get the XML document validation/decode context.
 
@@ -33,9 +34,13 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
         schema_location, locations = fetch_schema_locations(source, locations, base_url=base_url)
     except ValueError:
         if schema is None:
-            if XSI_TYPE not in source.root.attrib:
-                raise
-            schema = cls.meta_schema
+            if XSI_TYPE in source.root.attrib:
+                schema = cls.meta_schema
+            elif dummy_schema:
+                pass
+            else:
+                raise XMLSchemaValueError("no schema can be get for the provided context")
+
         elif not isinstance(schema, XMLSchemaBase):
             schema = cls(schema, validation='strict', locations=locations,
                          base_url=base_url, defuse=defuse, timeout=timeout)

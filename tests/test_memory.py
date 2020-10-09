@@ -52,7 +52,7 @@ class TestMemoryUsage(unittest.TestCase):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
             os.path.dirname(os.path.abspath(test_dir)),
-            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
+            'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '2', xsd10_schema_file]
@@ -75,7 +75,7 @@ class TestMemoryUsage(unittest.TestCase):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
             os.path.dirname(os.path.abspath(test_dir)),
-            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
+            'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '5', xsd10_schema_file]
@@ -93,7 +93,7 @@ class TestMemoryUsage(unittest.TestCase):
         test_dir = os.path.dirname(__file__) or '.'
         xsd10_schema_file = os.path.join(
             os.path.dirname(os.path.abspath(test_dir)),
-            'xmlschema/validators/schemas/XSD_1.0/XMLSchema.xsd'
+            'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
         cmd = [os.path.join(test_dir, 'check_memory.py'), '7', xsd10_schema_file]

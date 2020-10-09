@@ -178,6 +178,7 @@ XML resource API
     .. autoattribute:: namespace
 
     .. automethod:: copy
+    .. automethod:: parse
     .. automethod:: tostring
     .. automethod:: open
     .. automethod:: load
@@ -191,12 +192,6 @@ XML resource API
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations
-
-    .. automethod:: defusing
-    .. automethod:: parse
-    .. automethod:: iterparse
-    .. automethod:: fromstring
-
 
 .. autofunction:: xmlschema.fetch_resource
 .. autofunction:: xmlschema.fetch_schema

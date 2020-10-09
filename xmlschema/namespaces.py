@@ -18,7 +18,7 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import get_namespace, local_name
 
 ###
-# Namespace URIs
+# Namespace URIs for schemas
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
 
@@ -44,18 +44,27 @@ HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
+###
+# Namespace URIs for XML documents
+WSDL_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/'
+SOAP_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/soap/'
+SOAP_ENVELOPE_NAMESPACE = 'http://schemas.xmlsoap.org/soap/envelope/'
+
 
 ###
 # Schema location hints
 
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'validators/schemas/')
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 LOCATION_HINTS = {
     # Locally saved schemas
-    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
-    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd'),
-    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd'),
+    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-versioning.xsd'),
+    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
+    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
+    WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
+    SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
+    SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
 
     # Remote locations: contributors can propose additional official locations
     # for other namespaces for extending this list.

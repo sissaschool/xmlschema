@@ -18,9 +18,9 @@ from ..validators import XMLSchema10
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_SCHEMA
 from ..namespaces import XSD_NAMESPACE, get_namespace
-from ..etree import etree_element, etree_register_namespace, etree_elements_assert_equal
+from ..etree import is_etree_element, etree_element, \
+    etree_register_namespace, etree_elements_assert_equal
 from ..resources import fetch_namespaces
-from ..helpers import is_etree_element
 
 
 PROTECTED_PREFIX_PATTERN = re.compile(r'\bns\d:')

@@ -85,11 +85,15 @@ class TestPackaging(unittest.TestCase):
 
     def test_base_schema_files(self):
         et = importlib.import_module('xml.etree.ElementTree')
-        schemas_dir = os.path.join(self.source_dir, 'validators/schemas')
+        schemas_dir = os.path.join(self.source_dir, 'schemas')
         base_schemas = [
-            'XSD_1.0/XMLSchema.xsd', 'XSD_1.1/XMLSchema.xsd', 'xhtml1-strict.xsd',
-            'xlink.xsd', 'xml_minimal.xsd', 'XMLSchema-hasFacetAndProperty_minimal.xsd',
-            'XMLSchema-instance_minimal.xsd'
+            'XSD_1.0/XMLSchema.xsd',
+            'XSD_1.1/XMLSchema.xsd',
+            'XHTML/xhtml1-strict.xsd',
+            'XLINK/xlink.xsd',
+            'XML/xml_minimal.xsd',
+            'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
+            'XSI/XMLSchema-instance_minimal.xsd'
         ]
         for rel_path in base_schemas:
             filename = os.path.join(schemas_dir, rel_path)

@@ -17,8 +17,7 @@ from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, get_qname, local_name, get_prefixed_qname, \
     is_not_xsd_annotation
-from ..etree import etree_tostring
-from ..helpers import is_etree_element
+from ..etree import is_etree_element, etree_tostring
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}

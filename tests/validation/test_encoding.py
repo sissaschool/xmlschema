@@ -15,9 +15,8 @@ import unittest
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
 from xmlschema.qnames import local_name
-from xmlschema.etree import etree_element, etree_tostring, ElementTree
+from xmlschema.etree import etree_element, is_etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
-from xmlschema.helpers import is_etree_element
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, print_test_header
 
@@ -63,7 +62,8 @@ class TestEncoding(XsdValidatorTestCase):
     def test_string_based_builtin_types(self):
         self.check_encode(self.xsd_types['string'], 'sample string ', u'sample string ')
         self.check_encode(self.xsd_types['normalizedString'], ' sample string ', u' sample string ')
-        self.check_encode(self.xsd_types['normalizedString'], '\n\r sample\tstring\n', u'   sample string ')
+        self.check_encode(self.xsd_types['normalizedString'],
+                          '\n\r sample\tstring\n', u'   sample string ')
         self.check_encode(self.xsd_types['token'], '\n\r sample\t\tstring\n ', u'sample string')
         self.check_encode(self.xsd_types['language'], 'sample string', XMLSchemaValidationError)
         self.check_encode(self.xsd_types['language'], ' en ', u'en')
@@ -102,7 +102,8 @@ class TestEncoding(XsdValidatorTestCase):
 
     def test_list_builtin_types(self):
         self.check_encode(self.xsd_types['IDREFS'], ['first_name'], u'first_name')
-        self.check_encode(self.xsd_types['IDREFS'], 'first_name', u'first_name')  # Transform data to list
+        self.check_encode(self.xsd_types['IDREFS'],
+                          'first_name', u'first_name')  # Transform data to list
         self.check_encode(self.xsd_types['IDREFS'], ['one', 'two', 'three'], u'one two three')
         self.check_encode(self.xsd_types['IDREFS'], [1, 'two', 'three'], XMLSchemaValidationError)
         self.check_encode(self.xsd_types['NMTOKENS'], ['one', 'two', 'three'], u'one two three')
@@ -153,7 +154,8 @@ class TestEncoding(XsdValidatorTestCase):
         self.check_encode(list_of_booleans, [True, False, True], u'true false true')
         self.check_encode(list_of_booleans, [10, False, True], XMLSchemaEncodeError)
         self.check_encode(list_of_booleans, [True, False, 40.0], u'true false', validation='lax')
-        self.check_encode(list_of_booleans, [True, False, 40.0], u'true false 40.0', validation='skip')
+        self.check_encode(list_of_booleans, [True, False, 40.0],
+                          u'true false 40.0', validation='skip')
 
     def test_union_types(self):
         integer_or_float = self.st_schema.types['integer_or_float']
@@ -188,14 +190,18 @@ class TestEncoding(XsdValidatorTestCase):
         elem.text = 'true'
         self.check_encode(self.get_element('A', type='xs:boolean'), True, elem)
 
-        self.check_encode(self.get_element('A', type='xs:short'), 128000, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:short'),
+                          128000, XMLSchemaValidationError)
         elem.text = '0'
         self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), 0, elem)
-        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), '0', XMLSchemaValidationError)
-        self.check_encode(self.get_element('A', type='xs:positiveInteger'), 0, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'),
+                          '0', XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:positiveInteger'),
+                          0, XMLSchemaValidationError)
         elem.text = '-1'
         self.check_encode(self.get_element('A', type='xs:negativeInteger'), -1, elem)
-        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'), -1, XMLSchemaValidationError)
+        self.check_encode(self.get_element('A', type='xs:nonNegativeInteger'),
+                          -1, XMLSchemaValidationError)
 
     def test_complex_elements(self):
         schema = self.get_schema("""
@@ -225,7 +231,8 @@ class TestEncoding(XsdValidatorTestCase):
             schema.elements['A'], {'@a1': 10, '$': 'simple '},
             ElementTree.fromstring('<A a1="10">simple </A>')
         )
-        self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '}, XMLSchemaValidationError)
+        self.check_encode(schema.elements['A'], {'@a2': -1, '$': 'simple '},
+                          XMLSchemaValidationError)
 
         schema = self.get_schema("""
         <xs:element name="A" type="A_type" />
@@ -243,7 +250,8 @@ class TestEncoding(XsdValidatorTestCase):
             expected=u'<A>\n<B1>abc</B1>\n<B2>10</B2>\n<B3>false</B3>\n</A>',
             indent=0,
         )
-        self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False}, XMLSchemaValidationError)
+        self.check_encode(schema.elements['A'], {'B1': 'abc', 'B2': 10, 'B4': False},
+                          XMLSchemaValidationError)
 
     def test_error_message(self):
         schema = self.schema_class(self.casepath('issues/issue_115/Rotation.xsd'))
@@ -262,9 +270,11 @@ class TestEncoding(XsdValidatorTestCase):
         self.assertTrue(message_lines, msg="Empty error message!")
         self.assertEqual(message_lines[-4], 'Instance:')
         if sys.version_info < (3, 8):
-            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" pitch="0.0" roll="0.0" yaw="-1.0" />'
+            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
+                   'pitch="0.0" roll="0.0" yaw="-1.0" />'
         else:
-            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" roll="0.0" pitch="0.0" yaw="-1.0" />'
+            text = '<tns:rotation xmlns:tns="http://www.example.org/Rotation/" ' \
+                   'roll="0.0" pitch="0.0" yaw="-1.0" />'
         self.assertEqual(message_lines[-2].strip(), text)
 
     def test_max_occurs_sequence(self):

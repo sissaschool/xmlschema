@@ -137,7 +137,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""", XMLSchemaParseError)
 
     def test_base_schemas(self):
-        self.schema_class(os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'))
+        self.schema_class(os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'))
 
     def test_root_elements(self):
         # Test issue #107 fix

@@ -9,8 +9,7 @@
 #
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
 from ..qnames import get_prefixed_qname
-from ..etree import etree_tostring, etree_getpath
-from ..helpers import is_etree_element
+from ..etree import is_etree_element, etree_tostring, etree_getpath
 
 
 class XMLSchemaValidatorError(XMLSchemaException):

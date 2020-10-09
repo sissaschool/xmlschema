@@ -25,7 +25,7 @@ from collections import namedtuple, Counter
 from itertools import chain
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
-    XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
+    XMLSchemaValueError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
@@ -36,7 +36,7 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
-from ..etree import etree_element, etree_tostring, prune_etree, ParseError
+from ..etree import etree_element, prune_etree, ParseError
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, update_prefix, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
@@ -137,9 +137,6 @@ class XMLSchemaMeta(ABCMeta):
         dict_.pop('lock')
 
         return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
-
-    def __init__(cls, name, bases, dict_):
-        super(XMLSchemaMeta, cls).__init__(name, bases, dict_)
 
 
 class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=XMLSchemaMeta):
@@ -527,20 +524,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return self.source.root
 
     def get_text(self):
-        """
-        Gets the XSD text of the schema. If the source text is not available creates
-        an encoded string representation of the XSD tree.
-        """
-        if self.source.text is None:
-            if self.source.url is None:
-                return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
-            else:
-                try:
-                    self.source.load()
-                except XMLSchemaOSError:
-                    return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
-
-        return self.source.text
+        """Returns the source text of the XSD schema."""
+        return self.source.get_text()
 
     @property
     def url(self):
@@ -1817,8 +1802,8 @@ class XMLSchema10(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
 
@@ -1877,10 +1862,10 @@ class XMLSchema11(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
+        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
 

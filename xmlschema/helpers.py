@@ -14,15 +14,8 @@ from decimal import Decimal
 
 from .exceptions import XMLSchemaValueError
 from .qnames import XSD_ANNOTATION
-from .xpath import ElementPathMixin
 
 XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
-
-
-def is_etree_element(elem):
-    """More safer test for matching ElementTree elements."""
-    return hasattr(elem, 'tag') and hasattr(elem, 'attrib') and \
-        not isinstance(elem, ElementPathMixin)
 
 
 def get_xsd_annotation(elem):
