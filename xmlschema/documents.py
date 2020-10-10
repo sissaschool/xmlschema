@@ -10,7 +10,9 @@
 import json
 from collections.abc import Iterator
 
-from .exceptions import XMLSchemaValueError
+from .exceptions import XMLSchemaValueError, XMLResourceError
+from .namespaces import XSD_NAMESPACE
+from .etree import ElementTree, lxml_etree, is_etree_document, etree_tostring
 from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
@@ -29,6 +31,8 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
         source = XMLResource(source, base_url, defuse=defuse, timeout=timeout, lazy=lazy)
     if isinstance(schema, XMLSchemaBase) and source.namespace in schema.maps.namespaces:
         return source, schema
+    if isinstance(source, XmlDocument) and source.schema is not None:
+        return source, source.schema
 
     try:
         schema_location, locations = fetch_schema_locations(source, locations, base_url=base_url)
@@ -282,3 +286,204 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
         obj = json.loads(source, **json_options)
 
     return schema.encode(obj, path=path, converter=converter, **kwargs)
+
+
+class XmlDocument(XMLResource):
+    """
+    An XML document bound with its schema. If no schema is get from the provided
+    context and validation argument is 'skip' the XML document is associated with
+    a generic schema, otherwise a ValueError is raised.
+
+    :param source: a string containing XML data or a file path or an URL or a \
+    file like object or an ElementTree or an Element.
+    :param schema: can be a :class:`xmlschema.XMLSchema` instance or a file-like \
+    object or a file path or an URL of a resource or a string containing the XSD schema.
+    """
+    schema = _fallback_schema = None
+
+    def __init__(self, source, schema=None, cls=None, validation='strict',
+                 namespaces=None, locations=None, base_url=None, allow='all',
+                 defuse='remote', timeout=300, lazy=False):
+
+        super(XmlDocument, self).__init__(source, base_url, allow, defuse, timeout, lazy)
+        self.validation = validation
+        self.namespaces = self.get_namespaces(namespaces)
+
+        if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
+            self.schema = schema
+        elif self.schema is None:
+            if cls is None:
+                cls = XMLSchema
+
+            try:
+                schema_location, locations = fetch_schema_locations(self, locations, base_url)
+            except ValueError:
+                if XSI_TYPE in self._root.attrib:
+                    self.schema = cls.meta_schema
+                elif validation != 'skip':
+                    raise XMLSchemaValueError("no schema can be get for the XML resource")
+                else:
+                    tag = self._root.tag
+                    namespace, name = tag[1:].split('}') if tag.startswith('{') else '', tag
+                    if namespace:
+                        self._fallback_schema = cls(
+                            '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
+                            '    <xs:element name="{2}"/>\n'
+                            '</xs:schema>'.format(XSD_NAMESPACE, namespace, name)
+                        )
+                    else:
+                        self._fallback_schema = cls(
+                            '<xs:schema xmlns:xs="{0}">\n'
+                            '    <xs:element name="{1}"/>\n'
+                            '</xs:schema>'.format(XSD_NAMESPACE, name)
+                        )
+            else:
+                self.schema = cls(
+                    source=schema_location,
+                    validation='strict',
+                    locations=locations,
+                    defuse=defuse,
+                    allow=allow,
+                    timeout=timeout,
+                )
+
+        if validation == 'strict':
+            schema.validate(source, self.namespaces)
+        if validation == 'lax':
+            self.errors = [e for e in schema.iter_errors(source, namespaces=self.namespaces)]
+        else:
+            self.errors = []
+
+    def getroot(self):
+        """Get the root element of the XML document."""
+        return self._root
+
+    def get_etree_document(self):
+        """
+        The resource as ElementTree XML document. If the resource is lazy raises a resource error.
+        """
+        if is_etree_document(self._source):
+            return self._source
+        elif self._lazy:
+            msg = "cannot create an ElementTree from a lazy resource"
+            raise XMLResourceError(msg)
+        elif hasattr(self._root, 'nsmap'):
+            return lxml_etree.ElementTree(self._root)
+        else:
+            return ElementTree.ElementTree(self._root)
+
+    def tostring(self, indent='', max_lines=None, spaces_for_tab=4,
+                 xml_declaration=False, encoding='unicode', method='xml'):
+        return etree_tostring(self._root, self.namespaces,
+                              xml_declaration=xml_declaration,
+                              encoding=encoding, method=method)
+
+    def to_dict(self, **kwargs):
+        """
+        Converts the XML document to a nested dictionary.
+
+        :param kwargs: options for the decode/to_dict method of the schema instance.
+        """
+        if 'validation' not in kwargs:
+            kwargs['validation'] = self.validation
+        if 'namespaces' not in kwargs:
+            kwargs['namespaces'] = self.namespaces
+
+        obj = (self.schema or self._fallback_schema).to_dict(self, **kwargs)
+        return obj[0] if isinstance(obj, tuple) else obj
+
+    def to_json(self, fp=None, json_options=None, **kwargs):
+        """
+        Converts loaded XML data to a JSON string or file.
+
+        :param fp: can be a :meth:`write()` supporting file-like object.
+        :param json_options: a dictionary with options for the JSON deserializer.
+        :param kwargs: options for the decode/to_dict method of the schema instance.
+        """
+        if json_options is None:
+            json_options = {}
+        path = kwargs.pop('path', None)
+        if 'validation' not in kwargs:
+            kwargs['validation'] = self.validation
+        if 'namespaces' not in kwargs:
+            kwargs['namespaces'] = self.namespaces
+        if 'decimal_type' not in kwargs:
+            kwargs['decimal_type'] = float
+
+        errors = []
+
+        if path is None and self._lazy and 'cls' not in json_options:
+            json_options['cls'] = get_lazy_json_encoder(errors)
+            kwargs['lazy_decode'] = True
+
+        obj = (self.schema or self._fallback_schema).decode(self, path=path, **kwargs)
+        if isinstance(obj, tuple):
+            if fp is not None:
+                json.dump(obj[0], fp, **json_options)
+                obj[1].extend(errors)
+                return tuple(obj[1])
+            else:
+                result = json.dumps(obj[0], **json_options)
+                obj[1].extend(errors)
+                return result, tuple(obj[1])
+        elif fp is not None:
+            json.dump(obj, fp, **json_options)
+            return None if not errors else tuple(errors)
+        else:
+            result = json.dumps(obj, **json_options)
+            return result if not errors else (result, tuple(errors))
+
+    def find(self, match, namespaces=None):
+        """Same as ElementTree.find() but use instance namespaces for default."""
+        if self._lazy:
+            raise XMLResourceError("cannot use XPath on a lazy XML document")
+        return self._root.findall(match, namespaces or self.namespaces)
+
+    def findall(self, match, namespaces=None):
+        """Same as ElementTree.findall() but use instance namespaces for default."""
+        if self._lazy:
+            raise XMLResourceError("cannot use XPath on a lazy XML document")
+        return self._root.findall(match, namespaces or self.namespaces)
+
+    def findtext(self, match, default=None, namespaces=None):
+        """Same as ElementTree.findtext() but use instance namespaces for default."""
+        if self._lazy:
+            raise XMLResourceError("cannot use XPath on a lazy XML document")
+        return self._root.findtext(match, default, namespaces or self.namespaces)
+
+    def iterfind(self, match, namespaces=None):
+        """Same as ElementTree.iterfind() but use instance namespaces for default."""
+        if self._lazy:
+            raise XMLResourceError("cannot use XPath on a lazy XML document")
+        return self._root.iterfind(match, namespaces or self.namespaces)
+
+    def write(self, file, encoding='us-ascii', xml_declaration=None,
+              default_namespace=None, method="xml"):
+        """Serialize an XML resource to a file. Cannot be used with lazy resources."""
+        if self._lazy:
+            raise XMLResourceError("cannot serialize a lazy XML document")
+
+        kwargs = {
+            'xml_declaration': xml_declaration,
+            'encoding': encoding,
+            'method': method,
+        }
+        if not default_namespace:
+            kwargs['namespaces'] = self.namespaces
+        else:
+            namespaces = self.namespaces.copy()
+            if hasattr(self._root, 'nsmap'):
+                namespaces[None] = default_namespace
+            else:
+                namespaces[''] = default_namespace
+            kwargs['namespaces'] = namespaces
+
+        if hasattr(file, 'write'):
+            file.write(etree_tostring(self._root, **kwargs))
+            file.close()
+        elif method == 'unicode':
+            with open(file, 'w') as fp:
+                fp.write(etree_tostring(self._root, **kwargs))
+        else:
+            with open(file, 'wb') as fp:
+                fp.write(etree_tostring(self._root, **kwargs))

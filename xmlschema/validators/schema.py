@@ -312,7 +312,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             # Allow sandbox mode without a base_url using the initial schema URL as base
             base_url = os.path.dirname(normalize_url(source))
 
-        self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
+        self.source = XMLResource(source, base_url, allow, defuse, timeout)
         logger.debug("Read schema from %r", self.source)
 
         self.imports = {}
@@ -1438,7 +1438,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         self.check_validator(validation='lax')
         if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
         if not schema_path:
             schema_path = source.get_absolute_path(path)
 
@@ -1595,7 +1595,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         self.check_validator(validation)
         if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
         if not schema_path and path:
             schema_path = source.get_absolute_path(path)
 

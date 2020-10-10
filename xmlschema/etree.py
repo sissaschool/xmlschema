@@ -137,8 +137,8 @@ def is_etree_document(obj):
     return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
 
 
-def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
-                   spaces_for_tab=4, xml_declaration=False):
+def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4,
+                   xml_declaration=False, encoding='unicode', method='xml'):
     """
     Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
 
@@ -149,6 +149,8 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
     :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
     :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
     :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+    :param encoding: if "unicode" (the default) the output is a string, otherwise it’s binary.
+    :param method: is either "xml" (the default), "html" or "text".
     :return: a Unicode string.
     """
     def reindent(line):
@@ -182,7 +184,7 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
     else:
         raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
 
-    xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
+    xml_text = tostring(elem, encoding=encoding, method=method).replace('\t', ' ' * spaces_for_tab)
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.splitlines())

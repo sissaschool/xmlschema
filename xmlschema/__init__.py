@@ -9,8 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from . import limits
-from .exceptions import XMLSchemaException, XMLSchemaRegexError, \
-    XMLSchemaResourceError, XMLSchemaNamespaceError
+from .exceptions import XMLSchemaException, XMLResourceError, XMLSchemaNamespaceError
 from .etree import etree_tostring
 from .resources import normalize_url, normalize_locations, fetch_resource, \
     fetch_namespaces, fetch_schema_locations, fetch_schema, XMLResource
@@ -39,7 +38,7 @@ __status__ = "Production/Stable"
 
 
 __all__ = [
-    'limits', 'XMLSchemaException', 'XMLSchemaRegexError', 'XMLSchemaResourceError',
+    'limits', 'XMLSchemaException', 'XMLSchemaRegexError', 'XMLResourceError',
     'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
     'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
     'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',

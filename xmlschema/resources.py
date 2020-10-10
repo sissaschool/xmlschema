@@ -16,7 +16,7 @@ from urllib.request import urlopen, pathname2url
 from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
 from urllib.error import URLError
 
-from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLSchemaResourceError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .namespaces import get_namespace
 from .etree import ElementTree, PyElementTree, SafeXMLParser, \
     etree_tostring, etree_iter_location_hints, is_etree_document
@@ -247,13 +247,13 @@ def fetch_resource(location, base_url=None, timeout=30):
         # fallback joining the path without a base URL
         alt_url = normalize_url(location)
         if url == alt_url:
-            raise XMLSchemaResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
 
         try:
             with urlopen(alt_url, timeout=timeout):
                 return alt_url
         except URLError:
-            raise XMLSchemaResourceError("cannot access to resource %r: %s" % (url, err.reason))
+            raise XMLResourceError("cannot access to resource %r: %s" % (url, err.reason))
 
 
 def fetch_schema_locations(source, locations=None, base_url=None,
@@ -275,7 +275,7 @@ def fetch_schema_locations(source, locations=None, base_url=None,
     and a list of dictionary items with normalized location hints.
     """
     if not isinstance(source, XMLResource):
-        resource = XMLResource(source, base_url, allow, defuse, timeout)
+        resource = XMLResource(source, base_url, allow, defuse, timeout, lazy=True)
     else:
         resource = source
 
@@ -289,7 +289,7 @@ def fetch_schema_locations(source, locations=None, base_url=None,
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
         try:
             return fetch_resource(url, base_url, timeout), locations
-        except XMLSchemaResourceError:
+        except XMLResourceError:
             pass
 
     raise XMLSchemaValueError("not found a schema for XML data resource {!r}.".format(source))
@@ -310,7 +310,7 @@ def fetch_namespaces(source, base_url=None, allow='all', defuse='remote', timeou
     object or an ElementTree instance or an Element instance. A dictionary with
     namespace mappings is returned.
     """
-    resource = XMLResource(source, base_url, allow, defuse, timeout)
+    resource = XMLResource(source, base_url, allow, defuse, timeout, lazy=True)
     return resource.get_namespaces(root_only=False)
 
 
@@ -339,10 +339,10 @@ class XMLResource(object):
     """
     # Protected attributes for data and resource location
     _source = _root = _text = _url = None
-    _lazy = True
+    _lazy = False
 
     def __init__(self, source, base_url=None, allow='all',
-                 defuse='remote', timeout=300, lazy=True):
+                 defuse='remote', timeout=300, lazy=False):
         self._base_url = base_url
         self.allow = allow
         self.defuse = defuse
@@ -376,7 +376,7 @@ class XMLResource(object):
                 raise XMLSchemaValueError(msg.format(value))
             elif value == 'sandbox' and self._base_url is None:
                 msg = "block access to files out of sandbox requires 'base_url' to be set"
-                raise XMLSchemaResourceError(msg)
+                raise XMLResourceError(msg)
         elif name == 'defuse':
             if not isinstance(value, str):
                 msg = "invalid type {!r} for the attribute 'defuse'"
@@ -399,12 +399,12 @@ class XMLResource(object):
             return
         elif self.allow == 'remote':
             if is_local_url(url):
-                raise XMLSchemaResourceError("block access to local resource {}".format(url))
+                raise XMLResourceError("block access to local resource {}".format(url))
         elif is_remote_url(url):
-            raise XMLSchemaResourceError("block access to remote resource {}".format(url))
+            raise XMLResourceError("block access to remote resource {}".format(url))
         elif self.allow == 'sandbox':
             if not url.startswith(normalize_url(self._base_url)):
-                raise XMLSchemaResourceError("block access to out of sandbox file {}".format(url))
+                raise XMLResourceError("block access to out of sandbox file {}".format(url))
 
     def _have_to_defuse(self):
         if self.defuse == 'remote':
@@ -592,19 +592,6 @@ class XMLResource(object):
         self._base_url = value
 
     @property
-    def document(self):
-        """
-        The resource as ElementTree XML document. It's `None` if the instance
-        is lazy or if it's an lxml Element.
-        """
-        if isinstance(self._source, ElementTree.ElementTree):
-            return self._source
-        elif hasattr(self._source, 'getroot') and hasattr(self._source, 'parse'):
-            return self._source  # lxml's _ElementTree
-        elif not self._lazy and not hasattr(self._root, 'nsmap'):
-            return ElementTree.ElementTree(self._root)
-
-    @property
     def namespace(self):
         """The namespace of the XML resource."""
         return get_namespace(self._root.tag)
@@ -661,12 +648,12 @@ class XMLResource(object):
         if self.seek(0) == 0:
             return self._source
         elif self._url is None:
-            raise XMLSchemaResourceError("can't open, the resource has no URL associated.")
+            raise XMLResourceError("can't open, the resource has no URL associated.")
 
         try:
             return urlopen(self._url, timeout=self.timeout)
         except URLError as err:
-            raise XMLSchemaResourceError(
+            raise XMLResourceError(
                 "cannot access to resource %r: %s" % (self._url, err.reason)
             )
 
@@ -718,13 +705,13 @@ class XMLResource(object):
         if self._url is None and not hasattr(self._source, 'read'):
             return  # Created from Element or text source --> already loaded
         elif self._lazy:
-            raise XMLSchemaResourceError("cannot load a lazy resource")
+            raise XMLResourceError("cannot load a lazy resource")
 
         resource = self.open()
         try:
             data = resource.read()
         except (OSError, IOError) as err:
-            raise XMLSchemaResourceError("cannot load data from %r: %s" % (self._url, err))
+            raise XMLResourceError("cannot load data from %r: %s" % (self._url, err))
         finally:
             # We don't want to close the file obj if it wasn't originally
             # opened by `XMLResource`. That is the concern of the code

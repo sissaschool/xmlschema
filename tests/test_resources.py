@@ -22,7 +22,7 @@ from pathlib import PureWindowsPath, PurePath
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
-    XMLResource, XMLSchemaResourceError, XMLSchema, XMLSchema10, XMLSchema11
+    XMLResource, XMLResourceError, XMLSchema, XMLSchema10, XMLSchema11
 )
 from xmlschema.etree import ElementTree, PyElementTree, lxml_etree, \
     etree_element, py_etree_element, is_etree_element
@@ -190,7 +190,7 @@ class TestResources(unittest.TestCase):
 
     def test_fetch_resource(self):
         wrong_path = casepath('resources/dummy_file.txt')
-        self.assertRaises(XMLSchemaResourceError, fetch_resource, wrong_path)
+        self.assertRaises(XMLResourceError, fetch_resource, wrong_path)
         right_path = casepath('resources/dummy file.txt')
         self.assertTrue(fetch_resource(right_path).endswith('dummy file.txt'))
 
@@ -252,13 +252,12 @@ class TestResources(unittest.TestCase):
 
     # Tests on XMLResource instances
     def test_xml_resource_from_url(self):
-        resource = XMLResource(self.vh_xml_file)
+        resource = XMLResource(self.vh_xml_file, lazy=True)
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.check_url(resource.url, self.vh_xml_file)
-        self.assertIsNone(resource.document)
         self.assertIsNone(resource.text)
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
         self.assertIn('cannot load a lazy resource', str(ctx.exception))
         self.assertIsNone(resource.text)
@@ -267,7 +266,6 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, self.vh_xml_file)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.check_url(resource.url, self.vh_xml_file)
-        self.assertIsInstance(resource.document, ElementTree.ElementTree)
         self.assertIsNone(resource.text)
         resource.load()
         self.assertTrue(resource.text.startswith('<?xml'))
@@ -278,7 +276,6 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(vh_etree)
         self.assertEqual(resource.source, vh_etree)
-        self.assertEqual(resource.document, vh_etree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
         self.assertIsNone(resource.text)
@@ -287,7 +284,6 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(vh_root)
         self.assertEqual(resource.source, vh_root)
-        self.assertIsInstance(resource.document, ElementTree.ElementTree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
         self.assertIsNone(resource.text)
@@ -301,7 +297,6 @@ class TestResources(unittest.TestCase):
 
         resource = XMLResource(vh_etree)
         self.assertEqual(resource.source, vh_etree)
-        self.assertEqual(resource.document, vh_etree)
         self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
         self.assertIsNone(resource.url)
         self.assertIsNone(resource.text)
@@ -327,7 +322,6 @@ class TestResources(unittest.TestCase):
             self.assertEqual(resource.source, xml_file)
             self.assertEqual(resource.root.tag, '{http://example.com/vehicles}vehicles')
             self.assertIsNone(resource.url)
-            self.assertTrue(hasattr(resource.document, 'getroot'))
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<?xml'))
@@ -341,7 +335,6 @@ class TestResources(unittest.TestCase):
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
             self.assertIsNone(resource.url)
-            self.assertTrue(hasattr(resource.document, 'getroot'))
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
@@ -358,7 +351,6 @@ class TestResources(unittest.TestCase):
             self.assertEqual(resource.source, schema_file)
             self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
             self.assertIsNone(resource.url)
-            self.assertIsInstance(resource.document, ElementTree.ElementTree)
             self.assertIsNone(resource.text)
             resource.load()
             self.assertTrue(resource.text.startswith('<xs:schema'))
@@ -374,11 +366,10 @@ class TestResources(unittest.TestCase):
         with open(self.vh_xsd_file) as schema_file:
             schema_text = schema_file.read()
 
-        resource = XMLResource(schema_text)
+        resource = XMLResource(schema_text, lazy=False)
         self.assertEqual(resource.source, schema_text)
         self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
         self.assertIsNone(resource.url)
-        self.assertIsNone(resource.document)
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
         invalid_xml = '<tns0:root>missing namespace declaration</tns0:root>'
@@ -396,7 +387,6 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, schema_file)
         self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
         self.assertIsNone(resource.url)
-        self.assertIsNone(resource.document)
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
         schema_file = StringIO(schema_text)
@@ -404,7 +394,6 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.source, schema_file)
         self.assertEqual(resource.root.tag, '{http://www.w3.org/2001/XMLSchema}schema')
         self.assertIsNone(resource.url)
-        self.assertIsInstance(resource.document, ElementTree.ElementTree)
         self.assertTrue(resource.text.startswith('<xs:schema'))
 
     def test_xml_resource_from_wrong_type(self):
@@ -428,21 +417,21 @@ class TestResources(unittest.TestCase):
             self.vh_xml_file, base_url=os.path.dirname(self.vh_xml_file), allow='sandbox'
         )
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             XMLResource(self.vh_xml_file, allow='remote')
         self.assertTrue(str(ctx.exception).startswith("block access to local resource"))
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='local')
         self.assertEqual(str(ctx.exception),
                          "block access to remote resource https://xmlschema.test/vehicles.xsd")
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='sandbox')
         self.assertEqual(str(ctx.exception),
                          "block access to files out of sandbox requires 'base_url' to be set")
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             XMLResource("/tmp/vehicles.xsd", allow='sandbox')
         self.assertEqual(
             str(ctx.exception),
@@ -450,7 +439,7 @@ class TestResources(unittest.TestCase):
         )
 
         source = "/tmp/vehicles.xsd"
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             XMLResource(source, base_url=base_url, allow='sandbox')
         self.assertEqual(
             str(ctx.exception),
@@ -468,25 +457,28 @@ class TestResources(unittest.TestCase):
                          "'allow' attribute: 'any' is not a security mode")
 
     def test_xml_resource_defuse(self):
-        resource = XMLResource(self.vh_xml_file, defuse='never')
+        resource = XMLResource(self.vh_xml_file, defuse='never', lazy=True)
         self.assertEqual(resource.defuse, 'never')
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, defuse='all')
         self.assertRaises(TypeError, XMLResource, self.vh_xml_file, defuse=None)
         self.assertIsInstance(resource.root, etree_element)
-        resource = XMLResource(self.vh_xml_file, defuse='always')
+        resource = XMLResource(self.vh_xml_file, defuse='always', lazy=True)
         self.assertIsInstance(resource.root, py_etree_element)
 
         xml_file = casepath('resources/with_entity.xml')
-        self.assertIsInstance(XMLResource(xml_file), XMLResource)
-        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
+        self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
+        with self.assertRaises(PyElementTree.ParseError):
+            XMLResource(xml_file, defuse='always', lazy=True)
 
         xml_file = casepath('resources/unused_external_entity.xml')
-        self.assertIsInstance(XMLResource(xml_file), XMLResource)
-        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
+        self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
+        with self.assertRaises(PyElementTree.ParseError):
+            XMLResource(xml_file, defuse='always', lazy=True)
 
         xml_file = casepath('resources/external_entity.xml')
-        self.assertIsInstance(XMLResource(xml_file), XMLResource)
-        self.assertRaises(PyElementTree.ParseError, XMLResource, xml_file, defuse='always')
+        self.assertIsInstance(XMLResource(xml_file, lazy=True), XMLResource)
+        with self.assertRaises(PyElementTree.ParseError):
+            XMLResource(xml_file, defuse='always', lazy=True)
 
     def test_xml_resource_timeout(self):
         resource = XMLResource(self.vh_xml_file, timeout=30)
@@ -495,7 +487,7 @@ class TestResources(unittest.TestCase):
         self.assertRaises(ValueError, XMLResource, self.vh_xml_file, timeout=0)
 
     def test_xml_resource_is_lazy(self):
-        resource = XMLResource(self.vh_xml_file)
+        resource = XMLResource(self.vh_xml_file, lazy=True)
         self.assertTrue(resource.is_lazy())
         resource = XMLResource(self.vh_xml_file, lazy=False)
         self.assertFalse(resource.is_lazy())
@@ -545,7 +537,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(resource.tostring().startswith('<vh:vehicles'))
 
     def test_xml_resource_copy(self):
-        resource = XMLResource(self.vh_xml_file)
+        resource = XMLResource(self.vh_xml_file, lazy=True)
         resource2 = resource.copy(defuse='never')
         self.assertEqual(resource2.defuse, 'never')
         resource2 = resource.copy(timeout=30)
@@ -556,7 +548,7 @@ class TestResources(unittest.TestCase):
         self.assertIsNone(resource.text)
         self.assertIsNone(resource2.text)
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             resource.load()
         self.assertIn('cannot load a lazy resource', str(ctx.exception))
 
@@ -573,7 +565,7 @@ class TestResources(unittest.TestCase):
         self.assertTrue(data.startswith('<?xml '))
         xml_file.close()
         resource = XMLResource('<A/>')
-        self.assertRaises(XMLSchemaResourceError, resource.open)
+        self.assertRaises(XMLResourceError, resource.open)
 
         resource = XMLResource(source=open(self.vh_xml_file))
         xml_file = resource.open()
@@ -603,9 +595,9 @@ class TestResources(unittest.TestCase):
                 resource.open()
 
     def test_xml_resource_iter(self):
-        resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=False)
+        resource = XMLResource(self.schema_class.meta_schema.source.url)
         self.assertFalse(resource.is_lazy())
-        lazy_resource = XMLResource(self.schema_class.meta_schema.source.url)
+        lazy_resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=True)
         self.assertTrue(lazy_resource.is_lazy())
 
         tags = [x.tag for x in resource.iter()]
@@ -626,9 +618,9 @@ class TestResources(unittest.TestCase):
 
     def test_xml_resource_iter_subtrees(self):
         namespaces = {'xs': XSD_NAMESPACE}
-        resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=False)
+        resource = XMLResource(self.schema_class.meta_schema.source.url)
         self.assertFalse(resource.is_lazy())
-        lazy_resource = XMLResource(self.schema_class.meta_schema.source.url)
+        lazy_resource = XMLResource(self.schema_class.meta_schema.source.url, lazy=True)
         self.assertTrue(lazy_resource.is_lazy())
 
         # Note: Element change with lazy resource so compare only tags
@@ -781,7 +773,7 @@ class TestResources(unittest.TestCase):
         self.assertIn("http://example.com/vehicles", schema.maps.namespaces)
         self.assertEqual(len(schema.maps.namespaces["http://example.com/vehicles"]), 4)
 
-        with self.assertRaises(XMLSchemaResourceError) as ctx:
+        with self.assertRaises(XMLResourceError) as ctx:
             self.schema_class(xsd_source, allow='sandbox')
         self.assertIn("block access to files out of sandbox", str(ctx.exception))
 
