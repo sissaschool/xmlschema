@@ -261,6 +261,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertFalse(os.path.isdir(dirname))
 
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_export_remote__issue_187(self):
         vh_schema_file = self.casepath('issues/issue_187/issue_187_2.xsd')
         vh_schema = self.schema_class(vh_schema_file)
