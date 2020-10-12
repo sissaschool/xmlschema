@@ -7,3 +7,5 @@ omit = xmlschema/testing/*
 exclude_lines =
     pragma: no cover
     raise NotImplementedError()
+    in self._etree_iterparse\(
+    in PyElementTree.iterparse\(

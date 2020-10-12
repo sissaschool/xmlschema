@@ -228,8 +228,8 @@ def normalize_locations(locations, base_url=None, keep_relative=False):
 
 def fetch_resource(location, base_url=None, timeout=30):
     """
-    Fetch a resource trying to accessing it. If the resource is accessible
-    returns the URL, otherwise raises an error (XMLSchemaResourceError).
+    Fetch a resource by trying to access it. If the resource is accessible
+    returns its URL, otherwise raises an :class:`XMLResourceError`.
 
     :param location: an URL or a file path.
     :param base_url: reference base URL for normalizing local and relative URLs.
@@ -237,7 +237,7 @@ def fetch_resource(location, base_url=None, timeout=30):
     :return: a normalized URL.
     """
     if not location:
-        raise XMLSchemaValueError("'location' argument must contains a not empty string.")
+        raise XMLSchemaValueError("'location' argument must contain a not empty string")
 
     url = normalize_url(location, base_url)
     try:
@@ -283,7 +283,7 @@ def fetch_schema_locations(source, locations=None, base_url=None,
     namespace = resource.namespace
     locations = resource.get_locations(locations, root_only=False)
     if not locations:
-        msg = "the XML data resource {!r} does not contain any schema location hint."
+        msg = "{!r} does not contain any schema location hint"
         raise XMLSchemaValueError(msg.format(source))
 
     for ns, url in sorted(locations, key=lambda x: x[0] != namespace):
@@ -353,14 +353,7 @@ class XMLResource(object):
         return self.__repr__()
 
     def __repr__(self):
-        if self._root is None:
-            return u'%s()' % self.__class__.__name__
-        elif self._url is None:
-            return u'%s(tag=%r)' % (self.__class__.__name__, self._root.tag)
-        else:
-            return u'%s(tag=%r, basename=%r)' % (
-                self.__class__.__name__, self._root.tag, os.path.basename(self._url)
-            )
+        return '%s(root=%r)' % (self.__class__.__name__, self._root)
 
     def __setattr__(self, name, value):
         if name == '_base_url':
@@ -426,7 +419,7 @@ class XMLResource(object):
         safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
         resource = BytesIO(text) if isinstance(text, bytes) else StringIO(text)
         try:
-            for _, _ in PyElementTree.iterparse(resource, ('start',), safe_parser):
+            for _, _ in PyElementTree.iterparse(resource, events=('start',), parser=safe_parser):
                 break
         except PyElementTree.ParseError as err:
             raise ElementTree.ParseError(str(err))
@@ -436,15 +429,15 @@ class XMLResource(object):
 
     def _etree_iterparse(self, source, events=None):
         if not self._have_to_defuse():
-            return ElementTree.iterparse(source, events)
-
-        # Can use PyElement with incremental parsing because
-        # there is not the need to save partial trees.
-        safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        try:
-            return PyElementTree.iterparse(source, events, safe_parser)
-        except PyElementTree.ParseError as err:
-            raise ElementTree.ParseError(str(err))
+            yield from ElementTree.iterparse(source, events)
+        else:
+            # Can use PyElement with incremental parsing because
+            # there is not the need to save partial trees.
+            safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+            try:
+                yield from PyElementTree.iterparse(source, events, safe_parser)
+            except PyElementTree.ParseError as err:
+                raise ElementTree.ParseError(str(err))
 
     def parse(self, source, lazy=True):
         if isinstance(lazy, bool):
@@ -669,23 +662,19 @@ class XMLResource(object):
             if not self._source.seekable():
                 return
         except AttributeError:
-            pass
+            pass  # pragma: no cover
         else:
             return self._source.seek(position)
 
         try:
-            value = self._source.seek(position)
+            return self._source.seek(position)
         except AttributeError:
             pass
-        else:
-            return value
 
         try:
-            value = self._source.fp.seek(position)
+            return self._source.fp.seek(position)
         except AttributeError:
             pass
-        else:
-            return value
 
     def close(self):
         """
@@ -916,7 +905,7 @@ class XMLResource(object):
                 else:
                     yield from etree_iter_location_hints(node)
         except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-            pass
+            pass  # pragma: no cover
         finally:
             if self._source is not resource:
                 resource.close()
