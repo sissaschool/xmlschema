@@ -311,6 +311,14 @@ class XmlDocument(XMLResource):
 
         if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
             self.schema = schema
+        elif schema is not None:
+            self.schema = (cls or XMLSchema)(
+                source=schema,
+                base_url=base_url,
+                allow=allow,
+                defuse=defuse,
+                timeout=timeout,
+            )
         elif self.schema is None:
             if cls is None:
                 cls = XMLSchema
@@ -321,10 +329,15 @@ class XmlDocument(XMLResource):
                 if XSI_TYPE in self._root.attrib:
                     self.schema = cls.meta_schema
                 elif validation != 'skip':
-                    raise XMLSchemaValueError("no schema can be get for the XML resource")
+                    msg = "no schema can be retrieved for the XML resource"
+                    raise XMLSchemaValueError(msg) from None
                 else:
                     tag = self._root.tag
-                    namespace, name = tag[1:].split('}') if tag.startswith('{') else '', tag
+                    if tag.startswith('{'):
+                        namespace, name = tag[1:].split('}')
+                    else:
+                        namespace, name = '', tag
+
                     if namespace:
                         self._fallback_schema = cls(
                             '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
@@ -348,9 +361,9 @@ class XmlDocument(XMLResource):
                 )
 
         if validation == 'strict':
-            schema.validate(source, self.namespaces)
+            self.schema.validate(self, namespaces=self.namespaces)
         if validation == 'lax':
-            self.errors = [e for e in schema.iter_errors(source, namespaces=self.namespaces)]
+            self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
         else:
             self.errors = []
 
@@ -378,9 +391,9 @@ class XmlDocument(XMLResource):
                               xml_declaration=xml_declaration,
                               encoding=encoding, method=method)
 
-    def to_dict(self, **kwargs):
+    def decode(self, **kwargs):
         """
-        Converts the XML document to a nested dictionary.
+        Decode the XML document to a nested Python dictionary.
 
         :param kwargs: options for the decode/to_dict method of the schema instance.
         """

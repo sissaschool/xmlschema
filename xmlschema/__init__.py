@@ -18,7 +18,8 @@ from .converters import (
     ElementData, XMLSchemaConverter, UnorderedConverter, ParkerConverter,
     BadgerFishConverter, AbderaConverter, JsonMLConverter, ColumnarConverter
 )
-from .documents import validate, is_valid, iter_errors, to_dict, to_json, from_json
+from .documents import validate, is_valid, iter_errors, to_dict, to_json, \
+    from_json, XmlDocument
 
 from .validators import (
     XMLSchemaValidatorError, XMLSchemaParseError, XMLSchemaNotBuiltError,
@@ -38,13 +39,13 @@ __status__ = "Production/Stable"
 
 
 __all__ = [
-    'limits', 'XMLSchemaException', 'XMLSchemaRegexError', 'XMLResourceError',
-    'XMLSchemaNamespaceError', 'etree_tostring', 'normalize_url', 'normalize_locations',
-    'fetch_resource', 'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema',
-    'XMLResource', 'ElementPathMixin', 'ElementData', 'XMLSchemaConverter',
-    'UnorderedConverter', 'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter',
-    'JsonMLConverter', 'ColumnarConverter', 'validate', 'is_valid', 'iter_errors',
-    'to_dict', 'to_json', 'from_json', 'XMLSchemaValidatorError', 'XMLSchemaParseError',
+    'limits', 'XMLSchemaException', 'XMLResourceError', 'XMLSchemaNamespaceError',
+    'etree_tostring', 'normalize_url', 'normalize_locations', 'fetch_resource',
+    'fetch_namespaces', 'fetch_schema_locations', 'fetch_schema', 'XMLResource',
+    'ElementPathMixin', 'ElementData', 'XMLSchemaConverter', 'UnorderedConverter',
+    'ParkerConverter', 'BadgerFishConverter', 'AbderaConverter', 'JsonMLConverter',
+    'ColumnarConverter', 'validate', 'is_valid', 'iter_errors', 'to_dict', 'to_json',
+    'from_json', 'XmlDocument', 'XMLSchemaValidatorError', 'XMLSchemaParseError',
     'XMLSchemaNotBuiltError', 'XMLSchemaModelError', 'XMLSchemaModelDepthError',
     'XMLSchemaValidationError', 'XMLSchemaDecodeError', 'XMLSchemaEncodeError',
     'XMLSchemaChildrenValidationError', 'XMLSchemaIncludeWarning',

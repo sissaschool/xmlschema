@@ -1444,7 +1444,12 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         namespaces = source.get_namespaces(namespaces)
         namespace = source.namespace or namespaces.get('', '')
-        schema = self.get_schema(namespace)
+
+        try:
+            schema = self.get_schema(namespace)
+        except KeyError:
+            schema = self
+
         identities = {}
         ancestors = []
         prev_ancestors = []

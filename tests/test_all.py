@@ -25,11 +25,14 @@ if __name__ == '__main__':
 
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_etree.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_helpers.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_qnames.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_namespaces.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_resources.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_regex.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_xpath.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_cli.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_converters.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_regex.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_resources.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_xpath.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_documents.py"))
 
         validation_dir = os.path.join(os.path.dirname(__file__), 'validation')
         tests.addTests(loader.discover(start_dir=validation_dir, pattern='test_*.py'))
