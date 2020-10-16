@@ -455,7 +455,11 @@ class XsdComplexType(XsdType, ValidationMixin):
                                  "extension group is not empty" % base_type.mixed, elem)
             self.content = content
 
-        elif not base_type.is_simple() and not base_type.has_simple_content():
+        elif base_type.is_simple():
+            self.content = base_type
+        elif base_type.has_simple_content():
+            self.content = base_type.content
+        else:
             self.content = self.schema.create_empty_content_group(self)
             self.content.append(base_type.content)
             self.content.elem.append(base_type.content.elem)
@@ -463,8 +467,6 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error(
                     "extended type has a mixed content but the base is element-only", elem
                 )
-        else:
-            self.content = self.schema.create_empty_content_group(self)
 
         self._parse_content_tail(elem, derivation='extension', base_attributes=base_type.attributes)
 
@@ -892,7 +894,11 @@ class Xsd11ComplexType(XsdComplexType):
 
             self.content = content
 
-        elif not base_type.is_simple() and not base_type.has_simple_content():
+        elif base_type.is_simple():
+            self.content = base_type
+        elif base_type.has_simple_content():
+            self.content = base_type.content
+        else:
             self.content = self.schema.create_empty_content_group(self)
             self.content.append(base_type.content)
             self.content.elem.append(base_type.content.elem)
@@ -900,8 +906,6 @@ class Xsd11ComplexType(XsdComplexType):
                 self.parse_error(
                     "extended type has a mixed content but the base is element-only", elem
                 )
-        else:
-            self.content = self.schema.create_empty_content_group(self)
 
         if not self.open_content:
             default_open_content = self.default_open_content
