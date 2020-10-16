@@ -201,6 +201,16 @@ class XsdGlobals(XsdValidator):
     :param validator: the origin schema class/instance used for creating the global maps.
     :param validation: the XSD validation mode to use, can be 'strict', 'lax' or 'skip'.
     """
+    _lookup_resolver = {
+        XSD_SIMPLE_TYPE: 'lookup_type',
+        XSD_COMPLEX_TYPE: 'lookup_type',
+        XSD_ELEMENT: 'lookup_element',
+        XSD_GROUP: 'lookup_group',
+        XSD_ATTRIBUTE: 'lookup_attribute',
+        XSD_ATTRIBUTE_GROUP: 'lookup_attribute_group',
+        XSD_NOTATION: 'lookup_notation',
+    }
+
     def __init__(self, validator, validation='strict'):
         super(XsdGlobals, self).__init__(validation)
         if not all(hasattr(validator, a) for a in ('meta_schema', 'BUILDERS_MAP')):
@@ -231,8 +241,9 @@ class XsdGlobals(XsdValidator):
 
     def copy(self, validator=None, validation=None):
         """Makes a copy of the object."""
-        obj = XsdGlobals(self.validator if validator is None else validator,
-                         validation or self.validation)
+        obj = self.__class__(self.validator if validator is None else validator,
+                             validation or self.validation)
+
         obj.namespaces.update(self.namespaces)
         obj.types.update(self.types)
         obj.attributes.update(self.attributes)
@@ -276,21 +287,13 @@ class XsdGlobals(XsdValidator):
         :raises: an XMLSchemaValueError if the *tag* argument is not appropriate for a global \
         component, an XMLSchemaKeyError if the *qname* argument is not found in the global map.
         """
-        if tag in (XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE):
-            return self.lookup_type(qname)
-        elif tag == XSD_ELEMENT:
-            return self.lookup_element(qname)
-        elif tag == XSD_GROUP:
-            return self.lookup_group(qname)
-        elif tag == XSD_ATTRIBUTE:
-            return self.lookup_attribute(qname)
-        elif tag == XSD_ATTRIBUTE_GROUP:
-            return self.lookup_attribute_group(qname)
-        elif tag == XSD_NOTATION:
-            return self.lookup_notation(qname)
+        try:
+            lookup_function = getattr(self, self._lookup_resolver[tag])
+        except KeyError:
+            msg = "wrong tag {!r} for an XSD global definition/declaration"
+            raise XMLSchemaValueError(msg.format(tag)) from None
         else:
-            raise XMLSchemaValueError("wrong tag {!r} for an XSD global "
-                                      "definition/declaration".format(tag))
+            return lookup_function(qname)
 
     def get_instance_type(self, type_name, base_type, namespaces):
         """

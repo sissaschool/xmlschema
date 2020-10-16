@@ -26,8 +26,7 @@ def casepath(relative_path):
 
 WSDL_DOCUMENT_EXAMPLE = """<?xml version="1.0"?>
 <definitions name="StockQuote"
-
-targetNamespace="http://example.com/stockquote.wsdl"
+          targetNamespace="http://example.com/stockquote.wsdl"
           xmlns:tns="http://example.com/stockquote.wsdl"
           xmlns:xsd1="http://example.com/stockquote.xsd"
           xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
@@ -35,7 +34,7 @@ targetNamespace="http://example.com/stockquote.wsdl"
 
     <types>
        <schema targetNamespace="http://example.com/stockquote.xsd"
-              xmlns="http://www.w3.org/2000/10/XMLSchema">
+              xmlns="http://www.w3.org/2001/XMLSchema">
            <element name="TradePriceRequest">
               <complexType>
                   <all>

@@ -242,7 +242,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
     :ivar extra_locations: schema extra location hints provided with the argument *locations*.
-    :vartype locations: tuple or None
+    :vartype extra_locations: tuple or None
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
@@ -312,7 +312,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             # Allow sandbox mode without a base_url using the initial schema URL as base
             base_url = os.path.dirname(normalize_url(source))
 
-        self.source = XMLResource(source, base_url, allow, defuse, timeout)
+        if isinstance(source, XMLResource):
+            self.source = source
+        else:
+            self.source = XMLResource(source, base_url, allow, defuse, timeout)
         logger.debug("Read schema from %r", self.source)
 
         self.imports = {}
@@ -491,8 +494,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.substitution_groups = NamespaceView(value.substitution_groups,
                                                      self.target_namespace)
             self.identities = NamespaceView(value.identities, self.target_namespace)
-            self.global_maps = (self.notations, self.types, self.attributes,
-                                self.attribute_groups, self.groups, self.elements)
+            self._global_views = (self.notations, self.types, self.attributes,
+                                  self.attribute_groups, self.groups, self.elements)
             value.register(self)
         else:
             if name == 'validation':
@@ -886,10 +889,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param schema: Optional argument for filtering only globals related to a schema instance.
         """
         if schema is None:
-            for global_map in self.global_maps:
+            for global_map in self._global_views:
                 yield from global_map.values()
         else:
-            for global_map in self.global_maps:
+            for global_map in self._global_views:
                 for obj in global_map.values():
                     if isinstance(obj, tuple):
                         if obj[1] == schema:

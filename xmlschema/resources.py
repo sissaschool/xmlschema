@@ -347,6 +347,7 @@ class XMLResource(object):
         self.allow = allow
         self.defuse = defuse
         self.timeout = timeout
+        self._nsmap = {}
         self.parse(source, lazy)
 
     def __str__(self):
@@ -399,45 +400,71 @@ class XMLResource(object):
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceError("block access to out of sandbox file {}".format(url))
 
-    def _have_to_defuse(self):
-        if self.defuse == 'remote':
-            return is_remote_url(self.base_url)
-        return self.defuse == 'always'
-
-    def _etree_parse(self, source, parser=None):
-        if not self._have_to_defuse():
-            return ElementTree.parse(source, parser).getroot()
-
-        # Load XML document in memory to assure integrity
-        # between defusing and building phases
-        if hasattr(source, 'read'):
-            text = source.read()
-        else:
-            with open(source) as f:
-                text = f.read()
-
-        safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-        resource = BytesIO(text) if isinstance(text, bytes) else StringIO(text)
-        try:
-            for _, _ in PyElementTree.iterparse(resource, events=('start',), parser=safe_parser):
-                break
-        except PyElementTree.ParseError as err:
-            raise ElementTree.ParseError(str(err))
-
-        resource.seek(0)
-        return ElementTree.parse(resource, parser).getroot()
-
     def _etree_iterparse(self, source, events=None):
-        if not self._have_to_defuse():
-            yield from ElementTree.iterparse(source, events)
-        else:
-            # Can use PyElement with incremental parsing because
-            # there is not the need to save partial trees.
+        if self.defuse == 'remote' and is_remote_url(self.base_url) or self.defuse == 'always':
             safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+
             try:
                 yield from PyElementTree.iterparse(source, events, safe_parser)
             except PyElementTree.ParseError as err:
                 raise ElementTree.ParseError(str(err))
+        else:
+            yield from ElementTree.iterparse(source, events)
+
+    def _parse(self, resource, lazy):
+        if lazy:
+            nsmap = []
+            for event, node in self._etree_iterparse(resource, events=('start-ns', 'start')):
+                if event == 'start-ns':
+                    nsmap.append(node)
+                else:
+                    self._root = node
+                    self._nsmap.clear()
+                    self._nsmap[node] = nsmap
+                    break
+        else:
+            if self.defuse == 'remote' and is_remote_url(self.base_url) \
+                    or self.defuse == 'always':
+
+                if not hasattr(resource, 'seekable') or not resource.seekable():
+                    xml_data = resource.read()
+                    if isinstance(xml_data, str):
+                        resource = StringIO(xml_data)
+                    else:
+                        resource = BytesIO(xml_data)
+
+                safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
+                try:
+                    for _ in PyElementTree.iterparse(resource, ('start',), safe_parser):
+                        break
+                except PyElementTree.ParseError as err:
+                    raise ElementTree.ParseError(str(err))
+                else:
+                    resource.seek(0)
+
+            elem = None
+            nsmap = []
+            nsmap_changed = False
+            namespaces = {}
+            events = 'start-ns', 'end-ns', 'end'
+            for event, node in ElementTree.iterparse(resource, events):
+                if event == 'end':
+                    if nsmap_changed or elem is None:
+                        namespaces[node] = {x[0]: x[1] for x in nsmap}
+                        nsmap_changed = False
+                    else:
+                        namespaces[node] = namespaces[elem]
+                    elem = node
+                elif event == 'start-ns':
+                    nsmap.append(node)
+                    nsmap_changed = True
+                else:
+                    nsmap.pop()
+                    nsmap_changed = True
+
+            self._root = elem
+            self._nsmap.clear()
+            self._nsmap.update(namespaces)
 
     def parse(self, source, lazy=True):
         if isinstance(lazy, bool):
@@ -457,11 +484,7 @@ class XMLResource(object):
             _url, self._url = self._url, url
             try:
                 with urlopen(url, timeout=self.timeout) as resource:
-                    if lazy:
-                        for _, self._root in self._etree_iterparse(resource, events=('start',)):
-                            break
-                    else:
-                        self._root = self._etree_parse(resource)
+                    self._parse(resource, lazy)
             except Exception:
                 self._url = _url
                 raise
@@ -473,18 +496,7 @@ class XMLResource(object):
             # source is a string containing an XML document
             _url, self._url = self._url, None
             try:
-                if lazy:
-                    for _, self._root in self._etree_iterparse(StringIO(source), ('start',)):
-                        break
-                else:
-                    if self._have_to_defuse():
-                        safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
-                        try:
-                            PyElementTree.XML(source, safe_parser)
-                        except PyElementTree.ParseError as err:
-                            raise ElementTree.ParseError(str(err))
-                    self._root = ElementTree.XML(source)
-
+                self._parse(StringIO(source), lazy)
             except Exception:
                 self._url = _url
                 raise
@@ -495,11 +507,7 @@ class XMLResource(object):
         elif isinstance(source, StringIO):
             _url, self._url = self._url, None
             try:
-                if lazy:
-                    for _, self._root in self._etree_iterparse(source, events=('start',)):
-                        break
-                else:
-                    self._root = self._etree_parse(source)
+                self._parse(source, lazy)
             except Exception:
                 self._url = _url
                 raise
@@ -521,11 +529,7 @@ class XMLResource(object):
 
             _url, self._url = self._url, url
             try:
-                if lazy:
-                    for _, self._root in self._etree_iterparse(source, events=('start',)):
-                        break
-                else:
-                    self._root = self._etree_parse(source)
+                self._parse(source, lazy)
             except Exception:
                 self._url = _url
                 raise
@@ -928,47 +932,52 @@ class XMLResource(object):
             nsmap[''] = ''
         if namespaces:
             nsmap.update(namespaces)
-        if root_only is None:
-            root_only = self._lazy
 
-        if self._url is not None or hasattr(self._source, 'read'):
-            resource = self.open()
-        elif isinstance(self._text, str):
-            resource = StringIO(self._text)
-        else:
-            try:
-                # Can extract namespace mapping information only from lxml etree structures
-                if root_only:
-                    for k, v in self._root.nsmap.items():
+        if not self._lazy:
+            if root_only:
+                nodes_iterator = (self._root,)
+            else:
+                nodes_iterator = self._root.iter()
+
+            if hasattr(self._root, 'nsmap'):
+                for elem in nodes_iterator:
+                    for k, v in elem.nsmap.items():
                         update_prefix(nsmap, k if k is not None else '', v)
-                else:
-                    for elem in self._root.iter():
-                        for k, v in elem.nsmap.items():
-                            update_prefix(nsmap, k if k is not None else '', v)
-            except AttributeError:
+            else:
+                try:
+                    for elem in nodes_iterator:
+                        for k, v in self._nsmap[elem].items():
+                            update_prefix(nsmap, k, v)
+                except KeyError:
+                    pass
+
+        else:
+            if self._url is not None or hasattr(self._source, 'read'):
+                resource = self.open()
+            else:
+                resource = StringIO(self._text)
+
+            if root_only is False:
+                events = 'start-ns', 'end'
+            else:
+                events = 'start-ns', 'start'  # True or None
+
+            try:
+                for event, node in self._etree_iterparse(resource, events):
+                    if event == 'start-ns':
+                        update_prefix(nsmap, *node)
+                    elif event == 'end':
+                        node.clear()
+                    else:
+                        break
+            except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
                 pass
-
-            if nsmap.get('') == '':
-                del nsmap['']
-            return nsmap
-
-        events = ('start-ns', 'start') if root_only else ('start-ns', 'end')
-        try:
-            for event, node in self._etree_iterparse(resource, events):
-                if event == 'start-ns':
-                    update_prefix(nsmap, *node)
-                elif event == 'end':
-                    node.clear()
-                else:
-                    break
-        except (ElementTree.ParseError, PyElementTree.ParseError, UnicodeEncodeError):
-            pass
-        finally:
-            # We don't want to close the file obj if it wasn't
-            # originally opened by `XMLResource`. That is the concern
-            # of the code where the file obj came from.
-            if self._source is not resource:
-                resource.close()
+            finally:
+                # We don't want to close the file obj if it wasn't
+                # originally opened by `XMLResource`. That is the concern
+                # of the code where the file obj came from.
+                if self._source is not resource:
+                    resource.close()
 
         if nsmap.get('') == '':
             del nsmap['']

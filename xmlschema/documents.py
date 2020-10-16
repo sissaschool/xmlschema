@@ -362,10 +362,13 @@ class XmlDocument(XMLResource):
 
         if validation == 'strict':
             self.schema.validate(self, namespaces=self.namespaces)
-        if validation == 'lax':
-            self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
-        else:
             self.errors = []
+        elif validation == 'lax':
+            self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
+        elif validation == 'skip':
+            self.errors = []
+        else:
+            raise XMLSchemaValueError("{!r}: not a validation mode".format(validation))
 
     def getroot(self):
         """Get the root element of the XML document."""

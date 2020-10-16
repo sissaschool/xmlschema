@@ -639,31 +639,34 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertTrue(resource.is_loaded())
 
+    def test_xml_resource__etree_iterparse(self):
+        resource = XMLResource(self.vh_xml_file)
+
+        self.assertEqual(resource.defuse, 'remote')
+        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
+            self.assertTrue(is_etree_element(elem))
+
+        resource.defuse = 'always'
+        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
+            self.assertTrue(is_etree_element(elem))
+
     def test_xml_resource_protected_parse(self):
         resource = XMLResource(self.vh_xml_file, lazy=False)
 
         self.assertEqual(resource.defuse, 'remote')
-        root = resource._etree_parse(self.col_xml_file)
-        self.assertTrue(is_etree_element(root))
+        with open(self.col_xml_file) as fp:
+            resource._parse(fp, lazy=False)
+        self.assertTrue(is_etree_element(resource.root))
 
         resource.defuse = 'always'
-        root = resource._etree_parse(self.col_xml_file)
-        self.assertTrue(is_etree_element(root))
+        with open(self.col_xml_file) as fp:
+            resource._parse(fp, lazy=False)
+        self.assertTrue(is_etree_element(resource.root))
 
-        resource = XMLResource(self.vh_xml_file)
-        root = resource._etree_parse(self.col_xml_file)
-        self.assertTrue(is_etree_element(root))
-
-    def test_xml_resource_protected_iterparse(self):
-        resource = XMLResource(self.vh_xml_file)
-
-        self.assertEqual(resource.defuse, 'remote')
-        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
-            self.assertTrue(is_etree_element(elem))
-
-        resource.defuse = 'always'
-        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
-            self.assertTrue(is_etree_element(elem))
+        resource = XMLResource(self.vh_xml_file, lazy=True)
+        with open(self.col_xml_file) as fp:
+            resource._parse(fp, lazy=True)
+        self.assertTrue(is_etree_element(resource.root))
 
     def test_xml_resource_tostring(self):
         resource = XMLResource(self.vh_xml_file)

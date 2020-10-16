@@ -11,28 +11,52 @@ import os
 import warnings
 
 from .exceptions import XMLSchemaException, XMLSchemaValueError
-from .namespaces import WSDL_NAMESPACE, SCHEMAS_DIR, NamespaceResourcesMap
+from .etree import etree_tostring
+from .namespaces import XSD_NAMESPACE, WSDL_NAMESPACE, SCHEMAS_DIR, NamespaceResourcesMap
+from .qnames import XSD_SCHEMA
 from .resources import is_remote_url, url_path_is_file, fetch_resource
 from .documents import XmlDocument
 from .validators import XMLSchema10, XMLSchemaImportWarning
 
 
+# WSDL 1.1 global declarations
 WSDL_IMPORT = '{%s}import' % WSDL_NAMESPACE
+WSDL_TYPES = '{%s}types' % WSDL_NAMESPACE
+WSDL_MESSAGE = '{%s}types' % WSDL_NAMESPACE
+WSDL_PORT_TYPE = '{%s}portType' % WSDL_NAMESPACE
+WSDL_BINDING = '{%s}binding' % WSDL_NAMESPACE
+WSDL_SERVICE = '{%s}service' % WSDL_NAMESPACE
+
+# Other WSDL tags
+WSDL_PART = '{%s}part' % WSDL_NAMESPACE
+WSDL_PORT = '{%s}port' % WSDL_NAMESPACE
+WSDL_INPUT = '{%s}input' % WSDL_NAMESPACE
+WSDL_OUTPUT = '{%s}output' % WSDL_NAMESPACE
+WSDL_FAULT = '{%s}fault' % WSDL_NAMESPACE
+WSDL_OPERATION = '{%s}operation' % WSDL_NAMESPACE
 
 
 class WsdlParseError(XMLSchemaException, SyntaxError):
     """An error during parsing of a WSDL document."""
 
 
-class Wsdl11Document(XmlDocument):
+class Wsdl11Globals(object):
 
-    schema = XMLSchema10(os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'), build=False)
+    def __init__(self, xsd_globals):
+        self.namespaces = NamespaceResourcesMap()
+        self.xsd_globals = xsd_globals
+        self.messages = {}
+        self.port_types = {}
+        self.bindings = {}
+        self.services = {}
+
+
+class Wsdl11Document(XmlDocument):
 
     def __init__(self, source, cls=None, validation='strict', namespaces=None, maps=None,
                  locations=None, base_url=None, allow='all', defuse='remote', timeout=300):
-        if not self.schema.built:
-            self.schema.build()
 
+        self.schema = (cls or XMLSchema10)(os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'))
         super(Wsdl11Document, self).__init__(
             source=source,
             schema=self.schema,
@@ -50,15 +74,46 @@ class Wsdl11Document(XmlDocument):
         self.locations = NamespaceResourcesMap(self.get_locations(locations))
 
         if maps is None:
-            self.maps = self.schema.maps.copy()
+            self.maps = Wsdl11Globals(xsd_globals=self.schema.maps.copy())
+        else:
+            self.maps = maps
+
+        if self.namespace == XSD_NAMESPACE:
+            # Build schema for XSD documents
+            self.schema.__class__(self, locations=locations, global_maps=self.schema.maps)
+            return
 
         self._parse_imports()
+        # self._parse_types()
 
     def parse_error(self, message):
         if self.validation == 'strict':
             raise WsdlParseError(message)
         elif self.validation == 'lax':
             self.errors.append(WsdlParseError(message))
+
+    def _parse_types(self):
+        nsmap = {}
+        path = '{}/{}'.format(WSDL_TYPES, XSD_SCHEMA)
+
+        for child in filter(lambda x: x.tag == WSDL_TYPES, self._root):
+            for schema_root in filter(lambda x: x.tag == XSD_SCHEMA, child):
+                self.schema.__class__(
+                    source=etree_tostring(schema_root, namespaces=self.namespaces),
+                    global_maps=self.schema.maps
+                )
+
+    def _parse_messages(self):
+        pass
+
+    def _parse_port_types(self):
+        pass
+
+    def _parse_services(self):
+        pass
+
+    def _parse_bindings(self):
+        pass
 
     def _parse_imports(self):
         namespace_imports = NamespaceResourcesMap(map(
@@ -97,8 +152,6 @@ class Wsdl11Document(XmlDocument):
                 try:
                     self.import_namespace(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
-                    # It's not an error if the location access fails (ref. section 4.2.6.2):
-                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#composition-schemaImport
                     if import_error is None:
                         import_error = err
                 except (TypeError, SyntaxError) as err:
@@ -112,7 +165,6 @@ class Wsdl11Document(XmlDocument):
                 except XMLSchemaValueError as err:
                     self.parse_error(err)
                 else:
-                    # logger.info("Namespace %r imported from %r", namespace, url)
                     break
             else:
                 if import_error is not None:
