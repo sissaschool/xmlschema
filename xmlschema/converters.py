@@ -14,8 +14,7 @@ from collections import namedtuple
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .namespaces import XSI_NAMESPACE
-from .etree import etree_element, lxml_etree_element, etree_register_namespace, \
-    lxml_etree_register_namespace
+from .etree import etree_element
 from xmlschema.namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -86,14 +85,7 @@ class XMLSchemaConverter(NamespaceMapper):
                  cdata_prefix=None, indent=4, strip_namespaces=False,
                  preserve_root=False, force_dict=False, force_list=False, **kwargs):
 
-        if etree_element_class is None or etree_element_class is etree_element:
-            register_namespace = etree_register_namespace
-        elif etree_element_class is lxml_etree_element:
-            register_namespace = lxml_etree_register_namespace
-        else:
-            raise XMLSchemaTypeError("unsupported element class {!r}".format(etree_element_class))
-
-        super(XMLSchemaConverter, self).__init__(namespaces, register_namespace, strip_namespaces)
+        super(XMLSchemaConverter, self).__init__(namespaces, strip_namespaces)
 
         if dict_class is not None:
             self.dict = dict_class

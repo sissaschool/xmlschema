@@ -120,14 +120,11 @@ class NamespaceMapper(MutableMapping):
     the existing registration or inserted using an alternative prefix.
 
     :param namespaces: initial data with namespace prefixes and URIs.
-    :param register_namespace: a two-arguments function for registering namespaces \
-    on ElementTree module.
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
-    def __init__(self, namespaces=None, register_namespace=None, strip_namespaces=False):
+    def __init__(self, namespaces=None, strip_namespaces=False):
         self._namespaces = {}
-        self.register_namespace = register_namespace
         self.strip_namespaces = strip_namespaces
         if namespaces is not None:
             self._namespaces.update(namespaces)
@@ -146,10 +143,6 @@ class NamespaceMapper(MutableMapping):
 
     def __setitem__(self, prefix, uri):
         self._namespaces[prefix] = uri
-        try:
-            self.register_namespace(prefix, uri)
-        except (TypeError, ValueError):
-            pass
 
     def __delitem__(self, prefix):
         del self._namespaces[prefix]

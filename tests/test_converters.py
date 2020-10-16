@@ -11,9 +11,8 @@
 import unittest
 import os
 
-from xmlschema import XMLSchema, XMLSchemaConverter, ElementData
-from xmlschema.etree import etree_element, etree_register_namespace, \
-    lxml_etree_element, lxml_etree_register_namespace, etree_elements_assert_equal
+from xmlschema import XMLSchema, XMLSchemaConverter
+from xmlschema.etree import etree_element, lxml_etree_element, etree_elements_assert_equal
 
 from xmlschema.converters import ColumnarConverter
 
@@ -29,19 +28,13 @@ class TestConverters(unittest.TestCase):
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()
         self.assertIs(converter.etree_element_class, etree_element)
-        self.assertIs(converter.register_namespace, etree_register_namespace)
 
         converter = XMLSchemaConverter(etree_element_class=etree_element)
         self.assertIs(converter.etree_element_class, etree_element)
-        self.assertIs(converter.register_namespace, etree_register_namespace)
 
         if lxml_etree_element is not None:
             converter = XMLSchemaConverter(etree_element_class=lxml_etree_element)
             self.assertIs(converter.etree_element_class, lxml_etree_element)
-            self.assertIs(converter.register_namespace, lxml_etree_register_namespace)
-
-        with self.assertRaises(TypeError):
-            XMLSchemaConverter(etree_element_class=ElementData)
 
     def test_prefix_arguments(self):
         converter = XMLSchemaConverter(cdata_prefix='#')
