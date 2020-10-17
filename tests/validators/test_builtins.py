@@ -11,8 +11,8 @@
 """Tests on XSD meta schema and XSD builtins"""
 import unittest
 
-from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, XMLSchemaValidationError, \
-    XMLSchema10, XMLSchema11
+from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
+    XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.validators.builtins import HEX_BINARY_PATTERN, BASE64_BINARY_PATTERN
 
 
@@ -265,7 +265,9 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+    import platform
+    header_template = "Test xmlschema's XSD builtins with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     unittest.main()

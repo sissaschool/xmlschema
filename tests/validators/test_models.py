@@ -14,7 +14,7 @@ import os.path
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import XsdElement, ModelVisitor, XMLSchemaValidationError
-from xmlschema.testing import print_test_header, XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestModelValidation(XsdValidatorTestCase):
@@ -1127,5 +1127,9 @@ class TestModelBasedSorting(XsdValidatorTestCase):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema's XSD model groups with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

@@ -11,9 +11,10 @@
 if __name__ == '__main__':
     import unittest
     import os
+    import platform
 
     from xmlschema.testing import tests_factory, make_schema_test_class, \
-        make_validation_test_class, print_test_header, get_test_program_args_parser
+        make_validation_test_class, get_test_program_args_parser
 
     DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
 
@@ -66,6 +67,10 @@ if __name__ == '__main__':
     for pattern_ in args.patterns:
         argv.append('-k')
         argv.append(pattern_)
-    print_test_header()
+
+    header_template = "Test xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main(argv=argv, verbosity=args.verbosity, failfast=args.failfast,
                   catchbreak=args.catchbreak, buffer=args.buffer)

@@ -18,7 +18,7 @@ from xmlschema.qnames import local_name
 from xmlschema.etree import etree_element, is_etree_element, etree_tostring, ElementTree
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase, print_test_header
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestEncoding(XsdValidatorTestCase):
@@ -432,5 +432,9 @@ class TestEncoding11(TestEncoding):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema encoding with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

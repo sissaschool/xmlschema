@@ -16,7 +16,6 @@ import fileinput
 import os
 import re
 import importlib
-import platform
 
 
 class TestPackaging(unittest.TestCase):
@@ -102,9 +101,9 @@ class TestPackaging(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    header1 = "Test package %r installation" % package_dir
-    header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
+    import platform
+    header_template = "Packaging tests for xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
     unittest.main()

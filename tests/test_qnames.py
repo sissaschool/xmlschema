@@ -10,7 +10,6 @@
 #
 import unittest
 
-from xmlschema.testing import print_test_header
 from xmlschema.qnames import get_namespace, get_qname, local_name, \
     get_prefixed_qname, get_extended_qname, XSD_SCHEMA, XSD_ELEMENT, \
     XSI_TYPE
@@ -113,5 +112,9 @@ class TestQNameHelpers(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Tests xmlschema QNames with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

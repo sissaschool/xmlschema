@@ -967,9 +967,8 @@ class TestResources(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    header = "XML resource tests with Python {} on platform {}".format(
-        platform.python_version(), platform.platform()
-    )
+    header_template = "Test xmlschema's XML resources with Python {} on platform {}"
+    header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
     unittest.main()

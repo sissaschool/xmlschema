@@ -22,7 +22,7 @@ from xmlschema.etree import etree_element
 from xmlschema.namespaces import SCHEMAS_DIR
 from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase, print_test_header
+from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
@@ -321,5 +321,8 @@ class TestXMLSchema11(TestXMLSchema10):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    header_template = "Test xmlschema's schema classes with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()
