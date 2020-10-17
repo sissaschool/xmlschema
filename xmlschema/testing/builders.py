@@ -16,12 +16,19 @@ import logging
 import sys
 import warnings
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = lxml_etree_element = None
+else:
+    lxml_etree_element = lxml_etree.Element
+
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
-from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
-    etree_elements_assert_equal, py_etree_element, lxml_etree_element
+from xmlschema.etree import etree_tostring, ElementTree, \
+    etree_elements_assert_equal, py_etree_element
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext

@@ -12,14 +12,19 @@ import unittest
 import os
 from decimal import Decimal
 import base64
-from elementpath import datatypes
+from xml.etree import ElementTree
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
+from elementpath import datatypes
 import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.converters import UnorderedConverter
-from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, print_test_header
 

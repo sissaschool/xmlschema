@@ -18,15 +18,19 @@ from io import StringIO
 from urllib.error import URLError
 from urllib.request import urlopen
 from urllib.parse import urlsplit, uses_relative
-
 from pathlib import Path, PureWindowsPath, PurePath
+from xml.etree import ElementTree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 from xmlschema import (
     fetch_namespaces, fetch_resource, normalize_url, fetch_schema, fetch_schema_locations,
     XMLResource, XMLResourceError, XMLSchema, XMLSchema10, XMLSchema11
 )
-from xmlschema.etree import ElementTree, lxml_etree, etree_element, \
-    py_etree_element, is_etree_element
+from xmlschema.etree import etree_element, py_etree_element, is_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
     url_path_is_file, update_prefix, normalize_locations

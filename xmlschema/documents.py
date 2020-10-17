@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 from .exceptions import XMLSchemaValueError, XMLResourceError
 from .namespaces import XSD_NAMESPACE
-from .etree import ElementTree, lxml_etree, is_etree_document, etree_tostring
+from .etree import ElementTree, is_etree_document, etree_tostring
 from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
@@ -384,7 +384,7 @@ class XmlDocument(XMLResource):
             msg = "cannot create an ElementTree from a lazy resource"
             raise XMLResourceError(msg)
         elif hasattr(self._root, 'nsmap'):
-            return lxml_etree.ElementTree(self._root)
+            return self._root.getroottree()
         else:
             return ElementTree.ElementTree(self._root)
 

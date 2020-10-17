@@ -11,11 +11,16 @@
 import unittest
 import os
 import sys
+from xml.etree import ElementTree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError
 
-from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase, print_test_header
 

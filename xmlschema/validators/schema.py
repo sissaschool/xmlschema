@@ -334,11 +334,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         else:
             if self.target_namespace == '':
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
-                self.parse_error("The attribute 'targetNamespace' cannot be an empty string.", root)
+                self.parse_error("the attribute 'targetNamespace' cannot be an empty string", root)
 
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                msg = "wrong namespace (%r instead of %r) for XSD resource %s."
+                msg = "wrong namespace (%r instead of %r) for XSD resource %s"
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
             # Chameleon schema case: set the target namespace and the default namespace

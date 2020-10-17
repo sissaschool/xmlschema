@@ -206,7 +206,7 @@ Decoded data can be encoded back to XML:
     >>> collection = schema.encode(obj)
     >>> collection
     <Element '{http://example.com/ns/collection}collection' at ...>
-    >>> print(xmlschema.etree_tostring(collection))
+    >>> print(xmlschema.etree_tostring(collection, {'col': 'http://example.com/ns/collection'}))
     <col:collection xmlns:col="http://example.com/ns/collection" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://example.com/ns/collection collection.xsd">
         <object id="b0836217462" available="true">
             <position>1</position>

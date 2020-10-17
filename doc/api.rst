@@ -11,8 +11,7 @@ Errors and exceptions
 =====================
 
 .. autoexception:: xmlschema.XMLSchemaException
-.. autoexception:: xmlschema.XMLSchemaResourceError
-.. autoexception:: xmlschema.XMLSchemaRegexError
+.. autoexception:: xmlschema.XMLResourceError
 .. autoexception:: xmlschema.XMLSchemaNamespaceError
 
 .. autoexception:: xmlschema.XMLSchemaValidatorError
@@ -171,7 +170,6 @@ XML resource API
 .. autoclass:: xmlschema.XMLResource
 
     .. autoattribute:: root
-    .. autoattribute:: document
     .. autoattribute:: text
     .. autoattribute:: url
     .. autoattribute:: base_url

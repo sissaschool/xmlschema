@@ -8,20 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-A unified setup module for ElementTree/lxml.etree with a safe parser and helper functions.
+A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import importlib
 import re
 from collections import Counter
 
-try:
-    import lxml.etree as lxml_etree
-except ImportError:
-    lxml_etree = None
-
 from .exceptions import XMLSchemaTypeError
-from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
+from .namespaces import get_namespace
 from .qnames import get_qname, get_prefixed_qname, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 _REGEX_NS_PREFIX = re.compile(r'ns\d+$')
@@ -63,38 +58,9 @@ else:
     ElementTree = importlib.import_module('xml.etree.ElementTree')
 
 
-# ElementTree APIs
 etree_element = ElementTree.Element
-etree_register_namespace = ElementTree.register_namespace
 ParseError = ElementTree.ParseError
-
-etree_register_namespace('xslt', XSLT_NAMESPACE)
-etree_register_namespace('hfp', HFP_NAMESPACE)
-etree_register_namespace('vc', VC_NAMESPACE)
-
-
-# Pure Python ElementTree APIs
 py_etree_element = PyElementTree.Element
-py_etree_register_namespace = ElementTree.register_namespace
-
-py_etree_register_namespace('xslt', XSLT_NAMESPACE)
-py_etree_register_namespace('hfp', HFP_NAMESPACE)
-py_etree_register_namespace('vc', VC_NAMESPACE)
-
-
-# Lxml APIs
-if lxml_etree is not None:
-    lxml_etree_element = lxml_etree.Element
-    lxml_etree_comment = lxml_etree.Comment
-    lxml_etree_register_namespace = lxml_etree.register_namespace
-
-    lxml_etree_register_namespace('xslt', XSLT_NAMESPACE)
-    lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
-    lxml_etree_register_namespace('vc', VC_NAMESPACE)
-else:
-    lxml_etree_element = None
-    lxml_etree_comment = None
-    lxml_etree_register_namespace = None
 
 
 class SafeXMLParser(PyElementTree.XMLParser):
@@ -161,33 +127,35 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
         else:
             return indent + line
 
-    if isinstance(elem, etree_element):
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if not _REGEX_NS_PREFIX.match(prefix):
-                    etree_register_namespace(prefix, uri)
-        tostring = ElementTree.tostring
+    if not is_etree_element(elem):
+        raise XMLSchemaTypeError("{!r} is not an Element".format(elem))
 
     elif isinstance(elem, py_etree_element):
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if not _REGEX_NS_PREFIX.match(prefix):
-                    PyElementTree.register_namespace(prefix, uri)
-        tostring = PyElementTree.tostring
-
-    elif lxml_etree is not None:
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if prefix and not _REGEX_NS_PREFIX.match(prefix):
-                    lxml_etree_register_namespace(prefix, uri)
-        tostring = lxml_etree.tostring
+        etree_module = PyElementTree
+    elif not hasattr(elem, 'nsmap'):
+        etree_module = ElementTree
     else:
-        raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
+        try:
+            import lxml.etree as etree_module
+        except ImportError:
+            msg = "cannot serialize %r: lxml library is not available"
+            raise XMLSchemaTypeError(msg % type(elem))
 
-    xml_text = tostring(elem, encoding=encoding, method=method).replace('\t', ' ' * spaces_for_tab)
+    if namespaces:
+        default_namespace = namespaces.get('')
+        for prefix, uri in namespaces.items():
+            if prefix and not _REGEX_NS_PREFIX.match(prefix):
+                etree_module.register_namespace(prefix, uri)
+                if uri == default_namespace:
+                    default_namespace = None
+
+        if default_namespace:
+            etree_module.register_namespace('', default_namespace)
+
+    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
-    lines.extend(xml_text.splitlines())
+    lines.extend(xml_text.replace('\t', ' ' * spaces_for_tab).splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
 
@@ -306,9 +274,9 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     :raise: an AssertionError containing information about first difference encountered.
     """
     if unordered:
-        children = sorted(elem, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag)
+        children = sorted(elem, key=lambda x: '' if callable(x.tag) else x.tag)
         other_children = iter(sorted(
-            other, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag
+            other, key=lambda x: '' if callable(x.tag) else x.tag
         ))
     else:
         children = elem
@@ -316,7 +284,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
 
     namespace = ''
     for e1 in children:
-        if skip_comments and e1.tag is lxml_etree_comment:
+        if skip_comments and callable(e1.tag):
             continue
 
         try:
@@ -351,8 +319,8 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
 
         # Number of children
         if skip_comments:
-            nc1 = len([c for c in e1 if c.tag is not lxml_etree_comment])
-            nc2 = len([c for c in e2 if c.tag is not lxml_etree_comment])
+            nc1 = len([c for c in e1 if not callable(c.tag)])
+            nc2 = len([c for c in e2 if not callable(c.tag)])
         else:
             nc1 = len(e1)
             nc2 = len(e2)

@@ -17,9 +17,8 @@ import os
 from ..validators import XMLSchema10
 from ..exceptions import XMLSchemaValueError
 from ..qnames import XSD_SCHEMA
-from ..namespaces import XSD_NAMESPACE, get_namespace
-from ..etree import is_etree_element, etree_element, \
-    etree_register_namespace, etree_elements_assert_equal
+from ..namespaces import get_namespace
+from ..etree import is_etree_element, etree_element, etree_elements_assert_equal
 from ..resources import fetch_namespaces
 
 
@@ -36,9 +35,6 @@ class XsdValidatorTestCase(unittest.TestCase):
     """
     TEST_CASES_DIR = None
     schema_class = XMLSchema10
-
-    etree_register_namespace(prefix='xs', uri=XSD_NAMESPACE)
-    etree_register_namespace(prefix='ns', uri="ns")
 
     @classmethod
     def setUpClass(cls):
