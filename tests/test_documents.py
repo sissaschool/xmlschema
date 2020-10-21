@@ -24,6 +24,8 @@ from xmlschema import XMLSchema10, XMLSchema11, XmlDocument, \
 
 from xmlschema.etree import is_etree_element, is_etree_document
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE
+from xmlschema.resources import XMLResource
+from xmlschema.documents import get_context
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
@@ -44,6 +46,43 @@ class TestXmlDocuments(unittest.TestCase):
         cls.col_dir = casepath('examples/collection')
         cls.col_xsd_file = casepath('examples/collection/collection.xsd')
         cls.col_xml_file = casepath('examples/collection/collection.xml')
+
+    def test_get_context(self):
+        source, schema = get_context(self.col_xml_file)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema10)
+
+        source, schema = get_context(self.col_xml_file, self.col_xsd_file)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema10)
+
+        source, schema = get_context(self.vh_xml_file, cls=XMLSchema10)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema10)
+
+        source, schema = get_context(self.col_xml_file, cls=XMLSchema11)
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema11)
+
+        source, schema = get_context(XMLResource(self.vh_xml_file))
+        self.assertIsInstance(source, XMLResource)
+        self.assertIsInstance(schema, XMLSchema10)
+
+        # Issue #145
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(f, schema=self.vh_xsd_file)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(XMLResource(f), schema=self.vh_xsd_file)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
+
+        with open(self.vh_xml_file) as f:
+            source, schema = get_context(f, base_url=self.vh_dir)
+            self.assertIsInstance(source, XMLResource)
+            self.assertIsInstance(schema, XMLSchema10)
 
     def test_xml_document_init_with_schema(self):
         xml_document = XmlDocument(self.vh_xml_file)

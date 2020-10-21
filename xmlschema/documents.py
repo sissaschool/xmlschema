@@ -235,7 +235,6 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
 
     if path is None and source.is_lazy() and 'cls' not in json_options:
         json_options['cls'] = get_lazy_json_encoder(errors)
-        kwargs['lazy_decode'] = True
 
     obj = schema.decode(source, path=path, **kwargs)
     if isinstance(obj, tuple):
@@ -448,30 +447,6 @@ class XmlDocument(XMLResource):
         else:
             result = json.dumps(obj, **json_options)
             return result if not errors else (result, tuple(errors))
-
-    def find(self, match, namespaces=None):
-        """Same as ElementTree.find() but use instance namespaces for default."""
-        if self._lazy:
-            raise XMLResourceError("cannot use XPath on a lazy XML document")
-        return self._root.findall(match, namespaces or self.namespaces)
-
-    def findall(self, match, namespaces=None):
-        """Same as ElementTree.findall() but use instance namespaces for default."""
-        if self._lazy:
-            raise XMLResourceError("cannot use XPath on a lazy XML document")
-        return self._root.findall(match, namespaces or self.namespaces)
-
-    def findtext(self, match, default=None, namespaces=None):
-        """Same as ElementTree.findtext() but use instance namespaces for default."""
-        if self._lazy:
-            raise XMLResourceError("cannot use XPath on a lazy XML document")
-        return self._root.findtext(match, default, namespaces or self.namespaces)
-
-    def iterfind(self, match, namespaces=None):
-        """Same as ElementTree.iterfind() but use instance namespaces for default."""
-        if self._lazy:
-            raise XMLResourceError("cannot use XPath on a lazy XML document")
-        return self._root.iterfind(match, namespaces or self.namespaces)
 
     def write(self, file, encoding='us-ascii', xml_declaration=None,
               default_namespace=None, method="xml"):

@@ -1454,6 +1454,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             schema = self
 
         identities = {}
+        locations = []
         ancestors = []
         prev_ancestors = []
         kwargs = {
@@ -1465,11 +1466,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             'id_map': Counter(),
             'identities': identities,
             'inherited': {},
+            'locations': locations,  # TODO: lazy schemas load
         }
 
-        # TODO: kwargs['locations'] = {}  # Lazy schemas load
+        if path:
+            selector = source.iterfind(path, namespaces, ancestors=ancestors)
+        elif source.is_lazy():
+            selector = source.iter_depth(mode=3, ancestors=ancestors)
+        else:
+            selector = (source.root,)
 
-        for elem in source.iter_subtrees(path, namespaces, lazy_mode=4, ancestors=ancestors):
+        for elem in selector:
             if elem is source.root:
                 xsd_element = schema.get_element(elem.tag, namespaces=namespaces)
                 if source.lazy_depth:
@@ -1536,9 +1543,16 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                         yield self.validation_error(validation, error, source.root, **kwargs)
 
     def raw_decoder(self, source, path=None, schema_path=None, validation='lax',
-                    namespaces=None, lazy_mode=1, **kwargs):
+                    namespaces=None, **kwargs):
         """Returns a generator for decoding a resource."""
-        for elem in source.iter_subtrees(path, namespaces, lazy_mode):
+        if path:
+            selector = source.iterfind(path, namespaces)
+        elif source.is_lazy():
+            selector = source.iter_depth()
+        else:
+            selector = (source.root,)
+
+        for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
@@ -1557,7 +1571,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, converter=None,
                     filler=None, fill_missing=False, keep_unknown=False,
-                    max_depth=None, depth_filler=None, lazy_decode=False, **kwargs):
+                    max_depth=None, depth_filler=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1595,8 +1609,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
         can be an XSD Element. If not provided deeper data are replaced with `None` values.
-        :param lazy_decode: if set to `True`, the resource is lazy and no path is \
-        provided a full lazy decoder is generated.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
@@ -1639,20 +1651,21 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if depth_filler is not None:
             kwargs['depth_filler'] = depth_filler
 
-        if lazy_decode and path is None and source.is_lazy():
+        if path:
+            selector = source.iterfind(path, namespaces)
+        elif not source.is_lazy():
+            selector = source.root,
+        else:
             decoder = self.raw_decoder(
                 schema_path=source.get_absolute_path(),
                 validation=validation,
-                lazy_mode=3,
                 **kwargs
             )
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = source.lazy_depth
-            lazy_mode = 2
-        else:
-            lazy_mode = 1
+            selector = source.iter_depth(mode=2)
 
-        for elem in source.iter_subtrees(path, converter.namespaces, lazy_mode=lazy_mode):
+        for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:

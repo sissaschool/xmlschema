@@ -119,15 +119,18 @@ class NamespaceMapper(MutableMapping):
     automatically registered when set. Namespaces can be updated overwriting
     the existing registration or inserted using an alternative prefix.
 
-    :param namespaces: initial data with namespace prefixes and URIs.
+    :param namespaces: initial data with namespace prefixes and URIs. \
+    The provided dictionary is bound with the instance, otherwise a new \
+    empty dictionary is used.
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
     def __init__(self, namespaces=None, strip_namespaces=False):
-        self._namespaces = {}
+        if namespaces is None:
+            self._namespaces = {}
+        else:
+            self._namespaces = namespaces
         self.strip_namespaces = strip_namespaces
-        if namespaces is not None:
-            self._namespaces.update(namespaces)
 
     def __setattr__(self, name, value):
         if name == 'strip_namespaces':
