@@ -343,10 +343,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 return
 
             if sys.version_info >= (3, 6):
-                if json_data1 != json_data2:
-                    print(json_data1)
-                    print(json_data2)
-                    print(converter, unordered)
                 self.assertEqual(json_data2, json_data1, msg=xml_file)
             else:
                 elem2 = xmlschema.from_json(json_data2, schema=self.schema, path=root.tag,

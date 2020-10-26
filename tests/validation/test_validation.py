@@ -77,7 +77,7 @@ class TestValidation(XsdValidatorTestCase):
             self.assertIsNone(xmlschema.validate(f, schema=self.vh_xsd_file))
 
     def test_document_validate_api_lazy(self):
-        source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
+        source = xmlschema.XMLResource(self.col_xml_file, lazy=False)
         namespaces = source.get_namespaces()
         source.root[0].clear()  # Drop internal elements
         source.root[1].clear()

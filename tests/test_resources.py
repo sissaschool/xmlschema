@@ -31,7 +31,7 @@ from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
 from xmlschema.etree import etree_element, py_etree_element, is_etree_element
 from xmlschema.namespaces import XSD_NAMESPACE
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
-    url_path_is_file, update_prefix, normalize_locations
+    url_path_is_file, normalize_locations
 from xmlschema.testing import SKIP_REMOTE_TESTS
 
 
@@ -194,29 +194,6 @@ class TestResources(unittest.TestCase):
         self.assertTrue(url_path_is_file(self.col_xml_file))
         self.assertFalse(url_path_is_file(self.col_dir))
         self.assertFalse(url_path_is_file('http://example.com/'))
-
-    def test_update_prefix_function(self):
-        nsmap = {}
-        update_prefix(nsmap, 'xs', XSD_NAMESPACE)
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        update_prefix(nsmap, 'xs', XSD_NAMESPACE)
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
-        update_prefix(nsmap, 'tns0', 'http://example.com/ns')
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE, 'tns0': 'http://example.com/ns'})
-        update_prefix(nsmap, 'xs', 'http://example.com/ns')
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'tns0': 'http://example.com/ns'})
-        update_prefix(nsmap, 'xs', 'http://example.com/ns')
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'tns0': 'http://example.com/ns'})
-
-        update_prefix(nsmap, 'xs', 'http://example.com/ns2')
-        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
-                                 'xs0': 'http://example.com/ns',
-                                 'xs1': 'http://example.com/ns2',
-                                 'tns0': 'http://example.com/ns'})
 
     def test_normalize_locations_function(self):
         locations = normalize_locations(
@@ -453,6 +430,31 @@ class TestResources(unittest.TestCase):
         self.assertEqual(resource.namespace, 'http://example.com/ns/collection')
         self.assertEqual(XMLResource('<A/>').namespace, '')
 
+    def test_xml_resource_update_nsmap_method(self):
+        resource = XMLResource(self.vh_xml_file)
+
+        nsmap = {}
+        resource._update_nsmap(nsmap, 'xs', XSD_NAMESPACE)
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
+        resource._update_nsmap(nsmap, 'xs', XSD_NAMESPACE)
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE})
+        resource._update_nsmap(nsmap, 'tns0', 'http://example.com/ns')
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE, 'tns0': 'http://example.com/ns'})
+        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns')
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'tns0': 'http://example.com/ns'})
+        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns')
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'tns0': 'http://example.com/ns'})
+
+        resource._update_nsmap(nsmap, 'xs', 'http://example.com/ns2')
+        self.assertEqual(nsmap, {'xs': XSD_NAMESPACE,
+                                 'xs0': 'http://example.com/ns',
+                                 'xs1': 'http://example.com/ns2',
+                                 'tns0': 'http://example.com/ns'})
+
     def test_xml_resource_access(self):
         resource = XMLResource(self.vh_xml_file)
         base_url = resource.base_url
@@ -602,15 +604,15 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertTrue(resource.is_loaded())
 
-    def test_xml_resource__etree_iterparse(self):
-        resource = XMLResource(self.vh_xml_file)
+    def test_xml_resource__lazy_iterparse(self):
+        resource = XMLResource(self.vh_xml_file, lazy=True)
 
         self.assertEqual(resource.defuse, 'remote')
-        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
+        for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
         resource.defuse = 'always'
-        for _, elem in resource._etree_iterparse(self.col_xml_file, events=('end',)):
+        for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
     def test_xml_resource_protected_parse(self):
@@ -784,16 +786,17 @@ class TestResources(unittest.TestCase):
         xsd_file = casepath('examples/collection/collection4.xsd')
         resource = XMLResource(xsd_file)
         root = resource.root
-        nsmap = {}
+        nsmap = []
 
         for elem in resource.iter(nsmap=nsmap):
             if elem is root[2][0] or elem in root[2][0]:
-                self.assertEqual(nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
-                                         '': 'http://www.w3.org/2001/XMLSchema'})
+                self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
+                                               '': 'http://www.w3.org/2001/XMLSchema'})
             else:
-                self.assertEqual(nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
-                                         '': 'http://example.com/ns/collection'})
+                self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
+                                               '': 'http://example.com/ns/collection'})
 
+        nsmap.clear()
         if lxml_etree is not None:
             tree = lxml_etree.parse(xsd_file)
             resource = XMLResource(tree)
@@ -803,20 +806,20 @@ class TestResources(unittest.TestCase):
                 if callable(elem.tag):
                     continue
                 if elem is root[2][0] or elem in root[2][0]:
-                    self.assertEqual(nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
-                                             '': 'http://www.w3.org/2001/XMLSchema'})
+                    self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
+                                                   '': 'http://www.w3.org/2001/XMLSchema'})
                 else:
-                    self.assertEqual(nsmap, {'xs': 'http://www.w3.org/2001/XMLSchema',
-                                             '': 'http://example.com/ns/collection'})
+                    self.assertEqual(dict(nsmap), {'xs': 'http://www.w3.org/2001/XMLSchema',
+                                                   '': 'http://example.com/ns/collection'})
 
+        nsmap = {}
         resource = XMLResource(xsd_file, lazy=True)
         root = elem = resource.root
         for elem in resource.iter(nsmap=nsmap):
             try:
                 if elem is resource.root[2][0] or elem in resource.root[2][0]:
-                    self.assertEqual(nsmap[''], 'http://www.w3.org/2001/XMLSchema')
-                else:
-                    self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
+                    self.assertEqual(nsmap['default'], 'http://www.w3.org/2001/XMLSchema')
+                self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
             except IndexError:
                 self.assertEqual(nsmap[''], 'http://example.com/ns/collection')
 
@@ -848,26 +851,22 @@ class TestResources(unittest.TestCase):
             <root xmlns="tns1">
                 <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
             </root>""", lazy=False)
-        self.assertEqual(set(resource.get_namespaces().keys()), {'', 'tns', 'default'})
-        resource._lazy = True
-        self.assertEqual(resource.get_namespaces().keys(), {''})
+        self.assertEqual(set(resource.get_namespaces(root_only=False).keys()),
+                         {'', 'tns', 'default'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns:tns="tns1">
                 <tns:elem1 xmlns:tns="tns1" xmlns="unknown"/>
             </root>""", lazy=False)
-        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns'})
+        self.assertEqual(set(resource.get_namespaces(root_only=False).keys()), {'default', 'tns'})
         self.assertEqual(resource.get_namespaces(root_only=True).keys(), {'tns'})
-        resource._lazy = True
-        self.assertEqual(resource.get_namespaces().keys(), {'tns'})
 
         resource = XMLResource("""<?xml version="1.0" ?>
             <root xmlns:tns="tns1">
                 <tns:elem1 xmlns:tns="tns3" xmlns="unknown"/>
             </root>""", lazy=False)
-        self.assertEqual(set(resource.get_namespaces().keys()), {'default', 'tns', 'tns0'})
-        resource._lazy = True
-        self.assertEqual(resource.get_namespaces().keys(), {'tns'})
+        self.assertEqual(set(resource.get_namespaces(root_only=False).keys()),
+                         {'default', 'tns', 'tns0'})
 
     def test_xml_resource_get_locations(self):
         resource = XMLResource(self.col_xml_file)

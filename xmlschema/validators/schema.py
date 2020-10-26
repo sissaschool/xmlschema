@@ -38,7 +38,7 @@ from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPA
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
 from ..etree import etree_element, prune_etree, ParseError
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
-    normalize_locations, fetch_resource, update_prefix, normalize_url, XMLResource
+    normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -345,10 +345,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.target_namespace = namespace
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
-            elif '' not in self.source.get_namespaces(root_only=True):
-                other_ns = self.namespaces.pop('')
-                self.namespaces[''] = namespace
-                update_prefix(self.namespaces, '', other_ns)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)
@@ -1445,7 +1441,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if not schema_path:
             schema_path = source.get_absolute_path(path)
 
-        namespaces = source.get_namespaces(namespaces)
+        namespaces = source.get_namespaces(namespaces, root_only=True)
         namespace = source.namespace or namespaces.get('', '')
 
         try:
@@ -1470,11 +1466,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         }
 
         if path:
-            selector = source.iterfind(path, namespaces, ancestors=ancestors)
-        elif source.is_lazy():
-            selector = source.iter_depth(mode=3, ancestors=ancestors)
+            selector = source.iterfind(path, namespaces, nsmap=namespaces, ancestors=ancestors)
         else:
-            selector = (source.root,)
+            selector = source.iter_depth(mode=3, nsmap=namespaces, ancestors=ancestors)
 
         for elem in selector:
             if elem is source.root:
@@ -1546,11 +1540,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     namespaces=None, **kwargs):
         """Returns a generator for decoding a resource."""
         if path:
-            selector = source.iterfind(path, namespaces)
-        elif source.is_lazy():
-            selector = source.iter_depth()
+            selector = source.iterfind(path, namespaces, nsmap=namespaces)
         else:
-            selector = (source.root,)
+            selector = source.iter_depth(nsmap=namespaces)
 
         for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
@@ -1620,7 +1612,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             schema_path = source.get_absolute_path(path)
 
         if process_namespaces:
-            namespaces = source.get_namespaces(namespaces)
+            namespaces = source.get_namespaces(namespaces, root_only=True)
             namespace = source.namespace or namespaces.get('', '')
         else:
             namespace = source.namespace
@@ -1629,7 +1621,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         converter = self.get_converter(converter, namespaces, **kwargs)
         kwargs.update(
             converter=converter,
-            namespaces=converter.namespaces,
+            namespaces=namespaces,
             source=source,
             use_defaults=use_defaults,
             datetime_types=datetime_types,
@@ -1652,9 +1644,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             kwargs['depth_filler'] = depth_filler
 
         if path:
-            selector = source.iterfind(path, namespaces)
+            selector = source.iterfind(path, namespaces, nsmap=namespaces)
         elif not source.is_lazy():
-            selector = source.root,
+            selector = source.iter_depth(nsmap=namespaces)
         else:
             decoder = self.raw_decoder(
                 schema_path=source.get_absolute_path(),
@@ -1663,7 +1655,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             )
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = source.lazy_depth
-            selector = source.iter_depth(mode=2)
+            selector = source.iter_depth(mode=2, nsmap=namespaces)
 
         for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
