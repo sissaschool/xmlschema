@@ -11,9 +11,8 @@ import os
 import warnings
 
 from .exceptions import XMLSchemaException, XMLSchemaValueError
-from .etree import etree_tostring
 from .namespaces import XSD_NAMESPACE, WSDL_NAMESPACE, SCHEMAS_DIR, NamespaceResourcesMap
-from .qnames import XSD_SCHEMA
+from .qnames import XSD_ANY_TYPE, XSD_SCHEMA, get_extended_qname
 from .resources import is_remote_url, url_path_is_file, fetch_resource
 from .documents import XmlDocument
 from .validators import XMLSchema10, XMLSchemaImportWarning
@@ -22,7 +21,7 @@ from .validators import XMLSchema10, XMLSchemaImportWarning
 # WSDL 1.1 global declarations
 WSDL_IMPORT = '{%s}import' % WSDL_NAMESPACE
 WSDL_TYPES = '{%s}types' % WSDL_NAMESPACE
-WSDL_MESSAGE = '{%s}types' % WSDL_NAMESPACE
+WSDL_MESSAGE = '{%s}message' % WSDL_NAMESPACE
 WSDL_PORT_TYPE = '{%s}portType' % WSDL_NAMESPACE
 WSDL_BINDING = '{%s}binding' % WSDL_NAMESPACE
 WSDL_SERVICE = '{%s}service' % WSDL_NAMESPACE
@@ -51,6 +50,58 @@ class Wsdl11Globals(object):
         self.services = {}
 
 
+class WsdlMessage(object):
+
+    def __init__(self, elem, wsdl_document):
+        self.name = elem.get('name')
+        self.wsdl_document = wsdl_document
+
+        self.parts = {}
+        for child in elem.iterfind(WSDL_PART):
+            part_name = child.get('name')
+            if part_name is None:
+                continue  # Ignore, missing name is already caught by XSD validator
+            elif part_name in self.parts:
+                msg = "duplicate part {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(part_name, self))
+
+            try:
+                element_attr = child.attrib['element']
+            except KeyError:
+                pass
+            else:
+                if 'type' in child.attrib:
+                    msg = "ambiguous binding with both 'type' and 'element' attributes"
+                    wsdl_document.parse_error(msg)
+
+                element_name = get_extended_qname(element_attr, wsdl_document.namespaces)
+                try:
+                    self.parts[part_name] = wsdl_document.schema.maps.elements[element_name]
+                except KeyError:
+                    msg = "missing schema element {!r}".format(element_name)
+                    wsdl_document.parse_error(msg)
+                    self.parts[part_name] = wsdl_document.schema.maps.types[XSD_ANY_TYPE]
+
+                continue
+
+            try:
+                type_attr = child.attrib['type']
+            except KeyError:
+                msg = "missing both 'type' and 'element' attributes"
+                wsdl_document.parse_error(msg)
+            else:
+                type_name = get_extended_qname(type_attr, wsdl_document.namespaces)
+                try:
+                    self.parts[part_name] = wsdl_document.schema.maps.types[type_name]
+                except KeyError:
+                    msg = "missing schema type {!r}".format(type_name)
+                    wsdl_document.parse_error(msg)
+                    self.parts[part_name] = wsdl_document.schema.maps.types[XSD_ANY_TYPE]
+
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.name)
+
+
 class Wsdl11Document(XmlDocument):
 
     def __init__(self, source, cls=None, validation='strict', namespaces=None, maps=None,
@@ -74,7 +125,7 @@ class Wsdl11Document(XmlDocument):
         self.locations = NamespaceResourcesMap(self.get_locations(locations))
 
         if maps is None:
-            self.maps = Wsdl11Globals(xsd_globals=self.schema.maps.copy())
+            self.maps = Wsdl11Globals(xsd_globals=self.schema.maps)
         else:
             self.maps = maps
 
@@ -84,7 +135,8 @@ class Wsdl11Document(XmlDocument):
             return
 
         self._parse_imports()
-        # self._parse_types()
+        self._parse_types()
+        self._parse_messages()
 
     def parse_error(self, message):
         if self.validation == 'strict':
@@ -93,18 +145,26 @@ class Wsdl11Document(XmlDocument):
             self.errors.append(WsdlParseError(message))
 
     def _parse_types(self):
-        nsmap = {}
+        nsmap = []
         path = '{}/{}'.format(WSDL_TYPES, XSD_SCHEMA)
 
-        for child in filter(lambda x: x.tag == WSDL_TYPES, self._root):
-            for schema_root in filter(lambda x: x.tag == XSD_SCHEMA, child):
-                self.schema.__class__(
-                    source=etree_tostring(schema_root, namespaces=self.namespaces),
-                    global_maps=self.schema.maps
-                )
+        for child in self.iterfind(path, nsmap=nsmap):
+            namespaces = self.namespaces.copy()
+            namespaces.update(nsmap)
+
+            schema = self.schema.__class__(child, global_maps=self.schema.maps, build=False)
+            schema.namespaces.update(namespaces)
+            schema.build()
 
     def _parse_messages(self):
-        pass
+        for child in self.iterfind(WSDL_MESSAGE):
+            message = WsdlMessage(child, self)
+            if message.name in self.maps.messages:
+                self.parse_error("duplicate message {!r}".format(message.name))
+                continue
+
+            name = '{%s}%s' % (self.target_namespace, message.name)
+            self.maps.messages[name] = message
 
     def _parse_port_types(self):
         pass

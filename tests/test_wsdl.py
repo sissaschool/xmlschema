@@ -8,12 +8,12 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-"""Tests concerning XML documents"""
+"""Tests concerning WSDL documents"""
 
 import unittest
 import os
 
-from xmlschema.wsdl import Wsdl11Document
+from xmlschema.wsdl import WsdlMessage, Wsdl11Document
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
@@ -106,6 +106,20 @@ class TestWsdlDocuments(unittest.TestCase):
     def test_wsdl_document_init(self):
         wsdl_document = Wsdl11Document(WSDL_DOCUMENT_EXAMPLE)
         self.assertEqual(wsdl_document.target_namespace, "http://example.com/stockquote.wsdl")
+
+        self.assertIn('http://example.com/stockquote.xsd', wsdl_document.schema.maps.namespaces)
+        self.assertIn('{http://example.com/stockquote.xsd}TradePriceRequest',
+                      wsdl_document.schema.maps.elements)
+        self.assertIn('{http://example.com/stockquote.xsd}TradePrice',
+                      wsdl_document.schema.maps.elements)
+
+        self.assertIn('{http://example.com/stockquote.wsdl}GetLastTradePriceInput',
+                      wsdl_document.maps.messages)
+        self.assertIn('{http://example.com/stockquote.wsdl}GetLastTradePriceOutput',
+                      wsdl_document.maps.messages)
+
+        for message in wsdl_document.maps.messages.values():
+            self.assertIsInstance(message, WsdlMessage)
 
     def test_wsdl_document_imports(self):
         stockquote_file = casepath('examples/stockquote/stockquote.wsdl')
