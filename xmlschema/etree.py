@@ -153,6 +153,8 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
             etree_module.register_namespace('', default_namespace)
 
     xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
+    if isinstance(xml_text, bytes):
+        xml_text = xml_text.decode('utf-8')
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
     lines.extend(xml_text.replace('\t', ' ' * spaces_for_tab).splitlines())
@@ -173,7 +175,9 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     if max_lines is not None and len(lines) > max_lines + 2:
         lines = lines[:max_lines] + [child_indent + '...'] * 2 + lines[-1:]
 
-    return '\n'.join(reindent(line) for line in lines)
+    if encoding == 'unicode':
+        return '\n'.join(reindent(line) for line in lines)
+    return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
 def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):

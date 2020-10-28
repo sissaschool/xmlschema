@@ -58,6 +58,7 @@ class TestNamespaceMapper(unittest.TestCase):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
         mapper = NamespaceMapper(namespaces)
         self.assertEqual(mapper, namespaces)
+        self.assertIs(namespaces, mapper.namespaces)
 
     def test_dictionary_methods(self):
         namespaces = dict(xs=XSD_NAMESPACE)

@@ -32,6 +32,8 @@ class TestElementTree(unittest.TestCase):
         elem = xmlschema_etree.PyElementTree.Element('element')
         self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
 
+        self.assertEqual(xmlschema_etree.etree_tostring(elem, encoding='us-ascii'), b'<element />')
+
     def test_import_element_tree_before(self):
         ElementTree = importlib.import_module('xml.etree.ElementTree')
         xmlschema_etree = importlib.import_module('xmlschema.etree')

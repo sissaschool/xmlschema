@@ -10,7 +10,7 @@
 import json
 from collections.abc import Iterator
 
-from .exceptions import XMLSchemaValueError, XMLResourceError
+from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
 from .namespaces import XSD_NAMESPACE
 from .etree import ElementTree, is_etree_document, etree_tostring
 from .qnames import XSI_TYPE
@@ -41,9 +41,10 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
             if XSI_TYPE in source.root.attrib:
                 schema = cls.meta_schema
             elif dummy_schema:
-                pass
+                return source, get_dummy_schema(source, cls)
             else:
-                raise XMLSchemaValueError("no schema can be get for the provided context")
+                msg = "no schema can be retrieved for the provided XML data"
+                raise XMLSchemaValueError(msg) from None
 
         elif not isinstance(schema, XMLSchemaBase):
             schema = cls(schema, validation='strict', locations=locations,
@@ -53,6 +54,27 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
                      defuse=defuse, timeout=timeout)
 
     return source, schema
+
+
+def get_dummy_schema(xml_resource, schema_class):
+    tag = xml_resource.root.tag
+    if tag.startswith('{'):
+        namespace, name = tag[1:].split('}')
+    else:
+        namespace, name = '', tag
+
+    if namespace:
+        return schema_class(
+            '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
+            '    <xs:element name="{2}"/>\n'
+            '</xs:schema>'.format(XSD_NAMESPACE, namespace, name)
+        )
+    else:
+        return schema_class(
+            '<xs:schema xmlns:xs="{0}">\n'
+            '    <xs:element name="{1}"/>\n'
+            '</xs:schema>'.format(XSD_NAMESPACE, name)
+        )
 
 
 def get_lazy_json_encoder(errors):
@@ -275,7 +297,7 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
     or also if it's invalid when ``validation='strict'`` is provided.
     """
     if not isinstance(schema, XMLSchemaBase):
-        raise TypeError("An XMLSchema instance required for 'schema' argument: %r" % schema)
+        raise XMLSchemaTypeError("invalid type %r for argument 'schema'" % type(schema))
     elif json_options is None:
         json_options = {}
 
@@ -331,24 +353,7 @@ class XmlDocument(XMLResource):
                     msg = "no schema can be retrieved for the XML resource"
                     raise XMLSchemaValueError(msg) from None
                 else:
-                    tag = self._root.tag
-                    if tag.startswith('{'):
-                        namespace, name = tag[1:].split('}')
-                    else:
-                        namespace, name = '', tag
-
-                    if namespace:
-                        self._fallback_schema = cls(
-                            '<xs:schema xmlns:xs="{0}" targetNamespace="{1}">\n'
-                            '    <xs:element name="{2}"/>\n'
-                            '</xs:schema>'.format(XSD_NAMESPACE, namespace, name)
-                        )
-                    else:
-                        self._fallback_schema = cls(
-                            '<xs:schema xmlns:xs="{0}">\n'
-                            '    <xs:element name="{1}"/>\n'
-                            '</xs:schema>'.format(XSD_NAMESPACE, name)
-                        )
+                    self._fallback_schema = get_dummy_schema(self, cls)
             else:
                 self.schema = cls(
                     source=schema_location,
@@ -389,9 +394,16 @@ class XmlDocument(XMLResource):
 
     def tostring(self, indent='', max_lines=None, spaces_for_tab=4,
                  xml_declaration=False, encoding='unicode', method='xml'):
-        return etree_tostring(self._root, self.namespaces,
-                              xml_declaration=xml_declaration,
-                              encoding=encoding, method=method)
+        if self._lazy:
+            raise XMLResourceError("cannot serialize a lazy XML document")
+
+        return etree_tostring(
+            elem=self._root,
+            namespaces=self.namespaces,
+            xml_declaration=xml_declaration,
+            encoding=encoding,
+            method=method
+        )
 
     def decode(self, **kwargs):
         """
@@ -441,6 +453,7 @@ class XmlDocument(XMLResource):
                 result = json.dumps(obj[0], **json_options)
                 obj[1].extend(errors)
                 return result, tuple(obj[1])
+
         elif fp is not None:
             json.dump(obj, fp, **json_options)
             return None if not errors else tuple(errors)
@@ -472,7 +485,7 @@ class XmlDocument(XMLResource):
         if hasattr(file, 'write'):
             file.write(etree_tostring(self._root, **kwargs))
             file.close()
-        elif method == 'unicode':
+        elif encoding == 'unicode':
             with open(file, 'w') as fp:
                 fp.write(etree_tostring(self._root, **kwargs))
         else:
