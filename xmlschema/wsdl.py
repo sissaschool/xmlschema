@@ -8,14 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import os
-import warnings
 
 from .exceptions import XMLSchemaException, XMLSchemaValueError
-from .namespaces import XSD_NAMESPACE, WSDL_NAMESPACE, SCHEMAS_DIR, NamespaceResourcesMap
-from .qnames import XSD_ANY_TYPE, XSD_SCHEMA, get_extended_qname
-from .resources import is_remote_url, url_path_is_file, fetch_resource
+from .namespaces import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
+    SCHEMAS_DIR, NamespaceResourcesMap
+from .qnames import XSD_ANY_TYPE, XSD_SCHEMA, get_qname, local_name, \
+    get_extended_qname, get_prefixed_qname
+from .resources import fetch_resource
 from .documents import XmlDocument
-from .validators import XMLSchema10, XMLSchemaImportWarning
+from .validators import XMLSchema10
 
 
 # WSDL 1.1 global declarations
@@ -34,35 +35,85 @@ WSDL_OUTPUT = '{%s}output' % WSDL_NAMESPACE
 WSDL_FAULT = '{%s}fault' % WSDL_NAMESPACE
 WSDL_OPERATION = '{%s}operation' % WSDL_NAMESPACE
 
+# WSDL SOAP Extensions
+SOAP_BINDING = '{%s}binding' % SOAP_NAMESPACE
+SOAP_OPERATION = '{%s}operation' % SOAP_NAMESPACE
+SOAP_BODY = '{%s}body' % SOAP_NAMESPACE
+SOAP_FAULT = '{%s}fault' % SOAP_NAMESPACE
+SOAP_HEADER = '{%s}header' % SOAP_NAMESPACE
+SOAP_HEADERFAULT = '{%s}headerfault' % SOAP_NAMESPACE
+SOAP_ADDRESS = '{%s}address' % SOAP_NAMESPACE
+
 
 class WsdlParseError(XMLSchemaException, SyntaxError):
     """An error during parsing of a WSDL document."""
 
 
-class Wsdl11Globals(object):
+class Wsdl11Maps(object):
 
-    def __init__(self, xsd_globals):
-        self.namespaces = NamespaceResourcesMap()
-        self.xsd_globals = xsd_globals
+    def __init__(self, wsdl_document):
+        self.wsdl_document = wsdl_document
+        self.imports = {}
         self.messages = {}
         self.port_types = {}
         self.bindings = {}
         self.services = {}
 
+    def clear(self):
+        self.imports.clear()
+        self.messages.clear()
+        self.port_types.clear()
+        self.bindings.clear()
+        self.services.clear()
 
-class WsdlMessage(object):
+
+class WsdlComponent(object):
 
     def __init__(self, elem, wsdl_document):
-        self.name = elem.get('name')
+        self.elem = elem
         self.wsdl_document = wsdl_document
+        self.name = get_qname(wsdl_document.target_namespace, elem.get('name'))
 
+    def __repr__(self):
+        return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
+
+    @property
+    def local_name(self):
+        if self.name:
+            return local_name(self.name)
+
+    @property
+    def prefixed_name(self):
+        if self.name:
+            return get_prefixed_qname(self.name, self.wsdl_document.namespaces)
+
+    def map_qname(self, qname):
+        return get_prefixed_qname(qname, self.wsdl_document.namespaces)
+
+    def unmap_qname(self, qname):
+        return get_extended_qname(qname, self.wsdl_document.namespaces)
+
+    def _parse_reference(self, elem, attribute_name):
+        try:
+            return self.unmap_qname(elem.attrib[attribute_name])
+        except KeyError:
+            return  # a missing attribute is already caught by XSD validator
+
+
+class WsdlMessage(WsdlComponent):
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlMessage, self).__init__(elem, wsdl_document)
         self.parts = {}
+        xsd_elements = wsdl_document.schema.maps.elements
+        xsd_types = wsdl_document.schema.maps.types
+
         for child in elem.iterfind(WSDL_PART):
             part_name = child.get('name')
             if part_name is None:
                 continue  # Ignore, missing name is already caught by XSD validator
             elif part_name in self.parts:
-                msg = "duplicate part {!r} for {!r}"
+                msg = "duplicated part {!r} for {!r}"
                 wsdl_document.parse_error(msg.format(part_name, self))
 
             try:
@@ -76,13 +127,13 @@ class WsdlMessage(object):
 
                 element_name = get_extended_qname(element_attr, wsdl_document.namespaces)
                 try:
-                    self.parts[part_name] = wsdl_document.schema.maps.elements[element_name]
+                    self.parts[part_name] = xsd_elements[element_name]
                 except KeyError:
+                    self.parts[part_name] = xsd_types[XSD_ANY_TYPE]
                     msg = "missing schema element {!r}".format(element_name)
                     wsdl_document.parse_error(msg)
-                    self.parts[part_name] = wsdl_document.schema.maps.types[XSD_ANY_TYPE]
 
-                continue
+                continue  # pragma: no cover
 
             try:
                 type_attr = child.attrib['type']
@@ -92,22 +143,338 @@ class WsdlMessage(object):
             else:
                 type_name = get_extended_qname(type_attr, wsdl_document.namespaces)
                 try:
-                    self.parts[part_name] = wsdl_document.schema.maps.types[type_name]
+                    self.parts[part_name] = xsd_types[type_name]
                 except KeyError:
+                    self.parts[part_name] = xsd_types[XSD_ANY_TYPE]
                     msg = "missing schema type {!r}".format(type_name)
                     wsdl_document.parse_error(msg)
-                    self.parts[part_name] = wsdl_document.schema.maps.types[XSD_ANY_TYPE]
 
-    def __repr__(self):
-        return '%s(name=%r)' % (self.__class__.__name__, self.name)
+
+class WsdlPortType(WsdlComponent):
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlPortType, self).__init__(elem, wsdl_document)
+        self.operations = {}
+
+        for child in elem.iterfind(WSDL_OPERATION):
+            operation_name = child.get('name')
+            if operation_name is None:
+                continue  # Ignore, missing name is already caught by XSD validator
+
+            operation = WsdlOperation(child, wsdl_document)
+            key = operation.key
+            if key in self.operations:
+                msg = "duplicated operation {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(operation_name, self))
+
+            self.operations[key] = operation
+
+
+class WsdlOperation(WsdlComponent):
+
+    input = output = None
+    soap_operation = None
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlOperation, self).__init__(elem, wsdl_document)
+        self.faults = {}
+
+        input_child = elem.find(WSDL_INPUT)
+        if input_child is not None:
+            self.input = WsdlInput(input_child, wsdl_document)
+
+        output_child = elem.find(WSDL_OUTPUT)
+        if output_child is not None:
+            self.output = WsdlOutput(output_child, wsdl_document)
+
+        for fault_child in elem.iterfind(WSDL_FAULT):
+            fault = WsdlFault(fault_child, wsdl_document)
+            if fault.name in self.faults:
+                msg = "duplicated fault {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(fault.name, self))
+            self.faults[fault.name] = fault
+
+        if input_child is not None and output_child is not None:
+            children = self.elem[:]
+            input_pos = children.index(input_child)
+            output_pos = children.index(output_child)
+            if input_pos < output_pos:
+                self.transmission = 'request-response'
+            else:
+                self.transmission = 'solicit-response'
+
+        elif input_child is not None:
+            self.transmission = 'one-way'
+        elif output_child is not None:
+            self.transmission = 'notification'
+        else:
+            self.transmission = None
+
+    @property
+    def key(self):
+        return self.local_name, \
+            getattr(self.input, 'local_name', None), \
+            getattr(self.output, 'local_name', None)
+
+    @property
+    def soap_action(self):
+        """The SOAP operation's action URI if any, `None` otherwise."""
+        if self.soap_operation is not None:
+            return self.soap_operation.get('soapAction')
+
+    @property
+    def soap_style(self):
+        """The SOAP operation's style if any, `None` otherwise."""
+        if self.soap_operation is not None:
+            style = self.soap_operation.get('style')
+            return style if style in ('rpc', 'document') else 'document'
+
+
+class WsdlMessageReference(WsdlComponent):
+    message = None
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlMessageReference, self).__init__(elem, wsdl_document)
+        message_name = self._parse_reference(elem, 'message')
+        try:
+            self.message = wsdl_document.maps.messages[message_name]
+        except KeyError:
+            if message_name:
+                msg = "unknown message {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(message_name, self))
+
+
+class WsdlInput(WsdlMessageReference):
+    soap_headers = ()
+    soap_body = None
+
+
+class WsdlOutput(WsdlMessageReference):
+    soap_headers = ()
+    soap_body = None
+
+
+class WsdlFault(WsdlMessageReference):
+    soap_fault = None
+
+
+class SoapParameter(object):
+
+    def __init__(self, elem, wsdl_document):
+        self.elem = elem
+        self.wsdl_document = wsdl_document
+
+    @property
+    def use(self):
+        use = self.elem
+        return use if use in ('literal', 'encoding') else None
+
+    @property
+    def encoding_style(self):
+        return self.elem.get('encodingStyle')
+
+    @property
+    def namespace(self):
+        return self.elem.get('namespace', '')
+
+
+class SoapBody(SoapParameter):
+
+    @property
+    def parts(self):
+        return self.elem.get('parts', '').split()
+
+
+class SoapFault(SoapParameter):
+
+    @property
+    def name(self):
+        return self.elem.get('name')
+
+
+class SoapHeader(WsdlMessageReference, SoapParameter):
+
+    def __init__(self, elem, wsdl_document):
+        super(SoapHeader, self).__init__(elem, wsdl_document)
+
+        if elem.tag == SOAP_HEADER:
+            self.faults = {}
+            for child in elem.iterfind(SOAP_HEADERFAULT):
+                fault = SoapHeader(child, wsdl_document)
+
+    @property
+    def message(self):
+        return self.elem.get('message')
+
+    @property
+    def part(self):
+        return self.elem.get('part', '')
+
+
+class WsdlBinding(WsdlComponent):
+
+    soap_binding = None
+    """The SOAP binding element if any, `None` otherwise."""
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlBinding, self).__init__(elem, wsdl_document)
+        self.operations = {}
+
+        if wsdl_document.soap_binding:
+            self.soap_binding = elem.find(SOAP_BINDING)
+            if self.soap_binding is None:
+                msg = "missing soap:binding element for {!r}"
+                wsdl_document.parse_error(msg.format(self))
+
+        port_type_name = self._parse_reference(elem, 'type')
+        try:
+            port_type = wsdl_document.maps.port_types[port_type_name]
+        except KeyError:
+            msg = "missing port type {!r} for {!r}"
+            wsdl_document.parse_error(msg.format(port_type_name, self))
+            return
+
+        for op_child in elem.iterfind(WSDL_OPERATION):
+            op_name = op_child.get('name')
+            if op_name is None:
+                continue  # Ignore, missing name is already caught by XSD validator
+
+            input_child = op_child.find(WSDL_INPUT)
+            input_name = None if input_child is None else input_child.get('name')
+            output_child = op_child.find(WSDL_OUTPUT)
+            output_name = None if output_child is None else output_child.get('name')
+
+            key = op_name, input_name, output_name
+            if key in self.operations:
+                msg = "duplicated operation {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(op_name, self))
+
+            try:
+                operation = port_type.operations[key]
+            except KeyError:
+                msg = "operation {!r} not found for {!r}"
+                wsdl_document.parse_error(msg.format(op_name, self))
+                continue
+
+            if wsdl_document.soap_binding:
+                operation.soap_operation = elem.find(SOAP_OPERATION)
+
+            if input_child is not None:
+                for body_child in input_child.iterfind(SOAP_BODY):
+                    operation.input.soap_body = SoapBody(body_child, wsdl_document)
+                    break
+                operation.input.soap_headers = [
+                    SoapBody(e, wsdl_document) for e in input_child.iterfind(SOAP_HEADER)
+                ]
+
+            if output_child is not None:
+                for body_child in output_child.iterfind(SOAP_BODY):
+                    operation.output.soap_body = SoapBody(body_child, wsdl_document)
+                    break
+                operation.output.soap_headers = [
+                    SoapBody(e, wsdl_document) for e in output_child.iterfind(SOAP_HEADER)
+                ]
+
+            for fault_child in op_child.iterfind(SOAP_FAULT):
+                fault = SoapFault(fault_child, wsdl_document)
+                try:
+                    operation.faults[fault.name].soap_fault = fault
+                except KeyError:
+                    msg = "missing fault {!r} in {!r}"
+                    wsdl_document.parse_error(msg.format(fault.name, operation))
+
+    @property
+    def soap_transport(self):
+        """The SOAP binding's transport URI if any, `None` otherwise."""
+        if self.soap_binding is not None:
+            return self.soap_binding.get('transport')
+
+    @property
+    def soap_style(self):
+        """The SOAP binding's style if any, `None` otherwise."""
+        if self.soap_binding is not None:
+            style = self.soap_binding.get('style')
+            return style if style in ('rpc', 'document') else 'document'
+
+
+class WsdlPort(WsdlComponent):
+
+    binding = None
+    soap_location = None
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlPort, self).__init__(elem, wsdl_document)
+
+        binding_name = self._parse_reference(elem, 'binding')
+        try:
+            self.binding = wsdl_document.maps.bindings[binding_name]
+        except KeyError:
+            if binding_name:
+                msg = "unknown binding {!r} for {!r} output"
+                wsdl_document.parse_error(msg.format(binding_name, self))
+
+        if wsdl_document.soap_binding:
+            for child in elem.iterfind(SOAP_ADDRESS):
+                self.soap_location = child.get('location')
+                break
+
+
+class WsdlService(WsdlComponent):
+
+    def __init__(self, elem, wsdl_document):
+        super(WsdlService, self).__init__(elem, wsdl_document)
+        self.ports = {}
+
+        for port_child in elem.iterfind(WSDL_PORT):
+            port = WsdlPort(port_child, wsdl_document)
+            if port.name is None:
+                continue  # Ignore, missing name is already caught by XSD validator
+            elif port.name in self.ports:
+                msg = "duplicated port {!r} for {!r}"
+                wsdl_document.parse_error(msg.format(port.name, self))
+            else:
+                self.ports[port.name] = port
 
 
 class Wsdl11Document(XmlDocument):
+    """
+    Class for WSDL 1.1 documents.
+
+    :param source: a string containing XML data or a file path or an URL or a \
+    file like object or an ElementTree or an Element.
+    :param cls: class to use for building the schema instance (for default \
+    :class:`XMLSchema10` is used).
+    :param validation: the XSD validation mode to use for validating the XML document, \
+    that can be 'strict' (default), 'lax' or 'skip'.
+    :param maps: WSDL definitions shared maps.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param locations: resource location hints, that can be a dictionary or a \
+    sequence of couples (namespace URI, resource URL).
+    :param base_url: the base URL for base :class:`xmlschema.XMLResource` initialization.
+    :param allow: the security mode for base :class:`xmlschema.XMLResource` initialization.
+    :param defuse: the defuse mode for base :class:`xmlschema.XMLResource` initialization.
+    :param timeout: the timeout for base :class:`xmlschema.XMLResource` initialization.
+    """
+    target_namespace = ''
+    soap_binding = False
 
     def __init__(self, source, cls=None, validation='strict', namespaces=None, maps=None,
                  locations=None, base_url=None, allow='all', defuse='remote', timeout=300):
 
-        self.schema = (cls or XMLSchema10)(os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'))
+        if maps is None:
+            if cls is None:
+                cls = XMLSchema10
+            self.schema = cls(source=os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'))
+            self.maps = Wsdl11Maps(self)
+        else:
+            self.schema = maps.wsdl_document.schema
+            self.maps = maps
+
+        if locations:
+            self.locations = NamespaceResourcesMap(locations)
+        else:
+            self.locations = NamespaceResourcesMap()
+
         super(Wsdl11Document, self).__init__(
             source=source,
             schema=self.schema,
@@ -119,24 +486,45 @@ class Wsdl11Document(XmlDocument):
             defuse=defuse,
             timeout=timeout,
         )
-        self.target_namespace = self._root.get('targetNamespace', '')
-        self.imports = {}
-        self.warnings = []
-        self.locations = NamespaceResourcesMap(self.get_locations(locations))
 
-        if maps is None:
-            self.maps = Wsdl11Globals(xsd_globals=self.schema.maps)
-        else:
-            self.maps = maps
+    @property
+    def imports(self):
+        return self.maps.imports
+
+    @property
+    def messages(self):
+        return self.maps.messages
+
+    @property
+    def port_types(self):
+        return self.maps.port_types
+
+    @property
+    def bindings(self):
+        return self.maps.bindings
+
+    @property
+    def services(self):
+        return self.maps.services
+
+    def parse(self, source, lazy=False):
+        super(Wsdl11Document, self).parse(source, lazy)
+        self.target_namespace = self._root.get('targetNamespace', '')
+        self.soap_binding = SOAP_NAMESPACE in self.namespaces.values()
 
         if self.namespace == XSD_NAMESPACE:
-            # Build schema for XSD documents
-            self.schema.__class__(self, locations=locations, global_maps=self.schema.maps)
+            self.schema.__class__(self, global_maps=self.schema.maps, locations=self.locations)
             return
+
+        if self is self.maps.wsdl_document:
+            self.maps.clear()
 
         self._parse_imports()
         self._parse_types()
         self._parse_messages()
+        self._parse_port_types()
+        self._parse_bindings()
+        self._parse_services()
 
     def parse_error(self, message):
         if self.validation == 'strict':
@@ -145,35 +533,43 @@ class Wsdl11Document(XmlDocument):
             self.errors.append(WsdlParseError(message))
 
     def _parse_types(self):
-        nsmap = []
         path = '{}/{}'.format(WSDL_TYPES, XSD_SCHEMA)
 
-        for child in self.iterfind(path, nsmap=nsmap):
-            namespaces = self.namespaces.copy()
-            namespaces.update(nsmap)
-
-            schema = self.schema.__class__(child, global_maps=self.schema.maps, build=False)
-            schema.namespaces.update(namespaces)
-            schema.build()
+        for child in self._root.iterfind(path):
+            source = self.subresource(child)
+            self.schema.__class__(source, global_maps=self.schema.maps)
 
     def _parse_messages(self):
         for child in self.iterfind(WSDL_MESSAGE):
             message = WsdlMessage(child, self)
             if message.name in self.maps.messages:
-                self.parse_error("duplicate message {!r}".format(message.name))
-                continue
-
-            name = '{%s}%s' % (self.target_namespace, message.name)
-            self.maps.messages[name] = message
+                self.parse_error("duplicated message {!r}".format(message.name))
+            else:
+                self.maps.messages[message.name] = message
 
     def _parse_port_types(self):
-        pass
-
-    def _parse_services(self):
-        pass
+        for child in self.iterfind(WSDL_PORT_TYPE):
+            port_type = WsdlPortType(child, self)
+            if port_type.name in self.maps.port_types:
+                self.parse_error("duplicated port type {!r}".format(port_type.name))
+            else:
+                self.maps.port_types[port_type.name] = port_type
 
     def _parse_bindings(self):
-        pass
+        for child in self.iterfind(WSDL_BINDING):
+            binding = WsdlBinding(child, self)
+            if binding.name in self.maps.port_types:
+                self.parse_error("duplicated binding {!r}".format(binding.name))
+            else:
+                self.maps.bindings[binding.name] = binding
+
+    def _parse_services(self):
+        for child in self.iterfind(WSDL_SERVICE):
+            service = WsdlService(child, self)
+            if service.name in self.maps.services:
+                self.parse_error("duplicated service {!r}".format(service.name))
+            else:
+                self.maps.services[service.name] = service
 
     def _parse_imports(self):
         namespace_imports = NamespaceResourcesMap(map(
@@ -186,29 +582,22 @@ class Wsdl11Document(XmlDocument):
                 self.parse_error("the attribute 'namespace' must be different from "
                                  "the 'targetNamespace' of the WSDL document")
                 continue
-            elif self.imports.get(namespace) is not None:
-                continue
-            elif namespace in self.maps.namespaces:
-                self.imports[namespace] = self.maps.namespaces[namespace][0]
+            elif namespace in self.maps.imports:
                 continue
 
             locations = [url for url in locations if url]
             if not namespace:
                 pass
-            elif not locations:
-                try:
-                    locations = list(self.locations[namespace])
-                except KeyError:
-                    pass
-            elif all(is_remote_url(url) for url in locations):
-                # Try the local hints before schema locations.
-                local_hints = [url for url in self.locations.get(namespace, ())
-                               if url and url_path_is_file(url)]
-                if local_hints:
-                    locations = local_hints + locations
+            try:
+                locations.extend(self.locations[namespace])
+            except KeyError:
+                pass
 
             import_error = None
             for url in locations:
+                if url is self.url:
+                    continue
+
                 try:
                     self.import_namespace(namespace, url, self.base_url)
                 except (OSError, IOError) as err:
@@ -229,49 +618,28 @@ class Wsdl11Document(XmlDocument):
             else:
                 if import_error is not None:
                     msg = "Import of namespace {!r} from {!r} failed: {}."
-                    self.warnings.append(msg.format(namespace, locations, str(import_error)))
-                    warnings.warn(self.warnings[-1], XMLSchemaImportWarning, stacklevel=4)
-                self.imports[namespace] = None
+                    self.parse_error(msg.format(namespace, locations, str(import_error)))
+                self.maps.imports[namespace] = None
 
-    def import_namespace(self, namespace, location, base_url=None, build=False):
-        """
-        Imports definitions for an external namespace, from a specific URL.
+    def import_namespace(self, namespace, location, base_url=None):
+        if namespace in self.maps.imports:
+            return self.maps.imports[namespace]
 
-        :param namespace: is the URI of the external namespace.
-        :param location: is the URL of the schema.
-        :param base_url: is an optional base URL for fetching the WSDL resource.
-        :param build: defines when to build the imported WSDL, the default is to not build.
-        :return: the imported :class:`XMLSchema` instance.
-        """
-        if location == self.url:
-            return self
-        elif self.imports.get(namespace) is not None:
-            return self.imports[namespace]
-        elif namespace in self.maps.namespaces:
-            self.imports[namespace] = self.maps.namespaces[namespace][0]
-            return self.imports[namespace]
-
-        url = fetch_resource(location, base_url)
-        if self.imports.get(namespace) is not None and self.imports[namespace].url == url:
-            return self.imports[namespace]
-        elif namespace in self.maps.namespaces:
-            for wsdl_document in self.maps.namespaces[namespace]:
-                if url == wsdl_document.url:
-                    self.imports[namespace] = wsdl_document
-                    return wsdl_document
-
-        wsdl_document = type(self)(
+        url = fetch_resource(location, base_url or self.base_url)
+        wsdl_document = self.__class__(
             source=url,
-            validation=self.validation,
             maps=self.maps,
+            namespaces=self._namespaces,
+            validation=self.validation,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
             timeout=self.timeout,
         )
+
         if wsdl_document.target_namespace != namespace:
-            raise XMLSchemaValueError(
-                'imported %r has an unmatched namespace %r' % (wsdl_document, namespace)
-            )
-        self.imports[namespace] = wsdl_document
+            msg = 'imported {!r} has an unmatched namespace {!r}'
+            self.parse_error(msg.format(wsdl_document, namespace))
+
+        self.maps.imports[namespace] = wsdl_document
         return wsdl_document

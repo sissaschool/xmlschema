@@ -183,7 +183,7 @@ class TestXmlDocuments(unittest.TestCase):
     def test_xml_document_init_with_schema(self):
         xml_document = XmlDocument(self.vh_xml_file)
         self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
-        self.assertEqual(xml_document.errors, [])
+        self.assertEqual(xml_document.errors, ())
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
         xml_document = XmlDocument(self.vh_xml_file, cls=XMLSchema11)
@@ -234,6 +234,23 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertIsNone(xml_document.schema)
         self.assertIsInstance(xml_document._fallback_schema, XMLSchema10)
         self.assertEqual(xml_document._fallback_schema.target_namespace, xml_document.namespace)
+
+    def test_xml_document_parse(self):
+        xml_document = XmlDocument(self.vh_xml_file)
+        self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
+        self.assertFalse(xml_document.is_lazy())
+
+        xml_file = casepath('examples/vehicles/vehicles-1_error.xml')
+        with self.assertRaises(XMLSchemaValidationError):
+            xml_document.parse(xml_file)
+
+        xml_document.parse(self.vh_xml_file, lazy=True)
+        self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
+        self.assertTrue(xml_document.is_lazy())
+
+        xml_document = XmlDocument(self.vh_xml_file, validation='lax')
+        xml_document.parse(xml_file)
+        self.assertEqual(len(xml_document.errors), 1)
 
     def test_xml_document_decode_with_schema(self):
         xml_document = XmlDocument(self.vh_xml_file)

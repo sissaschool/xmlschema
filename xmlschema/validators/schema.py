@@ -20,6 +20,7 @@ import threading
 import warnings
 import re
 import sys
+from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
@@ -149,8 +150,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :param namespace: is an optional argument that contains the URI of the namespace. \
     When specified it must be equal to the *targetNamespace* declared in the schema.
     :type namespace: str or None
-    :param validation: defines the XSD validation mode to use for build the schema, \
-    it's value can be 'strict', 'lax' or 'skip'.
+    :param validation: the XSD validation mode to use for build the schema, \
+    that can be 'strict' (default), 'lax' or 'skip'.
     :type validation: str
     :param global_maps: is an optional argument containing an :class:`XsdGlobals` \
     instance, a mediator object for sharing declaration data between dependents \
@@ -788,7 +789,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         schema = object.__new__(self.__class__)
         schema.__dict__.update(self.__dict__)
-        schema.source = self.source.copy()
+        schema.source = copy(self.source)
         schema.errors = self.errors[:]
         schema.warnings = self.warnings[:]
         schema.namespaces = self.namespaces.copy()

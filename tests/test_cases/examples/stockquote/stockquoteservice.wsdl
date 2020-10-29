@@ -1,16 +1,14 @@
 <?xml version="1.0"?>
 <definitions name="StockQuote"
+             targetNamespace="http://example.com/stockquote/service"
+             xmlns:tns="http://example.com/stockquote/service"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:defs="http://example.com/stockquote/definitions"
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
 
-targetNamespace="http://example.com/stockquote/service"
-          xmlns:tns="http://example.com/stockquote/service"
-          xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
-          xmlns:defs="http://example.com/stockquote/definitions"
-          xmlns="http://schemas.xmlsoap.org/wsdl/">
+   <import namespace="http://example.com/stockquote/definitions" location="stockquote.wsdl"/>
 
-   <import namespace="http://example.com/stockquote/definitions"
-           location="http://example.com/stockquote/stockquote.wsdl"/>
-
-    <binding name="StockQuoteSoapBinding" type="defs:StockQuotePortType">
+    <binding name="StockQuoteBinding" type="defs:StockQuotePortType">
         <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
         <operation name="GetLastTradePrice">
            <soap:operation soapAction="http://example.com/GetLastTradePrice"/>

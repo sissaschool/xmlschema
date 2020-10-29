@@ -587,9 +587,6 @@ class TestResources(unittest.TestCase):
             resource = XMLResource(fp.read(), base_url='/foo')
             self.assertEqual(resource.base_url, '/foo')
 
-        resource.base_url = '/bar'
-        self.assertEqual(resource.base_url, '/bar')
-
     def test_xml_resource_is_local(self):
         resource = XMLResource(self.vh_xml_file)
         self.assertTrue(resource.is_local())
@@ -611,7 +608,7 @@ class TestResources(unittest.TestCase):
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
-        resource.defuse = 'always'
+        resource._defuse = 'always'
         for _, elem in resource._lazy_iterparse(self.col_xml_file):
             self.assertTrue(is_etree_element(elem))
 
@@ -623,7 +620,7 @@ class TestResources(unittest.TestCase):
             resource._iterparse(fp)
         self.assertTrue(is_etree_element(resource.root))
 
-        resource.defuse = 'always'
+        resource._defuse = 'always'
         with open(self.col_xml_file) as fp:
             resource._iterparse(fp)
         self.assertTrue(is_etree_element(resource.root))
@@ -631,27 +628,6 @@ class TestResources(unittest.TestCase):
     def test_xml_resource_tostring(self):
         resource = XMLResource(self.vh_xml_file)
         self.assertTrue(resource.tostring().startswith('<vh:vehicles'))
-
-    def test_xml_resource_copy(self):
-        resource = XMLResource(self.vh_xml_file, lazy=True)
-        resource2 = resource.copy(defuse='never')
-        self.assertEqual(resource2.defuse, 'never')
-        resource2 = resource.copy(timeout=30)
-        self.assertEqual(resource2.timeout, 30)
-        resource2 = resource.copy(lazy=False)
-        self.assertFalse(resource2.is_lazy())
-
-        self.assertIsNone(resource.text)
-        self.assertIsNone(resource2.text)
-
-        with self.assertRaises(XMLResourceError) as ctx:
-            resource.load()
-        self.assertIn('cannot load a lazy resource', str(ctx.exception))
-
-        resource2.load()
-        self.assertIsNotNone(resource2.text)
-        resource3 = resource2.copy()
-        self.assertEqual(resource2.text, resource3.text)
 
     def test_xml_resource_open(self):
         resource = XMLResource(self.vh_xml_file)

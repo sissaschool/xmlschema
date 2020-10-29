@@ -49,6 +49,7 @@ VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 WSDL_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/'
 SOAP_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/soap/'
 SOAP_ENVELOPE_NAMESPACE = 'http://schemas.xmlsoap.org/soap/envelope/'
+SOAP_ENCODING_NAMESPACE = 'http://schemas.xmlsoap.org/soap/encoding/'
 
 
 ###
@@ -65,6 +66,7 @@ LOCATION_HINTS = {
     WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
     SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
     SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
+    SOAP_ENCODING_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-encoding.xsd'),
 
     # Remote locations: contributors can propose additional official locations
     # for other namespaces for extending this list.

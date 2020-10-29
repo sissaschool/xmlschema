@@ -350,10 +350,39 @@ class XMLResource(object):
 
     def __init__(self, source, base_url=None, allow='all',
                  defuse='remote', timeout=300, lazy=False):
+
+        if base_url is not None and not isinstance(base_url, str):
+            msg = "invalid type {!r} for the attribute 'base_url'"
+            raise XMLSchemaTypeError(msg.format(type(base_url)))
         self._base_url = base_url
-        self.allow = allow
-        self.defuse = defuse
-        self.timeout = timeout
+
+        if not isinstance(allow, str):
+            msg = "invalid type {!r} for the attribute 'allow'"
+            raise XMLSchemaTypeError(msg.format(type(allow)))
+        elif allow not in SECURITY_MODES:
+            msg = "'allow' attribute: {!r} is not a security mode"
+            raise XMLSchemaValueError(msg.format(allow))
+        elif allow == 'sandbox' and self._base_url is None:
+            msg = "block access to files out of sandbox requires 'base_url' to be set"
+            raise XMLResourceError(msg)
+        self._allow = allow
+
+        if not isinstance(defuse, str):
+            msg = "invalid type {!r} for the attribute 'defuse'"
+            raise XMLSchemaTypeError(msg.format(type(defuse)))
+        elif defuse not in DEFUSE_MODES:
+            msg = "'defuse' attribute: {!r} is not a defuse mode"
+            raise XMLSchemaValueError(msg.format(defuse))
+        self._defuse = defuse
+
+        if not isinstance(timeout, int):
+            msg = "invalid type {!r} for the attribute 'timeout'"
+            raise XMLSchemaTypeError(msg.format(type(timeout)))
+        elif timeout <= 0:
+            msg = "the attribute 'timeout' must be a positive integer"
+            raise XMLSchemaValueError(msg)
+        self._timeout = timeout
+
         self.parse(source, lazy)
 
     def __str__(self):
@@ -362,47 +391,57 @@ class XMLResource(object):
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
 
-    def __setattr__(self, name, value):
-        if name == '_base_url':
-            if value is not None and not isinstance(value, str):
-                msg = "invalid type {!r} for the attribute 'base_url'"
-                raise XMLSchemaTypeError(msg.format(type(value)))
-        elif name == 'allow':
-            if not isinstance(value, str):
-                msg = "invalid type {!r} for the attribute 'allow'"
-                raise XMLSchemaTypeError(msg.format(type(value)))
-            elif value not in SECURITY_MODES:
-                msg = "'allow' attribute: {!r} is not a security mode"
-                raise XMLSchemaValueError(msg.format(value))
-            elif value == 'sandbox' and self._base_url is None:
-                msg = "block access to files out of sandbox requires 'base_url' to be set"
-                raise XMLResourceError(msg)
-        elif name == 'defuse':
-            if not isinstance(value, str):
-                msg = "invalid type {!r} for the attribute 'defuse'"
-                raise XMLSchemaTypeError(msg.format(type(value)))
-            elif value not in DEFUSE_MODES:
-                msg = "'defuse' attribute: {!r} is not a defuse mode"
-                raise XMLSchemaValueError(msg.format(value))
-        elif name == 'timeout':
-            if not isinstance(value, int):
-                msg = "invalid type {!r} for the attribute 'timeout'"
-                raise XMLSchemaTypeError(msg.format(type(value)))
-            elif value <= 0:
-                msg = "the attribute 'timeout' must be a positive integer"
-                raise XMLSchemaValueError(msg)
+    @property
+    def source(self):
+        """The XML data source."""
+        return self._source
 
-        super(XMLResource, self).__setattr__(name, value)
+    @property
+    def root(self):
+        """The XML tree root Element."""
+        return self._root
+
+    @property
+    def text(self):
+        """The XML text source, `None` if it's not available."""
+        return self._text
+
+    @property
+    def url(self):
+        """
+        The source URL, `None` if the instance is created from an Element tree or from a string.
+        """
+        return self._url
+
+    @property
+    def base_url(self):
+        """The effective base URL used for completing relative locations."""
+        return os.path.dirname(self._url) if self._url else self._base_url
+
+    @property
+    def allow(self):
+        """The security mode for accessing resource locations."""
+        return self._allow
+
+    @property
+    def defuse(self):
+        """When to defuse XML data."""
+        return self._defuse
+
+    @property
+    def timeout(self):
+        """The timeout in seconds for accessing remote resources."""
+        return self._timeout
 
     def _access_control(self, url):
-        if self.allow == 'all':
+        if self._allow == 'all':
             return
-        elif self.allow == 'remote':
+        elif self._allow == 'remote':
             if is_local_url(url):
                 raise XMLResourceError("block access to local resource {}".format(url))
         elif is_remote_url(url):
             raise XMLResourceError("block access to remote resource {}".format(url))
-        elif self.allow == 'sandbox':
+        elif self._allow == 'sandbox':
             if not url.startswith(normalize_url(self._base_url)):
                 raise XMLResourceError("block access to out of sandbox file {}".format(url))
 
@@ -441,7 +480,8 @@ class XMLResource(object):
             else:
                 _nsmap = []
 
-        if self.defuse == 'remote' and is_remote_url(self.base_url) or self.defuse == 'always':
+        if self._defuse == 'remote' and is_remote_url(self.base_url) \
+                or self._defuse == 'always':
             safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             tree_iterator = PyElementTree.iterparse(source, events, safe_parser)
         else:
@@ -479,8 +519,8 @@ class XMLResource(object):
             raise
 
     def _iterparse(self, resource):
-        if self.defuse == 'remote' and is_remote_url(self.base_url) \
-                or self.defuse == 'always':
+        if self._defuse == 'remote' and is_remote_url(self.base_url) \
+                or self._defuse == 'always':
 
             if not hasattr(resource, 'seekable') or not resource.seekable():
                 xml_data = resource.read()
@@ -538,7 +578,7 @@ class XMLResource(object):
 
             _url, self._url = self._url, url
             try:
-                with urlopen(url, timeout=self.timeout) as resource:
+                with urlopen(url, timeout=self._timeout) as resource:
                     if not lazy:
                         self._iterparse(resource)
                     else:
@@ -642,37 +682,6 @@ class XMLResource(object):
         self._source = source
 
     @property
-    def source(self):
-        """The XML data source."""
-        return self._source
-
-    @property
-    def root(self):
-        """The XML tree root Element."""
-        return self._root
-
-    @property
-    def text(self):
-        """The XML text source, `None` if it's not available."""
-        return self._text
-
-    @property
-    def url(self):
-        """
-        The source URL, `None` if the instance is created from an Element tree or from a string.
-        """
-        return self._url
-
-    @property
-    def base_url(self):
-        """The effective base URL used for completing relative locations."""
-        return os.path.dirname(self._url) if self._url else self._base_url
-
-    @base_url.setter
-    def base_url(self, value):
-        self._base_url = value
-
-    @property
     def namespace(self):
         """The namespace of the XML resource."""
         return get_namespace(self._root.tag)
@@ -718,18 +727,35 @@ class XMLResource(object):
         namespaces = self.get_namespaces(root_only=False)
         return etree_tostring(elem, namespaces, indent, max_lines, spaces_for_tab, xml_declaration)
 
-    def copy(self, **kwargs):
-        """Resource copy method. Change init parameters with keyword arguments."""
-        obj = type(self)(
-            source=self._source,
-            base_url=kwargs.get('base_url', self.base_url),
-            defuse=kwargs.get('defuse', self.defuse),
-            timeout=kwargs.get('timeout', self.timeout),
-            lazy=kwargs.get('lazy', self._lazy)
-        )
-        if obj._text is None and self._text is not None:
-            obj._text = self._text
-        return obj
+    def subresource(self, elem):
+        """Create an XMLResource instance from a subelement of a non-lazy XML tree."""
+        if self._lazy:
+            raise XMLResourceError("cannot create a subresource from a lazy resource")
+
+        for e in self._root.iter():
+            if e is elem:
+                break
+        else:
+            msg = "{!r} is not an element or the XML resource tree"
+            raise XMLResourceError(msg.format(elem))
+
+        resource = XMLResource(elem, self._base_url, self._allow, self._defuse, self._timeout)
+        if not hasattr(elem, 'nsmap'):
+            namespaces = {}
+            _nsmap = self._nsmap[elem]
+            _nsmap_initial_len = len(_nsmap)
+            nsmap = list(dict(_nsmap).items())
+
+            for e in elem.iter():
+                if _nsmap is not self._nsmap[e]:
+                    _nsmap = self._nsmap[e]
+                    nsmap = nsmap[:]
+                    nsmap.extend(_nsmap[_nsmap_initial_len:])
+                namespaces[e] = nsmap
+
+            resource._nsmap = namespaces
+
+        return resource
 
     def open(self):
         """
@@ -743,7 +769,7 @@ class XMLResource(object):
             raise XMLResourceError("can't open, the resource has no URL associated.")
 
         try:
-            return urlopen(self._url, timeout=self.timeout)
+            return urlopen(self._url, timeout=self._timeout)
         except URLError as err:
             raise XMLResourceError(
                 "cannot access to resource %r: %s" % (self._url, err.reason)

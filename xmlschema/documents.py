@@ -15,7 +15,7 @@ from .namespaces import XSD_NAMESPACE
 from .etree import ElementTree, is_etree_document, etree_tostring
 from .qnames import XSI_TYPE
 from .resources import fetch_schema_locations, XMLResource
-from .validators import XMLSchema, XMLSchemaBase, XMLSchemaValidationError
+from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 
 
 def get_context(source, schema=None, cls=None, locations=None, base_url=None,
@@ -26,7 +26,7 @@ def get_context(source, schema=None, cls=None, locations=None, base_url=None,
     :return: an XMLResource instance and a schema instance.
     """
     if cls is None:
-        cls = XMLSchema
+        cls = XMLSchema10
     if not isinstance(source, XMLResource):
         source = XMLResource(source, base_url, defuse=defuse, timeout=timeout, lazy=lazy)
     if isinstance(schema, XMLSchemaBase) and source.namespace in schema.maps.namespaces:
@@ -109,7 +109,7 @@ def validate(xml_document, schema=None, cls=None, path=None, schema_path=None,
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
     :param cls: class to use for building the schema instance (for default \
-    :class:`XMLSchema` is used).
+    :class:`XMLSchema10` is used).
     :param path: is an optional XPath expression that matches the elements of the XML \
     data that have to be decoded. If not provided the XML root element is used.
     :param schema_path: an XPath expression to select the XSD element to use for decoding. \
@@ -174,7 +174,7 @@ def to_dict(xml_document, schema=None, cls=None, path=None, process_namespaces=T
     :param schema: can be a schema instance or a file-like object or a file path or a URL \
     of a resource or a string containing the schema.
     :param cls: class to use for building the schema instance (for default uses \
-    :class:`XMLSchema`).
+    :class:`XMLSchema10`).
     :param path: is an optional XPath expression that matches the elements of the XML \
     data that have to be decoded. If not provided the XML root element is used.
     :param process_namespaces: indicates whether to use namespace information in \
@@ -218,7 +218,7 @@ def to_json(xml_document, fp=None, schema=None, cls=None, path=None, converter=N
     :param schema: can be a schema instance or a file-like object or a file path or an URL \
     of a resource or a string containing the schema.
     :param cls: schema class to use for building the instance (for default uses \
-    :class:`XMLSchema`).
+    :class:`XMLSchema10`).
     :param path: is an optional XPath expression that matches the elements of the XML \
     data that have to be decoded. If not provided the XML root element is used.
     :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
@@ -282,7 +282,7 @@ def from_json(source, schema, path=None, converter=None, json_options=None, **kw
 
     :param source: can be a string or a :meth:`read()` supporting file-like object \
     containing the JSON document.
-    :param schema: an :class:`XMLSchema` or an :class:`XMLSchema11` instance.
+    :param schema: an :class:`XMLSchema10` or an :class:`XMLSchema11` instance.
     :param path: is an optional XPath expression for selecting the element of the schema \
     that matches the data that has to be encoded. For default the first global element of \
     the schema is used.
@@ -319,21 +319,36 @@ class XmlDocument(XMLResource):
     file like object or an ElementTree or an Element.
     :param schema: can be a :class:`xmlschema.XMLSchema` instance or a file-like \
     object or a file path or an URL of a resource or a string containing the XSD schema.
+    :param cls: class to use for building the schema instance (for default \
+    :class:`XMLSchema10` is used).
+    :param validation: the XSD validation mode to use for validating the XML document, \
+    that can be 'strict' (default), 'lax' or 'skip'.
+    :param namespaces: is an optional mapping from namespace prefix to URI.
+    :param locations: resource location hints, that can be a dictionary or a \
+    sequence of couples (namespace URI, resource URL).
+    :param base_url: the base URL for base :class:`xmlschema.XMLResource` initialization.
+    :param allow: the security mode for base :class:`xmlschema.XMLResource` initialization.
+    :param defuse: the defuse mode for base :class:`xmlschema.XMLResource` initialization.
+    :param timeout: the timeout for base :class:`xmlschema.XMLResource` initialization.
+    :param lazy: the lazy mode for base :class:`xmlschema.XMLResource` initialization.
     """
     schema = _fallback_schema = None
+    validation = 'skip'
+    namespaces = None
+    errors = ()
 
     def __init__(self, source, schema=None, cls=None, validation='strict',
                  namespaces=None, locations=None, base_url=None, allow='all',
                  defuse='remote', timeout=300, lazy=False):
 
-        super(XmlDocument, self).__init__(source, base_url, allow, defuse, timeout, lazy)
         self.validation = validation
-        self.namespaces = self.get_namespaces(namespaces)
+        self._namespaces = namespaces
+        super(XmlDocument, self).__init__(source, base_url, allow, defuse, timeout, lazy)
 
         if isinstance(schema, XMLSchemaBase) and self.namespace in schema.maps.namespaces:
             self.schema = schema
         elif schema is not None:
-            self.schema = (cls or XMLSchema)(
+            self.schema = (cls or XMLSchema10)(
                 source=schema,
                 base_url=base_url,
                 allow=allow,
@@ -342,7 +357,7 @@ class XmlDocument(XMLResource):
             )
         elif self.schema is None:
             if cls is None:
-                cls = XMLSchema
+                cls = XMLSchema10
 
             try:
                 schema_location, locations = fetch_schema_locations(self, locations, base_url)
@@ -366,13 +381,21 @@ class XmlDocument(XMLResource):
 
         if validation == 'strict':
             self.schema.validate(self, namespaces=self.namespaces)
-            self.errors = []
         elif validation == 'lax':
             self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
-        elif validation == 'skip':
-            self.errors = []
-        else:
+        elif validation != 'skip':
             raise XMLSchemaValueError("{!r}: not a validation mode".format(validation))
+
+    def parse(self, source, lazy=False):
+        super(XmlDocument, self).parse(source, lazy)
+        self.namespaces = self.get_namespaces(self._namespaces)
+
+        if self.schema is None:
+            pass
+        elif self.validation == 'strict':
+            self.schema.validate(self, namespaces=self.namespaces)
+        elif self.validation == 'lax':
+            self.errors = [e for e in self.schema.iter_errors(self, namespaces=self.namespaces)]
 
     def getroot(self):
         """Get the root element of the XML document."""
