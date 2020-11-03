@@ -731,9 +731,6 @@ def evaluate(self, context=None):
     self.missing_context("Context item position is undefined")
 
 
-XsdAssertionXPathParser.build_tokenizer()
-
-
 class XsdAssertionFacet(XsdFacet):
     """
     XSD 1.1 *assertion* facet for simpleType definitions.
@@ -769,6 +766,7 @@ class XsdAssertionFacet(XsdFacet):
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
         else:
             self.xpath_default_namespace = self.schema.xpath_default_namespace
+
         self.parser = XsdAssertionXPathParser(
             self.namespaces, strict=False, variable_types=variable_types,
             default_namespace=self.xpath_default_namespace

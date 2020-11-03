@@ -242,8 +242,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar extra_locations: schema extra location hints provided with the argument *locations*.
-    :vartype extra_locations: tuple or None
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
@@ -278,6 +276,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     BASE_SCHEMAS = None
     fallback_locations = None
     meta_schema = None
+    _locations = None
 
     # Schema defaults
     target_namespace = ''
@@ -380,22 +379,29 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             except ValueError as err:
                 self.parse_error(err, root)
 
-        if locations is None or isinstance(locations, tuple):
-            self.extra_locations = locations
+        if converter is None:
+            self.converter = XMLSchemaConverter
         else:
-            self.extra_locations = tuple(normalize_locations(locations, self.base_url))
-
-        self.locations = NamespaceResourcesMap(self.source.get_locations(self.extra_locations))
-        self.converter = self.get_converter(converter)
-        if not use_fallback:
-            self.fallback_locations = {}
+            self.converter = self.get_converter(converter)
 
         if self.meta_schema is None:
-            # Meta-schema creation phase (MetaXMLSchema class)
+            self.locations = NamespaceResourcesMap()
+
+            # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
             for child in filter(is_xsd_override, self.root):
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
+
+        if locations:
+            if isinstance(locations, tuple):
+                self._locations = locations
+            else:
+                self._locations = tuple(normalize_locations(locations, self.base_url))
+
+        self.locations = NamespaceResourcesMap(self.source.get_locations(self._locations))
+        if not use_fallback:
+            self.fallback_locations = {}
 
         with self.meta_schema.lock:
             if not self.meta_schema.maps.types:
@@ -924,23 +930,22 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 return self
             raise XMLSchemaKeyError('the namespace {!r} is not loaded'.format(namespace)) from None
 
-    def get_converter(self, converter=None, namespaces=None, **kwargs):
+    def get_converter(self, converter=None, **kwargs):
         """
         Returns a new converter instance.
 
         :param converter: can be a converter class or instance. If it's an instance \
         the new instance is copied from it and configured with the provided arguments.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: optional arguments for initialize the converter instance.
         :return: a converter instance.
         """
         if converter is None:
-            converter = getattr(self, 'converter', XMLSchemaConverter)
+            converter = self.converter
 
         if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(namespaces=namespaces, **kwargs)
-        elif issubclass(converter, XMLSchemaConverter):
-            return converter(namespaces, **kwargs)
+            return converter.copy(**kwargs)
+        elif isinstance(converter, type) and issubclass(converter, XMLSchemaConverter):
+            return converter(**kwargs)
         else:
             msg = "'converter' argument must be a %r subclass or instance: %r"
             raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
@@ -1032,7 +1037,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
-                locations=self.extra_locations,
+                locations=self._locations,
                 base_url=self.base_url,
                 allow=self.allow,
                 defuse=self.defuse,
@@ -1171,7 +1176,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=self.extra_locations,
+            locations=self._locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
@@ -1619,7 +1624,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             namespace = source.namespace
 
         schema = self.get_schema(namespace)
-        converter = self.get_converter(converter, namespaces, **kwargs)
+        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         kwargs.update(
             converter=converter,
             namespaces=namespaces,
@@ -1719,7 +1724,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
         namespaces = {} if namespaces is None else namespaces.copy()
-        converter = self.get_converter(converter, namespaces, **kwargs)
+        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
 
         namespace = get_namespace(path) or namespaces.get('', '')
         if namespace:

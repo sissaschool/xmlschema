@@ -52,21 +52,18 @@ class IdentityXPathParser(XPath2Parser):
     SYMBOLS = XSD_IDENTITY_XPATH_SYMBOLS
 
 
-IdentityXPathParser.build_tokenizer()
-
-
 class XsdSelector(XsdComponent):
     """Class for defining an XPath selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_SELECTOR}
     xpath_default_namespace = ''
-    pattern = re.compile(translate_pattern(
+    pattern = translate_pattern(
         r"(\.//)?(((child::)?((\i\c*:)?(\i\c*|\*)))|\.)(/(((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.))*(\|(\.//)?(((child::)?((\i\c*:)?"
         r"(\i\c*|\*)))|\.)(/(((child::)?((\i\c*:)?(\i\c*|\*)))|\.))*)*",
         back_references=False,
         lazy_quantifiers=False,
         anchors=False
-    ))
+    )
     token = None
     parser = None
 
@@ -81,8 +78,14 @@ class XsdSelector(XsdComponent):
             self.parse_error("'xpath' attribute required:", self.elem)
             self.path = '*'
         else:
-            if not self.pattern.match(self.path.replace(' ', '')):
-                self.parse_error("Wrong XPath expression for an xs:selector")
+            try:
+                if not self.pattern.match(self.path.replace(' ', '')):
+                    self.parse_error("invalid XPath expression for an {}".format(type(self)))
+            except AttributeError:
+                # Compile regex pattern
+                self.__class__.pattern = re.compile(self.pattern)
+                if not self.pattern.match(self.path.replace(' ', '')):
+                    self.parse_error("invalid XPath expression for an {}".format(type(self)))
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -128,7 +131,7 @@ class XsdSelector(XsdComponent):
 class XsdFieldSelector(XsdSelector):
     """Class for defining an XPath field selector for an XSD identity constraint."""
     _ADMITTED_TAGS = {XSD_FIELD}
-    pattern = re.compile(translate_pattern(
+    pattern = translate_pattern(
         r"(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*((((child::)?"
         r"((\i\c*:)?(\i\c*|\*)))|\.)|((attribute::|@)((\i\c*:)?(\i\c*|\*))))"
         r"(\|(\.//)?((((child::)?((\i\c*:)?(\i\c*|\*)))|\.)/)*"
@@ -137,7 +140,7 @@ class XsdFieldSelector(XsdSelector):
         back_references=False,
         lazy_quantifiers=False,
         anchors=False
-    ))
+    )
 
 
 class XsdIdentity(XsdComponent):

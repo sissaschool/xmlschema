@@ -42,9 +42,6 @@ class LazyXPath2Parser(XPath2Parser):
     SYMBOLS = LAZY_XML_XPATH_SYMBOLS
 
 
-LazyXPath2Parser.build_tokenizer()
-
-
 class LazySelector(object):
     """A limited XPath selector class for lazy XML resources."""
 

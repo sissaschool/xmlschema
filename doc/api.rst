@@ -175,7 +175,6 @@ XML resource API
     .. autoattribute:: base_url
     .. autoattribute:: namespace
 
-    .. automethod:: copy
     .. automethod:: parse
     .. automethod:: tostring
     .. automethod:: open
@@ -186,7 +185,10 @@ XML resource API
     .. automethod:: is_local
     .. automethod:: is_loaded
     .. automethod:: iter
-    .. automethod:: iter_subtrees
+    .. automethod:: iter_depth
+    .. automethod:: iterfind
+    .. automethod:: find
+    .. automethod:: findall
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations
