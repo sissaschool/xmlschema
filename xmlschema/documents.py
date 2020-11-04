@@ -355,7 +355,7 @@ class XmlDocument(XMLResource):
                 defuse=defuse,
                 timeout=timeout,
             )
-        elif self.schema is None:
+        else:
             if cls is None:
                 cls = XMLSchema10
 
