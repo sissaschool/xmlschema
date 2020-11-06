@@ -477,7 +477,7 @@ class XsdComponent(XsdValidator):
         if self.parent is None:
             return self
         component = self.parent
-        while component is not self:
+        while component is not self:  # pragma: no cover
             if component.parent is None:
                 return component
             component = component.parent

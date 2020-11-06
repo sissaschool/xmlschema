@@ -31,7 +31,15 @@ _REGEX_SPACES = re.compile(r'\s+')
 #
 if '_elementtree' in sys.modules:
     # Temporary remove the loaded modules
-    ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
+    try:
+        ElementTree = sys.modules.pop('xml.etree.ElementTree')
+    except KeyError:
+        # Reimporting xml.etree.ElementTree causes the loading of pure Python
+        # module instead of the optimized C version, so it's better to raise
+        # an error instead of running silently with mismatched modules.
+        raise RuntimeError("Inconsistent status for ElementTree module: module "
+                           "is missing but the C optimized version is imported.")
+
     _cmod = sys.modules.pop('_elementtree')
 
     # Load the pure Python module
@@ -40,10 +48,7 @@ if '_elementtree' in sys.modules:
 
     # Restore original modules
     sys.modules['_elementtree'] = _cmod
-    if ElementTree is not None:
-        sys.modules['xml.etree.ElementTree'] = ElementTree
-    else:
-        ElementTree = PyElementTree
+    sys.modules['xml.etree.ElementTree'] = ElementTree
 
 else:
     # Load the pure Python module
@@ -135,11 +140,7 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_
     elif not hasattr(elem, 'nsmap'):
         etree_module = ElementTree
     else:
-        try:
-            import lxml.etree as etree_module
-        except ImportError:
-            msg = "cannot serialize %r: lxml library is not available"
-            raise XMLSchemaTypeError(msg % type(elem))
+        etree_module = importlib.import_module('lxml.etree')
 
     if namespaces:
         default_namespace = namespaces.get('')
@@ -193,6 +194,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
     """
     if tag == "*":
         tag = None
+    if not path:
+        path = '.'
     if tag is None or elem.tag == tag:
         yield elem, path
 
@@ -209,10 +212,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
         child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
         if path == '/':
             child_path = '/%s' % child_name
-        elif path:
-            child_path = '/'.join((path, child_name))
         else:
-            child_path = child_name
+            child_path = '/'.join((path, child_name))
 
         if child.tag in positions:
             child_path += '[%d]' % positions[child.tag]
@@ -245,10 +246,8 @@ def etree_getpath(elem, root, namespaces=None, relative=True,
         for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
             if e is elem:
                 return path
-    elif elem in root:
-        return path
     else:
-        for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
+        for e, path in etree_iterpath(root, None, path, namespaces, add_position):
             if elem in e:
                 return path
 
@@ -292,12 +291,15 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             continue
 
         try:
-            e2 = next(other_children)
+            while True:
+                e2 = next(other_children)
+                if not skip_comments or not callable(e2.tag):
+                    break
         except StopIteration:
-            assert False, "Node %r has more children than %r." % (elem, other)
+            assert False, "Node %r has more children than %r" % (elem, other)
 
         if strict or e1 is elem:
-            assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
+            assert e1.tag == e2.tag, "%r != %r: tags differ" % (e1, e2)
         else:
             namespace = get_namespace(e1.tag) or namespace
             assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), \
@@ -306,10 +308,10 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
         # Attributes
         if e1.attrib != e2.attrib:
             if strict:
-                msg = "{!r} != {!r}: attribute differ: {!r} != {!r}."
-                raise AssertionError(msg % (e1, e2, e1.attrib, e2.attrib))
+                msg = "{!r} != {!r}: attributes differ: {!r} != {!r}"
+                raise AssertionError(msg.format(e1, e2, e1.attrib, e2.attrib))
             else:
-                msg = "%r != %r: attribute keys differ: %r != %r."
+                msg = "%r != %r: attribute keys differ: %r != %r"
                 assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
                     msg % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
@@ -318,7 +320,7 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
                         try:
                             assert float(a1) == float(a2)
                         except (AssertionError, ValueError, TypeError):
-                            msg = "%r != %r: attribute %r differ: %r != %r."
+                            msg = "%r != %r: attribute %r values differ: %r != %r"
                             raise AssertionError(msg % (e1, e2, k, a1, a2))
 
         # Number of children
@@ -328,31 +330,45 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
         else:
             nc1 = len(e1)
             nc2 = len(e2)
-        assert nc1 == nc2, "%r != %r: children number differ: %r != %r." % (e1, e2, nc1, nc2)
+        assert nc1 == nc2, "%r != %r: children number differ: %r != %r" % (e1, e2, nc1, nc2)
 
         # Text
         if e1.text != e2.text:
-            message = "%r != %r: texts differ: %r != %r." % (e1, e2, e1.text, e2.text)
+            message = "%r != %r: texts differ: %r != %r" % (e1, e2, e1.text, e2.text)
             if strict:
                 raise AssertionError(message)
             elif e1.text is None:
                 assert not e2.text.strip(), message
             elif e2.text is None:
                 assert not e1.text.strip(), message
-            elif _REGEX_SPACES.sub(e1.text.strip(), '') != _REGEX_SPACES.sub(e2.text.strip(), ''):
-                try:
-                    assert float(e1.text.strip()) == float(e2.text.strip())
-                except (AssertionError, ValueError, TypeError):
-                    raise AssertionError(message)
+            elif _REGEX_SPACES.sub('', e1.text.strip()) != _REGEX_SPACES.sub('', e2.text.strip()):
+                text1 = e1.text.strip()
+                text2 = e2.text.strip()
+                if text1 == 'false':
+                    assert text2 == '0', message
+                elif text1 == 'true':
+                    assert text2 == '1', message
+                elif text2 == 'false':
+                    assert text1 == '0', message
+                elif text2 == 'true':
+                    assert text1 == '1', message
+                else:
+                    try:
+                        items1 = text1.split()
+                        items2 = text2.split()
+                        assert len(items1) == len(items2)
+                        assert all(float(x1) == float(x2) for x1, x2 in zip(items1, items2))
+                    except (AssertionError, ValueError, TypeError):
+                        raise AssertionError(message)
 
         # Tail
         if e1.tail != e2.tail:
-            message = "%r != %r: tails differ: %r != %r." % (e1, e2, e1.tail, e2.tail)
+            message = "%r != %r: tails differ: %r != %r" % (e1, e2, e1.tail, e2.tail)
             if strict:
                 raise AssertionError(message)
             elif e1.tail is None:
                 assert not e2.tail.strip(), message
-            elif e2.text is None:
+            elif e2.tail is None:
                 assert not e1.tail.strip(), message
             else:
                 assert e1.tail.strip() == e2.tail.strip(), message
