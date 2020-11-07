@@ -25,6 +25,7 @@ if __name__ == '__main__':
             return tests
 
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_etree.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_etree_import.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_helpers.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_qnames.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_namespaces.py"))

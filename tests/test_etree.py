@@ -16,6 +16,12 @@ import lxml.etree
 
 from xmlschema import etree
 
+TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
+
+
+def casepath(relative_path):
+    return os.path.join(TEST_CASES_DIR, relative_path)
+
 
 class TestElementTree(unittest.TestCase):
 
@@ -34,27 +40,60 @@ class TestElementTree(unittest.TestCase):
 
         self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii'), b'<element />')
 
-    def test_safe_xml_parser(self):
-        test_dir = os.path.dirname(__file__) or '.'
+    def test_defuse_xml_entities(self):
+        xml_file = casepath('resources/with_entity.xml')
+
+        elem = etree.ElementTree.parse(xml_file).getroot()
+        self.assertEqual(elem.text, 'abc')
+
         parser = etree.SafeXMLParser(target=etree.PyElementTree.TreeBuilder())
+        with self.assertRaises(etree.PyElementTree.ParseError) as ctx:
+            etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertEqual("Entities are forbidden (entity_name='e')", str(ctx.exception))
 
-        xml_file = os.path.join(test_dir, 'test_cases/resources/with_entity.xml')
+    def test_defuse_xml_external_entities(self):
+        xml_file = casepath('resources/external_entity.xml')
+
+        with self.assertRaises(etree.ParseError) as ctx:
+            etree.ElementTree.parse(xml_file)
+        self.assertIn("undefined entity &ee", str(ctx.exception))
+
+        parser = etree.SafeXMLParser(target=etree.PyElementTree.TreeBuilder())
+        with self.assertRaises(etree.PyElementTree.ParseError) as ctx:
+            etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
+
+    def test_defuse_xml_unused_external_entities(self):
+        xml_file = casepath('resources/unused_external_entity.xml')
+
         elem = etree.ElementTree.parse(xml_file).getroot()
         self.assertEqual(elem.text, 'abc')
 
-        with self.assertRaises(etree.PyElementTree.ParseError):
+        parser = etree.SafeXMLParser(target=etree.PyElementTree.TreeBuilder())
+        with self.assertRaises(etree.PyElementTree.ParseError) as ctx:
             etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertEqual("Entities are forbidden (entity_name='ee')", str(ctx.exception))
 
-        xml_file = os.path.join(test_dir, 'test_cases/resources/unused_external_entity.xml')
+    def test_defuse_xml_unparsed_entities(self):
+        xml_file = casepath('resources/unparsed_entity.xml')
+
+        parser = etree.SafeXMLParser(target=etree.PyElementTree.TreeBuilder())
+        with self.assertRaises(etree.PyElementTree.ParseError) as ctx:
+            etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
+
+    def test_defuse_xml_unused_unparsed_entities(self):
+        xml_file = casepath('resources/unused_unparsed_entity.xml')
+
         elem = etree.ElementTree.parse(xml_file).getroot()
-        self.assertEqual(elem.text, 'abc')
-        with self.assertRaises(etree.PyElementTree.ParseError):
-            etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertIsNone(elem.text)
 
-        xml_file = os.path.join(test_dir, 'test_cases/resources/external_entity.xml')
-        self.assertRaises(etree.ParseError, etree.ElementTree.parse, xml_file)
-        with self.assertRaises(etree.PyElementTree.ParseError):
+        parser = etree.SafeXMLParser(target=etree.PyElementTree.TreeBuilder())
+        with self.assertRaises(etree.PyElementTree.ParseError) as ctx:
             etree.ElementTree.parse(xml_file, parser=parser)
+        self.assertEqual("Unparsed entities are forbidden (entity_name='logo_file')",
+                         str(ctx.exception))
 
     def test_etree_iterpath(self):
         root = ElementTree.XML('<a><b1><c1/><c2/></b1><b2/><b3><c3/></b3></a>')
