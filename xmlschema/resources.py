@@ -10,7 +10,7 @@
 import os.path
 import re
 from string import ascii_letters
-from elementpath import iter_select, XPath1Parser, XPathContext, XPath2Parser, Selector
+from elementpath import iter_select, XPath1Parser, XPathContext, XPath2Parser
 from io import StringIO, BytesIO
 from urllib.request import urlopen, pathname2url
 from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
@@ -57,14 +57,16 @@ class LazySelector(object):
         context = XPathContext(root, **kwargs)
         results = self.root_token.get_results(context)
         if not isinstance(results, list) or any(not is_etree_element(x) for x in results):
-            raise XMLResourceError("XPath selection must return elements only")
+            msg = "XPath expressions on lazy resources can select only elements"
+            raise XMLResourceError(msg)
         return results
 
     def iter_select(self, root, **kwargs):
         context = XPathContext(root, **kwargs)
         for elem in self.root_token.select_results(context):
             if not is_etree_element(elem):
-                raise XMLResourceError("XPath selection must return elements only")
+                msg = "XPath expressions on lazy resources can select only elements"
+                raise XMLResourceError(msg)
             yield elem
 
 
@@ -515,16 +517,13 @@ class XMLResource(object):
                 raise ElementTree.ParseError(str(err)) from None
             raise
 
-    def _iterparse(self, resource):
+    def _parse(self, resource):
         if self._defuse == 'remote' and is_remote_url(self.base_url) \
                 or self._defuse == 'always':
 
             if not hasattr(resource, 'seekable') or not resource.seekable():
-                xml_data = resource.read()
-                if isinstance(xml_data, str):
-                    resource = StringIO(xml_data)
-                else:
-                    resource = BytesIO(xml_data)
+                text = resource.read()
+                resource = StringIO(text) if isinstance(text, str) else BytesIO(text)
 
             safe_parser = SafeXMLParser(target=PyElementTree.TreeBuilder())
             try:
@@ -577,9 +576,9 @@ class XMLResource(object):
             try:
                 with urlopen(url, timeout=self._timeout) as resource:
                     if not lazy:
-                        self._iterparse(resource)
+                        self._parse(resource)
                     else:
-                        for _ in self._lazy_iterparse(resource):
+                        for _ in self._lazy_iterparse(resource):  # pragma: no cover
                             break
             except Exception:
                 self._url = _url
@@ -594,9 +593,9 @@ class XMLResource(object):
             resource = StringIO(source)
             try:
                 if not lazy:
-                    self._iterparse(resource)
+                    self._parse(resource)
                 else:
-                    for _ in self._lazy_iterparse(resource):
+                    for _ in self._lazy_iterparse(resource):  # pragma: no cover
                         break
             except Exception:
                 self._url = _url
@@ -609,9 +608,9 @@ class XMLResource(object):
             _url, self._url = self._url, None
             try:
                 if not lazy:
-                    self._iterparse(source)
+                    self._parse(source)
                 else:
-                    for _ in self._lazy_iterparse(source):
+                    for _ in self._lazy_iterparse(source):  # pragma: no cover
                         break
             except Exception:
                 self._url = _url
@@ -635,9 +634,9 @@ class XMLResource(object):
             _url, self._url = self._url, url
             try:
                 if not lazy:
-                    self._iterparse(source)
+                    self._parse(source)
                 else:
-                    for _ in self._lazy_iterparse(source):
+                    for _ in self._lazy_iterparse(source):  # pragma: no cover
                         break
             except Exception:
                 self._url = _url
@@ -686,9 +685,10 @@ class XMLResource(object):
     @property
     def parent_map(self):
         if self._lazy:
-            raise XMLResourceError("cannot create the parent map for a lazy resource")
+            raise XMLResourceError("cannot create the parent map of a lazy resource")
         if self._parent_map is None:
-            self._parent_map = {child: elem for elem in self.root.iter() for child in elem}
+            self._parent_map = {child: elem for elem in self._root.iter() for child in elem}
+            self._parent_map[self._root] = None
         return self._parent_map
 
     def get_absolute_path(self, path=None):
@@ -729,7 +729,7 @@ class XMLResource(object):
         if self._lazy:
             raise XMLResourceError("cannot create a subresource from a lazy resource")
 
-        for e in self._root.iter():
+        for e in self._root.iter():  # pragma: no cover
             if e is elem:
                 break
         else:
@@ -785,6 +785,8 @@ class XMLResource(object):
                 return
         except AttributeError:
             pass  # pragma: no cover
+        except ValueError as err:
+            raise XMLResourceError(str(err)) from None
         else:
             return self._source.seek(position)
 
@@ -965,17 +967,15 @@ class XMLResource(object):
                     if ancestors is not None and level < subtree_level:
                         ancestors.append(node)
                     level += 1
-                elif event == 'end':
+                else:
                     level -= 1
                     if not level:
-                        if mode != 1 or not subtree_level:
+                        if mode != 1:
                             yield node
-                    elif not subtree_level:
-                        continue
                     elif level != subtree_level:
                         if ancestors is not None and level < subtree_level:
                             ancestors.pop()
-                        continue
+                        continue  # pragma: no cover
                     elif mode != 2:
                         yield node
 
@@ -997,7 +997,7 @@ class XMLResource(object):
         :param ancestors: provide a list for tracking the ancestors of yielded elements.
         """
         if self._lazy:
-            selector = Selector(path, namespaces, strict=False)
+            selector = LazySelector(path, namespaces)
             path = path.replace(' ', '').replace('./', '')
             resource = self.open()
             level = 0
@@ -1015,7 +1015,7 @@ class XMLResource(object):
                         if ancestors is not None and level < subtree_level:
                             ancestors.append(node)
                         level += 1
-                    elif event == 'end':
+                    else:
                         level -= 1
                         if not level:
                             if subtree_level:
@@ -1027,11 +1027,12 @@ class XMLResource(object):
                         elif level != subtree_level:
                             if ancestors is not None and level < subtree_level:
                                 ancestors.pop()
-                            continue
+                            continue  # pragma: no cover
                         elif select_all or node in selector.select(self._root):
                             yield node
 
                         del node[:]  # delete children, keep attributes, text and tail.
+
             finally:
                 if self._source is not resource:
                     resource.close()
@@ -1040,7 +1041,7 @@ class XMLResource(object):
             if ancestors is None:
                 selector = iter_select
             else:
-                parent_map = self._parent_map
+                parent_map = self.parent_map
                 ancestors.clear()
 
                 def selector(*args, **kwargs):
@@ -1053,7 +1054,8 @@ class XMLResource(object):
                             try:
                                 while True:
                                     parent = parent_map[parent]
-                                    _ancestors.append(parent)
+                                    if parent is not None:
+                                        _ancestors.append(parent)
                             except KeyError:
                                 pass
 
@@ -1061,7 +1063,7 @@ class XMLResource(object):
                                 ancestors.clear()
                                 ancestors.extend(reversed(_ancestors))
 
-                        yield elem
+                        yield e
 
             if not self._nsmap or nsmap is None:
                 yield from selector(self._root, path, namespaces, strict=False)
@@ -1144,7 +1146,10 @@ class XMLResource(object):
             location_hints = normalize_locations(locations, self.base_url)
 
         if root_only:
-            location_hints.extend(etree_iter_location_hints(self._root))
+            location_hints.extend([
+                (ns, normalize_url(url, self.base_url))
+                for ns, url in etree_iter_location_hints(self._root)
+            ])
         else:
             location_hints.extend([
                 (ns, normalize_url(url, self.base_url))
