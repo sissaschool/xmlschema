@@ -164,8 +164,13 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
 .. _xml-resource-api:
 
-XML resource API
-================
+XML resources API
+=================
+
+.. autofunction:: xmlschema.fetch_resource
+.. autofunction:: xmlschema.fetch_schema
+.. autofunction:: xmlschema.fetch_schema_locations
+.. autofunction:: xmlschema.normalize_url
 
 .. autoclass:: xmlschema.XMLResource
 
@@ -193,10 +198,16 @@ XML resource API
     .. automethod:: get_namespaces
     .. automethod:: get_locations
 
-.. autofunction:: xmlschema.fetch_resource
-.. autofunction:: xmlschema.fetch_schema
-.. autofunction:: xmlschema.fetch_schema_locations
-.. autofunction:: xmlschema.normalize_url
+.. autoclass:: xmlschema.XmlDocument
+
+.. autoclass:: xmlschema.wsdl.Wsdl11Document
+
+    .. autoattribute:: messages
+    .. autoattribute:: port_types
+    .. autoattribute:: bindings
+    .. autoattribute:: services
+
+
 
 
 .. _xpath-api:

@@ -2,9 +2,12 @@
 CHANGELOG
 *********
 
-`v1.3.0`_ (2020-10-xx)
+`v1.3.0`_ (2020-11-08)
 ======================
 * Drop support for Python 3.5
+* Add XmlDocument and Wsdl11Document classes
+* Refactoring of XMLResource to support ElementTree-like XPath API
+  on both full and lazy modes
 
 `v1.2.5`_ (2020-09-26)
 ======================

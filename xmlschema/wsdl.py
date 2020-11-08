@@ -509,22 +509,27 @@ class Wsdl11Document(XmlDocument):
 
     @property
     def imports(self):
+        """WSDL 1.1 imports of XSD or WSDL additional resources."""
         return self.maps.imports
 
     @property
     def messages(self):
+        """WSDL 1.1 messages."""
         return self.maps.messages
 
     @property
     def port_types(self):
+        """WSDL 1.1 port types."""
         return self.maps.port_types
 
     @property
     def bindings(self):
+        """WSDL 1.1 bindings."""
         return self.maps.bindings
 
     @property
     def services(self):
+        """WSDL 1.1 services."""
         return self.maps.services
 
     def parse(self, source, lazy=False):

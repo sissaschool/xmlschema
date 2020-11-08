@@ -443,5 +443,41 @@ using the keyword argument *decimal_type*:
         "@xsi:schemaLocation": "http://example.com/ns/collection collection.xsd"
     }
 
-From version 1.0 there are two module level API for simplify the JSON serialization and deserialization task.
-See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the :ref:`document-level-api` section.
+From version 1.0 there are two module level API for simplify the JSON serialization
+and deserialization task.
+See the :meth:`xmlschema.to_json` and :meth:`xmlschema.from_json` in the
+:ref:`document-level-api` section.
+
+
+XML resources and documents
+===========================
+
+Schemas and XML instances processing are based on the class :class:`XMLResource`,
+that handles the loading and the iteration of XSD/XML data.
+Starting from v1.3.0 :class:`XMLResource` has been empowered with ElementTree-like
+XPath API. From the same release a new class :class:`xmlschema.XmlDocument` is
+available for representing XML resources with a related schema:
+
+.. doctest::
+
+    >>> import xmlschema
+    >>> xml_document = xmlschema.XmlDocument('tests/test_cases/examples/vehicles/vehicles.xml')
+    >>> xml_document.schema
+    XMLSchema10(name='vehicles.xsd', namespace='http://example.com/vehicles')
+
+This class can be used to derive specialized schema-related classes. An example of
+specialization is the class :class:`Wsdl11Document`, usable for validating and
+parsing WSDL 1.1 documents, that can be imported from *wsdl* module:
+
+.. doctest::
+
+    >>> from xmlschema.wsdl import Wsdl11Document
+    >>> wsdl_document = Wsdl11Document('tests/test_cases/examples/stockquote/stockquoteservice.wsdl')
+    >>> wsdl_document.schema
+    XMLSchema10(name='wsdl.xsd', namespace='http://schemas.xmlsoap.org/wsdl/')
+
+A parsed WSDL 1.1 document can aggregate a set of WSDL/XSD files for building
+interrelated set of definitions in multiple namespaces. The XMLResource base
+class and schema validation assure a fully checked WSDL document with
+protections against XML attacks.
+See :class:`xmlschema.wsdl.Wsdl11Document` API for details.
