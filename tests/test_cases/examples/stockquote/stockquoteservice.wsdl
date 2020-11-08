@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<definitions name="StockQuote"
+             targetNamespace="http://example.com/stockquote/service"
+             xmlns:tns="http://example.com/stockquote/service"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:defs="http://example.com/stockquote/definitions"
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+   <import namespace="http://example.com/stockquote/definitions" location="stockquote.wsdl"/>
+
+    <binding name="StockQuoteBinding" type="defs:StockQuotePortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="GetLastTradePrice">
+           <soap:operation soapAction="http://example.com/GetLastTradePrice"/>
+           <input>
+               <soap:body use="literal"/>
+           </input>
+           <output>
+               <soap:body use="literal"/>
+           </output>
+        </operation>
+    </binding>
+
+    <service name="StockQuoteService">
+        <documentation>My first service</documentation>
+        <port name="StockQuotePort" binding="tns:StockQuoteBinding">
+           <soap:address location="http://example.com/stockquote"/>
+        </port>
+    </service>
+</definitions>

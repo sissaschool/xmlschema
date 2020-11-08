@@ -180,7 +180,8 @@ class TestConsoleScripts(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+    header_template = "Test xmlschema CLI with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     unittest.main()

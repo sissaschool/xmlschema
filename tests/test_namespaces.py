@@ -12,7 +12,6 @@ import unittest
 import os
 import sys
 
-from xmlschema.testing import print_test_header
 from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE, \
     NamespaceResourcesMap, NamespaceMapper, NamespaceView
 
@@ -59,6 +58,7 @@ class TestNamespaceMapper(unittest.TestCase):
         namespaces = dict(xs=XSD_NAMESPACE, xsi=XSI_NAMESPACE)
         mapper = NamespaceMapper(namespaces)
         self.assertEqual(mapper, namespaces)
+        self.assertIs(namespaces, mapper.namespaces)
 
     def test_dictionary_methods(self):
         namespaces = dict(xs=XSD_NAMESPACE)
@@ -213,5 +213,9 @@ class TestNamespaceView(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema namespaces with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

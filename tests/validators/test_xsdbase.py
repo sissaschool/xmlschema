@@ -14,8 +14,6 @@ import platform
 import re
 import xml.etree.ElementTree as ElementTree
 
-from xmlschema.compat import ordered_dict_class
-from xmlschema.testing import print_test_header
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
 from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
@@ -592,7 +590,7 @@ class TestValidationMixin(unittest.TestCase):
 
     def test_encode(self):
         xml_file = os.path.join(CASES_DIR, 'examples/vehicles/vehicles.xml')
-        obj = self.schema.decode(xml_file, dict_class=ordered_dict_class)
+        obj = self.schema.decode(xml_file)
 
         root = self.schema.elements['vehicles'].encode(obj)
         self.assertEqual(root.tag, self.schema.elements['vehicles'].name)
@@ -768,5 +766,9 @@ class TestParticleMixin(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema's XSD base classes with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

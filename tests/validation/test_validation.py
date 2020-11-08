@@ -11,13 +11,18 @@
 import unittest
 import os
 import sys
+from xml.etree import ElementTree
+
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
 
 import xmlschema
 from xmlschema import XMLSchemaValidationError
 
-from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase, print_test_header
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestValidation(XsdValidatorTestCase):
@@ -72,7 +77,7 @@ class TestValidation(XsdValidatorTestCase):
             self.assertIsNone(xmlschema.validate(f, schema=self.vh_xsd_file))
 
     def test_document_validate_api_lazy(self):
-        source = xmlschema.XMLResource(self.col_xml_file, lazy=True)
+        source = xmlschema.XMLResource(self.col_xml_file, lazy=False)
         namespaces = source.get_namespaces()
         source.root[0].clear()  # Drop internal elements
         source.root[1].clear()
@@ -227,5 +232,9 @@ class TestValidation11(TestValidation):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema validation with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

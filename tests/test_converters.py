@@ -11,9 +11,13 @@
 import unittest
 import os
 
-from xmlschema import XMLSchema, XMLSchemaConverter, ElementData
-from xmlschema.etree import etree_element, etree_register_namespace, \
-    lxml_etree_element, lxml_etree_register_namespace, etree_elements_assert_equal
+try:
+    from lxml.etree import Element as lxml_etree_element
+except ImportError:
+    lxml_etree_element = None
+
+from xmlschema import XMLSchema, XMLSchemaConverter
+from xmlschema.etree import etree_element, etree_elements_assert_equal
 
 from xmlschema.converters import ColumnarConverter
 
@@ -29,19 +33,13 @@ class TestConverters(unittest.TestCase):
     def test_element_class_argument(self):
         converter = XMLSchemaConverter()
         self.assertIs(converter.etree_element_class, etree_element)
-        self.assertIs(converter.register_namespace, etree_register_namespace)
 
         converter = XMLSchemaConverter(etree_element_class=etree_element)
         self.assertIs(converter.etree_element_class, etree_element)
-        self.assertIs(converter.register_namespace, etree_register_namespace)
 
         if lxml_etree_element is not None:
             converter = XMLSchemaConverter(etree_element_class=lxml_etree_element)
             self.assertIs(converter.etree_element_class, lxml_etree_element)
-            self.assertIs(converter.register_namespace, lxml_etree_register_namespace)
-
-        with self.assertRaises(TypeError):
-            XMLSchemaConverter(etree_element_class=ElementData)
 
     def test_prefix_arguments(self):
         converter = XMLSchemaConverter(cdata_prefix='#')
@@ -132,7 +130,9 @@ class TestConverters(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+    import platform
+    header_template = "Test xmlschema converters with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     unittest.main()

@@ -12,7 +12,7 @@
 
 import os
 
-from xmlschema.testing import get_test_program_args_parser, print_test_header, \
+from xmlschema.testing import get_test_program_args_parser, \
     tests_factory, make_schema_test_class
 
 DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
@@ -20,6 +20,7 @@ DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfile
 
 if __name__ == '__main__':
     import unittest
+    import platform
 
     args = get_test_program_args_parser(DEFAULT_TESTFILES).parse_args()
 
@@ -38,7 +39,10 @@ if __name__ == '__main__':
         argv.append('-k')
         argv.append(pattern)
 
-    print_test_header()
+    header_template = "Schema building tests for xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main(argv=argv, verbosity=args.verbosity, failfast=args.failfast,
                   catchbreak=args.catchbreak, buffer=args.buffer)
 else:

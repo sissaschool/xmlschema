@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!-- From WSDL 1.1 definition: https://www.w3.org/TR/2001/NOTE-wsdl-20010315 -->
+<definitions name="StockQuote"
+             targetNamespace="http://example.com/stockquote/definitions"
+             xmlns:tns="http://example.com/stockquote/definitions"
+             xmlns:xsd1="http://example.com/stockquote/schemas"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+    <import namespace="http://example.com/stockquote/schemas" location="stockquote.xsd" />
+
+    <message name="GetLastTradePriceInput">
+        <part name="body" element="xsd1:TradePriceRequest"/>
+    </message>
+
+    <message name="GetLastTradePriceOutput">
+        <part name="body" element="xsd1:TradePrice"/>
+    </message>
+
+    <portType name="StockQuotePortType">
+        <operation name="GetLastTradePrice">
+           <input message="tns:GetLastTradePriceInput"/>
+           <output message="tns:GetLastTradePriceOutput"/>
+        </operation>
+    </portType>
+</definitions>

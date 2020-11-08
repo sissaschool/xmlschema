@@ -20,12 +20,13 @@ import threading
 import warnings
 import re
 import sys
+from copy import copy
 from abc import ABCMeta
 from collections import namedtuple, Counter
 from itertools import chain
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
-    XMLSchemaValueError, XMLSchemaOSError, XMLSchemaNamespaceError
+    XMLSchemaValueError, XMLSchemaNamespaceError
 from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
@@ -36,9 +37,9 @@ from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
 from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
     SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
-from ..etree import etree_element, etree_tostring, prune_etree, ParseError
+from ..etree import etree_element, prune_etree, ParseError
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
-    normalize_locations, fetch_resource, update_prefix, normalize_url, XMLResource
+    normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -138,9 +139,6 @@ class XMLSchemaMeta(ABCMeta):
 
         return super(XMLSchemaMeta, mcs).__new__(mcs, name, bases, dict_)
 
-    def __init__(cls, name, bases, dict_):
-        super(XMLSchemaMeta, cls).__init__(name, bases, dict_)
-
 
 class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=XMLSchemaMeta):
     """
@@ -152,8 +150,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :param namespace: is an optional argument that contains the URI of the namespace. \
     When specified it must be equal to the *targetNamespace* declared in the schema.
     :type namespace: str or None
-    :param validation: defines the XSD validation mode to use for build the schema, \
-    it's value can be 'strict', 'lax' or 'skip'.
+    :param validation: the XSD validation mode to use for build the schema, \
+    that can be 'strict' (default), 'lax' or 'skip'.
     :type validation: str
     :param global_maps: is an optional argument containing an :class:`XsdGlobals` \
     instance, a mediator object for sharing declaration data between dependents \
@@ -244,8 +242,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     :vartype maps: XsdGlobals
     :ivar converter: the default converter used for XML data decoding/encoding.
     :vartype converter: XMLSchemaConverter
-    :ivar extra_locations: schema extra location hints provided with the argument *locations*.
-    :vartype locations: tuple or None
     :ivar locations: schema location hints.
     :vartype locations: NamespaceResourcesMap
     :ivar namespaces: a dictionary that maps from the prefixes used by the schema \
@@ -280,6 +276,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
     BASE_SCHEMAS = None
     fallback_locations = None
     meta_schema = None
+    _locations = None
 
     # Schema defaults
     target_namespace = ''
@@ -315,7 +312,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             # Allow sandbox mode without a base_url using the initial schema URL as base
             base_url = os.path.dirname(normalize_url(source))
 
-        self.source = XMLResource(source, base_url, allow, defuse, timeout, lazy=False)
+        if isinstance(source, XMLResource):
+            self.source = source
+        else:
+            self.source = XMLResource(source, base_url, allow, defuse, timeout)
         logger.debug("Read schema from %r", self.source)
 
         self.imports = {}
@@ -334,21 +334,17 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         else:
             if self.target_namespace == '':
                 # https://www.w3.org/TR/2004/REC-xmlschema-1-20041028/structures.html#element-schema
-                self.parse_error("The attribute 'targetNamespace' cannot be an empty string.", root)
+                self.parse_error("the attribute 'targetNamespace' cannot be an empty string", root)
 
         if namespace is not None and self.target_namespace != namespace:
             if self.target_namespace:
-                msg = "wrong namespace (%r instead of %r) for XSD resource %s."
+                msg = "wrong namespace (%r instead of %r) for XSD resource %s"
                 self.parse_error(msg % (self.target_namespace, namespace, self.url), root)
 
             # Chameleon schema case: set the target namespace and the default namespace
             self.target_namespace = namespace
             if '' not in self.namespaces:
                 self.namespaces[''] = namespace
-            elif '' not in self.source.get_namespaces(root_only=True):
-                other_ns = self.namespaces.pop('')
-                self.namespaces[''] = namespace
-                update_prefix(self.namespaces, '', other_ns)
 
         logger.debug("Schema targetNamespace is %r", self.target_namespace)
         logger.debug("Declared namespaces: %r", self.namespaces)
@@ -383,22 +379,29 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             except ValueError as err:
                 self.parse_error(err, root)
 
-        if locations is None or isinstance(locations, tuple):
-            self.extra_locations = locations
+        if converter is None:
+            self.converter = XMLSchemaConverter
         else:
-            self.extra_locations = tuple(normalize_locations(locations, self.base_url))
-
-        self.locations = NamespaceResourcesMap(self.source.get_locations(self.extra_locations))
-        self.converter = self.get_converter(converter)
-        if not use_fallback:
-            self.fallback_locations = {}
+            self.converter = self.get_converter(converter)
 
         if self.meta_schema is None:
-            # Meta-schema creation phase (MetaXMLSchema class)
+            self.locations = NamespaceResourcesMap()
+
+            # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
             for child in filter(is_xsd_override, self.root):
                 self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
+
+        if locations:
+            if isinstance(locations, tuple):
+                self._locations = locations
+            else:
+                self._locations = tuple(normalize_locations(locations, self.base_url))
+
+        self.locations = NamespaceResourcesMap(self.source.get_locations(self._locations))
+        if not use_fallback:
+            self.fallback_locations = {}
 
         with self.meta_schema.lock:
             if not self.meta_schema.maps.types:
@@ -494,8 +497,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.substitution_groups = NamespaceView(value.substitution_groups,
                                                      self.target_namespace)
             self.identities = NamespaceView(value.identities, self.target_namespace)
-            self.global_maps = (self.notations, self.types, self.attributes,
-                                self.attribute_groups, self.groups, self.elements)
+            self._global_views = (self.notations, self.types, self.attributes,
+                                  self.attribute_groups, self.groups, self.elements)
             value.register(self)
         else:
             if name == 'validation':
@@ -527,20 +530,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         return self.source.root
 
     def get_text(self):
-        """
-        Gets the XSD text of the schema. If the source text is not available creates
-        an encoded string representation of the XSD tree.
-        """
-        if self.source.text is None:
-            if self.source.url is None:
-                return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
-            else:
-                try:
-                    self.source.load()
-                except XMLSchemaOSError:
-                    return etree_tostring(self.source.root, self.namespaces, xml_declaration=True)
-
-        return self.source.text
+        """Returns the source text of the XSD schema."""
+        return self.source.get_text()
 
     @property
     def url(self):
@@ -804,7 +795,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         schema = object.__new__(self.__class__)
         schema.__dict__.update(self.__dict__)
-        schema.source = self.source.copy()
+        schema.source = copy(self.source)
         schema.errors = self.errors[:]
         schema.warnings = self.warnings[:]
         schema.namespaces = self.namespaces.copy()
@@ -901,10 +892,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param schema: Optional argument for filtering only globals related to a schema instance.
         """
         if schema is None:
-            for global_map in self.global_maps:
+            for global_map in self._global_views:
                 yield from global_map.values()
         else:
-            for global_map in self.global_maps:
+            for global_map in self._global_views:
                 for obj in global_map.values():
                     if isinstance(obj, tuple):
                         if obj[1] == schema:
@@ -939,23 +930,22 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 return self
             raise XMLSchemaKeyError('the namespace {!r} is not loaded'.format(namespace)) from None
 
-    def get_converter(self, converter=None, namespaces=None, **kwargs):
+    def get_converter(self, converter=None, **kwargs):
         """
         Returns a new converter instance.
 
         :param converter: can be a converter class or instance. If it's an instance \
         the new instance is copied from it and configured with the provided arguments.
-        :param namespaces: is an optional mapping from namespace prefix to URI.
         :param kwargs: optional arguments for initialize the converter instance.
         :return: a converter instance.
         """
         if converter is None:
-            converter = getattr(self, 'converter', XMLSchemaConverter)
+            converter = self.converter
 
         if isinstance(converter, XMLSchemaConverter):
-            return converter.copy(namespaces=namespaces, **kwargs)
-        elif issubclass(converter, XMLSchemaConverter):
-            return converter(namespaces, **kwargs)
+            return converter.copy(**kwargs)
+        elif isinstance(converter, type) and issubclass(converter, XMLSchemaConverter):
+            return converter(**kwargs)
         else:
             msg = "'converter' argument must be a %r subclass or instance: %r"
             raise XMLSchemaTypeError(msg % (XMLSchemaConverter, converter))
@@ -1047,7 +1037,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 validation=self.validation,
                 global_maps=self.maps,
                 converter=self.converter,
-                locations=self.extra_locations,
+                locations=self._locations,
                 base_url=self.base_url,
                 allow=self.allow,
                 defuse=self.defuse,
@@ -1186,7 +1176,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             validation=self.validation,
             global_maps=self.maps,
             converter=self.converter,
-            locations=self.extra_locations,
+            locations=self._locations,
             base_url=self.base_url,
             allow=self.allow,
             defuse=self.defuse,
@@ -1453,14 +1443,20 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         self.check_validator(validation='lax')
         if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
         if not schema_path:
             schema_path = source.get_absolute_path(path)
 
-        namespaces = source.get_namespaces(namespaces)
+        namespaces = source.get_namespaces(namespaces, root_only=True)
         namespace = source.namespace or namespaces.get('', '')
-        schema = self.get_schema(namespace)
+
+        try:
+            schema = self.get_schema(namespace)
+        except KeyError:
+            schema = self
+
         identities = {}
+        locations = []
         ancestors = []
         prev_ancestors = []
         kwargs = {
@@ -1472,11 +1468,15 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             'id_map': Counter(),
             'identities': identities,
             'inherited': {},
+            'locations': locations,  # TODO: lazy schemas load
         }
 
-        # TODO: kwargs['locations'] = {}  # Lazy schemas load
+        if path:
+            selector = source.iterfind(path, namespaces, nsmap=namespaces, ancestors=ancestors)
+        else:
+            selector = source.iter_depth(mode=3, nsmap=namespaces, ancestors=ancestors)
 
-        for elem in source.iter_subtrees(path, namespaces, lazy_mode=4, ancestors=ancestors):
+        for elem in selector:
             if elem is source.root:
                 xsd_element = schema.get_element(elem.tag, namespaces=namespaces)
                 if source.lazy_depth:
@@ -1543,9 +1543,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                         yield self.validation_error(validation, error, source.root, **kwargs)
 
     def raw_decoder(self, source, path=None, schema_path=None, validation='lax',
-                    namespaces=None, lazy_mode=1, **kwargs):
+                    namespaces=None, **kwargs):
         """Returns a generator for decoding a resource."""
-        for elem in source.iter_subtrees(path, namespaces, lazy_mode):
+        if path:
+            selector = source.iterfind(path, namespaces, nsmap=namespaces)
+        else:
+            selector = source.iter_depth(nsmap=namespaces)
+
+        for elem in selector:
             xsd_element = self.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
@@ -1564,7 +1569,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                     process_namespaces=True, namespaces=None, use_defaults=True,
                     decimal_type=None, datetime_types=False, converter=None,
                     filler=None, fill_missing=False, keep_unknown=False,
-                    max_depth=None, depth_filler=None, lazy_decode=False, **kwargs):
+                    max_depth=None, depth_filler=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
 
@@ -1602,29 +1607,27 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         :param depth_filler: an optional callback function to replace data over the \
         *max_depth* level. The callback function must accept one positional argument, that \
         can be an XSD Element. If not provided deeper data are replaced with `None` values.
-        :param lazy_decode: if set to `True`, the resource is lazy and no path is \
-        provided a full lazy decoder is generated.
         :param kwargs: keyword arguments with other options for converter and decoder.
         :return: yields a decoded data object, eventually preceded by a sequence of \
         validation or decoding errors.
         """
         self.check_validator(validation)
         if not isinstance(source, XMLResource):
-            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout, lazy=False)
+            source = XMLResource(source, defuse=self.defuse, timeout=self.timeout)
         if not schema_path and path:
             schema_path = source.get_absolute_path(path)
 
         if process_namespaces:
-            namespaces = source.get_namespaces(namespaces)
+            namespaces = source.get_namespaces(namespaces, root_only=True)
             namespace = source.namespace or namespaces.get('', '')
         else:
             namespace = source.namespace
 
         schema = self.get_schema(namespace)
-        converter = self.get_converter(converter, namespaces, **kwargs)
+        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
         kwargs.update(
             converter=converter,
-            namespaces=converter.namespaces,
+            namespaces=namespaces,
             source=source,
             use_defaults=use_defaults,
             datetime_types=datetime_types,
@@ -1646,20 +1649,21 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if depth_filler is not None:
             kwargs['depth_filler'] = depth_filler
 
-        if lazy_decode and path is None and source.is_lazy():
+        if path:
+            selector = source.iterfind(path, namespaces, nsmap=namespaces)
+        elif not source.is_lazy():
+            selector = source.iter_depth(nsmap=namespaces)
+        else:
             decoder = self.raw_decoder(
                 schema_path=source.get_absolute_path(),
                 validation=validation,
-                lazy_mode=3,
                 **kwargs
             )
             kwargs['depth_filler'] = lambda x: decoder
             kwargs['max_depth'] = source.lazy_depth
-            lazy_mode = 2
-        else:
-            lazy_mode = 1
+            selector = source.iter_depth(mode=2, nsmap=namespaces)
 
-        for elem in source.iter_subtrees(path, converter.namespaces, lazy_mode=lazy_mode):
+        for elem in selector:
             xsd_element = schema.get_element(elem.tag, schema_path, namespaces)
             if xsd_element is None:
                 if XSI_TYPE in elem.attrib:
@@ -1720,7 +1724,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             yield XMLSchemaValueError("encoding needs at least one XSD element declaration!")
 
         namespaces = {} if namespaces is None else namespaces.copy()
-        converter = self.get_converter(converter, namespaces, **kwargs)
+        converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
 
         namespace = get_namespace(path) or namespaces.get('', '')
         if namespace:
@@ -1817,8 +1821,8 @@ class XMLSchema10(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.0/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
 
@@ -1877,10 +1881,10 @@ class XMLSchema11(XMLSchemaBase):
     }
     meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
     BASE_SCHEMAS = {
-        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'),
-        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-instance_minimal.xsd'),
+        XML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'),
+        XSI_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-instance_minimal.xsd'),
         XSD_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSD_1.1/xsd11-extra.xsd'),
-        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
+        VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'VC/XMLSchema-versioning.xsd'),
     }
     fallback_locations = LOCATION_HINTS.copy()
 

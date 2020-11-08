@@ -14,7 +14,6 @@ from decimal import Decimal
 from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
 
-from ..compat import ordered_dict_class
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, \
@@ -343,7 +342,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def __init__(self, elem, schema, parent, derivation=None, base_attributes=None):
         self.derivation = derivation
-        self._attribute_group = ordered_dict_class()
+        self._attribute_group = {}
         self.base_attributes = base_attributes
         XsdComponent.__init__(self, elem, schema, parent)
 
@@ -423,7 +422,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
                     self.schema.default_attributes = self
 
-        attributes = ordered_dict_class()
+        attributes = {}
         for child in filter(is_not_xsd_annotation, elem):
             if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:

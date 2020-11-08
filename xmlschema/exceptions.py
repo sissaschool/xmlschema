@@ -33,12 +33,8 @@ class XMLSchemaKeyError(XMLSchemaException, KeyError):
     pass
 
 
-class XMLSchemaResourceError(XMLSchemaException, OSError):
+class XMLResourceError(XMLSchemaException, OSError):
     """Raised when an error is found accessing an XML resource."""
-
-
-class XMLSchemaRegexError(XMLSchemaException, ValueError):
-    """Raised when an error is found when parsing an XML Schema regular expression."""
 
 
 class XMLSchemaNamespaceError(XMLSchemaException, RuntimeError):

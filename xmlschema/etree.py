@@ -8,20 +8,15 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains ElementTree setup and helpers for xmlschema package.
+A unified setup module for ElementTree with a safe parser and helper functions.
 """
 import sys
 import importlib
 import re
 from collections import Counter
 
-try:
-    import lxml.etree as lxml_etree
-except ImportError:
-    lxml_etree = None
-
 from .exceptions import XMLSchemaTypeError
-from .namespaces import XSLT_NAMESPACE, HFP_NAMESPACE, VC_NAMESPACE, get_namespace
+from .namespaces import get_namespace
 from .qnames import get_qname, get_prefixed_qname, XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 _REGEX_NS_PREFIX = re.compile(r'ns\d+$')
@@ -36,7 +31,15 @@ _REGEX_SPACES = re.compile(r'\s+')
 #
 if '_elementtree' in sys.modules:
     # Temporary remove the loaded modules
-    ElementTree = sys.modules.pop('xml.etree.ElementTree', None)
+    try:
+        ElementTree = sys.modules.pop('xml.etree.ElementTree')
+    except KeyError:
+        # Reimporting xml.etree.ElementTree causes the loading of pure Python
+        # module instead of the optimized C version, so it's better to raise
+        # an error instead of running silently with mismatched modules.
+        raise RuntimeError("Inconsistent status for ElementTree module: module "
+                           "is missing but the C optimized version is imported.")
+
     _cmod = sys.modules.pop('_elementtree')
 
     # Load the pure Python module
@@ -45,10 +48,7 @@ if '_elementtree' in sys.modules:
 
     # Restore original modules
     sys.modules['_elementtree'] = _cmod
-    if ElementTree is not None:
-        sys.modules['xml.etree.ElementTree'] = ElementTree
-    else:
-        ElementTree = PyElementTree
+    sys.modules['xml.etree.ElementTree'] = ElementTree
 
 else:
     # Load the pure Python module
@@ -63,72 +63,58 @@ else:
     ElementTree = importlib.import_module('xml.etree.ElementTree')
 
 
-# ElementTree APIs
 etree_element = ElementTree.Element
-etree_register_namespace = ElementTree.register_namespace
 ParseError = ElementTree.ParseError
-
-etree_register_namespace('xslt', XSLT_NAMESPACE)
-etree_register_namespace('hfp', HFP_NAMESPACE)
-etree_register_namespace('vc', VC_NAMESPACE)
-
-
-# Pure Python ElementTree APIs
 py_etree_element = PyElementTree.Element
-py_etree_register_namespace = ElementTree.register_namespace
-
-py_etree_register_namespace('xslt', XSLT_NAMESPACE)
-py_etree_register_namespace('hfp', HFP_NAMESPACE)
-py_etree_register_namespace('vc', VC_NAMESPACE)
-
-
-# Lxml APIs
-if lxml_etree is not None:
-    lxml_etree_element = lxml_etree.Element
-    lxml_etree_comment = lxml_etree.Comment
-    lxml_etree_register_namespace = lxml_etree.register_namespace
-
-    lxml_etree_register_namespace('xslt', XSLT_NAMESPACE)
-    lxml_etree_register_namespace('hfp', HFP_NAMESPACE)
-    lxml_etree_register_namespace('vc', VC_NAMESPACE)
-else:
-    lxml_etree_element = None
-    lxml_etree_comment = None
-    lxml_etree_register_namespace = None
 
 
 class SafeXMLParser(PyElementTree.XMLParser):
     """
-    An XMLParser that forbids entities processing. Drops the *html* argument that is deprecated
-    since version 3.4.
+    An XMLParser that forbids entities processing. Drops the *html* argument
+    that is deprecated since version 3.4.
 
-    :param target: the target object called by the `feed()` method of the parser, \
-    that defaults to `TreeBuilder`.
-    :param encoding: if provided, its value overrides the encoding specified in the XML file.
+    :param target: the target object called by the `feed()` method of the \
+    parser, that defaults to `TreeBuilder`.
+    :param encoding: if provided, its value overrides the encoding specified \
+    in the XML file.
     """
     def __init__(self, target=None, encoding=None):
         super(SafeXMLParser, self).__init__(target=target, encoding=encoding)
-        parser = self.parser
-        parser.EntityDeclHandler = self.entity_declaration
-        parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
-        parser.ExternalEntityRefHandler = self.external_entity_reference
+        self.parser.EntityDeclHandler = self.entity_declaration
+        self.parser.UnparsedEntityDeclHandler = self.unparsed_entity_declaration
+        self.parser.ExternalEntityRefHandler = self.external_entity_reference
 
     def entity_declaration(self, entity_name, is_parameter_entity, value, base,
                            system_id, public_id, notation_name):
-        raise PyElementTree.ParseError("Entities are forbidden "
-                                       "(entity_name={!r})".format(entity_name))
+        raise PyElementTree.ParseError(
+            "Entities are forbidden (entity_name={!r})".format(entity_name)
+        )
 
-    def unparsed_entity_declaration(self, entity_name, base, system_id, public_id, notation_name):
-        raise PyElementTree.ParseError("Entities are forbidden "
-                                       "(entity_name={!r})".format(entity_name))
+    def unparsed_entity_declaration(self, entity_name, base, system_id,
+                                    public_id, notation_name):
+        raise PyElementTree.ParseError(
+            "Unparsed entities are forbidden (entity_name={!r})".format(entity_name)
+        )
 
     def external_entity_reference(self, context, base, system_id, public_id):
-        raise PyElementTree.ParseError("External references are forbidden (system_id={!r}, "
-                                       "public_id={!r})".format(system_id, public_id))
+        raise PyElementTree.ParseError(
+            "External references are forbidden (system_id={!r}, "
+            "public_id={!r})".format(system_id, public_id)
+        )  # pragma: no cover (EntityDeclHandler is called before)
 
 
-def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
-                   spaces_for_tab=4, xml_declaration=False):
+def is_etree_element(obj):
+    """A checker for valid ElementTree elements that excludes XsdElement objects."""
+    return hasattr(obj, 'append') and hasattr(obj, 'tag') and hasattr(obj, 'attrib')
+
+
+def is_etree_document(obj):
+    """A checker for valid ElementTree objects."""
+    return hasattr(obj, 'getroot') and hasattr(obj, 'parse') and hasattr(obj, 'iter')
+
+
+def etree_tostring(elem, namespaces=None, indent='', max_lines=None, spaces_for_tab=4,
+                   xml_declaration=False, encoding='unicode', method='xml'):
     """
     Serialize an Element tree to a string. Tab characters are replaced by whitespaces.
 
@@ -139,6 +125,8 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
     :param max_lines: if truncate serialization after a number of lines (default: do not truncate).
     :param spaces_for_tab: number of spaces for replacing tab characters (default is 4).
     :param xml_declaration: if set to `True` inserts the XML declaration at the head.
+    :param encoding: if "unicode" (the default) the output is a string, otherwise it’s binary.
+    :param method: is either "xml" (the default), "html" or "text".
     :return: a Unicode string.
     """
     def reindent(line):
@@ -149,33 +137,33 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
         else:
             return indent + line
 
-    if isinstance(elem, etree_element):
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if not _REGEX_NS_PREFIX.match(prefix):
-                    etree_register_namespace(prefix, uri)
-        tostring = ElementTree.tostring
+    if not is_etree_element(elem):
+        raise XMLSchemaTypeError("{!r} is not an Element".format(elem))
 
     elif isinstance(elem, py_etree_element):
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if not _REGEX_NS_PREFIX.match(prefix):
-                    PyElementTree.register_namespace(prefix, uri)
-        tostring = PyElementTree.tostring
-
-    elif lxml_etree is not None:
-        if namespaces:
-            for prefix, uri in namespaces.items():
-                if prefix and not _REGEX_NS_PREFIX.match(prefix):
-                    lxml_etree_register_namespace(prefix, uri)
-        tostring = lxml_etree.tostring
+        etree_module = PyElementTree
+    elif not hasattr(elem, 'nsmap'):
+        etree_module = ElementTree
     else:
-        raise XMLSchemaTypeError("cannot serialize %r: lxml library not available." % type(elem))
+        etree_module = importlib.import_module('lxml.etree')
 
-    xml_text = tostring(elem, encoding="unicode").replace('\t', ' ' * spaces_for_tab)
+    if namespaces:
+        default_namespace = namespaces.get('')
+        for prefix, uri in namespaces.items():
+            if prefix and not _REGEX_NS_PREFIX.match(prefix):
+                etree_module.register_namespace(prefix, uri)
+                if uri == default_namespace:
+                    default_namespace = None
+
+        if default_namespace:
+            etree_module.register_namespace('', default_namespace)
+
+    xml_text = etree_module.tostring(elem, encoding=encoding, method=method)
+    if isinstance(xml_text, bytes):
+        xml_text = xml_text.decode('utf-8')
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>'] if xml_declaration else []
-    lines.extend(xml_text.splitlines())
+    lines.extend(xml_text.replace('\t', ' ' * spaces_for_tab).splitlines())
     while lines and not lines[-1].strip():
         lines.pop(-1)
 
@@ -193,7 +181,9 @@ def etree_tostring(elem, namespaces=None, indent='', max_lines=None,
     if max_lines is not None and len(lines) > max_lines + 2:
         lines = lines[:max_lines] + [child_indent + '...'] * 2 + lines[-1:]
 
-    return '\n'.join(reindent(line) for line in lines)
+    if encoding == 'unicode':
+        return '\n'.join(reindent(line) for line in lines)
+    return '\n'.join(reindent(line) for line in lines).encode(encoding)
 
 
 def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False):
@@ -209,6 +199,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
     """
     if tag == "*":
         tag = None
+    if not path:
+        path = '.'
     if tag is None or elem.tag == tag:
         yield elem, path
 
@@ -225,10 +217,8 @@ def etree_iterpath(elem, tag=None, path='.', namespaces=None, add_position=False
         child_name = child.tag if namespaces is None else get_prefixed_qname(child.tag, namespaces)
         if path == '/':
             child_path = '/%s' % child_name
-        elif path:
-            child_path = '/'.join((path, child_name))
         else:
-            child_path = child_name
+            child_path = '/'.join((path, child_name))
 
         if child.tag in positions:
             child_path += '[%d]' % positions[child.tag]
@@ -261,10 +251,8 @@ def etree_getpath(elem, root, namespaces=None, relative=True,
         for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
             if e is elem:
                 return path
-    elif elem in root:
-        return path
     else:
-        for e, path in etree_iterpath(root, elem.tag, path, namespaces, add_position):
+        for e, path in etree_iterpath(root, None, path, namespaces, add_position):
             if elem in e:
                 return path
 
@@ -294,9 +282,9 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     :raise: an AssertionError containing information about first difference encountered.
     """
     if unordered:
-        children = sorted(elem, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag)
+        children = sorted(elem, key=lambda x: '' if callable(x.tag) else x.tag)
         other_children = iter(sorted(
-            other, key=lambda x: '' if x.tag is lxml_etree_comment else x.tag
+            other, key=lambda x: '' if callable(x.tag) else x.tag
         ))
     else:
         children = elem
@@ -304,16 +292,19 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
 
     namespace = ''
     for e1 in children:
-        if skip_comments and e1.tag is lxml_etree_comment:
+        if skip_comments and callable(e1.tag):
             continue
 
         try:
-            e2 = next(other_children)
+            while True:
+                e2 = next(other_children)
+                if not skip_comments or not callable(e2.tag):
+                    break
         except StopIteration:
-            assert False, "Node %r has more children than %r." % (elem, other)
+            assert False, "Node %r has more children than %r" % (elem, other)
 
         if strict or e1 is elem:
-            assert e1.tag == e2.tag, "%r != %r: tags differ." % (e1, e2)
+            assert e1.tag == e2.tag, "%r != %r: tags differ" % (e1, e2)
         else:
             namespace = get_namespace(e1.tag) or namespace
             assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), \
@@ -322,10 +313,10 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
         # Attributes
         if e1.attrib != e2.attrib:
             if strict:
-                msg = "{!r} != {!r}: attribute differ: {!r} != {!r}."
-                raise AssertionError(msg % (e1, e2, e1.attrib, e2.attrib))
+                msg = "{!r} != {!r}: attributes differ: {!r} != {!r}"
+                raise AssertionError(msg.format(e1, e2, e1.attrib, e2.attrib))
             else:
-                msg = "%r != %r: attribute keys differ: %r != %r."
+                msg = "%r != %r: attribute keys differ: %r != %r"
                 assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
                     msg % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
                 for k in e1.attrib:
@@ -334,41 +325,55 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
                         try:
                             assert float(a1) == float(a2)
                         except (AssertionError, ValueError, TypeError):
-                            msg = "%r != %r: attribute %r differ: %r != %r."
+                            msg = "%r != %r: attribute %r values differ: %r != %r"
                             raise AssertionError(msg % (e1, e2, k, a1, a2))
 
         # Number of children
         if skip_comments:
-            nc1 = len([c for c in e1 if c.tag is not lxml_etree_comment])
-            nc2 = len([c for c in e2 if c.tag is not lxml_etree_comment])
+            nc1 = len([c for c in e1 if not callable(c.tag)])
+            nc2 = len([c for c in e2 if not callable(c.tag)])
         else:
             nc1 = len(e1)
             nc2 = len(e2)
-        assert nc1 == nc2, "%r != %r: children number differ: %r != %r." % (e1, e2, nc1, nc2)
+        assert nc1 == nc2, "%r != %r: children number differ: %r != %r" % (e1, e2, nc1, nc2)
 
         # Text
         if e1.text != e2.text:
-            message = "%r != %r: texts differ: %r != %r." % (e1, e2, e1.text, e2.text)
+            message = "%r != %r: texts differ: %r != %r" % (e1, e2, e1.text, e2.text)
             if strict:
                 raise AssertionError(message)
             elif e1.text is None:
                 assert not e2.text.strip(), message
             elif e2.text is None:
                 assert not e1.text.strip(), message
-            elif _REGEX_SPACES.sub(e1.text.strip(), '') != _REGEX_SPACES.sub(e2.text.strip(), ''):
-                try:
-                    assert float(e1.text.strip()) == float(e2.text.strip())
-                except (AssertionError, ValueError, TypeError):
-                    raise AssertionError(message)
+            elif _REGEX_SPACES.sub('', e1.text.strip()) != _REGEX_SPACES.sub('', e2.text.strip()):
+                text1 = e1.text.strip()
+                text2 = e2.text.strip()
+                if text1 == 'false':
+                    assert text2 == '0', message
+                elif text1 == 'true':
+                    assert text2 == '1', message
+                elif text2 == 'false':
+                    assert text1 == '0', message
+                elif text2 == 'true':
+                    assert text1 == '1', message
+                else:
+                    try:
+                        items1 = text1.split()
+                        items2 = text2.split()
+                        assert len(items1) == len(items2)
+                        assert all(float(x1) == float(x2) for x1, x2 in zip(items1, items2))
+                    except (AssertionError, ValueError, TypeError):
+                        raise AssertionError(message)
 
         # Tail
         if e1.tail != e2.tail:
-            message = "%r != %r: tails differ: %r != %r." % (e1, e2, e1.tail, e2.tail)
+            message = "%r != %r: tails differ: %r != %r" % (e1, e2, e1.tail, e2.tail)
             if strict:
                 raise AssertionError(message)
             elif e1.tail is None:
                 assert not e2.tail.strip(), message
-            elif e2.text is None:
+            elif e2.tail is None:
                 assert not e1.tail.strip(), message
             else:
                 assert e1.tail.strip() == e2.tail.strip(), message

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [
+    <!ELEMENT root (image)>
+    <!ELEMENT image EMPTY>
+    <!ATTLIST image source ENTITY #REQUIRED>
+    <!NOTATION GIF SYSTEM "Logo in GIF format" >
+    <!ENTITY logo_file SYSTEM "logo.gif" NDATA GIF>
+]>
+<root>
+    <image source="logo_file"/>
+</root>
+

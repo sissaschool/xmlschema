@@ -22,7 +22,7 @@ from xmlschema.etree import etree_element
 from xmlschema.namespaces import SCHEMAS_DIR
 from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase, print_test_header
+from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
@@ -137,7 +137,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""", XMLSchemaParseError)
 
     def test_base_schemas(self):
-        self.schema_class(os.path.join(SCHEMAS_DIR, 'xml_minimal.xsd'))
+        self.schema_class(os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'))
 
     def test_root_elements(self):
         # Test issue #107 fix
@@ -261,6 +261,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
         self.assertFalse(os.path.isdir(dirname))
 
+    @unittest.skipIf(SKIP_REMOTE_TESTS, "Remote networks are not accessible.")
     def test_export_remote__issue_187(self):
         vh_schema_file = self.casepath('issues/issue_187/issue_187_2.xsd')
         vh_schema = self.schema_class(vh_schema_file)
@@ -320,5 +321,8 @@ class TestXMLSchema11(TestXMLSchema10):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    header_template = "Test xmlschema's schema classes with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

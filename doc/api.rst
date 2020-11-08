@@ -11,8 +11,7 @@ Errors and exceptions
 =====================
 
 .. autoexception:: xmlschema.XMLSchemaException
-.. autoexception:: xmlschema.XMLSchemaResourceError
-.. autoexception:: xmlschema.XMLSchemaRegexError
+.. autoexception:: xmlschema.XMLResourceError
 .. autoexception:: xmlschema.XMLSchemaNamespaceError
 
 .. autoexception:: xmlschema.XMLSchemaValidatorError
@@ -165,19 +164,23 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
 .. _xml-resource-api:
 
-XML resource API
-================
+XML resources API
+=================
+
+.. autofunction:: xmlschema.fetch_resource
+.. autofunction:: xmlschema.fetch_schema
+.. autofunction:: xmlschema.fetch_schema_locations
+.. autofunction:: xmlschema.normalize_url
 
 .. autoclass:: xmlschema.XMLResource
 
     .. autoattribute:: root
-    .. autoattribute:: document
     .. autoattribute:: text
     .. autoattribute:: url
     .. autoattribute:: base_url
     .. autoattribute:: namespace
 
-    .. automethod:: copy
+    .. automethod:: parse
     .. automethod:: tostring
     .. automethod:: open
     .. automethod:: load
@@ -187,21 +190,24 @@ XML resource API
     .. automethod:: is_local
     .. automethod:: is_loaded
     .. automethod:: iter
-    .. automethod:: iter_subtrees
+    .. automethod:: iter_depth
+    .. automethod:: iterfind
+    .. automethod:: find
+    .. automethod:: findall
     .. automethod:: iter_location_hints
     .. automethod:: get_namespaces
     .. automethod:: get_locations
 
-    .. automethod:: defusing
-    .. automethod:: parse
-    .. automethod:: iterparse
-    .. automethod:: fromstring
+.. autoclass:: xmlschema.XmlDocument
+
+.. autoclass:: xmlschema.wsdl.Wsdl11Document
+
+    .. autoattribute:: messages
+    .. autoattribute:: port_types
+    .. autoattribute:: bindings
+    .. autoattribute:: services
 
 
-.. autofunction:: xmlschema.fetch_resource
-.. autofunction:: xmlschema.fetch_schema
-.. autofunction:: xmlschema.fetch_schema_locations
-.. autofunction:: xmlschema.normalize_url
 
 
 .. _xpath-api:

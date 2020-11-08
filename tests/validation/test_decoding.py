@@ -12,17 +12,21 @@ import unittest
 import os
 from decimal import Decimal
 import base64
-from elementpath import datatypes
+from xml.etree import ElementTree
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = None
+
+from elementpath import datatypes
 import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
 from xmlschema.converters import UnorderedConverter
-from xmlschema.compat import ordered_dict_class
-from xmlschema.etree import ElementTree, lxml_etree
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase, print_test_header
+from xmlschema.testing import XsdValidatorTestCase
 
 VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',
@@ -726,8 +730,8 @@ class TestDecoding(XsdValidatorTestCase):
         schema = xmlschema.XMLSchema(self.casepath('issues/issue_046/issue_046.xsd'))
         xml_file = self.casepath('issues/issue_046/issue_046.xml')
         self.assertEqual(
-            schema.decode(xml_file, dict_class=ordered_dict_class, cdata_prefix='#'),
-            ordered_dict_class(
+            schema.decode(xml_file, cdata_prefix='#'),
+            dict(
                 [('@xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance'),
                  ('@xsi:noNamespaceSchemaLocation', 'issue_046.xsd'),
                  ('#1', 'Dear Mr.'), ('name', 'John Smith'),
@@ -1054,5 +1058,9 @@ class TestDecoding11(TestDecoding):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema decoding with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

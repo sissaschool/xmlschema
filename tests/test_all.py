@@ -11,9 +11,10 @@
 if __name__ == '__main__':
     import unittest
     import os
+    import platform
 
     from xmlschema.testing import tests_factory, make_schema_test_class, \
-        make_validation_test_class, print_test_header, get_test_program_args_parser
+        make_validation_test_class, get_test_program_args_parser
 
     DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
 
@@ -24,12 +25,17 @@ if __name__ == '__main__':
             return tests
 
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_etree.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_etree_import.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_helpers.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_qnames.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_namespaces.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_resources.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_regex.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_xpath.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_cli.py"))
         tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_converters.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_regex.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_resources.py"))
-        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_xpath.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_documents.py"))
+        tests.addTests(loader.discover(start_dir=tests_dir, pattern="test_wsdl.py"))
 
         validation_dir = os.path.join(os.path.dirname(__file__), 'validation')
         tests.addTests(loader.discover(start_dir=validation_dir, pattern='test_*.py'))
@@ -62,6 +68,10 @@ if __name__ == '__main__':
     for pattern_ in args.patterns:
         argv.append('-k')
         argv.append(pattern_)
-    print_test_header()
+
+    header_template = "Test xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main(argv=argv, verbosity=args.verbosity, failfast=args.failfast,
                   catchbreak=args.catchbreak, buffer=args.buffer)

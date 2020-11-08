@@ -2,6 +2,13 @@
 CHANGELOG
 *********
 
+`v1.3.0`_ (2020-11-08)
+======================
+* Drop support for Python 3.5
+* Add XmlDocument and Wsdl11Document classes
+* Refactoring of XMLResource to support ElementTree-like XPath API
+  on both full and lazy modes
+
 `v1.2.5`_ (2020-09-26)
 ======================
 * Add schema export API to schema and global maps (issue #187)
@@ -361,3 +368,4 @@ v0.9.6 (2017-05-05)
 .. _v1.2.3: https://github.com/brunato/xmlschema/compare/v1.2.2...v1.2.3
 .. _v1.2.4: https://github.com/brunato/xmlschema/compare/v1.2.3...v1.2.4
 .. _v1.2.5: https://github.com/brunato/xmlschema/compare/v1.2.4...v1.2.5
+.. _v1.3.0: https://github.com/brunato/xmlschema/compare/v1.2.5...v1.3.0

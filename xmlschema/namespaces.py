@@ -18,7 +18,7 @@ from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .qnames import get_namespace, local_name
 
 ###
-# Namespace URIs
+# Namespace URIs for schemas
 XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
 "URI of the XML Schema Definition namespace (xs|xsd)"
 
@@ -44,18 +44,29 @@ HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
 VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
 "URI of the XML Schema Versioning namespace (vc)"
 
+###
+# Namespace URIs for XML documents
+WSDL_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/'
+SOAP_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/soap/'
+SOAP_ENVELOPE_NAMESPACE = 'http://schemas.xmlsoap.org/soap/envelope/'
+SOAP_ENCODING_NAMESPACE = 'http://schemas.xmlsoap.org/soap/encoding/'
+
 
 ###
 # Schema location hints
 
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'validators/schemas/')
+SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
 
 LOCATION_HINTS = {
     # Locally saved schemas
-    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XMLSchema-versioning.xsd'),
-    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xlink.xsd'),
-    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'xhtml1-strict.xsd'),
+    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
+    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-versioning.xsd'),
+    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
+    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
+    WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
+    SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
+    SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
+    SOAP_ENCODING_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-encoding.xsd'),
 
     # Remote locations: contributors can propose additional official locations
     # for other namespaces for extending this list.
@@ -110,18 +121,18 @@ class NamespaceMapper(MutableMapping):
     automatically registered when set. Namespaces can be updated overwriting
     the existing registration or inserted using an alternative prefix.
 
-    :param namespaces: initial data with namespace prefixes and URIs.
-    :param register_namespace: a two-arguments function for registering namespaces \
-    on ElementTree module.
+    :param namespaces: initial data with namespace prefixes and URIs. \
+    The provided dictionary is bound with the instance, otherwise a new \
+    empty dictionary is used.
     :param strip_namespaces: if set to `True` uses name mapping methods that strip \
     namespace information.
     """
-    def __init__(self, namespaces=None, register_namespace=None, strip_namespaces=False):
-        self._namespaces = {}
-        self.register_namespace = register_namespace
+    def __init__(self, namespaces=None, strip_namespaces=False):
+        if namespaces is None:
+            self._namespaces = {}
+        else:
+            self._namespaces = namespaces
         self.strip_namespaces = strip_namespaces
-        if namespaces is not None:
-            self._namespaces.update(namespaces)
 
     def __setattr__(self, name, value):
         if name == 'strip_namespaces':
@@ -137,10 +148,6 @@ class NamespaceMapper(MutableMapping):
 
     def __setitem__(self, prefix, uri):
         self._namespaces[prefix] = uri
-        try:
-            self.register_namespace(prefix, uri)
-        except (TypeError, ValueError):
-            pass
 
     def __delitem__(self, prefix):
         del self._namespaces[prefix]

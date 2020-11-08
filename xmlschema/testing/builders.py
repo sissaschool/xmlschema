@@ -16,13 +16,19 @@ import logging
 import sys
 import warnings
 
+try:
+    import lxml.etree as lxml_etree
+except ImportError:
+    lxml_etree = lxml_etree_element = None
+else:
+    lxml_etree_element = lxml_etree.Element
+
 import xmlschema
 from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
-from xmlschema.compat import ordered_dict_class
-from xmlschema.etree import etree_tostring, ElementTree, lxml_etree, \
-    etree_elements_assert_equal, py_etree_element, lxml_etree_element
+from xmlschema.etree import etree_tostring, ElementTree, \
+    etree_elements_assert_equal, py_etree_element
 from xmlschema.helpers import iter_nested_items
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
@@ -237,7 +243,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             if isinstance(decoded_data1, tuple):
                 decoded_data1 = decoded_data1[0]  # When validation='lax'
 
-            for _ in iter_nested_items(decoded_data1, dict_class=ordered_dict_class):
+            for _ in iter_nested_items(decoded_data1):
                 pass
 
             try:
@@ -337,10 +343,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 return
 
             if sys.version_info >= (3, 6):
-                if json_data1 != json_data2:
-                    print(json_data1)
-                    print(json_data2)
-                    print(converter, unordered)
                 self.assertEqual(json_data2, json_data1, msg=xml_file)
             else:
                 elem2 = xmlschema.from_json(json_data2, schema=self.schema, path=root.tag,
@@ -423,7 +425,7 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
         def check_data_conversion_with_element_tree(self):
             root = ElementTree.parse(xml_file).getroot()
             namespaces = fetch_namespaces(xml_file)
-            options = {'namespaces': namespaces, 'dict_class': ordered_dict_class}
+            options = {'namespaces': namespaces}
 
             self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
             self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
@@ -434,7 +436,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             self.check_decode_encode(root, JsonMLConverter, **options)
             self.check_decode_encode(root, ColumnarConverter, validation='lax', **options)
 
-            options.pop('dict_class')
             self.check_json_serialization(root, cdata_prefix='#', **options)
             self.check_json_serialization(root, UnorderedConverter, **options)
             self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
@@ -468,7 +469,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 options = {
                     'etree_element_class': lxml_etree_element,
                     'namespaces': namespaces,
-                    'dict_class': ordered_dict_class,
                 }
                 self.check_decode_encode(root, cdata_prefix='#', **options)  # Default converter
                 self.check_decode_encode(root, ParkerConverter, validation='lax', **options)
@@ -478,7 +478,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 self.check_decode_encode(root, JsonMLConverter, **options)
                 self.check_decode_encode(root, UnorderedConverter, cdata_prefix='#', **options)
 
-                options.pop('dict_class')
                 self.check_json_serialization(root, cdata_prefix='#', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='lax', **options)
                 self.check_json_serialization(root, ParkerConverter, validation='skip', **options)

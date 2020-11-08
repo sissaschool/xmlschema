@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+    xmlns="http://xmlschema.test/ns"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://xmlschema.test/ns"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+	<xs:simpleType name="interface-categoryType">
+		<xs:restriction base="xs:token">
+			<xs:enumeration value="low-level-interface-only"/>
+			<xs:enumeration value="wildcard-readout-only"/>
+			<xs:enumeration value="key-list-readout-only"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+    <xs:complexType name="data-point-interface-categoryType">
+		<xs:simpleContent>
+			<xs:extension base="interface-categoryType"/>
+		</xs:simpleContent>
+	</xs:complexType>
+
+    <xs:element name="dll32-answer">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="system">
+					<xs:complexType>
+						<xs:all>
+							<xs:element name="interface-category">
+								<xs:complexType>
+									<xs:complexContent>
+										<xs:extension base="data-point-interface-categoryType">
+											<xs:attribute name="active-method">
+												<xs:simpleType>
+													<xs:restriction base="xs:byte">
+														<xs:enumeration value="0"/>
+														<xs:enumeration value="1"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:extension>
+									</xs:complexContent>
+								</xs:complexType>
+							</xs:element>
+						</xs:all>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

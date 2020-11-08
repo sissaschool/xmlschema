@@ -30,7 +30,7 @@ xmlschema-validate
 xmlschema-xml2json
     Decode a set of XML files to JSON.
 
-xmlschema-xml2json
+xmlschema-json2xml
     Encode a set of JSON files to XML.
 
 
@@ -68,7 +68,7 @@ using the *validation* argument setted to 'lax'.
 Lazy validation
 ===============
 
-From release v1.0.12 the document validation and decoding API has an optional argument
+From release v1.0.12 the document validation and the decoding API have an optional argument
 `lazy=False`, that can be changed to `True` for operating with a lazy :class:`XMLResource`.
 The lazy mode can be useful for validating and decoding big XML data files, consuming
 less memory.

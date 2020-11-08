@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!--
+Example #3 from WSDL 1.1 definition with SOAP 1.1 bindings:
+  href: https://www.w3.org/TR/2001/NOTE-wsdl-20010315#_soap-e
+-->
+<definitions name="StockQuote"
+          targetNamespace="http://example.com/stockquote.wsdl"
+          xmlns:tns="http://example.com/stockquote.wsdl"
+          xmlns:xsd1="http://example.com/stockquote.xsd"
+          xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+          xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+    <message name="SubscribeToQuotes">
+        <part name="body" element="xsd1:SubscribeToQuotes"/>
+        <part name="subscribeheader" element="xsd1:SubscriptionHeader"/>
+    </message>
+
+    <portType name="StockQuotePortType">
+        <operation name="SubscribeToQuotes">
+           <input message="tns:SubscribeToQuotes"/>
+        </operation>
+    </portType>
+
+    <binding name="StockQuoteSoap" type="tns:StockQuotePortType">
+        <soap:binding style="document" transport="http://example.com/smtp"/>
+        <operation name="SubscribeToQuotes">
+            <input>
+               <soap:body parts="body" use="literal"/>
+               <soap:header message="tns:SubscribeToQuotes" part="subscribeheader" use="literal"/>
+            </input>
+        </operation>
+    </binding>
+
+    <service name="StockQuoteService">
+        <port name="StockQuotePort" binding="tns:StockQuoteSoap">
+           <soap:address location="mailto:subscribe@example.com"/>
+        </port>
+    </service>
+
+    <types>
+        <schema targetNamespace="http://example.com/stockquote.xsd"
+               xmlns="http://www.w3.org/2001/XMLSchema">
+           <element name="SubscribeToQuotes">
+               <complexType>
+                   <all>
+                       <element name="tickerSymbol" type="string"/>
+                   </all>
+               </complexType>
+           </element>
+           <element name="SubscriptionHeader" type="anyURI"/>
+        </schema>
+    </types>
+</definitions>

@@ -16,7 +16,6 @@ import fileinput
 import os
 import re
 import importlib
-import platform
 
 
 class TestPackaging(unittest.TestCase):
@@ -85,11 +84,15 @@ class TestPackaging(unittest.TestCase):
 
     def test_base_schema_files(self):
         et = importlib.import_module('xml.etree.ElementTree')
-        schemas_dir = os.path.join(self.source_dir, 'validators/schemas')
+        schemas_dir = os.path.join(self.source_dir, 'schemas')
         base_schemas = [
-            'XSD_1.0/XMLSchema.xsd', 'XSD_1.1/XMLSchema.xsd', 'xhtml1-strict.xsd',
-            'xlink.xsd', 'xml_minimal.xsd', 'XMLSchema-hasFacetAndProperty_minimal.xsd',
-            'XMLSchema-instance_minimal.xsd'
+            'XSD_1.0/XMLSchema.xsd',
+            'XSD_1.1/XMLSchema.xsd',
+            'XHTML/xhtml1-strict.xsd',
+            'XLINK/xlink.xsd',
+            'XML/xml_minimal.xsd',
+            'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd',
+            'XSI/XMLSchema-instance_minimal.xsd'
         ]
         for rel_path in base_schemas:
             filename = os.path.join(schemas_dir, rel_path)
@@ -98,9 +101,9 @@ class TestPackaging(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    header1 = "Test package %r installation" % package_dir
-    header2 = "with Python {} on platform {}".format(platform.python_version(), platform.platform())
-    print('{0}\n{1}\n{2}\n{0}'.format("*" * max(len(header1), len(header2)), header1, header2))
+    import platform
+    header_template = "Packaging tests for xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
     unittest.main()

@@ -1,0 +1,8 @@
+<dll32-answer
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://xmlschema.test/ns"
+    xsi:schemaLocation="http://xmlschema.test/ns issue_208.xsd">
+    <system>
+      <interface-category active-method="0">low-level-interface-only</interface-category>
+    </system>
+</dll32-answer>

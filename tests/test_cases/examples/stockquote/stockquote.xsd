@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- From WSDL 1.1 definition: https://www.w3.org/TR/2001/NOTE-wsdl-20010315 -->
+<xs:schema targetNamespace="http://example.com/stockquote/schemas"
+        xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <xs:element name="TradePriceRequest">
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="tickerSymbol" type="xs:string"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="TradePrice">
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="price" type="xs:float"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

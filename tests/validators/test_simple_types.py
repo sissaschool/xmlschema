@@ -13,7 +13,7 @@ import unittest
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.qnames import XSD_LIST, XSD_UNION
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase, print_test_header
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdSimpleTypes(XsdValidatorTestCase):
@@ -224,5 +224,9 @@ class TestXsd11SimpleTypes(TestXsdSimpleTypes):
 
 
 if __name__ == '__main__':
-    print_test_header()
+    import platform
+    header_template = "Test xmlschema's XSD simple types with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
+
     unittest.main()

@@ -10,7 +10,6 @@
 #
 import unittest
 
-from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 
@@ -51,7 +50,9 @@ class TestXsd11Elements(TestXsdElements):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+    import platform
+    header_template = "Test xmlschema's XSD elements with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     unittest.main()

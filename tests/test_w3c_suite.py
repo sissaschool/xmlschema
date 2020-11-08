@@ -617,8 +617,10 @@ def w3c_tests_factory(argv=None):
 
 
 if __name__ == '__main__':
-    from xmlschema.testing import print_test_header
+    import platform
+    header_template = "W3C XSD tests for xmlschema with Python {} on {}"
+    header = header_template.format(platform.python_version(), platform.platform())
+    print('{0}\n{1}\n{0}'.format("*" * len(header), header))
 
-    print_test_header()
     globals().update(w3c_tests_factory())
     unittest.main(argv=[__name__])
