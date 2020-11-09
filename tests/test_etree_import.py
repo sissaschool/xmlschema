@@ -42,7 +42,7 @@ class TestElementTreeImport(unittest.TestCase):
     def test_element_tree_import_script(self):
         test_dir = os.path.dirname(__file__) or '.'
 
-        cmd = [os.path.join(test_dir, 'check_etree_import.py')]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_etree_import.py')]
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         stderr = process.stderr.decode('utf-8')

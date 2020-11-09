@@ -11,10 +11,10 @@
 import unittest
 import os
 import io
-import xml.etree.ElementTree as ElementTree
 import lxml.etree
 
 from xmlschema import XMLSchema, XMLResource
+from xmlschema.etree import ElementTree
 from xmlschema.validators.exceptions import XMLSchemaValidatorError, \
     XMLSchemaNotBuiltError, XMLSchemaModelDepthError, XMLSchemaValidationError, \
     XMLSchemaChildrenValidationError

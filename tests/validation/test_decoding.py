@@ -12,7 +12,6 @@ import unittest
 import os
 from decimal import Decimal
 import base64
-from xml.etree import ElementTree
 
 try:
     import lxml.etree as lxml_etree
@@ -24,6 +23,7 @@ import xmlschema
 from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 
+from xmlschema.etree import ElementTree
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase

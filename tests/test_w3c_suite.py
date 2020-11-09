@@ -14,7 +14,6 @@ This script runs tests concerning the W3C XML Schema 1.1 test suite.
 import unittest
 import argparse
 import os.path
-import xml.etree.ElementTree as ElementTree
 import warnings
 
 try:
@@ -23,6 +22,7 @@ except ImportError:
     lxml_etree = None
 
 from xmlschema import validate, XMLSchema10, XMLSchema11, XMLSchemaException
+from xmlschema.etree import ElementTree
 
 TEST_SUITE_NAMESPACE = "http://www.w3.org/XML/2004/xml-schema-test-suite/"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"

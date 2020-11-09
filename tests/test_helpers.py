@@ -12,11 +12,10 @@
 import unittest
 import sys
 import decimal
-import xml.etree.ElementTree as ElementTree
 from collections import OrderedDict
 
 from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.etree import etree_element, prune_etree
+from xmlschema.etree import ElementTree, etree_element, prune_etree
 from xmlschema.qnames import XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
 from xmlschema.helpers import get_xsd_annotation, get_xsd_derivation_attribute, \
     get_xsd_form_attribute, raw_xml_encode, count_digits, strictly_equal, \

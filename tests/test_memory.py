@@ -12,6 +12,7 @@ import unittest
 import os
 import decimal
 import subprocess
+import sys
 
 try:
     import memory_profiler
@@ -43,7 +44,7 @@ class TestMemoryUsage(unittest.TestCase):
     @unittest.skip
     def test_package_memory_usage(self):
         test_dir = os.path.dirname(__file__) or '.'
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '1']
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '1']
         output = subprocess.check_output(cmd, universal_newlines=True)
         package_mem = self.check_memory_profile(output)
         self.assertLess(package_mem, 20)
@@ -55,15 +56,15 @@ class TestMemoryUsage(unittest.TestCase):
             'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '2', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '2', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         parse_mem = self.check_memory_profile(output)
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '3', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '3', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         iterparse_mem = self.check_memory_profile(output)
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '4', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '4', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         lazy_iterparse_mem = self.check_memory_profile(output)
 
@@ -78,11 +79,11 @@ class TestMemoryUsage(unittest.TestCase):
             'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '5', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '5', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         decode_mem = self.check_memory_profile(output)
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '6', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '6', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         lazy_decode_mem = self.check_memory_profile(output)
 
@@ -96,11 +97,11 @@ class TestMemoryUsage(unittest.TestCase):
             'xmlschema/schemas/XSD_1.0/XMLSchema.xsd'
         )
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '7', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '7', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         validate_mem = self.check_memory_profile(output)
 
-        cmd = [os.path.join(test_dir, 'check_memory.py'), '8', xsd10_schema_file]
+        cmd = [sys.executable, os.path.join(test_dir, 'check_memory.py'), '8', xsd10_schema_file]
         output = subprocess.check_output(cmd, universal_newlines=True)
         lazy_validate_mem = self.check_memory_profile(output)
 

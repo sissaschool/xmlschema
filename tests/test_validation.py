@@ -13,7 +13,7 @@
 import os
 
 from xmlschema.testing import get_test_program_args_parser, \
-    tests_factory, make_validation_test_class
+    factory_tests, make_validation_test_class
 
 DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     args = get_test_program_args_parser(DEFAULT_TESTFILES).parse_args()
 
-    validation_tests = tests_factory(
+    validation_tests = factory_tests(
         test_class_builder=make_validation_test_class,
         testfiles=args.testfiles,
         suffix='xml',
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                   catchbreak=args.catchbreak, buffer=args.buffer)
 else:
     # Creates schema tests from XSD files
-    globals().update(tests_factory(
+    globals().update(factory_tests(
         test_class_builder=make_validation_test_class,
         suffix='xml',
         testfiles=DEFAULT_TESTFILES

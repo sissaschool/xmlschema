@@ -12,12 +12,12 @@
 
 import unittest
 import os
-import xml.etree.ElementTree as ElementTree
 from elementpath import XPath1Parser, XPath2Parser, Selector, \
     AttributeNode, TypedElement, ElementPathSyntaxError
 
 from xmlschema import XMLSchema10, XMLSchema11, XsdElement, XsdAttribute
 from xmlschema.namespaces import XSD_NAMESPACE
+from xmlschema.etree import ElementTree
 from xmlschema.xpath import XMLSchemaProxy, iter_schema_nodes
 from xmlschema.validators import XsdAtomic, XsdAtomicRestriction
 

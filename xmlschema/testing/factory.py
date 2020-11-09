@@ -117,7 +117,7 @@ def get_test_line_args_parser():
     return parser
 
 
-def tests_factory(test_class_builder, testfiles, suffix, check_with_lxml=False):
+def factory_tests(test_class_builder, testfiles, suffix, check_with_lxml=False):
     """
     Factory function for file based schema/validation cases.
 

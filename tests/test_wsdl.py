@@ -14,12 +14,10 @@ import unittest
 import os
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.etree import ParseError
+from xmlschema.etree import ElementTree, ParseError
 from xmlschema.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
-
-from xml.etree import ElementTree
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')

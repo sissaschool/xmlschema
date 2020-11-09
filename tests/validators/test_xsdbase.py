@@ -12,10 +12,10 @@ import unittest
 import os
 import platform
 import re
-import xml.etree.ElementTree as ElementTree
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
+from xmlschema.etree import ElementTree
 from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 from xmlschema.namespaces import XSD_NAMESPACE
 
@@ -766,7 +766,6 @@ class TestParticleMixin(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import platform
     header_template = "Test xmlschema's XSD base classes with Python {} on {}"
     header = header_template.format(platform.python_version(), platform.platform())
     print('{0}\n{1}\n{0}'.format("*" * len(header), header))

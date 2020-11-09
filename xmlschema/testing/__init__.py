@@ -23,7 +23,7 @@ from urllib.error import URLError
 from .case_class import XsdValidatorTestCase
 from .builders import make_schema_test_class, make_validation_test_class
 from .factory import get_test_args, xsd_version_number, defuse_data, \
-    get_test_program_args_parser, get_test_line_args_parser, tests_factory
+    get_test_program_args_parser, get_test_line_args_parser, factory_tests
 from .observers import SchemaObserver, ObservedXMLSchema10, ObservedXMLSchema11
 
 
@@ -46,6 +46,6 @@ SKIP_REMOTE_TESTS = not has_network_access(
 __all__ = [
     'XsdValidatorTestCase', 'make_schema_test_class', 'make_validation_test_class',
     'get_test_args', 'xsd_version_number', 'defuse_data', 'get_test_program_args_parser',
-    'get_test_line_args_parser', 'tests_factory', 'SchemaObserver', 'ObservedXMLSchema10',
+    'get_test_line_args_parser', 'factory_tests', 'SchemaObserver', 'ObservedXMLSchema10',
     'ObservedXMLSchema11', 'has_network_access', 'SKIP_REMOTE_TESTS',
 ]
