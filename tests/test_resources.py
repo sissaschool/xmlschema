@@ -483,9 +483,8 @@ class TestResources(unittest.TestCase):
             XMLResource(self.vh_xml_file, allow='remote')
         self.assertTrue(str(ctx.exception).startswith("block access to local resource"))
 
-        with self.assertRaises(URLError) as ctx:
+        with self.assertRaises(URLError):
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='remote')
-        self.assertIn("Name or service not known", str(ctx.exception))
 
         with self.assertRaises(XMLResourceError) as ctx:
             XMLResource("https://xmlschema.test/vehicles.xsd", allow='local')

@@ -509,7 +509,7 @@ class XmlDocument(XMLResource):
             file.write(etree_tostring(self._root, **kwargs))
             file.close()
         elif encoding == 'unicode':
-            with open(file, 'w') as fp:
+            with open(file, 'w', encoding='utf-8') as fp:
                 fp.write(etree_tostring(self._root, **kwargs))
         else:
             with open(file, 'wb') as fp:

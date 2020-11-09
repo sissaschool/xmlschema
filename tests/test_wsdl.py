@@ -414,13 +414,11 @@ class TestWsdlDocuments(unittest.TestCase):
         with self.assertRaises(WsdlParseError) as ctx:
             Wsdl11Document(wsdl_template.format('missing-file'))
         self.assertIn('import of namespace', str(ctx.exception))
-        self.assertIn('No such file or directory', str(ctx.exception))
 
         locations = [('http://example.com/ns', 'missing-file2')]
         with self.assertRaises(WsdlParseError) as ctx:
             Wsdl11Document(wsdl_template.format('missing-file'), locations=locations)
         self.assertIn('import of namespace', str(ctx.exception))
-        self.assertIn('No such file or directory', str(ctx.exception))
 
         malformed_file = casepath('resources/malformed.xml')
         with self.assertRaises(WsdlParseError) as ctx:

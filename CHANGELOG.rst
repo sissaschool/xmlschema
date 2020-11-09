@@ -2,7 +2,7 @@
 CHANGELOG
 *********
 
-`v1.3.0`_ (2020-11-08)
+`v1.3.0`_ (2020-11-09)
 ======================
 * Drop support for Python 3.5
 * Add XmlDocument and Wsdl11Document classes

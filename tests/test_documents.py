@@ -182,7 +182,7 @@ class TestXmlDocuments(unittest.TestCase):
 
     def test_xml_document_init_with_schema(self):
         xml_document = XmlDocument(self.vh_xml_file)
-        self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
+        self.assertEqual(os.path.basename(xml_document.url), 'vehicles.xml')
         self.assertEqual(xml_document.errors, ())
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
@@ -201,7 +201,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertIn('is not an element of the schema', str(ctx.exception))
 
         xml_document = XmlDocument(self.col_xml_file)
-        self.assertTrue(xml_document.url.endswith(self.col_xml_file))
+        self.assertEqual(os.path.basename(xml_document.url), 'collection.xml')
         self.assertIsInstance(xml_document.schema, XMLSchema10)
 
         xml_file = casepath('examples/collection/collection-1_error.xml')
@@ -210,7 +210,7 @@ class TestXmlDocuments(unittest.TestCase):
         self.assertIn('invalid literal for int() with base 10', str(ctx.exception))
 
         xml_document = XmlDocument(xml_file, validation='lax')
-        self.assertTrue(xml_document.url.endswith(xml_file))
+        self.assertEqual(os.path.basename(xml_document.url), 'collection-1_error.xml')
         self.assertIsInstance(xml_document.schema, XMLSchema10)
         self.assertTrue(len(xml_document.errors), 1)
 
@@ -237,7 +237,7 @@ class TestXmlDocuments(unittest.TestCase):
 
     def test_xml_document_parse(self):
         xml_document = XmlDocument(self.vh_xml_file)
-        self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
+        self.assertEqual(os.path.basename(xml_document.url), 'vehicles.xml')
         self.assertFalse(xml_document.is_lazy())
 
         xml_file = casepath('examples/vehicles/vehicles-1_error.xml')
@@ -245,7 +245,7 @@ class TestXmlDocuments(unittest.TestCase):
             xml_document.parse(xml_file)
 
         xml_document.parse(self.vh_xml_file, lazy=True)
-        self.assertTrue(xml_document.url.endswith(self.vh_xml_file))
+        self.assertEqual(os.path.basename(xml_document.url), 'vehicles.xml')
         self.assertTrue(xml_document.is_lazy())
 
         xml_document = XmlDocument(self.vh_xml_file, validation='lax')

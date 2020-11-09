@@ -33,12 +33,97 @@ class TestElementTree(unittest.TestCase):
 
         elem = ElementTree.Element('element')
         self.assertEqual(etree.etree_tostring(elem), '<element />')
-        elem = etree.ElementTree.Element('element')
-        self.assertEqual(etree.etree_tostring(elem), '<element />')
-        elem = etree.PyElementTree.Element('element')
-        self.assertEqual(etree.etree_tostring(elem), '<element />')
+        self.assertEqual(etree.etree_tostring(elem, xml_declaration=True), '<element />')
 
         self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii'), b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii', indent='    '),
+                         b'    <element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii'),
+                         b"<?xml version='1.0' encoding='ascii'?>\n<element />")
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii', xml_declaration=False),
+                         b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8'), b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element />')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element />")
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element />")
+
+        self.assertEqual(etree.etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree.etree_tostring(elem, method='text'), '')
+
+        root = etree.ElementTree.XML('<root>\n'
+                                     '  text1\n'
+                                     '  <elem>text2</elem>\n'
+                                     '</root>')
+        self.assertEqual(etree.etree_tostring(root, method='text'), '\n  text1\n  text2')
+
+    def test_py_element_string_serialization(self):
+        elem = etree.PyElementTree.Element('element')
+        self.assertEqual(etree.etree_tostring(elem), '<element />')
+        self.assertEqual(etree.etree_tostring(elem, xml_declaration=True), '<element />')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii'), b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element />')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii'),
+                         b"<?xml version='1.0' encoding='ascii'?>\n<element />")
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii', xml_declaration=False),
+                         b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8'), b'<element />')
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element />')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element />")
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element />")
+
+        self.assertEqual(etree.etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree.etree_tostring(elem, method='text'), '')
+
+        root = etree.PyElementTree.XML('<root>\n'
+                                       '  text1\n'
+                                       '  <elem>text2</elem>\n'
+                                       '</root>')
+        self.assertEqual(etree.etree_tostring(root, method='text'), '\n  text1\n  text2')
+
+    def test_lxml_element_string_serialization(self):
+        elem = lxml.etree.Element('element')
+        self.assertEqual(etree.etree_tostring(elem), '<element/>')
+        self.assertEqual(etree.etree_tostring(elem, xml_declaration=True), '<element/>')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii'), b'<element/>')
+        self.assertEqual(etree.etree_tostring(elem, encoding='us-ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="us-ascii"?>\n<element/>')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii'), b'<element/>')
+        self.assertEqual(etree.etree_tostring(elem, encoding='ascii', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="ascii"?>\n<element/>')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8'), b'<element/>')
+        self.assertEqual(etree.etree_tostring(elem, encoding='utf-8', xml_declaration=True),
+                         b'<?xml version="1.0" encoding="utf-8"?>\n<element/>')
+
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1'),
+                         b"<?xml version='1.0' encoding='iso-8859-1'?>\n<element/>")
+        self.assertEqual(etree.etree_tostring(elem, encoding='iso-8859-1', xml_declaration=False),
+                         b"<element/>")
+
+        self.assertEqual(etree.etree_tostring(elem, method='html'), '<element></element>')
+        self.assertEqual(etree.etree_tostring(elem, method='text'), '')
+
+        root = lxml.etree.XML('<root>\n'
+                              '  text1\n'
+                              '  <elem>text2</elem>\n'
+                              '</root>')
+        self.assertEqual(etree.etree_tostring(root, method='text'), '\n  text1\n  text2')
 
     def test_defuse_xml_entities(self):
         xml_file = casepath('resources/with_entity.xml')
