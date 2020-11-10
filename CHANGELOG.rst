@@ -2,6 +2,10 @@
 CHANGELOG
 *********
 
+`v1.3.1`_ (2020-11-10)
+======================
+* Apply patches for packaging (issue #210)
+
 `v1.3.0`_ (2020-11-09)
 ======================
 * Drop support for Python 3.5
@@ -369,3 +373,4 @@ v0.9.6 (2017-05-05)
 .. _v1.2.4: https://github.com/brunato/xmlschema/compare/v1.2.3...v1.2.4
 .. _v1.2.5: https://github.com/brunato/xmlschema/compare/v1.2.4...v1.2.5
 .. _v1.3.0: https://github.com/brunato/xmlschema/compare/v1.2.5...v1.3.0
+.. _v1.3.1: https://github.com/brunato/xmlschema/compare/v1.3.0...v1.3.1
