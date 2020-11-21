@@ -76,11 +76,13 @@ DATETIME_FACETS = (
 # XSD built-in types validator functions
 def decimal_validator(x):
     try:
-        if isinf(x) or isnan(x) or 'E' in str(x).upper():
-            yield XMLSchemaValidationError(decimal_validator, x,
-                                           "value {!r} is not a valid xs:decimal".format(x))
-    except TypeError:
-        pass
+        if not isinstance(x, (Decimal, float)):
+            datatypes.DecimalProxy.validate(x)
+        elif isinf(x) or isnan(x):
+            raise ValueError()
+    except (ValueError, TypeError):
+        yield XMLSchemaValidationError(decimal_validator, x,
+                                       "value {!r} is not a valid xs:decimal".format(x))
 
 
 def qname_validator(x):
@@ -221,6 +223,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_DECIMAL,
         'python_type': (Decimal, str, int, float),
         'admitted_facets': DECIMAL_FACETS,
+        'to_python': datatypes.DecimalProxy,
         'facets': [decimal_validator, COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # decimal number
 

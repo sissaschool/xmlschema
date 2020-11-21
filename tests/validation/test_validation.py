@@ -11,6 +11,7 @@
 import unittest
 import os
 import sys
+import decimal
 
 try:
     import lxml.etree as lxml_etree
@@ -214,6 +215,19 @@ class TestValidation(XsdValidatorTestCase):
 
         xml_data = '<ns0:root xmlns:ns0="http://xmlschema.test/0">ns0:elem2</ns0:root>'
         self.check_validity(schema, xml_data, True)
+
+    def test_issue_213(self):
+        schema = xmlschema.XMLSchema("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+        <xs:element name="amount" type="xs:decimal"/>
+        </xs:schema>
+        """)
+
+        xml1 = """<?xml version="1.0" encoding="UTF-8"?><amount>0.000000</amount>"""
+        self.assertIsInstance(schema.decode(xml1), decimal.Decimal)
+
+        xml2 = """<?xml version="1.0" encoding="UTF-8"?><amount>0.0000000</amount>"""
+        self.assertIsInstance(schema.decode(xml2), decimal.Decimal)
 
 
 class TestValidation11(TestValidation):
