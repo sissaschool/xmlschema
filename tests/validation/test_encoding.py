@@ -426,6 +426,40 @@ class TestEncoding(XsdValidatorTestCase):
         root = schema.to_etree({"A": [1, 2], "B": [3, 4]}, unordered=True)
         self.assertListEqual([e.text for e in root], ['1', '3', '2', '4'])
 
+    def test_xsi_type_and_attributes_unmap__issue_214(self):
+        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                       xmlns="http://xmlschema.test/ns"
+                       targetNamespace="http://xmlschema.test/ns">
+              
+              <xs:element name="a" type="xs:string"/>
+              <xs:complexType name="altType">
+                <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                    <xs:attribute name="a1" type="xs:string" use="required"/>
+                  </xs:extension>
+                </xs:simpleContent>
+              </xs:complexType>
+            </xs:schema>""")
+
+        xml1 = """<a xmlns="http://xmlschema.test/ns">alpha</a>"""
+        self.assertEqual(schema.decode(xml1), 'alpha')
+
+        xml2 = """<a xmlns="http://xmlschema.test/ns" 
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:type="altType" a1="beta">alpha</a>"""
+
+        obj = schema.decode(xml2)
+        self.assertEqual(obj, {'@xmlns': 'http://xmlschema.test/ns',
+                               '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+                               '@xsi:type': 'altType', '@a1': 'beta', '$': 'alpha'})
+        root = schema.encode(obj, path='{http://xmlschema.test/ns}a')
+        self.assertEqual(root.tag, '{http://xmlschema.test/ns}a')
+        self.assertEqual(root.attrib, {
+            '{http://www.w3.org/2001/XMLSchema-instance}type': 'altType',
+            'a1': 'beta'
+        })
+
 
 class TestEncoding11(TestEncoding):
     schema_class = XMLSchema11

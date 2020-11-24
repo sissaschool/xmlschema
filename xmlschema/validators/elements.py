@@ -831,6 +831,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 xsd_type = self.maps.get_instance_type(type_name, xsd_type, converter)
             except (KeyError, TypeError) as err:
                 errors.append(err)
+            else:
+                default_namespace = converter.get('')
+                if default_namespace and xsd_type.attributes:
+                    # Adjust attributes mapped into default namespace
+
+                    ns_part = '{%s}' % default_namespace
+                    for k in list(element_data.attributes):
+                        if not k.startswith(ns_part):
+                            continue
+                        elif k in xsd_type.attributes:
+                            continue
+
+                        local_name = k[len(ns_part):]
+                        if local_name in xsd_type.attributes:
+                            element_data.attributes[local_name] = element_data.attributes[k]
+                            del element_data.attributes[k]
 
         attribute_group = self.get_attributes(xsd_type)
         for result in attribute_group.iter_encode(element_data.attributes, validation, **kwargs):
