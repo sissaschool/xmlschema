@@ -92,6 +92,35 @@ class TestConverters(unittest.TestCase):
             {'#1': '1', 'node': [None, None], '#2': '2', '#3': '3'}
         )
 
+    def test_preserve_root__issue_215(self):
+        schema = XMLSchema("""
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                   xmlns="http://xmlschema.test/ns"
+                   targetNamespace="http://xmlschema.test/ns">
+            <xs:element name="a">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="b1" type="xs:string" maxOccurs="unbounded"/>
+                        <xs:element name="b2" type="xs:string" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema> 
+        """)
+
+        xml_data = """<tns:a xmlns:tns="http://xmlschema.test/ns"><b1/><b2/></tns:a>"""
+
+        obj = schema.decode(xml_data)
+        self.assertListEqual(list(obj), ['@xmlns:tns', 'b1', 'b2'])
+        self.assertEqual(schema.encode(obj).tag, '{http://xmlschema.test/ns}a')
+
+        obj = schema.decode(xml_data, preserve_root=True)
+        self.assertListEqual(list(obj), ['tns:a'])
+
+        root = schema.encode(obj, preserve_root=True, path='tns:a',
+                             namespaces={'tns': 'http://xmlschema.test/ns'})
+        self.assertEqual(root.tag, '{http://xmlschema.test/ns}a')
+
     def test_etree_element_method(self):
         converter = XMLSchemaConverter()
         elem = converter.etree_element('A')

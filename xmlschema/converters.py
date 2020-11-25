@@ -299,14 +299,21 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         if level != 0:
             tag = xsd_element.name
-        elif not self.preserve_root:
-            tag = xsd_element.qualified_name
         else:
             tag = xsd_element.qualified_name
-            try:
-                obj = obj.get(tag, xsd_element.local_name)
-            except (KeyError, AttributeError, TypeError):
-                pass
+
+            if self.preserve_root:
+                for key in {tag, self.map_qname(tag),
+                            xsd_element.prefixed_name,
+                            xsd_element.local_name}:
+                    try:
+                        obj = obj[key]
+                    except KeyError:
+                        continue
+                    except TypeError:
+                        break
+                    else:
+                        break
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.simple_type is not None:
