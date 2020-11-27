@@ -15,8 +15,8 @@ import re
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..qnames import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
-    XSD_OVERRIDE, XSD_NOTATION_TYPE, get_qname, local_name, get_prefixed_qname, \
-    is_not_xsd_annotation
+    XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL, get_qname, local_name, \
+    get_prefixed_qname, is_not_xsd_annotation
 from ..etree import is_etree_element, etree_tostring
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
@@ -742,6 +742,9 @@ class XsdType(XsdComponent):
 
     def is_notation(self):
         return self.name == XSD_NOTATION_TYPE or self.is_derived(self.maps.types[XSD_NOTATION_TYPE])
+
+    def is_decimal(self):
+        return self.name == XSD_DECIMAL or self.is_derived(self.maps.types[XSD_DECIMAL])
 
     def text_decode(self, text):
         raise NotImplementedError()

@@ -1726,24 +1726,27 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         namespaces = {} if namespaces is None else namespaces.copy()
         converter = self.get_converter(converter, namespaces=namespaces, **kwargs)
 
-        namespace = get_namespace(path) or namespaces.get('', '')
-        if namespace:
-            try:
-                schema = self.maps.namespaces[namespace][0]
-            except (KeyError, IndexError):
-                reason = 'the namespace {!r} is not loaded'.format(namespace)
-                raise XMLSchemaEncodeError(self, obj, self, reason, namespaces=namespaces)
-            else:
-                xsd_element = schema.find(path, namespaces=namespaces)
-        elif path is not None:
-            xsd_element = self.find(path, namespaces=namespaces)
-        elif isinstance(obj, dict) and len(obj) == 1:
-            xsd_element = self.elements.get(list(obj.keys())[0])
+        xsd_element = None
+        if path is not None:
+            match = re.search(r'[{\w]', path)
+            if match:
+                namespace = get_namespace(path[match.start():], namespaces)
+                schema = self.get_schema(namespace)
+                xsd_element = schema.find(path, namespaces)
+
         elif len(self.elements) == 1:
             xsd_element = list(self.elements.values())[0]
         else:
             root_elements = self.root_elements
-            xsd_element = root_elements[0] if len(root_elements) == 1 else None
+            if len(root_elements) == 1:
+                xsd_element = root_elements[0]
+            elif isinstance(obj, (converter.dict, dict)) and len(obj) == 1:
+                for key in obj:
+                    match = re.search(r'[{\w]', key)
+                    if match:
+                        namespace = get_namespace(key[match.start():], namespaces)
+                        schema = self.get_schema(namespace)
+                        xsd_element = schema.find(key, namespaces)
 
         if not isinstance(xsd_element, XsdElement):
             if path is not None:

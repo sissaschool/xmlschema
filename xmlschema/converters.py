@@ -302,18 +302,31 @@ class XMLSchemaConverter(NamespaceMapper):
         else:
             tag = xsd_element.qualified_name
 
-            if self.preserve_root:
-                for key in {tag, self.map_qname(tag),
-                            xsd_element.prefixed_name,
-                            xsd_element.local_name}:
-                    try:
-                        obj = obj[key]
-                    except KeyError:
-                        continue
-                    except TypeError:
-                        break
-                    else:
-                        break
+            if self.preserve_root and isinstance(obj, (self.dict, dict)):
+                #
+                # Match the XSD element with a dictionary key
+
+                local_name = xsd_element.local_name
+                if tag in obj:
+                    obj = obj[tag]
+                elif local_name in obj:
+                    obj = obj[local_name]
+                elif tag.startswith('{'):
+                    namespace = xsd_element.target_namespace
+
+                    for k in filter(lambda x: x.endswith(':%s' % local_name), obj):
+                        prefix = k.split(':')[0]
+                        if self.namespaces.get(prefix) == namespace:
+                            obj = obj[k]
+                            break
+
+                        ns_declaration = '{}:{}'.format(self.ns_prefix, prefix)
+                        try:
+                            if obj[k][ns_declaration] == namespace:
+                                obj = obj[k]
+                                break
+                        except (KeyError, TypeError):
+                            pass
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.simple_type is not None:

@@ -11,6 +11,7 @@
 This module contains qualified names constants and helper functions for QNames.
 """
 import re
+from typing import Optional
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 
@@ -191,9 +192,20 @@ XSD_UNTYPED_ATOMIC = XSD_TEMPLATE % 'untypedAtomic'
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(qname):
-    if not qname or qname[0] != '{':
+def get_namespace(qname: str, namespaces: Optional[dict] = None) -> str:
+    """
+    Returns the namespace URI associated with a QName. If a namespace map is
+    provided tries to resolve a prefixed QName and then to extract the namespace.
+
+    :param qname: an extended QName or a local name or a prefixed QName.
+    :param namespaces: optional dictionary with a map from prefixes to namespace URIs.
+    """
+    if not qname:
         return ''
+    elif qname[0] != '{':
+        if not namespaces:
+            return ''
+        qname = get_extended_qname(qname, namespaces)
 
     try:
         return NAMESPACE_PATTERN.match(qname).group(1)

@@ -1305,11 +1305,18 @@ class XsdAtomicRestriction(XsdAtomic):
             else:
                 if self.validators and obj is not None:
                     if isinstance(obj, (str, bytes)):
-                        if self.primitive_type.is_datetime():
+                        if self.primitive_type.is_datetime() or \
+                                self.primitive_type.is_decimal():
                             obj = self.primitive_type.to_python(obj)
 
                     for validator in self.validators:
                         yield from validator(obj)
+
+                if self.patterns:
+                    if not isinstance(self.primitive_type, XsdUnion):
+                        yield from self.patterns(result)
+                    elif 'patterns' not in kwargs:
+                        kwargs['patterns'] = self.patterns
 
                 yield result
                 return

@@ -121,6 +121,12 @@ class TestConverters(unittest.TestCase):
                              namespaces={'tns': 'http://xmlschema.test/ns'})
         self.assertEqual(root.tag, '{http://xmlschema.test/ns}a')
 
+        root = schema.encode(obj, preserve_root=True, path='{http://xmlschema.test/ns}a')
+        self.assertEqual(root.tag, '{http://xmlschema.test/ns}a')
+
+        root = schema.encode(obj, preserve_root=True)
+        self.assertEqual(root.tag, '{http://xmlschema.test/ns}a')
+
     def test_etree_element_method(self):
         converter = XMLSchemaConverter()
         elem = converter.etree_element('A')

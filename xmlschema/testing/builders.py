@@ -318,6 +318,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
 
+            # Use str instead of float in order to preserve original data
+            kwargs['decimal_type'] = str
+
             json_data1 = xmlschema.to_json(root, schema=self.schema, converter=converter, **kwargs)
             if isinstance(json_data1, tuple):
                 json_data1 = json_data1[0]
