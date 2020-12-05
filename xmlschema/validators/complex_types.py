@@ -97,24 +97,23 @@ class XsdComplexType(XsdType, ValidationMixin):
 
     def _parse(self):
         super(XsdComplexType, self)._parse()
-        elem = self.elem
-        if elem.tag == XSD_RESTRICTION:
+        if self.elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
         if self._parse_boolean_attribute('abstract'):
             self.abstract = True
 
-        if 'block' in elem.attrib:
+        if 'block' in self.elem.attrib:
             try:
-                self._block = get_xsd_derivation_attribute(elem, 'block', XSD_TYPE_DERIVATIONS)
+                self._block = get_xsd_derivation_attribute(self.elem, 'block', XSD_TYPE_DERIVATIONS)
             except ValueError as err:
-                self.parse_error(err, elem)
+                self.parse_error(err)
 
-        if 'final' in elem.attrib:
+        if 'final' in self.elem.attrib:
             try:
-                self._final = get_xsd_derivation_attribute(elem, 'final', XSD_TYPE_DERIVATIONS)
+                self._final = get_xsd_derivation_attribute(self.elem, 'final', XSD_TYPE_DERIVATIONS)
             except ValueError as err:
-                self.parse_error(err, elem)
+                self.parse_error(err)
 
         if self._parse_boolean_attribute('mixed'):
             self.mixed = True
@@ -131,10 +130,10 @@ class XsdComplexType(XsdType, ValidationMixin):
                 self.parse_error("attribute 'name' not allowed for a local complexType")
                 self.name = None
 
-        content_elem = self._parse_child_component(elem, strict=False)
+        content_elem = self._parse_child_component(self.elem, strict=False)
         if content_elem is None or content_elem.tag in self._CONTENT_TAIL_TAGS:
             self.content = self.schema.create_empty_content_group(self)
-            self._parse_content_tail(elem)
+            self._parse_content_tail(self.elem)
             default_open_content = self.default_open_content
             if default_open_content and \
                     (self.mixed or self.content or default_open_content.applies_to_empty):
@@ -146,7 +145,7 @@ class XsdComplexType(XsdType, ValidationMixin):
             if default_open_content and \
                     (self.mixed or self.content or default_open_content.applies_to_empty):
                 self.open_content = default_open_content
-            self._parse_content_tail(elem)
+            self._parse_content_tail(self.elem)
 
         elif content_elem.tag == XSD_SIMPLE_CONTENT:
             if 'mixed' in content_elem.attrib:
@@ -162,10 +161,10 @@ class XsdComplexType(XsdType, ValidationMixin):
             else:
                 self._parse_simple_content_extension(derivation_elem, base_type)
 
-            if content_elem is not elem[-1]:
-                k = 2 if content_elem is not elem[0] else 1
+            if content_elem is not self.elem[-1]:
+                k = 2 if content_elem is not self.elem[0] else 1
                 self.parse_error(
-                    "unexpected tag %r after simpleContent declaration:" % elem[k].tag, elem
+                    "unexpected tag %r after simpleContent declaration:" % self.elem[k].tag
                 )
 
         elif content_elem.tag == XSD_COMPLEX_CONTENT:
@@ -175,7 +174,7 @@ class XsdComplexType(XsdType, ValidationMixin):
                 mixed = content_elem.attrib['mixed'] in ('true', '1')
                 if mixed is not self.mixed:
                     self.mixed = mixed
-                    if 'mixed' in elem.attrib and self.xsd_version == '1.1':
+                    if 'mixed' in self.elem.attrib and self.xsd_version == '1.1':
                         self.parse_error("value of 'mixed' attribute in complexType "
                                          "and complexContent must be same")
 
@@ -195,44 +194,44 @@ class XsdComplexType(XsdType, ValidationMixin):
             else:
                 self._parse_complex_content_extension(derivation_elem, base_type)
 
-            if content_elem is not elem[-1]:
-                k = 2 if content_elem is not elem[0] else 1
+            if content_elem is not self.elem[-1]:
+                k = 2 if content_elem is not self.elem[0] else 1
                 self.parse_error(
-                    "unexpected tag %r after complexContent declaration:" % elem[k].tag, elem
+                    "unexpected tag %r after complexContent declaration:" % self.elem[k].tag
                 )
 
         elif content_elem.tag == XSD_OPEN_CONTENT and self.xsd_version > '1.0':
             self.open_content = XsdOpenContent(content_elem, self.schema, self)
 
-            if content_elem is elem[-1]:
+            if content_elem is self.elem[-1]:
                 self.content = self.schema.create_empty_content_group(self)
             else:
-                for index, child in enumerate(elem):
+                for index, child in enumerate(self.elem):
                     if content_elem is not child:
                         continue
-                    elif elem[index + 1].tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
+                    elif self.elem[index + 1].tag in {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}:
                         self.content = self.schema.BUILDERS.group_class(
-                            elem[index + 1], self.schema, self
+                            self.elem[index + 1], self.schema, self
                         )
                     else:
                         self.content = self.schema.self.schema.create_empty_content_group(self)
                     break
-            self._parse_content_tail(elem)
+            self._parse_content_tail(self.elem)
 
         else:
             if self.schema.validation == 'skip':
                 # Also generated by meta-schema validation for 'lax' and 'strict' modes
                 self.parse_error(
-                    "unexpected tag %r for complexType content:" % content_elem.tag, elem
+                    "unexpected tag %r for complexType content:" % content_elem.tag
                 )
             self.content = self.schema.create_any_content_group(self)
             self.attributes = self.schema.create_any_attribute_group(self)
 
         if self.redefine is None:
             if self.base_type is not None and self.base_type.name == self.name:
-                self.parse_error("wrong definition with self-reference", elem)
+                self.parse_error("wrong definition with self-reference")
         elif self.base_type is None or self.base_type.name != self.name:
-            self.parse_error("wrong redefinition without self-reference", elem)
+            self.parse_error("wrong redefinition without self-reference")
 
     def _parse_content_tail(self, elem, **kwargs):
         self.attributes = self.schema.BUILDERS.attribute_group_class(

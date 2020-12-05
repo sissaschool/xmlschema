@@ -51,7 +51,7 @@ class XsdValidator(object):
     :ivar errors: XSD validator building errors.
     :vartype errors: list
     """
-    xsd_version = None
+    xsd_version = elem = None
 
     def __init__(self, validation='strict'):
         self.validation = validation
@@ -143,12 +143,9 @@ class XsdValidator(object):
 
         if validation == 'skip':
             return
-
-        if is_etree_element(elem):
-            pass
         elif elem is None:
-            elem = getattr(self, 'elem', None)
-        else:
+            elem = self.elem
+        elif not is_etree_element(elem):
             msg = "the argument 'elem' must be an Element instance, not {!r}."
             raise XMLSchemaTypeError(msg.format(elem))
 

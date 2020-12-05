@@ -406,15 +406,14 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def _parse(self):
         super(XsdAttributeGroup, self)._parse()
-        elem = self.elem
         any_attribute = None
         attribute_group_refs = []
 
-        if elem.tag == XSD_ATTRIBUTE_GROUP:
+        if self.elem.tag == XSD_ATTRIBUTE_GROUP:
             if self.parent is not None:
                 return  # Skip dummy definitions
             try:
-                self.name = get_qname(self.target_namespace, elem.attrib['name'])
+                self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
             except KeyError:
                 self.parse_error("an attribute group declaration requires a 'name' attribute.")
                 return
@@ -423,7 +422,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.schema.default_attributes = self
 
         attributes = {}
-        for child in filter(is_not_xsd_annotation, elem):
+        for child in filter(is_not_xsd_annotation, self.elem):
             if any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
@@ -443,7 +442,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if attribute.name in attributes:
                     self.parse_error("multiple declaration for attribute "
                                      "{!r}".format(attribute.name))
-                elif attribute.use != 'prohibited' or elem.tag != XSD_ATTRIBUTE_GROUP:
+                elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
                     attributes[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
@@ -451,13 +450,13 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     ref = child.attrib['ref']
                 except KeyError:
                     self.parse_error("the attribute 'ref' is required "
-                                     "in a local attributeGroup", elem)
+                                     "in a local attributeGroup")
                     continue
 
                 try:
                     attribute_group_qname = self.schema.resolve_qname(ref)
                 except (KeyError, ValueError, RuntimeError) as err:
-                    self.parse_error(err, elem)
+                    self.parse_error(err)
                 else:
                     if attribute_group_qname in attribute_group_refs:
                         self.parse_error("duplicated attributeGroup %r" % ref)
@@ -482,7 +481,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     try:
                         base_attrs = self.maps.lookup_attribute_group(attribute_group_qname)
                     except LookupError:
-                        self.parse_error("unknown attribute group %r" % child.attrib['ref'], elem)
+                        self.parse_error("unknown attribute group %r" % child.attrib['ref'])
                     else:
                         if not isinstance(base_attrs, tuple):
                             for name, attr in base_attrs.items():

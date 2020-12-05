@@ -75,7 +75,7 @@ class XsdSelector(XsdComponent):
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
-            self.parse_error("'xpath' attribute required:", self.elem)
+            self.parse_error("'xpath' attribute required")
             self.path = '*'
         else:
             try:
@@ -159,30 +159,29 @@ class XsdIdentity(XsdComponent):
 
     def _parse(self):
         super(XsdIdentity, self)._parse()
-        elem = self.elem
         try:
-            self.name = get_qname(self.target_namespace, elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("missing required attribute 'name'", elem)
+            self.parse_error("missing required attribute 'name'")
             self.name = None
 
-        for index, child in enumerate(elem):
+        for index, child in enumerate(self.elem):
             if child.tag == XSD_SELECTOR:
                 self.selector = XsdSelector(child, self.schema, self)
                 break
             elif child.tag != XSD_ANNOTATION:
-                self.parse_error("'selector' declaration expected.", elem)
+                self.parse_error("'selector' declaration expected.")
                 break
         else:
-            self.parse_error("missing 'selector' declaration.", elem)
+            self.parse_error("missing 'selector' declaration.")
             index = -1
 
         self.fields = []
-        for child in filter(is_not_xsd_annotation, elem[index + 1:]):
+        for child in filter(is_not_xsd_annotation, self.elem[index + 1:]):
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
             else:
-                self.parse_error("%r is not allowed here" % child, elem)
+                self.parse_error("%r is not allowed here" % child)
 
     def _parse_identity_reference(self):
         super(XsdIdentity, self)._parse()

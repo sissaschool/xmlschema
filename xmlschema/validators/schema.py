@@ -457,7 +457,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 try:
                     self.default_attributes = self.resolve_qname(root.attrib['defaultAttributes'])
                 except (ValueError, KeyError, RuntimeError) as err:
-                    self.parse_error(str(err), root)
+                    self.parse_error(err, root)
 
             for child in filter(is_xsd_default_open_content, root):
                 self.default_open_content = XsdDefaultOpenContent(child, self)
@@ -1006,11 +1006,11 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 self.warnings.append("Redefine schema failed: %s." % str(err))
                 warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
                 if any(is_not_xsd_annotation(e) for e in child):
-                    self.parse_error(str(err), child)
+                    self.parse_error(err, child)
             except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
                 msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
                 if isinstance(err, (XMLSchemaParseError, ParseError)):
-                    self.parse_error(msg)
+                    self.parse_error(msg, child)
                 elif self.validation == 'strict':
                     raise type(err)(msg)
                 else:

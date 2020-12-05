@@ -59,7 +59,7 @@ class XsdFacet(XsdComponent):
             self._parse_value(self.elem)
         except (KeyError, ValueError, XMLSchemaDecodeError) as err:
             self.value = None
-            self.parse_error(str(err))
+            self.parse_error(err)
         else:
             if base_facet is not None and base_facet.fixed and \
                     base_facet.value is not None and self.value != base_facet.value:
@@ -754,7 +754,7 @@ class XsdAssertionFacet(XsdFacet):
         try:
             self.path = self.elem.attrib['test']
         except KeyError as err:
-            self.parse_error(str(err), elem=self.elem)
+            self.parse_error(err)
             self.path = 'true()'
 
         try:
@@ -775,7 +775,7 @@ class XsdAssertionFacet(XsdFacet):
         try:
             self.token = self.parser.parse(self.path)
         except ElementPathError as err:
-            self.parse_error(err, elem=self.elem)
+            self.parse_error(err)
             self.token = self.parser.parse('true()')
 
     def __call__(self, value):
