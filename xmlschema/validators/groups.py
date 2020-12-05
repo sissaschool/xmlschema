@@ -681,9 +681,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         broken_model = True
 
             if xsd_element is None:
-                if kwargs.get('keep_unknown'):
+                if kwargs.get('keep_unknown') and 'converter' in kwargs:
                     for result in self.any_type.iter_decode(child, validation, **kwargs):
                         result_list.append((child.tag, result, None))
+                continue
+            elif 'converter' not in kwargs:
+                # Validation-only mode: do not append results
+                for result in xsd_element.iter_decode(child, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
                 continue
             elif over_max_depth:
                 if 'depth_filler' in kwargs:
