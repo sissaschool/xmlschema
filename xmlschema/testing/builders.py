@@ -28,12 +28,12 @@ from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from xmlschema.etree import etree_tostring, ElementTree, \
-    etree_elements_assert_equal, py_etree_element
-from xmlschema.helpers import iter_nested_items
+    py_etree_element
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
 from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
 
+from .helpers import iter_nested_items, etree_elements_assert_equal
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
 

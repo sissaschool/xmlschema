@@ -8,12 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
+from ..names import XSD_GROUP, XSD_ATTRIBUTE_GROUP, XSD_SEQUENCE, \
     XSD_ALL, XSD_CHOICE, XSD_ANY_ATTRIBUTE, XSD_ATTRIBUTE, XSD_COMPLEX_CONTENT, \
     XSD_RESTRICTION, XSD_COMPLEX_TYPE, XSD_EXTENSION, XSD_ANY_TYPE, XSD_ASSERT, \
-    XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT, get_prefixed_qname, \
+    XSD_UNTYPED_ATOMIC, XSD_SIMPLE_CONTENT, XSD_OPEN_CONTENT
+from ..helpers import get_xsd_derivation_attribute, get_prefixed_qname, \
     get_qname, local_name, is_not_xsd_annotation, is_xsd_override
-from ..helpers import get_xsd_derivation_attribute
 
 from .exceptions import XMLSchemaDecodeError
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin

@@ -18,9 +18,8 @@ import os
 import re
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema.names import SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.etree import etree_element
-from xmlschema.namespaces import SCHEMAS_DIR
-from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 

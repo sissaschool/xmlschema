@@ -17,10 +17,10 @@ from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
 from urllib.error import URLError
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .namespaces import XML_NAMESPACE, get_namespace
-from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, \
-    etree_iter_location_hints, is_etree_element, is_etree_document
-
+from .names import XML_NAMESPACE
+from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
+from .helpers import get_namespace, is_etree_element, is_etree_document, \
+    etree_iter_location_hints
 
 DEFUSE_MODES = ('never', 'remote', 'always')
 SECURITY_MODES = ('all', 'remote', 'local', 'sandbox')

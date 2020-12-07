@@ -12,7 +12,7 @@ import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.etree import ElementTree
-from xmlschema.qnames import XSD_NOTATION
+from xmlschema.names import XSD_NOTATION
 from xmlschema.validators import XMLSchema10, XMLSchema11, XsdNotation
 
 

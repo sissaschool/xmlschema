@@ -16,11 +16,11 @@ from functools import lru_cache
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
-from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
-from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, \
-    XSI_TYPE, get_qname, local_name, get_extended_qname, is_xsd_redefine_or_override
-
+from ..names import XSD_NAMESPACE, XSD_OVERRIDE, XSD_NOTATION, \
+    XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
+    XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
+from ..helpers import get_qname, local_name, get_extended_qname, is_xsd_redefine_or_override
+from ..namespaces import NamespaceResourcesMap
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert

@@ -8,70 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains namespace definitions for W3C core standards and namespace related classes.
+This module contains classes for managing maps related to namespaces.
 """
-import os
 import re
 from collections.abc import MutableMapping, Mapping
 
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .qnames import get_namespace, local_name
-
-###
-# Namespace URIs for schemas
-XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema'
-"URI of the XML Schema Definition namespace (xs|xsd)"
-
-XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance'
-"URI of the XML Schema Instance namespace (xsi)"
-
-XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
-"URI of the XML namespace (xml)"
-
-XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
-XHTML_DATATYPES_NAMESPACE = 'http://www.w3.org/1999/xhtml/datatypes/'
-"URIs of the Extensible Hypertext Markup Language namespace (html)"
-
-XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
-"URI of the XML Linking Language (XLink)"
-
-XSLT_NAMESPACE = "http://www.w3.org/1999/XSL/Transform"
-"URI of the XSL Transformations namespace (xslt)"
-
-HFP_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-hasFacetAndProperty'
-"URI of the XML Schema has Facet and Property namespace (hfp)"
-
-VC_NAMESPACE = 'http://www.w3.org/2007/XMLSchema-versioning'
-"URI of the XML Schema Versioning namespace (vc)"
-
-###
-# Namespace URIs for XML documents
-WSDL_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/'
-SOAP_NAMESPACE = 'http://schemas.xmlsoap.org/wsdl/soap/'
-SOAP_ENVELOPE_NAMESPACE = 'http://schemas.xmlsoap.org/soap/envelope/'
-SOAP_ENCODING_NAMESPACE = 'http://schemas.xmlsoap.org/soap/encoding/'
-
-
-###
-# Schema location hints
-
-SCHEMAS_DIR = os.path.join(os.path.dirname(__file__), 'schemas/')
-
-LOCATION_HINTS = {
-    # Locally saved schemas
-    # HFP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'HFP/XMLSchema-hasFacetAndProperty_minimal.xsd'),
-    VC_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XSI/XMLSchema-versioning.xsd'),
-    XLINK_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XLINK/xlink.xsd'),
-    XHTML_NAMESPACE: os.path.join(SCHEMAS_DIR, 'XHTML/xhtml1-strict.xsd'),
-    WSDL_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl.xsd'),
-    SOAP_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/wsdl-soap.xsd'),
-    SOAP_ENVELOPE_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-envelope.xsd'),
-    SOAP_ENCODING_NAMESPACE: os.path.join(SCHEMAS_DIR, 'WSDL/soap-encoding.xsd'),
-
-    # Remote locations: contributors can propose additional official locations
-    # for other namespaces for extending this list.
-    XSLT_NAMESPACE: os.path.join(SCHEMAS_DIR, 'http://www.w3.org/2007/schema-for-xslt20.xsd'),
-}
+from .helpers import get_namespace, local_name
 
 
 ###

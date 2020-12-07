@@ -11,7 +11,7 @@
 import unittest
 
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
-from xmlschema.qnames import XSD_LIST, XSD_UNION
+from xmlschema.names import XSD_LIST, XSD_UNION
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
 

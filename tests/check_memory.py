@@ -40,9 +40,11 @@ Run memory tests:
 
 """
 
-parser.add_argument('test_num', metavar="TEST_NUM", type=test_choice_type, help="Test number to run")
+parser.add_argument('test_num', metavar="TEST_NUM", type=test_choice_type,
+                    help="Test number to run")
 parser.add_argument('xml_file', metavar='XML_FILE', nargs='?', help='Input XML file')
-parser.add_argument('repeat', metavar='REPEAT', nargs='?', type=int, default=1, help='Repeat operation N times')
+parser.add_argument('repeat', metavar='REPEAT', nargs='?', type=int, default=1,
+                    help='Repeat operation N times')
 args = parser.parse_args()
 
 
@@ -103,8 +105,8 @@ def decode(source, repeat=1):
 def lazy_decode(source, repeat=1):
     decoder = xmlschema.XMLSchema.meta_schema if source.endswith('.xsd') else xmlschema
     for _ in range(repeat):
-        for result in decoder.to_dict(xmlschema.XMLResource(source, lazy=True), path='*'):
-            del result
+        for _result in decoder.to_dict(xmlschema.XMLResource(source, lazy=True), path='*'):
+            del _result
 
 
 @profile

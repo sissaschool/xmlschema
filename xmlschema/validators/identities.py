@@ -16,8 +16,9 @@ from collections import Counter
 from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
-    XSD_SELECTOR, XSD_FIELD, get_qname, get_extended_qname, is_not_xsd_annotation
+from ..names import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, \
+    XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..helpers import get_qname, get_extended_qname, is_not_xsd_annotation
 from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent

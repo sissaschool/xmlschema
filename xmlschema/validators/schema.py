@@ -27,17 +27,18 @@ from itertools import chain
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaKeyError, \
     XMLSchemaValueError, XMLSchemaNamespaceError
-from ..qnames import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
+from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_TYPE_UNAVAILABLE, VC_FACET_AVAILABLE, VC_FACET_UNAVAILABLE, XSD_NOTATION, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
-    XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, is_not_xsd_annotation, is_xsd_import, \
-    is_xsd_include, is_xsd_override, is_xsd_redefine, is_xsd_redefine_or_override, \
-    is_xsd_default_open_content
-from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute
-from ..namespaces import XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, VC_NAMESPACE, \
-    SCHEMAS_DIR, LOCATION_HINTS, NamespaceResourcesMap, NamespaceView, get_namespace
-from ..etree import etree_element, prune_etree, ParseError
+    XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, \
+    VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS
+from ..etree import etree_element, ParseError
+from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
+    is_not_xsd_annotation, is_xsd_import, is_xsd_include, is_xsd_override, \
+    is_xsd_redefine, is_xsd_redefine_or_override, is_xsd_default_open_content, \
+    prune_etree, get_namespace
+from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
 from ..converters import XMLSchemaConverter

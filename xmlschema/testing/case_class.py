@@ -14,12 +14,13 @@ import unittest
 import re
 import os
 
-from ..validators import XMLSchema10
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_SCHEMA
-from ..namespaces import get_namespace
-from ..etree import is_etree_element, etree_element, etree_elements_assert_equal
+from ..names import XSD_SCHEMA
+from ..helpers import get_namespace
+from ..etree import is_etree_element, etree_element
 from ..resources import fetch_namespaces
+from ..validators import XMLSchema10
+from .helpers import etree_elements_assert_equal
 
 
 PROTECTED_PREFIX_PATTERN = re.compile(r'\bns\d:')

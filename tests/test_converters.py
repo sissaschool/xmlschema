@@ -17,7 +17,8 @@ except ImportError:
     lxml_etree_element = None
 
 from xmlschema import XMLSchema, XMLSchemaConverter
-from xmlschema.etree import etree_element, etree_elements_assert_equal
+from xmlschema.etree import etree_element
+from xmlschema.testing.helpers import etree_elements_assert_equal
 
 from xmlschema.converters import ColumnarConverter
 

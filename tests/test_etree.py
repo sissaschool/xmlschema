@@ -14,8 +14,10 @@ import platform
 import lxml.etree
 
 from xmlschema.etree import ElementTree, PyElementTree, ParseError, \
-    SafeXMLParser, etree_tostring, etree_getpath, etree_iter_location_hints, \
-    etree_iterpath, etree_elements_assert_equal, prune_etree
+    SafeXMLParser, etree_tostring
+from xmlschema.helpers import etree_getpath, etree_iter_location_hints, \
+    etree_iterpath, prune_etree
+from xmlschema.testing.helpers import etree_elements_assert_equal
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')
 

@@ -28,7 +28,7 @@ except ImportError:
 from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
     fetch_schema, fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etree_element
-from xmlschema.namespaces import XSD_NAMESPACE
+from xmlschema.names import XSD_NAMESPACE
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
     url_path_is_file, normalize_locations, LazySelector
 from xmlschema.testing import SKIP_REMOTE_TESTS

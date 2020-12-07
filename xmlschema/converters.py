@@ -13,9 +13,9 @@ This module contains converter classes and definitions.
 from collections import namedtuple
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .namespaces import XSI_NAMESPACE
+from .names import XSI_NAMESPACE
 from .etree import etree_element
-from xmlschema.namespaces import NamespaceMapper
+from .namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 """

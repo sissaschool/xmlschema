@@ -10,7 +10,7 @@
 import threading
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 
-from ..qnames import XSD_ASSERT
+from ..names import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError

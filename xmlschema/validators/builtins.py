@@ -21,7 +21,7 @@ from math import isinf, isnan
 from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_PATTERN, XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
     XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_EXPLICIT_TIMEZONE, \
     XSD_STRING, XSD_NORMALIZED_STRING, XSD_NAME, XSD_NCNAME, XSD_QNAME, XSD_TOKEN, \
@@ -34,7 +34,8 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_DURATION, XSD_DAY_TIME_DURATION, XSD_YEAR_MONTH_DURATION, XSD_BASE64_BINARY, \
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
-from ..etree import is_etree_element, etree_element
+from ..etree import etree_element
+from ..helpers import is_etree_element
 from .exceptions import XMLSchemaValidationError
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin

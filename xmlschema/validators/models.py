@@ -16,7 +16,7 @@ from collections.abc import MutableSequence
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError
-from .xsdbase import ParticleMixin
+from .particles import ParticleMixin
 from .wildcards import XsdAnyElement, Xsd11AnyElement
 
 

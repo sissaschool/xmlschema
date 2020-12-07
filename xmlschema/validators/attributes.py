@@ -15,12 +15,11 @@ from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, XSD_ATTRIBUTE_GROUP, \
-    XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, XSD_SEQUENCE, XSD_ALL, \
-    XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, XSD_ASSERT, XSD_NOTATION_TYPE, \
-    get_namespace, get_qname, is_not_xsd_annotation
-from ..helpers import get_xsd_form_attribute
-from ..namespaces import XSI_NAMESPACE
+from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
+    XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
+    XSD_ASSERT, XSD_NOTATION_TYPE
+from ..helpers import get_xsd_form_attribute, get_namespace, get_qname, is_not_xsd_annotation
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin

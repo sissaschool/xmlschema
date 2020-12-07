@@ -16,20 +16,20 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
+from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
     XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, \
-    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, \
-    get_qname, is_not_xsd_annotation
-from ..etree import etree_element, etree_iter_location_hints
+    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
+from ..etree import etree_element
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    raw_xml_encode, ParticleCounter, strictly_equal
-from ..namespaces import get_namespace
+    raw_xml_encode, strictly_equal, get_qname, is_not_xsd_annotation, \
+    get_namespace, etree_iter_location_hints
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
-    XsdComponent, XsdType, ValidationMixin, ParticleMixin
+    XsdComponent, XsdType, ValidationMixin
+from .particles import ParticleMixin, ParticleCounter
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 

@@ -15,9 +15,8 @@ import re
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
+from xmlschema.names import XSD_NAMESPACE, XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
 from xmlschema.etree import ElementTree
-from xmlschema.qnames import XSD_ELEMENT, XSD_ANNOTATION, XSD_ANY_TYPE
-from xmlschema.namespaces import XSD_NAMESPACE
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 

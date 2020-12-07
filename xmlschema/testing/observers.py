@@ -12,8 +12,7 @@ Observers for XMLSchema classes.
 """
 from functools import wraps
 
-from ..namespaces import XSD_NAMESPACE
-from ..qnames import XSD_ANY_TYPE
+from ..names import XSD_NAMESPACE, XSD_ANY_TYPE
 from ..validators import XMLSchema10, XMLSchema11, XsdGroup, XsdAttributeGroup, XsdComplexType
 
 

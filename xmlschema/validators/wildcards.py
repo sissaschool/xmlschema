@@ -11,11 +11,12 @@
 This module contains classes for XML Schema wildcards.
 """
 from ..exceptions import XMLSchemaValueError
-from ..namespaces import XSI_NAMESPACE
-from ..qnames import XSD_ANY, XSD_ANY_ATTRIBUTE, XSD_OPEN_CONTENT, \
-    XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE, get_namespace
+from ..names import XSI_NAMESPACE, XSD_ANY, XSD_ANY_ATTRIBUTE, \
+    XSD_OPEN_CONTENT, XSD_DEFAULT_OPEN_CONTENT, XSI_TYPE
+from ..helpers import get_namespace
 from ..xpath import XMLSchemaProxy, ElementPathMixin
-from .xsdbase import ValidationMixin, XsdComponent, ParticleMixin
+from .xsdbase import ValidationMixin, XsdComponent
+from .particles import ParticleMixin
 
 
 class XsdWildcard(XsdComponent, ValidationMixin):

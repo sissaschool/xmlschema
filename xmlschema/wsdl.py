@@ -10,10 +10,10 @@
 import os
 
 from .exceptions import XMLSchemaException, XMLSchemaValueError
-from .namespaces import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
-    SCHEMAS_DIR, NamespaceResourcesMap
-from .qnames import XSD_ANY_TYPE, XSD_SCHEMA, get_qname, local_name, \
-    get_extended_qname, get_prefixed_qname
+from .names import XSD_NAMESPACE, WSDL_NAMESPACE, SOAP_NAMESPACE, \
+    SCHEMAS_DIR, XSD_ANY_TYPE, XSD_SCHEMA
+from .helpers import get_qname, local_name, get_extended_qname, get_prefixed_qname
+from .namespaces import NamespaceResourcesMap
 from .resources import fetch_resource
 from .documents import XmlDocument
 from .validators import XMLSchema10

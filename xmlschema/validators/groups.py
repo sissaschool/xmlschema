@@ -14,16 +14,18 @@ import warnings
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
+from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
+    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE
 from ..etree import etree_element
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
-    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, get_qname, local_name, is_not_xsd_annotation
+from ..helpers import not_whitespace, get_qname, local_name, is_not_xsd_annotation
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
+from .particles import ParticleMixin
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ParticleMixin, ModelGroup, ModelVisitor
+from .models import ModelGroup, ModelVisitor
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -33,10 +35,6 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
-
-
-def not_whitespace(s):
-    return s and s.strip()
 
 
 class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):

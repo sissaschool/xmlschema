@@ -7,7 +7,8 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
-from ..qnames import XSD_NOTATION, get_qname
+from ..names import XSD_NOTATION
+from ..helpers import get_qname
 from .xsdbase import XsdComponent
 
 

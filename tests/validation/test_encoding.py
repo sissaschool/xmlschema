@@ -14,8 +14,8 @@ import unittest
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
-from xmlschema.qnames import local_name
-from xmlschema.etree import etree_element, is_etree_element, etree_tostring, ElementTree
+from xmlschema.etree import etree_element, etree_tostring, ElementTree
+from xmlschema.helpers import local_name, is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
 from xmlschema.testing import XsdValidatorTestCase
