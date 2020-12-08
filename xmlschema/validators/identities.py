@@ -18,7 +18,7 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, \
     XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
-from ..helpers import get_qname, get_extended_qname, is_not_xsd_annotation
+from ..helpers import get_qname, get_extended_qname
 from ..xpath import iter_schema_nodes
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
@@ -170,7 +170,7 @@ class XsdIdentity(XsdComponent):
             if child.tag == XSD_SELECTOR:
                 self.selector = XsdSelector(child, self.schema, self)
                 break
-            elif child.tag != XSD_ANNOTATION:
+            elif child.tag != XSD_ANNOTATION and not callable(child.tag):
                 self.parse_error("'selector' declaration expected.")
                 break
         else:
@@ -178,11 +178,12 @@ class XsdIdentity(XsdComponent):
             index = -1
 
         self.fields = []
-        for child in filter(is_not_xsd_annotation, self.elem[index + 1:]):
+        for child in self.elem[index + 1:]:
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
-            else:
+            elif child.tag != XSD_ANNOTATION and not callable(child.tag):
                 self.parse_error("%r is not allowed here" % child)
+                break
 
     def _parse_identity_reference(self):
         super(XsdIdentity, self)._parse()

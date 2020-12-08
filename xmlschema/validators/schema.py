@@ -32,11 +32,10 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_GROUP, XSD_SIMPLE_TYPE, XSI_TYPE, \
     XSD_COMPLEX_TYPE, XSD_ELEMENT, XSD_SEQUENCE, XSD_CHOICE, XSD_ALL, XSD_ANY, \
     XSD_ANY_ATTRIBUTE, XSD_ANY_TYPE, XSD_NAMESPACE, XML_NAMESPACE, XSI_NAMESPACE, \
-    VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS
+    VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
+    XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..etree import etree_element, ParseError
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    is_not_xsd_annotation, is_xsd_import, is_xsd_include, is_xsd_override, \
-    is_xsd_redefine, is_xsd_redefine_or_override, is_xsd_default_open_content, \
     prune_etree, get_namespace
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
@@ -390,8 +389,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
             # Meta-schema maps creation (MetaXMLSchema10/11 classes)
             self.maps = global_maps or XsdGlobals(self)
-            for child in filter(is_xsd_override, self.root):
-                self.include_schema(child.attrib['schemaLocation'], self.base_url)
+            for child in self.source.root:
+                if child.tag == XSD_OVERRIDE:
+                    self.include_schema(child.attrib['schemaLocation'], self.base_url)
             return  # Meta-schemas don't need to be checked and don't process imports
 
         if locations:
@@ -460,9 +460,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 except (ValueError, KeyError, RuntimeError) as err:
                     self.parse_error(err, root)
 
-            for child in filter(is_xsd_default_open_content, root):
-                self.default_open_content = XsdDefaultOpenContent(child, self)
-                break
+            for child in root:
+                if child.tag == XSD_DEFAULT_OPEN_CONTENT:
+                    self.default_open_content = XsdDefaultOpenContent(child, self)
+                    break
 
         try:
             if build:
@@ -857,8 +858,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         # No XSD globals: check with a lookup of schema child elements.
         prefix = '{%s}' % self.target_namespace if self.target_namespace else ''
-        for child in filter(is_not_xsd_annotation, self.root):
-            if is_xsd_redefine_or_override(child):
+        for child in self.source.root:
+            if child.tag in {XSD_REDEFINE, XSD_OVERRIDE}:
                 for e in filter(lambda x: x.tag in self.BUILDERS_MAP, child):
                     name = e.get('name')
                     if name is not None:
@@ -971,53 +972,56 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def _parse_inclusions(self):
         """Processes schema document inclusions and redefinitions."""
-        for child in filter(is_xsd_include, self.root):
-            try:
-                location = child.attrib['schemaLocation'].strip()
-                logger.info("Include schema from %r", location)
-                self.include_schema(location, self.base_url)
-            except KeyError:
-                pass
-            except (OSError, IOError) as err:
-                # Attribute missing error already found by validation against meta-schema.
-                # It is not an error if the location fail to resolve:
-                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
-                #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
-                self.warnings.append("Include schema failed: %s." % str(err))
-                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                msg = 'cannot include schema %r: %s' % (child.attrib['schemaLocation'], err)
-                if isinstance(err, (XMLSchemaParseError, ParseError)):
-                    self.parse_error(msg)
-                elif self.validation == 'strict':
-                    raise type(err)(msg)
-                else:
-                    self.errors.append(type(err)(msg))
+        for child in self.source.root:
+            if child.tag == XSD_INCLUDE:
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                    logger.info("Include schema from %r", location)
+                    self.include_schema(location, self.base_url)
+                except KeyError:
+                    # Attribute missing error already found by validation against meta-schema
+                    pass
+                except (OSError, IOError) as err:
+                    # It is not an error if the location fail to resolve:
+                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#compound-schema
+                    #   https://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/#src-include
+                    self.warnings.append("Include schema failed: %s." % str(err))
+                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                    msg = 'cannot include schema %r: %s' % (child.attrib['schemaLocation'], err)
+                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                        self.parse_error(msg)
+                    elif self.validation == 'strict':
+                        raise type(err)(msg)
+                    else:
+                        self.errors.append(type(err)(msg))
 
-        for child in filter(is_xsd_redefine, self.root):
-            try:
-                location = child.attrib['schemaLocation'].strip()
-                logger.info("Redefine schema %r", location)
-                schema = self.include_schema(location, self.base_url)
-            except KeyError:
-                pass  # Attribute missing error already found by validation against meta-schema
-            except (OSError, IOError) as err:
-                # If the redefine doesn't contain components (annotation excluded) the statement
-                # is equivalent to an include, so no error is generated. Otherwise fails.
-                self.warnings.append("Redefine schema failed: %s." % str(err))
-                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if any(is_not_xsd_annotation(e) for e in child):
-                    self.parse_error(err, child)
-            except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
-                msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
-                if isinstance(err, (XMLSchemaParseError, ParseError)):
-                    self.parse_error(msg, child)
-                elif self.validation == 'strict':
-                    raise type(err)(msg)
+            elif child.tag == XSD_REDEFINE:
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                    logger.info("Redefine schema %r", location)
+                    schema = self.include_schema(location, self.base_url)
+                except KeyError:
+                    # Attribute missing error already found by validation against meta-schema
+                    pass
+                except (OSError, IOError) as err:
+                    # If the redefine doesn't contain components (annotation excluded)
+                    # the statement is equivalent to an include, so no error is generated.
+                    # Otherwise fails.
+                    self.warnings.append("Redefine schema failed: %s." % str(err))
+                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
+                        self.parse_error(err, child)
+                except (XMLSchemaParseError, XMLSchemaTypeError, ParseError) as err:
+                    msg = 'cannot redefine schema %r: %s' % (child.attrib['schemaLocation'], err)
+                    if isinstance(err, (XMLSchemaParseError, ParseError)):
+                        self.parse_error(msg, child)
+                    elif self.validation == 'strict':
+                        raise type(err)(msg)
+                    else:
+                        self.errors.append(type(err)(msg))
                 else:
-                    self.errors.append(type(err)(msg))
-            else:
-                schema.redefine = self
+                    schema.redefine = self
 
     def include_schema(self, location, base_url=None):
         """
@@ -1061,7 +1065,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         """
         namespace_imports = NamespaceResourcesMap(map(
             lambda x: (x.get('namespace'), x.get('schemaLocation')),
-            filter(is_xsd_import, self.root)
+            filter(lambda x: x.tag == XSD_IMPORT, self.source.root)
         ))
 
         for namespace, locations in namespace_imports.items():
@@ -1895,22 +1899,25 @@ class XMLSchema11(XMLSchemaBase):
     def _parse_inclusions(self):
         super(XMLSchema11, self)._parse_inclusions()
 
-        for child in filter(is_xsd_override, self.root):
-            try:
-                location = child.attrib['schemaLocation'].strip()
-                logger.info("Override schema %r", location)
-                schema = self.include_schema(location, self.base_url)
-            except KeyError:
-                pass  # Attribute missing error already found by validation against meta-schema
-            except (OSError, IOError) as err:
-                # If the override doesn't contain components (annotation excluded) the statement
-                # is equivalent to an include, so no error is generated. Otherwise fails.
-                self.warnings.append("Override schema failed: %s." % str(err))
-                warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
-                if any(is_not_xsd_annotation(e) for e in child):
-                    self.parse_error(str(err), child)
-            else:
-                schema.override = self
+        for child in self.source.root:
+            if child.tag == XSD_OVERRIDE:
+                try:
+                    location = child.attrib['schemaLocation'].strip()
+                    logger.info("Override schema %r", location)
+                    schema = self.include_schema(location, self.base_url)
+                except KeyError:
+                    # Attribute missing error already found by validation against meta-schema
+                    pass
+                except (OSError, IOError) as err:
+                    # If the override doesn't contain components (annotation excluded)
+                    # the statement is equivalent to an include, so no error is generated.
+                    # Otherwise fails.
+                    self.warnings.append("Override schema failed: %s." % str(err))
+                    warnings.warn(self.warnings[-1], XMLSchemaIncludeWarning, stacklevel=3)
+                    if any(e.tag != XSD_ANNOTATION and not callable(e.tag) for e in child):
+                        self.parse_error(str(err), child)
+                else:
+                    schema.override = self
 
 
 XMLSchema = XMLSchema10

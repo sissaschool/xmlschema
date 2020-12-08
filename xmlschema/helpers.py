@@ -10,11 +10,9 @@
 import re
 from collections import Counter
 from decimal import Decimal
-from typing import Iterator, Optional, Tuple, Union
+from typing import Callable, Dict, Iterator, Optional, Tuple, Union
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
-from .names import XSD_ANNOTATION, XSD_INCLUDE, XSD_IMPORT, \
-    XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT, \
-    XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
+from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 from xml.etree.ElementTree import Element
 
@@ -125,7 +123,7 @@ def not_whitespace(s: Optional[str]) -> bool:
 NAMESPACE_PATTERN = re.compile(r'{([^}]*)}')
 
 
-def get_namespace(qname: str, namespaces: Optional[dict] = None) -> str:
+def get_namespace(qname: str, namespaces: Optional[Dict[str, str]] = None) -> str:
     """
     Returns the namespace URI associated with a QName. If a namespace map is
     provided tries to resolve a prefixed QName and then to extract the namespace.
@@ -185,7 +183,7 @@ def local_name(qname: str) -> str:
         return qname
 
 
-def get_prefixed_qname(qname: str, namespaces: dict, use_empty: bool = True) -> str:
+def get_prefixed_qname(qname: str, namespaces: Dict[str, str], use_empty: bool = True) -> str:
     """
     Get the prefixed form of a QName, using a namespace map.
 
@@ -211,7 +209,7 @@ def get_prefixed_qname(qname: str, namespaces: dict, use_empty: bool = True) -> 
         return qname
 
 
-def get_extended_qname(qname: str, namespaces: dict) -> str:
+def get_extended_qname(qname: str, namespaces: Dict[str, str]) -> str:
     """
     Get the extended form of a QName, using a namespace map.
     Local names are mapped to the default namespace.
@@ -242,37 +240,6 @@ def get_extended_qname(qname: str, namespaces: dict) -> str:
 
 
 ###
-# XSD tag filter functions
-
-def is_not_xsd_annotation(elem: Element) -> bool:
-    return elem.tag != XSD_ANNOTATION
-
-
-def is_xsd_include(elem: Element) -> bool:
-    return elem.tag == XSD_INCLUDE
-
-
-def is_xsd_import(elem: Element) -> bool:
-    return elem.tag == XSD_IMPORT
-
-
-def is_xsd_override(elem: Element) -> bool:
-    return elem.tag == XSD_OVERRIDE
-
-
-def is_xsd_redefine(elem: Element) -> bool:
-    return elem.tag == XSD_REDEFINE
-
-
-def is_xsd_redefine_or_override(elem: Element) -> bool:
-    return elem.tag in {XSD_REDEFINE, XSD_OVERRIDE}
-
-
-def is_xsd_default_open_content(elem: Element) -> bool:
-    return elem.tag == XSD_DEFAULT_OPEN_CONTENT
-
-
-###
 # Helper functions for ElementTree structures
 
 def is_etree_element(obj: object) -> bool:
@@ -286,7 +253,7 @@ def is_etree_document(obj: object) -> bool:
 
 
 def etree_iterpath(elem: Element, tag: Optional[str] = None,
-                   path='.', namespaces: dict[str, str] = None,
+                   path='.', namespaces: Optional[Dict[str, str]] = None,
                    add_position=False) -> Iterator[Tuple[Element, str]]:
     """
     Creates an iterator for the element and its subelements that yield elements and paths.
@@ -328,7 +295,7 @@ def etree_iterpath(elem: Element, tag: Optional[str] = None,
         yield from etree_iterpath(child, tag, child_path, namespaces, add_position)
 
 
-def etree_getpath(elem: Element, root: Element, namespaces: dict[str, str] = None,
+def etree_getpath(elem: Element, root: Element, namespaces: Optional[Dict[str, str]] = None,
                   relative=True, add_position=False, parent_path=False) -> Optional[str]:
     """
     Returns the XPath path from *root* to descendant *elem* element.
@@ -370,7 +337,7 @@ def etree_iter_location_hints(elem: Element) -> Iterator[Element]:
             yield '', url
 
 
-def prune_etree(root: Element, selector) -> Optional[bool]:
+def prune_etree(root: Element, selector: Callable[[Element], bool]) -> Optional[bool]:
     """
     Removes from an tree structure the elements that verify the selector
     function. The checking and eventual removals are performed using a

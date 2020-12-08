@@ -21,8 +21,8 @@ from ..names import XSD_NAMESPACE, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_PATTERN, \
     XSD_LIST, XSD_ANY_SIMPLE_TYPE, XSD_UNION, XSD_RESTRICTION, XSD_ANNOTATION, \
     XSD_ASSERTION, XSD_ID, XSD_IDREF, XSD_FRACTION_DIGITS, XSD_TOTAL_DIGITS, \
     XSD_EXPLICIT_TIMEZONE, XSD_ERROR, XSD_ASSERT, XSD_QNAME, XSD_UNTYPED_ATOMIC
-from ..helpers import get_xsd_derivation_attribute, get_qname, get_prefixed_qname, \
-    local_name, is_not_xsd_annotation
+from ..helpers import get_xsd_derivation_attribute, get_qname, \
+    get_prefixed_qname, local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaEncodeError, \
     XMLSchemaDecodeError, XMLSchemaParseError
@@ -919,12 +919,13 @@ class XsdUnion(XsdSimpleType):
         super(XsdUnion, self)._parse()
         member_types = []
 
-        for child in filter(is_not_xsd_annotation, self.elem):
-            mt = xsd_simple_type_factory(child, self.schema, self)
-            if isinstance(mt, XMLSchemaParseError):
-                self.parse_error(mt)
-            else:
-                member_types.append(mt)
+        for child in self.elem:
+            if child.tag != XSD_ANNOTATION and not callable(child.tag) :
+                mt = xsd_simple_type_factory(child, self.schema, self)
+                if isinstance(mt, XMLSchemaParseError):
+                    self.parse_error(mt)
+                else:
+                    member_types.append(mt)
 
         if 'memberTypes' in self.elem.attrib:
             for name in self.elem.attrib['memberTypes'].split():
@@ -1164,8 +1165,10 @@ class XsdAtomicRestriction(XsdAtomic):
                         "simpleType restriction of %r is not allowed" % base_type
                     )
 
-        for child in filter(is_not_xsd_annotation, elem):
-            if child.tag in self._CONTENT_TAIL_TAGS:
+        for child in elem:
+            if child.tag == XSD_ANNOTATION or callable(child.tag):
+                continue
+            elif child.tag in self._CONTENT_TAIL_TAGS:
                 has_attributes = True  # only if it's a complexType restriction
             elif has_attributes:
                 self.parse_error("unexpected tag after attribute declarations")

@@ -16,13 +16,13 @@ from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
-from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE_GROUP, \
-    XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, XSD_ELEMENT, XSD_ANY_TYPE, \
-    XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
+from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
+    XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
+    XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
+    XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from ..etree import etree_element
 from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    raw_xml_encode, strictly_equal, get_qname, is_not_xsd_annotation, \
-    get_namespace, etree_iter_location_hints
+    raw_xml_encode, strictly_equal, get_qname, get_namespace, etree_iter_location_hints
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -267,7 +267,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         self.identities = {}
-        for child in filter(is_not_xsd_annotation, self.elem[index:]):
+        for child in self.elem[index:]:
             if child.tag == XSD_UNIQUE:
                 constraint = self.schema.BUILDERS.unique_class(child, self.schema, self)
             elif child.tag == XSD_KEY:
@@ -275,7 +275,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             elif child.tag == XSD_KEYREF:
                 constraint = self.schema.BUILDERS.keyref_class(child, self.schema, self)
             else:
-                continue  # Error already caught by validation against the meta-schema
+                # Invalid tags already caught by validation against the meta-schema
+                continue
 
             if constraint.ref:
                 if constraint.name in self.identities:
@@ -1096,8 +1097,10 @@ class Xsd11Element(XsdElement):
         else:
             alternatives = []
             has_test = True
-            for child in filter(is_not_xsd_annotation, self.elem[index:]):
-                if child.tag == XSD_ALTERNATIVE:
+            for child in self.elem[index:]:
+                if child.tag == XSD_ANNOTATION or callable(child.tag):
+                    continue
+                elif child.tag == XSD_ALTERNATIVE:
                     alternatives.append(XsdAlternative(child, self.schema, self))
                     if not has_test:
                         self.parse_error("test attribute missing on non-final alternative")

@@ -18,8 +18,8 @@ from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaV
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
-    XSD_ASSERT, XSD_NOTATION_TYPE
-from ..helpers import get_xsd_form_attribute, get_namespace, get_qname, is_not_xsd_annotation
+    XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
+from ..helpers import get_xsd_form_attribute, get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin
@@ -421,8 +421,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     self.schema.default_attributes = self
 
         attributes = {}
-        for child in filter(is_not_xsd_annotation, self.elem):
-            if any_attribute is not None:
+        for child in self.elem:
+            if child.tag == XSD_ANNOTATION or callable(child.tag):
+                continue
+            elif any_attribute is not None:
                 if child.tag == XSD_ANY_ATTRIBUTE:
                     self.parse_error("more anyAttribute declarations in the same attribute group")
                 elif child.tag != XSD_ASSERT:

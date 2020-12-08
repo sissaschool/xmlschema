@@ -15,9 +15,9 @@ import warnings
 from .. import limits
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
-    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE
+    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..etree import etree_element
-from ..helpers import not_whitespace, get_qname, local_name, is_not_xsd_annotation
+from ..helpers import not_whitespace, get_qname, local_name
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
@@ -183,8 +183,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(is_not_xsd_annotation, content_model):
-            if child.tag == XSD_ELEMENT:
+        for child in content_model:
+            if child.tag == XSD_ANNOTATION or callable(child.tag):
+                continue
+            elif child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif content_model.tag == XSD_ALL:
@@ -217,8 +219,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         self.parse_error("Redefined group reference cannot have "
                                          "minOccurs/maxOccurs other than 1:")
                     self.append(self.redefine)
-            else:
-                continue  # Error already caught by validation against the meta-schema
 
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):
@@ -880,7 +880,7 @@ class Xsd11Group(XsdGroup):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(is_not_xsd_annotation, content_model):
+        for child in content_model:
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
@@ -912,8 +912,6 @@ class Xsd11Group(XsdGroup):
                         self.parse_error("Redefined group reference cannot have "
                                          "minOccurs/maxOccurs other than 1:")
                     self.append(self.redefine)
-            else:
-                continue  # Error already caught by validation against the meta-schema
 
     def admits_restriction(self, model):
         if self.model == model or self.model == 'all':

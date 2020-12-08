@@ -231,7 +231,7 @@ class TestHelpers(unittest.TestCase):
 
         self.assertEqual(get_prefixed_qname('', namespaces), '')
         self.assertEqual(get_prefixed_qname(None, namespaces), None)
-        self.assertEqual(get_prefixed_qname(0, namespaces), 0)
+        # self.assertEqual(get_prefixed_qname(0, namespaces), 0)
 
         self.assertEqual(get_prefixed_qname(XSI_TYPE, {}), XSI_TYPE)
         self.assertEqual(get_prefixed_qname(None, {}), None)

@@ -16,10 +16,10 @@ from functools import lru_cache
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
-from ..names import XSD_NAMESPACE, XSD_OVERRIDE, XSD_NOTATION, \
+from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
     XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
     XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
-from ..helpers import get_qname, local_name, get_extended_qname, is_xsd_redefine_or_override
+from ..helpers import get_qname, local_name, get_extended_qname
 from ..namespaces import NamespaceResourcesMap
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
@@ -36,7 +36,10 @@ def create_load_function(tag):
         for schema in schemas:
             target_namespace = schema.target_namespace
 
-            for elem in filter(is_xsd_redefine_or_override, schema.root):
+            for elem in schema.root:
+                if elem.tag not in {XSD_REDEFINE, XSD_OVERRIDE}:
+                    continue
+
                 location = elem.get('schemaLocation')
                 if location is None:
                     continue

@@ -17,7 +17,7 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_ANY_TYPE, XSD_ANY_SIMPLE_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ID, XSD_QNAME, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring
-from ..helpers import get_qname, local_name, get_prefixed_qname, is_not_xsd_annotation
+from ..helpers import get_qname, local_name, get_prefixed_qname
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
@@ -218,6 +218,7 @@ class XsdComponent(XsdValidator):
     parent = None
     name = None
     ref = None
+    annotation = None
     qualified = True
 
     def __init__(self, elem, schema, parent=None, name=None):
@@ -320,13 +321,12 @@ class XsdComponent(XsdValidator):
 
     def _parse(self):
         del self.errors[:]
-        try:
-            if self.elem[0].tag == XSD_ANNOTATION:
-                self.annotation = XsdAnnotation(self.elem[0], self.schema, self)
-            else:
-                self.annotation = None
-        except (TypeError, IndexError):
-            self.annotation = None
+        for child in self.elem:
+            if child.tag == XSD_ANNOTATION:
+                self.annotation = XsdAnnotation(child, self.schema, self)
+                break
+            elif not callable(child.tag):
+                break
 
     def _parse_reference(self):
         """
@@ -375,12 +375,17 @@ class XsdComponent(XsdValidator):
 
     def _parse_child_component(self, elem, strict=True):
         child = None
-        for index, child in enumerate(filter(is_not_xsd_annotation, elem)):
-            if not strict:
-                return child
-            elif index:
+        for e in elem:
+            if e.tag == XSD_ANNOTATION or callable(e.tag):
+                continue
+            elif not strict:
+                return e
+            elif child is not None:
                 msg = "too many XSD components, unexpected {!r} found at position {}"
-                self.parse_error(msg.format(child, index), elem)
+                self.parse_error(msg.format(child, elem[:].index(e)), elem)
+                return child
+            else:
+                child = e
         return child
 
     def _parse_target_namespace(self):
