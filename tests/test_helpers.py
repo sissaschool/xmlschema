@@ -21,7 +21,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
 from xmlschema.helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
     raw_xml_encode, count_digits, strictly_equal, prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname
-from xmlschema.validators.particles import ParticleCounter
+from xmlschema.validators.models import OccursCounter
 from xmlschema.testing.helpers import iter_nested_items
 
 
@@ -142,42 +142,42 @@ class TestHelpers(unittest.TestCase):
         with self.assertRaises(TypeError):
             list(iter_nested_items([10, 20], list_class=tuple))
 
-    def test_particle_counter_class(self):
-        counter = ParticleCounter()
-        self.assertEqual(repr(counter), 'ParticleCounter(0, 0)')
+    def test_occurs_counter_class(self):
+        counter = OccursCounter()
+        self.assertEqual(repr(counter), 'OccursCounter(0, 0)')
 
-        other = ParticleCounter()  # Only for test isolation, usually it's a particle.
+        other = OccursCounter()  # Only for test isolation, usually it's a particle.
         other.min_occurs = 5
         other.max_occurs = 10
 
         counter += other
-        self.assertEqual(repr(counter), 'ParticleCounter(5, 10)')
+        self.assertEqual(repr(counter), 'OccursCounter(5, 10)')
         counter *= other
-        self.assertEqual(repr(counter), 'ParticleCounter(25, 100)')
+        self.assertEqual(repr(counter), 'OccursCounter(25, 100)')
 
-        counter = ParticleCounter()
+        counter = OccursCounter()
         counter.max_occurs = None
-        self.assertEqual(repr(counter), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(5, None)')
-        self.assertEqual(repr(counter * other), 'ParticleCounter(25, None)')
+        self.assertEqual(repr(counter), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(5, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(25, None)')
 
         counter.reset()
-        self.assertEqual(repr(counter), 'ParticleCounter(0, 0)')
+        self.assertEqual(repr(counter), 'OccursCounter(0, 0)')
 
         counter.max_occurs = None
         other.min_occurs = other.max_occurs = 0
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, 0)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, 0)')
 
         counter.reset()
         other.min_occurs = 0
         other.max_occurs = None
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, 0)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, 0)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(0, None)')
 
         counter.max_occurs = 1
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, None)')
 
     def test_get_namespace(self):
         self.assertEqual(get_namespace(''), '')

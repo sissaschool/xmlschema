@@ -29,10 +29,10 @@ from ..xpath import XMLSchemaProxy, ElementPathMixin
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin
-from .particles import ParticleMixin, ParticleCounter
+from .particles import ParticleMixin
+from .models import OccursCounter
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
-
 
 XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
 XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
@@ -988,7 +988,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 return False
 
             check_group_items_occurs = self.xsd_version == '1.0'
-            counter = ParticleCounter()
+            counter = OccursCounter()
             for e in other.iter_model():
                 if not isinstance(e, (XsdElement, XsdAnyElement)):
                     return False

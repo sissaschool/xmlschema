@@ -19,13 +19,14 @@ from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
 from ..etree import etree_element
 from ..helpers import not_whitespace, get_qname, local_name
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
+    XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
-from .particles import ParticleMixin
+from .particles import ParticleMixin, ModelGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ModelGroup, ModelVisitor
+from .models import ModelVisitor, distinguishable_paths
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -76,7 +77,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         </sequence>
     """
     mixed = False
-    model = None
     redefine = None
     restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
@@ -484,6 +484,65 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             return max_occurs == 0
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
+
+    def check_model(self):
+        """
+        Checks if the model group is deterministic. Element Declarations Consistent and
+        Unique Particle Attribution constraints are checked.
+        :raises: an `XMLSchemaModelError` at first violated constraint.
+        """
+        def safe_iter_path(group, depth):
+            if not depth:
+                raise XMLSchemaModelDepthError(group)
+            for item in group:
+                if isinstance(item, ModelGroup):
+                    current_path.append(item)
+                    yield from safe_iter_path(item, depth - 1)
+                    current_path.pop()
+                else:
+                    yield item
+
+        paths = {}
+        current_path = [self]
+        try:
+            any_element = self.parent.open_content.any_element
+        except AttributeError:
+            any_element = None
+
+        for e in safe_iter_path(self, limits.MAX_MODEL_DEPTH):
+            for pe, previous_path in paths.values():
+                # EDC check
+                if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
+                    msg = "Element Declarations Consistent violation between %r and %r: " \
+                          "match the same name but with different types" % (e, pe)
+                    raise XMLSchemaModelError(self, msg)
+
+                # UPA check
+                if pe is e or not pe.is_overlap(e):
+                    continue
+                elif pe.parent is e.parent:
+                    if pe.parent.model in {'all', 'choice'}:
+                        if isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                            pe.add_precedence(e, self)
+                        elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                            e.add_precedence(pe, self)
+                        else:
+                            msg = "{!r} and {!r} overlap and are in the same {!r} group"
+                            raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
+                    elif pe.min_occurs == pe.max_occurs:
+                        continue
+
+                if distinguishable_paths(previous_path + [pe], current_path + [e]):
+                    continue
+                elif isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                    pe.add_precedence(e, self)
+                elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                    e.add_precedence(pe, self)
+                else:
+                    msg = "Unique Particle Attribution violation between {!r} and {!r}"
+                    raise XMLSchemaModelError(self, msg.format(pe, e))
+
+            paths[e.name] = e, current_path[:]
 
     def check_dynamic_context(self, elem, xsd_element, model_element, namespaces):
         if model_element is not xsd_element:
@@ -1088,19 +1147,12 @@ class Xsd11Group(XsdGroup):
             return True
 
     def is_choice_restriction(self, other):
-        if self.model == 'choice':
-            counter_func = max
-        else:
-            def counter_func(x, y):
-                return x + y
-
         restriction_items = list(self.iter_model())
         has_not_empty_item = any(e.max_occurs != 0 for e in restriction_items)
 
         check_occurs = other.max_occurs != 0
         max_occurs = 0
         other_max_occurs = 0
-
         for other_item in other.iter_model():
             for item in restriction_items:
                 if other_item is item or item.is_restriction(other_item, check_occurs):
@@ -1108,8 +1160,10 @@ class Xsd11Group(XsdGroup):
                         effective_max_occurs = item.effective_max_occurs
                         if effective_max_occurs is None:
                             max_occurs = None
+                        elif self.model == 'choice':
+                            max_occurs = max(max_occurs, effective_max_occurs)
                         else:
-                            max_occurs = counter_func(max_occurs, effective_max_occurs)
+                            max_occurs += effective_max_occurs
 
                     if other_max_occurs is not None:
                         effective_max_occurs = other_item.effective_max_occurs

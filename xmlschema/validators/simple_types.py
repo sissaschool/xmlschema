@@ -920,7 +920,7 @@ class XsdUnion(XsdSimpleType):
         member_types = []
 
         for child in self.elem:
-            if child.tag != XSD_ANNOTATION and not callable(child.tag) :
+            if child.tag != XSD_ANNOTATION and not callable(child.tag):
                 mt = xsd_simple_type_factory(child, self.schema, self)
                 if isinstance(mt, XMLSchemaParseError):
                     self.parse_error(mt)
