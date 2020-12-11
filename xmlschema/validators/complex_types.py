@@ -86,15 +86,6 @@ class XsdComplexType(XsdType, ValidationMixin):
                 [a if a.name is None else a.prefixed_name for a in self.attributes.values()]
             )
 
-    def __setattr__(self, name, value):
-        if name == 'content':
-            assert isinstance(value, (XsdSimpleType, XsdGroup)), \
-                "The attribute 'content' must be a XsdSimpleType or an XsdGroup instance."
-        elif name == 'attributes':
-            assert isinstance(value, XsdAttributeGroup), \
-                "The attribute 'attributes' must be an XsdAttributeGroup."
-        super(XsdComplexType, self).__setattr__(name, value)
-
     def _parse(self):
         super(XsdComplexType, self)._parse()
         if self.elem.tag == XSD_RESTRICTION:
@@ -755,7 +746,8 @@ class Xsd11ComplexType(XsdComplexType):
         # Add open content to a complex content type
         if isinstance(self.content, XsdGroup):
             if self.open_content is None:
-                assert self.content.interleave is None and self.content.suffix is None
+                if self.content.interleave is not None or self.content.suffix is not None:
+                    self.parse_error("openContent mismatch between type and model group")
             elif self.open_content.mode == 'interleave':
                 self.content.interleave = self.content.suffix \
                     = self.open_content.any_element

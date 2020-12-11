@@ -8,7 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableSequence
-from typing import Optional
+from typing import Optional, Tuple
+from xml.etree.ElementTree import Element
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
@@ -85,11 +86,11 @@ class ParticleMixin:
         """Tests if min_occurs == max_occurs."""
         return self.min_occurs == self.max_occurs
 
-    def is_missing(self, occurs):
+    def is_missing(self, occurs: int):
         """Tests if provided occurrences are under the minimum."""
         return not self.is_emptiable() if occurs == 0 else self.min_occurs > occurs
 
-    def is_over(self, occurs):
+    def is_over(self, occurs: int):
         """Tests if provided occurrences are over the maximum."""
         return self.max_occurs is not None and self.max_occurs <= occurs
 
@@ -108,7 +109,7 @@ class ParticleMixin:
     def parse_error(self, message):
         raise XMLSchemaParseError(self, message)  # pragma: no cover
 
-    def _parse_particle(self, elem):
+    def _parse_particle(self, elem: Element):
         if 'minOccurs' in elem.attrib:
             try:
                 min_occurs = int(elem.attrib['minOccurs'])
@@ -145,7 +146,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
     """
     parent = None
 
-    def __init__(self, model):
+    def __init__(self, model: str):
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
         self._group = []
@@ -155,21 +156,19 @@ class ModelGroup(MutableSequence, ParticleMixin):
         return '%s(model=%r, occurs=%r)' % (self.__class__.__name__, self.model, self.occurs)
 
     # Implements the abstract methods of MutableSequence
-    def __getitem__(self, i):
+    def __getitem__(self, i: int):
         return self._group[i]
 
-    def __setitem__(self, i, item):
-        assert isinstance(item, (tuple, ParticleMixin)), "Items must be tuples or XSD particles"
+    def __setitem__(self, i: int, item: Tuple[tuple, ParticleMixin]):
         self._group[i] = item
 
-    def __delitem__(self, i):
+    def __delitem__(self, i: int):
         del self._group[i]
 
     def __len__(self):
         return len(self._group)
 
-    def insert(self, i, item):
-        assert isinstance(item, (tuple, ParticleMixin)), "Items must be tuples or XSD particles"
+    def insert(self, i: int, item: Tuple[tuple, ParticleMixin]):
         self._group.insert(i, item)
 
     def clear(self):

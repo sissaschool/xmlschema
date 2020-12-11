@@ -61,14 +61,15 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
                 if not skip_comments or not callable(e2.tag):
                     break
         except StopIteration:
-            assert False, "Node %r has more children than %r" % (elem, other)
+            raise AssertionError("Node %r has more children than %r" % (elem, other))
 
         if strict or e1 is elem:
-            assert e1.tag == e2.tag, "%r != %r: tags differ" % (e1, e2)
+            if e1.tag != e2.tag:
+                raise AssertionError("%r != %r: tags differ" % (e1, e2))
         else:
             namespace = get_namespace(e1.tag) or namespace
-            assert get_qname(namespace, e1.tag) == get_qname(namespace, e2.tag), \
-                "%r != %r: tags differ." % (e1, e2)
+            if get_qname(namespace, e1.tag) != get_qname(namespace, e2.tag):
+                raise AssertionError("%r != %r: tags differ." % (e1, e2))
 
         # Attributes
         if e1.attrib != e2.attrib:
@@ -77,16 +78,17 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
                 raise AssertionError(msg.format(e1, e2, e1.attrib, e2.attrib))
             else:
                 msg = "%r != %r: attribute keys differ: %r != %r"
-                assert sorted(e1.attrib.keys()) == sorted(e2.attrib.keys()), \
-                    msg % (e1, e2, e1.attrib.keys(), e2.attrib.keys())
+                if sorted(e1.attrib.keys()) != sorted(e2.attrib.keys()):
+                    raise AssertionError(msg % (e1, e2, e1.attrib.keys(), e2.attrib.keys()))
                 for k in e1.attrib:
                     a1, a2 = e1.attrib[k].strip(), e2.attrib[k].strip()
                     if a1 != a2:
                         try:
-                            assert float(a1) == float(a2)
-                        except (AssertionError, ValueError, TypeError):
+                            if float(a1) != float(a2):
+                                raise ValueError()
+                        except (ValueError, TypeError):
                             msg = "%r != %r: attribute %r values differ: %r != %r"
-                            raise AssertionError(msg % (e1, e2, k, a1, a2))
+                            raise AssertionError(msg % (e1, e2, k, a1, a2)) from None
 
         # Number of children
         if skip_comments:
@@ -95,7 +97,9 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
         else:
             nc1 = len(e1)
             nc2 = len(e2)
-        assert nc1 == nc2, "%r != %r: children number differ: %r != %r" % (e1, e2, nc1, nc2)
+        if nc1 != nc2:
+            msg = "%r != %r: children number differ: %r != %r"
+            raise AssertionError(msg % (e1, e2, nc1, nc2))
 
         # Text
         if e1.text != e2.text:
@@ -103,28 +107,36 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             if strict:
                 raise AssertionError(message)
             elif e1.text is None:
-                assert not e2.text.strip(), message
+                if e2.text.strip():
+                    raise AssertionError(message)
             elif e2.text is None:
-                assert not e1.text.strip(), message
+                if e1.text.strip():
+                    raise AssertionError(message)
             elif _REGEX_SPACES.sub('', e1.text.strip()) != _REGEX_SPACES.sub('', e2.text.strip()):
                 text1 = e1.text.strip()
                 text2 = e2.text.strip()
                 if text1 == 'false':
-                    assert text2 == '0', message
+                    if text2 != '0':
+                        raise AssertionError(message)
                 elif text1 == 'true':
-                    assert text2 == '1', message
+                    if text2 != '1':
+                        raise AssertionError(message)
                 elif text2 == 'false':
-                    assert text1 == '0', message
+                    if text1 != '0':
+                        raise AssertionError(message)
                 elif text2 == 'true':
-                    assert text1 == '1', message
+                    if text1 != '1':
+                        raise AssertionError(message)
                 else:
                     try:
                         items1 = text1.split()
                         items2 = text2.split()
-                        assert len(items1) == len(items2)
-                        assert all(float(x1) == float(x2) for x1, x2 in zip(items1, items2))
+                        if len(items1) != len(items2):
+                            raise ValueError()
+                        if not all(float(x1) == float(x2) for x1, x2 in zip(items1, items2)):
+                            raise ValueError()
                     except (AssertionError, ValueError, TypeError):
-                        raise AssertionError(message)
+                        raise AssertionError(message) from None
 
         # Tail
         if e1.tail != e2.tail:
@@ -132,11 +144,13 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
             if strict:
                 raise AssertionError(message)
             elif e1.tail is None:
-                assert not e2.tail.strip(), message
+                if e2.tail.strip():
+                    raise AssertionError(message)
             elif e2.tail is None:
-                assert not e1.tail.strip(), message
-            else:
-                assert e1.tail.strip() == e2.tail.strip(), message
+                if e1.tail.strip():
+                    raise AssertionError(message)
+            elif e1.tail.strip() != e2.tail.strip():
+                raise AssertionError(message)
 
         etree_elements_assert_equal(e1, e2, strict, skip_comments, unordered)
 
@@ -145,4 +159,4 @@ def etree_elements_assert_equal(elem, other, strict=True, skip_comments=True, un
     except StopIteration:
         pass
     else:
-        assert False, "Node %r has lesser children than %r." % (elem, other)
+        raise AssertionError("Node %r has lesser children than %r." % (elem, other))

@@ -11,6 +11,7 @@
 This module contains base functions and classes XML Schema components.
 """
 import re
+from typing import Optional
 
 from ..exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
@@ -221,11 +222,9 @@ class XsdComponent(XsdValidator):
     annotation = None
     qualified = True
 
-    def __init__(self, elem, schema, parent=None, name=None):
+    def __init__(self, elem, schema, parent=None, name: Optional[str] = None):
         super(XsdComponent, self).__init__(schema.validation)
-        if name is not None:
-            assert name and (name[0] == '{' or not schema.target_namespace), \
-                "name=%r argument: must be a qualified name of the target namespace." % name
+        if name:
             self.name = name
         if parent is not None:
             self.parent = parent

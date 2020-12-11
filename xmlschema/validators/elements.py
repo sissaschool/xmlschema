@@ -12,6 +12,7 @@ This module contains classes for XML Schema elements, complex types and model gr
 """
 import warnings
 from decimal import Decimal
+from typing import Optional
 from elementpath import XPath2Parser, ElementPathError, XPathContext
 from elementpath.datatypes import AbstractDateTime, Duration
 
@@ -95,9 +96,8 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.__class__.__name__, self.prefixed_name, self.occurs
             )
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Optional[XsdType]):
         if name == "type":
-            assert value is None or isinstance(value, XsdType)
             try:
                 self.attributes = value.attributes
             except AttributeError:

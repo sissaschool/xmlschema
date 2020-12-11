@@ -472,10 +472,9 @@ class XsdAtomic(XsdSimpleType):
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: XsdType):
         super(XsdAtomic, self).__setattr__(name, value)
         if name == 'base_type':
-            assert isinstance(value, XsdType)
             if not hasattr(self, 'white_space'):
                 try:
                     self.white_space = self.base_type.white_space

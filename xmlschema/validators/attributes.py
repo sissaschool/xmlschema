@@ -13,6 +13,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 from decimal import Decimal
 from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
+from typing import Union, Dict
 
 from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
@@ -341,7 +342,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def __init__(self, elem, schema, parent, derivation=None, base_attributes=None):
         self.derivation = derivation
-        self._attribute_group = {}
+        self._attribute_group: Dict[str, Union[XsdAttribute, XsdAnyAttribute]] = {}
         self.base_attributes = base_attributes
         XsdComponent.__init__(self, elem, schema, parent)
 
@@ -360,12 +361,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     def __getitem__(self, key):
         return self._attribute_group[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value: Union[XsdAttribute, XsdAnyAttribute]):
         if key is None:
-            assert isinstance(value, XsdAnyAttribute), 'An XsdAnyAttribute instance is required.'
             self._attribute_group[key] = value
         else:
-            assert isinstance(value, XsdAttribute), 'An XsdAttribute instance is required.'
             if key[0] != '{':
                 if value.local_name != key:
                     raise XMLSchemaValueError("%r name and key %r mismatch." % (value.name, key))
@@ -389,19 +388,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
 
     def __len__(self):
         return len(self._attribute_group)
-
-    # Other methods
-    def __setattr__(self, name, value):
-        super(XsdAttributeGroup, self).__setattr__(name, value)
-        if name == '_attribute_group':
-            assert isinstance(value, dict), 'A dictionary object is required.'
-            for k, v in value.items():
-                if k is None:
-                    assert isinstance(value, XsdAnyAttribute), \
-                        'An XsdAnyAttribute instance is required.'
-                else:
-                    assert isinstance(value, XsdAttribute), \
-                        'An XsdAttribute instance is required.'
 
     def _parse(self):
         super(XsdAttributeGroup, self)._parse()
