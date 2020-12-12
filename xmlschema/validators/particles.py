@@ -8,12 +8,12 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from collections.abc import MutableSequence
-from typing import Optional, Tuple
+from typing import Optional, List, Union
 from xml.etree.ElementTree import Element
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
-from .exceptions import XMLSchemaParseError, XMLSchemaModelDepthError
+from .exceptions import XMLSchemaParseError, XMLSchemaModelError, XMLSchemaModelDepthError
 
 
 class ParticleMixin:
@@ -27,6 +27,7 @@ class ParticleMixin:
     :ivar max_occurs: the maxOccurs property of the XSD particle. Defaults to 1, \
     a `None` value means 'unbounded'.
     """
+    parent = None
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
 
@@ -144,12 +145,10 @@ class ModelGroup(MutableSequence, ParticleMixin):
     Class for XSD model group particles. This class implements only model related methods,
     schema element parsing and validation methods are implemented in derived classes.
     """
-    parent = None
-
     def __init__(self, model: str):
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
-        self._group = []
+        self._group: List[Union[tuple, ParticleMixin]] = []
         self.model = model
 
     def __repr__(self):
@@ -159,7 +158,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def __getitem__(self, i: int):
         return self._group[i]
 
-    def __setitem__(self, i: int, item: Tuple[tuple, ParticleMixin]):
+    def __setitem__(self, i: int, item: Union[tuple, ParticleMixin]):
         self._group[i] = item
 
     def __delitem__(self, i: int):
@@ -168,7 +167,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def __len__(self):
         return len(self._group)
 
-    def insert(self, i: int, item: Tuple[tuple, ParticleMixin]):
+    def insert(self, i: int, item: Union[tuple, ParticleMixin]):
         self._group.insert(i, item)
 
     def clear(self):
@@ -191,7 +190,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         else:
             return self[0].is_single()
 
-    def is_pointless(self, parent):
+    def is_pointless(self, parent: 'ModelGroup'):
         """
         Returns `True` if the group may be eliminated without affecting the model,
         `False` otherwise. A group is pointless if one of those conditions is verified:
@@ -211,8 +210,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
             return False
         elif len(self) == 1:
             return True
-        elif not isinstance(parent, ModelGroup):
-            return False
         elif self.model == 'sequence' and parent.model != 'sequence':
             return False
         elif self.model == 'choice' and parent.model != 'choice':
@@ -231,33 +228,6 @@ class ModelGroup(MutableSequence, ParticleMixin):
             if all(not e.effective_min_occurs for e in self.iter_model()):
                 return 0
         return self.min_occurs
-
-    def total_min_occurs(self, item):
-        min_occurs = item.min_occurs
-
-        for group in self.get_subgroups(item):
-            if group.model == 'choice' and len(group) > 1:
-                return 0
-            min_occurs *= group.min_occurs
-
-        return min_occurs
-
-    def total_max_occurs(self, item):
-        max_occurs = item.max_occurs
-        if max_occurs == 0:
-            return 0
-
-        for group in self.get_subgroups(item):
-            if group.max_occurs == 0:
-                return 0
-            elif max_occurs is None:
-                continue
-            elif group.max_occurs is None:
-                max_occurs = None
-            else:
-                max_occurs *= group.max_occurs
-
-        return max_occurs
 
     @property
     def effective_max_occurs(self):
@@ -287,7 +257,7 @@ class ModelGroup(MutableSequence, ParticleMixin):
         except TypeError:
             return
 
-    def has_occurs_restriction(self, other):
+    def has_occurs_restriction(self, other: 'ModelGroup'):
         if not self:
             return True
         elif isinstance(other, ModelGroup):
@@ -320,9 +290,10 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def iter_model(self, depth=0):
         """
-        A generator function iterating elements and groups of a model group. Skips pointless groups,
-        iterating deeper through them. Raises `XMLSchemaModelDepthError` if the argument *depth* is
-        over `limits.MAX_MODEL_DEPTH` value.
+        A generator function iterating elements and groups of a model group.
+        Skips pointless groups, iterating deeper through them.
+        Raises `XMLSchemaModelDepthError` if the argument *depth* is over
+        `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
@@ -338,8 +309,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
 
     def iter_elements(self, depth=0):
         """
-        A generator function iterating model's elements. Raises `XMLSchemaModelDepthError` if the
-        argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
+        A generator function iterating model's elements. Raises `XMLSchemaModelDepthError`
+        if the argument *depth* is over `limits.MAX_MODEL_DEPTH` value.
 
         :param depth: guard for protect model nesting bombs, incremented at each deepest recursion.
         """
@@ -352,7 +323,11 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 else:
                     yield item
 
-    def get_subgroups(self, item):
+    def get_subgroups(self, item: ParticleMixin) -> List['ModelGroup']:
+        """
+        Returns a list of the groups that represent the path to the enclosed particle.
+        Raises an `XMLSchemaModelError` if *item* is not a particle of the model group.
+        """
         subgroups = []
         group, children = self, iter(self)
 
@@ -363,6 +338,9 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 try:
                     group, children = subgroups.pop()
                 except IndexError:
+                    if not subgroups:
+                        msg = '{!r} is not a particle of the model group'
+                        raise XMLSchemaModelError(self, msg.format(item))
                     return subgroups
                 else:
                     continue
@@ -376,3 +354,32 @@ class ModelGroup(MutableSequence, ParticleMixin):
                     raise XMLSchemaModelDepthError(self)
                 subgroups.append((group, children))
                 group, children = child, iter(child)
+
+    def overall_min_occurs(self, item: ParticleMixin) -> int:
+        """Returns the overall min occurs of a particle in the model."""
+        min_occurs = item.min_occurs
+
+        for group in self.get_subgroups(item):
+            if group.model == 'choice' and len(group) > 1:
+                return 0
+            min_occurs *= group.min_occurs
+
+        return min_occurs
+
+    def overall_max_occurs(self, item: ParticleMixin) -> Optional[int]:
+        """Returns the overall max occurs of a particle in the model."""
+        max_occurs = item.max_occurs
+        if max_occurs == 0:
+            return 0
+
+        for group in self.get_subgroups(item):
+            if group.max_occurs == 0:
+                return 0
+            elif max_occurs is None:
+                continue
+            elif group.max_occurs is None:
+                max_occurs = None
+            else:
+                max_occurs *= group.max_occurs
+
+        return max_occurs

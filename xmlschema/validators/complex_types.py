@@ -18,7 +18,6 @@ from ..helpers import get_xsd_derivation_attribute, get_prefixed_qname, \
 from .exceptions import XMLSchemaDecodeError
 from .xsdbase import XSD_TYPE_DERIVATIONS, XsdComponent, XsdType, ValidationMixin
 from .assertions import XsdAssert
-from .attributes import XsdAttributeGroup
 from .simple_types import XsdSimpleType
 from .groups import XsdGroup
 from .wildcards import XsdOpenContent

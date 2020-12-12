@@ -11,13 +11,14 @@
 This module contains classes and functions for validating XSD content models.
 """
 from collections import defaultdict, deque, Counter
-from typing import List, Tuple, Iterator
+from typing import List, Tuple, Union, Iterator
 
 from ..exceptions import XMLSchemaValueError
 from .particles import ParticleMixin, ModelGroup
 
 
-def distinguishable_paths(path1: List[ParticleMixin], path2: List[ParticleMixin]):
+def distinguishable_paths(path1: List[Union[ParticleMixin, ModelGroup]],
+                          path2: List[Union[ParticleMixin, ModelGroup]]):
     """
     Checks if two model paths are distinguishable in a deterministic way, without looking forward
     or backtracking. The arguments are lists containing paths from the base group of the model to
@@ -341,7 +342,7 @@ class ModelVisitor:
 
         :param content: a dictionary of element names to list of element contents \
         or an iterable composed of couples of name and value. In case of a \
-        dictionary the values ​​must be lists where each item is the content \
+        dictionary the values must be lists where each item is the content \
         of a single element.
         :return: yields of a sequence of the Element being encoded's children.
         """

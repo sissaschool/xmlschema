@@ -15,7 +15,7 @@ from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
 from typing import Union, Dict
 
-from ..exceptions import XMLSchemaAttributeError, XMLSchemaTypeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
