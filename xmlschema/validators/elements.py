@@ -81,20 +81,14 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     def __init__(self, elem, schema, parent):
         super(XsdElement, self).__init__(elem, schema, parent)
         ElementPathMixin.__init__(self)
-        if self.type is None:
-            raise XMLSchemaAttributeError("undefined 'type' attribute for %r." % self)
-        if self.qualified is None:
-            raise XMLSchemaAttributeError("undefined 'qualified' attribute for %r." % self)
 
     def __repr__(self):
-        if self.ref is None:
-            return '%s(name=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.occurs
-            )
-        else:
-            return '%s(ref=%r, occurs=%r)' % (
-                self.__class__.__name__, self.prefixed_name, self.occurs
-            )
+        return '%s(%s=%r, occurs=%r)' % (
+            self.__class__.__name__,
+            'name' if self.ref is None else 'ref',
+            self.prefixed_name,
+            self.occurs
+        )
 
     def __setattr__(self, name: str, value: Optional[XsdType]):
         if name == "type":

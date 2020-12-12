@@ -221,6 +221,7 @@ class XsdComponent(XsdValidator):
     ref = None
     annotation = None
     qualified = True
+    redefine = None
 
     def __init__(self, elem, schema, parent=None, name: Optional[str] = None):
         super(XsdComponent, self).__init__(schema.validation)
@@ -233,28 +234,14 @@ class XsdComponent(XsdValidator):
         self.elem = elem
 
     def __setattr__(self, name, value):
-        if name == "elem":
-            if not is_etree_element(value):
-                raise XMLSchemaTypeError(
-                    "%r attribute must be an Etree Element: %r" % (name, value)
-                )
-            elif value.tag not in self._ADMITTED_TAGS:
-                raise XMLSchemaValueError(
-                    "wrong XSD element %r for %r, must be one of %r." % (
-                        local_name(value.tag), self,
-                        [local_name(tag) for tag in self._ADMITTED_TAGS]
-                    )
-                )
-            super(XsdComponent, self).__setattr__(name, value)
-            self._parse()
-            return
-        elif name == "schema":
-            if hasattr(self, 'schema') and self.schema.target_namespace != value.target_namespace:
-                raise XMLSchemaValueError(
-                    "cannot change 'schema' attribute of %r: the actual %r has a different "
-                    "target namespace than %r." % (self, self.schema, value)
-                )
         super(XsdComponent, self).__setattr__(name, value)
+        if name == 'elem':
+            if value.tag not in self._ADMITTED_TAGS:
+                msg = "wrong XSD element {!r} for {!r}, must be one of {!r}"
+                raise XMLSchemaValueError(
+                    msg.format(value.tag, self.__class__, self._ADMITTED_TAGS)
+                )
+            self._parse()
 
     @property
     def xsd_version(self):
@@ -580,7 +567,6 @@ class XsdType(XsdComponent):
     block = None
     base_type = None
     derivation = None
-    redefine = None
     _final = None
 
     @property

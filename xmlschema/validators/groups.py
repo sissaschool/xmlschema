@@ -77,7 +77,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         </sequence>
     """
     mixed = False
-    redefine = None
     restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
     suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'

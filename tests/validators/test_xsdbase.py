@@ -150,19 +150,11 @@ class TestXsdComponent(unittest.TestCase):
         cls.schema = XMLSchema10(xsd_file)
 
     def test_initialization(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(AttributeError):
             XsdComponent(elem=None, schema=self.schema)
 
         with self.assertRaises(ValueError):
             XsdComponent(elem=ElementTree.Element('A'), schema=self.schema)
-
-    def test_schema_set(self):
-        other_schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-            <xs:element name="root"/>
-        </xs:schema>""")
-
-        with self.assertRaises(ValueError):
-            other_schema.elements['root'].schema = self.schema
 
     def test_is_override(self):
         self.assertFalse(self.schema.elements['cars'].is_override())

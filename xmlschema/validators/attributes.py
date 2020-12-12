@@ -57,14 +57,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
     def __init__(self, elem, schema, parent):
         super(XsdAttribute, self).__init__(elem, schema, parent)
-        if not hasattr(self, 'type'):
-            raise XMLSchemaAttributeError("undefined 'type' for %r." % self)
-
-    def __setattr__(self, name, value):
-        if name == "type":
-            if not isinstance(value, XsdSimpleType):
-                raise XMLSchemaTypeError("An XSD attribute's type must be a simpleType.")
-        super(XsdAttribute, self).__setattr__(name, value)
+        if not isinstance(self.type, XsdSimpleType):
+            raise XMLSchemaTypeError("XSD attribute's type must be a simpleType")
 
     def _parse(self):
         super(XsdAttribute, self)._parse()
@@ -334,7 +328,6 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
           Content: (annotation?, ((attribute | attributeGroup)*, anyAttribute?))
         </attributeGroup>
     """
-    redefine = None
     _ADMITTED_TAGS = {
         XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION,
         XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE

@@ -172,6 +172,10 @@ def create_lookup_function(xsd_classes):
 
                 # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
+                    if component.schema.target_namespace != schema.target_namespace:
+                        msg = "redefined schema {!r} has a different targetNamespace"
+                        raise XMLSchemaValueError(msg.format(schema))
+
                     component.redefine = component.copy()
                     component.redefine.parent = component
                     component.schema = schema
