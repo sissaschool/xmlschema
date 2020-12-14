@@ -416,10 +416,16 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         if obj is not None:
             if self.patterns is not None:
-                yield from self.patterns(obj)
+                try:
+                    self.patterns(obj)
+                except XMLSchemaValidationError as err:
+                    yield err
 
             for validator in self.validators:
-                yield from validator(obj)
+                try:
+                    validator(obj)
+                except XMLSchemaValidationError as err:
+                    yield err
 
         yield obj
 
@@ -432,10 +438,16 @@ class XsdSimpleType(XsdType, ValidationMixin):
 
         if obj is not None:
             if self.patterns is not None:
-                yield from self.patterns(obj)
+                try:
+                    self.patterns(obj)
+                except XMLSchemaValidationError as err:
+                    yield err
 
             for validator in self.validators:
-                yield from validator(obj)
+                try:
+                    validator(obj)
+                except XMLSchemaValidationError as err:
+                    yield err
 
         yield obj
 
@@ -576,7 +588,10 @@ class XsdAtomicBuiltin(XsdAtomic):
             return
 
         if self.patterns is not None:
-            yield from self.patterns(obj)
+            try:
+                self.patterns(obj)
+            except XMLSchemaValidationError as err:
+                yield err
 
         try:
             result = self.to_python(obj)
@@ -592,7 +607,10 @@ class XsdAtomicBuiltin(XsdAtomic):
             return
 
         for validator in self.validators:
-            yield from validator(result)
+            try:
+                validator(result)
+            except XMLSchemaValidationError as err:
+                yield err
 
         if self.name not in {XSD_QNAME, XSD_IDREF, XSD_ID}:
             pass
@@ -697,7 +715,10 @@ class XsdAtomicBuiltin(XsdAtomic):
                 return
 
         for validator in self.validators:
-            yield from validator(obj)
+            try:
+                validator(obj)
+            except XMLSchemaValidationError as err:
+                yield err
 
         try:
             text = self.from_python(obj)
@@ -706,7 +727,10 @@ class XsdAtomicBuiltin(XsdAtomic):
             yield None
         else:
             if self.patterns is not None:
-                yield from self.patterns(text)
+                try:
+                    self.patterns(text)
+                except XMLSchemaValidationError as err:
+                    yield err
             yield text
 
 
@@ -1258,7 +1282,10 @@ class XsdAtomicRestriction(XsdAtomic):
 
         if self.patterns:
             if not isinstance(self.primitive_type, XsdUnion):
-                yield from self.patterns(obj)
+                try:
+                    self.patterns(obj)
+                except XMLSchemaValidationError as err:
+                    yield err
             elif 'patterns' not in kwargs:
                 kwargs['patterns'] = self.patterns
 
@@ -1270,7 +1297,10 @@ class XsdAtomicRestriction(XsdAtomic):
             else:
                 if result is not None:
                     for validator in self.validators:
-                        yield from validator(result)
+                        try:
+                            validator(result)
+                        except XMLSchemaValidationError as err:
+                            yield err
 
                 yield result
                 return
@@ -1309,11 +1339,17 @@ class XsdAtomicRestriction(XsdAtomic):
                             obj = self.primitive_type.to_python(obj)
 
                     for validator in self.validators:
-                        yield from validator(obj)
+                        try:
+                            validator(obj)
+                        except XMLSchemaValidationError as err:
+                            yield err
 
                 if self.patterns:
                     if not isinstance(self.primitive_type, XsdUnion):
-                        yield from self.patterns(result)
+                        try:
+                            self.patterns(result)
+                        except XMLSchemaValidationError as err:
+                            yield err
                     elif 'patterns' not in kwargs:
                         kwargs['patterns'] = self.patterns
 
