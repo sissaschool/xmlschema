@@ -48,113 +48,126 @@ BASE64_BINARY_PATTERN = re.compile(
 
 #
 # Admitted facets sets for XSD atomic types
-STRING_FACETS = (
+STRING_FACETS = {
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
     XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
-)
+}
 
-BOOLEAN_FACETS = (XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION)
+BOOLEAN_FACETS = {XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION}
 
-FLOAT_FACETS = (
+FLOAT_FACETS = {
     XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-)
+}
 
-DECIMAL_FACETS = (
+DECIMAL_FACETS = {
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_PATTERN, XSD_ENUMERATION,
     XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
     XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-)
+}
 
-DATETIME_FACETS = (
+DATETIME_FACETS = {
     XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE,
     XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
     XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
-)
+}
 
 
 #
 # XSD built-in types validator functions
-def decimal_validator(x):
+def decimal_validator(value):
     try:
-        if not isinstance(x, (Decimal, float)):
-            datatypes.DecimalProxy.validate(x)
-        elif isinf(x) or isnan(x):
+        if not isinstance(value, (Decimal, float)):
+            datatypes.DecimalProxy.validate(value)
+        elif isinf(value) or isnan(value):
             raise ValueError()
     except (ValueError, TypeError):
-        yield XMLSchemaValidationError(decimal_validator, x,
-                                       "value {!r} is not a valid xs:decimal".format(x))
+        raise XMLSchemaValidationError(decimal_validator, value,
+                                       "value is not a valid xs:decimal") from None
 
 
-def qname_validator(x):
-    if datatypes.QNAME_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(qname_validator, x,
-                                       "value {!r} is not an xs:QName".format(x))
+def qname_validator(value):
+    if datatypes.QNAME_PATTERN.match(value) is None:
+        raise XMLSchemaValidationError(qname_validator, value,
+                                       "value is not an xs:QName")
 
 
-def byte_validator(x):
-    if not (-2**7 <= x < 2**7):
-        yield XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
+def byte_validator(value):
+    if not (-2**7 <= value < 2 ** 7):
+        raise XMLSchemaValidationError(int_validator, value,
+                                       "value must be -128 <= x < 128")
 
 
-def short_validator(x):
-    if not (-2**15 <= x < 2**15):
-        yield XMLSchemaValidationError(short_validator, x, "value must be -2^15 <= x < 2^15.")
+def short_validator(value):
+    if not (-2**15 <= value < 2 ** 15):
+        raise XMLSchemaValidationError(short_validator, value,
+                                       "value must be -2^15 <= x < 2^15")
 
 
-def int_validator(x):
-    if not (-2**31 <= x < 2**31):
-        yield XMLSchemaValidationError(int_validator, x, "value must be -2^31 <= x < 2^31.")
+def int_validator(value):
+    if not (-2**31 <= value < 2 ** 31):
+        raise XMLSchemaValidationError(int_validator, value,
+                                       "value must be -2^31 <= x < 2^31")
 
 
-def long_validator(x):
-    if not (-2**63 <= x < 2**63):
-        yield XMLSchemaValidationError(long_validator, x, "value must be -2^63 <= x < 2^63.")
+def long_validator(value):
+    if not (-2**63 <= value < 2 ** 63):
+        raise XMLSchemaValidationError(long_validator, value,
+                                       "value must be -2^63 <= x < 2^63")
 
 
-def unsigned_byte_validator(x):
-    if not (0 <= x < 2**8):
-        yield XMLSchemaValidationError(unsigned_byte_validator, x, "value must be 0 <= x < 256.")
+def unsigned_byte_validator(value):
+    if not (0 <= value < 2 ** 8):
+        raise XMLSchemaValidationError(unsigned_byte_validator, value,
+                                       "value must be 0 <= x < 256")
 
 
-def unsigned_short_validator(x):
-    if not (0 <= x < 2**16):
-        yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^16.")
+def unsigned_short_validator(value):
+    if not (0 <= value < 2 ** 16):
+        raise XMLSchemaValidationError(unsigned_short_validator, value,
+                                       "value must be 0 <= x < 2^16")
 
 
-def unsigned_int_validator(x):
-    if not (0 <= x < 2**32):
-        yield XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^32.")
+def unsigned_int_validator(value):
+    if not (0 <= value < 2 ** 32):
+        raise XMLSchemaValidationError(unsigned_int_validator, value,
+                                       "value must be 0 <= x < 2^32")
 
 
-def unsigned_long_validator(x):
-    if not (0 <= x < 2**64):
-        yield XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^64.")
+def unsigned_long_validator(value):
+    if not (0 <= value < 2 ** 64):
+        raise XMLSchemaValidationError(unsigned_long_validator, value,
+                                       "value must be 0 <= x < 2^64")
 
 
-def negative_int_validator(x):
-    if x >= 0:
-        yield XMLSchemaValidationError(negative_int_validator, x, reason="value must be negative.")
+def negative_int_validator(value):
+    if value >= 0:
+        raise XMLSchemaValidationError(negative_int_validator, value,
+                                       "value must be negative")
 
 
-def positive_int_validator(x):
-    if x <= 0:
-        yield XMLSchemaValidationError(positive_int_validator, x, "value must be positive.")
+def positive_int_validator(value):
+    if value <= 0:
+        raise XMLSchemaValidationError(positive_int_validator, value,
+                                       "value must be positive")
 
 
-def non_positive_int_validator(x):
-    if x > 0:
-        yield XMLSchemaValidationError(non_positive_int_validator, x, "value must be non positive.")
+def non_positive_int_validator(value):
+    if value > 0:
+        raise XMLSchemaValidationError(non_positive_int_validator, value,
+                                       "value must be non positive")
 
 
-def non_negative_int_validator(x):
-    if x < 0:
-        yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
+def non_negative_int_validator(value):
+    if value < 0:
+        raise XMLSchemaValidationError(non_negative_int_validator, value,
+                                       "value must be non negative")
 
 
-def hex_binary_validator(x):
-    if x and (len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None):
-        yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
+def hex_binary_validator(value):
+    if value and (len(value) % 2 or HEX_BINARY_PATTERN.match(value) is None):
+        raise XMLSchemaValidationError(hex_binary_validator, value,
+                                       "not an hexadecimal number")
 
 
 def base64_binary_validator(value):
@@ -164,18 +177,19 @@ def base64_binary_validator(value):
 
     match = BASE64_BINARY_PATTERN.match(value)
     if match is None or match.group(0) != value:
-        yield XMLSchemaValidationError(base64_binary_validator, value, "not a base64 encoding")
+        raise XMLSchemaValidationError(base64_binary_validator, value,
+                                       "not a base64 encoding")
     else:
         try:
             base64.standard_b64decode(value)
         except (ValueError, TypeError) as err:
-            yield XMLSchemaValidationError(base64_binary_validator, value,
-                                           "not a base64 encoding: %s." % err)
+            raise XMLSchemaValidationError(base64_binary_validator, value,
+                                           "not a base64 encoding: %s" % err)
 
 
-def error_type_validator(x):
-    yield XMLSchemaValidationError(error_type_validator, x,
-                                   "not value is allowed for xs:error type.")
+def error_type_validator(value):
+    raise XMLSchemaValidationError(error_type_validator, value,
+                                   "no value is allowed for xs:error type")
 
 
 #

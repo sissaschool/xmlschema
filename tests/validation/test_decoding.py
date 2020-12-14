@@ -421,7 +421,7 @@ class TestDecoding(XsdValidatorTestCase):
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax')
         self.assertEqual(data, '1999-12-31')
         self.assertEqual(len(errors), 1)
-        self.assertIn('value Date10(1999, 12, 31) is lesser than', str(errors[0]))
+        self.assertIn('value has to be greater or equal than', str(errors[0]))
 
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax',
                                       datetime_types=True)

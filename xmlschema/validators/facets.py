@@ -44,9 +44,8 @@ class XsdFacet(XsdComponent):
 
     def __call__(self, value):
         try:
-            print(value)
             self.validator(value)
-        except (TypeError, ValueError) as err:
+        except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
     def _parse(self):
@@ -124,13 +123,17 @@ class XsdWhiteSpaceFacet(XsdFacet):
             self.parse_error("attribute 'value' must be one of "
                              "('preserve', 'replace', 'collapse').")
 
-    def replace_white_space_validator(self, x):
-        if '\t' in x or '\n' in x:
-            raise XMLSchemaValidationError(self, x)
+    def replace_white_space_validator(self, value):
+        if '\t' in value or '\n' in value:
+            raise XMLSchemaValidationError(
+                self, value, "value contains tabs or newlines"
+            )
 
-    def collapse_white_space_validator(self, x):
-        if '\t' in x or '\n' in x or '  ' in x:
-            raise XMLSchemaValidationError(self, x)
+    def collapse_white_space_validator(self, value):
+        if '\t' in value or '\n' in value or '  ' in value:
+            raise XMLSchemaValidationError(
+                self, value, "value contains non collapsed white spaces"
+            )
 
 
 class XsdLengthFacet(XsdFacet):
@@ -164,18 +167,24 @@ class XsdLengthFacet(XsdFacet):
         else:
             self.validator = self.length_validator
 
-    def length_validator(self, x):
-        if len(x) != self.value:
-            raise XMLSchemaValidationError(self, x, "length has to be %r." % self.value)
+    def length_validator(self, value):
+        if len(value) != self.value:
+            raise XMLSchemaValidationError(
+                self, value, "length has to be {!r}".format(self.value)
+            )
 
-    def hex_length_validator(self, x):
-        if len(x) != self.value * 2:
-            raise XMLSchemaValidationError(self, x, "binary length has to be %r." % self.value)
+    def hex_length_validator(self, value):
+        if len(value) != self.value * 2:
+            raise XMLSchemaValidationError(
+                self, value, "binary length has to be {!r}".format(self.value)
+            )
 
-    def base64_length_validator(self, x):
-        x = x.replace(' ', '')
-        if (len(x) // 4 * 3 - (x[-1] == '=') - (x[-2] == '=')) != self.value:
-            raise XMLSchemaValidationError(self, x, "binary length has to be %r." % self.value)
+    def base64_length_validator(self, value):
+        value = value.replace(' ', '')
+        if (len(value) // 4 * 3 - (value[-1] == '=') - (value[-2] == '=')) != self.value:
+            raise XMLSchemaValidationError(
+                self, value, "binary length has to be {!r}".format(self.value)
+            )
 
 
 class XsdMinLengthFacet(XsdFacet):
@@ -207,23 +216,24 @@ class XsdMinLengthFacet(XsdFacet):
         elif primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             self.validator = self.min_length_validator
 
-    def min_length_validator(self, x):
-        if len(x) < self.value:
+    def min_length_validator(self, value):
+        if len(value) < self.value:
             raise XMLSchemaValidationError(
-                self, x, "length cannot be lesser than %r" % self.value
+                self, value, "value length cannot be lesser than {!r}".format(self.value)
             )
 
-    def hex_min_length_validator(self, x):
-        if len(x) < self.value * 2:
+    def hex_min_length_validator(self, value):
+        if len(value) < self.value * 2:
             raise XMLSchemaValidationError(
-                self, x, "binary length cannot be lesser than %r" % self.value
+                self, value, "binary length cannot be lesser than {!r}".format(self.value)
             )
 
-    def base64_min_length_validator(self, x):
-        x = x.replace(' ', '')
-        if (len(x) // 4 * 3 - (x[-1] in ('=', 61)) - (x[-2] in ('=', 61))) < self.value:
+    def base64_min_length_validator(self, value):
+        value = value.replace(' ', '')
+        if (len(value) // 4 * 3 - (value[-1] in ('=', 61)) - (value[-2] in ('=', 61))) \
+                < self.value:
             raise XMLSchemaValidationError(
-                self, x, "binary length cannot be lesser than %r" % self.value
+                self, value, "binary length cannot be lesser than {!r}".format(self.value)
             )
 
 
@@ -256,23 +266,23 @@ class XsdMaxLengthFacet(XsdFacet):
         elif primitive_type.name not in (XSD_QNAME, XSD_NOTATION_TYPE):
             self.validator = self.max_length_validator
 
-    def max_length_validator(self, x):
-        if len(x) > self.value:
+    def max_length_validator(self, value):
+        if len(value) > self.value:
             raise XMLSchemaValidationError(
-                self, x, "length cannot be greater than %r." % self.value
+                self, value, "value length cannot be greater than {!r}".format(self.value)
             )
 
-    def hex_max_length_validator(self, x):
-        if len(x) > self.value * 2:
+    def hex_max_length_validator(self, value):
+        if len(value) > self.value * 2:
             raise XMLSchemaValidationError(
-                self, x, "binary length cannot be greater than %r." % self.value
+                self, value, "binary length cannot be greater than {!r}".format(self.value)
             )
 
-    def base64_max_length_validator(self, x):
-        x = x.replace(' ', '')
-        if (len(x) // 4 * 3 - (x[-1] == '=') - (x[-2] == '=')) > self.value:
+    def base64_max_length_validator(self, value):
+        value = value.replace(' ', '')
+        if (len(value) // 4 * 3 - (value[-1] == '=') - (value[-2] == '=')) > self.value:
             raise XMLSchemaValidationError(
-                self, x, "binary length cannot be greater than %r." % self.value
+                self, value, "binary length cannot be greater than {!r}".format(self.value)
             )
 
 
@@ -312,9 +322,9 @@ class XsdMinInclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value < self.value:
-                reason = "value {!r} is lesser than {!r}".format(value, self.value)
+                reason = "value has to be greater or equal than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError) as err:
+        except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -354,9 +364,9 @@ class XsdMinExclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value <= self.value:
-                reason = "value {!r} is not greater than {!r}".format(value, self.value)
+                reason = "value has to be greater than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError) as err:
+        except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -396,9 +406,9 @@ class XsdMaxInclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value > self.value:
-                reason = "value {!r} is greater than {!r}".format(value, self.value)
+                reason = "value has to be lesser or equal than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError) as err:
+        except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -438,9 +448,9 @@ class XsdMaxExclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value >= self.value:
-                reason = "value {!r} is not lesser than {!r}".format(value, self.value)
+                reason = "value has to be lesser than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError) as err:
+        except TypeError as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -467,10 +477,10 @@ class XsdTotalDigitsFacet(XsdFacet):
     def total_digits_validator(self, value):
         try:
             if operator.add(*count_digits(value)) > self.value:
-                reason = "the number of digits of {!r} is greater " \
-                         "than {!r}".format(value, self.value)
+                reason = "the number of digits has to be lesser or equal " \
+                         "than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError, ArithmeticError) as err:
+        except (TypeError, ArithmeticError) as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -507,10 +517,10 @@ class XsdFractionDigitsFacet(XsdFacet):
     def fraction_digits_validator(self, value):
         try:
             if count_digits(value)[1] > self.value:
-                reason = "the number of fraction digits of {!r} " \
-                         "is greater than {!r}".format(value, self.value)
+                reason = "the number of fraction digits has to be lesser " \
+                         "or equal than {!r}".format(self.value)
                 raise XMLSchemaValidationError(self, value, reason)
-        except (TypeError, ValueError, ArithmeticError) as err:
+        except (TypeError, ArithmeticError) as err:
             raise XMLSchemaValidationError(self, value, str(err)) from None
 
 
@@ -539,16 +549,16 @@ class XsdExplicitTimezoneFacet(XsdFacet):
                 "attribute 'value' must be one of ('required', 'prohibited', 'optional')."
             )
 
-    def required_timezone_validator(self, x):
-        if x.tzinfo is None:
+    def required_timezone_validator(self, value):
+        if value.tzinfo is None:
             raise XMLSchemaValidationError(
-                self, x, "time zone required for value %r." % self.value
+                self, value, "time zone required for value {!r}".format(self.value)
             )
 
-    def prohibited_timezone_validator(self, x):
-        if x.tzinfo is not None:
+    def prohibited_timezone_validator(self, value):
+        if value.tzinfo is not None:
             raise XMLSchemaValidationError(
-                self, x, "time zone prohibited for value %r." % self.value
+                self, value, "time zone prohibited for value {!r}".format(self.value)
             )
 
 
@@ -632,7 +642,7 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         except TypeError:
             pass
 
-        reason = "invalid value {!r}, it must be one of {!r}".format(value, self.enumeration)
+        reason = "value must be one of {!r}".format(self.enumeration)
         raise XMLSchemaValidationError(self, value, reason)
 
 
@@ -703,7 +713,7 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
     def __call__(self, text):
         try:
             if all(pattern.match(text) is None for pattern in self.patterns):
-                reason = "{!r} doesn't match any pattern of {!r}".format(text, self.regexps)
+                reason = "value doesn't match any pattern of {!r}".format(self.regexps)
                 raise XMLSchemaValidationError(self, text, reason)
         except TypeError as err:
             raise XMLSchemaValidationError(self, text, str(err)) from None
@@ -784,7 +794,7 @@ class XsdAssertionFacet(XsdFacet):
         context = XPathContext(self._root, variables={'value': value})
         try:
             if not self.token.evaluate(context):
-                reason = "value {!r} is not true with test path {!r}".format(value, self.path)
+                reason = "value is not true with test path {!r}".format(self.path)
                 raise XMLSchemaValidationError(self, value, reason)
         except ElementPathError as err:
             raise XMLSchemaValidationError(self, value, reason=str(err)) from None

@@ -1025,7 +1025,10 @@ class XsdUnion(XsdSimpleType):
                 if not isinstance(result, XMLSchemaValidationError):
                     if patterns:
                         obj = member_type.normalize(obj)
-                        yield from patterns(obj)
+                        try:
+                            patterns(obj)
+                        except XMLSchemaValidationError as err:
+                            yield err
 
                     yield result
                     return

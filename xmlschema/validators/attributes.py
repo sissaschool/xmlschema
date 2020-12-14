@@ -248,7 +248,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
-                result.reason = 'attribute {!r}: {}'.format(self.prefixed_name, result.reason)
+                result.reason = 'attribute {}={!r}: {}'.format(
+                    self.prefixed_name, text, result.reason
+                )
                 yield result
                 continue
             elif isinstance(result, Decimal):

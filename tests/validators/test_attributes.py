@@ -28,7 +28,7 @@ class TestXsdAttributes(XsdValidatorTestCase):
                 <xs:attribute name="label" type="xs:string" use="mandatory"/>
             </xs:attributeGroup>""")
         self.assertEqual(ctx.exception.message,
-                         "attribute 'use': invalid value 'mandatory', it must "
+                         "attribute use='mandatory': value must "
                          "be one of ['prohibited', 'optional', 'required']")
 
         with self.assertRaises(XMLSchemaParseError) as ctx:
@@ -37,7 +37,7 @@ class TestXsdAttributes(XsdValidatorTestCase):
                 <xs:attribute name="label" type="xs:string" use=""/>
             </xs:attributeGroup>""")
         self.assertEqual(ctx.exception.message,
-                         "attribute 'use': '' doesn't match any pattern of ['\\\\c+']")
+                         "attribute use='': value doesn't match any pattern of ['\\\\c+']")
 
     def test_wrong_attribute_type(self):
         self.check_schema("""
