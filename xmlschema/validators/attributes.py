@@ -53,6 +53,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     qualified = False
     default = None
     fixed = None
+    use = 'optional'
     inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
 
     def __init__(self, elem, schema, parent):
@@ -64,14 +65,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         super(XsdAttribute, self)._parse()
         attrib = self.elem.attrib
 
-        self.use = attrib.get('use')
-        if self.use is None:
-            self.use = 'optional'
-        elif self.parent is None:
-            self.parse_error("attribute 'use' not allowed in a global attribute.")
-        elif self.use not in {'optional', 'prohibited', 'required'}:
-            self.parse_error("wrong value %r for 'use' attribute." % self.use)
-            self.use = 'optional'
+        if 'use' in attrib and self.parent is not None and \
+                attrib['use'] in {'optional', 'prohibited', 'required'}:
+            self.use = attrib['use']
 
         if 'default' in attrib:
             self.default = attrib['default']
@@ -83,8 +79,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             try:
                 xsd_attribute = self.maps.lookup_attribute(self.name)
             except LookupError:
-                self.parse_error("unknown attribute %r" % self.name)
                 self.type = self.any_simple_type
+                self.parse_error("unknown attribute %r" % self.name)
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
@@ -229,7 +225,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         return self.decode(text, validation='skip')
 
     def iter_decode(self, text, validation='lax', **kwargs):
-        if not text and self.default is not None:
+        if text is None and self.default is not None:
             text = self.default
 
         if self.type.is_notation():
@@ -252,6 +248,7 @@ class XsdAttribute(XsdComponent, ValidationMixin):
 
         for result in self.type.iter_decode(text, validation, **kwargs):
             if isinstance(result, XMLSchemaValidationError):
+                result.reason = 'attribute {!r}: {}'.format(self.prefixed_name, result.reason)
                 yield result
                 continue
             elif isinstance(result, Decimal):
@@ -418,12 +415,16 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     attributes[None] = any_attribute
 
             elif child.tag == XSD_ATTRIBUTE:
-                attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
-                if attribute.name in attributes:
-                    self.parse_error("multiple declaration for attribute "
-                                     "{!r}".format(attribute.name))
-                elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
-                    attributes[attribute.name] = attribute
+                try:
+                    attribute = self.schema.BUILDERS.attribute_class(child, self.schema, self)
+                except TypeError as err:
+                    self.parse_error(err, elem=child)
+                else:
+                    if attribute.name in attributes:
+                        self.parse_error("multiple declaration for attribute "
+                                         "{!r}".format(attribute.name))
+                    elif attribute.use != 'prohibited' or self.elem.tag != XSD_ATTRIBUTE_GROUP:
+                        attributes[attribute.name] = attribute
 
             elif child.tag == XSD_ATTRIBUTE_GROUP:
                 try:

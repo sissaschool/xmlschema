@@ -37,7 +37,7 @@ def check_validation_mode(validation):
                                   "'lax' or 'skip': %r" % validation)
 
 
-class XsdValidator(object):
+class XsdValidator:
     """
     Common base class for XML Schema validator, that represents a PSVI (Post Schema Validation
     Infoset) information item. A concrete XSD validator have to report its validity collecting
@@ -298,9 +298,7 @@ class XsdComponent(XsdValidator):
         return self.maps.types[XSD_ANY_ATOMIC_TYPE]
 
     def __repr__(self):
-        if self.name is None:
-            return '<%s at %#x>' % (self.__class__.__name__, id(self))
-        elif self.ref is not None:
+        if self.ref is not None:
             return '%s(ref=%r)' % (self.__class__.__name__, self.prefixed_name)
         else:
             return '%s(name=%r)' % (self.__class__.__name__, self.prefixed_name)
@@ -369,7 +367,7 @@ class XsdComponent(XsdValidator):
             elif child is not None:
                 msg = "too many XSD components, unexpected {!r} found at position {}"
                 self.parse_error(msg.format(child, elem[:].index(e)), elem)
-                return child
+                break
             else:
                 child = e
         return child
@@ -737,7 +735,7 @@ class XsdType(XsdComponent):
         raise NotImplementedError()
 
 
-class ValidationMixin(object):
+class ValidationMixin:
     """
     Mixin for implementing XML data validators/decoders. A derived class must implement the
     methods `iter_decode` and `iter_encode`.

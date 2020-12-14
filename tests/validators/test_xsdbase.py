@@ -12,6 +12,7 @@ import unittest
 import os
 import platform
 import re
+import lxml.etree
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
@@ -249,6 +250,11 @@ class TestXsdComponent(unittest.TestCase):
         with self.assertRaises(XMLSchemaParseError):
             xsd_element._parse_child_component(elem)
 
+        self.assertEqual(len(xsd_element.errors), 0)
+        xsd_element.validation = 'lax'
+        xsd_element._parse_child_component(elem)
+        self.assertEqual(len(xsd_element.errors), 1)
+
     def test_parse_target_namespace(self):
         name = '{%s}motorbikes' % self.schema.target_namespace
 
@@ -296,6 +302,27 @@ class TestXsdComponent(unittest.TestCase):
                 <xs:element name="root" targetNamespace=""/>
             </xs:schema>""")
         self.assertIn("use of attribute 'targetNamespace' is prohibited", ctx.exception.message)
+
+        schema = XMLSchema11("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:complexType name="type0">
+                    <xs:sequence>
+                        <xs:any namespace="http://xmlschema.test/ns"/>
+                    </xs:sequence>
+                </xs:complexType>
+                <xs:complexType name="type1">
+                    <xs:complexContent>
+                        <xs:restriction base="type0">
+                            <xs:sequence>
+                                <xs:element name="elem1" targetNamespace="http://xmlschema.test/ns" 
+                                type="xs:integer"/>
+                            </xs:sequence>
+                        </xs:restriction>
+                    </xs:complexContent>      
+                </xs:complexType>
+                <xs:element name="root" type="type1"/>    
+            </xs:schema>""")
+        self.assertEqual(schema.elements['root'].type.content[0].target_namespace,
+                         'http://xmlschema.test/ns')
 
         schema = XMLSchema11("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root">
@@ -378,6 +405,15 @@ class TestXsdComponent(unittest.TestCase):
                          <xs:annotation/>
                      </xs:element>
                  </xs:schema>""")
+        self.assertTrue(schema.elements['root'].annotation.built)
+
+        root = lxml.etree.XML("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                     <xs:element name="root">
+                        <!-- comment -->
+                        <xs:annotation/>
+                     </xs:element>
+                 </xs:schema>""")
+        schema = XMLSchema10(root)
         self.assertTrue(schema.elements['root'].annotation.built)
 
         schema = XMLSchema10("""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

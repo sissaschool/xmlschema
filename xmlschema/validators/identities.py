@@ -13,6 +13,7 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from collections import Counter
+from typing import Dict, Union, Tuple
 from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
@@ -425,9 +426,9 @@ class Xsd11Keyref(XsdKeyref):
             super(Xsd11Keyref, self)._parse()
 
 
-class IdentityCounter(object):
+class IdentityCounter:
 
-    def __init__(self, identity, enabled=True):
+    def __init__(self, identity: Union[XsdKey, XsdKeyref], enabled=True):
         self.counter = Counter()
         self.identity = identity
         self.enabled = enabled
@@ -448,10 +449,11 @@ class IdentityCounter(object):
 
 class KeyrefCounter(IdentityCounter):
 
-    def increase(self, fields):
+    def increase(self, fields: Tuple[XsdFieldSelector]):
         self.counter[fields] += 1
 
-    def iter_errors(self, identities):
+    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref],
+                                           Union['IdentityCounter', 'KeyrefCounter']]):
         try:
             refer_values = identities[self.identity.refer].counter
         except KeyError:

@@ -421,7 +421,7 @@ class TestDecoding(XsdValidatorTestCase):
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax')
         self.assertEqual(data, '1999-12-31')
         self.assertEqual(len(errors), 1)
-        self.assertIn('value has to be greater or equal than', str(errors[0]))
+        self.assertIn('value Date10(1999, 12, 31) is lesser than', str(errors[0]))
 
         data, errors = schema.to_dict("<Date>1999-12-31</Date>", validation='lax',
                                       datetime_types=True)
@@ -474,7 +474,7 @@ class TestDecoding(XsdValidatorTestCase):
         with self.assertRaises(XMLSchemaValidationError) as ctx:
             schema.decode('<root name="ns0:bar">foo</root>')
         self.assertIn("failed validating 'ns0:bar'", str(ctx.exception))
-        self.assertIn("Reason: unmapped prefix 'ns0' on QName", str(ctx.exception))
+        self.assertIn("unmapped prefix 'ns0' on QName", str(ctx.exception))
         self.assertIn("Path: /root", str(ctx.exception))
 
     def test_json_dump_and_load(self):

@@ -311,7 +311,7 @@ class XsdMinInclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value < self.value:
-                reason = "value has to be greater or equal than %r." % self.value
+                reason = "value {!r} is lesser than {!r}".format(value, self.value)
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
             yield XMLSchemaValidationError(self, value, str(err))
@@ -353,7 +353,7 @@ class XsdMinExclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value <= self.value:
-                reason = "value has to be greater than %r." % self.value
+                reason = "value {!r} is not greater than {!r}".format(value, self.value)
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
             yield XMLSchemaValidationError(self, value, str(err))
@@ -395,7 +395,7 @@ class XsdMaxInclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value > self.value:
-                reason = "value has to be lesser or equal than %r." % self.value
+                reason = "value {!r} is greater than {!r}".format(value, self.value)
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
             yield XMLSchemaValidationError(self, value, str(err))
@@ -437,7 +437,7 @@ class XsdMaxExclusiveFacet(XsdFacet):
     def __call__(self, value):
         try:
             if value >= self.value:
-                reason = "value has to be lesser than %r" % self.value
+                reason = "value {!r} is not lesser than {!r}".format(value, self.value)
                 yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError) as err:
             yield XMLSchemaValidationError(self, value, str(err))
@@ -463,13 +463,14 @@ class XsdTotalDigitsFacet(XsdFacet):
             raise ValueError("'value' must be greater or equal than 1")
         self.validator = self.total_digits_validator
 
-    def total_digits_validator(self, x):
+    def total_digits_validator(self, value):
         try:
-            if operator.add(*count_digits(x)) > self.value:
-                reason = "the number of digits is greater than %r." % self.value
-                yield XMLSchemaValidationError(self, x, reason)
+            if operator.add(*count_digits(value)) > self.value:
+                reason = "the number of digits of {!r} is greater " \
+                         "than {!r}".format(value, self.value)
+                yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError, ArithmeticError) as err:
-            yield XMLSchemaValidationError(self, x, str(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdFractionDigitsFacet(XsdFacet):
@@ -502,13 +503,14 @@ class XsdFractionDigitsFacet(XsdFacet):
                              "for types derived from xs:integer.")
         self.validator = self.fraction_digits_validator
 
-    def fraction_digits_validator(self, x):
+    def fraction_digits_validator(self, value):
         try:
-            if count_digits(x)[1] > self.value:
-                reason = "the number of fraction digits is greater than %r." % self.value
-                yield XMLSchemaValidationError(self, x, reason)
+            if count_digits(value)[1] > self.value:
+                reason = "the number of fraction digits of {!r} " \
+                         "is greater than {!r}".format(value, self.value)
+                yield XMLSchemaValidationError(self, value, reason)
         except (TypeError, ValueError, ArithmeticError) as err:
-            yield XMLSchemaValidationError(self, x, str(err))
+            yield XMLSchemaValidationError(self, value, str(err))
 
 
 class XsdExplicitTimezoneFacet(XsdFacet):
@@ -621,7 +623,6 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
     def __call__(self, value):
         if value in self.enumeration:
             return
-
         try:
             if math.isnan(value) and any(math.isnan(x) for x in self.enumeration):
                 return
@@ -630,8 +631,8 @@ class XsdEnumerationFacets(MutableSequence, XsdFacet):
         except TypeError:
             pass
 
-        reason = "invalid value %r, it must be one of %r" % (value, self.enumeration)
-        yield XMLSchemaValidationError(self, value, reason=reason)
+        reason = "invalid value {!r}, it must be one of {!r}".format(value, self.enumeration)
+        yield XMLSchemaValidationError(self, value, reason)
 
 
 class XsdPatternFacets(MutableSequence, XsdFacet):
@@ -701,8 +702,8 @@ class XsdPatternFacets(MutableSequence, XsdFacet):
     def __call__(self, text):
         try:
             if all(pattern.match(text) is None for pattern in self.patterns):
-                msg = "value doesn't match any pattern of %r."
-                yield XMLSchemaValidationError(self, text, reason=msg % self.regexps)
+                reason = "{!r} doesn't match any pattern of {!r}".format(text, self.regexps)
+                yield XMLSchemaValidationError(self, text, reason)
         except TypeError as err:
             yield XMLSchemaValidationError(self, text, str(err))
 
@@ -782,8 +783,8 @@ class XsdAssertionFacet(XsdFacet):
         context = XPathContext(self._root, variables={'value': value})
         try:
             if not self.token.evaluate(context):
-                msg = "value is not true with test path %r."
-                yield XMLSchemaValidationError(self, value, reason=msg % self.path)
+                reason = "value {!r} is not true with test path {!r}".format(value, self.path)
+                yield XMLSchemaValidationError(self, value, reason)
         except ElementPathError as err:
             yield XMLSchemaValidationError(self, value, reason=str(err))
 

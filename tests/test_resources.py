@@ -289,6 +289,11 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertTrue(resource.text.startswith('<?xml'))
 
+        resource = XMLResource(self.vh_xml_file, lazy=False)
+        resource._url = resource._url[:-12] + 'unknown.xml'
+        with self.assertRaises(XMLResourceError):
+            resource.load()
+
     def test_xml_resource_from_element_tree(self):
         vh_etree = ElementTree.parse(self.vh_xml_file)
         vh_root = vh_etree.getroot()
@@ -348,6 +353,13 @@ class TestResources(unittest.TestCase):
             self.assertFalse(xml_file.closed)
         finally:
             xml_file.close()
+
+        with open(self.vh_xml_file) as fp:
+            resource = XMLResource(fp)
+        self.assertIsNone(resource.text)
+
+        with self.assertRaises(XMLResourceError):
+            resource.load()
 
     def test_xml_resource_from_file(self):
         with open(self.vh_xsd_file) as schema_file:

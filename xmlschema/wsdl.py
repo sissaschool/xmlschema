@@ -49,7 +49,7 @@ class WsdlParseError(XMLSchemaException, SyntaxError):
     """An error during parsing of a WSDL document."""
 
 
-class Wsdl11Maps(object):
+class Wsdl11Maps:
 
     def __init__(self, wsdl_document):
         self.wsdl_document = wsdl_document
@@ -67,7 +67,7 @@ class Wsdl11Maps(object):
         self.services.clear()
 
 
-class WsdlComponent(object):
+class WsdlComponent:
 
     def __init__(self, elem, wsdl_document):
         self.elem = elem

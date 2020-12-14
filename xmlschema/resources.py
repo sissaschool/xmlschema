@@ -42,7 +42,7 @@ class LazyXPath2Parser(XPath2Parser):
     SYMBOLS = LAZY_XML_XPATH_SYMBOLS
 
 
-class LazySelector(object):
+class LazySelector:
     """A limited XPath selector class for lazy XML resources."""
 
     def __init__(self, path, namespaces=None):
@@ -320,7 +320,7 @@ def fetch_namespaces(source, base_url=None, allow='all', defuse='remote', timeou
     return resource.get_namespaces(root_only=False)
 
 
-class XMLResource(object):
+class XMLResource:
     """
     XML resource reader based on ElementTree and urllib.
 
@@ -789,16 +789,6 @@ class XMLResource(object):
             raise XMLResourceError(str(err)) from None
         else:
             return self._source.seek(position)
-
-        try:
-            return self._source.seek(position)
-        except AttributeError:
-            pass
-
-        try:
-            return self._source.fp.seek(position)
-        except AttributeError:
-            pass
 
     def close(self):
         """

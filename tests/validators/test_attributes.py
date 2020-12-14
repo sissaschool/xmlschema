@@ -17,7 +17,36 @@ from xmlschema.testing import XsdValidatorTestCase
 
 class TestXsdAttributes(XsdValidatorTestCase):
 
-    def test_wrong_attribute(self):
+    def test_attribute_use(self):
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.check_schema('<xs:attribute name="label" type="xs:string" use="optional"/>')
+        self.assertEqual("use of attribute 'use' is prohibited", ctx.exception.message)
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.check_schema("""
+            <xs:attributeGroup name="extra">
+                <xs:attribute name="label" type="xs:string" use="mandatory"/>
+            </xs:attributeGroup>""")
+        self.assertEqual(ctx.exception.message,
+                         "attribute 'use': invalid value 'mandatory', it must "
+                         "be one of ['prohibited', 'optional', 'required']")
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.check_schema("""
+            <xs:attributeGroup name="extra">
+                <xs:attribute name="label" type="xs:string" use=""/>
+            </xs:attributeGroup>""")
+        self.assertEqual(ctx.exception.message,
+                         "attribute 'use': '' doesn't match any pattern of ['\\\\c+']")
+
+    def test_wrong_attribute_type(self):
+        self.check_schema("""
+        <xs:attributeGroup name="alpha">
+            <xs:attribute name="name" type="xs:anyType"/>
+        </xs:attributeGroup>
+        """, XMLSchemaParseError)
+
+    def test_attribute_reference(self):
         self.check_schema("""
         <xs:attributeGroup name="alpha">
             <xs:attribute name="name" type="xs:string"/>
@@ -25,7 +54,17 @@ class TestXsdAttributes(XsdValidatorTestCase):
         </xs:attributeGroup>
         """, XMLSchemaParseError)
 
-    def test_wrong_attribute_group(self):
+        schema = self.schema_class("""<xs:schema
+                xmlns:xs="http://www.w3.org/2001/XMLSchema" attributeFormDefault="qualified">
+            <xs:attributeGroup name="alpha">
+                <xs:attribute name="name" type="xs:string"/>
+                <xs:attribute ref="phone"/>
+            </xs:attributeGroup>
+            <xs:attribute name="phone" type="xs:string"/>
+        </xs:schema>""")
+        self.assertTrue(schema.attribute_groups['alpha']['phone'].qualified)
+
+    def test_missing_attribute_group_reference(self):
         self.check_schema("""
         <xs:attributeGroup name="alpha">
             <xs:attribute name="name" type="xs:string"/>
