@@ -35,9 +35,6 @@ from .models import OccursCounter
 from .identities import XsdKeyref
 from .wildcards import XsdAnyElement
 
-XSD_MODEL_GROUP_TAGS = {XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE}
-XSD_ATTRIBUTE_GROUP_ELEMENT = etree_element(XSD_ATTRIBUTE_GROUP)
-
 
 class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin):
     """
@@ -65,17 +62,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
           Content: (annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))
         </element>
     """
+    abstract = False
+    nillable = False
     qualified = False
     form = None
+    default = None
+    fixed = None
+    substitution_group = None
+
     alternatives = ()
     inheritable = ()
 
     _ADMITTED_TAGS = {XSD_ELEMENT}
-    _abstract = False
     _block = None
     _final = None
-    _nillable = False
-    _substitution_group = None
     _head_type = None
 
     def __init__(self, elem, schema, parent):
@@ -116,15 +116,20 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         attrib = self.elem.attrib
         if self._parse_reference():
             try:
-                xsd_element = self.maps.lookup_element(self.name)
+                xsd_element: XsdElement = self.maps.lookup_element(self.name)
             except KeyError:
-                self.parse_error('unknown element %r' % self.name)
                 self.type = self.any_type
+                self.parse_error('unknown element %r' % self.name)
             else:
                 self.ref = xsd_element
                 self.type = xsd_element.type
+                self.abstract = xsd_element.abstract
+                self.nillable = xsd_element.nillable
                 self.qualified = xsd_element.qualified
                 self.form = xsd_element.form
+                self.default = xsd_element.default
+                self.fixed = xsd_element.fixed
+                self.substitution_group = xsd_element.substitution_group
 
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
@@ -148,14 +153,18 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             pass
 
-        if 'default' in attrib and 'fixed' in attrib:
-            self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
+        if 'default' in attrib:
+            self.default = attrib['default']
+            if 'fixed' in attrib:
+                self.parse_error("'default' and 'fixed' attributes are mutually exclusive.")
+        elif 'fixed' in attrib:
+            self.fixed = attrib['fixed']
 
         if 'abstract' in attrib:
             if self.parent is not None:
                 self.parse_error("local scope elements cannot have abstract attribute")
             if self._parse_boolean_attribute('abstract'):
-                self._abstract = True
+                self.abstract = True
 
         if 'block' in attrib:
             try:
@@ -166,7 +175,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.parse_error(err)
 
         if self._parse_boolean_attribute('nillable'):
-            self._nillable = True
+            self.nillable = True
 
         if self.parent is None:
             if 'final' in attrib:
@@ -335,7 +344,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         except KeyError:
             self.maps.substitution_groups[substitution_group_qname] = {self}
         finally:
-            self._substitution_group = substitution_group_qname
+            self.substitution_group = substitution_group_qname
 
     @property
     def xpath_proxy(self):
@@ -367,11 +376,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         """The fixed or the default value if either is defined, `None` otherwise."""
         return self.fixed if self.fixed is not None else self.default
 
-    # Global element's exclusive properties
-    @property
-    def abstract(self):
-        return self._abstract if self.ref is None else self.ref.abstract
-
     @property
     def final(self):
         if self.ref is not None:
@@ -387,22 +391,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         elif self._block is not None:
             return self._block
         return self.schema.block_default
-
-    @property
-    def nillable(self):
-        return self._nillable if self.ref is None else self.ref.nillable
-
-    @property
-    def substitution_group(self):
-        return self._substitution_group if self.ref is None else self.ref.substitution_group
-
-    @property
-    def default(self):
-        return self.elem.get('default') if self.ref is None else self.ref.default
-
-    @property
-    def fixed(self):
-        return self.elem.get('fixed') if self.ref is None else self.ref.fixed
 
     def get_attribute(self, name):
         if name[0] != '{':

@@ -13,6 +13,7 @@ This module contains functions and classes for namespaces XSD declarations/defin
 import warnings
 from collections import Counter
 from functools import lru_cache
+from typing import Union
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
@@ -264,22 +265,22 @@ class XsdGlobals(XsdValidator):
 
     __copy__ = copy
 
-    def lookup_notation(self, qname):
+    def lookup_notation(self, qname: str) -> XsdNotation:
         return lookup_notation(qname, self.notations, self.validator.BUILDERS_MAP)
 
-    def lookup_type(self, qname):
+    def lookup_type(self, qname: str) -> Union[XsdSimpleType, XsdComplexType]:
         return lookup_type(qname, self.types, self.validator.BUILDERS_MAP)
 
-    def lookup_attribute(self, qname):
+    def lookup_attribute(self, qname: str) -> XsdAttribute:
         return lookup_attribute(qname, self.attributes, self.validator.BUILDERS_MAP)
 
-    def lookup_attribute_group(self, qname):
+    def lookup_attribute_group(self, qname: str) -> XsdAttributeGroup:
         return lookup_attribute_group(qname, self.attribute_groups, self.validator.BUILDERS_MAP)
 
-    def lookup_group(self, qname):
+    def lookup_group(self, qname: str) -> XsdGroup:
         return lookup_group(qname, self.groups, self.validator.BUILDERS_MAP)
 
-    def lookup_element(self, qname):
+    def lookup_element(self, qname: str) -> XsdElement:
         return lookup_element(qname, self.elements, self.validator.BUILDERS_MAP)
 
     def lookup(self, tag, qname):
