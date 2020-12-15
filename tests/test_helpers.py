@@ -18,8 +18,8 @@ from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import ElementTree, etree_element
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    raw_xml_encode, count_digits, strictly_equal, prune_etree, get_namespace, get_qname, \
+from xmlschema.helpers import get_xsd_derivation_attribute, raw_xml_encode, \
+    count_digits, strictly_equal, prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname
 from xmlschema.validators.models import OccursCounter
 from xmlschema.testing.helpers import iter_nested_items
@@ -49,16 +49,6 @@ class TestHelpers(unittest.TestCase):
                          'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
-
-    def test_get_xsd_form_attribute(self):
-        elem = etree_element(XSD_ELEMENT, attrib={
-            'a1': 'qualified', 'a2': ' qualified', 'a3': 'unqualified', 'a4': ''
-        })
-        self.assertEqual(get_xsd_form_attribute(elem, 'a1'), 'qualified')
-        self.assertRaises(ValueError, get_xsd_form_attribute, elem, 'a2')
-        self.assertEqual(get_xsd_form_attribute(elem, 'a3'), 'unqualified')
-        self.assertRaises(ValueError, get_xsd_form_attribute, elem, 'a4')
-        self.assertIsNone(get_xsd_form_attribute(elem, 'a5'))
 
     def test_parse_component(self):
         component = XMLSchema.meta_schema.types['anyType']

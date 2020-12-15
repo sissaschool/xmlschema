@@ -15,12 +15,12 @@ from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
 from typing import Union, Dict
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
     XSD_ATTRIBUTE_GROUP, XSD_COMPLEX_TYPE, XSD_RESTRICTION, XSD_EXTENSION, \
     XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ATTRIBUTE, XSD_ANY_ATTRIBUTE, \
     XSD_ASSERT, XSD_NOTATION_TYPE, XSD_ANNOTATION
-from ..helpers import get_xsd_form_attribute, get_namespace, get_qname
+from ..helpers import get_namespace, get_qname
 
 from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent, ValidationMixin
@@ -53,13 +53,9 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     qualified = False
     default = None
     fixed = None
+    form = None
     use = 'optional'
     inheritable = False  # For XSD 1.1 attributes, always False for XSD 1.0 attributes.
-
-    def __init__(self, elem, schema, parent):
-        super(XsdAttribute, self).__init__(elem, schema, parent)
-        if not isinstance(self.type, XsdSimpleType):
-            raise XMLSchemaTypeError("XSD attribute's type must be a simpleType")
 
     def _parse(self):
         super(XsdAttribute, self)._parse()
@@ -84,8 +80,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
-                if xsd_attribute.qualified:
-                    self.qualified = True
+                self.qualified = xsd_attribute.qualified
+                self.form = xsd_attribute.form
 
                 if self.default is None and xsd_attribute.default is not None:
                     self.default = xsd_attribute.default
@@ -101,34 +97,27 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 if attribute in self.elem.attrib:
                     self.parse_error("attribute %r is not allowed when "
                                      "attribute reference is used." % attribute)
-
-            child = self._parse_child_component(self.elem)
-            if child is not None and child.tag == XSD_SIMPLE_TYPE:
-                self.parse_error("not allowed type definition for XSD attribute reference")
             return
 
-        try:
-            form = get_xsd_form_attribute(self.elem, 'form')
-        except ValueError as err:
-            self.parse_error(err)
-        else:
-            if form is None:
-                if self.schema.attribute_form_default == 'qualified':
-                    self.qualified = True
-            elif self.parent is None:
-                self.parse_error("attribute 'form' not allowed in a global attribute.")
-            elif form == 'qualified':
+        if 'form' in attrib:
+            self.form = attrib['form']
+            if self.parent is not None and self.form == 'qualified':
                 self.qualified = True
+        elif self.schema.attribute_form_default == 'qualified':
+            self.qualified = True
 
-        name = attrib.get('name')
-        if name is not None:
+        try:
+            name = attrib['name']
+        except KeyError:
+            pass
+        else:
             if name == 'xmlns':
                 self.parse_error("an attribute name must be different from 'xmlns'")
 
             if self.parent is None or self.qualified:
                 if self.target_namespace == XSI_NAMESPACE and \
                         name not in {'nil', 'type', 'schemaLocation', 'noNamespaceSchemaLocation'}:
-                    self.parse_error("Cannot add attributes in %r namespace" % XSI_NAMESPACE)
+                    self.parse_error("cannot add attributes in %r namespace" % XSI_NAMESPACE)
                 self.name = get_qname(self.target_namespace, name)
             else:
                 self.name = name
@@ -138,31 +127,28 @@ class XsdAttribute(XsdComponent, ValidationMixin):
             try:
                 type_qname = self.schema.resolve_qname(attrib['type'])
             except (KeyError, ValueError, RuntimeError) as err:
+                self.type = self.any_simple_type
                 self.parse_error(err)
-                xsd_type = self.any_simple_type
             else:
                 try:
-                    xsd_type = self.maps.lookup_type(type_qname)
+                    self.type = self.maps.lookup_type(type_qname)
                 except LookupError as err:
+                    self.type = self.any_simple_type
                     self.parse_error(err)
-                    xsd_type = self.any_simple_type
 
                 if child is not None and child.tag == XSD_SIMPLE_TYPE:
                     self.parse_error("ambiguous type definition for XSD attribute")
-                elif child is not None:
-                    self.parse_error("not allowed element in XSD attribute "
-                                     "declaration: %r" % child[0])
+
         elif child is not None:
             # No 'type' attribute in declaration, parse for child local simpleType
-            xsd_type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+            self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
         else:
             # Empty declaration means xsdAnySimpleType
-            xsd_type = self.any_simple_type
+            self.type = self.any_simple_type
 
-        try:
-            self.type = xsd_type
-        except TypeError as err:
-            self.parse_error(err)
+        if not isinstance(self.type, XsdSimpleType):
+            self.type = self.any_simple_type
+            self.parse_error("XSD attribute's type must be a simpleType")
 
         # Check value constraints
         if 'default' in attrib:
@@ -172,16 +158,16 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 self.parse_error("the attribute 'use' must be 'optional' "
                                  "if the attribute 'default' is present")
             if not self.type.is_valid(attrib['default']):
-                msg = "'default' value {!r} is not compatible with the type {!r}"
+                msg = "default value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['default'], self.type))
             elif self.type.is_key() and self.xsd_version == '1.0':
-                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
+                self.parse_error("xs:ID key attributes cannot have a default")
         elif 'fixed' in attrib:
             if not self.type.is_valid(attrib['fixed']):
-                msg = "'fixed' value {!r} is not compatible with the type {!r}"
+                msg = "fixed value {!r} is not compatible with the type {!r}"
                 self.parse_error(msg.format(attrib['fixed'], self.type))
             elif self.type.is_key() and self.xsd_version == '1.0':
-                self.parse_error("'xs:ID' or a type derived from 'xs:ID' cannot has a 'default'")
+                self.parse_error("xs:ID key attributes cannot have a fixed value")
 
     @property
     def built(self):
@@ -200,10 +186,6 @@ class XsdAttribute(XsdComponent, ValidationMixin):
     def value_constraint(self):
         """The fixed or the default value if either is defined, `None` otherwise."""
         return self.fixed if self.fixed is not None else self.default
-
-    @property
-    def form(self):
-        return get_xsd_form_attribute(self.elem, 'form')
 
     def is_optional(self):
         return self.use == 'optional'
@@ -240,9 +222,8 @@ class XsdAttribute(XsdComponent, ValidationMixin):
         if self.fixed is not None:
             if text is None:
                 text = self.fixed
-            elif text == self.fixed:
-                pass
-            elif self.type.text_decode(text) != self.type.text_decode(self.fixed):
+            elif text != self.fixed and \
+                    self.type.text_decode(text) != self.type.text_decode(self.fixed):
                 msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
                 yield self.validation_error(validation, msg, text, **kwargs)
 

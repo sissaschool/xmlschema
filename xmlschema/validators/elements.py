@@ -22,8 +22,8 @@ from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE, XSD_ANNOTATION
 from ..etree import etree_element
-from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    raw_xml_encode, strictly_equal, get_qname, get_namespace, etree_iter_location_hints
+from ..helpers import get_xsd_derivation_attribute, raw_xml_encode, \
+    strictly_equal, get_qname, get_namespace, etree_iter_location_hints
 from ..converters import ElementData, XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
@@ -66,6 +66,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
         </element>
     """
     qualified = False
+    form = None
     alternatives = ()
     inheritable = ()
 
@@ -73,7 +74,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     _abstract = False
     _block = None
     _final = None
-    _form = None
     _nillable = False
     _substitution_group = None
     _head_type = None
@@ -124,6 +124,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                 self.ref = xsd_element
                 self.type = xsd_element.type
                 self.qualified = xsd_element.qualified
+                self.form = xsd_element.form
 
             for attr_name in ('type', 'nillable', 'default', 'fixed', 'form',
                               'block', 'abstract', 'final', 'substitutionGroup'):
@@ -133,12 +134,10 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
             return
 
         if 'form' in attrib:
-            try:
-                self._form = get_xsd_form_attribute(self.elem, 'form')
-            except ValueError as err:
-                self.parse_error(err)
-
-        if (self.form or self.schema.element_form_default) == 'qualified':
+            self.form = attrib['form']
+            if self.form == 'qualified':
+                self.qualified = True
+        elif self.schema.element_form_default == 'qualified':
             self.qualified = True
 
         try:
@@ -404,10 +403,6 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
     @property
     def fixed(self):
         return self.elem.get('fixed') if self.ref is None else self.ref.fixed
-
-    @property
-    def form(self):
-        return self._form if self.ref is None else self.ref.form
 
     def get_attribute(self, name):
         if name[0] != '{':

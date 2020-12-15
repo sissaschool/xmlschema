@@ -35,8 +35,7 @@ from ..names import VC_MIN_VERSION, VC_MAX_VERSION, VC_TYPE_AVAILABLE, \
     VC_NAMESPACE, SCHEMAS_DIR, LOCATION_HINTS, XSD_ANNOTATION, XSD_INCLUDE, \
     XSD_IMPORT, XSD_REDEFINE, XSD_OVERRIDE, XSD_DEFAULT_OPEN_CONTENT
 from ..etree import etree_element, ParseError
-from ..helpers import get_xsd_derivation_attribute, get_xsd_form_attribute, \
-    prune_etree, get_namespace
+from ..helpers import get_xsd_derivation_attribute, prune_etree, get_namespace
 from ..namespaces import NamespaceResourcesMap, NamespaceView
 from ..resources import is_local_url, is_remote_url, url_path_is_file, \
     normalize_locations, fetch_resource, normalize_url, XMLResource
@@ -351,16 +350,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         # Parses the schema defaults
         if 'attributeFormDefault' in root.attrib:
-            try:
-                self.attribute_form_default = get_xsd_form_attribute(root, 'attributeFormDefault')
-            except ValueError as err:
-                self.parse_error(err, root)
+            self.attribute_form_default = root.attrib['attributeFormDefault']
 
         if 'elementFormDefault' in root.attrib:
-            try:
-                self.element_form_default = get_xsd_form_attribute(root, 'elementFormDefault')
-            except ValueError as err:
-                self.parse_error(err, root)
+            self.element_form_default = root.attrib['elementFormDefault']
 
         if 'blockDefault' in root.attrib:
             if self.meta_schema is None:

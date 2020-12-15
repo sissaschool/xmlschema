@@ -45,24 +45,6 @@ def get_xsd_derivation_attribute(elem: Element, attribute: str,
     return value
 
 
-def get_xsd_form_attribute(elem: Element, attribute: str) -> Optional[str]:
-    """
-    Get an XSD form attribute, checking the value.
-    If the attribute is missing returns `None`.
-
-    :param elem: the Element instance.
-    :param attribute: the attribute name (maybe 'form', or 'elementFormDefault' \
-    or 'attributeFormDefault').
-    """
-    value = elem.get(attribute)
-    if value is None:
-        return
-    elif value != 'qualified' and value != 'unqualified':
-        msg = "wrong value %r for attribute %r, it must be 'qualified' or 'unqualified'."
-        raise ValueError(msg % (value, attribute))
-    return value
-
-
 def raw_xml_encode(value: Union[str, bytes, bool, int, float, Decimal, list, tuple]) -> str:
     """Encodes a simple value to XML."""
     if isinstance(value, bool):

@@ -15,7 +15,7 @@ import re
 import os
 
 from ..exceptions import XMLSchemaValueError
-from ..names import XSD_SCHEMA
+from ..names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
 from ..helpers import get_namespace
 from ..etree import is_etree_element, etree_element
 from ..resources import fetch_namespaces
@@ -94,7 +94,8 @@ class XsdValidatorTestCase(unittest.TestCase):
                 raise XMLSchemaValueError("% is not an XSD global definition/declaration." % source)
 
             root = etree_element('schema', attrib={
-                'xmlns:xs': "http://www.w3.org/2001/XMLSchema",
+                'xmlns:xs': XSD_NAMESPACE,
+                'xmlns:xsi': XSI_NAMESPACE,
                 'elementFormDefault': "qualified",
                 'version': self.schema_class.XSD_VERSION,
             })
