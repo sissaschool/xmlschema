@@ -17,11 +17,12 @@ from ..exceptions import XMLSchemaValueError
 from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
     XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..etree import etree_element
-from ..helpers import not_whitespace, get_qname, local_name
+from ..helpers import get_qname, local_name
 
 from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
     XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
+from .helpers import not_whitespace
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
 from .particles import ParticleMixin, ModelGroup
 from .elements import XsdElement

@@ -10,29 +10,47 @@
 #
 """Tests on XSD meta schema and XSD builtins"""
 import unittest
+from textwrap import dedent
 
 from xmlschema import XMLSchemaDecodeError, XMLSchemaEncodeError, \
     XMLSchemaValidationError, XMLSchema10, XMLSchema11
-from xmlschema.validators.builtins import HEX_BINARY_PATTERN, BASE64_BINARY_PATTERN
+from xmlschema.names import XSD_STRING
+from xmlschema.helpers import is_etree_element
+from xmlschema.validators.builtins import XSD_10_BUILTIN_TYPES, \
+    XSD_11_BUILTIN_TYPES, xsd_builtin_types_factory
 
 
 class TestXsd10BuiltinTypes(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.schema_class = XMLSchema10
         cls.types = XMLSchema10.builtin_types()
 
     @classmethod
     def tearDownClass(cls):
         XMLSchema10.meta_schema.clear()
 
-    def test_hex_binary_pattern(self):
-        self.assertEqual(HEX_BINARY_PATTERN.search("aff1c").group(0), 'aff1c')
-        self.assertEqual(HEX_BINARY_PATTERN.search("aF3Bc").group(0), 'aF3Bc')
+    def test_facet_lists(self):
+        for builtin_types in (XSD_10_BUILTIN_TYPES, XSD_11_BUILTIN_TYPES):
+            for item in builtin_types:
+                if 'facets' in item:
+                    self.assertIsInstance(item['facets'], list)
+                    self.assertLessEqual(len([e for e in item['facets'] if callable(e)]), 1)
+                    for e in item['facets']:
+                        self.assertTrue(callable(e) or is_etree_element(e))
 
-    def test_not_base64_pattern(self):
-        self.assertIsNotNone(BASE64_BINARY_PATTERN.search("YWVpb3U="))
-        self.assertNotEqual(BASE64_BINARY_PATTERN.search("YWVpb3U!=").group(), 'YWVpb3U!=')
+    def test_factory(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""), use_meta=False, build=False)
+
+        with self.assertRaises(ValueError) as ctx:
+            xsd_types = {XSD_STRING: (None, schema)}
+            xsd_builtin_types_factory(schema.meta_schema, xsd_types)
+
+        self.assertEqual(str(ctx.exception), "loaded entry schema is not the meta-schema!")
 
     def test_boolean_decode(self):
         boolean_type = self.types['boolean']
@@ -212,6 +230,7 @@ class TestXsd11BuiltinTypes(TestXsd10BuiltinTypes):
 
     @classmethod
     def setUpClass(cls):
+        cls.schema_class = XMLSchema11
         cls.types = XMLSchema11.builtin_types()
 
     @classmethod

@@ -9,95 +9,11 @@
 #
 import re
 from collections import Counter
-from decimal import Decimal
-from typing import Callable, Dict, Iterator, Optional, Tuple, Union
+from typing import Callable, Dict, Iterator, Optional, Tuple
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 from .names import XSI_SCHEMA_LOCATION, XSI_NONS_SCHEMA_LOCATION
 
 from xml.etree.ElementTree import Element
-
-
-XSD_FINAL_ATTRIBUTE_VALUES = {'restriction', 'extension', 'list', 'union'}
-
-
-def get_xsd_derivation_attribute(elem: Element, attribute: str,
-                                 values: Optional[set] = None) -> str:
-    """
-    Get a derivation attribute (maybe 'block', 'blockDefault', 'final' or 'finalDefault')
-    checking the items with the values arguments. Returns a string.
-
-    :param elem: the Element instance.
-    :param attribute: the attribute name.
-    :param values: a set of admitted values when the attribute value is not '#all'.
-    """
-    value = elem.get(attribute)
-    if value is None:
-        return ''
-
-    if values is None:
-        values = XSD_FINAL_ATTRIBUTE_VALUES
-
-    items = value.split()
-    if len(items) == 1 and items[0] == '#all':
-        return ' '.join(values)
-    elif not all(s in values for s in items):
-        raise ValueError("wrong value %r for attribute %r" % (value, attribute))
-    return value
-
-
-def raw_xml_encode(value: Union[str, bytes, bool, int, float, Decimal, list, tuple]) -> str:
-    """Encodes a simple value to XML."""
-    if isinstance(value, bool):
-        return 'true' if value else 'false'
-    elif isinstance(value, (list, tuple)):
-        return ' '.join(str(e) for e in value)
-    else:
-        return str(value)
-
-
-def count_digits(number: Union[str, bytes, int, float, Decimal]) -> Tuple[int, int]:
-    """
-    Counts the digits of a number.
-
-    :param number: an int or a float or a Decimal or a string representing a number.
-    :return: a couple with the number of digits of the integer part and \
-    the number of digits of the decimal part.
-    """
-    if isinstance(number, str):
-        number = str(Decimal(number)).lstrip('-+')
-    elif isinstance(number, bytes):
-        number = str(Decimal(number.decode())).lstrip('-+')
-    else:
-        number = str(number).lstrip('-+')
-
-    if 'E' in number:
-        significand, _, exponent = number.partition('E')
-    elif 'e' in number:
-        significand, _, exponent = number.partition('e')
-    elif '.' not in number:
-        return len(number.lstrip('0')), 0
-    else:
-        integer_part, _, decimal_part = number.partition('.')
-        return len(integer_part.lstrip('0')), len(decimal_part.rstrip('0'))
-
-    significand = significand.strip('0')
-    exponent = int(exponent)
-
-    num_digits = len(significand) - 1 if '.' in significand else len(significand)
-    if exponent > 0:
-        return num_digits + exponent, 0
-    else:
-        return 0, num_digits - exponent - 1
-
-
-def strictly_equal(obj1: object, obj2: object) -> bool:
-    """Checks if the objects are equal and are of the same type."""
-    return obj1 == obj2 and type(obj1) is type(obj2)
-
-
-def not_whitespace(s: Optional[str]) -> bool:
-    return s and s.strip()
-
 
 ###
 # Helper functions for QNames

@@ -18,11 +18,16 @@ from xmlschema import XMLSchema, XMLSchemaParseError
 from xmlschema.etree import ElementTree, etree_element
 from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
-from xmlschema.helpers import get_xsd_derivation_attribute, raw_xml_encode, \
-    count_digits, strictly_equal, prune_etree, get_namespace, get_qname, \
+from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname
-from xmlschema.validators.models import OccursCounter
 from xmlschema.testing.helpers import iter_nested_items
+from xmlschema.validators.exceptions import XMLSchemaValidationError
+from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
+    raw_xml_encode, count_digits, strictly_equal, decimal_validator, \
+    qname_validator, base64_binary_validator, hex_binary_validator, \
+    int_validator, long_validator, unsigned_byte_validator, \
+    unsigned_short_validator, negative_int_validator, error_type_validator
+from xmlschema.validators.models import OccursCounter
 
 
 class TestHelpers(unittest.TestCase):
@@ -293,6 +298,95 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(prune_etree(root, selector.method))
         self.assertListEqual([e.tag for e in root.iter()], ['A'])
         self.assertEqual(root.attrib, {'id': '1'})
+
+    def test_decimal_validator(self):
+        self.assertIsNone(decimal_validator(10))
+        self.assertIsNone(decimal_validator(10.1))
+        self.assertIsNone(decimal_validator(10E9))
+        self.assertIsNone(decimal_validator('34.21'))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator(float('inf'))
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator(float('nan'))
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('NaN')
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('10E9')
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('ten')
+
+    def test_qname_validator(self):
+        self.assertIsNone(qname_validator("foo"))
+        self.assertIsNone(qname_validator("bar:foo"))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator("foo:bar:foo")
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator("foo: bar")
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator(" foo:bar")  # strip already done by white-space facet
+
+    def test_hex_binary_validator(self):
+        self.assertIsNone(hex_binary_validator("aff1c9"))
+        self.assertIsNone(hex_binary_validator("2aF3Bc"))
+        self.assertIsNone(hex_binary_validator(""))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("aff1c")
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("aF3Bc")
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("xaF3Bc")
+
+    def test_base64_binary_validator(self):
+        self.assertIsNone(base64_binary_validator("YWVpb3U="))
+        self.assertIsNone(base64_binary_validator("YWVpb 3U="))
+        self.assertIsNone(base64_binary_validator(''))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            base64_binary_validator("YWVpb3U==")
+
+    def test_int_validator(self):
+        self.assertIsNone(int_validator(2 ** 31 - 1))
+        self.assertIsNone(int_validator(-2 ** 31))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            int_validator(2 ** 31)
+
+    def test_long_validator(self):
+        self.assertIsNone(long_validator(2 ** 63 - 1))
+        self.assertIsNone(long_validator(-2 ** 63))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            long_validator(2 ** 63)
+
+    def test_unsigned_byte_validator(self):
+        self.assertIsNone(unsigned_byte_validator(255))
+        self.assertIsNone(unsigned_byte_validator(0))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            unsigned_byte_validator(256)
+
+    def test_unsigned_short_validator(self):
+        self.assertIsNone(unsigned_short_validator(2 ** 16 - 1))
+        self.assertIsNone(unsigned_short_validator(0))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            unsigned_short_validator(2 ** 16)
+
+    def test_negative_int_validator(self):
+        self.assertIsNone(negative_int_validator(-1))
+        self.assertIsNone(negative_int_validator(-2 ** 65))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            negative_int_validator(0)
+
+    def test_error_type_validator(self):
+        with self.assertRaises(XMLSchemaValidationError):
+            error_type_validator('alpha')
+        with self.assertRaises(XMLSchemaValidationError):
+            error_type_validator(0)
 
 
 if __name__ == '__main__':
