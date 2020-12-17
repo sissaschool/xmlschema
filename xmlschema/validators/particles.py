@@ -27,9 +27,12 @@ class ParticleMixin:
     :ivar max_occurs: the maxOccurs property of the XSD particle. Defaults to 1, \
     a `None` value means 'unbounded'.
     """
-    parent = None
     min_occurs: int = 1
     max_occurs: Optional[int] = 1
+
+    def __init__(self, min_occurs=1, max_occurs: Optional[int] = 1):
+        self.min_occurs = min_occurs
+        self.max_occurs = max_occurs
 
     @property
     def occurs(self):
@@ -145,7 +148,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
     Class for XSD model group particles. This class implements only model related methods,
     schema element parsing and validation methods are implemented in derived classes.
     """
-    def __init__(self, model: str):
+    def __init__(self, model: str, min_occurs=1, max_occurs: Optional[int] = 1):
+        super(ModelGroup, self).__init__(min_occurs, max_occurs)
         if model not in {'sequence', 'choice', 'all'}:
             raise XMLSchemaValueError("invalid model {!r} for a group".format(model))
         self._group: List[Union[tuple, ParticleMixin]] = []
@@ -338,10 +342,8 @@ class ModelGroup(MutableSequence, ParticleMixin):
                 try:
                     group, children = subgroups.pop()
                 except IndexError:
-                    if not subgroups:
-                        msg = '{!r} is not a particle of the model group'
-                        raise XMLSchemaModelError(self, msg.format(item))
-                    return subgroups
+                    msg = '{!r} is not a particle of the model group'
+                    raise XMLSchemaModelError(self, msg.format(item)) from None
                 else:
                     continue
 
@@ -369,11 +371,9 @@ class ModelGroup(MutableSequence, ParticleMixin):
     def overall_max_occurs(self, item: ParticleMixin) -> Optional[int]:
         """Returns the overall max occurs of a particle in the model."""
         max_occurs = item.max_occurs
-        if max_occurs == 0:
-            return 0
 
         for group in self.get_subgroups(item):
-            if group.max_occurs == 0:
+            if max_occurs == 0:
                 return 0
             elif max_occurs is None:
                 continue

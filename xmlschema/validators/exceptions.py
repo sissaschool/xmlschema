@@ -149,9 +149,9 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
         super(XMLSchemaModelError, self).__init__(
             validator=group,
             message=message,
-            elem=group.elem,
+            elem=getattr(group, 'elem', None),
             source=getattr(group, 'source', None),
-            namespaces=group.namespaces
+            namespaces=getattr(group, 'namespaces', None)
         )
 
 
