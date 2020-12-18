@@ -384,9 +384,6 @@ class XMLResource:
 
         self.parse(source, lazy)
 
-    def __str__(self):
-        return self.__repr__()
-
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
 

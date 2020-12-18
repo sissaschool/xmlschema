@@ -11,9 +11,12 @@
 """Tests concerning model groups validation"""
 import unittest
 import os.path
+from textwrap import dedent
 
 from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import XsdElement, ModelVisitor, XMLSchemaValidationError
+from xmlschema.validators.particles import ParticleMixin, ModelGroup
+from xmlschema.validators.models import distinguishable_paths
 from xmlschema.testing import XsdValidatorTestCase
 
 
@@ -77,6 +80,31 @@ class TestModelValidation(XsdValidatorTestCase):
             self.assertRaises(expected, lambda: list(model.stop()))
         else:
             self.assertEqual([e for e in model.stop()], expected or [])
+
+    # --- ModelVisitor methods ---
+
+    def test_iter_group(self):
+        group = ModelGroup('sequence', min_occurs=0, max_occurs=0)
+        model = ModelVisitor(group)
+        self.assertListEqual(list(model.items), [])
+
+        group = ModelGroup('choice')
+        group.append(ParticleMixin())
+        group.append(ParticleMixin())
+        group.append(ParticleMixin())
+
+        model = ModelVisitor(group)
+        model.occurs[group[1]] = 1
+        self.assertListEqual(list(model.items), group[1:])
+
+        group = ModelGroup('all')
+        group.append(ParticleMixin())
+        group.append(ParticleMixin())
+        group.append(ParticleMixin())
+
+        model = ModelVisitor(group)
+        model.occurs[group[1]] = 1
+        self.assertListEqual(list(model.items), group[2:])
 
     # --- Vehicles schema ---
 
@@ -747,6 +775,25 @@ class TestModelValidation(XsdValidatorTestCase):
 
         self.assertIsNone(schema.validate('<root><a/><a/><a/></root>'))
 
+    def test_emptiable_all_model(self):
+        schema = self.schema_class(dedent(
+            """<?xml version="1.0" encoding="UTF-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:all minOccurs="0">
+                            <xs:element name="a" />
+                            <xs:element name="b" />
+                        </xs:all>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>
+            """))
+
+        self.assertIsNone(schema.validate('<root><b/><a/></root>'))
+        self.assertIsNone(schema.validate('<root/>'))
+        self.assertFalse(schema.is_valid('<root><b/></root>'))
+
     #
     # Tests on issues
     def test_issue_086(self):
@@ -921,9 +968,18 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         model = ModelVisitor(schema.types['A_type'].content)
 
         self.assertListEqual(
+            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)], restart=False),
+            [('B1', 'abc'), ('B2', 10), ('B3', True)]
+        )
+        self.assertListEqual(
             model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)]),
             [('B1', 'abc'), ('B2', 10), ('B3', True)]
         )
+        self.assertListEqual(
+            model.sort_content([('B2', 10), ('B1', 'abc'), ('B3', True)], restart=False),
+            [('B2', 10), ('B1', 'abc'), ('B3', True)]
+        )
+
         self.assertListEqual(
             model.sort_content([('B3', True), ('B2', 10), ('B1', 'abc')]),
             [('B1', 'abc'), ('B2', 10), ('B3', True)]
@@ -932,17 +988,29 @@ class TestModelBasedSorting(XsdValidatorTestCase):
             model.sort_content([('B2', 10), ('B4', None), ('B1', 'abc'), ('B3', True)]),
             [('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
         )
+
         content = [('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)]
         self.assertListEqual(
             model.sort_content(content),
             [(1, 'hello'), ('B1', 'abc'), ('B2', 10), ('B3', True), ('B4', None)]
         )
+
         content = [
             (2, 'world!'), ('B2', 10), ('B4', None), ('B1', 'abc'), (1, 'hello'), ('B3', True)
         ]
         self.assertListEqual(
             model.sort_content(content),
             [(1, 'hello'), ('B1', 'abc'), (2, 'world!'), ('B2', 10), ('B3', True), ('B4', None)]
+        )
+
+        content = [
+            ('B2', 10), ('B4', None), ('B1', 'abc'), ('B3', True), (6, 'six'),
+            (5, 'five'), (4, 'four'), (2, 'two'), (3, 'three'), (1, 'one')
+        ]
+        self.assertListEqual(
+            model.sort_content(content),
+            [(1, 'one'), ('B1', 'abc'), (2, 'two'), ('B2', 10), (3, 'three'),
+             ('B3', True), (4, 'four'), ('B4', None), (5, 'five'), (6, 'six')]
         )
 
         # With a dict-type argument
@@ -1124,6 +1192,72 @@ class TestModelBasedSorting(XsdValidatorTestCase):
         content = [('X', None), ('B1', 'abc'), ('B2', 10), ('B3', False)]
         model.restart()
         self.assertListEqual(list(model.iter_collapsed_content(content)), content)
+
+
+class TestModelPaths(unittest.TestCase):
+
+    def test_distinguishable_paths_one_level(self):
+        group = ModelGroup('sequence', min_occurs=0)
+        group.append(ModelGroup('sequence'))
+        group.append(ModelGroup('sequence'))
+        group[0].append(ParticleMixin())
+        group[1].append(ParticleMixin())
+
+        path1 = [group[0]]
+        path2 = [group[1]]
+        self.assertTrue(distinguishable_paths(path1, path2))  # Disjoined paths
+        self.assertTrue(distinguishable_paths(path1, []))
+
+        with self.assertRaises(IndexError):
+            distinguishable_paths([], path2)  # path1 cannot be empty
+
+        path1 = [group, group[0]]
+        path2 = [group, group[1]]
+        self.assertTrue(distinguishable_paths(path1, path2))
+        group[0].min_occurs = 0
+        self.assertFalse(distinguishable_paths(path1, path2))
+        group.max_occurs = 0
+        self.assertTrue(distinguishable_paths(path1, path2))
+
+    def test_distinguishable_paths_two_levels(self):
+        group = ModelGroup('sequence', min_occurs=0)
+        group.append(ModelGroup('choice'))
+        group.append(ModelGroup('choice'))
+        group[0].append(ParticleMixin())
+        group[0].append(ParticleMixin())
+        group[1].append(ParticleMixin())
+        group[1].append(ParticleMixin())
+
+        path1 = [group, group[0], group[0][0]]
+        path2 = [group, group[1], group[1][0]]
+        self.assertTrue(distinguishable_paths(path1, path2))  # All univocal subgroups
+        group[0].max_occurs = 2
+        self.assertFalse(distinguishable_paths(path1, path2))
+
+        group[0].max_occurs = 1
+        group[0].min_occurs = 0
+        self.assertFalse(distinguishable_paths(path1, path2))
+
+        group.max_occurs = None
+        self.assertFalse(distinguishable_paths(path1, path2))
+
+    def test_distinguishable_paths_three_levels(self):
+        group = ModelGroup('sequence', min_occurs=0)
+        group.append(ModelGroup('choice'))
+        group.append(ModelGroup('choice'))
+        group[0].append(ModelGroup('choice'))
+        group[1].append(ModelGroup('choice'))
+        group[0][0].append(ParticleMixin())
+        group[0][0].append(ParticleMixin())
+        group[1][0].append(ParticleMixin())
+        group[1][0].append(ParticleMixin())
+
+        path1 = [group, group[0], group[0][0], group[0][0][0]]
+        path2 = [group, group[1], group[1][0], group[1][0][0]]
+        self.assertTrue(distinguishable_paths(path1, path2))  # All univocal subgroups
+
+        group[0][0][1].min_occurs = 0
+        self.assertFalse(distinguishable_paths(path1, path2))  # All univocal subgroups
 
 
 if __name__ == '__main__':

@@ -58,9 +58,6 @@ class XsdValidator:
         self.validation = validation
         self.errors = []
 
-    def __str__(self):
-        return self.__repr__()
-
     @property
     def built(self):
         """

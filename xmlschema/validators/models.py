@@ -25,10 +25,10 @@ def distinguishable_paths(path1: List[Union[ParticleMixin, ModelGroup]],
     a couple of leaf elements. Returns `True` if there is a deterministic separation between paths,
     `False` if the paths are ambiguous.
     """
-    e1, e2 = path1[-1], path2[-1]
-
     for k, e in enumerate(path1):
         if e not in path2:
+            if not k:
+                return True
             depth = k - 1
             break
     else:
@@ -69,16 +69,16 @@ def distinguishable_paths(path1: List[Union[ParticleMixin, ModelGroup]],
         if before1 and before2:
             return True
         elif before1:
-            return univocal1 and e1.is_univocal() or after1 or path1[depth].max_occurs == 1
+            return univocal1 and path1[-1].is_univocal() or after1 or path1[depth].max_occurs == 1
         elif before2:
-            return univocal2 and e2.is_univocal() or after2 or path2[depth].max_occurs == 1
+            return univocal2 and path2[-1].is_univocal() or after2 or path2[depth].max_occurs == 1
         else:
             return False
     elif path1[depth].max_occurs == 1:
-        return before2 or (before1 or univocal1) and (e1.is_univocal() or after1)
+        return before2 or (before1 or univocal1) and (path1[-1].is_univocal() or after1)
     else:
-        return (before2 or (before1 or univocal1) and (e1.is_univocal() or after1)) and \
-               (before1 or (before2 or univocal2) and (e2.is_univocal() or after2))
+        return (before2 or (before1 or univocal1) and (path1[-1].is_univocal() or after1)) and \
+               (before1 or (before2 or univocal2) and (path2[-1].is_univocal() or after2))
 
 
 class ModelVisitor:
@@ -104,9 +104,6 @@ class ModelVisitor:
         self.items = self.iter_group()
         self.match = False
         self._start()
-
-    def __str__(self):
-        return self.__repr__()
 
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self.root)
