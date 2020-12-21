@@ -600,8 +600,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if not attrs and not self:
             return
 
-        for k in filter(lambda x: x not in attrs, self.iter_required()):
-            reason = "missing required attribute: %r" % k
+        for name in filter(lambda x: x not in attrs, self.iter_required()):
+            reason = "missing required attribute {!r}".format(name)
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
         kwargs['level'] = kwargs.get('level', 0) + 1
@@ -672,8 +672,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
         if not attrs and not self:
             return
 
-        for k in filter(lambda x: x not in attrs, self.iter_required()):
-            reason = "missing required attribute: %r" % k
+        for name in filter(lambda x: x not in attrs, self.iter_required()):
+            reason = "missing required attribute {!r}".format(name)
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
         use_defaults = kwargs.get('use_defaults', True)

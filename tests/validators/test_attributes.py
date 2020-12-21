@@ -132,13 +132,12 @@ class TestXsdAttributes(XsdValidatorTestCase):
     def test_name_attribute(self):
         with self.assertRaises(XMLSchemaParseError) as ctx:
             self.check_schema('<xs:attribute type="xs:string"/>')
-        self.assertEqual(ctx.exception.message, "missing required attribute: 'name'")
+        self.assertEqual(ctx.exception.message, "missing required attribute 'name'")
 
         schema = self.check_schema('<xs:attribute type="xs:string"/>', validation='lax')
         self.assertEqual(len(schema.all_errors), 2)
-        self.assertEqual(schema.all_errors[0].message, "missing required attribute: 'name'")
-        self.assertEqual(schema.all_errors[1].message,
-                         "XsdFieldSelector(path='@name') key field must have a value!")
+        self.assertEqual(schema.all_errors[0].message, "missing required attribute 'name'")
+        self.assertIn("missing key field '@name'", schema.all_errors[1].message)
         self.assertEqual(len(schema.attributes), 0)
 
         schema = self.check_schema('<xs:attribute type="xs:string"/>', validation='skip')

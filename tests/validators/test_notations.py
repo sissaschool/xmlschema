@@ -39,7 +39,7 @@ class TestXsd10Notations(unittest.TestCase):
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:notation public="text/html"/>
             </xs:schema>""")
-        self.assertIn("missing required attribute: 'name'", str(ctx.exception))
+        self.assertEqual("missing required attribute 'name'", ctx.exception.message)
 
         schema = self.schema_class("""
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

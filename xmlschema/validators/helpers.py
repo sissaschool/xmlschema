@@ -103,7 +103,7 @@ def decimal_validator(value: Union[Decimal, int, float, str]) -> None:
 
 
 def qname_validator(value: str) -> None:
-    if datatypes.QNAME_PATTERN.match(value) is None:
+    if datatypes.QName.pattern.match(value) is None:
         raise XMLSchemaValidationError(qname_validator, value,
                                        "value is not an xs:QName")
 

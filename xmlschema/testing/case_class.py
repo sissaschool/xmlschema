@@ -13,6 +13,7 @@ Tests subpackage module: common definitions for unittest scripts of the 'xmlsche
 import unittest
 import re
 import os
+from textwrap import dedent
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
@@ -102,7 +103,7 @@ class XsdValidatorTestCase(unittest.TestCase):
             root.append(source)
             return root
         else:
-            source = source.strip()
+            source = dedent(source.strip())
             if not source.startswith('<'):
                 return self.casepath(source)
             elif source.startswith('<?xml ') or source.startswith('<xs:schema '):
@@ -146,7 +147,8 @@ class XsdValidatorTestCase(unittest.TestCase):
         a substring test if it's not `None` (maybe a string). Then returns the schema instance.
         """
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.schema_class, self.get_schema_source(source), **kwargs)
+            with self.assertRaises(expected):
+                self.schema_class(self.get_schema_source(source), **kwargs)
         else:
             schema = self.schema_class(self.get_schema_source(source), **kwargs)
             if callable(expected):
