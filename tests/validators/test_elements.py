@@ -63,6 +63,22 @@ class TestXsdElements(XsdValidatorTestCase):
         self.assertTrue(schema.groups['group'][0].qualified)
         self.assertFalse(schema.groups['group'][1].qualified)
 
+    def test_nillable_attribute(self):
+        schema = self.check_schema("""
+        <xs:group name="group">
+            <xs:sequence>
+                <xs:element name="elem1" nillable=" true "/>
+                <xs:element name="elem2" nillable=" false "/>
+                <xs:element name="elem3" nillable=" True "/>
+            </xs:sequence>
+        </xs:group>""", validation='lax')
+
+        self.assertTrue(schema.groups['group'][0].nillable)
+        self.assertFalse(schema.groups['group'][1].nillable)
+        self.assertFalse(schema.groups['group'][2].nillable)
+        self.assertEqual(len(schema.all_errors), 1)
+        self.assertIn("'True' is not a boolean value", schema.all_errors[0].message)
+
     def test_scope_property(self):
         schema = self.check_schema("""
         <xs:element name="global_elem" type="xs:string"/>

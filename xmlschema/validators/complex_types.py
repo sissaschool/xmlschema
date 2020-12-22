@@ -90,8 +90,9 @@ class XsdComplexType(XsdType, ValidationMixin):
         if self.elem.tag == XSD_RESTRICTION:
             return  # a local restriction is already parsed by the caller
 
-        if self._parse_boolean_attribute('abstract'):
-            self.abstract = True
+        if 'abstract' in self.elem.attrib:
+            if self.elem.attrib['abstract'].strip() in {'true', '1'}:
+                self.abstract = True
 
         if 'block' in self.elem.attrib:
             try:
@@ -105,8 +106,9 @@ class XsdComplexType(XsdType, ValidationMixin):
             except ValueError as err:
                 self.parse_error(err)
 
-        if self._parse_boolean_attribute('mixed'):
-            self.mixed = True
+        if 'mixed' in self.elem.attrib:
+            if self.elem.attrib['mixed'].strip() in {'true', '1'}:
+                self.mixed = True
 
         try:
             self.name = get_qname(self.target_namespace, self.elem.attrib['name'])

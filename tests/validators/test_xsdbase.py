@@ -220,24 +220,6 @@ class TestXsdComponent(unittest.TestCase):
         with self.assertRaises(XMLSchemaParseError):
             xsd_element._parse_reference()
 
-    def test_parse_boolean_attribute(self):
-        name = '{%s}motorbikes' % self.schema.target_namespace
-        elem = ElementTree.Element(XSD_ELEMENT, name=name, flag='true')
-        xsd_element = self.FakeElement(elem=elem, name=name, schema=self.schema, parent=None)
-
-        self.assertIsNone(xsd_element._parse_boolean_attribute('cond'))
-        self.assertTrue(xsd_element._parse_boolean_attribute('flag'))
-        xsd_element.elem = ElementTree.Element(XSD_ELEMENT, name=name, flag='1')
-        self.assertTrue(xsd_element._parse_boolean_attribute('flag'))
-        xsd_element.elem = ElementTree.Element(XSD_ELEMENT, name=name, flag='false')
-        self.assertFalse(xsd_element._parse_boolean_attribute('flag'))
-        xsd_element.elem = ElementTree.Element(XSD_ELEMENT, name=name, flag='0')
-        self.assertFalse(xsd_element._parse_boolean_attribute('flag'))
-
-        xsd_element.elem = ElementTree.Element(XSD_ELEMENT, name=name, flag='False')
-        with self.assertRaises(XMLSchemaParseError):
-            xsd_element._parse_boolean_attribute('flag')
-
     def test_parse_child_component(self):
         name = '{%s}motorbikes' % self.schema.target_namespace
         elem = ElementTree.Element(XSD_ELEMENT, name=name)

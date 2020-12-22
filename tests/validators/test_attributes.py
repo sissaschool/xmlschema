@@ -261,7 +261,8 @@ class TestXsdAttributes(XsdValidatorTestCase):
             with self.assertRaises(XMLSchemaParseError) as ctx:
                 self.check_schema(
                     '<xs:attribute name="foo" type="xs:ID" default="XYZ"/>')
-            self.assertEqual(ctx.exception.message, "xs:ID key attributes cannot have a default")
+            self.assertEqual(ctx.exception.message,
+                             "xs:ID key attributes cannot have a default value")
 
     def test_fixed_value(self):
         with self.assertRaises(XMLSchemaParseError) as ctx:

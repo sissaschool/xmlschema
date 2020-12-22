@@ -11,6 +11,7 @@
 import sys
 import os
 import unittest
+from textwrap import dedent
 
 from xmlschema import XMLSchemaEncodeError, XMLSchemaValidationError
 from xmlschema.converters import UnorderedConverter
@@ -459,6 +460,73 @@ class TestEncoding(XsdValidatorTestCase):
             '{http://www.w3.org/2001/XMLSchema-instance}type': 'altType',
             'a1': 'beta'
         })
+
+    def test_element_encoding_with_defaults__issue_218(self):
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="values" type="myType"/>
+                <xs:complexType name="myType">
+                    <xs:sequence>
+                        <xs:element name="b1" type="xs:boolean" default="1"/>
+                        <xs:element name="b2" type="xs:boolean" default="true"/>
+                        <xs:element name="b3" type="xs:boolean" default="false"/>
+                    </xs:sequence>
+               </xs:complexType>
+             </xs:schema>"""))
+
+        self.assertEqual(schema.decode('<values><b1/><b2/><b3/></values>'),
+                         {'b1': True, 'b2': True, 'b3': False})
+
+        values = schema.encode({'b1': None, 'b2': True, 'b3': False})
+        self.assertEqual(len(values), 3)
+        self.assertEqual(values[0].tag, 'b1')
+        self.assertEqual(values[0].text, '1')
+        self.assertEqual(values[1].tag, 'b2')
+        self.assertEqual(values[1].text, 'true')
+        self.assertEqual(values[2].tag, 'b3')
+        self.assertEqual(values[2].text, 'false')
+
+        values = schema.encode({'b1': False, 'b2': True, 'b3': None})
+        self.assertEqual(len(values), 3)
+        self.assertEqual(values[0].tag, 'b1')
+        self.assertEqual(values[0].text, 'false')
+        self.assertEqual(values[1].tag, 'b2')
+        self.assertEqual(values[1].text, 'true')
+        self.assertEqual(values[2].tag, 'b3')
+        self.assertEqual(values[2].text, 'false')
+
+    def test_attribute_encoding_with_defaults__issue_218(self):
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="values" type="myType"/>
+                <xs:complexType name="myType">
+                    <xs:simpleContent>
+                        <xs:extension base="xs:string">
+                            <xs:attribute name="b1" type="xs:boolean" default="1"/>
+                            <xs:attribute name="b2" type="xs:boolean" default="true"/>
+                            <xs:attribute name="b3" type="xs:boolean" default="false"/>
+                        </xs:extension>
+                    </xs:simpleContent>
+               </xs:complexType>
+             </xs:schema>"""))
+
+        self.assertTrue(schema.is_valid('<values>content</values>'))
+        self.assertEqual(schema.decode('<values/>'),
+                         {'@b1': True, '@b2': True, '@b3': False})
+
+        elem = schema.encode({})
+        self.assertIsNone(elem.text)
+        self.assertEqual(elem.attrib, {'b1': '1', 'b2': 'true', 'b3': 'false'})
+
+        elem = schema.encode({'@b1': True, '@b3': True})
+        self.assertIsNone(elem.text)
+        self.assertEqual(elem.attrib, {'b1': 'true', 'b2': 'true', 'b3': 'true'})
+
+        elem = schema.encode({'@b2': False, '@b1': False})
+        self.assertIsNone(elem.text)
+        self.assertEqual(elem.attrib, {'b1': 'false', 'b2': 'false', 'b3': 'false'})
 
 
 class TestEncoding11(TestEncoding):

@@ -13,7 +13,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 from decimal import Decimal
 from collections.abc import MutableMapping
 from elementpath.datatypes import AbstractDateTime, Duration
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 from ..exceptions import XMLSchemaValueError
 from ..names import XSI_NAMESPACE, XSD_ANY_SIMPLE_TYPE, XSD_SIMPLE_TYPE, \
@@ -65,107 +65,106 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 attrib['use'] in {'optional', 'prohibited', 'required'}:
             self.use = attrib['use']
 
-        if 'default' in attrib:
-            self.default = attrib['default']
-
-        if 'fixed' in attrib:
-            self.fixed = attrib['fixed']
-
         if self._parse_reference():
             try:
                 xsd_attribute = self.maps.lookup_attribute(self.name)
             except LookupError:
                 self.type = self.any_simple_type
-                self.parse_error("unknown attribute %r" % self.name)
+                self.parse_error("unknown attribute {!r}".format(self.name))
             else:
                 self.ref = xsd_attribute
                 self.type = xsd_attribute.type
                 self.qualified = xsd_attribute.qualified
                 self.form = xsd_attribute.form
 
-                if self.default is None and xsd_attribute.default is not None:
+                if xsd_attribute.default is not None and 'default' not in attrib:
                     self.default = xsd_attribute.default
 
                 if xsd_attribute.fixed is not None:
-                    if self.fixed is None:
+                    if 'fixed' not in attrib:
                         self.fixed = xsd_attribute.fixed
-                    elif xsd_attribute.fixed != self.fixed:
-                        msg = "referenced attribute has a different fixed value %r"
-                        self.parse_error(msg % xsd_attribute.fixed)
+                    elif xsd_attribute.fixed != attrib['fixed']:
+                        msg = "referenced attribute has a different fixed value {!r}"
+                        self.parse_error(msg.format(xsd_attribute.fixed))
 
             for attribute in ('form', 'type'):
                 if attribute in self.elem.attrib:
-                    self.parse_error("attribute %r is not allowed when "
-                                     "attribute reference is used." % attribute)
-            return
-
-        if 'form' in attrib:
-            self.form = attrib['form']
-            if self.parent is not None and self.form == 'qualified':
-                self.qualified = True
-        elif self.schema.attribute_form_default == 'qualified':
-            self.qualified = True
-
-        try:
-            name = attrib['name']
-        except KeyError:
-            pass
+                    self.parse_error("attribute {!r} is not allowed when "
+                                     "attribute reference is used".format(attribute))
         else:
-            if name == 'xmlns':
-                self.parse_error("an attribute name must be different from 'xmlns'")
+            if 'form' in attrib:
+                self.form = attrib['form']
+                if self.parent is not None and self.form == 'qualified':
+                    self.qualified = True
+            elif self.schema.attribute_form_default == 'qualified':
+                self.qualified = True
 
-            if self.parent is None or self.qualified:
-                if self.target_namespace == XSI_NAMESPACE and \
-                        name not in {'nil', 'type', 'schemaLocation', 'noNamespaceSchemaLocation'}:
-                    self.parse_error("cannot add attributes in %r namespace" % XSI_NAMESPACE)
-                self.name = get_qname(self.target_namespace, name)
-            else:
-                self.name = name
-
-        child = self._parse_child_component(self.elem)
-        if 'type' in attrib:
             try:
-                type_qname = self.schema.resolve_qname(attrib['type'])
-            except (KeyError, ValueError, RuntimeError) as err:
-                self.type = self.any_simple_type
-                self.parse_error(err)
+                name = attrib['name']
+            except KeyError:
+                pass
             else:
+                if name == 'xmlns':
+                    self.parse_error("an attribute name must be different from 'xmlns'")
+
+                if self.parent is None or self.qualified:
+                    if self.target_namespace == XSI_NAMESPACE and \
+                            name not in {'nil', 'type', 'schemaLocation',
+                                         'noNamespaceSchemaLocation'}:
+                        self.parse_error("cannot add attributes in %r namespace" % XSI_NAMESPACE)
+                    self.name = get_qname(self.target_namespace, name)
+                else:
+                    self.name = name
+
+            child = self._parse_child_component(self.elem)
+            if 'type' in attrib:
                 try:
-                    self.type = self.maps.lookup_type(type_qname)
-                except LookupError as err:
+                    type_qname = self.schema.resolve_qname(attrib['type'])
+                except (KeyError, ValueError, RuntimeError) as err:
                     self.type = self.any_simple_type
                     self.parse_error(err)
+                else:
+                    try:
+                        self.type = self.maps.lookup_type(type_qname)
+                    except LookupError as err:
+                        self.type = self.any_simple_type
+                        self.parse_error(err)
 
-                if child is not None and child.tag == XSD_SIMPLE_TYPE:
-                    self.parse_error("ambiguous type definition for XSD attribute")
+                    if child is not None and child.tag == XSD_SIMPLE_TYPE:
+                        self.parse_error("ambiguous type definition for XSD attribute")
 
-        elif child is not None:
-            # No 'type' attribute in declaration, parse for child local simpleType
-            self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
-        else:
-            # Empty declaration means xsdAnySimpleType
-            self.type = self.any_simple_type
+            elif child is not None:
+                # No 'type' attribute in declaration, parse for child local simpleType
+                self.type = self.schema.BUILDERS.simple_type_factory(child, self.schema, self)
+            else:
+                # Empty declaration means xsdAnySimpleType
+                self.type = self.any_simple_type
 
-        if not isinstance(self.type, XsdSimpleType):
-            self.type = self.any_simple_type
-            self.parse_error("XSD attribute's type must be a simpleType")
+            if not isinstance(self.type, XsdSimpleType):
+                self.type = self.any_simple_type
+                self.parse_error("XSD attribute's type must be a simpleType")
 
         # Check value constraints
         if 'default' in attrib:
+            self.default = attrib['default']
             if 'fixed' in attrib:
                 self.parse_error("'default' and 'fixed' attributes are mutually exclusive")
+
             if self.use != 'optional':
                 self.parse_error("the attribute 'use' must be 'optional' "
                                  "if the attribute 'default' is present")
-            if not self.type.is_valid(attrib['default']):
-                msg = "default value {!r} is not compatible with the type {!r}"
-                self.parse_error(msg.format(attrib['default'], self.type))
+
+            if not self.type.is_valid(self.default):
+                msg = "default value {!r} is not compatible with attribute's type"
+                self.parse_error(msg.format(self.default))
             elif self.type.is_key() and self.xsd_version == '1.0':
-                self.parse_error("xs:ID key attributes cannot have a default")
+                self.parse_error("xs:ID key attributes cannot have a default value")
+
         elif 'fixed' in attrib:
-            if not self.type.is_valid(attrib['fixed']):
-                msg = "fixed value {!r} is not compatible with the type {!r}"
-                self.parse_error(msg.format(attrib['fixed'], self.type))
+            self.fixed = attrib['fixed']
+            if not self.type.is_valid(self.fixed):
+                msg = "fixed value {!r} is not compatible with attribute's type"
+                self.parse_error(msg.format(self.fixed))
             elif self.type.is_key() and self.xsd_version == '1.0':
                 self.parse_error("xs:ID key attributes cannot have a fixed value")
 
@@ -291,8 +290,9 @@ class Xsd11Attribute(XsdAttribute):
         super(Xsd11Attribute, self)._parse()
         if self.use == 'prohibited' and 'fixed' in self.elem.attrib:
             self.parse_error("attribute 'fixed' with use=prohibited is not allowed in XSD 1.1")
-        if self._parse_boolean_attribute('inheritable'):
-            self.inheritable = True
+        if 'inheritable' in self.elem.attrib:
+            if self.elem.attrib['inheritable'].strip() in {'true', '1'}:
+                self.inheritable = True
         self._parse_target_namespace()
 
 
@@ -379,7 +379,8 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                 if self.schema.default_attributes == self.name and self.xsd_version > '1.0':
                     self.schema.default_attributes = self
 
-        attributes = {}
+        attributes: Dict[Optional[str], Union[XsdAttribute, XsdAnyAttribute]] = {}
+
         for child in self.elem:
             if child.tag == XSD_ANNOTATION or callable(child.tag):
                 continue
@@ -577,7 +578,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
     def iter_value_constraints(self, use_defaults=True):
         if use_defaults:
             for k, v in self._attribute_group.items():
-                if k is None:
+                if not k:
                     continue
                 elif v.fixed is not None:
                     yield k, v.fixed
@@ -585,7 +586,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                     yield k, v.default
         else:
             for k, v in self._attribute_group.items():
-                if k is not None and v.fixed is not None:
+                if k and v.fixed is not None:
                     yield k, v.fixed
 
     def iter_components(self, xsd_classes=None):
@@ -676,13 +677,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             reason = "missing required attribute {!r}".format(name)
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
-        use_defaults = kwargs.get('use_defaults', True)
-        additional_attrs = [
-            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
-        ]
-        if additional_attrs:
-            attrs = {k: v for k, v in attrs.items()}
-            attrs.update(additional_attrs)
+        try:
+            use_defaults = kwargs['use_defaults']
+        except KeyError:
+            use_defaults = True
 
         result_list = []
         for name, value in attrs.items():
@@ -718,4 +716,7 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
                         result_list.append((name, result))
                     break
 
+        result_list.extend(
+            (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs
+        )
         yield result_list

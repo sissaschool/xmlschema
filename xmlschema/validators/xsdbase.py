@@ -336,23 +336,10 @@ class XsdComponent(XsdValidator):
             except (KeyError, ValueError, RuntimeError) as err:
                 self.parse_error(err)
             else:
-                if self._parse_child_component(self.elem) is not None:
+                if self._parse_child_component(self.elem, strict=False) is not None:
                     self.parse_error("a reference component cannot have "
                                      "child definitions/declarations")
                 return True
-
-    def _parse_boolean_attribute(self, name):
-        try:
-            value = self.elem.attrib[name].strip()
-        except KeyError:
-            return
-        else:
-            if value in ('true', '1'):
-                return True
-            elif value in ('false', '0'):
-                return False
-            else:
-                self.parse_error("wrong value %r for boolean attribute %r" % (value, name))
 
     def _parse_child_component(self, elem, strict=True):
         child = None

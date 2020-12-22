@@ -826,5 +826,6 @@ class XsdDefaultOpenContent(XsdOpenContent):
         if self._parse_child_component(self.elem) is None:
             self.parse_error("a defaultOpenContent declaration cannot be empty")
 
-        if self._parse_boolean_attribute('appliesToEmpty'):
-            self.applies_to_empty = True
+        if 'appliesToEmpty' in self.elem.attrib:
+            if self.elem.attrib['appliesToEmpty'].strip() in {'true', '1'}:
+                self.applies_to_empty = True
