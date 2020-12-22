@@ -102,9 +102,7 @@ class XMLSchemaMeta(ABCMeta):
 
         xsd_version = dict_.get('XSD_VERSION') or get_attribute('XSD_VERSION', *bases)
         if xsd_version not in ('1.0', '1.1'):
-            raise XMLSchemaValueError(
-                "Validator class XSD version must be '1.0' or '1.1', not %r." % xsd_version
-            )
+            raise XMLSchemaValueError("XSD_VERSION must be '1.0' or '1.1'")
 
         builders = dict_.get('BUILDERS') or get_attribute('BUILDERS', *bases)
         if isinstance(builders, dict):
@@ -120,9 +118,9 @@ class XMLSchemaMeta(ABCMeta):
                 XSD_ELEMENT: builders['element_class'],
             }
         elif builders is None:
-            raise XMLSchemaValueError("Validator class doesn't have defined XSD builders.")
+            raise XMLSchemaValueError("validator class doesn't have defined XSD builders")
         elif get_attribute('BUILDERS_MAP', *bases) is None:
-            raise XMLSchemaValueError("Validator class doesn't have a builder map for XSD globals.")
+            raise XMLSchemaValueError("validator class doesn't have a builder map for XSD globals")
 
         # Build the new meta-schema class
         meta_schema_class_name = 'Meta' + name
@@ -303,8 +301,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         if loglevel is not None:
             if isinstance(loglevel, str):
                 level = loglevel.strip().upper()
-                if level in {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}:
-                    loglevel = getattr(logging, level)
+                if level not in {'DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL'}:
+                    raise XMLSchemaValueError("{!r} is not a valid loglevel".format(loglevel))
+                loglevel = getattr(logging, level)
 
             logger.setLevel(loglevel)
         elif build and global_maps is None:
@@ -318,7 +317,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             self.source = source
         else:
             self.source = XMLResource(source, base_url, allow, defuse, timeout)
-        logger.debug("Read schema from %r", self.source)
+
+        logger.debug("Read schema from %r", self.source.url or self.source.source)
 
         self.imports = {}
         self.includes = {}
@@ -330,7 +330,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         self.namespaces = self.source.get_namespaces(namespaces={'xml': XML_NAMESPACE})
 
         try:
-            self.target_namespace = root.attrib['targetNamespace']
+            self.target_namespace = root.attrib['targetNamespace'].strip()
         except KeyError:
             pass
         else:
@@ -360,7 +360,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         if 'blockDefault' in root.attrib:
             if self.meta_schema is None:
-                pass  # Skip XSD 1.0 meta-schema that has blockDefault="#all"
+                pass  # Skip for XSD 1.0 meta-schema that has blockDefault="#all"
             else:
                 try:
                     self.block_default = get_xsd_derivation_attribute(
@@ -438,10 +438,9 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             if ns not in self.maps.namespaces:
                 self._import_namespace(ns, self.locations[ns])
 
-        # Imports missing base schemas
-        if self.maps is not self.meta_schema.maps:
-            for ns in filter(lambda x: x not in self.maps.namespaces, self.BASE_SCHEMAS):
-                self._import_namespace(ns, [self.BASE_SCHEMAS[ns]])
+        # Imports missing base namespaces
+        for ns in filter(lambda x: x not in self.maps.namespaces, self.BASE_SCHEMAS):
+            self._import_namespace(ns, [self.BASE_SCHEMAS[ns]])
 
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
@@ -1030,6 +1029,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         schema_url = fetch_resource(location, base_url)
         for schema in self.maps.namespaces[self.target_namespace]:
             if schema_url == schema.url:
+                logger.info("Resource %r is already loaded", location)
                 break
         else:
             schema = type(self)(
