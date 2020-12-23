@@ -17,10 +17,10 @@ from urllib.parse import uses_relative, urlsplit, urljoin, urlunsplit
 from urllib.error import URLError
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .namespaces import XML_NAMESPACE, get_namespace
-from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring, \
-    etree_iter_location_hints, is_etree_element, is_etree_document
-
+from .names import XML_NAMESPACE
+from .etree import ElementTree, PyElementTree, SafeXMLParser, etree_tostring
+from .helpers import get_namespace, is_etree_element, is_etree_document, \
+    etree_iter_location_hints
 
 DEFUSE_MODES = ('never', 'remote', 'always')
 SECURITY_MODES = ('all', 'remote', 'local', 'sandbox')
@@ -42,7 +42,7 @@ class LazyXPath2Parser(XPath2Parser):
     SYMBOLS = LAZY_XML_XPATH_SYMBOLS
 
 
-class LazySelector(object):
+class LazySelector:
     """A limited XPath selector class for lazy XML resources."""
 
     def __init__(self, path, namespaces=None):
@@ -320,7 +320,7 @@ def fetch_namespaces(source, base_url=None, allow='all', defuse='remote', timeou
     return resource.get_namespaces(root_only=False)
 
 
-class XMLResource(object):
+class XMLResource:
     """
     XML resource reader based on ElementTree and urllib.
 
@@ -383,9 +383,6 @@ class XMLResource(object):
         self._timeout = timeout
 
         self.parse(source, lazy)
-
-    def __str__(self):
-        return self.__repr__()
 
     def __repr__(self):
         return '%s(root=%r)' % (self.__class__.__name__, self._root)
@@ -789,16 +786,6 @@ class XMLResource(object):
             raise XMLResourceError(str(err)) from None
         else:
             return self._source.seek(position)
-
-        try:
-            return self._source.seek(position)
-        except AttributeError:
-            pass
-
-        try:
-            return self._source.fp.seek(position)
-        except AttributeError:
-            pass
 
     def close(self):
         """

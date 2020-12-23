@@ -11,9 +11,9 @@ import json
 from collections.abc import Iterator
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError, XMLResourceError
-from .namespaces import XSD_NAMESPACE
-from .etree import ElementTree, is_etree_document, etree_tostring
-from .qnames import XSI_TYPE
+from .names import XSD_NAMESPACE, XSI_TYPE
+from .etree import ElementTree, etree_tostring
+from .helpers import is_etree_document
 from .resources import fetch_schema_locations, XMLResource
 from .validators import XMLSchema10, XMLSchemaBase, XMLSchemaValidationError
 

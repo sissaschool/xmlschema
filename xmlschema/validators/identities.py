@@ -13,20 +13,16 @@ This module contains classes for other XML Schema identity constraints.
 import re
 import math
 from collections import Counter
+from typing import Dict, Union
 from elementpath import XPath2Parser, ElementPathError, XPathContext, translate_pattern
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from ..qnames import XSD_ANNOTATION, XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, \
-    XSD_SELECTOR, XSD_FIELD, get_qname, get_extended_qname, is_not_xsd_annotation
+from ..names import XSD_QNAME, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSD_SELECTOR, XSD_FIELD
+from ..helpers import get_qname, get_extended_qname
 from ..xpath import iter_schema_nodes
-from .exceptions import XMLSchemaValidationError
 from .xsdbase import XsdComponent
 from .attributes import XsdAttribute
 
-QNAME_PATTERN = re.compile(
-    r'(?:(?P<prefix>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*):)?'
-    r'(?P<local>[^\d\W][\w\-.\u00B7\u0300-\u036F\u0387\u06DD\u06DE\u203F\u2040]*)',
-)
 
 XSD_IDENTITY_XPATH_SYMBOLS = {
     'processing-instruction', 'following-sibling', 'preceding-sibling',
@@ -75,17 +71,19 @@ class XsdSelector(XsdComponent):
         try:
             self.path = self.elem.attrib['xpath']
         except KeyError:
-            self.parse_error("'xpath' attribute required:", self.elem)
+            self.parse_error("'xpath' attribute required")
             self.path = '*'
         else:
             try:
-                if not self.pattern.match(self.path.replace(' ', '')):
-                    self.parse_error("invalid XPath expression for an {}".format(type(self)))
+                match = self.pattern.match(self.path.replace(' ', ''))
             except AttributeError:
                 # Compile regex pattern
                 self.__class__.pattern = re.compile(self.pattern)
-                if not self.pattern.match(self.path.replace(' ', '')):
-                    self.parse_error("invalid XPath expression for an {}".format(type(self)))
+                match = self.pattern.match(self.path.replace(' ', ''))
+
+            if not match:
+                msg = "invalid XPath expression for an {}"
+                self.parse_error(msg.format(self.__class__.__name__))
 
         # XSD 1.1 xpathDefaultNamespace attribute
         if self.schema.XSD_VERSION > '1.0':
@@ -104,8 +102,8 @@ class XsdSelector(XsdComponent):
         try:
             self.token = self.parser.parse(self.path)
         except ElementPathError as err:
-            self.parse_error(err)
             self.token = self.parser.parse('*')
+            self.parse_error(err)
 
     def __repr__(self):
         return '%s(path=%r)' % (self.__class__.__name__, self.path)
@@ -116,15 +114,13 @@ class XsdSelector(XsdComponent):
 
     @property
     def target_namespace(self):
-        if ':' in self.path:
-            match = QNAME_PATTERN.findall(self.path)
-            if match is not None:
-                prefix = match[0][0]
-                if prefix:
-                    return self.namespaces[prefix]
-                elif self.xpath_default_namespace:
-                    return self.xpath_default_namespace
-
+        # TODO: implement a property in elementpath for getting XPath token's namespace
+        if self.token is None:
+            pass  # xpathDefaultNamespace="##targetNamespace"
+        elif self.token.symbol == ':':
+            return self.token[1].namespace or self.xpath_default_namespace
+        elif self.token.symbol == '@' and self.token[0].symbol == ':':
+            return self.token[0][1].namespace or self.xpath_default_namespace
         return self.schema.target_namespace
 
 
@@ -159,45 +155,30 @@ class XsdIdentity(XsdComponent):
 
     def _parse(self):
         super(XsdIdentity, self)._parse()
-        elem = self.elem
         try:
-            self.name = get_qname(self.target_namespace, elem.attrib['name'])
+            self.name = get_qname(self.target_namespace, self.elem.attrib['name'])
         except KeyError:
-            self.parse_error("missing required attribute 'name'", elem)
+            self.parse_error("missing required attribute 'name'")
             self.name = None
 
-        for index, child in enumerate(elem):
+        for child in self.elem:
             if child.tag == XSD_SELECTOR:
                 self.selector = XsdSelector(child, self.schema, self)
                 break
-            elif child.tag != XSD_ANNOTATION:
-                self.parse_error("'selector' declaration expected.", elem)
-                break
         else:
-            self.parse_error("missing 'selector' declaration.", elem)
-            index = -1
+            self.parse_error("missing 'selector' declaration.")
 
         self.fields = []
-        for child in filter(is_not_xsd_annotation, elem[index + 1:]):
+        for child in self.elem:
             if child.tag == XSD_FIELD:
                 self.fields.append(XsdFieldSelector(child, self.schema, self))
-            else:
-                self.parse_error("%r is not allowed here" % child, elem)
-
-    def _parse_identity_reference(self):
-        super(XsdIdentity, self)._parse()
-        self.name = get_qname(self.target_namespace, self.elem.attrib['ref'])
-        if 'name' in self.elem.attrib:
-            self.parse_error("attributes 'name' and 'ref' are mutually exclusive")
-        elif self._parse_child_component(self.elem) is not None:
-            self.parse_error("a reference cannot has child definitions")
 
     def build(self):
         if self.ref is True:
             try:
                 ref = self.maps.identities[self.name]
             except KeyError:
-                self.parse_error("Unknown identity constraint {!r}".format(self.name))
+                self.parse_error("unknown identity constraint {!r}".format(self.name))
                 return
             else:
                 if not isinstance(ref, self.__class__):
@@ -208,21 +189,26 @@ class XsdIdentity(XsdComponent):
 
         context = IdentityXPathContext(self.schema, item=self.parent)
 
-        self.elements = {
-            e: None for e in self.selector.token.select_results(context) if e.name
-        }
+        try:
+            self.elements = {
+                e: None for e in self.selector.token.select_results(context) if e.name
+            }
+        except AttributeError:
+            self.elements = {}
+        else:
+            if any(isinstance(e, XsdAttribute) for e in self.elements):
+                self.parse_error("selector xpath cannot select attributes")
+            elif not self.elements:
+                # Try to detect target XSD elements extracting QNames
+                # of the leaf elements from the XPath expression and
+                # use them to match global elements.
 
-        if any(isinstance(e, XsdAttribute) for e in self.elements):
-            self.parse_error("selector xpath cannot select attributes")
-        elif not self.elements:
-            # Try to detect target XSD elements extracting QNames
-            # of the leaf elements from the XPath expression and
-            # use them to match global elements.
-
-            for qname in self.selector.token.iter_leaf_elements():
-                xsd_element = self.maps.elements.get(get_extended_qname(qname, self.namespaces))
-                if xsd_element is not None and xsd_element not in self.elements:
-                    self.elements[xsd_element] = None
+                for qname in self.selector.token.iter_leaf_elements():
+                    xsd_element = self.maps.elements.get(
+                        get_extended_qname(qname, self.namespaces)
+                    )
+                    if xsd_element is not None and xsd_element not in self.elements:
+                        self.elements[xsd_element] = None
 
     @property
     def built(self):
@@ -271,7 +257,8 @@ class XsdIdentity(XsdComponent):
                 elif field.target_namespace not in self.maps.namespaces:
                     fields.append(None)
                 else:
-                    raise XMLSchemaValueError("%r key field must have a value!" % field)
+                    msg = "missing key field {!r} for {!r}"
+                    raise XMLSchemaValueError(msg.format(field.path, self))
 
             elif len(result) == 1:
                 if decoders is None or decoders[k] is None:
@@ -377,19 +364,6 @@ class XsdKeyref(XsdIdentity):
     def built(self):
         return self.elements is not None and isinstance(self.refer, XsdIdentity)
 
-    def __call__(self, identities, elem, namespaces=None):
-        if self.refer is None:
-            return
-
-        values = identities[self].counter
-        refer_values = identities[self.refer].counter
-
-        for v in values:
-            if v not in refer_values:
-                reason = "Value {!r} not found for key {} ({} times)" \
-                    .format(v, self.refer.prefixed_name, values[v])
-                yield XMLSchemaValidationError(validator=self, obj=elem, reason=reason)
-
     def get_counter(self, enabled=True):
         return KeyrefCounter(self, enabled)
 
@@ -424,21 +398,21 @@ class Xsd11Keyref(XsdKeyref):
             super(Xsd11Keyref, self)._parse()
 
 
-class IdentityCounter(object):
+class IdentityCounter:
 
-    def __init__(self, identity, enabled=True):
+    def __init__(self, identity: Union[XsdKey, XsdKeyref], enabled=True):
         self.counter = Counter()
         self.identity = identity
         self.enabled = enabled
 
     def __repr__(self):
-        return "%s(counter=%r)" % (self.__class__.__name__, self.counter)
+        return "%s%r" % (self.__class__.__name__[:-7], self.counter)
 
     def clear(self):
         self.counter.clear()
         self.enabled = True
 
-    def increase(self, fields):
+    def increase(self, fields: tuple):
         self.counter[fields] += 1
         if self.counter[fields] == 2:
             msg = "duplicated value {!r} for {!r}"
@@ -447,22 +421,19 @@ class IdentityCounter(object):
 
 class KeyrefCounter(IdentityCounter):
 
-    def increase(self, fields):
+    def increase(self, fields: tuple):
         self.counter[fields] += 1
 
-    def iter_errors(self, identities):
-        try:
-            refer_values = identities[self.identity.refer].counter
-        except KeyError:
-            if self.identity.refer is not None:
-                raise
-        else:
-            for v in filter(lambda x: x not in refer_values, self.counter):
-                if len(v) == 1 and v[0] in refer_values:
-                    continue
-                elif self.counter[v] > 1:
-                    msg = "Value {} not found for {!r} ({} times)"
-                    yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
-                else:
-                    msg = "Value {} not found for {!r}"
-                    yield XMLSchemaValueError(msg.format(v, self.identity.refer))
+    def iter_errors(self, identities: Dict[Union[XsdKey, XsdKeyref],
+                                           Union['IdentityCounter', 'KeyrefCounter']]):
+        refer_values = identities[self.identity.refer].counter
+
+        for v in filter(lambda x: x not in refer_values, self.counter):
+            if len(v) == 1 and v[0] in refer_values:
+                continue
+            elif self.counter[v] > 1:
+                msg = "value {} not found for {!r} ({} times)"
+                yield XMLSchemaValueError(msg.format(v, self.identity.refer, self.counter[v]))
+            else:
+                msg = "value {} not found for {!r}"
+                yield XMLSchemaValueError(msg.format(v, self.identity.refer))

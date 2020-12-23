@@ -51,7 +51,7 @@ class TestXsdWildcards(XsdValidatorTestCase):
 
         errors = schema.all_errors
         self.assertIn("wrong value '##all' in 'namespace' attribute", str(errors[1]))
-        self.assertIn("invalid value 'any', it must be one of ['skip'", str(errors[0]))
+        self.assertIn("value must be one of ['skip'", str(errors[0]))
 
     def test_overlap(self):
         schema = self.schema_class("""

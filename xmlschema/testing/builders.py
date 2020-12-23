@@ -28,12 +28,12 @@ from xmlschema import XMLSchemaBase, XMLSchema11, XMLSchemaValidationError, \
     XMLSchemaParseError, UnorderedConverter, ParkerConverter, BadgerFishConverter, \
     AbderaConverter, JsonMLConverter, ColumnarConverter
 from xmlschema.etree import etree_tostring, ElementTree, \
-    etree_elements_assert_equal, py_etree_element
-from xmlschema.helpers import iter_nested_items
+    py_etree_element
 from xmlschema.resources import fetch_namespaces
 from xmlschema.xpath import XMLSchemaContext
 from xmlschema.validators import XsdValidator, XsdType, Xsd11ComplexType
 
+from .helpers import iter_nested_items, etree_elements_assert_equal
 from .case_class import XsdValidatorTestCase
 from .observers import SchemaObserver
 
@@ -317,6 +317,9 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
             lossy = converter in (ParkerConverter, AbderaConverter, ColumnarConverter)
             unordered = converter not in (AbderaConverter, JsonMLConverter) or \
                 kwargs.get('unordered', False)
+
+            # Use str instead of float in order to preserve original data
+            kwargs['decimal_type'] = str
 
             json_data1 = xmlschema.to_json(root, schema=self.schema, converter=converter, **kwargs)
             if isinstance(json_data1, tuple):

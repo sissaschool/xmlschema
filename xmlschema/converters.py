@@ -13,9 +13,9 @@ This module contains converter classes and definitions.
 from collections import namedtuple
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
-from .namespaces import XSI_NAMESPACE
+from .names import XSI_NAMESPACE
 from .etree import etree_element
-from xmlschema.namespaces import NamespaceMapper
+from .namespaces import NamespaceMapper
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
 """
@@ -299,14 +299,34 @@ class XMLSchemaConverter(NamespaceMapper):
         """
         if level != 0:
             tag = xsd_element.name
-        elif not self.preserve_root:
-            tag = xsd_element.qualified_name
         else:
             tag = xsd_element.qualified_name
-            try:
-                obj = obj.get(tag, xsd_element.local_name)
-            except (KeyError, AttributeError, TypeError):
-                pass
+
+            if self.preserve_root and isinstance(obj, (self.dict, dict)):
+                #
+                # Match the XSD element with a dictionary key
+
+                local_name = xsd_element.local_name
+                if tag in obj:
+                    obj = obj[tag]
+                elif local_name in obj:
+                    obj = obj[local_name]
+                elif tag.startswith('{'):
+                    namespace = xsd_element.target_namespace
+
+                    for k in filter(lambda x: x.endswith(':%s' % local_name), obj):
+                        prefix = k.split(':')[0]
+                        if self.namespaces.get(prefix) == namespace:
+                            obj = obj[k]
+                            break
+
+                        ns_declaration = '{}:{}'.format(self.ns_prefix, prefix)
+                        try:
+                            if obj[k][ns_declaration] == namespace:
+                                obj = obj[k]
+                                break
+                        except (KeyError, TypeError):
+                            pass
 
         if not isinstance(obj, (self.dict, dict)):
             if xsd_element.type.simple_type is not None:

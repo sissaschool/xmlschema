@@ -10,7 +10,7 @@
 import threading
 from elementpath import XPath2Parser, XPathContext, ElementPathError
 
-from ..qnames import XSD_ASSERT
+from ..names import XSD_ASSERT
 from ..xpath import ElementPathMixin, XMLSchemaProxy
 
 from .exceptions import XMLSchemaValidationError
@@ -67,7 +67,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
             try:
                 self.path = self.elem.attrib['test'].strip()
             except KeyError as err:
-                self.parse_error(str(err), elem=self.elem)
+                self.parse_error(err)
 
         if 'xpathDefaultNamespace' in self.elem.attrib:
             self.xpath_default_namespace = self._parse_xpath_default_namespace(self.elem)
@@ -90,7 +90,7 @@ class XsdAssert(XsdComponent, ElementPathMixin):
         try:
             self.token = self.parser.parse(self.path)
         except ElementPathError as err:
-            self.parse_error(err, elem=self.elem)
+            self.parse_error(err)
             self.token = self.parser.parse('true()')
         finally:
             self.parser.variable_types.clear()

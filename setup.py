@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.3.1',
+    version='1.4.0',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
@@ -35,7 +35,7 @@ setup(
     },
     author='Davide Brunato',
     author_email='brunato@sissa.it',
-    url='https://github.com/brunato/xmlschema',
+    url='https://github.com/sissaschool/xmlschema',
     license='MIT',
     license_file='LICENSE',
     description='An XML Schema validator and decoder',

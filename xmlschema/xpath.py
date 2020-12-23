@@ -8,7 +8,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module defines a mixin class for enabling XPath on schemas.
+This module defines a proxy class and a mixin class for enabling XPath on schemas.
 """
 from abc import abstractmethod
 from collections.abc import Sequence
@@ -18,7 +18,7 @@ import threading
 from elementpath import AttributeNode, TypedElement, XPath2Parser, \
     XPathSchemaContext, AbstractSchemaProxy
 
-from .namespaces import XSD_NAMESPACE
+from .names import XSD_NAMESPACE
 from .exceptions import XMLSchemaValueError, XMLSchemaTypeError
 
 _REGEX_TAG_POSITION = re.compile(r'\b\[\d+]')

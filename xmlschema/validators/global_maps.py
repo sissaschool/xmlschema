@@ -13,14 +13,15 @@ This module contains functions and classes for namespaces XSD declarations/defin
 import warnings
 from collections import Counter
 from functools import lru_cache
+from typing import Union
 
 from ..exceptions import XMLSchemaKeyError, XMLSchemaTypeError, XMLSchemaValueError, \
     XMLSchemaWarning
-from ..namespaces import XSD_NAMESPACE, NamespaceResourcesMap
-from ..qnames import XSD_OVERRIDE, XSD_NOTATION, XSD_ANY_TYPE, XSD_SIMPLE_TYPE, \
-    XSD_COMPLEX_TYPE, XSD_GROUP, XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, \
-    XSI_TYPE, get_qname, local_name, get_extended_qname, is_xsd_redefine_or_override
-
+from ..names import XSD_NAMESPACE, XSD_REDEFINE, XSD_OVERRIDE, XSD_NOTATION, \
+    XSD_ANY_TYPE, XSD_SIMPLE_TYPE, XSD_COMPLEX_TYPE, XSD_GROUP, \
+    XSD_ATTRIBUTE, XSD_ATTRIBUTE_GROUP, XSD_ELEMENT, XSI_TYPE
+from ..helpers import get_qname, local_name, get_extended_qname
+from ..namespaces import NamespaceResourcesMap
 from . import XMLSchemaNotBuiltError, XMLSchemaModelError, XMLSchemaModelDepthError, \
     XsdValidator, XsdComponent, XsdAttribute, XsdSimpleType, XsdComplexType, \
     XsdElement, XsdAttributeGroup, XsdGroup, XsdNotation, XsdIdentity, XsdAssert
@@ -36,7 +37,10 @@ def create_load_function(tag):
         for schema in schemas:
             target_namespace = schema.target_namespace
 
-            for elem in filter(is_xsd_redefine_or_override, schema.root):
+            for elem in schema.root:
+                if elem.tag not in {XSD_REDEFINE, XSD_OVERRIDE}:
+                    continue
+
                 location = elem.get('schemaLocation')
                 if location is None:
                     continue
@@ -169,6 +173,10 @@ def create_lookup_function(xsd_classes):
 
                 # Apply redefinitions (changing elem involve a re-parsing of the component)
                 for elem, schema in obj[1:]:
+                    if component.schema.target_namespace != schema.target_namespace:
+                        msg = "redefined schema {!r} has a different targetNamespace"
+                        raise XMLSchemaValueError(msg.format(schema))
+
                     component.redefine = component.copy()
                     component.redefine.parent = component
                     component.schema = schema
@@ -257,22 +265,22 @@ class XsdGlobals(XsdValidator):
 
     __copy__ = copy
 
-    def lookup_notation(self, qname):
+    def lookup_notation(self, qname: str) -> XsdNotation:
         return lookup_notation(qname, self.notations, self.validator.BUILDERS_MAP)
 
-    def lookup_type(self, qname):
+    def lookup_type(self, qname: str) -> Union[XsdSimpleType, XsdComplexType]:
         return lookup_type(qname, self.types, self.validator.BUILDERS_MAP)
 
-    def lookup_attribute(self, qname):
+    def lookup_attribute(self, qname: str) -> XsdAttribute:
         return lookup_attribute(qname, self.attributes, self.validator.BUILDERS_MAP)
 
-    def lookup_attribute_group(self, qname):
+    def lookup_attribute_group(self, qname: str) -> XsdAttributeGroup:
         return lookup_attribute_group(qname, self.attribute_groups, self.validator.BUILDERS_MAP)
 
-    def lookup_group(self, qname):
+    def lookup_group(self, qname: str) -> XsdGroup:
         return lookup_group(qname, self.groups, self.validator.BUILDERS_MAP)
 
-    def lookup_element(self, qname):
+    def lookup_element(self, qname: str) -> XsdElement:
         return lookup_element(qname, self.elements, self.validator.BUILDERS_MAP)
 
     def lookup(self, tag, qname):

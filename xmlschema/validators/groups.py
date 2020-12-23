@@ -14,16 +14,20 @@ import warnings
 
 from .. import limits
 from ..exceptions import XMLSchemaValueError
+from ..names import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
+    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, XSD_ANNOTATION
 from ..etree import etree_element
-from ..qnames import XSD_GROUP, XSD_SEQUENCE, XSD_ALL, XSD_CHOICE, XSD_ELEMENT, \
-    XSD_ANY, XSI_TYPE, XSD_ANY_TYPE, get_qname, local_name, is_not_xsd_annotation
+from ..helpers import get_qname, local_name
 
-from .exceptions import XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
+from .exceptions import XMLSchemaModelError, XMLSchemaModelDepthError, \
+    XMLSchemaValidationError, XMLSchemaChildrenValidationError, \
     XMLSchemaTypeTableWarning
+from .helpers import not_whitespace
 from .xsdbase import ValidationMixin, XsdComponent, XsdType
+from .particles import ParticleMixin, ModelGroup
 from .elements import XsdElement
 from .wildcards import XsdAnyElement, Xsd11AnyElement
-from .models import ParticleMixin, ModelGroup, ModelVisitor
+from .models import ModelVisitor, distinguishable_paths
 
 ANY_ELEMENT = etree_element(
     XSD_ANY,
@@ -33,10 +37,6 @@ ANY_ELEMENT = etree_element(
         'minOccurs': '0',
         'maxOccurs': 'unbounded'
     })
-
-
-def not_whitespace(s):
-    return s and s.strip()
 
 
 class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
@@ -78,8 +78,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         </sequence>
     """
     mixed = False
-    model = None
-    redefine = None
     restriction = None
     interleave = None  # an Xsd11AnyElement in case of XSD 1.1 openContent with mode='interleave'
     suffix = None  # an Xsd11AnyElement in case of openContent with mode='suffix' or 'interleave'
@@ -185,8 +183,10 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(is_not_xsd_annotation, content_model):
-            if child.tag == XSD_ELEMENT:
+        for child in content_model:
+            if child.tag == XSD_ANNOTATION or callable(child.tag):
+                continue
+            elif child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
             elif content_model.tag == XSD_ALL:
@@ -219,8 +219,6 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         self.parse_error("Redefined group reference cannot have "
                                          "minOccurs/maxOccurs other than 1:")
                     self.append(self.redefine)
-            else:
-                continue  # Error already caught by validation against the meta-schema
 
     def children_validation_error(self, validation, elem, index, particle, occurs=0, expected=None,
                                   source=None, namespaces=None, **_kwargs):
@@ -487,6 +485,65 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
         else:
             return other_max_occurs >= max_occurs * self.max_occurs
 
+    def check_model(self):
+        """
+        Checks if the model group is deterministic. Element Declarations Consistent and
+        Unique Particle Attribution constraints are checked.
+        :raises: an `XMLSchemaModelError` at first violated constraint.
+        """
+        def safe_iter_path(group, depth):
+            if not depth:
+                raise XMLSchemaModelDepthError(group)
+            for item in group:
+                if isinstance(item, ModelGroup):
+                    current_path.append(item)
+                    yield from safe_iter_path(item, depth - 1)
+                    current_path.pop()
+                else:
+                    yield item
+
+        paths = {}
+        current_path = [self]
+        try:
+            any_element = self.parent.open_content.any_element
+        except AttributeError:
+            any_element = None
+
+        for e in safe_iter_path(self, limits.MAX_MODEL_DEPTH):
+            for pe, previous_path in paths.values():
+                # EDC check
+                if not e.is_consistent(pe) or any_element and not any_element.is_consistent(pe):
+                    msg = "Element Declarations Consistent violation between %r and %r: " \
+                          "match the same name but with different types" % (e, pe)
+                    raise XMLSchemaModelError(self, msg)
+
+                # UPA check
+                if pe is e or not pe.is_overlap(e):
+                    continue
+                elif pe.parent is e.parent:
+                    if pe.parent.model in {'all', 'choice'}:
+                        if isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                            pe.add_precedence(e, self)
+                        elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                            e.add_precedence(pe, self)
+                        else:
+                            msg = "{!r} and {!r} overlap and are in the same {!r} group"
+                            raise XMLSchemaModelError(self, msg.format(pe, e, pe.parent.model))
+                    elif pe.min_occurs == pe.max_occurs:
+                        continue
+
+                if distinguishable_paths(previous_path + [pe], current_path + [e]):
+                    continue
+                elif isinstance(pe, Xsd11AnyElement) and not isinstance(e, XsdAnyElement):
+                    pe.add_precedence(e, self)
+                elif isinstance(e, Xsd11AnyElement) and not isinstance(pe, XsdAnyElement):
+                    e.add_precedence(pe, self)
+                else:
+                    msg = "Unique Particle Attribution violation between {!r} and {!r}"
+                    raise XMLSchemaModelError(self, msg.format(pe, e))
+
+            paths[e.name] = e, current_path[:]
+
     def check_dynamic_context(self, elem, xsd_element, model_element, namespaces):
         if model_element is not xsd_element:
             if 'substitution' in model_element.block \
@@ -681,9 +738,15 @@ class XsdGroup(XsdComponent, ModelGroup, ValidationMixin):
                         broken_model = True
 
             if xsd_element is None:
-                if kwargs.get('keep_unknown'):
+                if kwargs.get('keep_unknown') and 'converter' in kwargs:
                     for result in self.any_type.iter_decode(child, validation, **kwargs):
                         result_list.append((child.tag, result, None))
+                continue
+            elif 'converter' not in kwargs:
+                # Validation-only mode: do not append results
+                for result in xsd_element.iter_decode(child, validation, **kwargs):
+                    if isinstance(result, XMLSchemaValidationError):
+                        yield result
                 continue
             elif over_max_depth:
                 if 'depth_filler' in kwargs:
@@ -876,7 +939,7 @@ class Xsd11Group(XsdGroup):
             if self.min_occurs not in (0, 1):
                 self.parse_error("minOccurs must be (0 | 1) for 'all' model groups")
 
-        for child in filter(is_not_xsd_annotation, content_model):
+        for child in content_model:
             if child.tag == XSD_ELEMENT:
                 # Builds inner elements and reference groups later, for avoids circularity.
                 self.append((child, self.schema))
@@ -908,8 +971,6 @@ class Xsd11Group(XsdGroup):
                         self.parse_error("Redefined group reference cannot have "
                                          "minOccurs/maxOccurs other than 1:")
                     self.append(self.redefine)
-            else:
-                continue  # Error already caught by validation against the meta-schema
 
     def admits_restriction(self, model):
         if self.model == model or self.model == 'all':
@@ -1086,19 +1147,12 @@ class Xsd11Group(XsdGroup):
             return True
 
     def is_choice_restriction(self, other):
-        if self.model == 'choice':
-            counter_func = max
-        else:
-            def counter_func(x, y):
-                return x + y
-
         restriction_items = list(self.iter_model())
         has_not_empty_item = any(e.max_occurs != 0 for e in restriction_items)
 
         check_occurs = other.max_occurs != 0
         max_occurs = 0
         other_max_occurs = 0
-
         for other_item in other.iter_model():
             for item in restriction_items:
                 if other_item is item or item.is_restriction(other_item, check_occurs):
@@ -1106,8 +1160,10 @@ class Xsd11Group(XsdGroup):
                         effective_max_occurs = item.effective_max_occurs
                         if effective_max_occurs is None:
                             max_occurs = None
+                        elif self.model == 'choice':
+                            max_occurs = max(max_occurs, effective_max_occurs)
                         else:
-                            max_occurs = counter_func(max_occurs, effective_max_occurs)
+                            max_occurs += effective_max_occurs
 
                     if other_max_occurs is not None:
                         effective_max_occurs = other_item.effective_max_occurs

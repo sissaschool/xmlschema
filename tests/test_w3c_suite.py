@@ -177,7 +177,11 @@ SKIPPED_TESTS = {
     # Dynamic schema load cases
 }
 
-XSD10_SKIPPED_TESTS = {}
+XSD10_SKIPPED_TESTS = {
+    # Invalid schemas marked as valid
+    '../msData/simpleType/stE072.xsd',  # 13868: a union derived from ID with a fixed value
+    '../msData/simpleType/stE072.xml',
+}
 
 XSD11_SKIPPED_TESTS = {
     # Valid schemas marked ad invalid

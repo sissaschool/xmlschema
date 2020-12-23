@@ -12,8 +12,8 @@ import unittest
 import os
 import sys
 
-from xmlschema.namespaces import XSD_NAMESPACE, XSI_NAMESPACE, \
-    NamespaceResourcesMap, NamespaceMapper, NamespaceView
+from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE
+from xmlschema.namespaces import NamespaceResourcesMap, NamespaceMapper, NamespaceView
 
 
 CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')

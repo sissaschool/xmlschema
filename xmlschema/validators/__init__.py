@@ -14,8 +14,8 @@ from .exceptions import XMLSchemaValidatorError, XMLSchemaParseError, \
     XMLSchemaImportWarning, XMLSchemaTypeTableWarning
 
 from .xsdbase import XsdValidator, XsdComponent, XsdAnnotation, XsdType, \
-    ValidationMixin, ParticleMixin
-
+    ValidationMixin
+from .particles import ParticleMixin
 from .assertions import XsdAssert
 from .notations import XsdNotation
 from .identities import XsdSelector, XsdFieldSelector, XsdIdentity, XsdKeyref, XsdKey, \

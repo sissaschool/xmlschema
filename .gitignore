@@ -4,6 +4,7 @@
 *.so
 *.egg-info
 *.json
+*.zip
 .idea/
 .tox/
 .eggs/

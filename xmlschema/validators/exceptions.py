@@ -8,8 +8,8 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 from ..exceptions import XMLSchemaException, XMLSchemaWarning, XMLSchemaValueError
-from ..qnames import get_prefixed_qname
-from ..etree import is_etree_element, etree_tostring, etree_getpath
+from ..etree import etree_tostring
+from ..helpers import get_prefixed_qname, etree_getpath, is_etree_element
 
 
 class XMLSchemaValidatorError(XMLSchemaException):
@@ -149,9 +149,9 @@ class XMLSchemaModelError(XMLSchemaValidatorError, ValueError):
         super(XMLSchemaModelError, self).__init__(
             validator=group,
             message=message,
-            elem=group.elem,
+            elem=getattr(group, 'elem', None),
             source=getattr(group, 'source', None),
-            namespaces=group.namespaces
+            namespaces=getattr(group, 'namespaces', None)
         )
 
 

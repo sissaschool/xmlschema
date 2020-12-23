@@ -15,11 +15,19 @@ import decimal
 from collections import OrderedDict
 
 from xmlschema import XMLSchema, XMLSchemaParseError
-from xmlschema.etree import ElementTree, etree_element, prune_etree
-from xmlschema.qnames import XSD_SCHEMA, XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION
-from xmlschema.helpers import get_xsd_annotation, get_xsd_derivation_attribute, \
-    get_xsd_form_attribute, raw_xml_encode, count_digits, strictly_equal, \
-    iter_nested_items, ParticleCounter
+from xmlschema.etree import ElementTree, etree_element
+from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
+    XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
+from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
+    local_name, get_prefixed_qname, get_extended_qname
+from xmlschema.testing.helpers import iter_nested_items
+from xmlschema.validators.exceptions import XMLSchemaValidationError
+from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
+    raw_xml_encode, count_digits, strictly_equal, decimal_validator, \
+    qname_validator, base64_binary_validator, hex_binary_validator, \
+    int_validator, long_validator, unsigned_byte_validator, \
+    unsigned_short_validator, negative_int_validator, error_type_validator
+from xmlschema.validators.models import OccursCounter
 
 
 class TestHelpers(unittest.TestCase):
@@ -31,21 +39,6 @@ class TestHelpers(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         XMLSchema.meta_schema.clear()
-
-    def test_get_xsd_annotation(self):
-        elem = etree_element(XSD_SCHEMA)
-
-        self.assertIsNone(get_xsd_annotation(elem))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertEqual(get_xsd_annotation(elem), elem[0])
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertEqual(get_xsd_annotation(elem), elem[0])
-
-        elem.clear()
-        elem.append(etree_element(XSD_ELEMENT))
-        self.assertIsNone(get_xsd_annotation(elem))
-        elem.append(etree_element(XSD_ANNOTATION))
-        self.assertIsNone(get_xsd_annotation(elem))
 
     def test_get_xsd_derivation_attribute(self):
         elem = etree_element(XSD_ELEMENT, attrib={
@@ -61,16 +54,6 @@ class TestHelpers(unittest.TestCase):
                          'restriction extension restriction ')
         self.assertRaises(ValueError, get_xsd_derivation_attribute, elem, 'a6', values)
         self.assertEqual(get_xsd_derivation_attribute(elem, 'a7', values), '')
-
-    def test_get_xsd_form_attribute(self):
-        elem = etree_element(XSD_ELEMENT, attrib={
-            'a1': 'qualified', 'a2': ' qualified', 'a3': 'unqualified', 'a4': ''
-        })
-        self.assertEqual(get_xsd_form_attribute(elem, 'a1'), 'qualified')
-        self.assertRaises(ValueError, get_xsd_form_attribute, elem, 'a2')
-        self.assertEqual(get_xsd_form_attribute(elem, 'a3'), 'unqualified')
-        self.assertRaises(ValueError, get_xsd_form_attribute, elem, 'a4')
-        self.assertIsNone(get_xsd_form_attribute(elem, 'a5'))
 
     def test_parse_component(self):
         component = XMLSchema.meta_schema.types['anyType']
@@ -154,45 +137,134 @@ class TestHelpers(unittest.TestCase):
         with self.assertRaises(TypeError):
             list(iter_nested_items([10, 20], list_class=tuple))
 
-    def test_particle_counter_class(self):
-        counter = ParticleCounter()
-        self.assertEqual(repr(counter), 'ParticleCounter(0, 0)')
+    def test_occurs_counter_class(self):
+        counter = OccursCounter()
+        self.assertEqual(repr(counter), 'OccursCounter(0, 0)')
 
-        other = ParticleCounter()  # Only for test isolation, usually it's a particle.
+        other = OccursCounter()  # Only for test isolation, usually it's a particle.
         other.min_occurs = 5
         other.max_occurs = 10
 
         counter += other
-        self.assertEqual(repr(counter), 'ParticleCounter(5, 10)')
+        self.assertEqual(repr(counter), 'OccursCounter(5, 10)')
         counter *= other
-        self.assertEqual(repr(counter), 'ParticleCounter(25, 100)')
+        self.assertEqual(repr(counter), 'OccursCounter(25, 100)')
 
-        counter = ParticleCounter()
+        counter = OccursCounter()
         counter.max_occurs = None
-        self.assertEqual(repr(counter), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(5, None)')
-        self.assertEqual(repr(counter * other), 'ParticleCounter(25, None)')
+        self.assertEqual(repr(counter), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(5, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(25, None)')
 
         counter.reset()
-        self.assertEqual(repr(counter), 'ParticleCounter(0, 0)')
+        self.assertEqual(repr(counter), 'OccursCounter(0, 0)')
 
         counter.max_occurs = None
         other.min_occurs = other.max_occurs = 0
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, 0)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, 0)')
 
         counter.reset()
         other.min_occurs = 0
         other.max_occurs = None
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, 0)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(0, None)')
-        self.assertEqual(repr(counter + other), 'ParticleCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, 0)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(0, None)')
+        self.assertEqual(repr(counter + other), 'OccursCounter(0, None)')
 
         counter.max_occurs = 1
-        self.assertEqual(repr(counter * other), 'ParticleCounter(0, None)')
+        self.assertEqual(repr(counter * other), 'OccursCounter(0, None)')
 
+    def test_get_namespace(self):
+        self.assertEqual(get_namespace(''), '')
+        self.assertEqual(get_namespace('local'), '')
+        self.assertEqual(get_namespace(XSD_ELEMENT), XSD_NAMESPACE)
+        self.assertEqual(get_namespace('{wrong'), '')
+        self.assertEqual(get_namespace(''), '')
+        self.assertEqual(get_namespace(None), '')
+        self.assertEqual(get_namespace('{}name'), '')
+        self.assertEqual(get_namespace('{  }name'), '  ')
+        self.assertEqual(get_namespace('{ ns }name'), ' ns ')
 
-class TestElementTreeHelpers(unittest.TestCase):
+    def test_get_qname(self):
+        self.assertEqual(get_qname(XSD_NAMESPACE, 'element'), XSD_ELEMENT)
+        self.assertEqual(get_qname(XSD_NAMESPACE, 'element'), XSD_ELEMENT)
+        self.assertEqual(get_qname(XSI_NAMESPACE, 'type'), XSI_TYPE)
+
+        self.assertEqual(get_qname(XSI_NAMESPACE, ''), '')
+        self.assertEqual(get_qname(XSI_NAMESPACE, None), None)
+        self.assertEqual(get_qname(XSI_NAMESPACE, 0), 0)
+        self.assertEqual(get_qname(XSI_NAMESPACE, False), False)
+        self.assertRaises(TypeError, get_qname, XSI_NAMESPACE, True)
+        self.assertEqual(get_qname(None, True), True)
+
+        self.assertEqual(get_qname(None, 'element'), 'element')
+        self.assertEqual(get_qname(None, ''), '')
+        self.assertEqual(get_qname('', 'element'), 'element')
+
+    def test_local_name(self):
+        self.assertEqual(local_name('element'), 'element')
+        self.assertEqual(local_name(XSD_ELEMENT), 'element')
+        self.assertEqual(local_name('xs:element'), 'element')
+
+        self.assertEqual(local_name(XSD_SCHEMA), 'schema')
+        self.assertEqual(local_name('schema'), 'schema')
+        self.assertEqual(local_name(''), '')
+        self.assertEqual(local_name(None), None)
+
+        self.assertRaises(ValueError, local_name, '{ns name')
+        self.assertRaises(TypeError, local_name, 1.0)
+        self.assertRaises(TypeError, local_name, 0)
+
+    def test_get_prefixed_qname(self):
+        namespaces = {'xsd': XSD_NAMESPACE}
+        self.assertEqual(get_prefixed_qname(XSD_ELEMENT, namespaces), 'xsd:element')
+
+        namespaces = {'xs': XSD_NAMESPACE, 'xsi': XSI_NAMESPACE}
+        self.assertEqual(get_prefixed_qname(XSD_ELEMENT, namespaces), 'xs:element')
+        self.assertEqual(get_prefixed_qname('xs:element', namespaces), 'xs:element')
+        self.assertEqual(get_prefixed_qname('element', namespaces), 'element')
+
+        self.assertEqual(get_prefixed_qname('', namespaces), '')
+        self.assertEqual(get_prefixed_qname(None, namespaces), None)
+        # self.assertEqual(get_prefixed_qname(0, namespaces), 0)
+
+        self.assertEqual(get_prefixed_qname(XSI_TYPE, {}), XSI_TYPE)
+        self.assertEqual(get_prefixed_qname(None, {}), None)
+        self.assertEqual(get_prefixed_qname('', {}), '')
+
+        self.assertEqual(get_prefixed_qname('type', {'': XSI_NAMESPACE}), 'type')
+        self.assertEqual(get_prefixed_qname('type', {'': ''}), 'type')
+        self.assertEqual(get_prefixed_qname('{}type', {'': ''}), 'type')
+        self.assertEqual(get_prefixed_qname('{}type', {'': ''}, use_empty=False), '{}type')
+
+        # Attention! in XML the empty namespace (that means no namespace) can be
+        # associated only with empty prefix, so these cases should never happen.
+        self.assertEqual(get_prefixed_qname('{}type', {'p': ''}), 'p:type')
+        self.assertEqual(get_prefixed_qname('type', {'p': ''}), 'type')
+
+        self.assertEqual(get_prefixed_qname('{ns}type', {'': 'ns'}, use_empty=True), 'type')
+        self.assertEqual(get_prefixed_qname('{ns}type', {'': 'ns'}, use_empty=False), '{ns}type')
+        self.assertEqual(
+            get_prefixed_qname('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=True), 'p:type')
+        self.assertEqual(
+            get_prefixed_qname('{ns}type', {'': 'ns', 'p': 'ns'}, use_empty=False), 'p:type')
+        self.assertEqual(
+            get_prefixed_qname('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=True), 'type')
+        self.assertEqual(
+            get_prefixed_qname('{ns}type', {'': 'ns', 'p': 'ns0'}, use_empty=False), '{ns}type')
+
+    def test_get_extended_qname(self):
+        namespaces = {'xsd': XSD_NAMESPACE}
+        self.assertEqual(get_extended_qname('xsd:element', namespaces), XSD_ELEMENT)
+        self.assertEqual(get_extended_qname(XSD_ELEMENT, namespaces), XSD_ELEMENT)
+        self.assertEqual(get_extended_qname('xsd:element', namespaces={}), 'xsd:element')
+        self.assertEqual(get_extended_qname('', namespaces), '')
+
+        namespaces = {'xs': XSD_NAMESPACE}
+        self.assertEqual(get_extended_qname('xsd:element', namespaces), 'xsd:element')
+
+        namespaces = {'': XSD_NAMESPACE}
+        self.assertEqual(get_extended_qname('element', namespaces), XSD_ELEMENT)
 
     def test_prune_etree_function(self):
         root = ElementTree.XML('<A id="0"><B/><C/><D/></A>')
@@ -226,6 +298,95 @@ class TestElementTreeHelpers(unittest.TestCase):
         self.assertTrue(prune_etree(root, selector.method))
         self.assertListEqual([e.tag for e in root.iter()], ['A'])
         self.assertEqual(root.attrib, {'id': '1'})
+
+    def test_decimal_validator(self):
+        self.assertIsNone(decimal_validator(10))
+        self.assertIsNone(decimal_validator(10.1))
+        self.assertIsNone(decimal_validator(10E9))
+        self.assertIsNone(decimal_validator('34.21'))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator(float('inf'))
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator(float('nan'))
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('NaN')
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('10E9')
+        with self.assertRaises(XMLSchemaValidationError):
+            decimal_validator('ten')
+
+    def test_qname_validator(self):
+        self.assertIsNone(qname_validator("foo"))
+        self.assertIsNone(qname_validator("bar:foo"))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator("foo:bar:foo")
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator("foo: bar")
+        with self.assertRaises(XMLSchemaValidationError):
+            qname_validator(" foo:bar")  # strip already done by white-space facet
+
+    def test_hex_binary_validator(self):
+        self.assertIsNone(hex_binary_validator("aff1c9"))
+        self.assertIsNone(hex_binary_validator("2aF3Bc"))
+        self.assertIsNone(hex_binary_validator(""))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("aff1c")
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("aF3Bc")
+        with self.assertRaises(XMLSchemaValidationError):
+            hex_binary_validator("xaF3Bc")
+
+    def test_base64_binary_validator(self):
+        self.assertIsNone(base64_binary_validator("YWVpb3U="))
+        self.assertIsNone(base64_binary_validator("YWVpb 3U="))
+        self.assertIsNone(base64_binary_validator(''))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            base64_binary_validator("YWVpb3U==")
+
+    def test_int_validator(self):
+        self.assertIsNone(int_validator(2 ** 31 - 1))
+        self.assertIsNone(int_validator(-2 ** 31))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            int_validator(2 ** 31)
+
+    def test_long_validator(self):
+        self.assertIsNone(long_validator(2 ** 63 - 1))
+        self.assertIsNone(long_validator(-2 ** 63))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            long_validator(2 ** 63)
+
+    def test_unsigned_byte_validator(self):
+        self.assertIsNone(unsigned_byte_validator(255))
+        self.assertIsNone(unsigned_byte_validator(0))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            unsigned_byte_validator(256)
+
+    def test_unsigned_short_validator(self):
+        self.assertIsNone(unsigned_short_validator(2 ** 16 - 1))
+        self.assertIsNone(unsigned_short_validator(0))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            unsigned_short_validator(2 ** 16)
+
+    def test_negative_int_validator(self):
+        self.assertIsNone(negative_int_validator(-1))
+        self.assertIsNone(negative_int_validator(-2 ** 65))
+
+        with self.assertRaises(XMLSchemaValidationError):
+            negative_int_validator(0)
+
+    def test_error_type_validator(self):
+        with self.assertRaises(XMLSchemaValidationError):
+            error_type_validator('alpha')
+        with self.assertRaises(XMLSchemaValidationError):
+            error_type_validator(0)
 
 
 if __name__ == '__main__':

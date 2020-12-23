@@ -8,20 +8,16 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-This module contains definitions and functions for XSD builtin datatypes.
+This module contains definitions and a factory function for XSD builtin datatypes.
 
 Only atomic builtins are created, the list builtins types ('NMTOKENS', 'ENTITIES', 'IDREFS')
 are created using the XSD 1.0 meta-schema or with and additional base schema for XSD 1.1.
 """
-import re
-import base64
 from decimal import Decimal
-from math import isinf, isnan
-
 from elementpath import datatypes
 
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
+from ..names import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION, \
     XSD_PATTERN, XSD_WHITE_SPACE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_MAX_INCLUSIVE, \
     XSD_MAX_EXCLUSIVE, XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_EXPLICIT_TIMEZONE, \
     XSD_STRING, XSD_NORMALIZED_STRING, XSD_NAME, XSD_NCNAME, XSD_QNAME, XSD_TOKEN, \
@@ -34,160 +30,42 @@ from ..qnames import XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_ENUMERATION
     XSD_DURATION, XSD_DAY_TIME_DURATION, XSD_YEAR_MONTH_DURATION, XSD_BASE64_BINARY, \
     XSD_HEX_BINARY, XSD_NOTATION_TYPE, XSD_ERROR, XSD_ASSERTION, XSD_SIMPLE_TYPE, \
     XSD_ANY_TYPE, XSD_ANY_ATOMIC_TYPE, XSD_ANY_SIMPLE_TYPE
-from ..etree import is_etree_element, etree_element
-from .exceptions import XMLSchemaValidationError
+from ..etree import etree_element
+
+from .helpers import decimal_validator, qname_validator, byte_validator, \
+    short_validator, int_validator, long_validator, unsigned_byte_validator, \
+    unsigned_short_validator, unsigned_int_validator, unsigned_long_validator, \
+    negative_int_validator, positive_int_validator, non_positive_int_validator, \
+    non_negative_int_validator, hex_binary_validator, base64_binary_validator, \
+    error_type_validator, boolean_to_python, python_to_boolean
 from .facets import XSD_10_FACETS_BUILDERS, XSD_11_FACETS_BUILDERS
 from .simple_types import XsdSimpleType, XsdAtomicBuiltin
 
-HEX_BINARY_PATTERN = re.compile(r'^[0-9a-fA-F]+$')
-BASE64_BINARY_PATTERN = re.compile(
-    r'((([A-Za-z0-9+/] ?){4})*(([A-Za-z0-9+/] ?){3}[A-Za-z0-9+/]|([A-Za-z0-9+/] ?){2}'
-    r'[AEIMQUYcgkosw048] ?=|[A-Za-z0-9+/] ?[AQgw] ?= ?=))?'
-)
-
 #
 # Admitted facets sets for XSD atomic types
-STRING_FACETS = (
+STRING_FACETS = {
     XSD_LENGTH, XSD_MIN_LENGTH, XSD_MAX_LENGTH, XSD_PATTERN,
     XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_ASSERTION
-)
+}
 
-BOOLEAN_FACETS = (XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION)
+BOOLEAN_FACETS = {XSD_PATTERN, XSD_WHITE_SPACE, XSD_ASSERTION}
 
-FLOAT_FACETS = (
+FLOAT_FACETS = {
     XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE,
     XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE, XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-)
+}
 
-DECIMAL_FACETS = (
+DECIMAL_FACETS = {
     XSD_TOTAL_DIGITS, XSD_FRACTION_DIGITS, XSD_PATTERN, XSD_ENUMERATION,
     XSD_WHITE_SPACE, XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
     XSD_MIN_EXCLUSIVE, XSD_ASSERTION
-)
+}
 
-DATETIME_FACETS = (
+DATETIME_FACETS = {
     XSD_PATTERN, XSD_ENUMERATION, XSD_WHITE_SPACE,
     XSD_MAX_INCLUSIVE, XSD_MAX_EXCLUSIVE, XSD_MIN_INCLUSIVE,
     XSD_MIN_EXCLUSIVE, XSD_ASSERTION, XSD_EXPLICIT_TIMEZONE
-)
-
-
-#
-# XSD built-in types validator functions
-def decimal_validator(x):
-    try:
-        if isinf(x) or isnan(x) or 'E' in str(x).upper():
-            yield XMLSchemaValidationError(decimal_validator, x,
-                                           "value {!r} is not a valid xs:decimal".format(x))
-    except TypeError:
-        pass
-
-
-def qname_validator(x):
-    if datatypes.QNAME_PATTERN.match(x) is None:
-        yield XMLSchemaValidationError(qname_validator, x,
-                                       "value {!r} is not an xs:QName".format(x))
-
-
-def byte_validator(x):
-    if not (-2**7 <= x < 2**7):
-        yield XMLSchemaValidationError(int_validator, x, "value must be -128 <= x < 128.")
-
-
-def short_validator(x):
-    if not (-2**15 <= x < 2**15):
-        yield XMLSchemaValidationError(short_validator, x, "value must be -2^15 <= x < 2^15.")
-
-
-def int_validator(x):
-    if not (-2**31 <= x < 2**31):
-        yield XMLSchemaValidationError(int_validator, x, "value must be -2^31 <= x < 2^31.")
-
-
-def long_validator(x):
-    if not (-2**63 <= x < 2**63):
-        yield XMLSchemaValidationError(long_validator, x, "value must be -2^63 <= x < 2^63.")
-
-
-def unsigned_byte_validator(x):
-    if not (0 <= x < 2**8):
-        yield XMLSchemaValidationError(unsigned_byte_validator, x, "value must be 0 <= x < 256.")
-
-
-def unsigned_short_validator(x):
-    if not (0 <= x < 2**16):
-        yield XMLSchemaValidationError(unsigned_short_validator, x, "value must be 0 <= x < 2^16.")
-
-
-def unsigned_int_validator(x):
-    if not (0 <= x < 2**32):
-        yield XMLSchemaValidationError(unsigned_int_validator, x, "value must be 0 <= x < 2^32.")
-
-
-def unsigned_long_validator(x):
-    if not (0 <= x < 2**64):
-        yield XMLSchemaValidationError(unsigned_long_validator, x, "value must be 0 <= x < 2^64.")
-
-
-def negative_int_validator(x):
-    if x >= 0:
-        yield XMLSchemaValidationError(negative_int_validator, x, reason="value must be negative.")
-
-
-def positive_int_validator(x):
-    if x <= 0:
-        yield XMLSchemaValidationError(positive_int_validator, x, "value must be positive.")
-
-
-def non_positive_int_validator(x):
-    if x > 0:
-        yield XMLSchemaValidationError(non_positive_int_validator, x, "value must be non positive.")
-
-
-def non_negative_int_validator(x):
-    if x < 0:
-        yield XMLSchemaValidationError(non_negative_int_validator, x, "value must be non negative.")
-
-
-def hex_binary_validator(x):
-    if x and (len(x) % 2 or HEX_BINARY_PATTERN.match(x) is None):
-        yield XMLSchemaValidationError(hex_binary_validator, x, "not an hexadecimal number.")
-
-
-def base64_binary_validator(value):
-    value = value.replace(' ', '')
-    if not value:
-        return
-
-    match = BASE64_BINARY_PATTERN.match(value)
-    if match is None or match.group(0) != value:
-        yield XMLSchemaValidationError(base64_binary_validator, value, "not a base64 encoding")
-    else:
-        try:
-            base64.standard_b64decode(value)
-        except (ValueError, TypeError) as err:
-            yield XMLSchemaValidationError(base64_binary_validator, value,
-                                           "not a base64 encoding: %s." % err)
-
-
-def error_type_validator(x):
-    yield XMLSchemaValidationError(error_type_validator, x,
-                                   "not value is allowed for xs:error type.")
-
-
-#
-# XSD builtin decoding functions
-def boolean_to_python(s):
-    if s in ('true', '1'):
-        return True
-    elif s in ('false', '0'):
-        return False
-    else:
-        raise XMLSchemaValueError('not a boolean value: %r' % s)
-
-
-def python_to_boolean(obj):
-    return str(obj).lower()
+}
 
 
 #
@@ -221,6 +99,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_DECIMAL,
         'python_type': (Decimal, str, int, float),
         'admitted_facets': DECIMAL_FACETS,
+        'to_python': datatypes.DecimalProxy,
         'facets': [decimal_validator, COLLAPSE_WHITE_SPACE_ELEMENT],
     },  # decimal number
 
@@ -322,9 +201,7 @@ XSD_COMMON_BUILTIN_TYPES = (
         'name': XSD_LANGUAGE,
         'python_type': str,
         'base_type': XSD_TOKEN,
-        'facets': [
-            etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")
-        ]
+        'facets': [etree_element(XSD_PATTERN, value=r"[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*")]
     },  # language codes
     {
         'name': XSD_NAME,
@@ -616,7 +493,7 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
             elem = etree_element(XSD_SIMPLE_TYPE, name=name, id=name)
         else:
             if schema is not meta_schema:
-                raise XMLSchemaValueError("loaded entry schema doesn't match meta_schema!")
+                raise XMLSchemaValueError("loaded entry schema is not the meta-schema!")
 
         if 'base_type' in item:
             base_type = item['base_type'] = xsd_types[item['base_type']]
@@ -625,18 +502,15 @@ def xsd_builtin_types_factory(meta_schema, xsd_types, atomic_builtin_class=None)
 
         facets = item.pop('facets', None)
         builtin_type = atomic_builtin_class(elem, meta_schema, **item)
-        if isinstance(facets, (list, tuple)):
+        if facets:
             built_facets = builtin_type.facets
             for e in facets:
-                if is_etree_element(e):
+                try:
                     cls = facets_map[e.tag]
-                    built_facets[e.tag] = cls(e, meta_schema, builtin_type, base_type)
-                elif callable(e):
-                    if None in facets:
-                        raise XMLSchemaValueError("Almost one callable for facet group!!")
+                except AttributeError:
                     built_facets[None] = e
                 else:
-                    raise XMLSchemaValueError("Wrong type for item %r" % e)
+                    built_facets[e.tag] = cls(e, meta_schema, builtin_type, base_type)
             builtin_type.facets = built_facets
 
         xsd_types[name] = builtin_type

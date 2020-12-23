@@ -28,7 +28,7 @@ except ImportError:
 from xmlschema import fetch_namespaces, fetch_resource, normalize_url, \
     fetch_schema, fetch_schema_locations, XMLResource, XMLResourceError, XMLSchema
 from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etree_element
-from xmlschema.namespaces import XSD_NAMESPACE
+from xmlschema.names import XSD_NAMESPACE
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
     url_path_is_file, normalize_locations, LazySelector
 from xmlschema.testing import SKIP_REMOTE_TESTS
@@ -289,6 +289,11 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertTrue(resource.text.startswith('<?xml'))
 
+        resource = XMLResource(self.vh_xml_file, lazy=False)
+        resource._url = resource._url[:-12] + 'unknown.xml'
+        with self.assertRaises(XMLResourceError):
+            resource.load()
+
     def test_xml_resource_from_element_tree(self):
         vh_etree = ElementTree.parse(self.vh_xml_file)
         vh_root = vh_etree.getroot()
@@ -348,6 +353,13 @@ class TestResources(unittest.TestCase):
             self.assertFalse(xml_file.closed)
         finally:
             xml_file.close()
+
+        with open(self.vh_xml_file) as fp:
+            resource = XMLResource(fp)
+        self.assertIsNone(resource.text)
+
+        with self.assertRaises(XMLResourceError):
+            resource.load()
 
     def test_xml_resource_from_file(self):
         with open(self.vh_xsd_file) as schema_file:

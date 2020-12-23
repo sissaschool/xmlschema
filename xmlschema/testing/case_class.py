@@ -13,13 +13,15 @@ Tests subpackage module: common definitions for unittest scripts of the 'xmlsche
 import unittest
 import re
 import os
+from textwrap import dedent
 
-from ..validators import XMLSchema10
 from ..exceptions import XMLSchemaValueError
-from ..qnames import XSD_SCHEMA
-from ..namespaces import get_namespace
-from ..etree import is_etree_element, etree_element, etree_elements_assert_equal
+from ..names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA
+from ..helpers import get_namespace
+from ..etree import is_etree_element, etree_element
 from ..resources import fetch_namespaces
+from ..validators import XMLSchema10
+from .helpers import etree_elements_assert_equal
 
 
 PROTECTED_PREFIX_PATTERN = re.compile(r'\bns\d:')
@@ -93,14 +95,15 @@ class XsdValidatorTestCase(unittest.TestCase):
                 raise XMLSchemaValueError("% is not an XSD global definition/declaration." % source)
 
             root = etree_element('schema', attrib={
-                'xmlns:xs': "http://www.w3.org/2001/XMLSchema",
+                'xmlns:xs': XSD_NAMESPACE,
+                'xmlns:xsi': XSI_NAMESPACE,
                 'elementFormDefault': "qualified",
                 'version': self.schema_class.XSD_VERSION,
             })
             root.append(source)
             return root
         else:
-            source = source.strip()
+            source = dedent(source.strip())
             if not source.startswith('<'):
                 return self.casepath(source)
             elif source.startswith('<?xml ') or source.startswith('<xs:schema '):
@@ -144,7 +147,8 @@ class XsdValidatorTestCase(unittest.TestCase):
         a substring test if it's not `None` (maybe a string). Then returns the schema instance.
         """
         if isinstance(expected, type) and issubclass(expected, Exception):
-            self.assertRaises(expected, self.schema_class, self.get_schema_source(source), **kwargs)
+            with self.assertRaises(expected):
+                self.schema_class(self.get_schema_source(source), **kwargs)
         else:
             schema = self.schema_class(self.get_schema_source(source), **kwargs)
             if callable(expected):

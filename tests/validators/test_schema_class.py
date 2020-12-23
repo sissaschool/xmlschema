@@ -9,6 +9,7 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 import unittest
+import logging
 import tempfile
 import warnings
 import pathlib
@@ -16,13 +17,14 @@ import platform
 import glob
 import os
 import re
+from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
+from xmlschema.names import LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.etree import etree_element
-from xmlschema.namespaces import SCHEMAS_DIR
-from xmlschema.qnames import XSD_ELEMENT, XSI_TYPE
-from xmlschema.validators import XMLSchema11
+from xmlschema.validators import XMLSchemaBase, XMLSchema11
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
+from xmlschema.validators.schema import logger
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
@@ -141,7 +143,8 @@ class TestXMLSchema10(XsdValidatorTestCase):
 
     def test_root_elements(self):
         # Test issue #107 fix
-        schema = self.schema_class("""<?xml version="1.0" encoding="utf-8"?>
+        schema = self.schema_class(dedent("""\
+            <?xml version="1.0" encoding="utf-8"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 <xs:element name="root1" type="root"/>
                 <xs:element name="root2" type="root"/>
@@ -150,7 +153,7 @@ class TestXMLSchema10(XsdValidatorTestCase):
                         <xs:element name="elementWithNoType"/>
                     </xs:sequence>
                 </xs:complexType>
-            </xs:schema>""")
+            </xs:schema>"""))
 
         self.assertEqual(set(schema.root_elements),
                          {schema.elements['root1'], schema.elements['root2']})
@@ -177,6 +180,184 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertIsInstance(vh_schema.root, etree_element)
         for schema in vh_schema.maps.iter_schemas():
             self.assertIsInstance(schema.root, etree_element)
+
+    def test_logging(self):
+        self.schema_class(self.vh_xsd_file, loglevel=logging.ERROR)
+        self.assertEqual(logger.level, logging.WARNING)
+
+        with self.assertLogs('xmlschema', level='INFO') as ctx:
+            self.schema_class(self.vh_xsd_file, loglevel=logging.INFO)
+
+        self.assertEqual(logger.level, logging.WARNING)
+        self.assertEqual(len(ctx.output), 7)
+        self.assertIn("INFO:xmlschema:Include schema from 'types.xsd'", ctx.output)
+        self.assertIn("INFO:xmlschema:Resource 'types.xsd' is already loaded", ctx.output)
+
+        with self.assertLogs('xmlschema', level='DEBUG') as ctx:
+            self.schema_class(self.vh_xsd_file, loglevel=logging.DEBUG)
+
+        self.assertEqual(logger.level, logging.WARNING)
+        self.assertEqual(len(ctx.output), 19)
+        self.assertIn("INFO:xmlschema:Include schema from 'cars.xsd'", ctx.output)
+        self.assertIn("INFO:xmlschema:Resource 'cars.xsd' is already loaded", ctx.output)
+        self.assertIn("DEBUG:xmlschema:Schema targetNamespace is "
+                      "'http://example.com/vehicles'", ctx.output)
+        self.assertIn("INFO:xmlschema:Resource 'cars.xsd' is already loaded", ctx.output)
+
+        # With string argument
+        with self.assertRaises(ValueError) as ctx:
+            self.schema_class(self.vh_xsd_file, loglevel='all')
+        self.assertEqual(str(ctx.exception), "'all' is not a valid loglevel")
+
+        with self.assertLogs('xmlschema', level='INFO') as ctx:
+            self.schema_class(self.vh_xsd_file, loglevel='INFO')
+        self.assertEqual(len(ctx.output), 7)
+
+        with self.assertLogs('xmlschema', level='INFO') as ctx:
+            self.schema_class(self.vh_xsd_file, loglevel='  Info ')
+        self.assertEqual(len(ctx.output), 7)
+
+    def test_target_namespace(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    targetNamespace="http://xmlschema.test/ns">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(schema.target_namespace, 'http://xmlschema.test/ns')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(schema.target_namespace, '')
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        targetNamespace="">
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+
+        self.assertEqual(ctx.exception.message,
+                         "the attribute 'targetNamespace' cannot be an empty string")
+
+    def test_block_default(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    blockDefault="extension restriction ">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(schema.block_default, 'extension restriction ')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    blockDefault="#all">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(set(schema.block_default.split()),
+                         {'substitution', 'extension', 'restriction'})
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        blockDefault="all">>
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+
+        self.assertEqual(ctx.exception.message,
+                         "wrong value 'all' for attribute 'blockDefault'")
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        blockDefault="#all restriction">>
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+
+        self.assertEqual(ctx.exception.message,
+                         "wrong value '#all restriction' for attribute 'blockDefault'")
+
+    def test_final_default(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    finalDefault="extension restriction ">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(schema.final_default, 'extension restriction ')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    finalDefault="#all">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(set(schema.final_default.split()),
+                         {'list', 'union', 'extension', 'restriction'})
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        finalDefault="all">>
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+
+        self.assertEqual(ctx.exception.message,
+                         "wrong value 'all' for attribute 'finalDefault'")
+
+    def test_use_fallback(self):
+        source = dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>""")
+
+        schema = self.schema_class(source)
+        self.assertEqual(schema.fallback_locations, LOCATION_HINTS)
+        schema = self.schema_class(source, use_fallback=False)
+        self.assertEqual(schema.fallback_locations, {})
+
+    def test_global_maps(self):
+        source = dedent("""\
+                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                        <xs:element name="root"/>
+                    </xs:schema>""")
+        col_schema = self.schema_class(self.col_xsd_file)
+
+        with self.assertRaises(TypeError) as ctx:
+            self.schema_class(self.col_schema, global_maps=col_schema)
+        self.assertIn("'global_maps' argument must be", str(ctx.exception))
+
+        schema = self.schema_class(source, global_maps=col_schema.maps)
+        self.assertIs(col_schema.maps, schema.maps)
+
+    def test_version_control(self):
+        schema = self.schema_class(dedent("""
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root">
+                    <xs:complexType>
+                        <xs:attribute name="a" use="required"/>
+                        <xs:assert test="@a > 300" vc:minVersion="1.1" 
+                            xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:schema>"""))
+        self.assertEqual(len(schema.root[0][0]), 1 if schema.XSD_VERSION == '1.0' else 2)
+
+        schema = self.schema_class(dedent("""
+            <xs:schema vc:minVersion="1.1" elementFormDefault="qualified" 
+                    xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+        self.assertEqual(len(schema.root), 0 if schema.XSD_VERSION == '1.0' else 1)
+
+    def test_explicit_locations(self):
+        source = dedent("""\
+                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                        <xs:element name="root"/>
+                    </xs:schema>""")
+
+        locations = {'http://example.com/vehicles': self.vh_xsd_file}
+        schema = self.schema_class(source, locations=locations)
+        self.assertEqual(len(schema.maps.namespaces['http://example.com/vehicles']), 4)
 
     def test_export_errors__issue_187(self):
         with self.assertRaises(ValueError) as ctx:
@@ -318,6 +499,99 @@ class TestXMLSchema10(XsdValidatorTestCase):
 class TestXMLSchema11(TestXMLSchema10):
 
     schema_class = XMLSchema11
+
+    def test_default_attributes(self):
+        schema = self.schema_class(dedent("""\
+                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                            defaultAttributes="attrs">
+                        <xs:element name="root"/>
+                        <xs:attributeGroup name="attrs">
+                            <xs:attribute name="a"/>
+                        </xs:attributeGroup>
+                    </xs:schema>"""))
+        self.assertIs(schema.default_attributes, schema.attribute_groups['attrs'])
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        defaultAttributes="attrs">
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+        self.assertIn("'attrs' doesn't match an attribute group", ctx.exception.message)
+
+        with self.assertRaises(XMLSchemaParseError) as ctx:
+            self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+                        defaultAttributes="x:attrs">
+                    <xs:element name="root"/>
+                </xs:schema>"""))
+        self.assertEqual("prefix 'x' not found in namespace map", ctx.exception.message)
+
+
+class TestXMLSchemaMeta(unittest.TestCase):
+
+    def test_wrong_version(self):
+        with self.assertRaises(ValueError) as ctx:
+            class XMLSchema12(XMLSchemaBase):
+                XSD_VERSION = '1.2'
+                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+
+            assert issubclass(XMLSchema12, XMLSchemaBase)
+
+        self.assertEqual(str(ctx.exception), "XSD_VERSION must be '1.0' or '1.1'")
+
+    def test_missing_builders(self):
+        with self.assertRaises(ValueError) as ctx:
+            class XMLSchema12(XMLSchemaBase):
+                XSD_VERSION = '1.1'
+                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+
+            assert issubclass(XMLSchema12, XMLSchemaBase)
+
+        self.assertEqual(str(ctx.exception),
+                         "validator class doesn't have defined XSD builders")
+
+    def test_missing_builder_map(self):
+        with self.assertRaises(ValueError) as ctx:
+            class XMLSchema12(XMLSchemaBase):
+                XSD_VERSION = '1.1'
+                meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+                BUILDERS = XMLSchema11.BUILDERS
+
+            assert issubclass(XMLSchema12, XMLSchemaBase)
+
+        self.assertEqual(str(ctx.exception),
+                         "validator class doesn't have a builder map for XSD globals")
+
+    def test_from_schema_class(self):
+        class XMLSchema11Bis(XMLSchema11):
+            pass
+
+        self.assertTrue(issubclass(XMLSchema11Bis, XMLSchemaBase))
+
+    def test_dummy_validator_class(self):
+        class DummySchema(XMLSchemaBase):
+            XSD_VERSION = '1.1'
+            meta_schema = os.path.join(SCHEMAS_DIR, 'XSD_1.1/XMLSchema.xsd')
+            BUILDERS = {
+                'notation_class': None,
+                'complex_type_class': None,
+                'attribute_class': None,
+                'any_attribute_class': None,
+                'attribute_group_class': None,
+                'group_class': None,
+                'element_class': None,
+                'any_element_class': None,
+                'restriction_class': None,
+                'union_class': None,
+                'key_class': None,
+                'keyref_class': None,
+                'unique_class': None,
+                'simple_type_factory': None,
+            }
+            BASE_SCHEMAS = {}
+
+        self.assertTrue(issubclass(DummySchema, XMLSchemaBase))
 
 
 if __name__ == '__main__':
