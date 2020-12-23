@@ -11,11 +11,12 @@
 import os
 import unittest
 
-from tests.validators.test_xsdbase import CASES_DIR
 from xmlschema import XMLSchema10, XMLSchemaParseError, \
     XMLSchemaModelError, XMLSchemaModelDepthError
 from xmlschema.etree import ElementTree
 from xmlschema.validators.particles import ParticleMixin, ModelGroup
+
+CASES_DIR = os.path.join(os.path.dirname(__file__), '../test_cases')
 
 
 class TestParticleMixin(unittest.TestCase):
