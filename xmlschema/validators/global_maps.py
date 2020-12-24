@@ -509,35 +509,29 @@ class XsdGlobals(XsdValidator):
         Build the maps of XSD global definitions/declarations. The global maps are
         updated adding and building the globals of not built registered schemas.
         """
+
         try:
             meta_schema = self.namespaces[XSD_NAMESPACE][0]
         except KeyError:
-            # Meta-schemas are not registered. If any of base namespaces is already registered
-            # create a new meta-schema, otherwise register the meta-schemas.
-            meta_schema = self.validator.meta_schema
-            if meta_schema is None:
-                raise XMLSchemaValueError("{!r} has not a meta-schema".format(self.validator))
+            if self.validator.meta_schema is None:
+                msg = "missing XSD namespace in meta-schema instance {!r}"
+                raise XMLSchemaValueError(msg.format(self.validator))
+            meta_schema = None
 
-            if any(ns in self.namespaces for ns in meta_schema.BASE_SCHEMAS):
-                base_schemas = {
-                    k: v for k, v in meta_schema.BASE_SCHEMAS.items() if k not in self.namespaces
-                }
-                meta_schema = self.validator.create_meta_schema(meta_schema.url, base_schemas, self)
-                for schema in self.iter_schemas():
-                    if schema.meta_schema is not None:
-                        schema.meta_schema = meta_schema
-            else:
-                for schema in meta_schema.maps.iter_schemas():
-                    self.register(schema)
+        if meta_schema is None or meta_schema.meta_schema is not None:
+            # XSD namespace not imported: replace the meta-schema with a new one
+            url = self.validator.meta_schema.url
+            base_schemas = {k: v for k, v in self.validator.meta_schema.BASE_SCHEMAS.items()
+                            if k not in self.namespaces}
+            meta_schema = self.validator.create_meta_schema(url, base_schemas, self)
 
-                self.types.update(meta_schema.maps.types)
-                self.attributes.update(meta_schema.maps.attributes)
-                self.attribute_groups.update(meta_schema.maps.attribute_groups)
-                self.groups.update(meta_schema.maps.groups)
-                self.notations.update(meta_schema.maps.notations)
-                self.elements.update(meta_schema.maps.elements)
-                self.substitution_groups.update(meta_schema.maps.substitution_groups)
-                self.identities.update(meta_schema.maps.identities)
+            for schema in self.iter_schemas():
+                if schema.meta_schema is not None:
+                    schema.meta_schema = meta_schema
+        else:
+            if not self.types and meta_schema.maps is not self:
+                for source_map, target_map in zip(meta_schema.global_maps, self.global_maps):
+                    target_map.update(source_map)
 
         not_built_schemas = [schema for schema in self.iter_schemas() if not schema.built]
         for schema in not_built_schemas:

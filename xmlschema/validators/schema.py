@@ -405,16 +405,14 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
                 self.meta_schema.maps.build()
 
         # Create or set the XSD global maps instance
-        if global_maps is None:
-            if use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
-                self.maps = self.meta_schema.maps.copy(self, validation=validation)
-            else:
-                self.maps = XsdGlobals(self, validation)
-
-        elif isinstance(global_maps, XsdGlobals):
+        if isinstance(global_maps, XsdGlobals):
             self.maps = global_maps
+        elif global_maps is not None:
+            raise XMLSchemaTypeError("'global_maps' argument must be an %r instance" % XsdGlobals)
+        elif use_meta and self.target_namespace not in self.meta_schema.maps.namespaces:
+            self.maps = self.meta_schema.maps.copy(self, validation)
         else:
-            raise XMLSchemaTypeError("'global_maps' argument must be an %r instance." % XsdGlobals)
+            self.maps = XsdGlobals(self, validation)
 
         if any(ns == VC_NAMESPACE for ns in self.namespaces.values()):
             # For XSD 1.1+ apply versioning filter to schema tree. See the paragraph
@@ -437,10 +435,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         for ns in self.locations:
             if ns not in self.maps.namespaces:
                 self._import_namespace(ns, self.locations[ns])
-
-        # Imports missing base namespaces
-        for ns in filter(lambda x: x not in self.maps.namespaces, self.BASE_SCHEMAS):
-            self._import_namespace(ns, [self.BASE_SCHEMAS[ns]])
 
         if '' not in self.namespaces:
             self.namespaces[''] = ''  # For default local names are mapped to no namespace
@@ -517,7 +511,7 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     @property
     def xsd_version(self):
-        """Property that returns the class attribute XSD_VERSION."""
+        """Compatibility property that returns the class attribute XSD_VERSION."""
         return self.XSD_VERSION
 
     # XML resource attributes access
@@ -557,8 +551,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     @property
     def use_meta(self):
-        """Returns `True` if the meta-schema is imported."""
-        return self.meta_schema is not None and XSD_NAMESPACE in self.maps.namespaces
+        """Returns `True` if the class meta-schema is used."""
+        return self.meta_schema is self.__class__.meta_schema
 
     # Schema root attributes
     @property

@@ -20,9 +20,9 @@ import re
 from textwrap import dedent
 
 from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImportWarning
-from xmlschema.names import LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
+from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.etree import etree_element
-from xmlschema.validators import XMLSchemaBase, XMLSchema11
+from xmlschema.validators import XMLSchemaBase, XMLSchema11, XsdGlobals
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schema import logger
 
@@ -139,7 +139,9 @@ class TestXMLSchema10(XsdValidatorTestCase):
         </xs:simpleType>""", XMLSchemaParseError)
 
     def test_base_schemas(self):
-        self.schema_class(os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd'))
+        xsd_file = os.path.join(SCHEMAS_DIR, 'XML/xml_minimal.xsd')
+        schema = self.schema_class(xsd_file)
+        self.assertEqual(schema.target_namespace, XML_NAMESPACE)
 
     def test_root_elements(self):
         # Test issue #107 fix
@@ -349,15 +351,75 @@ class TestXMLSchema10(XsdValidatorTestCase):
             </xs:schema>"""))
         self.assertEqual(len(schema.root), 0 if schema.XSD_VERSION == '1.0' else 1)
 
+    def test_xsd_version_compatibility_property(self):
+        self.assertEqual(self.vh_schema.xsd_version, self.vh_schema.XSD_VERSION)
+
     def test_explicit_locations(self):
         source = dedent("""\
-                    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                        <xs:element name="root"/>
-                    </xs:schema>""")
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>""")
 
         locations = {'http://example.com/vehicles': self.vh_xsd_file}
         schema = self.schema_class(source, locations=locations)
         self.assertEqual(len(schema.maps.namespaces['http://example.com/vehicles']), 4)
+
+    def test_use_meta_property(self):
+        self.assertTrue(self.vh_schema.use_meta)
+        self.assertTrue(self.col_schema.use_meta)
+
+        meta_schema = self.schema_class.meta_schema
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="foo"/>
+            </xs:schema>"""), use_meta=False)
+        self.assertIsNot(meta_schema, schema.meta_schema)
+        self.assertFalse(schema.use_meta)
+
+    def test_other_schema_root_attributes(self):
+        self.assertIsNone(self.vh_schema.id)
+        self.assertIsNone(self.vh_schema.version)
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" id="foo" version="2.0">
+                <xs:element name="foo"/>
+            </xs:schema>"""))
+        self.assertEqual(schema.id, 'foo')
+        self.assertEqual(schema.version, '2.0')
+
+    def test_change_maps_attribute(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="root"/>
+            </xs:schema>"""))
+
+        with self.assertRaises(ValueError) as ctx:
+            schema.meta_schema.maps = XsdGlobals(schema, schema.validation)
+        self.assertEqual(str(ctx.exception),
+                         "cannot change the global maps instance of a meta-schema")
+
+        self.assertTrue(schema.built)
+        maps, schema.maps = schema.maps, XsdGlobals(schema, schema.validation)
+        self.assertIsNot(maps, schema.maps)
+        self.assertFalse(schema.built)
+        schema.maps = maps
+        self.assertTrue(schema.built)
+
+    def test_listed_and_reversed_elements(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                <xs:element name="elem1"/>
+                <xs:element name="elem2"/>
+                <xs:element name="elem3"/>
+            </xs:schema>"""))
+
+        elements = list(schema)
+        self.assertListEqual(elements, [schema.elements['elem1'],
+                                        schema.elements['elem2'],
+                                        schema.elements['elem3']])
+        elements.reverse()
+        self.assertListEqual(elements, list(reversed(schema)))
 
     def test_export_errors__issue_187(self):
         with self.assertRaises(ValueError) as ctx:
