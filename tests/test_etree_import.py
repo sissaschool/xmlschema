@@ -69,6 +69,7 @@ class TestElementTreeImport(unittest.TestCase):
         elem = xmlschema_etree.PyElementTree.Element('element')
         self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertIs(importlib.import_module('xml.etree').ElementTree, ElementTree)
         self.assertIs(xmlschema_etree.ElementTree, ElementTree)
 
     def test_import_etree_before(self):
@@ -83,6 +84,7 @@ class TestElementTreeImport(unittest.TestCase):
         elem = xmlschema_etree.PyElementTree.Element('element')
         self.assertEqual(xmlschema_etree.etree_tostring(elem), '<element />')
         self.assertIs(importlib.import_module('xml.etree.ElementTree'), ElementTree)
+        self.assertIs(importlib.import_module('xml.etree').ElementTree, ElementTree)
         self.assertIs(xmlschema_etree.ElementTree, ElementTree)
 
     def test_inconsistent_etree(self):

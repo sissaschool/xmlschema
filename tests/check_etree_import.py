@@ -34,22 +34,21 @@ else:
 assert 'xml.etree.ElementTree' in sys.modules, "ElementTree not loaded!"
 assert 'xmlschema' in sys.modules, 'xmlschema not loaded'
 assert 'xmlschema.etree' in sys.modules, 'xmlschema.etree not loaded'
+assert '_elementtree' in sys.modules, "cElementTree is not loaded!"
 
-if sys.version_info >= (3,):
-    assert '_elementtree' in sys.modules, "cElementTree is not loaded!"
+# Check imported ElementTree
+assert ElementTree._Element_Py is not ElementTree.Element, "ElementTree is pure Python!"
+assert xmlschema.etree.ElementTree is ElementTree, \
+    "xmlschema has a different ElementTree module!"
+assert sys.modules['xml.etree'].ElementTree is ElementTree
 
-    # Check imported ElementTree
-    assert ElementTree._Element_Py is not ElementTree.Element, "ElementTree is pure Python!"
-    assert xmlschema.etree.ElementTree is ElementTree, \
-        "xmlschema has a different ElementTree module!"
-
-    # Check ElementTree and pure Python ElementTree imported in xmlschema
-    PyElementTree = xmlschema.etree.PyElementTree
-    assert xmlschema.etree.ElementTree.Element is not xmlschema.etree.ElementTree._Element_Py, \
-        "xmlschema's ElementTree is pure Python!"
-    assert PyElementTree.Element is PyElementTree._Element_Py, \
-        "PyElementTree is not pure Python!"
-    assert xmlschema.etree.ElementTree is not PyElementTree, \
-        "xmlschema ElementTree is PyElementTree!"
+# Check ElementTree and pure Python ElementTree imported in xmlschema
+PyElementTree = xmlschema.etree.PyElementTree
+assert xmlschema.etree.ElementTree.Element is not xmlschema.etree.ElementTree._Element_Py, \
+    "xmlschema's ElementTree is pure Python!"
+assert PyElementTree.Element is PyElementTree._Element_Py, \
+    "PyElementTree is not pure Python!"
+assert xmlschema.etree.ElementTree is not PyElementTree, \
+    "xmlschema ElementTree is PyElementTree!"
 
 print("\nTest OK: ElementTree import is working as expected!")

@@ -2,6 +2,11 @@
 CHANGELOG
 *********
 
+`v1.4.1`_ (2020-12-24)
+======================
+* Include the pull request #220 (fix xml.etree import)
+* Additional tests for schema components
+
 `v1.4.0`_ (2020-12-23)
 ======================
 * Fix for issues #213, #214, #215 and #218
@@ -381,3 +386,4 @@ v0.9.6 (2017-05-05)
 .. _v1.3.0: https://github.com/brunato/xmlschema/compare/v1.2.5...v1.3.0
 .. _v1.3.1: https://github.com/brunato/xmlschema/compare/v1.3.0...v1.3.1
 .. _v1.4.0: https://github.com/brunato/xmlschema/compare/v1.3.1...v1.4.0
+.. _v1.4.1: https://github.com/brunato/xmlschema/compare/v1.4.0...v1.4.1
