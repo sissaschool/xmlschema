@@ -44,6 +44,7 @@ if '_elementtree' in sys.modules:
 
     # Restore original modules
     sys.modules['_elementtree'] = _cmod
+    sys.modules['xml.etree'].ElementTree = ElementTree
     sys.modules['xml.etree.ElementTree'] = ElementTree
 
 else:
@@ -52,6 +53,7 @@ else:
     PyElementTree = importlib.import_module('xml.etree.ElementTree')
 
     # Remove the pure Python module from imported modules
+    del sys.modules['xml.etree']
     del sys.modules['xml.etree.ElementTree']
     del sys.modules['_elementtree']
 
