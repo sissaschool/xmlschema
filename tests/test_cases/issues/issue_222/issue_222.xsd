@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:element name="first" type="xsd:hexBinary" fixed="abcedf" />
+  <xsd:element name="second" type="enum" />
+  <xsd:simpleType name="enum">
+    <xsd:restriction base="xsd:hexBinary">
+      <xsd:enumeration value="abcedf" />
+    </xsd:restriction>
+  </xsd:simpleType>
+  <xsd:element name="root">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="first" />
+        <xsd:element ref="second" />
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

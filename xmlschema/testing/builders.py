@@ -13,7 +13,6 @@ import os
 import pickle
 import time
 import logging
-import sys
 import warnings
 
 try:
@@ -287,14 +286,12 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                     if isinstance(decoded_data2, tuple):
                         decoded_data2 = decoded_data2[0]
 
-                    if sys.version_info >= (3, 6):
-                        # For Python < 3.6 cannot ensure attribute decoding order
-                        try:
-                            self.assertEqual(decoded_data1, decoded_data2, msg=xml_file)
-                        except AssertionError:
-                            if debug_mode:
-                                pdb.set_trace()
-                            raise
+                    try:
+                        self.assertEqual(decoded_data1, decoded_data2, msg=xml_file)
+                    except AssertionError:
+                        if debug_mode:
+                            pdb.set_trace()
+                        raise
 
                     elem2 = self.schema.encode(
                         decoded_data2, path=root.tag, converter=converter, **kwargs
@@ -342,23 +339,11 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
 
             if json_data2 != json_data1 and (lax_encode or lossy or unordered):
                 # Can't ensure decode equivalence if the test case use defaults,
-                # or the converter is lossy or the decoding is unordered.
+                # white spaces are replaced/collapsed or the converter is lossy
+                # or the decoding is unordered.
                 return
 
-            if sys.version_info >= (3, 6):
-                self.assertEqual(json_data2, json_data1, msg=xml_file)
-            else:
-                elem2 = xmlschema.from_json(json_data2, schema=self.schema, path=root.tag,
-                                            converter=converter, **kwargs)
-                if isinstance(elem2, tuple):
-                    elem2 = elem2[0]
-
-                try:
-                    self.assertIsNone(etree_elements_assert_equal(
-                        elem1, elem2, strict=False, skip_comments=True, unordered=unordered
-                    ), msg=xml_file)
-                except AssertionError as err:
-                    self.assertIsNone(err, msg=xml_file)
+            self.assertEqual(json_data2, json_data1, msg=xml_file)
 
         def check_decoding_with_element_tree(self):
             del self.errors[:]
@@ -388,8 +373,6 @@ def make_validation_test_class(test_file, test_args, test_num, schema_class, che
                 raise ValueError("Too many ({}) decoded objects returned: {}".format(
                     len(self.chunks), self.chunks)
                 )
-            elif not isinstance(self.chunks[0], dict):
-                raise ValueError("Decoded object is not a dictionary: {}".format(self.chunks))
             elif not self.errors:
                 try:
                     skip_decoded_data = self.schema.decode(xml_file, validation='skip')

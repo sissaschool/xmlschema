@@ -180,13 +180,16 @@ def non_negative_int_validator(value: int) -> None:
                                        "value must be non negative")
 
 
-def hex_binary_validator(value: str) -> None:
-    if datatypes.HexBinary.pattern.match(value) is None:
+def hex_binary_validator(value: Union[str, datatypes.HexBinary]) -> None:
+    if not isinstance(value, datatypes.HexBinary) and \
+            datatypes.HexBinary.pattern.match(value) is None:
         raise XMLSchemaValidationError(hex_binary_validator, value,
                                        "not an hexadecimal number")
 
 
-def base64_binary_validator(value: str) -> None:
+def base64_binary_validator(value: Union[str, datatypes.Base64Binary]) -> None:
+    if isinstance(value, datatypes.Base64Binary):
+        return
     value = value.replace(' ', '')
     if not value:
         return

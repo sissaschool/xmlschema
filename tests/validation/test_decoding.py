@@ -316,6 +316,7 @@ DATA_DICT = {
         {'$': 'ISO-27001', '@Year': 2009}
     ],
     'decimal_value': [Decimal('1')],
+    'hexbin': 'AABBCCDD',
     'menù': 'baccalà mantecato',
     'complex_boolean': [
         {'$': True, '@Type': 2}, {'$': False, '@Type': 1}, True, False
@@ -745,31 +746,64 @@ class TestDecoding(XsdValidatorTestCase):
         name_type = self.st_schema.types['NameType']
         self.check_decode(name_type, '', XMLSchemaValidationError)
 
-    def test_binary_data_facets(self):
+    def test_hex_binary_type(self):
         hex_code_type = self.st_schema.types['hexCode']
-        self.check_decode(hex_code_type, u'00D7310A', u'00D7310A')
+        self.check_decode(hex_code_type, '00D7310A', datatypes.HexBinary(b'00D7310A'))
+        self.check_decode(hex_code_type, 'D7310A', XMLSchemaValidationError)
 
+        xs = self.get_schema('<xs:element name="hex" type="xs:hexBinary"/>')
+
+        obj = xs.decode('<hex> 9AFD </hex>')
+        self.assertEqual(obj, ' 9AFD ')
+        self.assertIsInstance(obj, str)
+
+        obj = xs.decode('<hex> 9AFD </hex>', binary_types=True)
+        self.assertEqual(obj, '9AFD')
+        self.assertIsInstance(obj, datatypes.HexBinary)
+
+    def test_base64_binary_type(self):
         base64_code_type = self.st_schema.types['base64Code']
         self.check_decode(base64_code_type, base64.b64encode(b'ok'), XMLSchemaValidationError)
         base64_value = base64.b64encode(b'hello')
-        self.check_decode(base64_code_type, base64_value, base64_value.decode('utf-8'))
-        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'), u'YWJjZWZnaA==')
-        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
-        self.check_decode(base64_code_type, u' Y  W J j ZWZ\t\tn\na A= =', u'Y W J j ZWZ n a A= =')
-        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'), u'YWJjZWZnaGk=')
+
+        expected_value = datatypes.Base64Binary(base64_value)
+        self.check_decode(base64_code_type, base64_value, expected_value)
+
+        xs = self.get_schema('<xs:element name="b64" type="xs:base64Binary"/>')
+
+        obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()))
+        self.assertEqual(obj, expected_value)
+        self.assertIsInstance(obj, str)
+
+        obj = xs.decode('<b64>{}</b64>'.format(base64_value.decode()), binary_types=True)
+        self.assertEqual(obj, expected_value)
+        self.assertIsInstance(obj, datatypes.Base64Binary)
+
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefgh'),
+                          datatypes.Base64Binary('YWJjZWZnaA=='))
+        self.check_decode(base64_code_type, b' Y  W J j ZWZ\t\tn\na A= =',
+                          datatypes.Base64Binary('Y W J j ZWZ n a A= ='))
+        self.check_decode(base64_code_type, u' Y  W J j ZWZ\t\tn\na A= =',
+                          datatypes.Base64Binary('Y W J j ZWZ n a A= ='))
+        self.check_decode(base64_code_type, base64.b64encode(b'abcefghi'),
+                          datatypes.Base64Binary('YWJjZWZnaGk='))
 
         self.check_decode(base64_code_type, u'YWJjZWZnaA=', XMLSchemaValidationError)
         self.check_decode(base64_code_type, u'YWJjZWZna$==', XMLSchemaValidationError)
 
         base64_length4_type = self.st_schema.types['base64Length4']
-        self.check_decode(base64_length4_type, base64.b64encode(b'abc'), XMLSchemaValidationError)
-        self.check_decode(base64_length4_type, base64.b64encode(b'abce'), u'YWJjZQ==')
-        self.check_decode(base64_length4_type, base64.b64encode(b'abcef'), XMLSchemaValidationError)
+        self.check_decode(base64_length4_type, base64.b64encode(b'abc'),
+                          XMLSchemaValidationError)
+        self.check_decode(base64_length4_type, base64.b64encode(b'abce'),
+                          datatypes.Base64Binary('YWJjZQ=='))
+        self.check_decode(base64_length4_type, base64.b64encode(b'abcef'),
+                          XMLSchemaValidationError)
 
         base64_length5_type = self.st_schema.types['base64Length5']
         self.check_decode(base64_length5_type, base64.b64encode(b'1234'),
                           XMLSchemaValidationError)
-        self.check_decode(base64_length5_type, base64.b64encode(b'12345'), u'MTIzNDU=')
+        self.check_decode(base64_length5_type, base64.b64encode(b'12345'),
+                          datatypes.Base64Binary('MTIzNDU='))
         self.check_decode(base64_length5_type, base64.b64encode(b'123456'),
                           XMLSchemaValidationError)
 

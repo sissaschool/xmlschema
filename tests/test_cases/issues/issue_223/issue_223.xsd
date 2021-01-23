@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="CadastralBlock" type="CadastralBlockType"/>
+  <xs:simpleType name="CadastralBlockType">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="13"/>
+      <xs:minLength value="12"/>
+      <xs:pattern value="\d{2}:\d{2}:\d{6,7}"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -166,8 +166,8 @@ class XsdValidatorTestCase(unittest.TestCase):
         for e in self.errors:
             error_string = str(e)
             self.assertTrue(e.path, "Missing path for: %s" % error_string)
-            self.assertTrue(e.namespaces, "Missing namespaces for: %s" % error_string)
-            self.check_namespace_prefixes(error_string)
+            if e.namespaces:
+                self.check_namespace_prefixes(error_string)
 
         if not self.errors and expected:
             raise ValueError("{!r}: found no errors when {} expected.".format(path, expected))
