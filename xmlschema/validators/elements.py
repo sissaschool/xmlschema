@@ -14,7 +14,7 @@ import warnings
 from decimal import Decimal
 from typing import Optional
 from elementpath import XPath2Parser, ElementPathError, XPathContext
-from elementpath.datatypes import AbstractDateTime, Duration
+from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 
 from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
@@ -630,7 +630,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
 
             if self.fixed is not None and \
                     (len(elem) > 0 or value is not None and self.fixed != value):
-                reason = "must have the fixed value %r." % self.fixed
+                reason = "must have the fixed value %r" % self.fixed
                 yield self.validation_error(validation, reason, elem, **kwargs)
 
         else:
@@ -646,7 +646,7 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     pass
                 elif not strictly_equal(xsd_type.text_decode(text),
                                         xsd_type.text_decode(self.fixed)):
-                    reason = "must have the fixed value %r." % self.fixed
+                    reason = "must have the fixed value %r" % self.fixed
                     yield self.validation_error(validation, reason, elem, **kwargs)
 
             elif not text and self.default is not None and kwargs.get('use_defaults'):
@@ -686,20 +686,22 @@ class XsdElement(XsdComponent, ValidationMixin, ParticleMixin, ElementPathMixin)
                     else:
                         value = result
 
-            if isinstance(value, Decimal):
+            if isinstance(value, (int, float, list)) or value is None:
+                pass
+            elif isinstance(value, str):
+                if value.startswith('{') and xsd_type.is_qname():
+                    value = text
+            elif isinstance(value, Decimal):
                 try:
                     value = kwargs['decimal_type'](value)
                 except (KeyError, TypeError):
                     pass
             elif isinstance(value, (AbstractDateTime, Duration)):
-                try:
-                    if kwargs['datetime_types'] is not True:
-                        value = elem.text
-                except KeyError:
+                if not kwargs.get('datetime_types'):
                     value = elem.text
-            elif isinstance(value, str) and value.startswith('{'):
-                if xsd_type.is_qname():
-                    value = text
+            elif isinstance(value, AbstractBinary):
+                if not kwargs.get('binary_types'):
+                    value = elem.text
 
         if converter is not None:
             element_data = ElementData(elem.tag, value, content, attributes)

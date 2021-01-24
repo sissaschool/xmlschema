@@ -106,35 +106,35 @@ XSD_COMMON_BUILTIN_TYPES = (
     # --- Dates and Times (not year related) ---
     {
         'name': XSD_GDAY,
-        'python_type': (str, datatypes.GregorianDay),
+        'python_type': (datatypes.GregorianDay, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianDay.fromstring,
     },  # DD
     {
         'name': XSD_GMONTH,
-        'python_type': (str, datatypes.GregorianMonth),
+        'python_type': (datatypes.GregorianMonth, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonth.fromstring,
     },  # MM
     {
         'name': XSD_GMONTH_DAY,
-        'python_type': (str, datatypes.GregorianMonthDay),
+        'python_type': (datatypes.GregorianMonthDay, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianMonthDay.fromstring,
     },  # MM-DD
     {
         'name': XSD_TIME,
-        'python_type': (str, datatypes.Time),
+        'python_type': (datatypes.Time, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Time.fromstring,
     },  # hh:mm:ss
     {
         'name': XSD_DURATION,
-        'python_type': (str, datatypes.Duration),
+        'python_type': (datatypes.Duration, str),
         'admitted_facets': FLOAT_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Duration.fromstring,
@@ -169,13 +169,13 @@ XSD_COMMON_BUILTIN_TYPES = (
     },  # true/false or 1/0
     {
         'name': XSD_BASE64_BINARY,
-        'python_type': str,
+        'python_type': (datatypes.Base64Binary, str, bytes),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, base64_binary_validator],
     },  # base64 encoded binary value
     {
         'name': XSD_HEX_BINARY,
-        'python_type': str,
+        'python_type': (datatypes.HexBinary, str, bytes),
         'admitted_facets': STRING_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT, hex_binary_validator],
     },   # hexadecimal encoded binary value
@@ -343,28 +343,28 @@ XSD_10_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Year related primitive types (year 0 not allowed) ---
     {
         'name': XSD_DATETIME,
-        'python_type': (str, datatypes.DateTime10),
+        'python_type': (datatypes.DateTime10, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime10.fromstring,
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
-        'python_type': (str, datatypes.Date10),
+        'python_type': (datatypes.Date10, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date10.fromstring,
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
-        'python_type': (str, datatypes.GregorianYear10),
+        'python_type': (datatypes.GregorianYear10, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear10.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
-        'python_type': (str, datatypes.GregorianYearMonth10),
+        'python_type': (datatypes.GregorianYearMonth10, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth10.fromstring,
@@ -388,28 +388,28 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Year related primitive types (year 0 allowed and mapped to 1 BCE) ---
     {
         'name': XSD_DATETIME,
-        'python_type': (str, datatypes.DateTime),
+        'python_type': (datatypes.DateTime, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.DateTime.fromstring,
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss]
     {
         'name': XSD_DATE,
-        'python_type': (str, datatypes.Date),
+        'python_type': (datatypes.Date, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.Date.fromstring,
     },  # [-][Y*]YYYY-MM-DD
     {
         'name': XSD_GYEAR,
-        'python_type': (str, datatypes.GregorianYear),
+        'python_type': (datatypes.GregorianYear, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYear.fromstring,
     },  # [-][Y*]YYYY
     {
         'name': XSD_GYEAR_MONTH,
-        'python_type': (str, datatypes.GregorianYearMonth),
+        'python_type': (datatypes.GregorianYearMonth, str),
         'admitted_facets': DATETIME_FACETS,
         'facets': [COLLAPSE_WHITE_SPACE_ELEMENT],
         'to_python': datatypes.GregorianYearMonth.fromstring,
@@ -417,20 +417,20 @@ XSD_11_BUILTIN_TYPES = XSD_COMMON_BUILTIN_TYPES + (
     # --- Datetime derived types (XSD 1.1) ---
     {
         'name': XSD_DATE_TIME_STAMP,
-        'python_type': str,
+        'python_type': (datatypes.DateTimeStamp, str),
         'base_type': XSD_DATETIME,
         'to_python': datatypes.DateTime.fromstring,
         'facets': [etree_element(XSD_EXPLICIT_TIMEZONE, value='required')],
     },  # [-][Y*]YYYY-MM-DD[Thh:mm:ss] with required timezone
     {
         'name': XSD_DAY_TIME_DURATION,
-        'python_type': str,
+        'python_type': (datatypes.DayTimeDuration, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.DayTimeDuration.fromstring,
     },  # PnYnMnDTnHnMnS with month an year equal to 0
     {
         'name': XSD_YEAR_MONTH_DURATION,
-        'python_type': str,
+        'python_type': (datatypes.YearMonthDuration, str),
         'base_type': XSD_DURATION,
         'to_python': datatypes.YearMonthDuration.fromstring,
     },  # PnYnMnDTnHnMnS with day and time equals to 0

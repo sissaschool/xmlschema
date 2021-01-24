@@ -24,7 +24,7 @@ from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEM
 from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchemaBase, XMLSchema11, XsdGlobals
 from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
-from xmlschema.validators.schema import logger
+from xmlschema.validators.schema import logger, XMLSchemaNotBuiltError
 
 
 class TestXMLSchema10(XsdValidatorTestCase):
@@ -55,13 +55,60 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertNotEqual(id(self.vh_schema.namespaces), id(schema.namespaces))
         self.assertNotEqual(id(self.vh_schema.maps), id(schema.maps))
 
-    def test_resolve_qname(self):
-        schema = self.schema_class("""<xs:schema
-            xmlns:xs="http://www.w3.org/2001/XMLSchema"
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    def test_schema_location_hints(self):
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            schema = self.schema_class(dedent("""\
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://xmlschema.test/ns schema.xsd">
+                  <xs:element name="root" />
+                </xs:schema>"""))
 
-            <xs:element name="root" />
-        </xs:schema>""")
+        self.assertEqual(schema.schema_location, [("http://xmlschema.test/ns", "schema.xsd")])
+        self.assertIsNone(schema.no_namespace_schema_location)
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:noNamespaceSchemaLocation="schema.xsd">
+              <xs:element name="root" />
+            </xs:schema>"""))
+
+        self.assertEqual(schema.schema_location, [])
+        self.assertEqual(schema.no_namespace_schema_location, 'schema.xsd')
+
+    def test_target_prefix(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                targetNamespace="http://xmlschema.test/ns">
+              <xs:element name="root" />
+            </xs:schema>"""))
+
+        self.assertEqual(schema.target_prefix, '')
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:tns="http://xmlschema.test/ns"
+                targetNamespace="http://xmlschema.test/ns">
+              <xs:element name="root" />
+            </xs:schema>"""))
+
+        self.assertEqual(schema.target_prefix, 'tns')
+
+    def test_builtin_types(self):
+        self.assertIn('string', self.schema_class.builtin_types())
+
+        with self.assertRaises(XMLSchemaNotBuiltError):
+            self.schema_class.meta_schema.builtin_types()
+
+    def test_resolve_qname(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">    
+              <xs:element name="root" />
+            </xs:schema>"""))
+
         self.assertEqual(schema.resolve_qname('xs:element'), XSD_ELEMENT)
         self.assertEqual(schema.resolve_qname('xsi:type'), XSI_TYPE)
 
@@ -144,6 +191,16 @@ class TestXMLSchema10(XsdValidatorTestCase):
         self.assertEqual(schema.target_namespace, XML_NAMESPACE)
 
     def test_root_elements(self):
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"/>"""))
+        self.assertEqual(schema.root_elements, [])
+
+        schema = self.schema_class(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" />
+            </xs:schema>"""))
+        self.assertEqual(schema.root_elements, [schema.elements['root']])
+
         # Test issue #107 fix
         schema = self.schema_class(dedent("""\
             <?xml version="1.0" encoding="utf-8"?>

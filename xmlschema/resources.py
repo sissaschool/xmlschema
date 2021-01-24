@@ -810,8 +810,6 @@ class XMLResource:
         resource = self.open()
         try:
             data = resource.read()
-        except (OSError, IOError) as err:
-            raise XMLResourceError("cannot load data from %r: %s" % (self._url, err))
         finally:
             # We don't want to close the file obj if it wasn't originally
             # opened by `XMLResource`. That is the concern of the code

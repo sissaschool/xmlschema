@@ -12,6 +12,7 @@ import unittest
 import os
 import sys
 import decimal
+from textwrap import dedent
 
 try:
     import lxml.etree as lxml_etree
@@ -217,17 +218,27 @@ class TestValidation(XsdValidatorTestCase):
         self.check_validity(schema, xml_data, True)
 
     def test_issue_213(self):
-        schema = xmlschema.XMLSchema("""
+        schema = xmlschema.XMLSchema(dedent("""\
         <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-        <xs:element name="amount" type="xs:decimal"/>
-        </xs:schema>
-        """)
+          <xs:element name="amount" type="xs:decimal"/>
+        </xs:schema>"""))
 
         xml1 = """<?xml version="1.0" encoding="UTF-8"?><amount>0.000000</amount>"""
         self.assertIsInstance(schema.decode(xml1), decimal.Decimal)
 
         xml2 = """<?xml version="1.0" encoding="UTF-8"?><amount>0.0000000</amount>"""
         self.assertIsInstance(schema.decode(xml2), decimal.Decimal)
+
+    def test_issue_224__validate_malformed_file(self):
+        schema = xmlschema.XMLSchema(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root" type="xs:string"/>
+            </xs:schema>"""))
+
+        malformed_xml_file = self.casepath('resources/malformed.xml')
+
+        with self.assertRaises(ElementTree.ParseError):
+            schema.is_valid(malformed_xml_file)
 
 
 class TestValidation11(TestValidation):

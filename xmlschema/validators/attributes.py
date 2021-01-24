@@ -12,7 +12,7 @@ This module contains classes for XML Schema attributes and attribute groups.
 """
 from decimal import Decimal
 from collections.abc import MutableMapping
-from elementpath.datatypes import AbstractDateTime, Duration
+from elementpath.datatypes import AbstractDateTime, Duration, AbstractBinary
 from typing import Union, Dict, Optional
 
 from ..exceptions import XMLSchemaValueError
@@ -226,27 +226,31 @@ class XsdAttribute(XsdComponent, ValidationMixin):
                 msg = "attribute {!r} has a fixed value {!r}".format(self.name, self.fixed)
                 yield self.validation_error(validation, msg, text, **kwargs)
 
-        for result in self.type.iter_decode(text, validation, **kwargs):
-            if isinstance(result, XMLSchemaValidationError):
-                result.reason = 'attribute {}={!r}: {}'.format(
-                    self.prefixed_name, text, result.reason
+        for value in self.type.iter_decode(text, validation, **kwargs):
+            if isinstance(value, XMLSchemaValidationError):
+                value.reason = 'attribute {}={!r}: {}'.format(
+                    self.prefixed_name, text, value.reason
                 )
-                yield result
+                yield value
                 continue
-            elif isinstance(result, Decimal):
-                try:
-                    yield kwargs['decimal_type'](result)
-                except (KeyError, TypeError):
-                    yield result
-            elif isinstance(result, (AbstractDateTime, Duration)):
-                try:
-                    yield result if kwargs['datetime_types'] is True else text
-                except KeyError:
+            elif isinstance(value, (int, float, list)) or value is None:
+                yield value
+            elif isinstance(value, str):
+                if value.startswith('{') and self.type.is_qname():
                     yield text
-            elif isinstance(result, str) and result.startswith('{') and self.type.is_qname():
+                else:
+                    yield value
+            elif isinstance(value, Decimal):
+                try:
+                    yield kwargs['decimal_type'](value)
+                except (KeyError, TypeError):
+                    yield value
+            elif isinstance(value, (AbstractDateTime, Duration)):
+                yield value if kwargs.get('datetime_types') else text
+            elif isinstance(value, AbstractBinary) and not kwargs.get('binary_types'):
                 yield text
             else:
-                yield result
+                yield value
             break
 
     def iter_encode(self, obj, validation='lax', **kwargs):
@@ -606,7 +610,10 @@ class XsdAttributeGroup(MutableMapping, XsdComponent, ValidationMixin):
             yield self.validation_error(validation, reason, attrs, **kwargs)
 
         kwargs['level'] = kwargs.get('level', 0) + 1
-        use_defaults = kwargs.get('use_defaults', True)
+        try:
+            use_defaults = kwargs['use_defaults']
+        except KeyError:
+            use_defaults = True
 
         additional_attrs = [
             (k, v) for k, v in self.iter_value_constraints(use_defaults) if k not in attrs

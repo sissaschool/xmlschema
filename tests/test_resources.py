@@ -440,6 +440,25 @@ class TestResources(unittest.TestCase):
         resource.load()
         self.assertEqual(resource.text, source)
 
+    def test_xml_resource_from_malformed_source(self):
+        # related to issue #224
+        malformed_xml_file = casepath('resources/malformed.xml')
+        with self.assertRaises(ElementTree.ParseError):
+            XMLResource(malformed_xml_file)
+
+        with self.assertRaises(ElementTree.ParseError):
+            XMLResource(malformed_xml_file, defuse='always')
+
+        # the incremental parser does not found the incomplete root before the end
+        resource = XMLResource(malformed_xml_file, lazy=True)
+        self.assertEqual(resource.root.tag, 'malformed_xml_file')
+
+        resource = XMLResource('<malformed_xml_file>>', lazy=True)
+        self.assertEqual(resource.root.tag, 'malformed_xml_file')
+
+        with self.assertRaises(ElementTree.ParseError):
+            XMLResource('<malformed_xml_file<>', lazy=True)
+
     def test_xml_resource_from_wrong_arguments(self):
         self.assertRaises(TypeError, XMLResource, [b'<UNSUPPORTED_DATA_TYPE/>'])
 

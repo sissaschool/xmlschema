@@ -2,6 +2,12 @@
 CHANGELOG
 *********
 
+`v1.4.2`_ (2021-01-24)
+======================
+* Add decoding of binary datatypes (xs:hexBinary and xs:base64Binary)
+* Fix encoding from string values for some builtin datatypes
+  (decimal, binary, duration and datetime).
+
 `v1.4.1`_ (2020-12-24)
 ======================
 * Include the pull request #220 (fix xml.etree import)
@@ -387,3 +393,4 @@ v0.9.6 (2017-05-05)
 .. _v1.3.1: https://github.com/brunato/xmlschema/compare/v1.3.0...v1.3.1
 .. _v1.4.0: https://github.com/brunato/xmlschema/compare/v1.3.1...v1.4.0
 .. _v1.4.1: https://github.com/brunato/xmlschema/compare/v1.4.0...v1.4.1
+.. _v1.4.2: https://github.com/brunato/xmlschema/compare/v1.4.1...v1.4.2

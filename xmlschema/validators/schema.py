@@ -1562,8 +1562,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
     def iter_decode(self, source, path=None, schema_path=None, validation='lax',
                     process_namespaces=True, namespaces=None, use_defaults=True,
-                    decimal_type=None, datetime_types=False, converter=None,
-                    filler=None, fill_missing=False, keep_unknown=False,
+                    decimal_type=None, datetime_types=False, binary_types=False,
+                    converter=None, filler=None, fill_missing=False, keep_unknown=False,
                     max_depth=None, depth_filler=None, **kwargs):
         """
         Creates an iterator for decoding an XML source to a data structure.
@@ -1587,6 +1587,8 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
         `xs:decimal` built-in and derived types), useful if you want to generate a \
         JSON-compatible data structure.
         :param datetime_types: if set to `True` the datetime and duration XSD types \
+        are decoded, otherwise their origin XML string is returned.
+        :param binary_types: if set to `True` xs:hexBinary and xs:base64Binary types \
         are decoded, otherwise their origin XML string is returned.
         :param converter: an :class:`XMLSchemaConverter` subclass or instance to use \
         for decoding.
@@ -1625,7 +1627,6 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
             namespaces=namespaces,
             source=source,
             use_defaults=use_defaults,
-            datetime_types=datetime_types,
             id_map=Counter(),
             identities={},
             inherited={},
@@ -1633,6 +1634,10 @@ class XMLSchemaBase(XsdValidator, ValidationMixin, ElementPathMixin, metaclass=X
 
         if decimal_type is not None:
             kwargs['decimal_type'] = decimal_type
+        if datetime_types:
+            kwargs['datetime_types'] = datetime_types
+        if binary_types:
+            kwargs['binary_types'] = binary_types
         if filler is not None:
             kwargs['filler'] = filler
         if fill_missing:

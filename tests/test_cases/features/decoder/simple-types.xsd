@@ -14,6 +14,8 @@
                 <xs:element name="config" type="config" minOccurs="0"/>
                 <xs:element name="dateTimeWithTZOffset" type="xs:dateTime" minOccurs="0"/>
                 <xs:element name="duration" type="xs:duration" minOccurs="0"/>
+                <xs:element name="hexbin" type="hexCode" minOccurs="0" />
+                <xs:element name="base64bin" type="base64Code" minOccurs="0" />
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -41,7 +43,7 @@
     <xs:complexType name="year_attr_string_75">
         <xs:simpleContent>
             <xs:extension base="string_75">
-                <xs:attribute name="Year" type="xs:integer" use="optional"/>
+                <xs:attribute name="Year" type="xs:integer"/>
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>
@@ -49,7 +51,7 @@
     <xs:complexType name="TYPE_ATTR_BOOLEAN">
         <xs:simpleContent>
             <xs:extension base="xs:boolean">
-                <xs:attribute name="Type" type="xs:integer" use="optional"/>
+                <xs:attribute name="Type" type="xs:integer"/>
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>
@@ -148,6 +150,13 @@
     <xs:simpleType name="typeB">
         <xs:restriction base="xs:string">
             <xs:pattern value="NaN"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- For testing encoding -->
+    <xs:simpleType name="mdate">
+        <xs:restriction base="xs:date">
+            <xs:minInclusive value="2000-01-01" />
         </xs:restriction>
     </xs:simpleType>
 

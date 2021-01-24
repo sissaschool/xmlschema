@@ -227,7 +227,7 @@ class ModelVisitor:
                 return True
 
             if item is self.group[-1]:
-                for k, item2 in enumerate(self.group, start=1):
+                for k, item2 in enumerate(self.group, start=1):  # pragma: no cover
                     item_occurs = occurs[item2]
                     if not item_occurs:
                         continue
@@ -357,7 +357,7 @@ class ModelVisitor:
         if cdata_content:
             yield cdata_content.pop()
 
-        while self.element is not None and consumable_content:
+        while self.element is not None and consumable_content:  # pragma: no cover
             for name in consumable_content:
                 if self.element.is_matching(name):
                     yield name, consumable_content[name].popleft()
