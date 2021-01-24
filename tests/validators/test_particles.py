@@ -209,6 +209,26 @@ class TestModelGroup(unittest.TestCase):
         group.append(('B',))
         self.assertFalse(group.is_pointless(parent=root_group))
 
+        root_group = ModelGroup('sequence')
+        group = ModelGroup('choice')
+        root_group.append(group)
+
+        self.assertTrue(group.is_pointless(parent=root_group))
+        group.append(('A',))
+        self.assertTrue(group.is_pointless(parent=root_group))
+        group.append(('B',))
+        self.assertFalse(group.is_pointless(parent=root_group))
+
+        root_group = ModelGroup('choice')
+        group = ModelGroup('choice')
+        root_group.append(group)
+
+        self.assertTrue(group.is_pointless(parent=root_group))
+        group.append(('A',))
+        self.assertTrue(group.is_pointless(parent=root_group))
+        group.append(('B',))
+        self.assertTrue(group.is_pointless(parent=root_group))
+
     def test_effective_min_occurs(self):
         group = ModelGroup('sequence')
         self.assertEqual(group.effective_min_occurs, 0)
@@ -231,9 +251,10 @@ class TestModelGroup(unittest.TestCase):
         self.assertEqual(group.effective_max_occurs, 0)
         group.append(ParticleMixin())
         self.assertEqual(group.effective_max_occurs, 1)
-        group.append(ParticleMixin())
-        group[0].min_occurs = group[0].max_occurs = 0
+        group.append(ParticleMixin(max_occurs=2))
         self.assertEqual(group.effective_max_occurs, 1)
+        group[0].min_occurs = group[0].max_occurs = 0
+        self.assertEqual(group.effective_max_occurs, 2)
         group[1].min_occurs = group[1].max_occurs = 0
         self.assertEqual(group.effective_max_occurs, 0)
 
@@ -258,6 +279,10 @@ class TestModelGroup(unittest.TestCase):
         group.append(ParticleMixin())
         self.assertEqual(group.effective_max_occurs, 1)
         group[0].max_occurs = None
+        self.assertIsNone(group.effective_max_occurs)
+        group[0].max_occurs = 1
+        self.assertEqual(group.effective_max_occurs, 1)
+        group.max_occurs = None
         self.assertIsNone(group.effective_max_occurs)
 
     def test_has_occurs_restriction(self):
