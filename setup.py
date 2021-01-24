@@ -16,7 +16,7 @@ with open("README.rst") as readme:
 
 setup(
     name='xmlschema',
-    version='1.4.1',
+    version='1.4.2',
     packages=find_packages(include=['xmlschema', 'xmlschema.*']),
     include_package_data=True,
     entry_points={
@@ -27,10 +27,10 @@ setup(
         ]
     },
     python_requires='>=3.6',
-    setup_requires=['elementpath>=2.0.4, <3.0.0'],
-    install_requires=['elementpath>=2.0.4, <3.0.0'],
+    setup_requires=['elementpath>=2.1.2, <3.0.0'],
+    install_requires=['elementpath>=2.1.2, <3.0.0'],
     extra_require={
-        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.0.4, <3.0.0',
+        'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.1.2, <3.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme']
     },
     author='Davide Brunato',
