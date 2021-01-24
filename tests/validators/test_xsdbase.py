@@ -439,6 +439,14 @@ class TestXsdType(unittest.TestCase):
                      <xs:simpleType name="idType">
                          <xs:restriction base="xs:ID"/>
                      </xs:simpleType>
+
+                     <xs:simpleType name="decimalType">
+                         <xs:restriction base="xs:decimal"/>
+                     </xs:simpleType>
+
+                     <xs:simpleType name="dateTimeType">
+                         <xs:restriction base="xs:dateTime"/>
+                     </xs:simpleType>
                      
                      <xs:simpleType name="fooType">
                          <xs:restriction base="xs:string"/>
@@ -529,6 +537,11 @@ class TestXsdType(unittest.TestCase):
 
     def test_is_datetime(self):
         self.assertFalse(self.schema.types['barType'].is_datetime())
+        self.assertTrue(self.schema.types['dateTimeType'].is_datetime())
+
+    def test_is_decimal(self):
+        self.assertFalse(self.schema.types['barType'].is_decimal())
+        self.assertTrue(self.schema.types['decimalType'].is_decimal())
 
     def test_is_dynamic_consistent(self):
         self.assertFalse(self.schema.types['fooType'].is_dynamic_consistent(

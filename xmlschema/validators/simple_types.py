@@ -509,6 +509,9 @@ class XsdAtomic(XsdSimpleType):
             return XSD_10_FACETS if self.xsd_version == '1.0' else XSD_11_FACETS
         return self.primitive_type.admitted_facets
 
+    def is_datetime(self):
+        return self.primitive_type.to_python.__name__ == 'fromstring'
+
     def get_facet(self, tag):
         try:
             return self.facets[tag]
@@ -572,9 +575,6 @@ class XsdAtomicBuiltin(XsdAtomic):
     @property
     def admitted_facets(self):
         return self._admitted_facets or self.primitive_type.admitted_facets
-
-    def is_datetime(self):
-        return self.to_python.__name__ == 'fromstring'
 
     def iter_decode(self, obj, validation='lax', **kwargs):
         if isinstance(obj, (str, bytes)):
