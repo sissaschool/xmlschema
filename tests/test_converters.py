@@ -10,6 +10,7 @@
 #
 import unittest
 import os
+import xml.etree.ElementTree as ElementTree
 
 try:
     from lxml.etree import Element as lxml_etree_element
@@ -20,8 +21,7 @@ from xmlschema import XMLSchema, XMLSchemaConverter
 from xmlschema.etree import etree_element
 from xmlschema.testing.helpers import etree_elements_assert_equal
 
-from xmlschema.converters import ColumnarConverter
-
+from xmlschema.converters import ColumnarConverter, DataElement, DataElementConverter
 
 class TestConverters(unittest.TestCase):
 
@@ -163,6 +163,20 @@ class TestConverters(unittest.TestCase):
         self.assertNotIn("'authorid'", str(obj))
         self.assertNotIn("'author_id'", str(obj))
         self.assertIn("'author__id'", str(obj))
+
+    def test_data_element_converter(self):
+        col_xsd_filename = self.casepath('examples/collection/collection.xsd')
+        col_xml_filename = self.casepath('examples/collection/collection.xml')
+
+        col_schema = XMLSchema(col_xsd_filename, converter=DataElementConverter)
+
+        col_xml_root = ElementTree.parse(col_xml_filename).getroot()
+        obj = col_schema.decode(col_xml_filename)
+        self.assertIsInstance(obj, DataElement)
+
+        root = obj.to_etree(validation='skip')
+
+        self.assertIsNone(etree_elements_assert_equal(col_xml_root, root))
 
 
 if __name__ == '__main__':

@@ -17,3 +17,4 @@ from .badgerfish import BadgerFishConverter
 from .abdera import AbderaConverter
 from .jsonml import JsonMLConverter
 from .columnar import ColumnarConverter
+from .dataelement import DataElement, DataElementConverter

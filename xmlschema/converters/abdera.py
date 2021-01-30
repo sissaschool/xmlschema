@@ -21,8 +21,7 @@ class AbderaConverter(XMLSchemaConverter):
     ref: https://cwiki.apache.org/confluence/display/ABDERA/JSON+Serialization
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
-    Python 3.6+ or `OrderedDict` for previous versions.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     """
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):

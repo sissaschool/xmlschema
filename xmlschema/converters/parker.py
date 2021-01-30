@@ -20,8 +20,7 @@ class ParkerConverter(XMLSchemaConverter):
     ref: https://developer.mozilla.org/en-US/docs/Archive/JXON#The_Parker_Convention
 
     :param namespaces: Map from namespace prefixes to URI.
-    :param dict_class: Dictionary class to use for decoded data. Default is `dict` for \
-    Python 3.6+ or `OrderedDict` for previous versions.
+    :param dict_class: Dictionary class to use for decoded data. Default is `dict`.
     :param list_class: List class to use for decoded data. Default is `list`.
     :param preserve_root: If `True` the root element will be preserved. For default \
     the Parker convention remove the document root element, returning only the value.
