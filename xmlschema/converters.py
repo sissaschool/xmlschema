@@ -1,5 +1,5 @@
 #
-# Copyright (c), 2016-2020, SISSA (International School for Advanced Studies).
+# Copyright (c), 2016-2021, SISSA (International School for Advanced Studies).
 # All rights reserved.
 # This file is distributed under the terms of the MIT License.
 # See the file 'LICENSE' in the root directory of the present
@@ -11,6 +11,7 @@
 This module contains converter classes and definitions.
 """
 from collections import namedtuple
+from collections.abc import MutableMapping, MutableSequence
 
 from .exceptions import XMLSchemaTypeError, XMLSchemaValueError
 from .names import XSI_NAMESPACE
@@ -120,6 +121,16 @@ class XMLSchemaConverter(NamespaceMapper):
             if isinstance(value, bool) or not isinstance(value, int):
                 msg = '{} must be an int, not {}'
                 raise XMLSchemaTypeError(msg.format(name, type(value).__name__))
+
+        elif name == 'dict':
+            if not issubclass(value, MutableMapping):
+                msg = '{!r} must be a MutableMapping subclass, not {}'
+                raise XMLSchemaTypeError(msg.format(name, value))
+
+        elif name == 'list':
+            if not issubclass(value, MutableSequence):
+                msg = '{!r} must be a MutableSequence subclass, not {}'
+                raise XMLSchemaTypeError(msg.format(name, value))
 
         super(XMLSchemaConverter, self).__setattr__(name, value)
 
@@ -260,7 +271,6 @@ class XMLSchemaConverter(NamespaceMapper):
                 result_dict.update(t for t in self.map_attributes(data.attributes))
 
             has_single_group = xsd_type.content.is_single()
-            list_types = list if self.list is list else (self.list, list)
             if data.content:
                 for name, value, xsd_child in self.map_content(data.content):
                     try:
@@ -271,10 +281,10 @@ class XMLSchemaConverter(NamespaceMapper):
                         else:
                             result_dict[name] = self.list([value])
                     else:
-                        if not isinstance(result, list_types) or not result:
+                        if not isinstance(result, MutableSequence) or not result:
                             result_dict[name] = self.list([result, value])
-                        elif isinstance(result[0], list_types) or \
-                                not isinstance(value, list_types):
+                        elif isinstance(result[0], MutableSequence) or \
+                                not isinstance(value, MutableSequence):
                             result.append(value)
                         else:
                             result_dict[name] = self.list([result, value])
@@ -302,7 +312,7 @@ class XMLSchemaConverter(NamespaceMapper):
         else:
             tag = xsd_element.qualified_name
 
-            if self.preserve_root and isinstance(obj, (self.dict, dict)):
+            if self.preserve_root and isinstance(obj, MutableMapping):
                 #
                 # Match the XSD element with a dictionary key
 
@@ -328,10 +338,10 @@ class XMLSchemaConverter(NamespaceMapper):
                         except (KeyError, TypeError):
                             pass
 
-        if not isinstance(obj, (self.dict, dict)):
+        if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
-            elif xsd_element.type.mixed and not isinstance(obj, list):
+            elif xsd_element.type.mixed and not isinstance(obj, MutableSequence):
                 return ElementData(tag, obj, None, {})
             else:
                 return ElementData(tag, None, obj, {})
@@ -359,9 +369,9 @@ class XMLSchemaConverter(NamespaceMapper):
                 attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
-            elif not isinstance(value, (self.list, list)) or not value:
+            elif not isinstance(value, MutableSequence) or not value:
                 content.append((self.unmap_qname(name), value))
-            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+            elif isinstance(value[0], (MutableMapping, MutableSequence)):
                 ns_name = self.unmap_qname(name)
                 content.extend((ns_name, item) for item in value)
             else:
@@ -418,7 +428,7 @@ class UnorderedConverter(XMLSchemaConverter):
             except (KeyError, AttributeError, TypeError):
                 pass
 
-        if not isinstance(obj, (self.dict, dict)):
+        if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
                 return ElementData(tag, obj, None, {})
             else:
@@ -454,9 +464,9 @@ class UnorderedConverter(XMLSchemaConverter):
                 attr_name = name[len(self.attr_prefix):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
-            elif not isinstance(value, (self.list, list)) or not value:
+            elif not isinstance(value, MutableSequence) or not value:
                 content_lu[self.unmap_qname(name)] = [value]
-            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+            elif isinstance(value[0], (MutableMapping, MutableSequence)):
                 content_lu[self.unmap_qname(name)] = value
             else:
                 # `value` is a list but not a list of lists or list of dicts.
@@ -519,7 +529,6 @@ class ParkerConverter(XMLSchemaConverter):
                 return data.text if data.text != '' else None
         else:
             result_dict = self.dict()
-            list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 if preserve_root:
                     try:
@@ -531,7 +540,7 @@ class ParkerConverter(XMLSchemaConverter):
                 try:
                     result_dict[name].append(value)
                 except KeyError:
-                    if isinstance(value, list_types):
+                    if isinstance(value, MutableSequence):
                         result_dict[name] = self.list([value])
                     else:
                         result_dict[name] = value
@@ -539,7 +548,7 @@ class ParkerConverter(XMLSchemaConverter):
                     result_dict[name] = self.list([result_dict[name], value])
 
             for k, v in result_dict.items():
-                if isinstance(v, (self.list, list)) and len(v) == 1:
+                if isinstance(v, MutableSequence) and len(v) == 1:
                     value = v.pop()
                     v.extend(value)
 
@@ -549,7 +558,7 @@ class ParkerConverter(XMLSchemaConverter):
                 return result_dict if result_dict else None
 
     def element_encode(self, obj, xsd_element, level=0):
-        if not isinstance(obj, (self.dict, dict)):
+        if not isinstance(obj, MutableMapping):
             if obj == '':
                 obj = None
             if xsd_element.type.simple_type is not None:
@@ -571,9 +580,9 @@ class ParkerConverter(XMLSchemaConverter):
                 content = []
                 for name, value in obj.items():
                     ns_name = self.unmap_qname(name)
-                    if not isinstance(value, (self.list, list)) or not value:
+                    if not isinstance(value, MutableSequence) or not value:
                         content.append((ns_name, value))
-                    elif any(isinstance(v, (self.list, list)) for v in value):
+                    elif any(isinstance(v, MutableSequence) for v in value):
                         for item in value:
                             content.append((ns_name, item))
                     else:
@@ -631,7 +640,6 @@ class BadgerFishConverter(XMLSchemaConverter):
                 result_dict['$'] = data.text
         else:
             has_single_group = xsd_type.content.is_single()
-            list_types = list if self.list is list else (self.list, list)
             for name, value, xsd_child in self.map_content(data.content):
                 try:
                     if '@xmlns' in value:
@@ -658,9 +666,10 @@ class BadgerFishConverter(XMLSchemaConverter):
                     else:
                         result_dict[name] = self.list([value])
                 else:
-                    if not isinstance(result, list_types) or not result:
+                    if not isinstance(result, MutableSequence) or not result:
                         result_dict[name] = self.list([result, value])
-                    elif isinstance(result[0], list_types) or not isinstance(value, list_types):
+                    elif isinstance(result[0], MutableSequence) or \
+                            not isinstance(value, MutableSequence):
                         result.append(value)
                     else:
                         result_dict[name] = self.list([result, value])
@@ -703,9 +712,9 @@ class BadgerFishConverter(XMLSchemaConverter):
                 attr_name = name[1:]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
-            elif not isinstance(value, (self.list, list)) or not value:
+            elif not isinstance(value, MutableSequence) or not value:
                 content.append((self.unmap_qname(name), value))
-            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+            elif isinstance(value[0], (MutableMapping, MutableSequence)):
                 ns_name = self.unmap_qname(name)
                 for item in value:
                     content.append((ns_name, item))
@@ -760,7 +769,7 @@ class AbderaConverter(XMLSchemaConverter):
                 try:
                     children[name].append(value)
                 except KeyError:
-                    if isinstance(value, (self.list, list)) and value:
+                    if isinstance(value, MutableSequence) and value:
                         children[name] = self.list([value])
                     else:
                         children[name] = value
@@ -788,7 +797,7 @@ class AbderaConverter(XMLSchemaConverter):
     def element_encode(self, obj, xsd_element, level=0):
         tag = xsd_element.qualified_name if level == 0 else xsd_element.name
 
-        if not isinstance(obj, (self.dict, dict)):
+        if not isinstance(obj, MutableMapping):
             if obj == []:
                 obj = None
             return ElementData(tag, obj, None, {})
@@ -802,9 +811,9 @@ class AbderaConverter(XMLSchemaConverter):
             else:
                 children = obj.get('children', [])
 
-            if isinstance(children, (self.dict, dict)):
+            if isinstance(children, MutableMapping):
                 children = [children]
-            elif children and not isinstance(children[0], (self.dict, dict)):
+            elif children and not isinstance(children[0], MutableMapping):
                 if len(children) > 1:
                     raise XMLSchemaValueError("Wrong format")
                 else:
@@ -813,9 +822,9 @@ class AbderaConverter(XMLSchemaConverter):
             content = []
             for child in children:
                 for name, value in child.items():
-                    if not isinstance(value, (self.list, list)) or not value:
+                    if not isinstance(value, MutableSequence) or not value:
                         content.append((self.unmap_qname(name), value))
-                    elif isinstance(value[0], (self.dict, dict, self.list, list)):
+                    elif isinstance(value[0], (MutableMapping, MutableSequence)):
                         ns_name = self.unmap_qname(name)
                         for item in value:
                             content.append((ns_name, item))
@@ -886,7 +895,7 @@ class JsonMLConverter(XMLSchemaConverter):
 
     def element_encode(self, obj, xsd_element, level=0):
         attributes = {}
-        if not isinstance(obj, (self.list, list)) or not obj:
+        if not isinstance(obj, MutableSequence) or not obj:
             raise XMLSchemaValueError("Wrong data format, a not empty list required: %r." % obj)
 
         data_len = len(obj)
@@ -919,10 +928,9 @@ class JsonMLConverter(XMLSchemaConverter):
             return ElementData(xsd_element.name, obj[content_index], [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
-            list_types = list if self.list is list else (self.list, list)
             content = [
-                (self.unmap_qname(e[0]), e) if isinstance(e, list_types) else (next(cdata_num), e)
-                for e in obj[content_index:]
+                (self.unmap_qname(e[0]), e) if isinstance(e, MutableSequence)
+                else (next(cdata_num), e) for e in obj[content_index:]
             ]
             return ElementData(xsd_element.name, None, content, attributes)
 
@@ -1023,10 +1031,10 @@ class ColumnarConverter(XMLSchemaConverter):
             except (KeyError, AttributeError, TypeError):
                 pass
 
-        if not isinstance(obj, (self.dict, dict)):
+        if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:
                 return ElementData(xsd_element.name, obj, None, {})
-            elif xsd_element.type.mixed and not isinstance(obj, list):
+            elif xsd_element.type.mixed and not isinstance(obj, MutableSequence):
                 return ElementData(xsd_element.name, obj, None, {})
             else:
                 return ElementData(xsd_element.name, None, obj, {})
@@ -1043,9 +1051,9 @@ class ColumnarConverter(XMLSchemaConverter):
                 attr_name = name[len(pfx):]
                 ns_name = self.unmap_qname(attr_name, xsd_element.attributes)
                 attributes[ns_name] = value
-            elif not isinstance(value, (self.list, list)) or not value:
+            elif not isinstance(value, MutableSequence) or not value:
                 content.append((self.unmap_qname(name), value))
-            elif isinstance(value[0], (self.dict, dict, self.list, list)):
+            elif isinstance(value[0], (MutableMapping, MutableSequence)):
                 ns_name = self.unmap_qname(name)
                 content.extend((ns_name, item) for item in value)
             else:
