@@ -29,7 +29,7 @@ setup(
     python_requires='>=3.6',
     setup_requires=['elementpath>=2.1.2, <3.0.0'],
     install_requires=['elementpath>=2.1.2, <3.0.0'],
-    extra_require={
+    extras_require={
         'codegen': ['elementpath>=2.1.2, <3.0.0', 'jinja2'],
         'dev': ['tox', 'coverage', 'lxml', 'elementpath>=2.1.2, <3.0.0',
                 'memory_profiler', 'Sphinx', 'sphinx_rtd_theme', 'jinja2']

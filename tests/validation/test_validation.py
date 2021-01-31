@@ -24,7 +24,7 @@ from xmlschema import XMLSchemaValidationError
 
 from xmlschema.etree import ElementTree
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 
 class TestValidation(XsdValidatorTestCase):

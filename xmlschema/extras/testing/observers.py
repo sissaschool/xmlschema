@@ -8,12 +8,13 @@
 # @author Davide Brunato <brunato@sissa.it>
 #
 """
-Observers for XMLSchema classes.
+Observers for testing XMLSchema classes.
 """
 from functools import wraps
 
-from ..names import XSD_NAMESPACE, XSD_ANY_TYPE
-from ..validators import XMLSchema10, XMLSchema11, XsdGroup, XsdAttributeGroup, XsdComplexType
+from xmlschema.names import XSD_NAMESPACE, XSD_ANY_TYPE
+from xmlschema.validators import XMLSchema10, XMLSchema11, \
+    XsdGroup, XsdAttributeGroup, XsdComplexType
 
 
 class SchemaObserver:

@@ -26,7 +26,7 @@ from xmlschema import XMLSchemaValidationError, ParkerConverter, BadgerFishConve
 from xmlschema.etree import ElementTree
 from xmlschema.converters import UnorderedConverter
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 VEHICLES_DICT = {
     '@xmlns:vh': 'http://example.com/vehicles',

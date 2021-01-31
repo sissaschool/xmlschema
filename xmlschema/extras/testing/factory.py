@@ -21,8 +21,8 @@ import os
 import fileinput
 import logging
 
-from ..cli import xsd_version_number, defuse_data
-from ..validators import XMLSchema10, XMLSchema11
+from xmlschema.cli import xsd_version_number, defuse_data
+from xmlschema.validators import XMLSchema10, XMLSchema11
 from .observers import ObservedXMLSchema10, ObservedXMLSchema11
 
 logger = logging.getLogger(__file__)

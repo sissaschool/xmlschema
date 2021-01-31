@@ -4,7 +4,7 @@ Testing
 
 The tests of the *xmlschema* library are implemented using the Python's *unitest*
 library. From version v1.1.0 the test scripts have been moved into the directory
-``tests/`` of the source distribution. Only a small subpackage *testing/*,
+``tests/`` of the source distribution. Only a small subpackage *extras/testing/*,
 containing a specialized UnitTest subclass, a factory and builders for creating test
 classes for XSD and XML file, has been left into the package's code.
 

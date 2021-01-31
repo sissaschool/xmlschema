@@ -20,7 +20,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
     XSD_ELEMENT, XSD_SIMPLE_TYPE, XSD_ANNOTATION, XSI_TYPE
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname
-from xmlschema.testing.helpers import iter_nested_items
+from xmlschema.extras.testing import iter_nested_items
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     raw_xml_encode, count_digits, strictly_equal, decimal_validator, \

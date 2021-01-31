@@ -13,7 +13,7 @@ if __name__ == '__main__':
     import os
     import platform
 
-    from xmlschema.testing import factory_tests, make_schema_test_class, \
+    from xmlschema.extras.testing import factory_tests, make_schema_test_class, \
         make_validation_test_class, get_test_program_args_parser
 
     DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')

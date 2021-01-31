@@ -17,7 +17,7 @@ from xmlschema import XMLSchema10, XMLSchema11
 from xmlschema.validators import XsdElement, ModelVisitor, XMLSchemaValidationError
 from xmlschema.validators.particles import ParticleMixin, ModelGroup
 from xmlschema.validators.models import distinguishable_paths
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 
 class TestModelValidation(XsdValidatorTestCase):

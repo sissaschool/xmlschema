@@ -19,7 +19,7 @@ except ImportError:
 
 from xmlschema import XMLSchema, XMLSchemaConverter
 from xmlschema.etree import etree_element
-from xmlschema.testing.helpers import etree_elements_assert_equal
+from xmlschema.extras.testing import etree_elements_assert_equal
 
 from xmlschema.converters import ColumnarConverter, DataElement, DataElementConverter
 

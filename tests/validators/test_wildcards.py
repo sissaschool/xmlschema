@@ -12,7 +12,7 @@ import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11, XsdDefaultOpenContent
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 
 class TestXsdWildcards(XsdValidatorTestCase):

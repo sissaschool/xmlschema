@@ -200,15 +200,6 @@ XML resources API
 
 .. autoclass:: xmlschema.XmlDocument
 
-.. autoclass:: xmlschema.wsdl.Wsdl11Document
-
-    .. autoattribute:: messages
-    .. autoattribute:: port_types
-    .. autoattribute:: bindings
-    .. autoattribute:: services
-
-
-
 
 .. _xpath-api:
 
@@ -383,3 +374,40 @@ Others
 .. autoclass:: xmlschema.validators.XsdAlternative
 .. autoclass:: xmlschema.validators.XsdNotation
 .. autoclass:: xmlschema.validators.XsdAnnotation
+
+
+.. _extra-api:
+
+Extra features API
+==================
+
+Code generators
+---------------
+
+.. autoclass:: xmlschema.extras.codegen.AbstractGenerator
+
+    .. autoattribute:: xsd_file
+    .. automethod:: register_filter
+    .. automethod:: register_test
+    .. automethod:: map_type
+    .. automethod:: list_templates
+    .. automethod:: matching_templates
+    .. automethod:: get_template
+    .. automethod:: select_template
+    .. automethod:: render
+    .. automethod:: render_to_files
+
+
+
+.. autoclass:: xmlschema.extras.codegen.PythonGenerator
+
+
+WSDL 1.1 documents
+------------------
+
+.. autoclass:: xmlschema.extras.wsdl.Wsdl11Document
+
+    .. autoattribute:: messages
+    .. autoattribute:: port_types
+    .. autoattribute:: bindings
+    .. autoattribute:: services

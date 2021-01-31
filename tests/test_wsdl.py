@@ -15,7 +15,7 @@ import os
 
 from xmlschema import XMLSchemaValidationError, XMLSchema10, XMLSchema11
 from xmlschema.etree import ElementTree, ParseError
-from xmlschema.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
+from xmlschema.extras.wsdl import WsdlParseError, WsdlComponent, WsdlMessage, \
     WsdlPortType, WsdlOperation, WsdlBinding, WsdlService, Wsdl11Document, \
     WsdlInput, SoapHeader
 

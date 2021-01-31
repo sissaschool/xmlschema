@@ -31,7 +31,7 @@ from xmlschema.etree import ElementTree, etree_element, py_etree_element, is_etr
 from xmlschema.names import XSD_NAMESPACE
 from xmlschema.resources import is_url, is_local_url, is_remote_url, \
     url_path_is_file, normalize_locations, LazySelector
-from xmlschema.testing import SKIP_REMOTE_TESTS
+from xmlschema.extras.testing import SKIP_REMOTE_TESTS
 
 
 TEST_CASES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_cases/')

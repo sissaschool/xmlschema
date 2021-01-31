@@ -12,7 +12,7 @@
 
 import os
 
-from xmlschema.testing import get_test_program_args_parser, \
+from xmlschema.extras.testing import get_test_program_args_parser, \
     factory_tests, make_schema_test_class
 
 DEFAULT_TESTFILES = os.path.join(os.path.dirname(__file__), 'test_cases/testfiles')

@@ -13,7 +13,7 @@ import unittest
 from xmlschema import XMLSchemaParseError, XMLSchemaValidationError
 from xmlschema.validators import XMLSchema11
 from xmlschema.validators.identities import IdentityCounter, KeyrefCounter
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 
 class TestXsdIdentities(XsdValidatorTestCase):

@@ -21,7 +21,7 @@ from xmlschema.etree import etree_element, etree_tostring, ElementTree
 from xmlschema.helpers import local_name, is_etree_element
 from xmlschema.validators.exceptions import XMLSchemaChildrenValidationError
 from xmlschema.validators import XMLSchema11
-from xmlschema.testing import XsdValidatorTestCase
+from xmlschema.extras.testing import XsdValidatorTestCase
 
 
 class TestEncoding(XsdValidatorTestCase):
