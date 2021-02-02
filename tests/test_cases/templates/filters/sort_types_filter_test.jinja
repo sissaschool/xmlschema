@@ -1,0 +1,3 @@
+{%- for type in ( schema.types|sort_types ) %}
+    {{- type.local_name }}
+{%- endfor %}
