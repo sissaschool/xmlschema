@@ -22,7 +22,8 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
 from ..etree import etree_element
 from ..helpers import get_qname, get_namespace, etree_iter_location_hints
-from ..converters import ElementData, XMLSchemaConverter
+from ..dataobjects import ElementData
+from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning

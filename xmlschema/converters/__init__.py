@@ -10,17 +10,16 @@
 """
 This subpackage contains converter classes.
 """
-from .default import ElementData, XMLSchemaConverter
+from .default import XMLSchemaConverter
 from .unordered import UnorderedConverter
 from .parker import ParkerConverter
 from .badgerfish import BadgerFishConverter
 from .abdera import AbderaConverter
 from .jsonml import JsonMLConverter
 from .columnar import ColumnarConverter
-from .dataelement import DataElement, DataElementConverter
+from .dataelement import DataElementConverter
 
-__all__ = ['ElementData', 'XMLSchemaConverter',
-           'UnorderedConverter', 'ParkerConverter',
-           'BadgerFishConverter', 'AbderaConverter',
-           'JsonMLConverter', 'ColumnarConverter',
-           'DataElement', 'DataElementConverter']
+__all__ = ['XMLSchemaConverter', 'UnorderedConverter',
+           'ParkerConverter', 'BadgerFishConverter',
+           'AbderaConverter', 'JsonMLConverter',
+           'ColumnarConverter', 'DataElementConverter']
