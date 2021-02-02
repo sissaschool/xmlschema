@@ -33,14 +33,13 @@ class UnorderedConverter(XMLSchemaConverter):
         """
         if level != 0:
             tag = xsd_element.name
-        elif not self.preserve_root:
-            tag = xsd_element.qualified_name
         else:
             tag = xsd_element.qualified_name
-            try:
-                obj = obj.get(tag, xsd_element.local_name)
-            except (KeyError, AttributeError, TypeError):
-                pass
+            if self.preserve_root and isinstance(obj, MutableMapping):
+                match_local_name = self.strip_namespaces or self.default_namespace
+                match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
+                if match is not None:
+                    obj = match
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:

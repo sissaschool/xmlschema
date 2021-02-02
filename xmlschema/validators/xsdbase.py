@@ -442,6 +442,39 @@ class XsdComponent(XsdValidator):
         """
         return self if self.is_matching(name, default_namespace, **kwargs) else None
 
+    def get_matching_item(self, mapping, ns_prefix='xmlns', match_local_name=False):
+        """
+        If a key is matching component name, returns its value, otherwise returns `None`.
+        """
+        if self.name is None:
+            return
+        elif not self.target_namespace:
+            return mapping.get(self.name)
+        elif self.qualified_name in mapping:
+            return mapping[self.qualified_name]
+        elif self.prefixed_name in mapping:
+            return mapping[self.prefixed_name]
+
+        # Try a match with other prefixes
+        target_namespace = self.target_namespace
+        suffix = ':%s' % self.local_name
+
+        for k in filter(lambda x: x.endswith(suffix), mapping):
+            prefix = k.split(':')[0]
+            if self.namespaces.get(prefix) == target_namespace:
+                return mapping[k]
+
+            # Match namespace declaration within value
+            ns_declaration = '{}:{}'.format(ns_prefix, prefix)
+            try:
+                if mapping[k][ns_declaration] == target_namespace:
+                    return mapping[k]
+            except (KeyError, TypeError):
+                pass
+        else:
+            if match_local_name:
+                return mapping.get(self.local_name)
+
     def get_global(self):
         """Returns the global XSD component that contains the component instance."""
         if self.parent is None:

@@ -13,6 +13,7 @@ import os
 import platform
 import re
 import lxml.etree
+from textwrap import dedent
 
 from xmlschema.validators import XsdValidator, XsdComponent, XMLSchema10, \
     XMLSchema11, XMLSchemaParseError, XMLSchemaValidationError, XsdGroup, XsdSimpleType
@@ -344,6 +345,44 @@ class TestXsdComponent(unittest.TestCase):
         self.assertFalse(xsd_element.is_matching('{%s}bikes' % self.schema.target_namespace))
         self.assertTrue(xsd_element.is_matching(name))
         self.assertIs(xsd_element.match(name), xsd_element)
+
+    def test_get_matching_item(self):
+        xsd_element = self.schema.elements['vehicles']
+
+        self.assertIsNone(xsd_element.get_matching_item({}))
+        self.assertTrue(xsd_element.get_matching_item({xsd_element.qualified_name: True}))
+        self.assertTrue(xsd_element.get_matching_item({xsd_element.prefixed_name: True}))
+
+        mapping = {xsd_element.local_name: True}
+        self.assertIsNone(xsd_element.get_matching_item(mapping))
+        self.assertTrue(xsd_element.get_matching_item(mapping, match_local_name=True))
+
+        mapping = {xsd_element.type.local_name: True}  # type.name is None
+        self.assertIsNone(xsd_element.type.get_matching_item(mapping, match_local_name=True))
+
+        mapping = {'vhs:vehicles': True}
+        self.assertIsNone(xsd_element.get_matching_item(mapping))
+
+        self.schema.namespaces['vhs'] = self.schema.target_namespace
+        try:
+            self.assertTrue(xsd_element.get_matching_item(mapping))
+        finally:
+            self.schema.namespaces.pop('vhs')
+
+        mapping = {'vhs:vehicles': {'xmlns:vhs': self.schema.target_namespace}}
+        self.assertIs(xsd_element.get_matching_item(mapping), mapping['vhs:vehicles'])
+
+        mapping = {'vhs:vehicles': {'xmlns:vhs': 'http://xmlschema.test/ns'}}
+        self.assertIsNone(xsd_element.get_matching_item(mapping))
+
+        schema = XMLSchema10(dedent("""\
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+              <xs:element name="root"/>
+            </xs:schema>"""))
+        xsd_element = schema.elements['root']
+
+        self.assertTrue(xsd_element.get_matching_item({'root': True}))
+        self.assertIsNone(xsd_element.get_matching_item({'rook': True}))
 
     def test_get_global(self):
         xsd_element = self.schema.elements['vehicles']

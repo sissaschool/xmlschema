@@ -103,7 +103,10 @@ class BadgerFishConverter(XMLSchemaConverter):
         try:
             element_data = obj[self.map_qname(xsd_element.name)]
         except KeyError:
-            element_data = obj
+            try:
+                element_data = obj[xsd_element.name]
+            except KeyError:
+                element_data = obj
 
         text = None
         content = []

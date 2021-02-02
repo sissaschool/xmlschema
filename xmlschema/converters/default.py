@@ -10,7 +10,7 @@
 from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
 
-from ..exceptions import XMLSchemaTypeError, XMLSchemaValueError
+from ..exceptions import XMLSchemaTypeError
 from ..names import XSI_NAMESPACE
 from ..etree import etree_element
 from ..namespaces import NamespaceMapper
@@ -308,32 +308,11 @@ class XMLSchemaConverter(NamespaceMapper):
             tag = xsd_element.name
         else:
             tag = xsd_element.qualified_name
-
             if self.preserve_root and isinstance(obj, MutableMapping):
-                #
-                # Match the XSD element with a dictionary key
-
-                local_name = xsd_element.local_name
-                if tag in obj:
-                    obj = obj[tag]
-                elif local_name in obj:
-                    obj = obj[local_name]
-                elif tag.startswith('{'):
-                    namespace = xsd_element.target_namespace
-
-                    for k in filter(lambda x: x.endswith(':%s' % local_name), obj):
-                        prefix = k.split(':')[0]
-                        if self.namespaces.get(prefix) == namespace:
-                            obj = obj[k]
-                            break
-
-                        ns_declaration = '{}:{}'.format(self.ns_prefix, prefix)
-                        try:
-                            if obj[k][ns_declaration] == namespace:
-                                obj = obj[k]
-                                break
-                        except (KeyError, TypeError):
-                            pass
+                match_local_name = self.strip_namespaces or self.default_namespace
+                match = xsd_element.get_matching_item(obj, self.ns_prefix, match_local_name)
+                if match is not None:
+                    obj = match
 
         if not isinstance(obj, MutableMapping):
             if xsd_element.type.simple_type is not None:

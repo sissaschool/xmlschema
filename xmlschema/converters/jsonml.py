@@ -78,8 +78,11 @@ class JsonMLConverter(XMLSchemaConverter):
                     self[''] = v
                 elif k.startswith('xmlns:'):
                     self[k.split('xmlns:')[1]] = v
-                else:
+
+            for k, v in obj[1].items():
+                if k != 'xmlns' and not k.startswith('xmlns:'):
                     attributes[self.unmap_qname(k, xsd_element.attributes)] = v
+
         except AttributeError:
             content_index = 1
         else:

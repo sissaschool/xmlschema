@@ -122,48 +122,36 @@ class DataElementConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
-        xsd_type = xsd_type or xsd_element.type
         data_element = DataElement(data.tag, value=data.text, nsmap=self.namespaces,
                                    xsd_element=xsd_element, xsd_type=xsd_type)
 
-        if xsd_type.model_group is not None:
+        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
+
+        if (xsd_type or xsd_element.type).model_group is not None:
             data_element.extend([
                 value if value is not None else self.list([name])
                 for name, value, _ in self.map_content(data.content)
             ])
 
-        data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
-        if level == 0 and xsd_element.is_global() and not self.strip_namespaces and self:
-            data_element.attrib.update(
-                ('xmlns:%s' % k if k else 'xmlns', v) for k, v in self._namespaces.items()
-            )
         return data_element
 
     def element_encode(self, data_element, xsd_element, level=0):
-        attributes = {}
+        self.namespaces.update(data_element.nsmap)
         if not xsd_element.is_matching(
                 self.unmap_qname(data_element.tag), self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
 
+        attributes = {self.unmap_qname(k, xsd_element.attributes): v
+                      for k, v in data_element.attrib.items()}
+
         data_len = len(data_element)
-        if not data_len and not data_element.attrib:
-            return ElementData(xsd_element.name, None, None, attributes)
-
-        for k, v in data_element.attrib.items():
-            if k == 'xmlns':
-                self[''] = v
-            elif k.startswith('xmlns:'):
-                self[k.split('xmlns:')[1]] = v
-            else:
-                attributes[self.unmap_qname(k, xsd_element.attributes)] = v
-
         if not data_len:
-            return ElementData(xsd_element.name, None, [], attributes)
+            return ElementData(xsd_element.name, data_element.value, None, attributes)
 
         elif data_len == 1 and \
                 (xsd_element.type.simple_type is not None or not
                  xsd_element.type.content and xsd_element.type.mixed):
-            return ElementData(xsd_element.name, data_element[0], [], attributes)
+            return ElementData(xsd_element.name, data_element.value, [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
             content = [
