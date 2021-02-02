@@ -10,8 +10,12 @@
 from abc import ABCMeta
 from collections import namedtuple
 from collections.abc import MutableSequence
+from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaValueError
+from .etree import etree_tostring
+from .names import XSD_ANY_TYPE
+from .helpers import get_namespace, get_prefixed_qname, local_name
 
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -54,6 +58,7 @@ class DataElement(MutableSequence):
         return self._children[i]
 
     def __setitem__(self, i, child):
+        assert isinstance(child, DataElement)
         self._children[i] = child
 
     def __delitem__(self, i):
@@ -63,6 +68,7 @@ class DataElement(MutableSequence):
         return len(self._children)
 
     def insert(self, i, child):
+        assert isinstance(child, DataElement)
         self._children.insert(i, child)
 
     def __repr__(self):
@@ -73,6 +79,7 @@ class DataElement(MutableSequence):
 
     @property
     def text(self):
+        """The string value of the data element."""
         if self.value is None:
             return
         elif self.value is True:
@@ -81,6 +88,32 @@ class DataElement(MutableSequence):
             return 'false'
         else:
             return str(self.value)
+
+    def get(self, key, default=None):
+        """Gets a data element attribute."""
+        return self.attrib.get(key, default)
+
+    @property
+    def namespace(self):
+        """The element's namespace."""
+        if self.xsd_element is None:
+            return get_namespace(self.tag)
+        return get_namespace(self.tag) or self.xsd_element.target_namespace
+
+    @property
+    def name(self):
+        """The element's name, that matches the tag."""
+        return self.tag
+
+    @property
+    def prefixed_name(self):
+        """The prefixed name, or the tag if no prefix is defined for its namespace."""
+        return get_prefixed_qname(self.tag, self.nsmap)
+
+    @property
+    def local_name(self):
+        """The local part of the tag."""
+        return local_name(self.tag)
 
     @property
     def xsd_type(self):
@@ -96,18 +129,83 @@ class DataElement(MutableSequence):
     def encode(self, **kwargs):
         if self.xsd_element is not None:
             return self.xsd_element.encode(self, **kwargs)
-        raise XMLSchemaValueError("{!r} has no schema bindings".format(self))
-        # TODO: handle _xsd_type is not xml_element.type
+
+        validation = kwargs.pop('validation', 'strict')
+        if validation != 'skip':
+            msg = "{!r} has no schema bindings and valition mode is not 'skip'"
+            raise XMLSchemaValueError(msg.format(self))
+
+        from xmlschema import XMLSchema
+        any_type = XMLSchema.builtin_types()['anyType']
+        return any_type.encode(self, **kwargs)
 
     to_etree = encode
 
+    def tostring(self, indent='', max_lines=None, spaces_for_tab=4):
+        """Serializes the data element tree to an XML source string."""
+        root, _ = self.encode(validation='lax')
+        return etree_tostring(root, self.nsmap, indent, max_lines, spaces_for_tab)
+
+    def find(self, path, namespaces=None):
+        """
+        Finds the first data element matching the path.
+
+        :param path: an XPath expression that considers the data element as the root.
+        :param namespaces: an optional mapping from namespace prefix to namespace URI.
+        :return: the first matching data element or ``None`` if there is no match.
+        """
+        parser = XPath2Parser(namespaces, strict=False)
+        context = XPathContext(self)
+        return next(parser.parse(path).select_results(context), None)
+
+    def findall(self, path, namespaces=None):
+        """
+        Finds all data elements matching the path.
+
+        :param path: an XPath expression that considers the data element as the root.
+        :param namespaces: an optional mapping from namespace prefix to full name.
+        :return: a list containing all matching data elements in document order, \
+        an empty list is returned if there is no match.
+        """
+        parser = XPath2Parser(namespaces, strict=False)
+        context = XPathContext(self)
+        return parser.parse(path).get_results(context)
+
+    def iterfind(self, path, namespaces=None):
+        """
+        Creates and iterator for all XSD subelements matching the path.
+
+        :param path: an XPath expression that considers the data element as the root.
+        :param namespaces: is an optional mapping from namespace prefix to full name.
+        :return: an iterable yielding all matching data elements in document order.
+        """
+        parser = XPath2Parser(namespaces, strict=False)
+        context = XPathContext(self)
+        return parser.parse(path).select_results(context)
+
     def iter(self, tag=None):
-        if tag is None:
-            tag = '*'
-        if tag == '*' or tag == self.tag:
+        """
+        Creates an iterator for the data element and its subelements. If tag
+        is not `None` or '*', only data elements whose matches tag are returned
+        from the iterator.
+        """
+        if tag == '*':
+            tag = None
+        if tag is None or tag == self.tag:
             yield self
         for child in self._children:
             yield from child.iter(tag)
+
+    def iterchildren(self, tag=None):
+        """
+        Creates an iterator for the child data elements. If *tag* is not `None` or '*',
+        only data elements whose name matches tag are returned from the iterator.
+        """
+        if tag == '*':
+            tag = None
+        for child in self:
+            if tag is None or tag == child.tag:
+                yield child
 
 
 class DataElementMeta(ABCMeta):
