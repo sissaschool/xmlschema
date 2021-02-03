@@ -19,6 +19,8 @@ from ..names import XSD_ANNOTATION, XSD_APPINFO, XSD_DOCUMENTATION, XML_LANG, \
     XSD_OVERRIDE, XSD_NOTATION_TYPE, XSD_DECIMAL
 from ..etree import is_etree_element, etree_tostring
 from ..helpers import get_qname, local_name, get_prefixed_qname
+from ..dataobjects import DataElement
+from ..converters import DataElementConverter
 from .exceptions import XMLSchemaParseError, XMLSchemaValidationError
 
 XSD_TYPE_DERIVATIONS = {'extension', 'restriction'}
@@ -851,6 +853,8 @@ class ValidationMixin:
         component, or also if it's invalid when ``validation='strict'`` is provided.
         """
         check_validation_mode(validation)
+        if 'converter' not in kwargs and isinstance(obj, DataElement):
+            kwargs['converter'] = DataElementConverter
 
         result, errors = None, []
         for result in self.iter_encode(obj, validation=validation, **kwargs):  # pragma: no cover

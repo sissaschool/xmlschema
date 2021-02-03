@@ -17,7 +17,8 @@ try:
 except ImportError:
     lxml_etree = None
 
-from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
+from xmlschema import XMLSchema, fetch_namespaces, etree_tostring
+from xmlschema.helpers import is_etree_element
 from xmlschema.dataobjects import DataElement
 from xmlschema.extras.testing import etree_elements_assert_equal
 
@@ -163,19 +164,49 @@ class TestDataElement(unittest.TestCase):
     def test_encode_to_element_tree(self):
         col_data = self.col_schema.decode(self.col_xml_filename)
 
-        root = col_data.encode()
-        self.assertIsNone(etree_elements_assert_equal(root, self.col_xml_root, strict=False))
+        obj = col_data.encode()
+        self.assertTrue(is_etree_element(obj))
+        self.assertIsInstance(etree_tostring(obj), str)
+        self.assertIsNone(etree_elements_assert_equal(obj, self.col_xml_root, strict=False))
 
-        unbind_data = DataElement('a')
-        unbind_data.append(DataElement('b1', 10))
-        unbind_data.append(DataElement('b2', 'alpha'))
-        unbind_data.append(DataElement('b3', True))
+        col_data.xsd_type = None
+        obj = col_data.encode()
+        self.assertTrue(is_etree_element(obj))
+        self.assertIsInstance(etree_tostring(obj), str)
+        self.assertIsNone(etree_elements_assert_equal(obj, self.col_xml_root, strict=False))
+
+        col_data.xsd_type = col_data.xsd_element.type
+        col_data.xsd_element = None
+        obj = col_data.encode()
+        self.assertTrue(is_etree_element(obj))
+        self.assertIsInstance(etree_tostring(obj), str)
+        self.assertIsNone(etree_elements_assert_equal(obj, self.col_xml_root, strict=False))
+
+        any_data = DataElement('a')
+        any_data.append(DataElement('b1', 1999))
+        any_data.append(DataElement('b2', 'alpha'))
+        any_data.append(DataElement('b3', True))
 
         with self.assertRaises(ValueError) as ec:
-            unbind_data.encode()
+            any_data.encode()
         self.assertIn("no schema bindings and valition mode is not 'skip'", str(ec.exception))
 
-        # root = unbind_data.encode(validation='skip')
+        root = ElementTree.XML('<a><b1>1999</b1><b2>alpha</b2><b3>true</b3></a>')
+
+        obj = any_data.encode(validation='skip')
+        self.assertTrue(is_etree_element(obj))
+        self.assertIsInstance(etree_tostring(obj), str)
+        self.assertIsNone(etree_elements_assert_equal(obj, root, strict=False))
+
+        any_data = DataElement('root', attrib={'a1': 49})
+        any_data.append(DataElement('child', 18.7, attrib={'a2': False}))
+
+        root = ElementTree.XML('<root a1="49"><child a2="false">18.7</child></root>')
+
+        obj = any_data.encode(validation='skip')
+        self.assertTrue(is_etree_element(obj))
+        self.assertIsInstance(etree_tostring(obj), str)
+        self.assertIsNone(etree_elements_assert_equal(obj, root, strict=False))
 
     def test_serialize_to_xml_source(self):
         col_data = self.col_schema.decode(self.col_xml_filename)

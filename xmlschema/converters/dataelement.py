@@ -37,9 +37,13 @@ class DataElementConverter(XMLSchemaConverter):
         return True
 
     def element_decode(self, data, xsd_element, xsd_type=None, level=0):
-        data_element = DataElement(data.tag, value=data.text, nsmap=self.namespaces,
-                                   xsd_element=xsd_element, xsd_type=xsd_type)
-
+        data_element = self.data_element_class(
+            tag=data.tag,
+            value=data.text,
+            nsmap=self.namespaces,
+            xsd_element=xsd_element,
+            xsd_type=xsd_type
+        )
         data_element.attrib.update((k, v) for k, v in self.map_attributes(data.attributes))
 
         if (xsd_type or xsd_element.type).model_group is not None:
@@ -52,8 +56,7 @@ class DataElementConverter(XMLSchemaConverter):
 
     def element_encode(self, data_element, xsd_element, level=0):
         self.namespaces.update(data_element.nsmap)
-        if not xsd_element.is_matching(
-                self.unmap_qname(data_element.tag), self._namespaces.get('')):
+        if not xsd_element.is_matching(data_element.tag, self._namespaces.get('')):
             raise XMLSchemaValueError("Unmatched tag")
 
         attributes = {self.unmap_qname(k, xsd_element.attributes): v
@@ -61,16 +64,16 @@ class DataElementConverter(XMLSchemaConverter):
 
         data_len = len(data_element)
         if not data_len:
-            return ElementData(xsd_element.name, data_element.value, None, attributes)
+            return ElementData(data_element.tag, data_element.value, None, attributes)
 
         elif data_len == 1 and \
                 (xsd_element.type.simple_type is not None or not
                  xsd_element.type.content and xsd_element.type.mixed):
-            return ElementData(xsd_element.name, data_element.value, [], attributes)
+            return ElementData(data_element.tag, data_element.value, [], attributes)
         else:
             cdata_num = iter(range(1, data_len))
             content = [
                 (self.unmap_qname(e.tag), e) if isinstance(e, self.data_element_class)
                 else (next(cdata_num), e) for e in data_element
             ]
-            return ElementData(xsd_element.name, None, content, attributes)
+            return ElementData(data_element.tag, None, content, attributes)

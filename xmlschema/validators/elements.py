@@ -21,13 +21,14 @@ from ..names import XSD_COMPLEX_TYPE, XSD_SIMPLE_TYPE, XSD_ALTERNATIVE, \
     XSD_ELEMENT, XSD_ANY_TYPE, XSD_UNIQUE, XSD_KEY, XSD_KEYREF, XSI_NIL, \
     XSI_TYPE, XSD_ERROR, XSD_NOTATION_TYPE
 from ..etree import etree_element
-from ..helpers import get_qname, get_namespace, etree_iter_location_hints
+from ..helpers import get_qname, get_namespace, etree_iter_location_hints, \
+    raw_xml_encode, strictly_equal
 from ..dataobjects import ElementData
 from ..converters import XMLSchemaConverter
 from ..xpath import XMLSchemaProxy, ElementPathMixin
 
 from .exceptions import XMLSchemaValidationError, XMLSchemaTypeTableWarning
-from .helpers import get_xsd_derivation_attribute, raw_xml_encode, strictly_equal
+from .helpers import get_xsd_derivation_attribute
 from .xsdbase import XSD_TYPE_DERIVATIONS, XSD_ELEMENT_DERIVATIONS, \
     XsdComponent, XsdType, ValidationMixin
 from .particles import ParticleMixin

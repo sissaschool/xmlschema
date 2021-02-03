@@ -14,8 +14,7 @@ from elementpath import XPathContext, XPath2Parser
 
 from .exceptions import XMLSchemaValueError
 from .etree import etree_tostring
-from .names import XSD_ANY_TYPE
-from .helpers import get_namespace, get_prefixed_qname, local_name
+from .helpers import get_namespace, get_prefixed_qname, local_name, raw_xml_encode
 
 
 ElementData = namedtuple('ElementData', ['tag', 'text', 'content', 'attributes'])
@@ -80,14 +79,7 @@ class DataElement(MutableSequence):
     @property
     def text(self):
         """The string value of the data element."""
-        if self.value is None:
-            return
-        elif self.value is True:
-            return 'true'
-        elif self.value is False:
-            return 'false'
-        else:
-            return str(self.value)
+        return raw_xml_encode(self.value)
 
     def get(self, key, default=None):
         """Gets a data element attribute."""
@@ -127,15 +119,23 @@ class DataElement(MutableSequence):
         self._xsd_type = xsd_type
 
     def encode(self, **kwargs):
-        if self.xsd_element is not None:
+        if self._xsd_type is None:
+            if self.xsd_element is not None:
+                return self.xsd_element.encode(self, **kwargs)
+        elif self.xsd_element is not None and self.xsd_element.type is self._xsd_type:
             return self.xsd_element.encode(self, **kwargs)
+        else:
+            xsd_element = self._xsd_type.schema.create_element(
+                self.tag, parent=self._xsd_type, form='unqualified'
+            )
+            xsd_element.type = self._xsd_type
+            return xsd_element.encode(self, **kwargs)
 
-        validation = kwargs.pop('validation', 'strict')
-        if validation != 'skip':
+        if kwargs.get('validation') != 'skip':
             msg = "{!r} has no schema bindings and valition mode is not 'skip'"
             raise XMLSchemaValueError(msg.format(self))
 
-        from xmlschema import XMLSchema
+        from . import XMLSchema
         any_type = XMLSchema.builtin_types()['anyType']
         return any_type.encode(self, **kwargs)
 
