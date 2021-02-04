@@ -132,8 +132,6 @@ The base class `XMLSchemaConverter` is used for defining generic converters.
 The subclasses implement some of the most used `conventions for converting XML
 to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 
-.. autoclass:: xmlschema.converters.ElementData
-
 .. autoclass:: xmlschema.XMLSchemaConverter
 
     .. autoattribute:: lossy
@@ -160,6 +158,15 @@ to JSON data <http://wiki.open311.org/JSON_and_XML_Conversion/>`_.
 .. autoclass:: xmlschema.JsonMLConverter
 
 .. autoclass:: xmlschema.ColumnarConverter
+
+.. autoclass:: xmlschema.DataElementConverter
+
+
+Data objects API
+================
+
+.. autoclass:: xmlschema.ElementData
+.. autoclass:: xmlschema.DataElement
 
 
 .. _xml-resource-api:

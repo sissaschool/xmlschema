@@ -2,12 +2,14 @@
 Extra features
 **************
 
-The subpackage *xmlschema.extras* contains a set of extra modules or subpackages
-required for specific needs.
-These codes are not imported during normal library usage and may require additional
-dependencies to be installed. This choice facilitate the library users to pull
-other code to the library without burdening the loading of the package.
-In any case any contribution is encouraged providing well formatted and tested code.
+The subpackage *xmlschema.extras* contThe subpackage *xmlschema.extras*
+acts as a container of a set of extra modules or subpackages that can be
+useful for specific needs.
+
+These codes are not imported during normal library usage and may require
+additional dependencies to be installed. This choice should be facilitate
+the implementation of other optional functionalities without having an
+impact on the base configuration.
 
 .. testsetup::
 
@@ -22,22 +24,17 @@ In any case any contribution is encouraged providing well formatted and tested c
 
 .. _code-generators:
 
-Code generation with Jinja2 templates
-=====================================
+Code generation with Jinja2 templates (experimental)
+====================================================
 
-Provides a base class and a sample for generating source code from parsed
-XSD schemas. The Jinja2 engine il empowered with a set of custom filters
-and tests for accessing schema components information (PSVI).
-Located into module *xmlschema.extras.codegen*
+The module *xmlschema.extras.codegen* provides an abstract base class
+:class:`AbstractGenerator` for generate source code from parsed XSD
+schemas. The Jinja2 engine is embedded in that class and empowered
+with a set of custom filters and tests for accessing to defined XSD
+schema components.
 
-Usage
-=====
-
-.. doctest::
-
-    >>> from xmlschema.extras.codegen import PythonGenerator
-    >>> codegen = PythonGenerator('tests/test_cases/examples/collection/collection.xsd')
-    >>> # TODO ... codegen.render_to_files('*', output_dir='./output')
+.. note::
+    This extra feature is still in experimental stage.
 
 
 Schema based filters
@@ -55,7 +52,7 @@ qname
     chars for identifiers are replaced by an underscore.
 
 namespace
-    Get the namespace URI associated to the object.
+    Get the namespace URI of the XSD component.
 
 type_name
     Get the unqualified name of an XSD type. For default
@@ -75,42 +72,36 @@ sort_types
 Type mapping
 ------------
 
-Each concrete generator class must have an additional filter for translating
-types using an extendable map. For example :class:`PythonGenerator` has a
-filter *python_type*.
+Each implementation of a generator class has an additional filter for translating
+types using the types map of the instance. For example a :class:`PythonGenerator`
+has the filter *python_type*.
 
-These filters are based on a common method *map_type* that uses the instance dictionary
-called *types_map*, built at initialization time from a class maps for builtin types
-and for schema types and an optional initialization argument.
+These filters are based on a common method *map_type* that uses an instance
+dictionary built at initialization time from a class maps for builtin types
+and an optional initialization argument for the types defined in the schema.
 
 
-Defining additional filters
----------------------------
+Defining additional Jinja2 filters and tests
+--------------------------------------------
 
-Additional or overriding filters can be passed at instance creation using the argument
-*filters*. If you want to derive a custom generator class you can provide your additional
-filters also using class decorator function or decorating a method.
+Defining a generator class you can add filters and tests using *filter_method*
+and *test_method* decorators:
 
 .. doctest::
 
-    >>> from xmlschema.extras.codegen import AbstractGenerator, filter_method
+    >>> from xmlschema.extras.codegen import AbstractGenerator, filter_method, test_method
     >>>
-    >>> class FooGenerator(AbstractGenerator):
-    ...     formal_language = 'Foo'
+    >>> class DemoGenerator(AbstractGenerator):
+    ...     formal_language = 'Demo'
     ...
     ...     @filter_method
     ...     def my_filter_method(self, obj):
     ...         """A method that filters an object using the schema."""
     ...
     ...     @staticmethod
-    ...     @filter_method
-    ...     def my_static_test_method(obj):
-    ...         """A static method that filters an object."""
-    ...
-    >>>
-    >>> @FooGenerator.register_filter
-    ... def my_test_function(obj):
-    ...     """A function that filters an object."""
+    ...     @test_method
+    ...     def my_test_method(obj):
+    ...         """A static method that test an object."""
     ...
 
 
@@ -120,7 +111,7 @@ WSDL 1.1 documents
 ==================
 
 The module *xmlschema.extras.wsdl* provides a specialized schema-related
-XML document through
+XML document for WSDL 1.1.
 
 An example of
 specialization is the class :class:`Wsdl11Document`, usable for validating and

@@ -7,6 +7,10 @@
 #
 # @author Davide Brunato <brunato@sissa.it>
 #
+"""
+This module contains abstact base class and helper
+functions for building XSD based code generators.
+"""
 import os
 import re
 import sys
@@ -23,7 +27,6 @@ from xmlschema.validators import XsdType, XsdElement, XsdAttribute
 from xmlschema.names import XSD_NAMESPACE
 
 
-NAME_PATTERN = re.compile(r'^(?:[^\d\W]|:)[\w.\-:]*$')
 NCNAME_PATTERN = re.compile(r'^[^\d\W][\w.\-]*$')
 QNAME_PATTERN = re.compile(
     r'^(?:(?P<prefix>[^\d\W][\w\-.\xb7\u0387\u06DD\u06DE]*):)?'
@@ -31,8 +34,8 @@ QNAME_PATTERN = re.compile(
 )
 
 
-def is_shell_wildcard(name):
-    return '*' in name or '?' in name or '[' in name
+def is_shell_wildcard(pathname):
+    return '*' in pathname or '?' in pathname or '[' in pathname
 
 
 def xsd_qname(name):
@@ -51,7 +54,7 @@ def test_method(func):
     return func
 
 
-logger = logging.getLogger('xsdtools')
+logger = logging.getLogger('xmlschema-codegen')
 logging_formatter = logging.Formatter('[%(levelname)s] %(message)s')
 logging_handler = logging.StreamHandler(sys.stderr)
 logging_handler.setFormatter(logging_formatter)
@@ -59,74 +62,48 @@ logger.addHandler(logging_handler)
 
 
 class GeneratorMeta(ABCMeta):
-    """Metaclass for creating code generators."""
+    """Metaclass for creating code generators. Checks formal_language """
 
     def __new__(mcs, name, bases, attrs):
-        module = attrs['__module__']
-        try:
-            module_path = sys.modules[module].__file__
-        except AttributeError:
-            module_path = os.getcwd()
+        module = sys.modules.get(attrs['__module__'])
+        module_path = getattr(module, '__file__', os.getcwd())
 
         formal_language = None
-        default_paths = []
-        default_filters = {}
-        default_tests = {}
+        searchpaths = []
         builtin_types = {}
+
         for base in bases:
             if getattr(base, 'formal_language', None):
                 if formal_language is None:
                     formal_language = base.formal_language
                 elif formal_language != base.formal_language:
-                    msg = "Ambiguous formal_language from {!r} base classes"
-                    raise ValueError(msg.format(name))
+                    raise ValueError("ambiguous formal_language from base classes")
 
-            if getattr(base, 'default_paths', None):
-                default_paths.extend(base.default_paths)
-            if hasattr(base, 'default_filters'):
-                default_filters.update(base.default_filters)
-            if hasattr(base, 'default_tests'):
-                default_tests.update(base.default_tests)
+            if getattr(base, 'searchpaths', None):
+                searchpaths.extend(base.searchpaths)
             if getattr(base, 'builtin_types', None):
                 builtin_types.update(base.builtin_types)
 
         if 'formal_language' not in attrs:
             attrs['formal_language'] = formal_language
-        elif formal_language:
-            msg = "formal_language can be defined only once for each generator class hierarchy"
-            raise ValueError(msg)
+        elif formal_language and formal_language != attrs['formal_language']:
+            raise ValueError("formal_language cannot be changed")
 
         try:
-            for path in attrs['default_paths']:
+            for path in attrs['searchpaths']:
                 if Path(path).is_absolute():
                     dirpath = Path(path)
                 else:
                     dirpath = Path(module_path).parent.joinpath(path)
 
                 if not dirpath.is_dir():
-                    raise ValueError("Path {!r} is not a directory!".format(str(path)))
-                default_paths.append(dirpath)
+                    raise ValueError("path {!r} is not a directory!".format(str(path)))
+                searchpaths.append(dirpath)
 
         except (KeyError, TypeError):
             pass
         else:
-            attrs['default_paths'] = default_paths
-
-        for k, v in attrs.items():
-            if inspect.isfunction(v):
-                if getattr(v, 'is_filter', False):
-                    default_filters[k] = v
-                elif getattr(v, 'is_test', False):
-                    default_tests[k] = v
-            elif inspect.isroutine(v):
-                # static and class methods
-                if getattr(v.__func__, 'is_filter', False):
-                    default_filters[k] = v
-                elif getattr(v.__func__, 'is_test', False):
-                    default_tests[k] = v
-
-        attrs['default_filters'] = default_filters
-        attrs['default_tests'] = default_tests
+            attrs['searchpaths'] = searchpaths
 
         try:
             for k, v in attrs['builtin_types'].items():
@@ -134,8 +111,6 @@ class GeneratorMeta(ABCMeta):
         except (KeyError, AttributeError):
             pass
         finally:
-            if not builtin_types and not name.startswith('Abstract'):
-                raise ValueError("Empty builtin_types for {}".format(name))
             attrs['builtin_types'] = builtin_types
 
         return type.__new__(mcs, name, bases, attrs)
@@ -143,77 +118,49 @@ class GeneratorMeta(ABCMeta):
 
 class AbstractGenerator(ABC, metaclass=GeneratorMeta):
     """
-    Abstract base class for code generators. A generator works using the
-    Jinja2 template engine by an Environment instance.
+    Abstract base class for code generators based on Jinja2 template engine.
 
-    :param schema: the XSD schema instance.
-    :param searchpath: additional search path for custom templates.
-    :param filters: additional custom filter functions.
-    :param tests: additional custom tests functions.
+    :param schema: the source or the instance of the XSD schema.
+    :param searchpath: additional search path for custom templates. \
+    If provided the search path has priority over searchpaths defined \
+    in generator class.
     :param types_map: a dictionary with custom mapping for XSD types.
     """
     formal_language = None
-    """The formal language associated to the code generator."""
+    """The formal language associated to the code generator (eg. Python)."""
 
-    default_paths = None
-    """Default paths for templates."""
-
-    default_filters = None
-    """Default filter functions."""
-
-    default_tests = None
-    """Default test functions."""
+    searchpaths = None
+    """
+    Directory paths for searching templates, specified with a list or a tuple. 
+    Each path must be provided as relative from the directory of the module 
+    where the class is defined. Extends the searchpath defined in base classes. 
+    """
 
     builtin_types = {
         'anyType': '',
         'anySimpleType': '',
     }
-    """Translation map for XSD builtin types."""
+    """
+    Translation map for XSD builtin types. Updates the builtin_types 
+    defined in base classes.
+    """
 
-    def __init__(self, schema, searchpath=None, filters=None, tests=None, types_map=None):
+    def __init__(self, schema, searchpath=None, types_map=None):
         if isinstance(schema, xmlschema.XMLSchemaBase):
             self.schema = schema
         else:
-            self.schema = xmlschema.XMLSchema(schema)
+            self.schema = xmlschema.XMLSchema11(schema)
 
-        self.searchpath = searchpath
         file_loaders = []
-        if searchpath is not None:
+        if searchpath:
             file_loaders.append(FileSystemLoader(searchpath))
-        if isinstance(self.default_paths, list):
+        if self.searchpaths:
             file_loaders.extend(
-                FileSystemLoader(str(path)) for path in reversed(self.default_paths)
+                FileSystemLoader(str(path)) for path in reversed(self.searchpaths)
             )
-
         if not file_loaders:
-            raise ValueError("At least one search path required for generator instance!")
+            raise ValueError("no search paths defined!")
         loader = ChoiceLoader(file_loaders) if len(file_loaders) > 1 else file_loaders[0]
-
-        self.filters = dict(self.default_filters)
-        for name, func in self.default_filters.items():
-            if isinstance(func, (staticmethod, classmethod)) or \
-                    func.__name__ != func.__qualname__:
-                # Replace unbound method with instance bound one
-                self.filters[name] = getattr(self, name)
-            else:
-                self.filters[name] = func
-        if filters:
-            self.filters.update(filters)
-
-        self.tests = dict(self.default_tests)
-        for name, func in self.default_tests.items():
-            if isinstance(func, (staticmethod, classmethod)) or \
-                    func.__name__ != func.__qualname__:
-                # Replace unbound method with instance bound one
-                self.tests[name] = getattr(self, name)
-            else:
-                self.tests[name] = func
-        if tests:
-            self.tests.update(tests)
-
-        type_mapping_filter = '{}_type'.format(self.formal_language).lower().replace(' ', '_')
-        if type_mapping_filter not in self.filters:
-            self.filters[type_mapping_filter] = self.map_type
 
         self.types_map = self.builtin_types.copy()
         if types_map:
@@ -223,33 +170,35 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
                 ns_part = '{%s}' % self.schema.target_namespace
                 self.types_map.update((ns_part + k, v) for k, v in types_map.items())
 
+        self.filters = {}
+        self.tests = {}
+        for name in filter(lambda x: callable(getattr(self, x)), dir(self)):
+            method = getattr(self, name)
+            if inspect.isfunction(method):
+                # static methods
+                if getattr(method, 'is_filter', False):
+                    self.filters[name] = method
+                elif getattr(method, 'is_test', False):
+                    self.tests[name] = method
+            elif inspect.isroutine(method) and hasattr(method, '__func__'):
+                # class and instance methods
+                if getattr(method.__func__, 'is_filter', False):
+                    self.filters[name] = method
+                elif getattr(method.__func__, 'is_test', False):
+                    self.tests[name] = method
+
+        type_mapping_filter = '{}_type'.format(self.formal_language).lower().replace(' ', '_')
+        if type_mapping_filter not in self.filters:
+            self.filters[type_mapping_filter] = self.map_type
+
         self._env = Environment(loader=loader)
         self._env.filters.update(self.filters)
         self._env.tests.update(self.tests)
 
     def __repr__(self):
-        return '%s(xsd_file=%r, searchpath=%r)' % (
-            self.__class__.__name__, self.xsd_file, self.searchpath
-        )
-
-    @classmethod
-    def register_filter(cls, func):
-        """Registers a function as default filter for the code generator."""
-        cls.default_filters[func.__name__] = func
-        func.is_filter = True
-        return func
-
-    @classmethod
-    def register_test(cls, func):
-        """Registers a function as default test for the code generator."""
-        cls.default_tests[func.__name__] = func
-        func.is_test = True
-        return func
-
-    @property
-    def xsd_file(self):
-        url = self.schema.url
-        return os.path.basename(url) if url else None
+        if self.schema.url:
+            return '%s(schema=%r)' % (self.__class__.__name__, self.schema.name)
+        return '%s(namespace=%r)' % (self.__class__.__name__, self.schema.target_namespace)
 
     def list_templates(self, extensions=None, filter_func=None):
         return self._env.list_templates(extensions, filter_func)
@@ -599,23 +548,3 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         if xsd_type.has_simple_content():
             return False
         return any(e.is_multiple() for e in xsd_type.content_type.iter_elements())
-
-
-class PythonGenerator(AbstractGenerator):
-    """
-    Python code generic generator for XSD schemas.
-    """
-    formal_language = 'Python'
-
-    default_paths = ['templates/python/']
-
-    builtin_types = {
-        'string': 'str',
-        'boolean': 'bool',
-        'float': 'float',
-        'double': 'float',
-        'integer': 'int',
-        'unsignedByte': 'int',
-        'nonNegativeInteger': 'int',
-        'positiveInteger': 'int',
-    }
