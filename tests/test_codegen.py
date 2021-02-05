@@ -13,6 +13,7 @@
 import unittest
 import datetime
 import ast
+import platform
 from pathlib import Path
 from textwrap import dedent
 from xmlschema import XMLSchema10, XMLSchema11
@@ -157,6 +158,8 @@ class TestAbstractGenerator(unittest.TestCase):
 
         self.assertEqual(DemoGenerator3.formal_language, 'Demo')
 
+    @unittest.skipIf(platform.system() == 'Windows',
+                     'Avoiding unnecessary tests on Windows file paths ...')
     def test_searchpaths(self):
         self.assertIsInstance(DemoGenerator.searchpaths, list)
         self.assertTrue(str(DemoGenerator.searchpaths[0]).endswith('templates/demo'))
