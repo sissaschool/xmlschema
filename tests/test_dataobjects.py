@@ -20,7 +20,7 @@ except ImportError:
 from xmlschema import XMLSchema, fetch_namespaces, etree_tostring
 from xmlschema.helpers import is_etree_element
 from xmlschema.dataobjects import DataElement
-from xmlschema.extras.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import DataElementConverter
 

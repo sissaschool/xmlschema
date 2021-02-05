@@ -12,6 +12,7 @@
 
 import unittest
 import datetime
+import ast
 from pathlib import Path
 from textwrap import dedent
 from xmlschema import XMLSchema10, XMLSchema11
@@ -342,6 +343,13 @@ class TestPythonGenerator(TestAbstractGenerator):
         self.assertListEqual(
             self.generator.render('python_type_filter_test.jinja'), ['str']
         )
+
+    def test_sample_module(self):
+        generator = PythonGenerator(self.col_xsd_file)
+
+        python_module = generator.render('sample.py.jinja')[0]
+        ast_module = ast.parse(python_module)
+        self.assertIsInstance(ast_module, ast.Module)
 
 
 if __name__ == '__main__':

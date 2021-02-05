@@ -13,7 +13,7 @@ import unittest
 from xmlschema import XMLSchemaParseError, XMLSchemaModelError
 from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchema11
-from xmlschema.extras.testing import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdComplexType(XsdValidatorTestCase):

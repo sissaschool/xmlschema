@@ -131,9 +131,9 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
 
     searchpaths = None
     """
-    Directory paths for searching templates, specified with a list or a tuple. 
-    Each path must be provided as relative from the directory of the module 
-    where the class is defined. Extends the searchpath defined in base classes. 
+    Directory paths for searching templates, specified with a list or a tuple.
+    Each path must be provided as relative from the directory of the module
+    where the class is defined. Extends the searchpath defined in base classes.
     """
 
     builtin_types = {
@@ -141,7 +141,7 @@ class AbstractGenerator(ABC, metaclass=GeneratorMeta):
         'anySimpleType': '',
     }
     """
-    Translation map for XSD builtin types. Updates the builtin_types 
+    Translation map for XSD builtin types. Updates the builtin_types
     defined in base classes.
     """
 

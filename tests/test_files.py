@@ -17,7 +17,7 @@ if __name__ == '__main__':
     import argparse
 
     from xmlschema import XMLSchema10, XMLSchema11
-    from xmlschema.extras.testing import xsd_version_number, defuse_data, \
+    from xmlschema.testing import xsd_version_number, defuse_data, \
         make_schema_test_class, make_validation_test_class
 
     parser = argparse.ArgumentParser(add_help=True)

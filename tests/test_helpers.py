@@ -21,7 +21,7 @@ from xmlschema.names import XSD_NAMESPACE, XSI_NAMESPACE, XSD_SCHEMA, \
 from xmlschema.helpers import prune_etree, get_namespace, get_qname, \
     local_name, get_prefixed_qname, get_extended_qname, raw_xml_encode, \
     count_digits, strictly_equal
-from xmlschema.extras.testing import iter_nested_items
+from xmlschema.testing import iter_nested_items
 from xmlschema.validators.exceptions import XMLSchemaValidationError
 from xmlschema.validators.helpers import get_xsd_derivation_attribute, \
     decimal_validator, qname_validator, \

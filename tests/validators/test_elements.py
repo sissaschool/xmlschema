@@ -12,7 +12,7 @@ import unittest
 
 from xmlschema import XMLSchemaParseError
 from xmlschema.validators import XMLSchema11
-from xmlschema.extras.testing import XsdValidatorTestCase
+from xmlschema.testing import XsdValidatorTestCase
 
 
 class TestXsdElements(XsdValidatorTestCase):

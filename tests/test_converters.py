@@ -20,7 +20,7 @@ except ImportError:
 from xmlschema import XMLSchema, XMLSchemaValidationError, fetch_namespaces
 from xmlschema.etree import etree_element
 from xmlschema.dataobjects import DataElement
-from xmlschema.extras.testing import etree_elements_assert_equal
+from xmlschema.testing import etree_elements_assert_equal
 
 from xmlschema.converters import XMLSchemaConverter, UnorderedConverter, \
     ParkerConverter, BadgerFishConverter, AbderaConverter, JsonMLConverter, \

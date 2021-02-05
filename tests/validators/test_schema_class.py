@@ -23,7 +23,7 @@ from xmlschema import XMLSchemaParseError, XMLSchemaIncludeWarning, XMLSchemaImp
 from xmlschema.names import XML_NAMESPACE, LOCATION_HINTS, SCHEMAS_DIR, XSD_ELEMENT, XSI_TYPE
 from xmlschema.etree import etree_element
 from xmlschema.validators import XMLSchemaBase, XMLSchema11, XsdGlobals
-from xmlschema.extras.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
+from xmlschema.testing import SKIP_REMOTE_TESTS, XsdValidatorTestCase
 from xmlschema.validators.schema import logger, XMLSchemaNotBuiltError
 
 
